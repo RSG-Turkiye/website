@@ -1,88 +1,75 @@
-html {
-    background-color: #f1f5f9;
-    font-family: sans-serif;
-  }
-  
-  body {
-    margin: 0 auto;
-    width: 100%;
-    max-width: 60%;
-    padding: 1rem;
-    line-height: 1.5;
-  }
-  
-  * {
-    box-sizing: border-box;
-  }
-  
-  h1 {
-    margin: 1rem 0;
-    font-size: 2.5rem;
-  }
+/* Import Bootstrap */
+@import url('https://cdn.jsdelivr.net/npm/bootstrap@5.3.4/dist/css/bootstrap.min.css');
 
-
-/* nav styles */
-.hamburger {
-  padding-right: 20px;
-  cursor: pointer;
-}
-
-.hamburger .line {
-  display: block;
-  width: 40px;
-  height: 5px;
-  margin-bottom: 10px;
-  background-color: #ff9776;
-}
-.nav-links {
-  width: 100%;
-  top: 5rem;
-  left: 48px;
-  background-color: #ff9776;
-  display: none;
+/* Global Styles */
+html, body {
+  font-family: 'Roboto', sans-serif;
+  background-color: #f8f9fa;
   margin: 0;
+  padding: 0;
 }
 
-.nav-links a {
+.hero {
+  background-color: #212529;
+  color: white;
+}
+
+.features {
+  background-color: #f8f9fa;
+}
+
+.feature-card {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card img {
   display: block;
-  text-align: center;
-  padding: 10px 0;
-  text-decoration: none;
-  font-size: 1.2rem;
-  font-weight: bold;
-  text-transform: uppercase;
+  margin: 0 auto;
 }
 
-.nav-links a:hover,
-.nav-links a:focus {
-  background-color: #ff9776;
+.feature-card h3 {
+  color: #212529;
 }
 
-.expanded {
-  display: unset;
+.feature-card p {
+  color: #6c757d;
 }
 
-@media screen and (min-width: 636px) {
-  .nav-links {
-    margin-left: 5em;
-    display: block;
-    position: static;
-    width: auto;
-    background: none;
-  }
-
-  .nav-links a {
-    display: inline-block;
-    padding: 15px 20px;
-  }
-
+header {
+  background-color: #212529;
+  color: white;
 }
 
-html.dark {
-  background-color: #0d0950;
-  color: #fff;
+.navbar-brand img {
+  height: 40px;
 }
 
-.dark .nav-links a {
-  color: #fff;
+.nav-link {
+  color: white;
+  margin: 0 10px;
+}
+
+.nav-link:hover {
+  color: #00d1b2;
+}
+
+.btn-success {
+  background-color: #00d1b2;
+  border-color: #00d1b2;
+}
+
+.btn-success:hover {
+  background-color: #00a88f;
+  border-color: #00a88f;
+}
+
+.navbar-toggler {
+  border: none;
+}
+
+.navbar-toggler-icon {
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba%28255, 255, 255, 0.5%29' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
 }

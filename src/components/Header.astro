@@ -1,13 +1,89 @@
 ---
-import Hamburger from './Hamburger.astro';
-import Navigation from './Navigation.astro';
 import ThemeIcon from './ThemeIcon.astro';
 
 ---
-<header>
-  <nav>
-    <Hamburger />
+<header class="bg-dark text-white">
+  <div class="container py-3 d-flex align-items-center justify-content-between">
+    <!-- Logo -->
+    <a class="navbar-brand d-flex align-items-center" href="/">
+      <img src="../../public/logo/rsgturkey_logo.jpeg" alt="RSG Turkey Logo" height="40" class="me-2" />
+      <span class="fs-4">RSG Turkey</span>
+    </a>
+
+    <!-- Navigation -->
+    <nav class="d-none d-lg-flex">
+      <ul class="nav">
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/about">About</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a
+            class="nav-link dropdown-toggle text-white"
+            href="/blog"
+            id="blogDropdown"
+            role="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            Blog
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="blogDropdown">
+            <li><a class="dropdown-item" href="/blog">All Posts</a></li>
+            <li><a class="dropdown-item" href="/tags">Tags</a></li>
+          </ul>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/contact">Contact</a>
+        </li>
+      </ul>
+    </nav>
+    <div style="width: 1px; height: 40px; background-color: gray; margin: 0 -20px;"></div>
+
+    <!-- Call-to-Action Button -->
+    <a href="/join" class="btn btn-success btn-sm d-none d-lg-inline-block">Join Us</a>
+
+    <!-- Theme Toggle -->
     <ThemeIcon />
-    <Navigation />
-  </nav>
+
+    <!-- Hamburger Menu for Mobile -->
+    <button
+      class="navbar-toggler d-lg-none"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#mobileMenu"
+      aria-controls="mobileMenu"
+      aria-expanded="false"
+      aria-label="Toggle navigation"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+  </div>
+
+  <!-- Mobile Menu -->
+  <div class="collapse bg-dark" id="mobileMenu">
+    <ul class="nav flex-column text-center py-3">
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/about">About</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/blog">Blog</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/tags">Tags</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/contact">Contact</a>
+      </li>
+      <li class="nav-item">
+        <a class="btn btn-success btn-sm" href="/join">Join Us</a>
+      </li>
+    </ul>
+  </div>
+  
 </header>

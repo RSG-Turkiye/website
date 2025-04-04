@@ -1,11 +1,54 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Greeting from '../components/Greetings';
-const pageTitle = "Home Page";
+const pageTitle = "Welcome to RSG Turkey";
 ---
 <BaseLayout pageTitle={pageTitle}>
-  <h2>My awesome blog subtitle</h2>
-  <Greeting client:load messages={["Hej", "Hallo", "Hola", "Habari"]} />
+  <!-- Hero Section -->
+  <section class="hero text-center text-white py-5">
+    <div class="container">
+      <h1 class="display-4 fw-bold">RSG Turkey</h1>
+      <p class="lead">
+        A community empowering bioinformatics students and researchers in Turkey.
+      </p>
+      <div class="mt-4">
+        <a href="/about" class="btn btn-success btn-lg me-3">Learn More</a>
+        <a href="/blog" class="btn btn-outline-light btn-lg">Visit Blog</a>
+      </div>
+    </div>
+  </section>
 
-
+  <!-- Features Section -->
+  <section class="features py-5">
+    <div class="container">
+      <div class="row text-center">
+        <div class="col-md-4">
+          <div class="feature-card p-4">
+            <img src="/icons/facilities.svg" alt="Facilities" class="mb-3" width="50" />
+            <h3>For Facilities</h3>
+            <p>
+              Highly optimized pipelines with excellent reporting. Validated releases ensure reproducibility.
+            </p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="feature-card p-4">
+            <img src="/icons/users.svg" alt="Users" class="mb-3" width="50" />
+            <h3>For Users</h3>
+            <p>
+              Portable, documented, and easy-to-use workflows. Pipelines you can trust.
+            </p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="feature-card p-4">
+            <img src="/icons/developers.svg" alt="Developers" class="mb-3" width="50" />
+            <h3>For Developers</h3>
+            <p>
+              Companion templates and tools to validate your code and simplify common tasks.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
