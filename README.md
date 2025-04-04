@@ -1,7 +1,7 @@
 
-# 🚀 RSG Turkey Blog [IN PROGRESS] (From scratch!)
+# 🚀 RSG Turkey Main Website [IN PROGRESS] (From scratch!)
 
-Welcome to the **RSG Turkey Blog**—a space for bioinformatics insights, tutorials, and community updates! Built with [Astro](https://astro.build) for performance and simplicity. 
+Welcome to the **RSG Turkey Website**—a space for bioinformatics insights, tutorials, and community updates! Built with [Astro](https://astro.build) for performance and simplicity. 
 
 ## 🌍 Getting Started
 
