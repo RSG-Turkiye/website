@@ -4,22 +4,58 @@
 /* Global Styles */
 html, body {
   font-family: 'Roboto', sans-serif;
-  background-color: #f8f9fa;
   margin: 0;
   padding: 0;
 }
 
+html {
+  --bg-color: #f8f9fa;
+  --text-color: #212529;
+  --link-color: #00539F;
+  --btn-bg-color: #00d1b2;
+  --btn-hover-bg-color: #00a88f;
+}
+
+html.dark {
+  --bg-color: #212529;
+  --text-color: #f8f9fa;
+  --link-color: #00d1b2;
+  --btn-bg-color: #00539F;
+  --btn-hover-bg-color: #003f7f;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+a {
+  color: var(--link-color);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.btn-success {
+  background-color: var(--btn-bg-color);
+  border-color: var(--btn-bg-color);
+}
+
+.btn-success:hover {
+  background-color: var(--btn-hover-bg-color);
+  border-color: var(--btn-hover-bg-color);
+}
+
+/* Hero Section */
 .hero {
-  background-color: #212529;
-  color: white;
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 
-.features {
-  background-color: #f8f9fa;
-}
-
+/* Feature Cards */
 .feature-card {
-  background: white;
+  background: var(--bg-color);
   border: 1px solid #dee2e6;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -31,16 +67,17 @@ html, body {
 }
 
 .feature-card h3 {
-  color: #212529;
+  color: var(--text-color);
 }
 
 .feature-card p {
-  color: #6c757d;
+  color: var(--text-color);
 }
 
+/* Header */
 header {
-  background-color: #212529;
-  color: white;
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 
 .navbar-brand img {
@@ -48,22 +85,12 @@ header {
 }
 
 .nav-link {
-  color: white;
+  color: var(--text-color);
   margin: 0 10px;
 }
 
 .nav-link:hover {
-  color: #00d1b2;
-}
-
-.btn-success {
-  background-color: #00d1b2;
-  border-color: #00d1b2;
-}
-
-.btn-success:hover {
-  background-color: #00a88f;
-  border-color: #00a88f;
+  color: var(--link-color);
 }
 
 .navbar-toggler {
@@ -72,4 +99,14 @@ header {
 
 .navbar-toggler-icon {
   background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba%28255, 255, 255, 0.5%29' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+
+.nav-item.dropdown:hover .dropdown-menu {
+  display: block;
+}
+
+/* Footer */
+footer {
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }

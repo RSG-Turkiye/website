@@ -6,7 +6,7 @@ import ThemeIcon from './ThemeIcon.astro';
   <div class="container py-3 d-flex align-items-center justify-content-between">
     <!-- Logo -->
     <a class="navbar-brand d-flex align-items-center" href="/">
-      <img src="../../public/logo/rsgturkey_logo.jpeg" alt="RSG Turkey Logo" height="40" class="me-2" />
+      <img src="../../logo/rsgturkey_logo.jpeg" alt="RSG Turkey Logo" height="40" class="me-2" />
       <span class="fs-4">RSG Turkey</span>
     </a>
 
@@ -19,20 +19,23 @@ import ThemeIcon from './ThemeIcon.astro';
         <li class="nav-item">
           <a class="nav-link text-white" href="/about">About</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/blog">Blog</a>
+        </li>
         <li class="nav-item dropdown">
           <a
             class="nav-link dropdown-toggle text-white"
-            href="/blog"
-            id="blogDropdown"
+            href="/webinars"
+            id="webinarDropdown"
             role="button"
             data-bs-toggle="dropdown"
             aria-expanded="false"
           >
-            Blog
+            Webinars
           </a>
-          <ul class="dropdown-menu" aria-labelledby="blogDropdown">
-            <li><a class="dropdown-item" href="/blog">All Posts</a></li>
-            <li><a class="dropdown-item" href="/tags">Tags</a></li>
+          <ul class="dropdown-menu" aria-labelledby="webinarDropdown">
+            <li><a class="dropdown-item" href="/2025-webinars">2025 Webinars</a></li>
+            <li><a class="dropdown-item" href="/2024-webinars">2024 Webinars</a></li>
           </ul>
         </li>
         <li class="nav-item">

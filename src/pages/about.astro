@@ -1,7 +1,86 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import CommitteeCard from '../layouts/CommitteeCard.astro';
+
 const pageTitle = "About Us";
+
+const committees = [
+  {
+    name: "Presidency",
+    description: "Leading the organization with vision and strategy.",
+    members: [
+      { 
+        role: "President", 
+        name: "John Doe", 
+        image: "/logo/rsgturkey_logo.jpeg",
+        socialMedia: [
+          { platform: "twitter", url: "https://twitter.com/johndoe" },
+          { platform: "linkedin", url: "https://linkedin.com/in/johndoe" },
+        ],
+      },
+      { 
+        role: "Vice-President", 
+        name: "Jane Smith", 
+        image: "/images/jane-smith.jpg",
+        socialMedia: [
+          { platform: "facebook", url: "https://facebook.com/janesmith" },
+        ],
+      },
+      { role: "Secretary", name: "Emily Johnson", image: "/images/emily-johnson.jpg" },
+    ],
+  },
+  {
+    name: "Journal Club Committee",
+    description: "Organizing discussions on the latest research papers.",
+    members: [
+      { role: "Chair", name: "Alice Brown", image: "/images/alice-brown.jpg" },
+      { role: "Member", name: "Bob Green", image: "/images/bob-green.jpg" },
+    ],
+  },
+  {
+    name: "Membership Committee",
+    description: "Managing memberships and community engagement.",
+    members: [
+      { role: "Chair", name: "Charlie White", image: "/images/charlie-white.jpg" },
+      { role: "Member", name: "Diana Black", image: "/images/diana-black.jpg" },
+    ],
+  },
+  {
+    name: "Outreach and Events Committee",
+    description: "Planning events and outreach programs.",
+    members: [
+      { role: "Chair", name: "Eve Blue", image: "/images/eve-blue.jpg" },
+      { role: "Member", name: "Frank Yellow", image: "/images/frank-yellow.jpg" },
+    ],
+  },
+];
 ---
 <BaseLayout pageTitle={pageTitle}>
-  <h2>About meeeee!</h2>
+  <!-- Hero Section -->
+  <section class="hero text-center text-white py-5">
+    <div class="container">
+      <h1 class="display-4 fw-bold">About RSG Turkey</h1>
+      <p class="lead">
+        Empowering bioinformatics students and researchers in Turkey through collaboration, education, and innovation.
+      </p>
+    </div>
+  </section>
+
+  <!-- Committees Section -->
+  <section class="committees py-5 bg-light">
+    <div class="container">
+      <h2 class="text-center mb-4">Our Committees</h2>
+      <div class="row">
+        {committees.map((committee, index) => (
+          <div class={index === 0 ? "col-12 mb-4" : "col-md-6 mb-4"}>
+            <CommitteeCard
+              name={committee.name}
+              description={committee.description}
+              members={committee.members}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
 </BaseLayout>

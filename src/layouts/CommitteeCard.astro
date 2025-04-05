@@ -1,0 +1,108 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Member {
+  name: string;
+  role: string;
+  image: string;
+  socialMedia?: { platform: string; url: string }[]; // Optional social media links
+}
+
+const { name, description, members = [] } = Astro.props as { name: string; description: string; members: Member[] };
+
+// Map social media platforms to their respective Font Awesome icons
+const socialMediaIcons: Record<string, string> = {
+  twitter: "fa-brands:twitter",
+  linkedin: "fa-brands:linkedin",
+  facebook: "fa-brands:facebook",
+  github: "fa-brands:github",
+  instagram: "fa-brands:instagram",
+};
+---
+<div class="committee-card p-4">
+  <h3 class="text-center mb-3">{name}</h3>
+  <p class="text-center mb-4">{description}</p>
+  <div class="row g-3">
+    {members.map((member) => (
+      <div class="col-md-6 col-lg-4">
+        <div class="member-card text-center p-3">
+          <img
+            src={member.image}
+            alt={member.name}
+            class="member-image mb-3"
+            width="150"
+            height="150"
+          />
+          <h5 class="mb-2">{member.name}</h5>
+          <p class="text-muted mb-2">{member.role}</p>
+          {member.socialMedia && (
+            <div class="social-links">
+              {member.socialMedia.map((social) => (
+                <a href={social.url} target="_blank" rel="noopener noreferrer" class="me-2">
+                  <Icon name={socialMediaIcons[social.platform] || "fa-solid:question-circle"} class="social-icon" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .committee-card {
+    background: var(--bg-color);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  .committee-card h3 {
+    color: var(--text-color);
+  }
+  .committee-card p {
+    color: var(--text-color);
+  }
+  .member-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+  }
+  .member-card:hover {
+    transform: translateY(-5px);
+  }
+  .member-image {
+    object-fit: cover;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+  }
+  .member-card h5 {
+    color: #333; /* Example: Dark gray */
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .member-card p {
+    color: var(--text-secondary-color, #495057);
+    font-size: 1.1rem;
+  }
+  .social-links a {
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 1.5rem; /* Adjust icon size */
+    color: var(--text-color);
+    transition: color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  }
+  .social-links a:hover {
+    color: var(--primary-color);
+    opacity: 0.8;
+  }
+  .social-links a {
+    color: var(--icon-color, #000); /* Default color */
+    transition: color 0.2s ease-in-out;
+  }
+  .social-links a:hover {
+    color: var(--icon-hover-color, #0077B5); /* Change on hover */
+  }
+</style>

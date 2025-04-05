@@ -1,9 +1,14 @@
-// @ts-check
 import { defineConfig } from 'astro/config';
+import astroIcon from 'astro-icon';
 
-import preact from '@astrojs/preact';
-
-// https://astro.build/config
 export default defineConfig({
-  integrations: [preact()]
+  integrations: [
+    astroIcon({
+      include: {
+        fa: ['brands'], // Include the "brands" subset of Font Awesome
+        logos: ['*'],   // Include all icons from the "logos" set
+        'simple-icons': ['*'], // Include all icons from the "simple-icons" set
+      },
+    }),
+  ],
 });

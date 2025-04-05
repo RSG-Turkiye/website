@@ -10,8 +10,14 @@
   },
   "dependencies": {
     "@astrojs/preact": "^4.0.8",
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "@iconify-json/fa": "^1.2.1",
+    "@iconify-json/fa-brands": "^1.2.1",
+    "@iconify-json/logos": "^1.2.4",
+    "@iconify-json/simple-icons": "^1.2.30",
     "@popperjs/core": "^2.11.8",
     "astro": "^5.5.6",
+    "astro-icon": "^1.1.5",
     "bootstrap": "^5.3.4",
     "preact": "^10.26.4"
   }

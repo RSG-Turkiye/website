@@ -1,12 +1,52 @@
 ---
+import { Icon } from "astro-icon/components";
+const socialMediaIcons: Record<string, string> = {
+  twitter: "fa-brands:twitter",
+  linkedin: "fa-brands:linkedin",
+  facebook: "fa-brands:facebook",
+  github: "fa-brands:github",
+  instagram: "fa-brands:instagram",
+};
 ---
 <footer class="bg-dark text-white py-4">
   <div class="container text-center">
     <p>© 2025 RSG Turkey. All rights reserved.</p>
     <div class="d-flex justify-content-center gap-3">
-      <a href="https://twitter.com/rsgturkey" class="text-white">Twitter</a>
-      <a href="https://github.com/rsgturkey" class="text-white">GitHub</a>
-      <a href="https://youtube.com/rsgturkey" class="text-white">YouTube</a>
+      <a href="https://twitter.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+        <Icon name={socialMediaIcons.twitter} class="social-icon" />
+      </a>
+      <a href="https://github.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+        <Icon name={socialMediaIcons.github} class="social-icon" />
+      </a>
+      <a href="https://youtube.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+        <Icon name="fa-brands:youtube" class="social-icon" />
+      </a>
+      <a href="https://linkedin.com/company/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+        <Icon name={socialMediaIcons.linkedin} class="social-icon" />
+      </a>
+      <a href="https://instagram.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+        <Icon name={socialMediaIcons.instagram} class="social-icon" />
+      </a>
     </div>
   </div>
 </footer>
+
+<style>
+  .social-icon {
+    font-size: 1.5rem; /* Adjust icon size */
+    color: var(--icon-color, #fff); /* Default color for icons */
+    transition: color 0.2s ease-in-out;
+  }
+
+  .social-icon:hover {
+    color: var(--icon-hover-color, #0077B5); /* Hover color */
+  }
+
+  .d-flex {
+    display: flex;
+  }
+
+  .gap-3 {
+    gap: 1rem;
+  }
+</style>
