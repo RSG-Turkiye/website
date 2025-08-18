@@ -585,6 +585,15 @@ a:hover {
   z-index: 1;
 }
 
+/* Ensure hero text is high-contrast in both themes */
+.hero h1,
+.hero h2,
+.hero h3,
+.hero p,
+.hero .lead {
+  color: var(--text-inverse) !important;
+}
+
 /* Section Styling */
 section {
   padding: var(--spacing-3xl) 0;

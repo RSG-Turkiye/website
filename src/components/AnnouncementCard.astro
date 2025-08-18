@@ -1,0 +1,151 @@
+---
+export interface Props {
+  type: 'event' | 'webinar' | 'workshop' | 'community' | 'career' | 'international';
+  date: string;
+  title: string;
+  description: string;
+  primaryAction: {
+    text: string;
+    url: string;
+  };
+  secondaryAction?: {
+    text: string;
+    url: string;
+  };
+}
+
+const { type, date, title, description, primaryAction, secondaryAction } = Astro.props;
+
+const typeConfig = {
+  event: { icon: 'fas fa-calendar-alt', label: 'Event' },
+  webinar: { icon: 'fas fa-video', label: 'Webinar' },
+  workshop: { icon: 'fas fa-graduation-cap', label: 'Workshop' },
+  community: { icon: 'fas fa-users', label: 'Community' },
+  career: { icon: 'fas fa-briefcase', label: 'Career' },
+  international: { icon: 'fas fa-globe', label: 'International' }
+};
+
+const config = typeConfig[type];
+---
+
+<div class="announcement-card">
+  <div class="announcement-header">
+    <div class="announcement-badge">
+      <i class={config.icon}></i>
+      <span>{config.label}</span>
+    </div>
+    <div class="announcement-date">{date}</div>
+  </div>
+  <div class="announcement-content">
+    <h4>{title}</h4>
+    <p>{description}</p>
+    <div class="announcement-actions">
+      <a href={primaryAction.url} class="btn btn-primary btn-sm">{primaryAction.text}</a>
+      {secondaryAction && (
+        <a href={secondaryAction.url} class="btn btn-outline-primary btn-sm">{secondaryAction.text}</a>
+      )}
+    </div>
+  </div>
+</div>
+
+<style>
+  .announcement-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    height: 100%;
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .announcement-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-accent);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+  }
+
+  .announcement-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .announcement-card:hover::before {
+    opacity: 1;
+  }
+
+  .announcement-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .announcement-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: var(--gradient-primary);
+    color: var(--text-inverse);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .announcement-badge i {
+    font-size: var(--font-size-sm);
+  }
+
+  .announcement-date {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+  }
+
+  .announcement-content h4 {
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.3;
+  }
+
+  .announcement-content p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .announcement-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .announcement-actions .btn {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-weight: 500;
+  }
+
+  /* Light theme adjustments */
+  [data-theme="light"] .announcement-card {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-theme="light"] .announcement-card:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  }
+</style> 

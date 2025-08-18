@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import AnnouncementCard from '../components/AnnouncementCard.astro';
+import { announcements } from '../data/announcements';
 
 const pageTitle = "RSG Turkey - Computational Biology Community";
 ---
@@ -22,6 +24,38 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
             <a href="/about" class="btn btn-primary btn-lg px-4">Learn More</a>
             <a href="/join" class="btn btn-outline-light btn-lg px-4">Join Our Community</a>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Announcements Section -->
+  <section class="announcements py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">
+            <i class="fas fa-bullhorn text-primary me-3"></i>
+            Latest Announcements
+          </h2>
+          <p class="lead">
+            Stay updated with our newest activities, events, and opportunities
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        {announcements.map((announcement) => (
+          <div class="col-lg-4 col-md-6">
+            <AnnouncementCard {...announcement} />
+          </div>
+        ))}
+      </div>
+      <div class="row mt-5">
+        <div class="col-12 text-center">
+          <a href="/events" class="btn btn-outline-primary btn-lg px-4">
+            <i class="fas fa-calendar-alt me-2"></i>
+            View All Events
+          </a>
         </div>
       </div>
     </div>
@@ -397,5 +431,106 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
     border: 1px solid var(--border-light);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-sm);
+  }
+
+  /* Announcements Section */
+  .announcement-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    height: 100%;
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .announcement-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-accent);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+  }
+
+  .announcement-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .announcement-card:hover::before {
+    opacity: 1;
+  }
+
+  .announcement-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .announcement-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: var(--gradient-primary);
+    color: var(--text-inverse);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .announcement-badge i {
+    font-size: var(--font-size-sm);
+  }
+
+  .announcement-date {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+  }
+
+  .announcement-content h4 {
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.3;
+  }
+
+  .announcement-content p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .announcement-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .announcement-actions .btn {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-weight: 500;
+  }
+
+  /* Light theme adjustments */
+  [data-theme="light"] .announcement-card {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-theme="light"] .announcement-card:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
   }
 </style>
