@@ -1,7 +1,387 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-const pageTitle = "Join Us!";
+
+const pageTitle = "Join Us - RSG Turkey";
+
+const benefits = [
+  {
+    icon: "fas fa-globe",
+    title: "International Network",
+    description: "Connect with researchers worldwide through ISCB Student Council affiliation"
+  },
+  {
+    icon: "fas fa-graduation-cap",
+    title: "Learning Opportunities",
+    description: "Access to webinars, workshops, and educational resources"
+  },
+  {
+    icon: "fas fa-users",
+    title: "Community Support",
+    description: "Join a supportive community of computational biology enthusiasts"
+  },
+  {
+    icon: "fas fa-briefcase",
+    title: "Career Development",
+    description: "Career fairs, networking events, and professional development opportunities"
+  },
+  {
+    icon: "fas fa-handshake",
+    title: "Collaboration",
+    description: "Opportunities to collaborate on research projects and events"
+  },
+  {
+    icon: "fas fa-calendar-alt",
+    title: "Event Access",
+    description: "Priority access to symposiums, workshops, and special events"
+  }
+];
+
+const membershipTypes = [
+  {
+    type: "Student Member",
+    description: "For undergraduate and graduate students",
+    features: [
+      "Access to all webinars and events",
+      "Student presentation opportunities",
+      "Mentorship programs",
+      "Resource library access"
+    ],
+    eligibility: "Currently enrolled students in computational biology or related fields"
+  },
+  {
+    type: "Early Career Researcher",
+    description: "For postdocs and early career researchers",
+    features: [
+      "All student member benefits",
+      "Leadership opportunities",
+      "Committee participation",
+      "International conference support"
+    ],
+    eligibility: "Postdocs and researchers within 5 years of completing their PhD"
+  },
+  {
+    type: "Professional Member",
+    description: "For established professionals and faculty",
+    features: [
+      "All member benefits",
+      "Mentoring opportunities",
+      "Event organization roles",
+      "International collaboration facilitation"
+    ],
+    eligibility: "Faculty members, industry professionals, and established researchers"
+  }
+];
 ---
+
 <BaseLayout pageTitle={pageTitle}>
-  <h2>Why dont u join us.</h2>
+  <!-- Hero Section -->
+  <section class="hero text-center py-5">
+    <div class="container">
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-3 fw-bold mb-4">Join Our Community</h1>
+          <p class="lead fs-4">
+            Anyone interested in computational biology & bioinformatics is welcome to join our community. We love meeting new people!
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Join Section -->
+  <section class="why-join py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Why Join RSG Turkey?</h2>
+          <p class="lead">
+            Become part of a vibrant community dedicated to advancing computational biology and bioinformatics in Turkey.
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        {benefits.map((benefit) => (
+          <div class="col-lg-4 col-md-6">
+            <div class="benefit-card text-center p-4">
+              <div class="benefit-icon mb-3">
+                <i class={`${benefit.icon} fa-3x text-primary`}></i>
+              </div>
+              <h3 class="h4 mb-3">{benefit.title}</h3>
+              <p class="text-muted">{benefit.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Membership Types Section -->
+  <section class="membership-types py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Membership Types</h2>
+          <p class="lead">
+            Choose the membership type that best fits your current status and goals.
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        {membershipTypes.map((membership) => (
+          <div class="col-lg-4 col-md-12">
+            <div class="membership-card h-100">
+              <div class="card h-100">
+                <div class="card-body p-4">
+                  <h3 class="card-title h4 mb-3">{membership.type}</h3>
+                  <p class="text-muted mb-4">{membership.description}</p>
+                  
+                  <h5 class="mb-3">Benefits:</h5>
+                  <ul class="list-unstyled mb-4">
+                    {membership.features.map((feature) => (
+                      <li class="mb-2">
+                        <i class="fas fa-check text-primary me-2"></i>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <h5 class="mb-3">Eligibility:</h5>
+                  <p class="text-muted small">{membership.eligibility}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- How to Join Section -->
+  <section class="how-to-join py-5">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <h2 class="display-5 fw-bold mb-4">How to Join</h2>
+          <p class="lead mb-4">
+            Joining RSG Turkey is easy! Follow these simple steps to become part of our community.
+          </p>
+          <div class="join-steps">
+            <div class="step-item d-flex align-items-center mb-4">
+              <div class="step-number me-3">1</div>
+              <div>
+                <h5 class="mb-1">Fill Out the Form</h5>
+                <p class="text-muted mb-0">Complete the membership application form below</p>
+              </div>
+            </div>
+            <div class="step-item d-flex align-items-center mb-4">
+              <div class="step-number me-3">2</div>
+              <div>
+                <h5 class="mb-1">Submit Application</h5>
+                <p class="text-muted mb-0">We'll review your application and get back to you</p>
+              </div>
+            </div>
+            <div class="step-item d-flex align-items-center mb-4">
+              <div class="step-number me-3">3</div>
+              <div>
+                <h5 class="mb-1">Welcome Email</h5>
+                <p class="text-muted mb-0">Receive your welcome package and member access</p>
+              </div>
+            </div>
+            <div class="step-item d-flex align-items-center">
+              <div class="step-number me-3">4</div>
+              <div>
+                <h5 class="mb-1">Start Participating</h5>
+                <p class="text-muted mb-0">Join events, webinars, and connect with the community</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="join-image text-center p-4">
+            <i class="fas fa-user-plus fa-5x text-primary mb-3"></i>
+            <h4>Ready to Join?</h4>
+            <p class="text-muted">Start your journey with RSG Turkey today</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Registration Form Section -->
+  <section class="registration-form py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto">
+          <div class="card">
+            <div class="card-body p-5">
+              <h2 class="text-center mb-4">Membership Application</h2>
+              <form id="membershipForm">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="firstName" class="form-label">First Name *</label>
+                    <input type="text" class="form-control" id="firstName" name="firstName" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="lastName" class="form-label">Last Name *</label>
+                    <input type="text" class="form-control" id="lastName" name="lastName" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="email" class="form-label">Email Address *</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="phone" class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="phone" name="phone">
+                  </div>
+                  <div class="col-12">
+                    <label for="institution" class="form-label">Institution/Organization *</label>
+                    <input type="text" class="form-control" id="institution" name="institution" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="position" class="form-label">Position/Title *</label>
+                    <input type="text" class="form-control" id="position" name="position" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="membershipType" class="form-label">Membership Type *</label>
+                    <select class="form-select" id="membershipType" name="membershipType" required>
+                      <option value="">Choose membership type...</option>
+                      <option value="student">Student Member</option>
+                      <option value="early-career">Early Career Researcher</option>
+                      <option value="professional">Professional Member</option>
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label for="researchInterests" class="form-label">Research Interests</label>
+                    <textarea class="form-control" id="researchInterests" name="researchInterests" rows="3" placeholder="Briefly describe your research interests in computational biology..."></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label for="motivation" class="form-label">Why do you want to join RSG Turkey? *</label>
+                    <textarea class="form-control" id="motivation" name="motivation" rows="4" required placeholder="Tell us about your motivation for joining our community..."></textarea>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="newsletter" name="newsletter" checked>
+                      <label class="form-check-label" for="newsletter">
+                        Subscribe to our newsletter for updates about events and webinars
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="agree" name="agree" required>
+                      <label class="form-check-label" for="agree">
+                        I agree to the terms and conditions and consent to RSG Turkey processing my personal data
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-12 text-center">
+                    <button type="submit" class="btn btn-primary btn-lg px-5">Submit Application</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Section -->
+  <section class="cta py-5 bg-primary">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Questions About Membership?</h2>
+          <p class="lead mb-4">
+            Not sure which membership type is right for you? Contact us for personalized guidance.
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/contact" class="btn btn-light btn-lg px-4">Contact Us</a>
+            <a href="/about" class="btn btn-outline-light btn-lg px-4">Learn More</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .min-vh-50 {
+    min-height: 50vh;
+  }
+
+  .benefit-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    border: 1px solid #dee2e6;
+  }
+
+  .benefit-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .membership-card {
+    transition: transform 0.3s ease;
+  }
+
+  .membership-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .join-image {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+  }
+
+  .step-number {
+    width: 40px;
+    height: 40px;
+    background: #00d1b2;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+</style>
+
+<script>
+  const membershipForm = document.getElementById('membershipForm') as HTMLFormElement;
+  if (membershipForm) {
+    membershipForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Get form data
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData);
+      
+      // Here you would typically send the data to your backend
+      console.log('Membership application submitted:', data);
+      
+      // Show success message
+      alert('Thank you for your membership application! We will review it and get back to you soon.');
+      
+      // Reset form
+      this.reset();
+    });
+  }
+</script>

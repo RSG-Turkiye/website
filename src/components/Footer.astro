@@ -8,23 +8,23 @@ const socialMediaIcons: Record<string, string> = {
   instagram: "fa-brands:instagram",
 };
 ---
-<footer class="bg-dark text-white py-4">
+<footer class="bg-dark text-white py-4" style="background: var(--bg-primary) !important; color: var(--text-primary) !important;">
   <div class="container text-center">
     <p>© 2025 RSG Turkey. All rights reserved.</p>
     <div class="d-flex justify-content-center gap-3">
-      <a href="https://twitter.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+      <a href="https://twitter.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
         <Icon name={socialMediaIcons.twitter} class="social-icon" />
       </a>
-      <a href="https://github.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+      <a href="https://github.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
         <Icon name={socialMediaIcons.github} class="social-icon" />
       </a>
-      <a href="https://youtube.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+      <a href="https://youtube.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
         <Icon name="fa-brands:youtube" class="social-icon" />
       </a>
-      <a href="https://linkedin.com/company/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+      <a href="https://linkedin.com/company/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
         <Icon name={socialMediaIcons.linkedin} class="social-icon" />
       </a>
-      <a href="https://instagram.com/rsgturkey" class="text-white" target="_blank" rel="noopener noreferrer">
+      <a href="https://instagram.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
         <Icon name={socialMediaIcons.instagram} class="social-icon" />
       </a>
     </div>
@@ -34,12 +34,12 @@ const socialMediaIcons: Record<string, string> = {
 <style>
   .social-icon {
     font-size: 1.5rem; /* Adjust icon size */
-    color: var(--icon-color, #fff); /* Default color for icons */
+    color: var(--text-primary); /* Use theme-aware color */
     transition: color 0.2s ease-in-out;
   }
 
   .social-icon:hover {
-    color: var(--icon-hover-color, #0077B5); /* Hover color */
+    color: var(--primary-600); /* Hover color */
   }
 
   .d-flex {

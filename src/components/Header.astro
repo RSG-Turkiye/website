@@ -2,29 +2,29 @@
 import ThemeIcon from './ThemeIcon.astro';
 
 ---
-<header class="bg-dark text-white">
-  <div class="container py-3 d-flex align-items-center justify-content-between">
+<header class="navbar navbar-expand-lg fixed-top">
+      <div class="container d-flex align-items-center justify-content-between">
     <!-- Logo -->
-    <a class="navbar-brand d-flex align-items-center" href="/">
-      <img src="../../logo/rsgturkey_logo.jpeg" alt="RSG Turkey Logo" height="40" class="me-2" />
-      <span class="fs-4">RSG Turkey</span>
-    </a>
+          <a class="navbar-brand d-flex align-items-center" href="/">
+        <img src="/logo/rsgturkey_logo.svg" alt="RSG Turkey Logo" height="40" class="me-3" />
+        <span class="fs-4 fw-bold">RSG Turkey</span>
+      </a>
 
     <!-- Navigation -->
     <nav class="d-none d-lg-flex">
-      <ul class="nav">
+      <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link text-white" href="/">Home</a>
+          <a class="nav-link" href="/">Home</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link text-white" href="/about">About</a>
+          <a class="nav-link" href="/about">About</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link text-white" href="/blog">Blog</a>
+          <a class="nav-link" href="/blog">Blog</a>
         </li>
         <li class="nav-item dropdown">
           <a
-            class="nav-link dropdown-toggle text-white"
+            class="nav-link dropdown-toggle"
             href="/webinars"
             id="webinarDropdown"
             role="button"
@@ -34,19 +34,41 @@ import ThemeIcon from './ThemeIcon.astro';
             Webinars
           </a>
           <ul class="dropdown-menu" aria-labelledby="webinarDropdown">
-            <li><a class="dropdown-item" href="/2025-webinars">2025 Webinars</a></li>
-            <li><a class="dropdown-item" href="/2024-webinars">2024 Webinars</a></li>
+            <li><a class="dropdown-item" href="/webinars#2025">2025 Webinars</a></li>
+            <li><a class="dropdown-item" href="/webinars#2024">2024 Webinars</a></li>
+            <li><a class="dropdown-item" href="/webinars#2023">2023 Webinars</a></li>
+            <li><a class="dropdown-item" href="/webinars#2022">2022 Webinars</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="/webinars#student">Student Webinars</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a
+            class="nav-link dropdown-toggle"
+            href="/events"
+            id="eventDropdown"
+            role="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            Events
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="eventDropdown">
+            <li><a class="dropdown-item" href="/events#symposiums">Symposiums</a></li>
+            <li><a class="dropdown-item" href="/events#workshops">Workshops</a></li>
+            <li><a class="dropdown-item" href="/events#upcoming">Upcoming Events</a></li>
           </ul>
         </li>
         <li class="nav-item">
-          <a class="nav-link text-white" href="/contact">Contact</a>
+          <a class="nav-link" href="/resources">Resources</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/contact">Contact</a>
         </li>
       </ul>
     </nav>
-    <div style="width: 1px; height: 40px; background-color: gray; margin: 0 -20px;"></div>
-
     <!-- Call-to-Action Button -->
-    <a href="/join" class="btn btn-success btn-sm d-none d-lg-inline-block">Join Us</a>
+    <a href="/join" class="btn btn-primary btn-sm d-none d-lg-inline-block me-3">Join Us</a>
 
     <!-- Theme Toggle -->
     <ThemeIcon />
@@ -66,25 +88,31 @@ import ThemeIcon from './ThemeIcon.astro';
   </div>
 
   <!-- Mobile Menu -->
-  <div class="collapse bg-dark" id="mobileMenu">
-    <ul class="nav flex-column text-center py-3">
+  <div class="collapse" id="mobileMenu">
+    <ul class="navbar-nav text-center py-3">
       <li class="nav-item">
-        <a class="nav-link text-white" href="/">Home</a>
+        <a class="nav-link" href="/">Home</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link text-white" href="/about">About</a>
+        <a class="nav-link" href="/about">About</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link text-white" href="/blog">Blog</a>
+        <a class="nav-link" href="/blog">Blog</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link text-white" href="/tags">Tags</a>
+        <a class="nav-link" href="/webinars">Webinars</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link text-white" href="/contact">Contact</a>
+        <a class="nav-link" href="/events">Events</a>
       </li>
       <li class="nav-item">
-        <a class="btn btn-success btn-sm" href="/join">Join Us</a>
+        <a class="nav-link" href="/resources">Resources</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/contact">Contact</a>
+      </li>
+      <li class="nav-item">
+        <a class="btn btn-primary btn-sm" href="/join">Join Us</a>
       </li>
     </ul>
   </div>

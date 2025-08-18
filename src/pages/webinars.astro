@@ -1,0 +1,290 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const pageTitle = "Webinars - RSG Turkey";
+
+const webinars = [
+  {
+    year: "2025",
+    title: "2025 Webinars",
+    description: "Upcoming webinars for 2025",
+    webinars: [
+      {
+        title: "Open Student Webinars",
+        date: "Monthly",
+        description: "Student-led research presentations and discussions",
+        status: "upcoming"
+      }
+    ]
+  },
+  {
+    year: "2024",
+    title: "2024 Webinars",
+    description: "Webinars from 2024",
+    webinars: [
+      {
+        title: "Understanding Disease Mechanistic for Better Drug Design",
+        presenter: "Dr. Ayesha Fatima",
+        date: "2024",
+        description: "Dr. Fatima is a pharmacist by profession. She graduated from University of the Punjab, Lahore, Pakistan, went to Malaysia for M.Sc and PhD.",
+        status: "completed"
+      },
+      {
+        title: "Language Models Can Learn Complex Functional Properties of Proteins",
+        presenter: "Serbülent Ünsal",
+        date: "2024",
+        description: "Serbulent Unsal received her B.Sc. degree in Statistics and Computer Sciences from Karadeniz Technical University in Turkey.",
+        status: "completed"
+      }
+    ]
+  },
+  {
+    year: "2023",
+    title: "2023 Webinars",
+    description: "Webinars from 2023",
+    webinars: [
+      {
+        title: "Computational Challenges in Protein-RNA Interactions",
+        presenter: "Asst. Prof. Yaron Orenstein",
+        date: "2023",
+        description: "Yaron Orenstein is a Senior Lecturer and the head of the Computational Biology lab at the School of Electrical and Computer Engineering at Ben-Gurion University of the Negev.",
+        status: "completed"
+      }
+    ]
+  },
+  {
+    year: "2022",
+    title: "2022 Webinars",
+    description: "Webinars from 2022",
+    webinars: [
+      {
+        title: "Molecular Simulations as an in silico Experiment",
+        presenter: "Seyit Kale",
+        date: "2022",
+        description: "Seyit Kale received his Bachelor of Science in Physics from İhsan Doğramacı Bilkent University in 2006, and his Ph.D. in Biophysics and Structural Biology from Brandeis University in 2012.",
+        status: "completed"
+      }
+    ]
+  }
+];
+---
+
+<BaseLayout pageTitle={pageTitle}>
+  <!-- Hero Section -->
+  <section class="hero text-center py-5">
+    <div class="container">
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-3 fw-bold mb-4">Webinars</h1>
+          <p class="lead fs-4">
+            Our ongoing webinar project on Bioinfonet shares knowledge with the community, featuring experts from around the world.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bioinfonet Project Section -->
+  <section class="bioinfonet py-5">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <h2 class="display-5 fw-bold mb-4">Bioinfonet Project</h2>
+          <p class="lead mb-4">
+            Bioinfonet project is an ISCB Student Council supported webinar project.
+          </p>
+          <p class="fs-5 mb-4">
+            Our main aim is to build bridges between bioinformatics professionals and young bioinformatics students, mainly who live in developing countries and have difficulty joining the aura of international conferences and workshops.
+          </p>
+          <div class="project-features">
+            <div class="feature-item d-flex align-items-center mb-3">
+              <i class="fas fa-globe fa-2x text-primary me-3"></i>
+              <div>
+                <h5 class="mb-1">International Reach</h5>
+                <p class="text-muted mb-0">Connecting students worldwide</p>
+              </div>
+            </div>
+            <div class="feature-item d-flex align-items-center mb-3">
+              <i class="fas fa-graduation-cap fa-2x text-primary me-3"></i>
+              <div>
+                <h5 class="mb-1">Educational Focus</h5>
+                <p class="text-muted mb-0">Expert-led learning sessions</p>
+              </div>
+            </div>
+            <div class="feature-item d-flex align-items-center">
+              <i class="fas fa-users fa-2x text-primary me-3"></i>
+              <div>
+                <h5 class="mb-1">Community Building</h5>
+                <p class="text-muted mb-0">Networking and collaboration</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 text-center">
+          <div class="bioinfonet-logo p-4">
+            <i class="fas fa-video fa-5x text-success mb-3"></i>
+            <h4>Bioinfonet</h4>
+            <p class="text-muted">ISCB Student Council Supported Project</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Webinar Years Section -->
+  <section class="webinar-years py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Webinar Archive</h2>
+          <p class="lead">
+            Explore our past webinars and stay updated with upcoming events
+          </p>
+        </div>
+      </div>
+      
+      {webinars.map((yearGroup) => (
+        <div class="webinar-year mb-5">
+          <div class="row">
+            <div class="col-12">
+              <h3 class="h2 mb-4 text-center">{yearGroup.title}</h3>
+              <div class="row g-4">
+                {yearGroup.webinars.map((webinar) => (
+                  <div class="col-lg-6 col-md-12">
+                    <div class="webinar-card h-100">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start mb-3">
+                            <span class={`badge ${webinar.status === 'upcoming' ? 'bg-accent' : 'bg-secondary'}`}>
+                              {webinar.status === 'upcoming' ? 'Upcoming' : 'Completed'}
+                            </span>
+                            <small class="text-muted">{webinar.date}</small>
+                          </div>
+                          <h5 class="card-title mb-3">{webinar.title}</h5>
+                          {webinar.presenter && (
+                            <p class="text-primary fw-bold mb-2">
+                              <i class="fas fa-user me-2"></i>{webinar.presenter}
+                            </p>
+                          )}
+                          <p class="card-text text-muted">{webinar.description}</p>
+                          {webinar.status === 'upcoming' && (
+                            <a href="/contact" class="btn btn-primary btn-sm">Register Interest</a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Open Student Webinars Section -->
+  <section class="open-student-webinars py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Open Student Webinars</h2>
+          <p class="lead mb-4">
+            Our student-led webinar series featuring research presentations and discussions from the Turkish computational biology community.
+          </p>
+          <div class="row g-4 mt-4">
+            <div class="col-md-6">
+              <div class="student-webinar-card text-center p-4">
+                <i class="fas fa-microscope fa-3x text-primary mb-3"></i>
+                <h4>Research Presentations</h4>
+                <p class="text-muted">
+                  Students present their latest research findings and methodologies in computational biology.
+                </p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="student-webinar-card text-center p-4">
+                <i class="fas fa-comments fa-3x text-primary mb-3"></i>
+                <h4>Interactive Discussions</h4>
+                <p class="text-muted">
+                  Engage in discussions with peers and experts about current trends and challenges in the field.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <a href="/contact" class="btn btn-primary btn-lg px-4">Join Our Student Webinars</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Section -->
+  <section class="cta py-5 bg-primary">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Stay Connected</h2>
+          <p class="lead mb-4">
+            Don't miss out on our upcoming webinars and events. Join our community to receive notifications.
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/contact" class="btn btn-light btn-lg px-4">Contact Us</a>
+            <a href="/join" class="btn btn-outline-light btn-lg px-4">Join Our Community</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .min-vh-50 {
+    min-height: 50vh;
+  }
+
+  .bioinfonet-logo {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+  }
+
+  .webinar-card {
+    transition: transform 0.3s ease;
+  }
+
+  .webinar-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .student-webinar-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+    transition: transform 0.3s ease;
+  }
+
+  .student-webinar-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .feature-item {
+    font-size: 1.1rem;
+  }
+</style> 

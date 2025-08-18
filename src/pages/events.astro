@@ -1,0 +1,340 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const pageTitle = "Events - RSG Turkey";
+
+const events = [
+  {
+    category: "Symposiums",
+    events: [
+      {
+        title: "Student Symposium 2024",
+        date: "2024",
+        location: "Turkey",
+        description: "Annual student symposium bringing together researchers and students in computational biology.",
+        status: "completed",
+        type: "symposium"
+      },
+      {
+        title: "Student Symposium 2023",
+        date: "2023",
+        location: "Turkey",
+        description: "Annual student symposium featuring research presentations and networking opportunities.",
+        status: "completed",
+        type: "symposium"
+      }
+    ]
+  },
+  {
+    category: "Workshops",
+    events: [
+      {
+        title: "Single-Cell Workshop",
+        date: "2024",
+        location: "Turkey",
+        description: "Hands-on workshop on single-cell analysis techniques and methodologies.",
+        status: "completed",
+        type: "workshop"
+      },
+      {
+        title: "Structural Biology Workshop",
+        date: "2021",
+        location: "Virtual",
+        description: "Introduction to Computational Structural Biology Virtual Workshop featuring protein structure determination and molecular docking.",
+        status: "completed",
+        type: "workshop"
+      },
+      {
+        title: "COVID-19 Research Workshop",
+        date: "2020",
+        location: "Virtual",
+        description: "Workshop focused on computational approaches to COVID-19 research and data analysis.",
+        status: "completed",
+        type: "workshop"
+      }
+    ]
+  },
+  {
+    category: "Upcoming Events",
+    events: [
+      {
+        title: "Annual Symposium 2025",
+        date: "TBD 2025",
+        location: "Turkey",
+        description: "Our annual symposium bringing together the computational biology community in Turkey.",
+        status: "upcoming",
+        type: "symposium"
+      },
+      {
+        title: "Bioinformatics Tools Workshop",
+        date: "TBD 2025",
+        location: "TBD",
+        description: "Hands-on workshop on popular bioinformatics tools and pipelines.",
+        status: "upcoming",
+        type: "workshop"
+      }
+    ]
+  }
+];
+---
+
+<BaseLayout pageTitle={pageTitle}>
+  <!-- Hero Section -->
+  <section class="hero text-center py-5">
+    <div class="container">
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-3 fw-bold mb-4">Events</h1>
+          <p class="lead fs-4">
+            Join us for symposiums, workshops, and networking events throughout Turkey.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Events Overview Section -->
+  <section class="events-overview py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Our Events</h2>
+          <p class="lead">
+            We organize various events to support the computational biology community in Turkey and foster collaboration.
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="event-type-card text-center p-4">
+            <div class="event-icon mb-3">
+              <i class="fas fa-graduation-cap fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Annual Symposiums</h3>
+            <p class="text-muted">
+              Our flagship event bringing together researchers, students, and professionals from across Turkey for presentations, networking, and collaboration.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="event-type-card text-center p-4">
+            <div class="event-icon mb-3">
+              <i class="fas fa-tools fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Workshops</h3>
+            <p class="text-muted">
+              Hands-on workshops covering various topics in computational biology, from basic tools to advanced methodologies.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="event-type-card text-center p-4">
+            <div class="event-icon mb-3">
+              <i class="fas fa-users fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Networking Events</h3>
+            <p class="text-muted">
+              Opportunities to connect with peers, mentors, and potential collaborators in the computational biology field.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Events by Category -->
+  <section class="events-categories py-5 bg-light">
+    <div class="container">
+      {events.map((category) => (
+        <div class="event-category mb-5">
+          <div class="row">
+            <div class="col-12">
+              <h3 class="h2 mb-4 text-center">{category.category}</h3>
+              <div class="row g-4">
+                {category.events.map((event) => (
+                  <div class="col-lg-6 col-md-12">
+                    <div class="event-card h-100">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start mb-3">
+                            <span class={`badge ${event.status === 'upcoming' ? 'bg-accent' : 'bg-secondary'}`}>
+                              {event.status === 'upcoming' ? 'Upcoming' : 'Completed'}
+                            </span>
+                            <span class={`badge ${event.type === 'symposium' ? 'bg-primary' : 'bg-info'}`}>
+                              {event.type}
+                            </span>
+                          </div>
+                          <h5 class="card-title mb-3">{event.title}</h5>
+                          <div class="event-details mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                              <i class="fas fa-calendar text-primary me-2"></i>
+                              <span class="text-muted">{event.date}</span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                              <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                              <span class="text-muted">{event.location}</span>
+                            </div>
+                          </div>
+                          <p class="card-text text-muted">{event.description}</p>
+                          {event.status === 'upcoming' && (
+                            <a href="/contact" class="btn btn-primary btn-sm">Register Interest</a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Featured Event: Structural Biology Workshop -->
+  <section class="featured-event py-5">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <h2 class="display-5 fw-bold mb-4">Structural Biology Workshop</h2>
+          <p class="lead mb-4">
+            Our successful "Introduction to Computational Structural Biology Virtual Workshop" was held on 18-19 December 2021.
+          </p>
+          <p class="fs-5 mb-4">
+            The workshop covered experimental techniques in protein structure determination, molecular docking, and molecular modeling & simulation. It featured hands-on sessions with tools like HADDOCK, SWISS, PRISM, and NAMD.
+          </p>
+          <div class="workshop-features">
+            <div class="feature-item d-flex align-items-center mb-3">
+              <i class="fas fa-dna fa-2x text-primary me-3"></i>
+              <div>
+                <h5 class="mb-1">Protein Structure Analysis</h5>
+                <p class="text-muted mb-0">X-ray Crystallography, Cryo-EM, NMR, SAXS</p>
+              </div>
+            </div>
+            <div class="feature-item d-flex align-items-center mb-3">
+              <i class="fas fa-cogs fa-2x text-primary me-3"></i>
+              <div>
+                <h5 class="mb-1">Molecular Docking</h5>
+                <p class="text-muted mb-0">HADDOCK, SWISS, PRISM tools</p>
+              </div>
+            </div>
+            <div class="feature-item d-flex align-items-center">
+              <i class="fas fa-chart-line fa-2x text-primary me-3"></i>
+              <div>
+                <h5 class="mb-1">Molecular Dynamics</h5>
+                <p class="text-muted mb-0">NAMD simulation and analysis</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 text-center">
+          <div class="workshop-image p-4">
+            <i class="fas fa-atom fa-5x text-primary mb-3"></i>
+            <h4>Computational Structural Biology</h4>
+            <p class="text-muted">Virtual Workshop 2021</p>
+            <div class="workshop-stats">
+              <div class="row text-center">
+                <div class="col-4">
+                  <div class="stat-number">2</div>
+                  <div class="stat-label">Days</div>
+                </div>
+                <div class="col-4">
+                  <div class="stat-number">3</div>
+                  <div class="stat-label">Instructors</div>
+                </div>
+                <div class="col-4">
+                  <div class="stat-number">100+</div>
+                  <div class="stat-label">Participants</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Section -->
+  <section class="cta py-5 bg-primary">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Get Involved</h2>
+          <p class="lead mb-4">
+            Interested in attending our events or organizing one? Get in touch with us!
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/contact" class="btn btn-light btn-lg px-4">Contact Us</a>
+            <a href="/join" class="btn btn-outline-light btn-lg px-4">Join Our Community</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .min-vh-50 {
+    min-height: 50vh;
+  }
+
+  .event-type-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    border: 1px solid #dee2e6;
+  }
+
+  .event-type-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .event-card {
+    transition: transform 0.3s ease;
+  }
+
+  .event-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .workshop-image {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+  }
+
+  .workshop-stats {
+    margin-top: 2rem;
+  }
+
+  .stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #00d1b2;
+  }
+
+  .stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+  }
+
+  .feature-item {
+    font-size: 1.1rem;
+  }
+</style> 

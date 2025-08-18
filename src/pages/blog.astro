@@ -1,17 +1,466 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BlogPost from '../components/BlogPost.astro';
+
 const allPosts = Object.values(import.meta.glob('./posts/*.md', { eager: true }));
 
-const pageTitle = "Blog";
----
-<BaseLayout pageTitle={pageTitle}>
-    <body>
-        <h1>My Astro Learning Blog</h1>
-        <p>This is where I will post about my journey learning Astro.</p>
-        <ul>
-            {allPosts.map((post: any) => <BlogPost url={post.url} title={post.frontmatter.title} />)}
+// Sort posts by date (newest first)
+const sortedPosts = allPosts.sort((a: any, b: any) => {
+  const dateA = new Date(a.frontmatter.date || 0);
+  const dateB = new Date(b.frontmatter.date || 0);
+  return dateB.getTime() - dateA.getTime();
+});
 
-        </ul>
-      </body>
+const pageTitle = "Blog - RSG Turkey";
+---
+
+<BaseLayout pageTitle={pageTitle}>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="row align-items-center min-vh-75">
+        <div class="col-lg-8 mx-auto text-center">
+          <h1 class="display-4 fw-bold mb-4">
+            <span class="text-gradient">RSG Turkey</span> Blog
+          </h1>
+          <p class="lead mb-5">
+            Insights, research updates, and community stories from the computational biology world. 
+            Stay informed about the latest developments in bioinformatics and our community activities.
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="#featured-posts" class="btn btn-primary btn-lg px-4">
+              <i class="fas fa-star me-2"></i>Featured Posts
+            </a>
+            <a href="#all-posts" class="btn btn-outline-primary btn-lg px-4">
+              <i class="fas fa-list me-2"></i>All Articles
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Posts Section -->
+  <section id="featured-posts" class="py-5">
+    <div class="container">
+      <div class="row mb-5">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-3">Featured Articles</h2>
+          <p class="lead text-muted">
+            Our most popular and important posts about computational biology, research updates, and community events.
+          </p>
+        </div>
+      </div>
+      
+      <div class="row g-4">
+        {sortedPosts.slice(0, 3).map((post: any) => (
+          <div class="col-lg-4 col-md-6">
+            <article class="blog-card featured">
+              <div class="blog-card-image">
+                <img 
+                  src={post.frontmatter.image || '/images/default-blog.jpg'} 
+                  alt={post.frontmatter.title}
+                  class="img-fluid"
+                />
+                <div class="blog-card-overlay">
+                  <span class="badge bg-primary">Featured</span>
+                </div>
+              </div>
+              <div class="blog-card-body">
+                <div class="blog-meta mb-3">
+                  <span class="blog-date">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
+                  {post.frontmatter.author && (
+                    <span class="blog-author">
+                      <i class="fas fa-user me-1"></i>
+                      {post.frontmatter.author}
+                    </span>
+                  )}
+                </div>
+                <h3 class="blog-title">
+                  <a href={post.url}>{post.frontmatter.title}</a>
+                </h3>
+                <p class="blog-excerpt">
+                  {post.frontmatter.description || post.frontmatter.excerpt || 'Read more about this interesting topic...'}
+                </p>
+                <div class="blog-tags mb-3">
+                  {post.frontmatter.tags && post.frontmatter.tags.slice(0, 3).map((tag: string) => (
+                    <span class="badge bg-light text-dark me-1">{tag}</span>
+                  ))}
+                </div>
+                <a href={post.url} class="btn btn-outline-primary btn-sm">
+                  Read More <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+              </div>
+            </article>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- All Posts Section -->
+  <section id="all-posts" class="py-5 bg-light">
+    <div class="container">
+      <div class="row mb-5">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-3">All Articles</h2>
+          <p class="lead text-muted">
+            Browse through all our blog posts, research updates, and community stories.
+          </p>
+        </div>
+      </div>
+
+      <!-- Filter and Search -->
+      <div class="row mb-4">
+        <div class="col-lg-8 mx-auto">
+          <div class="search-filter-card">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                  </span>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    id="searchPosts" 
+                    placeholder="Search articles..."
+                  />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <select class="form-select" id="categoryFilter">
+                  <option value="">All Categories</option>
+                  <option value="research">Research</option>
+                  <option value="community">Community</option>
+                  <option value="events">Events</option>
+                  <option value="tutorial">Tutorial</option>
+                  <option value="news">News</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Posts Grid -->
+      <div class="row g-4" id="postsGrid">
+        {sortedPosts.map((post: any) => (
+          <div class="col-lg-6 col-md-6 post-item" data-category={post.frontmatter.category || 'general'}>
+            <article class="blog-card">
+              <div class="blog-card-image">
+                <img 
+                  src={post.frontmatter.image || '/images/default-blog.jpg'} 
+                  alt={post.frontmatter.title}
+                  class="img-fluid"
+                />
+                <div class="blog-card-overlay">
+                  <span class="badge bg-secondary">{post.frontmatter.category || 'General'}</span>
+                </div>
+              </div>
+              <div class="blog-card-body">
+                <div class="blog-meta mb-3">
+                  <span class="blog-date">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </span>
+                  {post.frontmatter.author && (
+                    <span class="blog-author">
+                      <i class="fas fa-user me-1"></i>
+                      {post.frontmatter.author}
+                    </span>
+                  )}
+                </div>
+                <h3 class="blog-title">
+                  <a href={post.url}>{post.frontmatter.title}</a>
+                </h3>
+                <p class="blog-excerpt">
+                  {post.frontmatter.description || post.frontmatter.excerpt || 'Read more about this interesting topic...'}
+                </p>
+                <div class="blog-tags mb-3">
+                  {post.frontmatter.tags && post.frontmatter.tags.slice(0, 2).map((tag: string) => (
+                    <span class="badge bg-light text-dark me-1">{tag}</span>
+                  ))}
+                </div>
+                <a href={post.url} class="btn btn-outline-primary btn-sm">
+                  Read More <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+              </div>
+            </article>
+          </div>
+        ))}
+      </div>
+
+      <!-- Newsletter Signup -->
+      <div class="row mt-5">
+        <div class="col-lg-8 mx-auto">
+          <div class="newsletter-card">
+            <div class="row align-items-center">
+              <div class="col-lg-8">
+                <h3 class="mb-3">Stay Updated</h3>
+                <p class="mb-0">
+                  Subscribe to our newsletter to get the latest blog posts, research updates, and community news delivered to your inbox.
+                </p>
+              </div>
+              <div class="col-lg-4">
+                <div class="input-group">
+                  <input 
+                    type="email" 
+                    class="form-control" 
+                    placeholder="Enter your email"
+                  />
+                  <button class="btn btn-primary" type="button">
+                    Subscribe
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
+
+<style>
+  .hero {
+    background: var(--gradient-hero);
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+  }
+
+  .hero .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .min-vh-75 {
+    min-height: 60vh;
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--accent-600) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Blog Cards */
+  .blog-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+    border: 1px solid var(--border-light);
+    height: 100%;
+    position: relative;
+  }
+
+  .blog-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
+  }
+
+  .blog-card.featured {
+    border: 2px solid var(--primary-200);
+  }
+
+  .blog-card-image {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+  }
+
+  .blog-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+  }
+
+  .blog-card:hover .blog-card-image img {
+    transform: scale(1.05);
+  }
+
+  .blog-card-overlay {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+  }
+
+  .blog-card-body {
+    padding: var(--spacing-xl);
+  }
+
+  .blog-meta {
+    display: flex;
+    gap: var(--spacing-lg);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+  }
+
+  .blog-date, .blog-author {
+    display: flex;
+    align-items: center;
+  }
+
+  .blog-title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    line-height: 1.3;
+  }
+
+  .blog-title a {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .blog-title a:hover {
+    color: var(--primary-600);
+  }
+
+  .blog-excerpt {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .blog-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+  }
+
+  /* Search and Filter */
+  .search-filter-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+  }
+
+  .input-group-text {
+    background: var(--bg-tertiary);
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+  }
+
+  /* Newsletter Card */
+  .newsletter-card {
+    background: var(--gradient-primary);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    color: var(--text-inverse);
+    text-align: center;
+  }
+
+  .newsletter-card h3 {
+    color: var(--text-inverse);
+  }
+
+  .newsletter-card .form-control {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-inverse);
+  }
+
+  .newsletter-card .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .newsletter-card .btn {
+    background: var(--text-inverse);
+    color: var(--primary-600);
+    border: none;
+  }
+
+  .newsletter-card .btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--primary-700);
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .blog-meta {
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .newsletter-card .row {
+      text-align: center;
+    }
+
+    .newsletter-card .col-lg-4 {
+      margin-top: var(--spacing-lg);
+    }
+  }
+</style>
+
+<script>
+  // Search and filter functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchPosts') as HTMLInputElement;
+    const categoryFilter = document.getElementById('categoryFilter') as HTMLSelectElement;
+    const postItems = document.querySelectorAll('.post-item');
+
+    if (!searchInput || !categoryFilter) return;
+
+    function filterPosts() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const selectedCategory = categoryFilter.value;
+
+      postItems.forEach(item => {
+        const titleElement = item.querySelector('.blog-title a') as HTMLElement;
+        const excerptElement = item.querySelector('.blog-excerpt') as HTMLElement;
+        const category = (item as HTMLElement).dataset.category;
+
+        if (!titleElement || !excerptElement) return;
+
+        const title = titleElement.textContent?.toLowerCase() || '';
+        const excerpt = excerptElement.textContent?.toLowerCase() || '';
+
+        const matchesSearch = title.includes(searchTerm) || excerpt.includes(searchTerm);
+        const matchesCategory = !selectedCategory || category === selectedCategory;
+
+        if (matchesSearch && matchesCategory) {
+          (item as HTMLElement).style.display = 'block';
+        } else {
+          (item as HTMLElement).style.display = 'none';
+        }
+      });
+    }
+
+    searchInput.addEventListener('input', filterPosts);
+    categoryFilter.addEventListener('change', filterPosts);
+  });
+</script>

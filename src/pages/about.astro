@@ -2,77 +2,266 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CommitteeCard from '../layouts/CommitteeCard.astro';
 
-const pageTitle = "About Us";
+const pageTitle = "About Us - RSG Turkey";
 
 const committees = [
   {
-    name: "Presidency",
+    name: "Executive Committee",
     description: "Leading the organization with vision and strategy.",
     members: [
       { 
         role: "President", 
-        name: "John Doe", 
-        image: "/logo/rsgturkey_logo.jpeg",
+        name: "Dr. [Name]", 
+        image: "/logo/rsgturkey_logo.svg",
+        institution: "University",
         socialMedia: [
-          { platform: "twitter", url: "https://twitter.com/johndoe" },
-          { platform: "linkedin", url: "https://linkedin.com/in/johndoe" },
+          { platform: "twitter", url: "#" },
+          { platform: "linkedin", url: "#" },
         ],
       },
       { 
         role: "Vice-President", 
-        name: "Jane Smith", 
-        image: "/images/jane-smith.jpg",
+        name: "Dr. [Name]", 
+        image: "/logo/rsgturkey_logo.svg",
+        institution: "University",
         socialMedia: [
-          { platform: "facebook", url: "https://facebook.com/janesmith" },
+          { platform: "linkedin", url: "#" },
         ],
       },
-      { role: "Secretary", name: "Emily Johnson", image: "/images/emily-johnson.jpg" },
+      { 
+        role: "Secretary", 
+        name: "Dr. [Name]", 
+        image: "/logo/rsgturkey_logo.svg",
+        institution: "University"
+      },
     ],
   },
   {
-    name: "Journal Club Committee",
-    description: "Organizing discussions on the latest research papers.",
+    name: "Webinar Committee",
+    description: "Organizing our Bioinfonet webinar series and educational events.",
     members: [
-      { role: "Chair", name: "Alice Brown", image: "/images/alice-brown.jpg" },
-      { role: "Member", name: "Bob Green", image: "/images/bob-green.jpg" },
+      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
+      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
     ],
   },
   {
-    name: "Membership Committee",
-    description: "Managing memberships and community engagement.",
+    name: "Events Committee",
+    description: "Planning symposiums, workshops, and networking events.",
     members: [
-      { role: "Chair", name: "Charlie White", image: "/images/charlie-white.jpg" },
-      { role: "Member", name: "Diana Black", image: "/images/diana-black.jpg" },
+      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
+      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
     ],
   },
   {
-    name: "Outreach and Events Committee",
-    description: "Planning events and outreach programs.",
+    name: "Outreach Committee",
+    description: "Managing community engagement and international connections.",
     members: [
-      { role: "Chair", name: "Eve Blue", image: "/images/eve-blue.jpg" },
-      { role: "Member", name: "Frank Yellow", image: "/images/frank-yellow.jpg" },
+      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
+      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
     ],
   },
 ];
 ---
+
 <BaseLayout pageTitle={pageTitle}>
   <!-- Hero Section -->
-  <section class="hero text-center text-white py-5">
+  <section class="hero text-center py-5">
     <div class="container">
-      <h1 class="display-4 fw-bold">About RSG Turkey</h1>
-      <p class="lead">
-        Empowering bioinformatics students and researchers in Turkey through collaboration, education, and innovation.
-      </p>
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-3 fw-bold mb-4">About RSG Turkey</h1>
+          <p class="lead fs-4">
+            A non-profit community of early career researchers interested in computational biology and bioinformatics.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Who We Are Section -->
+  <section class="who-we-are py-5">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <h2 class="display-5 fw-bold mb-4">Who Are We?</h2>
+          <p class="lead mb-4">
+            RSG-Turkey is a member of the International Society for Computational Biology (ISCB) Student Council (SC) Regional Student Groups (RSG).
+          </p>
+          <p class="fs-5 mb-4">
+            We are a non-profit community composed of early career researchers interested in computational biology and bioinformatics. Our organization provides a framework for communication and interaction among students and postdocs working in these fields across Turkey.
+          </p>
+          <div class="d-flex align-items-center mb-3">
+            <i class="fas fa-globe fa-2x text-primary me-3"></i>
+            <div>
+              <h5 class="mb-1">International Affiliation</h5>
+              <p class="text-muted mb-0">Member of ISCB Student Council Regional Student Groups</p>
+            </div>
+          </div>
+          <div class="d-flex align-items-center mb-3">
+            <i class="fas fa-users fa-2x text-primary me-3"></i>
+            <div>
+              <h5 class="mb-1">Community Focus</h5>
+              <p class="text-muted mb-0">Supporting students and early career researchers</p>
+            </div>
+          </div>
+          <div class="d-flex align-items-center">
+            <i class="fas fa-dna fa-2x text-primary me-3"></i>
+            <div>
+              <h5 class="mb-1">Research Areas</h5>
+              <p class="text-muted mb-0">Computational biology and bioinformatics</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="about-image text-center">
+            <img src="/logo/rsgturkey_logo.svg" alt="RSG Turkey Logo" class="img-fluid" style="max-width: 400px;" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- What We Do Section -->
+  <section class="what-we-do py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">What Do We Do?</h2>
+          <p class="lead">
+            We organize various activities to support and grow the computational biology community in Turkey.
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="activity-card h-100 p-4 text-center">
+            <div class="activity-icon mb-3">
+              <i class="fas fa-calendar-alt fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Annual Symposiums</h3>
+            <p class="text-muted">
+              We organize annual symposiums and workshops throughout Turkey, bringing together researchers and students from various institutions.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="activity-card h-100 p-4 text-center">
+            <div class="activity-icon mb-3">
+              <i class="fas fa-video fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Webinar Series</h3>
+            <p class="text-muted">
+              Our ongoing webinar project on Bioinfonet shares knowledge with the community, featuring experts from around the world.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="activity-card h-100 p-4 text-center">
+            <div class="activity-icon mb-3">
+              <i class="fas fa-chalkboard-teacher fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Student Presentations</h3>
+            <p class="text-muted">
+              Regular student paper presentations and discussions to introduce research areas and foster collaboration.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="activity-card h-100 p-4 text-center">
+            <div class="activity-icon mb-3">
+              <i class="fas fa-briefcase fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Career Development</h3>
+            <p class="text-muted">
+              Career fairs and markets to expand education and work opportunities for students and early-career researchers.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="activity-card h-100 p-4 text-center">
+            <div class="activity-icon mb-3">
+              <i class="fas fa-handshake fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">International Collaboration</h3>
+            <p class="text-muted">
+              Building bridges between the Turkish community and international colleagues through ISCB Student Council.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="activity-card h-100 p-4 text-center">
+            <div class="activity-icon mb-3">
+              <i class="fas fa-book fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Educational Resources</h3>
+            <p class="text-muted">
+              Providing educational materials, tools, and resources for the computational biology community.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ISCB Affiliation Section -->
+  <section class="iscb-affiliation py-5">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <h2 class="display-5 fw-bold mb-4">ISCB Student Council Affiliation</h2>
+          <p class="lead mb-4">
+            We are proud to be a member of the International Society for Computational Biology (ISCB) Student Council.
+          </p>
+          <p class="fs-5 mb-4">
+            The ISCB Student Council is a student-focused organization that provides a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics worldwide.
+          </p>
+          <div class="iscb-benefits">
+            <div class="benefit-item d-flex align-items-center mb-3">
+              <i class="fas fa-check-circle text-primary me-3"></i>
+              <span>Access to international conferences and events</span>
+            </div>
+            <div class="benefit-item d-flex align-items-center mb-3">
+              <i class="fas fa-check-circle text-primary me-3"></i>
+              <span>Networking opportunities with global researchers</span>
+            </div>
+            <div class="benefit-item d-flex align-items-center mb-3">
+              <i class="fas fa-check-circle text-primary me-3"></i>
+              <span>Educational resources and training programs</span>
+            </div>
+            <div class="benefit-item d-flex align-items-center">
+              <i class="fas fa-check-circle text-primary me-3"></i>
+              <span>Collaboration opportunities with other RSGs</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 text-center">
+          <div class="iscb-logo p-4">
+            <i class="fas fa-globe-americas fa-5x text-primary mb-3"></i>
+            <h4>ISCB Student Council</h4>
+            <p class="text-muted">International Society for Computational Biology</p>
+                          <a href="https://www.iscb.org/iscb-student-council" target="_blank" class="btn btn-outline-primary">
+              Visit ISCB Student Council
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- Committees Section -->
   <section class="committees py-5 bg-light">
     <div class="container">
-      <h2 class="text-center mb-4">Our Committees</h2>
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Our Committees</h2>
+          <p class="lead">
+            Our organization is run by dedicated volunteers organized into specialized committees.
+          </p>
+        </div>
+      </div>
       <div class="row">
         {committees.map((committee, index) => (
-          <div class={index === 0 ? "col-12 mb-4" : "col-md-6 mb-4"}>
+          <div class={index === 0 ? "col-12 mb-4" : "col-lg-6 mb-4"}>
             <CommitteeCard
               name={committee.name}
               description={committee.description}
@@ -83,4 +272,58 @@ const committees = [
       </div>
     </div>
   </section>
+
+  <!-- Join Us Section -->
+  <section class="join-us py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Join Our Community</h2>
+          <p class="lead mb-4">
+            Anyone interested in computational biology & bioinformatics is welcome to join our community. We love meeting new people!
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+                      <a href="/join" class="btn btn-primary btn-lg px-4">Join Us Today</a>
+          <a href="/contact" class="btn btn-outline-primary btn-lg px-4">Get in Touch</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .min-vh-50 {
+    min-height: 50vh;
+  }
+
+  .activity-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    border: 1px solid #dee2e6;
+  }
+
+  .activity-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .iscb-logo {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+  }
+
+  .benefit-item {
+    font-size: 1.1rem;
+  }
+</style>

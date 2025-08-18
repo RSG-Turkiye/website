@@ -1,54 +1,401 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-const pageTitle = "Welcome to RSG Turkey";
+
+const pageTitle = "RSG Turkey - Computational Biology Community";
 ---
+
 <BaseLayout pageTitle={pageTitle}>
   <!-- Hero Section -->
-  <section class="hero text-center text-white py-5">
+  <section class="hero text-center py-5">
     <div class="container">
-      <h1 class="display-4 fw-bold">RSG Turkey</h1>
-      <p class="lead">
-        A community empowering bioinformatics students and researchers in Turkey.
-      </p>
-      <div class="mt-4">
-        <a href="/about" class="btn btn-success btn-lg me-3">Learn More</a>
-        <a href="/blog" class="btn btn-outline-light btn-lg">Visit Blog</a>
+      <div class="row align-items-center min-vh-75">
+        <div class="col-lg-8 mx-auto">
+          <img src="/logo/rsgturkey_logo.svg" alt="RSG Turkey Logo" class="mb-4" width="120" />
+          <h1 class="display-3 fw-bold mb-4">RSG Turkey</h1>
+          <p class="lead fs-4 mb-4">
+            A non-profit student society providing a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics in Turkey.
+          </p>
+          <p class="fs-5 mb-5">
+            Member of the International Society for Computational Biology (ISCB) Student Council (SC) Regional Student Groups (RSG)
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/about" class="btn btn-primary btn-lg px-4">Learn More</a>
+            <a href="/join" class="btn btn-outline-light btn-lg px-4">Join Our Community</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Features Section -->
-  <section class="features py-5">
+  <!-- Mission Section -->
+  <section class="mission py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Our Mission</h2>
+          <p class="lead mb-4">
+            We provide an environment for young scientists from various institutions to share their knowledge and experience and to encourage collaboration between them.
+          </p>
+          <p class="fs-5">
+            Our main goal is to connect the young Turkish community with international colleagues and build bridges between bioinformatics professionals and young bioinformatics students.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Statistics Section -->
+  <section class="stats py-5">
     <div class="container">
       <div class="row text-center">
-        <div class="col-md-4">
-          <div class="feature-card p-4">
-            <img src="/icons/facilities.svg" alt="Facilities" class="mb-3" width="50" />
-            <h3>For Facilities</h3>
-            <p>
-              Highly optimized pipelines with excellent reporting. Validated releases ensure reproducibility.
+        <div class="col-md-3 col-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-icon mb-3">
+              <i class="fas fa-calendar-alt fa-2x"></i>
+            </div>
+            <div class="stat-number">10+</div>
+            <div class="stat-label">Years of Foundation</div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-icon mb-3">
+              <i class="fas fa-users fa-2x"></i>
+            </div>
+            <div class="stat-number">50+</div>
+            <div class="stat-label">Team Members</div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-icon mb-3">
+              <i class="fas fa-video fa-2x"></i>
+            </div>
+            <div class="stat-number">100+</div>
+            <div class="stat-label">Webinars</div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6 mb-4">
+          <div class="stat-card">
+            <div class="stat-icon mb-3">
+              <i class="fas fa-graduation-cap fa-2x"></i>
+            </div>
+            <div class="stat-number">15+</div>
+            <div class="stat-label">Symposiums</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- What We Do Section -->
+  <section class="what-we-do py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">What We Do</h2>
+          <p class="lead">
+            We organize various activities to support the computational biology community in Turkey
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-graduation-cap"></i>
+            </div>
+            <h3 class="h4 mb-3">Annual Symposiums</h3>
+            <p class="text-muted">
+              We organize annual symposiums and workshops throughout Turkey to bring together researchers and students in computational biology.
             </p>
           </div>
         </div>
-        <div class="col-md-4">
-          <div class="feature-card p-4">
-            <img src="/icons/users.svg" alt="Users" class="mb-3" width="50" />
-            <h3>For Users</h3>
-            <p>
-              Portable, documented, and easy-to-use workflows. Pipelines you can trust.
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-video"></i>
+            </div>
+            <h3 class="h4 mb-3">Webinar Series</h3>
+            <p class="text-muted">
+              Our ongoing webinar project on Bioinfonet shares knowledge with the community, featuring experts from around the world.
             </p>
           </div>
         </div>
-        <div class="col-md-4">
-          <div class="feature-card p-4">
-            <img src="/icons/developers.svg" alt="Developers" class="mb-3" width="50" />
-            <h3>For Developers</h3>
-            <p>
-              Companion templates and tools to validate your code and simplify common tasks.
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-users"></i>
+            </div>
+            <h3 class="h4 mb-3">Student Presentations</h3>
+            <p class="text-muted">
+              Regular student paper presentations and discussions to introduce research areas and foster collaboration.
             </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-briefcase"></i>
+            </div>
+            <h3 class="h4 mb-3">Career Fairs</h3>
+            <p class="text-muted">
+              Career fairs and markets to expand education and work opportunities for students and early-career researchers.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-globe"></i>
+            </div>
+            <h3 class="h4 mb-3">International Connections</h3>
+            <p class="text-muted">
+              Building bridges between the Turkish community and international colleagues through ISCB Student Council.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-book"></i>
+            </div>
+            <h3 class="h4 mb-3">Educational Resources</h3>
+            <p class="text-muted">
+              Providing educational materials, tools, and resources for the computational biology community.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recent Content Section -->
+  <section class="recent-content py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Latest from Our Community</h2>
+          <p class="lead">
+            Stay updated with our latest webinars, events, and blog posts
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="content-card h-100">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                                  <i class="fas fa-video text-primary me-2"></i>
+                <span class="badge bg-primary">Webinar</span>
+                </div>
+                <h5 class="card-title">Open Student Webinars</h5>
+                <p class="card-text text-muted">
+                  Join our student-led webinar series featuring research presentations and discussions.
+                </p>
+                <a href="/webinars" class="btn btn-outline-primary btn-sm">Learn More</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="content-card h-100">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                  <i class="fas fa-calendar text-primary me-2"></i>
+                  <span class="badge bg-primary">Event</span>
+                </div>
+                <h5 class="card-title">Upcoming Events</h5>
+                <p class="card-text text-muted">
+                  Check out our upcoming workshops, symposiums, and networking events.
+                </p>
+                <a href="/events" class="btn btn-outline-primary btn-sm">View Events</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="content-card h-100">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                  <i class="fas fa-newspaper text-primary me-2"></i>
+                  <span class="badge bg-info">Blog</span>
+                </div>
+                <h5 class="card-title">Latest Blog Posts</h5>
+                <p class="card-text text-muted">
+                  Read our latest articles on computational biology, bioinformatics, and community updates.
+                </p>
+                <a href="/blog" class="btn btn-outline-primary btn-sm">Read Blog</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Section -->
+  <section class="cta py-5 bg-primary">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Join Our Growing Network</h2>
+          <p class="lead mb-4">
+            Anyone interested in computational biology & bioinformatics is welcome to join our community. We love meeting new people!
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/join" class="btn btn-light btn-lg px-4">Join Us Today</a>
+            <a href="/contact" class="btn btn-outline-light btn-lg px-4">Get in Touch</a>
           </div>
         </div>
       </div>
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .hero {
+    background: var(--gradient-hero);
+    min-height: 75vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+  }
+
+  .hero .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .min-vh-75 {
+    min-height: 75vh;
+  }
+
+  .stat-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+    border: 1px solid var(--border-light);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+  }
+
+  .stat-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
+  }
+
+  .stat-icon {
+    color: var(--primary-600);
+    opacity: 0.8;
+  }
+
+  .stat-number {
+    font-size: var(--font-size-4xl);
+    font-weight: 700;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .feature-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+    border: 1px solid var(--border-light);
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-accent);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+  }
+
+  .feature-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
+  }
+
+  .feature-card:hover::before {
+    opacity: 1;
+  }
+
+  .feature-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-lg);
+    color: var(--text-inverse);
+    font-size: var(--font-size-2xl);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .content-card {
+    transition: transform 0.3s ease;
+  }
+
+  .content-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+  }
+</style>

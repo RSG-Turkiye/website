@@ -1,7 +1,322 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-const pageTitle = "Contact Us";
+
+const pageTitle = "Contact Us - RSG Turkey";
 ---
+
 <BaseLayout pageTitle={pageTitle}>
-  <h2>CONTACT us.</h2>
+  <!-- Hero Section -->
+  <section class="hero text-center py-5">
+    <div class="container">
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-3 fw-bold mb-4">Contact Us</h1>
+          <p class="lead fs-4">
+            Get in touch with the RSG Turkey team. We'd love to hear from you!
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Information Section -->
+  <section class="contact-info py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Get in Touch</h2>
+          <p class="lead">
+            Have questions about our events, webinars, or want to join our community? Contact us!
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="contact-card text-center p-4">
+            <div class="contact-icon mb-3">
+              <i class="fas fa-envelope fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Email Us</h3>
+            <p class="text-muted mb-3">
+              Send us an email for general inquiries, event information, or membership questions.
+            </p>
+                          <a href="mailto:turkey.rsg@gmail.com" class="btn btn-outline-primary">
+              turkey.rsg@gmail.com
+            </a>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="contact-card text-center p-4">
+            <div class="contact-icon mb-3">
+              <i class="fas fa-users fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Join Our Community</h3>
+            <p class="text-muted mb-3">
+              Interested in joining RSG Turkey? Learn more about membership and participation.
+            </p>
+                          <a href="/join" class="btn btn-outline-primary">Join Us</a>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="contact-card text-center p-4">
+            <div class="contact-icon mb-3">
+              <i class="fas fa-calendar-alt fa-3x text-primary"></i>
+            </div>
+            <h3 class="h4 mb-3">Event Inquiries</h3>
+            <p class="text-muted mb-3">
+              Questions about our webinars, workshops, or symposiums? We're here to help.
+            </p>
+                          <a href="/events" class="btn btn-outline-primary">View Events</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Form Section -->
+  <section class="contact-form py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto">
+          <div class="card">
+            <div class="card-body p-5">
+              <h2 class="text-center mb-4">Send Us a Message</h2>
+              <form id="contactForm">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="firstName" class="form-label">First Name *</label>
+                    <input type="text" class="form-control" id="firstName" name="firstName" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="lastName" class="form-label">Last Name *</label>
+                    <input type="text" class="form-control" id="lastName" name="lastName" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="email" class="form-label">Email Address *</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="institution" class="form-label">Institution</label>
+                    <input type="text" class="form-control" id="institution" name="institution">
+                  </div>
+                  <div class="col-12">
+                    <label for="subject" class="form-label">Subject *</label>
+                    <select class="form-select" id="subject" name="subject" required>
+                      <option value="">Choose a subject...</option>
+                      <option value="general">General Inquiry</option>
+                      <option value="membership">Membership Question</option>
+                      <option value="events">Event Information</option>
+                      <option value="webinars">Webinar Registration</option>
+                      <option value="collaboration">Collaboration Proposal</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label for="message" class="form-label">Message *</label>
+                    <textarea class="form-control" id="message" name="message" rows="5" required placeholder="Please provide details about your inquiry..."></textarea>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="newsletter" name="newsletter">
+                      <label class="form-check-label" for="newsletter">
+                        Subscribe to our newsletter for updates about events and webinars
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-12 text-center">
+                    <button type="submit" class="btn btn-primary btn-lg px-5">Send Message</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Social Media Section -->
+  <section class="social-media py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Follow Us</h2>
+          <p class="lead mb-5">
+            Stay connected with RSG Turkey on social media for the latest updates, events, and community news.
+          </p>
+          <div class="social-links">
+            <a href="#" class="social-link" title="Twitter">
+              <i class="fab fa-twitter fa-2x"></i>
+            </a>
+            <a href="#" class="social-link" title="LinkedIn">
+              <i class="fab fa-linkedin fa-2x"></i>
+            </a>
+            <a href="#" class="social-link" title="Facebook">
+              <i class="fab fa-facebook fa-2x"></i>
+            </a>
+            <a href="#" class="social-link" title="Instagram">
+              <i class="fab fa-instagram fa-2x"></i>
+            </a>
+            <a href="#" class="social-link" title="YouTube">
+              <i class="fab fa-youtube fa-2x"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="faq py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto">
+          <h2 class="text-center mb-5">Frequently Asked Questions</h2>
+          <div class="accordion" id="faqAccordion">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="faq1">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1" aria-expanded="true" aria-controls="collapse1">
+                  How can I join RSG Turkey?
+                </button>
+              </h2>
+              <div id="collapse1" class="accordion-collapse collapse show" aria-labelledby="faq1" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                  Anyone interested in computational biology and bioinformatics is welcome to join our community. You can start by attending our events, webinars, or contacting us directly. Visit our <a href="/join">Join Us</a> page for more information.
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="faq2">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2" aria-expanded="false" aria-controls="collapse2">
+                  Are your events open to international participants?
+                </button>
+              </h2>
+              <div id="collapse2" class="accordion-collapse collapse" aria-labelledby="faq2" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                  Yes! Many of our events, especially webinars, are open to international participants. We welcome collaboration and participation from researchers worldwide.
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="faq3">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3" aria-expanded="false" aria-controls="collapse3">
+                  How can I stay updated about upcoming events?
+                </button>
+              </h2>
+              <div id="collapse3" class="accordion-collapse collapse" aria-labelledby="faq3" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                  You can stay updated by subscribing to our newsletter, following us on social media, or regularly checking our website for event announcements.
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="faq4">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse4" aria-expanded="false" aria-controls="collapse4">
+                  Can I propose a webinar or workshop topic?
+                </button>
+              </h2>
+              <div id="collapse4" class="accordion-collapse collapse" aria-labelledby="faq4" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                  Absolutely! We welcome suggestions for webinar topics and workshop themes. Please contact us with your proposal, and we'll be happy to discuss it.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .min-vh-50 {
+    min-height: 50vh;
+  }
+
+  .contact-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    border: 1px solid #dee2e6;
+  }
+
+  .contact-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .social-links {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .social-link {
+    color: #6c757d;
+    transition: color 0.3s ease, transform 0.3s ease;
+    display: inline-block;
+  }
+
+  .social-link:hover {
+    color: #00d1b2;
+    transform: translateY(-3px);
+  }
+
+  .accordion-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .accordion-button {
+    background-color: white;
+    border: none;
+    font-weight: 500;
+  }
+
+  .accordion-button:not(.collapsed) {
+    background-color: #e7f3ff;
+    color: #00539F;
+  }
+
+  .accordion-button:focus {
+    box-shadow: none;
+    border-color: #00d1b2;
+  }
+</style>
+
+<script>
+  const contactForm = document.getElementById('contactForm') as HTMLFormElement;
+  if (contactForm) {
+    contactForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Get form data
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData);
+      
+      // Here you would typically send the data to your backend
+      console.log('Form submitted:', data);
+      
+      // Show success message (you can customize this)
+      alert('Thank you for your message! We will get back to you soon.');
+      
+      // Reset form
+      this.reset();
+    });
+  }
+</script>

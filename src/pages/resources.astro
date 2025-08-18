@@ -1,0 +1,437 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const pageTitle = "Resources - RSG Turkey";
+
+const resources = [
+  {
+    category: "Educational Materials",
+    items: [
+      {
+        title: "Bioinformatics: Where to Start?",
+        description: "A simplified resource list to provide a solution to the question of where/how to start regarding bioinformatics.",
+        type: "guide",
+        link: "#",
+        tags: ["beginner", "learning-path"]
+      },
+      {
+        title: "Computational Biology Fundamentals",
+        description: "Basic concepts and methodologies in computational biology and bioinformatics.",
+        type: "course",
+        link: "#",
+        tags: ["fundamentals", "course"]
+      },
+      {
+        title: "Statistical Analysis in Bioinformatics",
+        description: "Statistical methods commonly used in bioinformatics research and data analysis.",
+        type: "tutorial",
+        link: "#",
+        tags: ["statistics", "analysis"]
+      }
+    ]
+  },
+  {
+    category: "Tools & Software",
+    items: [
+      {
+        title: "Sequence Analysis Tools",
+        description: "Collection of tools for DNA/RNA sequence analysis, alignment, and annotation.",
+        type: "tools",
+        link: "#",
+        tags: ["sequence-analysis", "alignment"]
+      },
+      {
+        title: "Protein Structure Analysis",
+        description: "Tools for protein structure prediction, analysis, and visualization.",
+        type: "tools",
+        link: "#",
+        tags: ["protein-structure", "prediction"]
+      },
+      {
+        title: "Single-Cell Analysis Pipeline",
+        description: "Comprehensive pipeline for single-cell RNA sequencing data analysis.",
+        type: "pipeline",
+        link: "#",
+        tags: ["single-cell", "rna-seq"]
+      }
+    ]
+  },
+  {
+    category: "Databases & Repositories",
+    items: [
+      {
+        title: "Genomic Databases",
+        description: "Access to major genomic databases and repositories for research data.",
+        type: "database",
+        link: "#",
+        tags: ["genomics", "data"]
+      },
+      {
+        title: "Protein Databases",
+        description: "Protein sequence and structure databases for research and analysis.",
+        type: "database",
+        link: "#",
+        tags: ["proteins", "structures"]
+      },
+      {
+        title: "Expression Data Repositories",
+        description: "Gene expression data repositories and analysis platforms.",
+        type: "database",
+        link: "#",
+        tags: ["expression", "transcriptomics"]
+      }
+    ]
+  },
+  {
+    category: "Career Resources",
+    items: [
+      {
+        title: "Career Development Guide",
+        description: "Guidance for career development in computational biology and bioinformatics.",
+        type: "guide",
+        link: "#",
+        tags: ["career", "development"]
+      },
+      {
+        title: "Job Opportunities",
+        description: "Current job openings and opportunities in the field of computational biology.",
+        type: "jobs",
+        link: "#",
+        tags: ["jobs", "opportunities"]
+      },
+      {
+        title: "Networking Events",
+        description: "Information about networking events and professional development opportunities.",
+        type: "events",
+        link: "#",
+        tags: ["networking", "events"]
+      }
+    ]
+  }
+];
+
+const externalLinks = [
+  {
+    title: "ISCB Student Council",
+    description: "International Society for Computational Biology Student Council",
+    url: "https://www.iscb.org/iscb-student-council",
+    category: "organization"
+  },
+  {
+    title: "Bioinformatics.org",
+    description: "Open access to the world's computational biology community",
+    url: "https://www.bioinformatics.org",
+    category: "community"
+  },
+  {
+    title: "NCBI Resources",
+    description: "National Center for Biotechnology Information resources and tools",
+    url: "https://www.ncbi.nlm.nih.gov",
+    category: "database"
+  },
+  {
+    title: "EMBL-EBI",
+    description: "European Bioinformatics Institute resources and services",
+    url: "https://www.ebi.ac.uk",
+    category: "database"
+  }
+];
+---
+
+<BaseLayout pageTitle={pageTitle}>
+  <!-- Hero Section -->
+  <section class="hero text-center py-5">
+    <div class="container">
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-3 fw-bold mb-4">Resources</h1>
+          <p class="lead fs-4">
+            Educational materials, tools, and resources for the computational biology community.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Resources Overview Section -->
+  <section class="resources-overview py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Learning Resources</h2>
+          <p class="lead">
+            Access educational materials, tools, and resources to support your journey in computational biology and bioinformatics.
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-book fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">Educational Materials</h3>
+            <p class="text-muted small">
+              Guides, tutorials, and courses for learning computational biology.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-tools fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">Tools & Software</h3>
+            <p class="text-muted small">
+              Software tools and pipelines for bioinformatics analysis.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-database fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">Databases</h3>
+            <p class="text-muted small">
+              Access to genomic and protein databases for research.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-briefcase fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">Career Resources</h3>
+            <p class="text-muted small">
+              Career development and job opportunities in the field.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Resources by Category -->
+  <section class="resources-categories py-5 bg-light">
+    <div class="container">
+      {resources.map((category) => (
+        <div class="resource-category mb-5">
+          <div class="row">
+            <div class="col-12">
+              <h3 class="h2 mb-4 text-center">{category.category}</h3>
+              <div class="row g-4">
+                {category.items.map((item) => (
+                  <div class="col-lg-4 col-md-6">
+                    <div class="resource-card h-100">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start mb-3">
+                            <span class={`badge ${item.type === 'guide' ? 'bg-primary' : item.type === 'course' ? 'bg-accent' : item.type === 'tutorial' ? 'bg-info' : item.type === 'tools' ? 'bg-warning' : item.type === 'pipeline' ? 'bg-danger' : 'bg-secondary'}`}>
+                              {item.type}
+                            </span>
+                            <div class="resource-tags">
+                              {item.tags.map((tag) => (
+                                <span class="badge bg-light text-dark me-1">{tag}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <h5 class="card-title mb-3">{item.title}</h5>
+                          <p class="card-text text-muted">{item.description}</p>
+                          <a href={item.link} class="btn btn-outline-primary btn-sm">Learn More</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- External Links Section -->
+  <section class="external-links py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">External Resources</h2>
+          <p class="lead">
+            Useful links to external organizations, databases, and communities in computational biology.
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        {externalLinks.map((link) => (
+          <div class="col-lg-6 col-md-12">
+            <div class="external-link-card h-100">
+              <div class="card h-100">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <span class={`badge ${link.category === 'organization' ? 'bg-accent' : link.category === 'community' ? 'bg-info' : link.category === 'database' ? 'bg-secondary' : 'bg-primary'}`}>
+                      {link.category}
+                    </span>
+                    <i class="fas fa-external-link-alt text-muted"></i>
+                  </div>
+                  <h5 class="card-title mb-3">{link.title}</h5>
+                  <p class="card-text text-muted">{link.description}</p>
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
+                    Visit Resource
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Getting Started Section -->
+  <section class="getting-started py-5 bg-light">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-lg-6">
+          <h2 class="display-5 fw-bold mb-4">Getting Started</h2>
+          <p class="lead mb-4">
+            New to computational biology? Here's how to begin your journey.
+          </p>
+          <div class="getting-started-steps">
+            <div class="step-item d-flex align-items-center mb-4">
+              <div class="step-number me-3">1</div>
+              <div>
+                <h5 class="mb-1">Learn the Basics</h5>
+                <p class="text-muted mb-0">Start with fundamental concepts in biology and computer science</p>
+              </div>
+            </div>
+            <div class="step-item d-flex align-items-center mb-4">
+              <div class="step-number me-3">2</div>
+              <div>
+                <h5 class="mb-1">Choose Your Tools</h5>
+                <p class="text-muted mb-0">Familiarize yourself with essential bioinformatics tools and software</p>
+              </div>
+            </div>
+            <div class="step-item d-flex align-items-center mb-4">
+              <div class="step-number me-3">3</div>
+              <div>
+                <h5 class="mb-1">Practice with Data</h5>
+                <p class="text-muted mb-0">Work with real datasets from public databases</p>
+              </div>
+            </div>
+            <div class="step-item d-flex align-items-center">
+              <div class="step-number me-3">4</div>
+              <div>
+                <h5 class="mb-1">Join the Community</h5>
+                <p class="text-muted mb-0">Connect with other researchers and participate in events</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 text-center">
+          <div class="getting-started-image p-4">
+            <i class="fas fa-rocket fa-5x text-primary mb-3"></i>
+            <h4>Start Your Journey</h4>
+            <p class="text-muted">Begin your computational biology adventure today</p>
+            <a href="/contact" class="btn btn-primary btn-lg px-4">Get Help</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Section -->
+  <section class="cta py-5 bg-primary">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Need More Resources?</h2>
+          <p class="lead mb-4">
+            Can't find what you're looking for? Contact us for personalized recommendations and support.
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/contact" class="btn btn-light btn-lg px-4">Contact Us</a>
+            <a href="/join" class="btn btn-outline-light btn-lg px-4">Join Our Community</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .min-vh-50 {
+    min-height: 50vh;
+  }
+
+  .resource-type-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    border: 1px solid #dee2e6;
+  }
+
+  .resource-type-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .resource-card {
+    transition: transform 0.3s ease;
+  }
+
+  .resource-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .external-link-card {
+    transition: transform 0.3s ease;
+  }
+
+  .external-link-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .getting-started-image {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+  }
+
+  .step-number {
+    width: 40px;
+    height: 40px;
+    background: #00d1b2;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+
+  .resource-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+</style> 
