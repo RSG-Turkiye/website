@@ -15,9 +15,22 @@
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) return;
 
-    // Get current language from localStorage or default to 'en'
-    const currentLang = localStorage.getItem('language') || 'en';
+    // Detect current language from URL path
+    const currentPath = window.location.pathname;
+    let currentLang = 'en';
+    
+    if (currentPath.startsWith('/tr')) {
+      currentLang = 'tr';
+    }
+    
+    // Set the data attribute based on current URL
     document.documentElement.setAttribute('data-lang', currentLang);
+    
+    // Update localStorage to match current URL
+    localStorage.setItem('language', currentLang);
+    
+    // Debug: log current language
+    console.log('Current language detected:', currentLang, 'from path:', currentPath);
 
     languageToggle.addEventListener('click', () => {
       const currentLang = document.documentElement.getAttribute('data-lang') || 'en';
@@ -104,8 +117,11 @@
 
   .flag-container {
     position: relative;
-    width: 24px;
-    height: 16px;
+    width: 32px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .flag {
@@ -115,25 +131,31 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 2px;
-    transition: opacity var(--transition-fast);
+    border-radius: 3px;
+    transition: opacity 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .flag-en {
-    opacity: 1;
+    opacity: 1 !important;
+    z-index: 2;
   }
 
   .flag-tr {
-    opacity: 0;
+    opacity: 0 !important;
+    z-index: 1;
   }
 
   /* Show Turkish flag when Turkish is active */
-  [data-lang="tr"] .flag-en {
-    opacity: 0;
+  html[data-lang="tr"] .flag-en {
+    opacity: 0 !important;
+    z-index: 1;
   }
 
-  [data-lang="tr"] .flag-tr {
-    opacity: 1;
+  html[data-lang="tr"] .flag-tr {
+    opacity: 1 !important;
+    z-index: 2;
   }
 
   /* Light theme adjustments */
