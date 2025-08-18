@@ -1,69 +1,15 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CommitteeCard from '../../layouts/CommitteeCard.astro';
+import { getCommittees } from '../../data/committees';
 import { getLangFromUrl, useTranslations } from '../../i18n/ui';
 
 const lang = 'tr';
 const t = useTranslations(lang);
 const pageTitle = "Hakkımızda - RSG Türkiye";
 
-const committees = [
-  {
-    name: "Yürütme Komitesi",
-    description: "Organizasyonu vizyon ve strateji ile yönetmek.",
-    members: [
-      { 
-        role: "Başkan", 
-        name: "Dr. [İsim]", 
-        image: "/logo/rsgturkey_logo.png",
-        institution: "Üniversite",
-        socialMedia: [
-          { platform: "twitter", url: "#" },
-          { platform: "linkedin", url: "#" },
-        ],
-      },
-      { 
-        role: "Başkan Yardımcısı", 
-        name: "Dr. [İsim]", 
-        image: "/logo/rsgturkey_logo.png",
-        institution: "Üniversite",
-        socialMedia: [
-          { platform: "linkedin", url: "#" },
-        ],
-      },
-      { 
-        role: "Sekreter", 
-        name: "Dr. [İsim]", 
-        image: "/logo/rsgturkey_logo.png",
-        institution: "Üniversite"
-      },
-    ],
-  },
-  {
-    name: "Webinar Komitesi",
-    description: "Bioinfonet webinar serimizi ve eğitim etkinliklerimizi organize etmek.",
-    members: [
-      { role: "Başkan", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
-      { role: "Üye", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
-    ],
-  },
-  {
-    name: "Etkinlik Komitesi",
-    description: "Sempozyumlar, atölye çalışmaları ve ağ oluşturma etkinlikleri planlamak.",
-    members: [
-      { role: "Başkan", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
-      { role: "Üye", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
-    ],
-  },
-  {
-    name: "Topluluk İlişkileri Komitesi",
-    description: "Topluluk katılımını ve uluslararası bağlantıları yönetmek.",
-    members: [
-      { role: "Başkan", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
-      { role: "Üye", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
-    ],
-  },
-];
+// Get committees data based on language
+const committees = getCommittees(lang);
 ---
 
 <BaseLayout pageTitle={pageTitle}>

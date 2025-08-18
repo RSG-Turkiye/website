@@ -5,7 +5,9 @@ interface Member {
   name: string;
   role: string;
   image: string;
-  socialMedia?: { platform: string; url: string }[]; // Optional social media links
+  institution: string;
+  email?: string;
+  socialMedia?: { platform: string; url: string }[];
 }
 
 const { name, description, members = [] } = Astro.props as { name: string; description: string; members: Member[] };
@@ -36,7 +38,15 @@ const socialMediaIcons: Record<string, string> = {
             />
           </div>
           <h5 class="mb-2">{member.name}</h5>
-          <p class="text-muted mb-2">{member.role}</p>
+          <p class="text-muted mb-1">{member.role}</p>
+          <p class="text-muted small mb-2">{member.institution}</p>
+          {member.email && (
+            <p class="text-muted small mb-2">
+              <a href={`mailto:${member.email}`} class="text-decoration-none">
+                <i class="fas fa-envelope me-1"></i>{member.email}
+              </a>
+            </p>
+          )}
           {member.socialMedia && (
             <div class="social-links">
               {member.socialMedia.map((social) => (
@@ -54,27 +64,40 @@ const socialMediaIcons: Record<string, string> = {
 
 <style>
   .committee-card {
-    background: var(--bg-color);
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
   }
+  
+  .committee-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+  
   .committee-card h3 {
-    color: var(--text-color);
+    color: var(--text-primary);
   }
+  
   .committee-card p {
-    color: var(--text-color);
+    color: var(--text-secondary);
   }
+  
   .member-card {
-    background: #fff;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s ease-in-out;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-normal);
+    height: 100%;
   }
+  
   .member-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
   }
+  
   .member-image-container {
     width: 150px;
     height: 150px;
@@ -84,13 +107,13 @@ const socialMediaIcons: Record<string, string> = {
     align-items: center;
     justify-content: center;
     margin: 0 auto;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     transition: all var(--transition-normal);
   }
 
   .member-image-container:hover {
     transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-lg);
   }
 
   .member-image {
@@ -99,25 +122,29 @@ const socialMediaIcons: Record<string, string> = {
     object-fit: contain;
     border-radius: 50%;
   }
+  
   .member-card h5 {
-    color: #333; /* Example: Dark gray */
-    font-size: 1.5rem;
-    font-weight: 700;
-  }
-  .member-card p {
-    color: var(--text-secondary-color, #495057);
+    color: var(--text-primary);
     font-size: 1.1rem;
+    font-weight: 600;
   }
+  
+  .member-card p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  
   .social-links a {
     display: inline-block;
     margin-right: 8px;
-    font-size: 1.5rem; /* Adjust icon size */
-    color: var(--text-color);
-    transition: color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    transition: all var(--transition-normal);
   }
+  
   .social-links a:hover {
-    color: var(--primary-color);
-    opacity: 0.8;
+    color: var(--primary-600);
+    transform: translateY(-2px);
   }
 
   /* Light theme adjustments for member images */
@@ -127,12 +154,5 @@ const socialMediaIcons: Record<string, string> = {
 
   [data-theme="light"] .member-image-container:hover {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  }
-  .social-links a {
-    color: var(--icon-color, #000); /* Default color */
-    transition: color 0.2s ease-in-out;
-  }
-  .social-links a:hover {
-    color: var(--icon-hover-color, #0077B5); /* Change on hover */
   }
 </style>

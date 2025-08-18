@@ -1,69 +1,15 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CommitteeCard from '../layouts/CommitteeCard.astro';
+import { getCommittees } from '../data/committees';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "About Us - RSG Turkey";
 
-const committees = [
-  {
-    name: "Executive Committee",
-    description: "Leading the organization with vision and strategy.",
-    members: [
-      { 
-        role: "President", 
-        name: "Dr. [Name]", 
-        image: "/logo/rsgturkey_logo.png",
-        institution: "University",
-        socialMedia: [
-          { platform: "twitter", url: "#" },
-          { platform: "linkedin", url: "#" },
-        ],
-      },
-      { 
-        role: "Vice-President", 
-        name: "Dr. [Name]", 
-        image: "/logo/rsgturkey_logo.png",
-        institution: "University",
-        socialMedia: [
-          { platform: "linkedin", url: "#" },
-        ],
-      },
-      { 
-        role: "Secretary", 
-        name: "Dr. [Name]", 
-        image: "/logo/rsgturkey_logo.png",
-        institution: "University"
-      },
-    ],
-  },
-  {
-    name: "Webinar Committee",
-    description: "Organizing our Bioinfonet webinar series and educational events.",
-    members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-    ],
-  },
-  {
-    name: "Events Committee",
-    description: "Planning symposiums, workshops, and networking events.",
-    members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-    ],
-  },
-  {
-    name: "Outreach Committee",
-    description: "Managing community engagement and international connections.",
-    members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-    ],
-  },
-];
+// Get committees data based on language
+const committees = getCommittees(lang);
 ---
 
 <BaseLayout pageTitle={pageTitle}>
