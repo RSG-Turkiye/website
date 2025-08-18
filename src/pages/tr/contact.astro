@@ -1,10 +1,10 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getLangFromUrl, useTranslations } from '../../i18n/ui';
 
-const lang = getLangFromUrl(Astro.url);
+const lang = 'tr';
 const t = useTranslations(lang);
-const pageTitle = "Contact Us - RSG Turkey";
+const pageTitle = "İletişim - RSG Türkiye";
 ---
 
 <BaseLayout pageTitle={pageTitle}>
@@ -29,7 +29,7 @@ const pageTitle = "Contact Us - RSG Turkey";
         <div class="col-lg-8 mx-auto text-center mb-5">
           <h2 class="display-5 fw-bold mb-4">{t('contact.info.title')}</h2>
           <p class="lead">
-            Have questions about our events, webinars, or want to join our community? Contact us!
+            Etkinliklerimiz, webinarlarımız hakkında sorularınız var mı veya topluluğumuza katılmak mı istiyorsunuz? Bizimle iletişime geçin!
           </p>
         </div>
       </div>
@@ -41,9 +41,9 @@ const pageTitle = "Contact Us - RSG Turkey";
             </div>
             <h3 class="h4 mb-3">{t('contact.info.email')}</h3>
             <p class="text-muted mb-3">
-              Send us an email for general inquiries, event information, or membership questions.
+              Genel sorular, etkinlik bilgileri veya üyelik soruları için bize e-posta gönderin.
             </p>
-                          <a href="mailto:turkey.rsg@gmail.com" class="btn btn-outline-primary">
+            <a href="mailto:turkey.rsg@gmail.com" class="btn btn-outline-primary">
               turkey.rsg@gmail.com
             </a>
           </div>
@@ -53,11 +53,11 @@ const pageTitle = "Contact Us - RSG Turkey";
             <div class="contact-icon mb-3">
               <i class="fas fa-users fa-3x text-primary"></i>
             </div>
-            <h3 class="h4 mb-3">Join Our Community</h3>
+            <h3 class="h4 mb-3">Topluluğumuza Katılın</h3>
             <p class="text-muted mb-3">
-              Interested in joining RSG Turkey? Learn more about membership and participation.
+              RSG Türkiye'ye katılmakla ilgileniyor musunuz? Üyelik ve katılım hakkında daha fazla bilgi edinin.
             </p>
-                          <a href="/join" class="btn btn-outline-primary">Join Us</a>
+            <a href="/tr/join" class="btn btn-outline-primary">Katıl</a>
           </div>
         </div>
         <div class="col-lg-4 col-md-6">
@@ -65,11 +65,11 @@ const pageTitle = "Contact Us - RSG Turkey";
             <div class="contact-icon mb-3">
               <i class="fas fa-calendar-alt fa-3x text-primary"></i>
             </div>
-            <h3 class="h4 mb-3">Event Inquiries</h3>
+            <h3 class="h4 mb-3">Etkinlik Soruları</h3>
             <p class="text-muted mb-3">
-              Questions about our webinars, workshops, or symposiums? We're here to help.
+              Webinarlarımız, atölye çalışmalarımız veya sempozyumlarımız hakkında sorularınız var mı? Size yardımcı olmaya hazırız.
             </p>
-                          <a href="/events" class="btn btn-outline-primary">View Events</a>
+            <a href="/tr/events" class="btn btn-outline-primary">Etkinlikleri Görüntüle</a>
           </div>
         </div>
       </div>
@@ -83,51 +83,37 @@ const pageTitle = "Contact Us - RSG Turkey";
         <div class="col-lg-8 mx-auto">
           <div class="card">
             <div class="card-body p-5">
-              <h2 class="text-center mb-4">Send Us a Message</h2>
+              <h2 class="text-center mb-4">Bize Mesaj Gönderin</h2>
               <form id="contactForm">
                 <div class="row g-3">
                   <div class="col-md-6">
-                    <label for="firstName" class="form-label">First Name *</label>
+                    <label for="firstName" class="form-label">Ad *</label>
                     <input type="text" class="form-control" id="firstName" name="firstName" required>
                   </div>
                   <div class="col-md-6">
-                    <label for="lastName" class="form-label">Last Name *</label>
+                    <label for="lastName" class="form-label">Soyad *</label>
                     <input type="text" class="form-control" id="lastName" name="lastName" required>
                   </div>
                   <div class="col-md-6">
-                    <label for="email" class="form-label">Email Address *</label>
+                    <label for="email" class="form-label">E-posta Adresi *</label>
                     <input type="email" class="form-control" id="email" name="email" required>
                   </div>
                   <div class="col-md-6">
-                    <label for="institution" class="form-label">Institution</label>
+                    <label for="institution" class="form-label">Kurum</label>
                     <input type="text" class="form-control" id="institution" name="institution">
                   </div>
                   <div class="col-12">
-                    <label for="subject" class="form-label">Subject *</label>
-                    <select class="form-select" id="subject" name="subject" required>
-                      <option value="">Choose a subject...</option>
-                      <option value="general">General Inquiry</option>
-                      <option value="membership">Membership Question</option>
-                      <option value="events">Event Information</option>
-                      <option value="webinars">Webinar Registration</option>
-                      <option value="collaboration">Collaboration Proposal</option>
-                      <option value="other">Other</option>
-                    </select>
+                    <label for="subject" class="form-label">Konu *</label>
+                    <input type="text" class="form-control" id="subject" name="subject" required>
                   </div>
                   <div class="col-12">
-                    <label for="message" class="form-label">Message *</label>
-                    <textarea class="form-control" id="message" name="message" rows="5" required placeholder="Please provide details about your inquiry..."></textarea>
-                  </div>
-                  <div class="col-12">
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" id="newsletter" name="newsletter">
-                      <label class="form-check-label" for="newsletter">
-                        Subscribe to our newsletter for updates about events and webinars
-                      </label>
-                    </div>
+                    <label for="message" class="form-label">Mesaj *</label>
+                    <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
                   </div>
                   <div class="col-12 text-center">
-                    <button type="submit" class="btn btn-primary btn-lg px-5">Send Message</button>
+                    <button type="submit" class="btn btn-primary btn-lg px-5">
+                      <i class="fas fa-paper-plane me-2"></i>{t('contact.form.send')}
+                    </button>
                   </div>
                 </div>
               </form>
@@ -143,9 +129,9 @@ const pageTitle = "Contact Us - RSG Turkey";
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">Follow Us</h2>
-          <p class="lead mb-5">
-            Stay connected with RSG Turkey on social media for the latest updates, events, and community news.
+          <h2 class="display-5 fw-bold mb-4">{t('contact.info.social')}</h2>
+          <p class="lead mb-4">
+            Güncellemeler ve duyurular için sosyal medyada bizimle bağlantıda kalın.
           </p>
           <div class="social-links">
             <a href="#" class="social-link" title="Twitter">
@@ -174,53 +160,53 @@ const pageTitle = "Contact Us - RSG Turkey";
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto">
-          <h2 class="text-center mb-5">Frequently Asked Questions</h2>
+          <h2 class="text-center mb-5">Sık Sorulan Sorular</h2>
           <div class="accordion" id="faqAccordion">
             <div class="accordion-item">
               <h2 class="accordion-header" id="faq1">
                 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1" aria-expanded="true" aria-controls="collapse1">
-                  How can I join RSG Turkey?
+                  RSG Türkiye'ye nasıl katılabilirim?
                 </button>
               </h2>
               <div id="collapse1" class="accordion-collapse collapse show" aria-labelledby="faq1" data-bs-parent="#faqAccordion">
                 <div class="accordion-body">
-                  Anyone interested in computational biology and bioinformatics is welcome to join our community. You can start by attending our events, webinars, or contacting us directly. Visit our <a href="/join">Join Us</a> page for more information.
+                  Hesaplamalı biyoloji ve biyoinformatik ile ilgilenen herkes topluluğumuza katılmaya davetlidir. Etkinliklerimize, webinarlarımıza katılarak veya doğrudan bizimle iletişime geçerek başlayabilirsiniz. Daha fazla bilgi için <a href="/tr/join">Katıl</a> sayfamızı ziyaret edin.
                 </div>
               </div>
             </div>
             <div class="accordion-item">
               <h2 class="accordion-header" id="faq2">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2" aria-expanded="false" aria-controls="collapse2">
-                  Are your events open to international participants?
+                  Etkinlikleriniz uluslararası katılımcılara açık mı?
                 </button>
               </h2>
               <div id="collapse2" class="accordion-collapse collapse" aria-labelledby="faq2" data-bs-parent="#faqAccordion">
                 <div class="accordion-body">
-                  Yes! Many of our events, especially webinars, are open to international participants. We welcome collaboration and participation from researchers worldwide.
+                  Evet! Özellikle webinarlarımız olmak üzere birçok etkinliğimiz uluslararası katılımcılara açıktır. Dünya çapındaki araştırmacılardan işbirliği ve katılımı memnuniyetle karşılıyoruz.
                 </div>
               </div>
             </div>
             <div class="accordion-item">
               <h2 class="accordion-header" id="faq3">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3" aria-expanded="false" aria-controls="collapse3">
-                  How can I stay updated about upcoming events?
+                  Yaklaşan etkinlikler hakkında nasıl güncel kalabilirim?
                 </button>
               </h2>
               <div id="collapse3" class="accordion-collapse collapse" aria-labelledby="faq3" data-bs-parent="#faqAccordion">
                 <div class="accordion-body">
-                  You can stay updated by subscribing to our newsletter, following us on social media, or regularly checking our website for event announcements.
+                  Bültenimize abone olarak, sosyal medyada bizi takip ederek veya etkinlik duyuruları için web sitemizi düzenli olarak kontrol ederek güncel kalabilirsiniz.
                 </div>
               </div>
             </div>
             <div class="accordion-item">
               <h2 class="accordion-header" id="faq4">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse4" aria-expanded="false" aria-controls="collapse4">
-                  Can I propose a webinar or workshop topic?
+                  Webinar veya atölye çalışması konusu önerebilir miyim?
                 </button>
               </h2>
               <div id="collapse4" class="accordion-collapse collapse" aria-labelledby="faq4" data-bs-parent="#faqAccordion">
                 <div class="accordion-body">
-                  Absolutely! We welcome suggestions for webinar topics and workshop themes. Please contact us with your proposal, and we'll be happy to discuss it.
+                  Kesinlikle! Webinar konuları ve atölye çalışması temaları için önerileri memnuniyetle karşılıyoruz. Lütfen önerinizle birlikte bizimle iletişime geçin, tartışmaktan mutluluk duyarız.
                 </div>
               </div>
             </div>
@@ -233,10 +219,29 @@ const pageTitle = "Contact Us - RSG Turkey";
 
 <style>
   .hero {
-    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    background: var(--gradient-hero);
     min-height: 50vh;
     display: flex;
     align-items: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+  }
+
+  .hero .container {
+    position: relative;
+    z-index: 1;
   }
 
   .min-vh-50 {
@@ -244,82 +249,79 @@ const pageTitle = "Contact Us - RSG Turkey";
   }
 
   .contact-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
-    border: 1px solid #dee2e6;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-normal);
+    height: 100%;
   }
 
   .contact-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
   }
 
-  .card {
-    border: 1px solid #dee2e6;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  .contact-icon {
+    color: var(--primary-600);
   }
 
   .social-links {
     display: flex;
     justify-content: center;
-    gap: 2rem;
+    gap: var(--spacing-lg);
     flex-wrap: wrap;
   }
 
   .social-link {
-    color: #6c757d;
-    transition: color 0.3s ease, transform 0.3s ease;
-    display: inline-block;
+    color: var(--text-secondary);
+    transition: all var(--transition-normal);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
   }
 
   .social-link:hover {
-    color: #00d1b2;
-    transform: translateY(-3px);
-  }
-
-  .accordion-item {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-  }
-
-  .accordion-button {
-    background-color: white;
-    border: none;
-    font-weight: 500;
+    color: var(--primary-600);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
   }
 
   .accordion-button:not(.collapsed) {
-    background-color: #e7f3ff;
-    color: #00539F;
+    background-color: var(--primary-50);
+    color: var(--primary-700);
   }
 
   .accordion-button:focus {
-    box-shadow: none;
-    border-color: #00d1b2;
+    box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
   }
 </style>
 
 <script>
-  const contactForm = document.getElementById('contactForm') as HTMLFormElement;
-  if (contactForm) {
+  // Contact form handling
+  function initContactForm() {
+    const contactForm = document.getElementById('contactForm') as HTMLFormElement;
+    if (!contactForm) return;
+
     contactForm.addEventListener('submit', function(e) {
       e.preventDefault();
       
       // Get form data
-      const formData = new FormData(this);
+      const formData = new FormData(contactForm);
       const data = Object.fromEntries(formData);
       
       // Here you would typically send the data to your backend
       console.log('Form submitted:', data);
       
-      // Show success message (you can customize this)
-      alert('Thank you for your message! We will get back to you soon.');
+      // Show success message
+      alert('Mesajınız başarıyla gönderildi! En kısa sürede size geri döneceğiz.');
       
       // Reset form
-      this.reset();
+      contactForm.reset();
     });
   }
-</script>
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', initContactForm);
+</script> 

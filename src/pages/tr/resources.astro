@@ -1,0 +1,383 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getLangFromUrl, useTranslations } from '../../i18n/ui';
+
+const lang = 'tr';
+const t = useTranslations(lang);
+const pageTitle = "Kaynaklar - RSG Türkiye";
+
+const resources = [
+  {
+    category: "Eğitim Materyalleri",
+    items: [
+      {
+        title: "Biyoinformatik: Nereden Başlamalı?",
+        description: "Biyoinformatik konusunda nereden/nasıl başlanacağı sorusuna çözüm sağlamak için basitleştirilmiş kaynak listesi.",
+        type: "guide",
+        link: "#",
+        tags: ["başlangıç", "öğrenme-yolu"]
+      },
+      {
+        title: "Hesaplamalı Biyoloji Temelleri",
+        description: "Hesaplamalı biyoloji ve biyoinformatikte temel kavramlar ve metodolojiler.",
+        type: "course",
+        link: "#",
+        tags: ["temeller", "kurs"]
+      },
+      {
+        title: "Biyoinformatikte İstatistiksel Analiz",
+        description: "Biyoinformatik araştırması ve veri analizinde yaygın olarak kullanılan istatistiksel yöntemler.",
+        type: "tutorial",
+        link: "#",
+        tags: ["istatistik", "analiz"]
+      }
+    ]
+  },
+  {
+    category: "Araçlar ve Yazılım",
+    items: [
+      {
+        title: "Dizi Analiz Araçları",
+        description: "DNA/RNA dizi analizi, hizalama ve anotasyon için araçlar koleksiyonu.",
+        type: "tools",
+        link: "#",
+        tags: ["dizi-analizi", "hizalama"]
+      },
+      {
+        title: "Protein Yapı Analizi",
+        description: "Protein yapı tahmini, analizi ve görselleştirme için araçlar.",
+        type: "tools",
+        link: "#",
+        tags: ["protein-yapısı", "tahmin"]
+      },
+      {
+        title: "Tek Hücre Analiz Pipeline'ı",
+        description: "Tek hücre RNA dizileme veri analizi için kapsamlı pipeline.",
+        type: "pipeline",
+        link: "#",
+        tags: ["tek-hücre", "rna-seq"]
+      }
+    ]
+  },
+  {
+    category: "Veritabanları ve Depolar",
+    items: [
+      {
+        title: "Genomik Veritabanları",
+        description: "Araştırma verileri için büyük genomik veritabanlarına ve depolarına erişim.",
+        type: "database",
+        link: "#",
+        tags: ["genomik", "veri"]
+      },
+      {
+        title: "Protein Veritabanları",
+        description: "Araştırma ve analiz için protein dizi ve yapı veritabanları.",
+        type: "database",
+        link: "#",
+        tags: ["proteinler", "yapılar"]
+      },
+      {
+        title: "Ekspresyon Veri Depoları",
+        description: "Gen ekspresyon veri depoları ve analiz platformları.",
+        type: "database",
+        link: "#",
+        tags: ["ekspresyon", "transkriptomik"]
+      }
+    ]
+  },
+  {
+    category: "Kariyer Kaynakları",
+    items: [
+      {
+        title: "Kariyer Gelişim Rehberi",
+        description: "Hesaplamalı biyoloji ve biyoinformatikte kariyer gelişimi için rehberlik.",
+        type: "guide",
+        link: "#",
+        tags: ["kariyer", "gelişim"]
+      },
+      {
+        title: "İş Fırsatları",
+        description: "Hesaplamalı biyoloji alanındaki mevcut iş açıkları ve fırsatlar.",
+        type: "jobs",
+        link: "#",
+        tags: ["işler", "fırsatlar"]
+      },
+      {
+        title: "Ağ Oluşturma Etkinlikleri",
+        description: "Ağ oluşturma etkinlikleri ve profesyonel gelişim fırsatları hakkında bilgi.",
+        type: "events",
+        link: "#",
+        tags: ["ağ-oluşturma", "etkinlikler"]
+      }
+    ]
+  }
+];
+
+const externalLinks = [
+  {
+    title: "ISCB Öğrenci Konseyi",
+    description: "Uluslararası Hesaplamalı Biyoloji Derneği Öğrenci Konseyi",
+    url: "https://www.iscb.org/iscb-student-council",
+    category: "organization"
+  },
+  {
+    title: "Bioinformatics.org",
+    description: "Dünya hesaplamalı biyoloji topluluğuna açık erişim",
+    url: "https://www.bioinformatics.org",
+    category: "community"
+  },
+  {
+    title: "NCBI Kaynakları",
+    description: "Ulusal Biyoteknoloji Bilgi Merkezi kaynakları ve araçları",
+    url: "https://www.ncbi.nlm.nih.gov",
+    category: "database"
+  },
+  {
+    title: "EMBL-EBI",
+    description: "Avrupa Biyoinformatik Enstitüsü kaynakları ve hizmetleri",
+    url: "https://www.ebi.ac.uk",
+    category: "database"
+  }
+];
+---
+
+<BaseLayout pageTitle={pageTitle}>
+  <!-- Hero Section -->
+  <section class="hero text-center py-5">
+    <div class="container">
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-3 fw-bold mb-4">{t('resources.title')}</h1>
+          <p class="lead fs-4">
+            {t('resources.subtitle')}
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Resources Overview Section -->
+  <section class="resources-overview py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">{t('resources.overview.title')}</h2>
+          <p class="lead">
+            {t('resources.overview.subtitle')}
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-book fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">{t('resources.educational.title')}</h3>
+            <p class="text-muted small">
+              {t('resources.educational.description')}
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-tools fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">{t('resources.tools.title')}</h3>
+            <p class="text-muted small">
+              {t('resources.tools.description')}
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-database fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">{t('resources.databases.title')}</h3>
+            <p class="text-muted small">
+              {t('resources.databases.description')}
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="resource-type-card text-center p-4">
+            <div class="resource-icon mb-3">
+              <i class="fas fa-briefcase fa-3x text-primary"></i>
+            </div>
+            <h3 class="h5 mb-3">{t('resources.career.title')}</h3>
+            <p class="text-muted small">
+              {t('resources.career.description')}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Resources by Category -->
+  <section class="resources-categories py-5 bg-light">
+    <div class="container">
+      {resources.map((category) => (
+        <div class="resource-category mb-5">
+          <div class="row">
+            <div class="col-12">
+              <h3 class="h2 mb-4 text-center">{category.category}</h3>
+              <div class="row g-4">
+                {category.items.map((item) => (
+                  <div class="col-lg-4 col-md-6">
+                    <div class="resource-card h-100">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start mb-3">
+                            <span class={`badge ${item.type === 'guide' ? 'bg-primary' : item.type === 'course' ? 'bg-accent' : item.type === 'tutorial' ? 'bg-info' : item.type === 'tools' ? 'bg-warning' : item.type === 'pipeline' ? 'bg-danger' : 'bg-secondary'}`}>
+                              {item.type === 'guide' ? t('resources.type.guide') : 
+                               item.type === 'course' ? t('resources.type.course') : 
+                               item.type === 'tutorial' ? t('resources.type.tutorial') : 
+                               item.type === 'tools' ? t('resources.type.tools') : 
+                               item.type === 'pipeline' ? t('resources.type.pipeline') : 
+                               item.type === 'database' ? t('resources.type.database') : 
+                               item.type === 'jobs' ? t('resources.type.jobs') : item.type}
+                            </span>
+                            <div class="resource-tags">
+                              {item.tags.map((tag) => (
+                                <span class="badge bg-light text-dark me-1">{tag}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <h5 class="card-title mb-3">{item.title}</h5>
+                          <p class="card-text text-muted">{item.description}</p>
+                          <a href={item.link} class="btn btn-outline-primary btn-sm">{t('resources.learnMore')}</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- External Resources Section -->
+  <section class="external-resources py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+          <h2 class="display-5 fw-bold mb-4">Harici Kaynaklar</h2>
+          <p class="lead">
+            Hesaplamalı biyoloji topluluğu için önemli harici kaynaklar ve platformlar.
+          </p>
+        </div>
+      </div>
+      <div class="row g-4">
+        {externalLinks.map((link) => (
+          <div class="col-lg-6 col-md-6">
+            <div class="external-link-card h-100">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title mb-3">{link.title}</h5>
+                  <p class="card-text text-muted">{link.description}</p>
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-external-link-alt me-2"></i>Ziyaret Et
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action -->
+  <section class="cta py-5 bg-primary">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">Kaynaklarımızı Keşfedin</h2>
+          <p class="lead mb-4">
+            Hesaplamalı biyoloji yolculuğunuzda size yardımcı olacak kaynaklarımızı keşfedin ve topluluğumuzun bir parçası olun.
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/tr/contact" class="btn btn-light btn-lg px-4">
+              <i class="fas fa-envelope me-2"></i>İletişime Geç
+            </a>
+            <a href="/tr/join" class="btn btn-outline-light btn-lg px-4">
+              <i class="fas fa-user-plus me-2"></i>Topluluğa Katıl
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    background: var(--gradient-hero);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+  }
+
+  .hero .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .min-vh-50 {
+    min-height: 50vh;
+  }
+
+  .resource-type-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-normal);
+    height: 100%;
+  }
+
+  .resource-type-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
+  }
+
+  .resource-icon {
+    color: var(--primary-600);
+  }
+
+  .resource-card {
+    transition: transform var(--transition-normal);
+  }
+
+  .resource-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .external-link-card {
+    transition: transform var(--transition-normal);
+  }
+
+  .external-link-card:hover {
+    transform: translateY(-4px);
+  }
+</style> 

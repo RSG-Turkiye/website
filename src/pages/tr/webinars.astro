@@ -1,71 +1,71 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getLangFromUrl, useTranslations } from '../../i18n/ui';
 
-const lang = getLangFromUrl(Astro.url);
+const lang = 'tr';
 const t = useTranslations(lang);
-const pageTitle = "Webinars - RSG Turkey";
+const pageTitle = "Webinarlar - RSG Türkiye";
 
 const webinars = [
   {
     year: "2025",
-    title: "2025 Webinars",
-    description: "Upcoming webinars for 2025",
+    title: "2025 Webinarları",
+    description: "2025 için yaklaşan webinarlar",
     webinars: [
       {
-        title: "Open Student Webinars",
-        presenter: "Student Presenters",
-        date: "Monthly",
-        description: "Student-led research presentations and discussions",
+        title: "Açık Öğrenci Webinarları",
+        presenter: "Öğrenci Sunucuları",
+        date: "Aylık",
+        description: "Öğrenci liderliğinde araştırma sunumları ve tartışmalar",
         status: "upcoming"
       }
     ]
   },
   {
     year: "2024",
-    title: "2024 Webinars",
-    description: "Webinars from 2024",
+    title: "2024 Webinarları",
+    description: "2024'ten webinarlar",
     webinars: [
       {
-        title: "Understanding Disease Mechanistic for Better Drug Design",
+        title: "Daha İyi İlaç Tasarımı için Hastalık Mekanizmasını Anlama",
         presenter: "Dr. Ayesha Fatima",
         date: "2024",
-        description: "Dr. Fatima is a pharmacist by profession. She graduated from University of the Punjab, Lahore, Pakistan, went to Malaysia for M.Sc and PhD.",
+        description: "Dr. Fatima meslek olarak eczacıdır. Pakistan, Lahor'daki Punjab Üniversitesi'nden mezun oldu, M.Sc ve doktora için Malezya'ya gitti.",
         status: "completed"
       },
       {
-        title: "Language Models Can Learn Complex Functional Properties of Proteins",
+        title: "Dil Modelleri Proteinlerin Karmaşık Fonksiyonel Özelliklerini Öğrenebilir",
         presenter: "Serbülent Ünsal",
         date: "2024",
-        description: "Serbulent Unsal received her B.Sc. degree in Statistics and Computer Sciences from Karadeniz Technical University in Turkey.",
+        description: "Serbülent Ünsal, Türkiye'deki Karadeniz Teknik Üniversitesi'nden İstatistik ve Bilgisayar Bilimleri alanında B.Sc derecesi aldı.",
         status: "completed"
       }
     ]
   },
   {
     year: "2023",
-    title: "2023 Webinars",
-    description: "Webinars from 2023",
+    title: "2023 Webinarları",
+    description: "2023'ten webinarlar",
     webinars: [
       {
-        title: "Computational Challenges in Protein-RNA Interactions",
-        presenter: "Asst. Prof. Yaron Orenstein",
+        title: "Protein-RNA Etkileşimlerindeki Hesaplamalı Zorluklar",
+        presenter: "Doç. Dr. Yaron Orenstein",
         date: "2023",
-        description: "Yaron Orenstein is a Senior Lecturer and the head of the Computational Biology lab at the School of Electrical and Computer Engineering at Ben-Gurion University of the Negev.",
+        description: "Yaron Orenstein, Ben-Gurion Üniversitesi Elektrik ve Bilgisayar Mühendisliği Okulu'nda Kıdemli Öğretim Üyesi ve Hesaplamalı Biyoloji laboratuvarının başkanıdır.",
         status: "completed"
       }
     ]
   },
   {
     year: "2022",
-    title: "2022 Webinars",
-    description: "Webinars from 2022",
+    title: "2022 Webinarları",
+    description: "2022'den webinarlar",
     webinars: [
       {
-        title: "Molecular Simulations as an in silico Experiment",
+        title: "Bilgisayar Ortamında Deney Olarak Moleküler Simülasyonlar",
         presenter: "Seyit Kale",
         date: "2022",
-        description: "Seyit Kale received his Bachelor of Science in Physics from İhsan Doğramacı Bilkent University in 2006, and his Ph.D. in Biophysics and Structural Biology from Brandeis University in 2012.",
+        description: "Seyit Kale, 2006'da İhsan Doğramacı Bilkent Üniversitesi'nden Fizik alanında Lisans derecesi aldı ve 2012'de Brandeis Üniversitesi'nden Biyofizik ve Yapısal Biyoloji alanında doktora derecesi aldı.",
         status: "completed"
       }
     ]
@@ -126,9 +126,9 @@ const webinars = [
         </div>
         <div class="col-lg-6 text-center">
           <div class="bioinfonet-logo p-4">
-            <i class="fas fa-video fa-5x text-success mb-3"></i>
+            <i class="fas fa-video fa-5x text-primary mb-3"></i>
             <h4>Bioinfonet</h4>
-            <p class="text-muted">ISCB Student Council Supported Project</p>
+            <p class="text-muted">ISCB Öğrenci Konseyi Destekli Proje</p>
           </div>
         </div>
       </div>
@@ -172,7 +172,7 @@ const webinars = [
                           )}
                           <p class="card-text text-muted">{webinar.description}</p>
                           {webinar.status === 'upcoming' && (
-                            <a href="/contact" class="btn btn-primary btn-sm">{t('webinars.register')}</a>
+                            <a href="/tr/contact" class="btn btn-primary btn-sm">{t('webinars.register')}</a>
                           )}
                         </div>
                       </div>
@@ -192,50 +192,49 @@ const webinars = [
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">Open Student Webinars</h2>
+          <h2 class="display-5 fw-bold mb-4">Açık Öğrenci Webinarları</h2>
           <p class="lead mb-4">
-            Our student-led webinar series featuring research presentations and discussions from the Turkish computational biology community.
+            Türk hesaplamalı biyoloji topluluğundan araştırma sunumları ve tartışmaları içeren öğrenci liderliğindeki webinar serimiz.
           </p>
           <div class="row g-4 mt-4">
-            <div class="col-md-6">
-              <div class="student-webinar-card text-center p-4">
-                <i class="fas fa-microscope fa-3x text-primary mb-3"></i>
-                <h4>Research Presentations</h4>
+            <div class="col-lg-4 col-md-6">
+              <div class="feature-card text-center p-4">
+                <div class="feature-icon mb-3">
+                  <i class="fas fa-microscope fa-3x text-primary"></i>
+                </div>
+                <h4 class="h5 mb-3">Araştırma Sunumları</h4>
                 <p class="text-muted">
-                  Students present their latest research findings and methodologies in computational biology.
+                  Öğrencilerimizin en son araştırma bulgularını paylaştığı oturumlar.
                 </p>
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="student-webinar-card text-center p-4">
-                <i class="fas fa-comments fa-3x text-primary mb-3"></i>
-                <h4>Interactive Discussions</h4>
+            <div class="col-lg-4 col-md-6">
+              <div class="feature-card text-center p-4">
+                <div class="feature-icon mb-3">
+                  <i class="fas fa-comments fa-3x text-primary"></i>
+                </div>
+                <h4 class="h5 mb-3">İnteraktif Tartışmalar</h4>
                 <p class="text-muted">
-                  Engage in discussions with peers and experts about current trends and challenges in the field.
+                  Sunumlar sonrası soru-cevap ve tartışma oturumları.
+                </p>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="feature-card text-center p-4">
+                <div class="feature-icon mb-3">
+                  <i class="fas fa-network-wired fa-3x text-primary"></i>
+                </div>
+                <h4 class="h5 mb-3">Ağ Oluşturma</h4>
+                <p class="text-muted">
+                  Öğrenciler arasında işbirliği ve bağlantı kurma fırsatları.
                 </p>
               </div>
             </div>
           </div>
-          <div class="mt-4">
-            <a href="/contact" class="btn btn-primary btn-lg px-4">Join Our Student Webinars</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Call to Action Section -->
-  <section class="cta py-5 bg-primary">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">Stay Connected</h2>
-          <p class="lead mb-4">
-            Don't miss out on our upcoming webinars and events. Join our community to receive notifications.
-          </p>
-          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/contact" class="btn btn-light btn-lg px-4">Contact Us</a>
-            <a href="/join" class="btn btn-outline-light btn-lg px-4">Join Our Community</a>
+          <div class="mt-5">
+            <a href="/tr/contact" class="btn btn-primary btn-lg px-4">
+              <i class="fas fa-envelope me-2"></i>Katılım İsteği Gönder
+            </a>
           </div>
         </div>
       </div>
@@ -245,10 +244,29 @@ const webinars = [
 
 <style>
   .hero {
-    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    background: var(--gradient-hero);
     min-height: 50vh;
     display: flex;
     align-items: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+  }
+
+  .hero .container {
+    position: relative;
+    z-index: 1;
   }
 
   .min-vh-50 {
@@ -256,39 +274,34 @@ const webinars = [
   }
 
   .bioinfonet-logo {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid #dee2e6;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
   }
 
   .webinar-card {
-    transition: transform 0.3s ease;
+    transition: transform var(--transition-normal);
   }
 
   .webinar-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
   }
 
-  .card {
-    border: 1px solid #dee2e6;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  .feature-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-normal);
   }
 
-  .student-webinar-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid #dee2e6;
-    transition: transform 0.3s ease;
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
   }
 
-  .student-webinar-card:hover {
-    transform: translateY(-5px);
-  }
-
-  .feature-item {
-    font-size: 1.1rem;
+  .feature-icon {
+    color: var(--primary-600);
   }
 </style> 

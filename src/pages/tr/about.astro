@@ -1,66 +1,66 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import CommitteeCard from '../layouts/CommitteeCard.astro';
-import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CommitteeCard from '../../layouts/CommitteeCard.astro';
+import { getLangFromUrl, useTranslations } from '../../i18n/ui';
 
-const lang = getLangFromUrl(Astro.url);
+const lang = 'tr';
 const t = useTranslations(lang);
-const pageTitle = "About Us - RSG Turkey";
+const pageTitle = "Hakkımızda - RSG Türkiye";
 
 const committees = [
   {
-    name: "Executive Committee",
-    description: "Leading the organization with vision and strategy.",
+    name: "Yürütme Komitesi",
+    description: "Organizasyonu vizyon ve strateji ile yönetmek.",
     members: [
       { 
-        role: "President", 
-        name: "Dr. [Name]", 
+        role: "Başkan", 
+        name: "Dr. [İsim]", 
         image: "/logo/rsgturkey_logo.png",
-        institution: "University",
+        institution: "Üniversite",
         socialMedia: [
           { platform: "twitter", url: "#" },
           { platform: "linkedin", url: "#" },
         ],
       },
       { 
-        role: "Vice-President", 
-        name: "Dr. [Name]", 
+        role: "Başkan Yardımcısı", 
+        name: "Dr. [İsim]", 
         image: "/logo/rsgturkey_logo.png",
-        institution: "University",
+        institution: "Üniversite",
         socialMedia: [
           { platform: "linkedin", url: "#" },
         ],
       },
       { 
-        role: "Secretary", 
-        name: "Dr. [Name]", 
+        role: "Sekreter", 
+        name: "Dr. [İsim]", 
         image: "/logo/rsgturkey_logo.png",
-        institution: "University"
+        institution: "Üniversite"
       },
     ],
   },
   {
-    name: "Webinar Committee",
-    description: "Organizing our Bioinfonet webinar series and educational events.",
+    name: "Webinar Komitesi",
+    description: "Bioinfonet webinar serimizi ve eğitim etkinliklerimizi organize etmek.",
     members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
+      { role: "Başkan", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
+      { role: "Üye", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
     ],
   },
   {
-    name: "Events Committee",
-    description: "Planning symposiums, workshops, and networking events.",
+    name: "Etkinlik Komitesi",
+    description: "Sempozyumlar, atölye çalışmaları ve ağ oluşturma etkinlikleri planlamak.",
     members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
+      { role: "Başkan", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
+      { role: "Üye", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
     ],
   },
   {
-    name: "Outreach Committee",
-    description: "Managing community engagement and international connections.",
+    name: "Topluluk İlişkileri Komitesi",
+    description: "Topluluk katılımını ve uluslararası bağlantıları yönetmek.",
     members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
+      { role: "Başkan", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
+      { role: "Üye", name: "Dr. [İsim]", image: "/logo/rsgturkey_logo.png", institution: "Üniversite" },
     ],
   },
 ];
@@ -174,9 +174,9 @@ const committees = [
             <div class="activity-icon mb-3">
               <i class="fas fa-briefcase fa-3x text-primary"></i>
             </div>
-            <h3 class="h4 mb-3">Career Development</h3>
+            <h3 class="h4 mb-3">Kariyer Gelişimi</h3>
             <p class="text-muted">
-              Career fairs and markets to expand education and work opportunities for students and early-career researchers.
+              Öğrenciler ve erken kariyer araştırmacıları için eğitim ve iş fırsatlarını genişletmek üzere kariyer fuarları ve pazarları.
             </p>
           </div>
         </div>
@@ -185,9 +185,9 @@ const committees = [
             <div class="activity-icon mb-3">
               <i class="fas fa-handshake fa-3x text-primary"></i>
             </div>
-            <h3 class="h4 mb-3">International Collaboration</h3>
+            <h3 class="h4 mb-3">Uluslararası İşbirliği</h3>
             <p class="text-muted">
-              Building bridges between the Turkish community and international colleagues through ISCB Student Council.
+              ISCB Öğrenci Konseyi aracılığıyla Türk topluluğu ile uluslararası meslektaşlar arasında köprüler kurmak.
             </p>
           </div>
         </div>
@@ -196,9 +196,9 @@ const committees = [
             <div class="activity-icon mb-3">
               <i class="fas fa-book fa-3x text-primary"></i>
             </div>
-            <h3 class="h4 mb-3">Educational Resources</h3>
+            <h3 class="h4 mb-3">Eğitim Kaynakları</h3>
             <p class="text-muted">
-              Providing educational materials, tools, and resources for the computational biology community.
+              Hesaplamalı biyoloji topluluğu için eğitim materyalleri, araçlar ve kaynaklar sağlamak.
             </p>
           </div>
         </div>
@@ -211,39 +211,39 @@ const committees = [
     <div class="container">
       <div class="row align-items-center">
         <div class="col-lg-6">
-          <h2 class="display-5 fw-bold mb-4">ISCB Student Council Affiliation</h2>
+          <h2 class="display-5 fw-bold mb-4">ISCB Öğrenci Konseyi Üyeliği</h2>
           <p class="lead mb-4">
-            We are proud to be a member of the International Society for Computational Biology (ISCB) Student Council.
+            Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi üyesi olmaktan gurur duyuyoruz.
           </p>
           <p class="fs-5 mb-4">
-            The ISCB Student Council is a student-focused organization that provides a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics worldwide.
+            ISCB Öğrenci Konseyi, dünya çapında hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve doktora sonrası araştırmacılar arasında iletişim ve etkileşim için çerçeve sağlayan öğrenci odaklı bir organizasyondur.
           </p>
           <div class="iscb-benefits">
             <div class="benefit-item d-flex align-items-center mb-3">
               <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Access to international conferences and events</span>
+              <span>Uluslararası konferans ve etkinliklere erişim</span>
             </div>
             <div class="benefit-item d-flex align-items-center mb-3">
               <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Networking opportunities with global researchers</span>
+              <span>Küresel araştırmacılarla ağ oluşturma fırsatları</span>
             </div>
             <div class="benefit-item d-flex align-items-center mb-3">
               <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Educational resources and training programs</span>
+              <span>Eğitim kaynakları ve eğitim programları</span>
             </div>
             <div class="benefit-item d-flex align-items-center">
               <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Collaboration opportunities with other RSGs</span>
+              <span>Diğer RSG'lerle işbirliği fırsatları</span>
             </div>
           </div>
         </div>
         <div class="col-lg-6 text-center">
           <div class="iscb-logo p-4">
             <i class="fas fa-globe-americas fa-5x text-primary mb-3"></i>
-            <h4>ISCB Student Council</h4>
-            <p class="text-muted">International Society for Computational Biology</p>
-                          <a href="https://www.iscb.org/iscb-student-council" target="_blank" class="btn btn-outline-primary">
-              Visit ISCB Student Council
+            <h4>ISCB Öğrenci Konseyi</h4>
+            <p class="text-muted">Uluslararası Hesaplamalı Biyoloji Derneği</p>
+            <a href="https://www.iscb.org/iscb-student-council" target="_blank" class="btn btn-outline-primary">
+              ISCB Öğrenci Konseyi'ni Ziyaret Et
             </a>
           </div>
         </div>
@@ -286,8 +286,8 @@ const committees = [
             {t('about.join.description')}
           </p>
           <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/join" class="btn btn-primary btn-lg px-4">{t('about.join.today')}</a>
-            <a href="/contact" class="btn btn-outline-primary btn-lg px-4">{t('about.join.getInTouch')}</a>
+            <a href="/tr/join" class="btn btn-primary btn-lg px-4">{t('about.join.today')}</a>
+            <a href="/tr/contact" class="btn btn-outline-primary btn-lg px-4">{t('about.join.getInTouch')}</a>
           </div>
         </div>
       </div>
@@ -322,14 +322,18 @@ const committees = [
     z-index: 1;
   }
 
-  /* Light theme hero grid */
-  [data-theme="light"] .hero::before {
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-    opacity: 0.4;
-  }
-
   .min-vh-50 {
     min-height: 50vh;
+  }
+
+  .about-page-image {
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    transition: transform var(--transition-normal);
+  }
+
+  .about-page-image:hover {
+    transform: scale(1.02);
   }
 
   .activity-card {
@@ -338,7 +342,18 @@ const committees = [
     box-shadow: var(--shadow-md);
     transition: all var(--transition-normal);
     border: 1px solid var(--border-light);
-    padding: var(--spacing-xl);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .activity-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
   }
 
   .activity-card:hover {
@@ -346,48 +361,23 @@ const committees = [
     box-shadow: var(--shadow-2xl);
   }
 
+  .activity-icon {
+    color: var(--primary-600);
+    opacity: 0.8;
+  }
+
   .iscb-logo {
     background: var(--bg-elevated);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-light);
-    padding: var(--spacing-xl);
   }
 
   .benefit-item {
-    font-size: 1.1rem;
+    font-size: var(--font-size-lg);
   }
 
-  /* About page image styling */
-  .about-page-image {
-    max-width: 100%;
-    height: auto;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
-    transition: all var(--transition-normal);
-    border: 1px solid var(--border-light);
+  .benefit-item i {
+    color: var(--primary-600);
   }
-
-  .about-page-image:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-2xl);
-  }
-
-  /* Who We Are section styling */
-  .who-we-are {
-    background: var(--bg-secondary);
-  }
-
-  /* Light theme adjustments */
-  [data-theme="light"] .who-we-are {
-    background: var(--bg-secondary);
-  }
-
-  [data-theme="light"] .about-page-image {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  }
-
-  [data-theme="light"] .about-page-image:hover {
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
-  }
-</style>
+</style> 

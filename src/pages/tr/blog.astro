@@ -1,12 +1,12 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import BlogPost from '../components/BlogPost.astro';
-import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import BlogPost from '../../components/BlogPost.astro';
+import { getLangFromUrl, useTranslations } from '../../i18n/ui';
 
-const lang = getLangFromUrl(Astro.url);
+const lang = 'tr';
 const t = useTranslations(lang);
 
-const allPosts = Object.values(import.meta.glob('./posts/*.md', { eager: true }));
+const allPosts = Object.values(import.meta.glob('../posts/*.md', { eager: true }));
 
 // Sort posts by date (newest first)
 const sortedPosts = allPosts.sort((a: any, b: any) => {
@@ -15,7 +15,7 @@ const sortedPosts = allPosts.sort((a: any, b: any) => {
   return dateB.getTime() - dateA.getTime();
 });
 
-const pageTitle = "Blog - RSG Turkey";
+const pageTitle = "Blog - RSG Türkiye";
 ---
 
 <BaseLayout pageTitle={pageTitle}>
@@ -25,7 +25,7 @@ const pageTitle = "Blog - RSG Turkey";
       <div class="row align-items-center min-vh-75">
         <div class="col-lg-8 mx-auto">
           <h1 class="display-4 fw-bold mb-4">
-            <span class="text-gradient">RSG Turkey</span> {t('blog.title')}
+            <span class="text-gradient">RSG Türkiye</span> {t('blog.title')}
           </h1>
           <p class="lead mb-5">
             {t('blog.subtitle')}
@@ -50,7 +50,7 @@ const pageTitle = "Blog - RSG Turkey";
         <div class="col-lg-8 mx-auto text-center">
           <h2 class="display-5 fw-bold mb-3">{t('blog.featured')}</h2>
           <p class="lead text-muted">
-            Our most popular and important posts about computational biology, research updates, and community events.
+            Hesaplamalı biyoloji, araştırma güncellemeleri ve topluluk etkinlikleri hakkındaki en popüler ve önemli yazılarımız.
           </p>
         </div>
       </div>
@@ -66,14 +66,14 @@ const pageTitle = "Blog - RSG Turkey";
                   class="img-fluid"
                 />
                 <div class="blog-card-overlay">
-                  <span class="badge bg-primary">Featured</span>
+                  <span class="badge bg-primary">Öne Çıkan</span>
                 </div>
               </div>
               <div class="blog-card-body">
                 <div class="blog-meta mb-3">
                   <span class="blog-date">
                     <i class="fas fa-calendar-alt me-1"></i>
-                    {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                    {new Date(post.frontmatter.date).toLocaleDateString('tr-TR', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
@@ -90,7 +90,7 @@ const pageTitle = "Blog - RSG Turkey";
                   <a href={post.url}>{post.frontmatter.title}</a>
                 </h3>
                 <p class="blog-excerpt">
-                  {post.frontmatter.description || post.frontmatter.excerpt || 'Read more about this interesting topic...'}
+                  {post.frontmatter.description || post.frontmatter.excerpt || 'Bu ilginç konu hakkında daha fazla bilgi edinin...'}
                 </p>
                 <div class="blog-tags mb-3">
                   {post.frontmatter.tags && post.frontmatter.tags.slice(0, 3).map((tag: string) => (
@@ -98,7 +98,7 @@ const pageTitle = "Blog - RSG Turkey";
                   ))}
                 </div>
                 <a href={post.url} class="btn btn-outline-primary btn-sm">
-                  Read More <i class="fas fa-arrow-right ms-1"></i>
+                  Devamını Oku <i class="fas fa-arrow-right ms-1"></i>
                 </a>
               </div>
             </article>
@@ -113,9 +113,9 @@ const pageTitle = "Blog - RSG Turkey";
     <div class="container">
       <div class="row mb-5">
         <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-3">All Articles</h2>
+          <h2 class="display-5 fw-bold mb-3">{t('blog.allArticles')}</h2>
           <p class="lead text-muted">
-            Browse through all our blog posts, research updates, and community stories.
+            Tüm blog yazılarımızı, araştırma güncellemelerimizi ve topluluk hikayelerimizi gözden geçirin.
           </p>
         </div>
       </div>
@@ -141,11 +141,11 @@ const pageTitle = "Blog - RSG Turkey";
               <div class="col-md-6">
                 <select class="form-select" id="categoryFilter">
                   <option value="">{t('blog.allCategories')}</option>
-                  <option value="research">Research</option>
-                  <option value="community">Community</option>
-                  <option value="events">Events</option>
-                  <option value="tutorial">Tutorial</option>
-                  <option value="news">News</option>
+                  <option value="research">Araştırma</option>
+                  <option value="community">Topluluk</option>
+                  <option value="events">Etkinlikler</option>
+                  <option value="tutorial">Eğitim</option>
+                  <option value="news">Haberler</option>
                 </select>
               </div>
             </div>
@@ -165,14 +165,14 @@ const pageTitle = "Blog - RSG Turkey";
                   class="img-fluid"
                 />
                 <div class="blog-card-overlay">
-                  <span class="badge bg-secondary">{post.frontmatter.category || 'General'}</span>
+                  <span class="badge bg-secondary">{post.frontmatter.category || 'Genel'}</span>
                 </div>
               </div>
               <div class="blog-card-body">
                 <div class="blog-meta mb-3">
                   <span class="blog-date">
                     <i class="fas fa-calendar-alt me-1"></i>
-                    {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                    {new Date(post.frontmatter.date).toLocaleDateString('tr-TR', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric'
@@ -189,7 +189,7 @@ const pageTitle = "Blog - RSG Turkey";
                   <a href={post.url}>{post.frontmatter.title}</a>
                 </h3>
                 <p class="blog-excerpt">
-                  {post.frontmatter.description || post.frontmatter.excerpt || 'Read more about this interesting topic...'}
+                  {post.frontmatter.description || post.frontmatter.excerpt || 'Bu ilginç konu hakkında daha fazla bilgi edinin...'}
                 </p>
                 <div class="blog-tags mb-3">
                   {post.frontmatter.tags && post.frontmatter.tags.slice(0, 2).map((tag: string) => (
@@ -197,34 +197,37 @@ const pageTitle = "Blog - RSG Turkey";
                   ))}
                 </div>
                 <a href={post.url} class="btn btn-outline-primary btn-sm">
-                  Read More <i class="fas fa-arrow-right ms-1"></i>
+                  Devamını Oku <i class="fas fa-arrow-right ms-1"></i>
                 </a>
               </div>
             </article>
           </div>
         ))}
       </div>
+    </div>
+  </section>
 
-      <!-- Newsletter Signup -->
-      <div class="row mt-5">
-        <div class="col-lg-8 mx-auto">
-          <div class="newsletter-card">
-            <div class="row align-items-center">
-              <div class="col-lg-8">
-                <h3 class="mb-3">Stay Updated</h3>
-                <p class="mb-0">
-                  Subscribe to our newsletter to get the latest blog posts, research updates, and community news delivered to your inbox.
-                </p>
-              </div>
-              <div class="col-lg-4">
+  <!-- Newsletter Section -->
+  <section class="newsletter py-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+          <h2 class="display-5 fw-bold mb-4">{t('blog.newsletter.title')}</h2>
+          <p class="lead mb-4">
+            {t('blog.newsletter.description')}
+          </p>
+          <div class="newsletter-form">
+            <div class="row justify-content-center">
+              <div class="col-md-6">
                 <div class="input-group">
                   <input 
                     type="email" 
                     class="form-control" 
-                    placeholder="Enter your email"
+                    placeholder={t('blog.newsletter.placeholder')}
+                    aria-label="Email address"
                   />
                   <button class="btn btn-primary" type="button">
-                    Subscribe
+                    {t('blog.newsletter.subscribe')}
                   </button>
                 </div>
               </div>
@@ -239,7 +242,7 @@ const pageTitle = "Blog - RSG Turkey";
 <style>
   .hero {
     background: var(--gradient-hero);
-    min-height: 60vh;
+    min-height: 75vh;
     display: flex;
     align-items: center;
     position: relative;
@@ -264,26 +267,24 @@ const pageTitle = "Blog - RSG Turkey";
   }
 
   .min-vh-75 {
-    min-height: 60vh;
+    min-height: 75vh;
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, var(--primary-600) 0%, var(--accent-600) 100%);
+    background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Blog Cards */
   .blog-card {
     background: var(--bg-elevated);
     border-radius: var(--radius-xl);
-    overflow: hidden;
     box-shadow: var(--shadow-md);
     transition: all var(--transition-normal);
     border: 1px solid var(--border-light);
+    overflow: hidden;
     height: 100%;
-    position: relative;
   }
 
   .blog-card:hover {
@@ -292,13 +293,13 @@ const pageTitle = "Blog - RSG Turkey";
   }
 
   .blog-card.featured {
-    border: 2px solid var(--primary-200);
+    border: 2px solid var(--primary-600);
   }
 
   .blog-card-image {
     position: relative;
-    height: 200px;
     overflow: hidden;
+    height: 200px;
   }
 
   .blog-card-image img {
@@ -314,31 +315,27 @@ const pageTitle = "Blog - RSG Turkey";
 
   .blog-card-overlay {
     position: absolute;
-    top: var(--spacing-md);
-    right: var(--spacing-md);
+    top: 1rem;
+    right: 1rem;
   }
 
   .blog-card-body {
-    padding: var(--spacing-xl);
+    padding: var(--spacing-lg);
   }
 
   .blog-meta {
-    display: flex;
-    gap: var(--spacing-lg);
     font-size: var(--font-size-sm);
     color: var(--text-muted);
   }
 
-  .blog-date, .blog-author {
-    display: flex;
-    align-items: center;
+  .blog-meta span {
+    margin-right: var(--spacing-md);
   }
 
   .blog-title {
     font-size: var(--font-size-xl);
     font-weight: 600;
     margin-bottom: var(--spacing-md);
-    line-height: 1.3;
   }
 
   .blog-title a {
@@ -353,85 +350,43 @@ const pageTitle = "Blog - RSG Turkey";
 
   .blog-excerpt {
     color: var(--text-secondary);
-    line-height: 1.6;
     margin-bottom: var(--spacing-md);
+    line-height: 1.6;
   }
 
-  .blog-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-xs);
+  .blog-tags .badge {
+    font-size: var(--font-size-xs);
+    padding: 0.25rem 0.5rem;
   }
 
-  /* Search and Filter */
   .search-filter-card {
     background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-light);
   }
 
-  .input-group-text {
-    background: var(--bg-tertiary);
-    border-color: var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  /* Newsletter Card */
-  .newsletter-card {
+  .newsletter {
     background: var(--gradient-primary);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    color: var(--text-inverse);
-    text-align: center;
+    color: white;
   }
 
-  .newsletter-card h3 {
-    color: var(--text-inverse);
-  }
-
-  .newsletter-card .form-control {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--text-inverse);
-  }
-
-  .newsletter-card .form-control::placeholder {
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .newsletter-card .btn {
-    background: var(--text-inverse);
-    color: var(--primary-600);
+  .newsletter-form .form-control {
     border: none;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    padding: 0.75rem 1rem;
   }
 
-  .newsletter-card .btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--primary-700);
-  }
-
-  /* Responsive Design */
-  @media (max-width: 768px) {
-    .blog-meta {
-      flex-direction: column;
-      gap: var(--spacing-sm);
-    }
-
-    .newsletter-card .row {
-      text-align: center;
-    }
-
-    .newsletter-card .col-lg-4 {
-      margin-top: var(--spacing-lg);
-    }
+  .newsletter-form .btn {
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    padding: 0.75rem 1.5rem;
   }
 </style>
 
 <script>
   // Search and filter functionality
-  document.addEventListener('DOMContentLoaded', function() {
+  function initBlogSearch() {
     const searchInput = document.getElementById('searchPosts') as HTMLInputElement;
     const categoryFilter = document.getElementById('categoryFilter') as HTMLSelectElement;
     const postItems = document.querySelectorAll('.post-item');
@@ -440,12 +395,12 @@ const pageTitle = "Blog - RSG Turkey";
 
     function filterPosts() {
       const searchTerm = searchInput.value.toLowerCase();
-      const selectedCategory = categoryFilter.value;
+      const selectedCategory = categoryFilter.value.toLowerCase();
 
-      postItems.forEach(item => {
+      postItems.forEach((item) => {
         const titleElement = item.querySelector('.blog-title a') as HTMLElement;
         const excerptElement = item.querySelector('.blog-excerpt') as HTMLElement;
-        const category = (item as HTMLElement).dataset.category;
+        const category = item.getAttribute('data-category')?.toLowerCase() || '';
 
         if (!titleElement || !excerptElement) return;
 
@@ -465,5 +420,8 @@ const pageTitle = "Blog - RSG Turkey";
 
     searchInput.addEventListener('input', filterPosts);
     categoryFilter.addEventListener('change', filterPosts);
-  });
-</script>
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', initBlogSearch);
+</script> 

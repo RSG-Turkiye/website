@@ -1,6 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
 const pageTitle = "Resources - RSG Turkey";
 
 const resources = [
@@ -144,9 +147,9 @@ const externalLinks = [
     <div class="container">
       <div class="row align-items-center min-vh-50">
         <div class="col-lg-8 mx-auto">
-          <h1 class="display-3 fw-bold mb-4">Resources</h1>
+          <h1 class="display-3 fw-bold mb-4">{t('resources.title')}</h1>
           <p class="lead fs-4">
-            Educational materials, tools, and resources for the computational biology community.
+            {t('resources.subtitle')}
           </p>
         </div>
       </div>
@@ -158,9 +161,9 @@ const externalLinks = [
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">Learning Resources</h2>
+          <h2 class="display-5 fw-bold mb-4">{t('resources.overview.title')}</h2>
           <p class="lead">
-            Access educational materials, tools, and resources to support your journey in computational biology and bioinformatics.
+            {t('resources.overview.subtitle')}
           </p>
         </div>
       </div>
@@ -170,9 +173,9 @@ const externalLinks = [
             <div class="resource-icon mb-3">
               <i class="fas fa-book fa-3x text-primary"></i>
             </div>
-            <h3 class="h5 mb-3">Educational Materials</h3>
+            <h3 class="h5 mb-3">{t('resources.educational.title')}</h3>
             <p class="text-muted small">
-              Guides, tutorials, and courses for learning computational biology.
+              {t('resources.educational.description')}
             </p>
           </div>
         </div>
@@ -181,9 +184,9 @@ const externalLinks = [
             <div class="resource-icon mb-3">
               <i class="fas fa-tools fa-3x text-primary"></i>
             </div>
-            <h3 class="h5 mb-3">Tools & Software</h3>
+            <h3 class="h5 mb-3">{t('resources.tools.title')}</h3>
             <p class="text-muted small">
-              Software tools and pipelines for bioinformatics analysis.
+              {t('resources.tools.description')}
             </p>
           </div>
         </div>
@@ -192,9 +195,9 @@ const externalLinks = [
             <div class="resource-icon mb-3">
               <i class="fas fa-database fa-3x text-primary"></i>
             </div>
-            <h3 class="h5 mb-3">Databases</h3>
+            <h3 class="h5 mb-3">{t('resources.databases.title')}</h3>
             <p class="text-muted small">
-              Access to genomic and protein databases for research.
+              {t('resources.databases.description')}
             </p>
           </div>
         </div>
@@ -203,9 +206,9 @@ const externalLinks = [
             <div class="resource-icon mb-3">
               <i class="fas fa-briefcase fa-3x text-primary"></i>
             </div>
-            <h3 class="h5 mb-3">Career Resources</h3>
+            <h3 class="h5 mb-3">{t('resources.career.title')}</h3>
             <p class="text-muted small">
-              Career development and job opportunities in the field.
+              {t('resources.career.description')}
             </p>
           </div>
         </div>
@@ -239,7 +242,7 @@ const externalLinks = [
                           </div>
                           <h5 class="card-title mb-3">{item.title}</h5>
                           <p class="card-text text-muted">{item.description}</p>
-                          <a href={item.link} class="btn btn-outline-primary btn-sm">Learn More</a>
+                          <a href={item.link} class="btn btn-outline-primary btn-sm">{t('resources.learnMore')}</a>
                         </div>
                       </div>
                     </div>
