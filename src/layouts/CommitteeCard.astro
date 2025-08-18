@@ -26,13 +26,15 @@ const socialMediaIcons: Record<string, string> = {
     {members.map((member) => (
       <div class="col-md-6 col-lg-4">
         <div class="member-card text-center p-3">
-          <img
-            src={member.image}
-            alt={member.name}
-            class="member-image mb-3"
-            width="150"
-            height="150"
-          />
+          <div class="member-image-container mb-3">
+            <img
+              src={member.image}
+              alt={member.name}
+              class="member-image"
+              width="150"
+              height="150"
+            />
+          </div>
           <h5 class="mb-2">{member.name}</h5>
           <p class="text-muted mb-2">{member.role}</p>
           {member.socialMedia && (
@@ -73,10 +75,29 @@ const socialMediaIcons: Record<string, string> = {
   .member-card:hover {
     transform: translateY(-5px);
   }
+  .member-image-container {
+    width: 150px;
+    height: 150px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transition: all var(--transition-normal);
+  }
+
+  .member-image-container:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  }
+
   .member-image {
-    object-fit: cover;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
+    max-width: 120px;
+    max-height: 120px;
+    object-fit: contain;
+    border-radius: 50%;
   }
   .member-card h5 {
     color: #333; /* Example: Dark gray */
@@ -97,6 +118,15 @@ const socialMediaIcons: Record<string, string> = {
   .social-links a:hover {
     color: var(--primary-color);
     opacity: 0.8;
+  }
+
+  /* Light theme adjustments for member images */
+  [data-theme="light"] .member-image-container {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-theme="light"] .member-image-container:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   }
   .social-links a {
     color: var(--icon-color, #000); /* Default color */

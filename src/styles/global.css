@@ -594,6 +594,16 @@ a:hover {
   color: var(--text-inverse) !important;
 }
 
+/* Override for dark theme to ensure white text */
+[data-theme="dark"] .hero h1,
+[data-theme="dark"] .hero h2,
+[data-theme="dark"] .hero h3,
+[data-theme="dark"] .hero p,
+[data-theme="dark"] .hero .lead,
+[data-theme="dark"] .hero .fs-5 {
+  color: white !important;
+}
+
 /* Section Styling */
 section {
   padding: var(--spacing-3xl) 0;

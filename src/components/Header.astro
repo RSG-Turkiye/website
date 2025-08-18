@@ -1,26 +1,32 @@
 ---
 import ThemeIcon from './ThemeIcon.astro';
+import LanguageIcon from './LanguageIcon.astro';
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
 ---
 <header class="navbar navbar-expand-lg fixed-top">
       <div class="container d-flex align-items-center justify-content-between">
     <!-- Logo -->
           <a class="navbar-brand d-flex align-items-center" href="/">
-        <img src="/logo/rsgturkey_logo.svg" alt="RSG Turkey Logo" height="40" class="me-3" />
-        <span class="fs-4 fw-bold">RSG Turkey</span>
+        <div class="logo-container me-3">
+          <img src="/logo/rsgturkey_logo.png" alt="RSG Turkey Logo" height="40" class="logo-image" />
+        </div>
+        <span class="fs-4 fw-bold">{t('hero.title')}</span>
       </a>
 
     <!-- Navigation -->
     <nav class="d-none d-lg-flex">
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href={lang === 'tr' ? '/tr' : '/'}>{t('nav.home')}</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/about">About</a>
+          <a class="nav-link" href={lang === 'tr' ? '/tr/about' : '/about'}>{t('nav.about')}</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/blog">Blog</a>
+          <a class="nav-link" href={lang === 'tr' ? '/tr/blog' : '/blog'}>{t('nav.blog')}</a>
         </li>
         <li class="nav-item dropdown">
           <a
@@ -31,15 +37,15 @@ import ThemeIcon from './ThemeIcon.astro';
             data-bs-toggle="dropdown"
             aria-expanded="false"
           >
-            Webinars
+            {t('nav.webinars')}
           </a>
           <ul class="dropdown-menu" aria-labelledby="webinarDropdown">
-            <li><a class="dropdown-item" href="/webinars#2025">2025 Webinars</a></li>
-            <li><a class="dropdown-item" href="/webinars#2024">2024 Webinars</a></li>
-            <li><a class="dropdown-item" href="/webinars#2023">2023 Webinars</a></li>
-            <li><a class="dropdown-item" href="/webinars#2022">2022 Webinars</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2025' : '/webinars#2025'}>2025 Webinars</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2024' : '/webinars#2024'}>2024 Webinars</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2023' : '/webinars#2023'}>2023 Webinars</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2022' : '/webinars#2022'}>2022 Webinars</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="/webinars#student">Student Webinars</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#student' : '/webinars#student'}>Student Webinars</a></li>
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -51,27 +57,30 @@ import ThemeIcon from './ThemeIcon.astro';
             data-bs-toggle="dropdown"
             aria-expanded="false"
           >
-            Events
+            {t('nav.events')}
           </a>
           <ul class="dropdown-menu" aria-labelledby="eventDropdown">
-            <li><a class="dropdown-item" href="/events#symposiums">Symposiums</a></li>
-            <li><a class="dropdown-item" href="/events#workshops">Workshops</a></li>
-            <li><a class="dropdown-item" href="/events#upcoming">Upcoming Events</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/events#symposiums' : '/events#symposiums'}>Symposiums</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/events#workshops' : '/events#workshops'}>Workshops</a></li>
+            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/events#upcoming' : '/events#upcoming'}>Upcoming Events</a></li>
           </ul>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/resources">Resources</a>
+          <a class="nav-link" href={lang === 'tr' ? '/tr/resources' : '/resources'}>{t('nav.resources')}</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href={lang === 'tr' ? '/tr/contact' : '/contact'}>{t('nav.contact')}</a>
         </li>
       </ul>
     </nav>
     <!-- Call-to-Action Button -->
-    <a href="/join" class="btn btn-primary btn-sm d-none d-lg-inline-block me-3">Join Us</a>
+    <a href={lang === 'tr' ? '/tr/join' : '/join'} class="btn btn-primary btn-sm d-none d-lg-inline-block me-3">{t('nav.join')}</a>
 
     <!-- Theme Toggle -->
     <ThemeIcon />
+    
+    <!-- Language Toggle -->
+    <LanguageIcon />
 
     <!-- Hamburger Menu for Mobile -->
     <button
@@ -91,30 +100,64 @@ import ThemeIcon from './ThemeIcon.astro';
   <div class="collapse" id="mobileMenu">
     <ul class="navbar-nav text-center py-3">
       <li class="nav-item">
-        <a class="nav-link" href="/">Home</a>
+        <a class="nav-link" href={lang === 'tr' ? '/tr' : '/'}>{t('nav.home')}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/about">About</a>
+        <a class="nav-link" href={lang === 'tr' ? '/tr/about' : '/about'}>{t('nav.about')}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/blog">Blog</a>
+        <a class="nav-link" href={lang === 'tr' ? '/tr/blog' : '/blog'}>{t('nav.blog')}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/webinars">Webinars</a>
+        <a class="nav-link" href={lang === 'tr' ? '/tr/webinars' : '/webinars'}>{t('nav.webinars')}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/events">Events</a>
+        <a class="nav-link" href={lang === 'tr' ? '/tr/events' : '/events'}>{t('nav.events')}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/resources">Resources</a>
+        <a class="nav-link" href={lang === 'tr' ? '/tr/resources' : '/resources'}>{t('nav.resources')}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/contact">Contact</a>
+        <a class="nav-link" href={lang === 'tr' ? '/tr/contact' : '/contact'}>{t('nav.contact')}</a>
       </li>
       <li class="nav-item">
-        <a class="btn btn-primary btn-sm" href="/join">Join Us</a>
+        <a class="btn btn-primary btn-sm" href={lang === 'tr' ? '/tr/join' : '/join'}>{t('nav.join')}</a>
       </li>
     </ul>
   </div>
   
 </header>
+
+<style>
+  .logo-container {
+    width: 50px;
+    height: 50px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all var(--transition-normal);
+  }
+
+  .logo-container:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .logo-image {
+    max-width: 35px;
+    max-height: 35px;
+    object-fit: contain;
+  }
+
+  /* Light theme adjustments */
+  [data-theme="light"] .logo-container {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-theme="light"] .logo-container:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+</style>

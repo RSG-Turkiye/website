@@ -12,7 +12,7 @@ const committees = [
       { 
         role: "President", 
         name: "Dr. [Name]", 
-        image: "/logo/rsgturkey_logo.svg",
+        image: "/logo/rsgturkey_logo.png",
         institution: "University",
         socialMedia: [
           { platform: "twitter", url: "#" },
@@ -22,7 +22,7 @@ const committees = [
       { 
         role: "Vice-President", 
         name: "Dr. [Name]", 
-        image: "/logo/rsgturkey_logo.svg",
+        image: "/logo/rsgturkey_logo.png",
         institution: "University",
         socialMedia: [
           { platform: "linkedin", url: "#" },
@@ -31,7 +31,7 @@ const committees = [
       { 
         role: "Secretary", 
         name: "Dr. [Name]", 
-        image: "/logo/rsgturkey_logo.svg",
+        image: "/logo/rsgturkey_logo.png",
         institution: "University"
       },
     ],
@@ -40,24 +40,24 @@ const committees = [
     name: "Webinar Committee",
     description: "Organizing our Bioinfonet webinar series and educational events.",
     members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
+      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
+      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
     ],
   },
   {
     name: "Events Committee",
     description: "Planning symposiums, workshops, and networking events.",
     members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
+      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
+      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
     ],
   },
   {
     name: "Outreach Committee",
     description: "Managing community engagement and international connections.",
     members: [
-      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
-      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.svg", institution: "University" },
+      { role: "Chair", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
+      { role: "Member", name: "Dr. [Name]", image: "/logo/rsgturkey_logo.png", institution: "University" },
     ],
   },
 ];
@@ -114,7 +114,7 @@ const committees = [
         </div>
         <div class="col-lg-6">
           <div class="about-image text-center">
-            <img src="/logo/rsgturkey_logo.svg" alt="RSG Turkey Logo" class="img-fluid" style="max-width: 400px;" />
+            <img src="/images/foraboutpage.jpeg" alt="RSG Turkey Community" class="img-fluid about-page-image" />
           </div>
         </div>
       </div>
@@ -294,10 +294,35 @@ const committees = [
 
 <style>
   .hero {
-    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
+    background: var(--gradient-hero);
     min-height: 50vh;
     display: flex;
     align-items: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+  }
+
+  .hero .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Light theme hero grid */
+  [data-theme="light"] .hero::before {
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.4;
   }
 
   .min-vh-50 {
@@ -305,25 +330,61 @@ const committees = [
   }
 
   .activity-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
-    border: 1px solid #dee2e6;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+    border: 1px solid var(--border-light);
+    padding: var(--spacing-xl);
   }
 
   .activity-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
   }
 
   .iscb-logo {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid #dee2e6;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+    padding: var(--spacing-xl);
   }
 
   .benefit-item {
     font-size: 1.1rem;
+  }
+
+  /* About page image styling */
+  .about-page-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-normal);
+    border: 1px solid var(--border-light);
+  }
+
+  .about-page-image:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
+  }
+
+  /* Who We Are section styling */
+  .who-we-are {
+    background: var(--bg-secondary);
+  }
+
+  /* Light theme adjustments */
+  [data-theme="light"] .who-we-are {
+    background: var(--bg-secondary);
+  }
+
+  [data-theme="light"] .about-page-image {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+
+  [data-theme="light"] .about-page-image:hover {
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
   }
 </style>

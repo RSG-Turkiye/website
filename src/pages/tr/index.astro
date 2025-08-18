@@ -1,12 +1,12 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import AnnouncementCard from '../components/AnnouncementCard.astro';
-import { announcements } from '../data/announcements';
-import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AnnouncementCard from '../../components/AnnouncementCard.astro';
+import { announcements } from '../../data/announcements';
+import { useTranslations } from '../../i18n/ui';
 
-const lang = getLangFromUrl(Astro.url);
+const lang = 'tr';
 const t = useTranslations(lang);
-const pageTitle = "RSG Turkey - Computational Biology Community";
+const pageTitle = "RSG Türkiye - Hesaplamalı Biyoloji Topluluğu";
 ---
 
 <BaseLayout pageTitle={pageTitle}>
@@ -26,8 +26,8 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
             {t('hero.membership')}
           </p>
           <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/about" class="btn btn-primary btn-lg px-4">{t('hero.learnMore')}</a>
-            <a href="/join" class="btn btn-outline-light btn-lg px-4">{t('hero.joinCommunity')}</a>
+            <a href="/tr/about" class="btn btn-primary btn-lg px-4">{t('hero.learnMore')}</a>
+            <a href="/tr/join" class="btn btn-outline-light btn-lg px-4">{t('hero.joinCommunity')}</a>
           </div>
         </div>
       </div>
@@ -57,7 +57,7 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
       </div>
       <div class="row mt-5">
         <div class="col-12 text-center">
-          <a href="/events" class="btn btn-outline-primary btn-lg px-4">
+          <a href="/tr/events" class="btn btn-outline-primary btn-lg px-4">
             <i class="fas fa-calendar-alt me-2"></i>
             {t('announcements.viewAll')}
           </a>
@@ -117,24 +117,24 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
         <div class="col-md-3 col-6 mb-4">
           <div class="stat-card">
             <div class="stat-icon mb-3">
-              <i class="fas fa-graduation-cap fa-2x"></i>
+              <i class="fas fa-university fa-2x"></i>
             </div>
-            <div class="stat-number">15+</div>
-            <div class="stat-label">Symposiums</div>
+            <div class="stat-number">20+</div>
+            <div class="stat-label">Partner Institutions</div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- What We Do Section -->
-  <section class="what-we-do py-5 bg-light">
+  <!-- Features Section -->
+  <section class="features py-5 bg-light">
     <div class="container">
       <div class="row">
         <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">What We Do</h2>
+          <h2 class="display-5 fw-bold mb-4">What We Offer</h2>
           <p class="lead">
-            We organize various activities to support the computational biology community in Turkey
+            Discover the benefits of being part of our community
           </p>
         </div>
       </div>
@@ -142,33 +142,33 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
         <div class="col-lg-4 col-md-6">
           <div class="feature-card">
             <div class="feature-icon">
-              <i class="fas fa-graduation-cap"></i>
-            </div>
-            <h3 class="h4 mb-3">Annual Symposiums</h3>
-            <p class="text-muted">
-              We organize annual symposiums and workshops throughout Turkey to bring together researchers and students in computational biology.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-video"></i>
-            </div>
-            <h3 class="h4 mb-3">Webinar Series</h3>
-            <p class="text-muted">
-              Our ongoing webinar project on Bioinfonet shares knowledge with the community, featuring experts from around the world.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
               <i class="fas fa-users"></i>
             </div>
-            <h3 class="h4 mb-3">Student Presentations</h3>
+            <h3 class="h4 mb-3">{t('features.community.title')}</h3>
             <p class="text-muted">
-              Regular student paper presentations and discussions to introduce research areas and foster collaboration.
+              {t('features.community.description')}
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-graduation-cap"></i>
+            </div>
+            <h3 class="h4 mb-3">{t('features.learning.title')}</h3>
+            <p class="text-muted">
+              {t('features.learning.description')}
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-microscope"></i>
+            </div>
+            <h3 class="h4 mb-3">{t('features.research.title')}</h3>
+            <p class="text-muted">
+              {t('features.research.description')}
             </p>
           </div>
         </div>
@@ -177,9 +177,9 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
             <div class="feature-icon">
               <i class="fas fa-briefcase"></i>
             </div>
-            <h3 class="h4 mb-3">Career Fairs</h3>
+            <h3 class="h4 mb-3">{t('features.career.title')}</h3>
             <p class="text-muted">
-              Career fairs and markets to expand education and work opportunities for students and early-career researchers.
+              {t('features.career.description')}
             </p>
           </div>
         </div>
@@ -188,20 +188,20 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
             <div class="feature-icon">
               <i class="fas fa-globe"></i>
             </div>
-            <h3 class="h4 mb-3">International Connections</h3>
+            <h3 class="h4 mb-3">{t('features.international.title')}</h3>
             <p class="text-muted">
-              Building bridges between the Turkish community and international colleagues through ISCB Student Council.
+              {t('features.international.description')}
             </p>
           </div>
         </div>
         <div class="col-lg-4 col-md-6">
           <div class="feature-card">
             <div class="feature-icon">
-              <i class="fas fa-book"></i>
+              <i class="fas fa-lightbulb"></i>
             </div>
-            <h3 class="h4 mb-3">Educational Resources</h3>
+            <h3 class="h4 mb-3">{t('features.innovation.title')}</h3>
             <p class="text-muted">
-              Providing educational materials, tools, and resources for the computational biology community.
+              {t('features.innovation.description')}
             </p>
           </div>
         </div>
@@ -233,7 +233,7 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
                 <p class="card-text text-muted">
                   {t('contentCards.webinar.description')}
                 </p>
-                <a href="/webinars" class="btn btn-outline-primary btn-sm">{t('contentCards.webinar.button')}</a>
+                <a href="/tr/webinars" class="btn btn-outline-primary btn-sm">{t('contentCards.webinar.button')}</a>
               </div>
             </div>
           </div>
@@ -250,7 +250,7 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
                 <p class="card-text text-muted">
                   {t('contentCards.events.description')}
                 </p>
-                <a href="/events" class="btn btn-outline-primary btn-sm">{t('contentCards.events.button')}</a>
+                <a href="/tr/events" class="btn btn-outline-primary btn-sm">{t('contentCards.events.button')}</a>
               </div>
             </div>
           </div>
@@ -267,7 +267,7 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
                 <p class="card-text text-muted">
                   {t('contentCards.blog.description')}
                 </p>
-                <a href="/blog" class="btn btn-outline-primary btn-sm">{t('contentCards.blog.button')}</a>
+                <a href="/tr/blog" class="btn btn-outline-primary btn-sm">{t('contentCards.blog.button')}</a>
               </div>
             </div>
           </div>
@@ -286,8 +286,8 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
             {t('cta.description')}
           </p>
           <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/join" class="btn btn-light btn-lg px-4">{t('cta.joinToday')}</a>
-            <a href="/contact" class="btn btn-outline-light btn-lg px-4">{t('cta.contactUs')}</a>
+            <a href="/tr/join" class="btn btn-light btn-lg px-4">{t('cta.joinToday')}</a>
+            <a href="/tr/contact" class="btn btn-outline-light btn-lg px-4">{t('cta.contactUs')}</a>
           </div>
         </div>
       </div>
@@ -438,7 +438,6 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
     box-shadow: var(--shadow-sm);
   }
 
-  /* Announcements Section */
   .announcement-card {
     background: var(--bg-elevated);
     border: 1px solid var(--border-light);
@@ -611,4 +610,4 @@ const pageTitle = "RSG Turkey - Computational Biology Community";
   [data-theme="light"] .hero .fs-5 {
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   }
-</style>
+</style> 

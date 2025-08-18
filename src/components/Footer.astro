@@ -1,5 +1,10 @@
 ---
 import { Icon } from "astro-icon/components";
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const socialMediaIcons: Record<string, string> = {
   twitter: "fa-brands:twitter",
   linkedin: "fa-brands:linkedin",
@@ -10,7 +15,7 @@ const socialMediaIcons: Record<string, string> = {
 ---
 <footer class="bg-dark text-white py-4" style="background: var(--bg-primary) !important; color: var(--text-primary) !important;">
   <div class="container text-center">
-    <p>© 2025 RSG Turkey. All rights reserved.</p>
+    <p>{t('footer.copyright')}</p>
     <div class="d-flex justify-content-center gap-3">
       <a href="https://twitter.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
         <Icon name={socialMediaIcons.twitter} class="social-icon" />
