@@ -8,6 +8,7 @@ interface Member {
   institution: string;
   email?: string;
   socialMedia?: { platform: string; url: string }[];
+  education?: { degree: string; field: string; institution: string; year: string }[];
 }
 
 const { name, description, members = [] } = Astro.props as { name: string; description: string; members: Member[] };
@@ -24,7 +25,7 @@ const socialMediaIcons: Record<string, string> = {
 <div class="committee-card p-4">
   <h3 class="text-center mb-3">{name}</h3>
   <p class="text-center mb-4">{description}</p>
-  <div class="row g-3">
+  <div class="row g-3 justify-content-center">
     {members.map((member) => (
       <div class="col-md-6 col-lg-4">
         <div class="member-card text-center p-3">
@@ -39,14 +40,24 @@ const socialMediaIcons: Record<string, string> = {
           </div>
           <h5 class="mb-2">{member.name}</h5>
           <p class="text-muted mb-1">{member.role}</p>
-          <p class="text-muted small mb-2">{member.institution}</p>
-          {member.email && (
-            <p class="text-muted small mb-2">
-              <a href={`mailto:${member.email}`} class="text-decoration-none">
-                <i class="fas fa-envelope me-1"></i>{member.email}
-              </a>
-            </p>
+          
+          {/* Education Section - moved right after role */}
+          {member.education && member.education.length > 0 && (
+            <div class="education-info mb-2">
+              {member.education.map((edu, index) => (
+                <p class="text-muted small mb-1">
+                  {edu.degree} • {edu.field}
+                  {edu.institution && ` • ${edu.institution}`}
+                  {edu.year && ` (${edu.year})`}
+                </p>
+              ))}
+            </div>
           )}
+          
+          <p class="text-muted small mb-2">{member.institution}</p>
+          
+          {/* Email section removed */}
+          
           {member.socialMedia && (
             <div class="social-links">
               {member.socialMedia.map((social) => (
@@ -69,6 +80,10 @@ const socialMediaIcons: Record<string, string> = {
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md);
     transition: all var(--transition-normal);
+    /* Tüm komite kutularının yüksekliğini eşitleme */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
   
   .committee-card:hover {
@@ -109,18 +124,25 @@ const socialMediaIcons: Record<string, string> = {
     margin: 0 auto;
     box-shadow: var(--shadow-md);
     transition: all var(--transition-normal);
+    /* Çerçeve ekleme */
+    border: 4px solid var(--primary-500);
+    padding: 4px;
   }
 
   .member-image-container:hover {
     transform: scale(1.05);
     box-shadow: var(--shadow-lg);
+    /* Hover'da çerçeve rengini değiştirme */
+    border-color: var(--primary-600);
   }
 
   .member-image {
-    max-width: 120px;
-    max-height: 120px;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     border-radius: 50%;
+    /* Fotoğrafın çerçeve içinde tamamen kaplanması */
+    object-position: center;
   }
   
   .member-card h5 {
@@ -145,6 +167,15 @@ const socialMediaIcons: Record<string, string> = {
   .social-links a:hover {
     color: var(--primary-600);
     transform: translateY(-2px);
+  }
+
+  /* LinkedIn icon specific styling */
+  .social-links a[href*="linkedin"] .social-icon {
+    color: #0077b5;
+  }
+  
+  .social-links a[href*="linkedin"]:hover .social-icon {
+    color: #005885;
   }
 
   /* Light theme adjustments for member images */

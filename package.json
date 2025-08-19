@@ -16,7 +16,7 @@
     "@iconify-json/logos": "^1.2.4",
     "@iconify-json/simple-icons": "^1.2.30",
     "@popperjs/core": "^2.11.8",
-    "astro": "^5.5.6",
+    "astro": "^5.13.2",
     "astro-icon": "^1.1.5",
     "bootstrap": "^5.3.4",
     "preact": "^10.26.4"
