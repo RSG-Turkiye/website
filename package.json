@@ -9,6 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/node": "^9.4.2",
     "@astrojs/preact": "^4.0.8",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@iconify-json/fa": "^1.2.1",

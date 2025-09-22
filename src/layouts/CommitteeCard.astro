@@ -1,6 +1,4 @@
 ---
-import { Icon } from "astro-icon/components";
-
 interface Member {
   name: string;
   role: string;
@@ -15,11 +13,11 @@ const { name, description, members = [] } = Astro.props as { name: string; descr
 
 // Map social media platforms to their respective Font Awesome icons
 const socialMediaIcons: Record<string, string> = {
-  twitter: "fa-brands:twitter",
-  linkedin: "fa-brands:linkedin",
-  facebook: "fa-brands:facebook",
-  github: "fa-brands:github",
-  instagram: "fa-brands:instagram",
+  twitter: "fa-brands fa-twitter",
+  linkedin: "fa-brands fa-linkedin",
+  facebook: "fa-brands fa-facebook",
+  github: "fa-brands fa-github",
+  instagram: "fa-brands fa-instagram",
 };
 ---
 <div class="committee-card p-4">
@@ -62,7 +60,7 @@ const socialMediaIcons: Record<string, string> = {
             <div class="social-links">
               {member.socialMedia.map((social) => (
                 <a href={social.url} target="_blank" rel="noopener noreferrer" class="me-2">
-                  <Icon name={socialMediaIcons[social.platform] || "fa-solid:question-circle"} class="social-icon" />
+                  <i class={socialMediaIcons[social.platform] || "fa-solid fa-question-circle"}></i>
                 </a>
               ))}
             </div>

@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import astroIcon from 'astro-icon';
+import node from '@astrojs/node';
 
 export default defineConfig({
   integrations: [
@@ -11,4 +12,8 @@ export default defineConfig({
       },
     }),
   ],
+  output: 'server', // API endpoint'ler için gerekli
+  adapter: node({
+    mode: 'standalone'
+  }),
 });
