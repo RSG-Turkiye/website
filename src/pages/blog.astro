@@ -2,17 +2,17 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BlogPost from '../components/BlogPost.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import { getCollection } from 'astro:content';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const allPosts = Object.values(import.meta.glob('./posts/*.md', { eager: true }));
+const allBlogPosts = await getCollection('blog', ({ data }) => {
+  return data.lang === 'en' && !data.draft;
+});
 
-// Sort posts by date (newest first)
-const sortedPosts = allPosts.sort((a: any, b: any) => {
-  const dateA = new Date(a.frontmatter.date || 0);
-  const dateB = new Date(b.frontmatter.date || 0);
-  return dateB.getTime() - dateA.getTime();
+const sortedPosts = allBlogPosts.sort((a, b) => {
+  return b.data.pubDate.getTime() - a.data.pubDate.getTime();
 });
 
 const pageTitle = "Blog - RSG Turkey";
@@ -61,8 +61,8 @@ const pageTitle = "Blog - RSG Turkey";
             <article class="blog-card featured">
               <div class="blog-card-image">
                 <img 
-                  src={post.frontmatter.image || '/images/default-blog.jpg'} 
-                  alt={post.frontmatter.title}
+                  src={post.data.image || '/images/default-blog.jpg'} 
+                  alt={post.data.title}
                   class="img-fluid"
                 />
                 <div class="blog-card-overlay">
@@ -73,31 +73,31 @@ const pageTitle = "Blog - RSG Turkey";
                 <div class="blog-meta mb-3">
                   <span class="blog-date">
                     <i class="fas fa-calendar-alt me-1"></i>
-                    {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                    {new Date(post.data.pubDate).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
                     })}
                   </span>
-                  {post.frontmatter.author && (
+                  {post.data.author && (
                     <span class="blog-author">
                       <i class="fas fa-user me-1"></i>
-                      {post.frontmatter.author}
+                      {post.data.author}
                     </span>
                   )}
                 </div>
                 <h3 class="blog-title">
-                  <a href={post.url}>{post.frontmatter.title}</a>
+                  <a href={`/blog/${post.id}`}>{post.data.title}</a>
                 </h3>
                 <p class="blog-excerpt">
-                  {post.frontmatter.description || post.frontmatter.excerpt || 'Read more about this interesting topic...'}
+                  {post.data.description || post.data.excerpt || 'Read more about this interesting topic...'}
                 </p>
                 <div class="blog-tags mb-3">
-                  {post.frontmatter.tags && post.frontmatter.tags.slice(0, 3).map((tag: string) => (
+                  {post.data.tags && post.data.tags.slice(0, 3).map((tag: string) => (
                     <span class="badge bg-light text-dark me-1">{tag}</span>
                   ))}
                 </div>
-                <a href={post.url} class="btn btn-outline-primary btn-sm">
+                <a href={`/blog/${post.id}`} class="btn btn-outline-primary btn-sm">
                   Read More <i class="fas fa-arrow-right ms-1"></i>
                 </a>
               </div>
@@ -156,47 +156,47 @@ const pageTitle = "Blog - RSG Turkey";
       <!-- Posts Grid -->
       <div class="row g-4" id="postsGrid">
         {sortedPosts.map((post: any) => (
-          <div class="col-lg-6 col-md-6 post-item" data-category={post.frontmatter.category || 'general'}>
+          <div class="col-lg-6 col-md-6 post-item" data-category={post.data.category || 'general'}>
             <article class="blog-card">
               <div class="blog-card-image">
                 <img 
-                  src={post.frontmatter.image || '/images/default-blog.jpg'} 
-                  alt={post.frontmatter.title}
+                  src={post.data.image || '/images/default-blog.jpg'} 
+                  alt={post.data.title}
                   class="img-fluid"
                 />
                 <div class="blog-card-overlay">
-                  <span class="badge bg-secondary">{post.frontmatter.category || 'General'}</span>
+                  <span class="badge bg-secondary">{post.data.category || 'General'}</span>
                 </div>
               </div>
               <div class="blog-card-body">
                 <div class="blog-meta mb-3">
                   <span class="blog-date">
                     <i class="fas fa-calendar-alt me-1"></i>
-                    {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                    {new Date(post.data.pubDate).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric'
                     })}
                   </span>
-                  {post.frontmatter.author && (
+                  {post.data.author && (
                     <span class="blog-author">
                       <i class="fas fa-user me-1"></i>
-                      {post.frontmatter.author}
+                      {post.data.author}
                     </span>
                   )}
                 </div>
                 <h3 class="blog-title">
-                  <a href={post.url}>{post.frontmatter.title}</a>
+                  <a href={`/blog/${post.id}`}>{post.data.title}</a>
                 </h3>
                 <p class="blog-excerpt">
-                  {post.frontmatter.description || post.frontmatter.excerpt || 'Read more about this interesting topic...'}
+                  {post.data.description || post.data.excerpt || 'Read more about this interesting topic...'}
                 </p>
                 <div class="blog-tags mb-3">
-                  {post.frontmatter.tags && post.frontmatter.tags.slice(0, 2).map((tag: string) => (
+                  {post.data.tags && post.data.tags.slice(0, 2).map((tag: string) => (
                     <span class="badge bg-light text-dark me-1">{tag}</span>
                   ))}
                 </div>
-                <a href={post.url} class="btn btn-outline-primary btn-sm">
+                <a href={`/blog/${post.id}`} class="btn btn-outline-primary btn-sm">
                   Read More <i class="fas fa-arrow-right ms-1"></i>
                 </a>
               </div>

@@ -1,14 +1,14 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import BlogPost from '../../components/BlogPost.astro';
+import { getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
-  const allPosts = Object.values(import.meta.glob('../posts/*.md', { eager: true }));
-
-  const uniqueTags = [...new Set(allPosts.map((post: any) => post.frontmatter.tags).flat())];
+  const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+  const uniqueTags = [...new Set(allPosts.flatMap((post) => post.data.tags))];
 
   return uniqueTags.map((tag) => {
-    const filteredPosts = allPosts.filter((post: any) => post.frontmatter.tags.includes(tag));
+    const filteredPosts = allPosts.filter((post) => post.data.tags.includes(tag));
     return {
       params: { tag },
       props: { posts: filteredPosts },
@@ -19,9 +19,29 @@ export async function getStaticPaths() {
 const { tag } = Astro.params;
 const { posts } = Astro.props;
 ---
-<BaseLayout pageTitle={tag}>
-  <p>Posts tagged with {tag}</p>
-  <ul>
-    {posts.map((post: any) => <BlogPost url={post.url} title={post.frontmatter.title}/>)}
-  </ul>
+<BaseLayout pageTitle={`Tag: ${tag}`}>
+  <div class="container py-5">
+    <h1 class="display-5 fw-bold mb-4">Posts tagged with "{tag}"</h1>
+    <div class="row g-4">
+      {posts.map((post: any) => (
+        <div class="col-lg-6">
+          <BlogPost
+            url={post.data.lang === 'tr' ? `/tr/blog/${post.id}` : `/blog/${post.id}`}
+            title={post.data.title}
+            date={post.data.pubDate}
+            author={post.data.author}
+            excerpt={post.data.description}
+            tags={post.data.tags}
+            category={post.data.category}
+            image={post.data.image}
+          />
+        </div>
+      ))}
+    </div>
+    <div class="mt-4">
+      <a href="/tags" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>All Tags
+      </a>
+    </div>
+  </div>
 </BaseLayout>

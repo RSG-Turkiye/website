@@ -1,49 +1,72 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 const { frontmatter } = Astro.props;
+const title = frontmatter?.title || 'Blog Post';
+const pubDate = frontmatter?.pubDate || frontmatter?.date;
+const description = frontmatter?.description || '';
+const author = frontmatter?.author || '';
+const tags = frontmatter?.tags || [];
+const image = typeof frontmatter?.image === 'string' ? frontmatter.image : frontmatter?.image?.url || '';
 ---
 
+<BaseLayout pageTitle={title}>
+  <article class="blog-post py-5">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <header class="post-header mb-5">
+            {pubDate && (
+              <p class="text-muted">
+                <i class="fas fa-calendar-alt me-1"></i>
+                {new Date(pubDate).toLocaleDateString('en-US', {
+                  year: 'numeric', month: 'long', day: 'numeric'
+                })}
+              </p>
+            )}
+            <h1 class="display-5 fw-bold mb-3">{title}</h1>
+            {description && <p class="lead text-muted">{description}</p>}
+            {author && (
+              <p class="text-muted">
+                <i class="fas fa-user me-1"></i>Written by: {author}
+              </p>
+            )}
+            {tags.length > 0 && (
+              <div class="tags">
+                {tags.map((tag: string) => (
+                  <a href={`/tags/${tag}`} class="badge bg-light text-dark me-1 text-decoration-none">{tag}</a>
+                ))}
+              </div>
+            )}
+          </header>
 
-<BaseLayout pageTitle={frontmatter.title}>
+          {image && <img src={image} alt={title} class="img-fluid rounded mb-4" />}
 
-    <p>{frontmatter.pubDate.toString().slice(0,10)}</p>
-    <p><em>{frontmatter.description}</em></p>
-    <p>Written by: {frontmatter.author}</p>
-    
+          <div class="post-content">
+            <slot />
+          </div>
 
-    <div class="tags">
-        {frontmatter.tags.map((tag: string) => (
-          <p class="tag"><a href={`/tags/${tag}`}>{tag}</a></p>
-        ))}
+          <footer class="post-footer mt-5 pt-4 border-top">
+            <a href="/blog" class="btn btn-outline-primary">
+              <i class="fas fa-arrow-left me-2"></i>Back to Blog
+            </a>
+          </footer>
+        </div>
+      </div>
     </div>
-
-    <img src={frontmatter.image.url} width="900" alt={frontmatter.image.alt} />
-    <slot />
-    
-      
-
-
-
-
-
+  </article>
 </BaseLayout>
 
 <style>
-    a {
-      color: #00539F;
-    }
-  
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-    }
-  
-    .tag {
-      margin: 0.25em;
-      border: dotted 1px #a1a1a1;
-      border-radius: .5em;
-      padding: .5em 1em;
-      font-size: 1.15em;
-      background-color: #F8FCFD;
-    }
+  .post-content {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
 </style>

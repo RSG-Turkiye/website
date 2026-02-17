@@ -1,34 +1,45 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-const allPosts = Object.values(import.meta.glob('../posts/*.md', { eager: true }));
-const tags = [...new Set(allPosts.map((post: any) => post.frontmatter.tags).flat())];
+import { getCollection } from 'astro:content';
 
-const pageTitle = "Tag Indexes"
+const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+const tags = [...new Set(allPosts.flatMap((post) => post.data.tags))].sort();
+
+const pageTitle = "Tag Index";
 ---
 <BaseLayout pageTitle={pageTitle}>
+  <div class="container py-5">
+    <h1 class="display-5 fw-bold mb-4">Tags</h1>
     <div class="tags">
       {tags.map((tag) => (
-        <p class="tag"><a href={`/tags/${tag}`}>{tag}</a></p>
+        <a href={`/tags/${tag}`} class="tag">{tag}</a>
       ))}
     </div>
+  </div>
 </BaseLayout>
 
 <style>
-    a {
-      color: #00539F;
-    }
-  
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-    }
-  
-    .tag {
-      margin: 0.25em;
-      border: dotted 1px #a1a1a1;
-      border-radius: .5em;
-      padding: .5em 1em;
-      font-size: 1.15em;
-      background-color: #F8FCFD;
-    }
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 0.5em 1em;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5em;
+    font-size: 1rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    background: var(--bg-elevated);
+    transition: all var(--transition-fast);
+  }
+
+  .tag:hover {
+    background: var(--primary-600);
+    color: white;
+    border-color: var(--primary-600);
+  }
 </style>

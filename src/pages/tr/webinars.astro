@@ -1,76 +1,38 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getLangFromUrl, useTranslations } from '../../i18n/ui';
+import { getCollection } from 'astro:content';
 
 const lang = 'tr';
 const t = useTranslations(lang);
 const pageTitle = "Webinarlar - RSG Türkiye";
 
-const webinars = [
-  {
-    year: "2025",
-    title: "2025 Webinarları",
-    description: "2025 için yaklaşan webinarlar",
-    webinars: [
-      {
-        title: "Açık Öğrenci Webinarları",
-        presenter: "Öğrenci Sunucuları",
-        date: "Aylık",
-        description: "Öğrenci liderliğinde araştırma sunumları ve tartışmalar",
-        status: "upcoming"
-      }
-    ]
-  },
-  {
-    year: "2024",
-    title: "2024 Webinarları",
-    description: "2024'ten webinarlar",
-    webinars: [
-      {
-        title: "Daha İyi İlaç Tasarımı için Hastalık Mekanizmasını Anlama",
-        presenter: "Dr. Ayesha Fatima",
-        date: "2024",
-        description: "Dr. Fatima meslek olarak eczacıdır. Pakistan, Lahor'daki Punjab Üniversitesi'nden mezun oldu, M.Sc ve doktora için Malezya'ya gitti.",
-        status: "completed"
-      },
-      {
-        title: "Dil Modelleri Proteinlerin Karmaşık Fonksiyonel Özelliklerini Öğrenebilir",
-        presenter: "Serbülent Ünsal",
-        date: "2024",
-        description: "Serbülent Ünsal, Türkiye'deki Karadeniz Teknik Üniversitesi'nden İstatistik ve Bilgisayar Bilimleri alanında B.Sc derecesi aldı.",
-        status: "completed"
-      }
-    ]
-  },
-  {
-    year: "2023",
-    title: "2023 Webinarları",
-    description: "2023'ten webinarlar",
-    webinars: [
-      {
-        title: "Protein-RNA Etkileşimlerindeki Hesaplamalı Zorluklar",
-        presenter: "Doç. Dr. Yaron Orenstein",
-        date: "2023",
-        description: "Yaron Orenstein, Ben-Gurion Üniversitesi Elektrik ve Bilgisayar Mühendisliği Okulu'nda Kıdemli Öğretim Üyesi ve Hesaplamalı Biyoloji laboratuvarının başkanıdır.",
-        status: "completed"
-      }
-    ]
-  },
-  {
-    year: "2022",
-    title: "2022 Webinarları",
-    description: "2022'den webinarlar",
-    webinars: [
-      {
-        title: "Bilgisayar Ortamında Deney Olarak Moleküler Simülasyonlar",
-        presenter: "Seyit Kale",
-        date: "2022",
-        description: "Seyit Kale, 2006'da İhsan Doğramacı Bilkent Üniversitesi'nden Fizik alanında Lisans derecesi aldı ve 2012'de Brandeis Üniversitesi'nden Biyofizik ve Yapısal Biyoloji alanında doktora derecesi aldı.",
-        status: "completed"
-      }
-    ]
-  }
-];
+const allWebinars = await getCollection('webinars', ({ data }) => {
+  return data.lang === 'tr';
+});
+
+// Group webinars by year, sorted descending
+const webinarsByYear = allWebinars.reduce((acc, w) => {
+  const year = String(w.data.year);
+  if (!acc[year]) acc[year] = [];
+  acc[year].push(w);
+  return acc;
+}, {} as Record<string, typeof allWebinars>);
+
+const sortedYears = Object.keys(webinarsByYear).sort((a, b) => Number(b) - Number(a));
+
+const webinars = sortedYears.map((year) => ({
+  year,
+  title: `${year} Webinarları`,
+  webinars: webinarsByYear[year].map((w) => ({
+    title: w.data.title,
+    presenter: w.data.speaker,
+    date: w.data.date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' }),
+    description: w.data.description,
+    status: w.data.date > new Date() ? 'upcoming' : 'completed',
+    youtubeUrl: w.data.youtubeUrl,
+  })),
+}));
 ---
 
 <BaseLayout pageTitle={pageTitle}>

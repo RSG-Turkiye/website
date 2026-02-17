@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout pageTitle="Page Not Found">
+  <section class="error-page text-center py-5">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-6">
+          <h1 class="display-1 fw-bold text-primary mb-3">404</h1>
+          <h2 class="display-6 fw-bold mb-4">Page Not Found</h2>
+          <p class="lead text-muted mb-5">
+            The page you're looking for doesn't exist or has been moved.
+          </p>
+          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+            <a href="/" class="btn btn-primary btn-lg px-4">
+              <i class="fas fa-home me-2"></i>Go Home
+            </a>
+            <a href="/blog" class="btn btn-outline-primary btn-lg px-4">
+              <i class="fas fa-blog me-2"></i>Read Blog
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .error-page {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+  }
+</style>

@@ -1,76 +1,38 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import { getCollection } from 'astro:content';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "Webinars - RSG Turkey";
 
-const webinars = [
-  {
-    year: "2025",
-    title: "2025 Webinars",
-    description: "Upcoming webinars for 2025",
-    webinars: [
-      {
-        title: "Open Student Webinars",
-        presenter: "Student Presenters",
-        date: "Monthly",
-        description: "Student-led research presentations and discussions",
-        status: "upcoming"
-      }
-    ]
-  },
-  {
-    year: "2024",
-    title: "2024 Webinars",
-    description: "Webinars from 2024",
-    webinars: [
-      {
-        title: "Understanding Disease Mechanistic for Better Drug Design",
-        presenter: "Dr. Ayesha Fatima",
-        date: "2024",
-        description: "Dr. Fatima is a pharmacist by profession. She graduated from University of the Punjab, Lahore, Pakistan, went to Malaysia for M.Sc and PhD.",
-        status: "completed"
-      },
-      {
-        title: "Language Models Can Learn Complex Functional Properties of Proteins",
-        presenter: "Serbülent Ünsal",
-        date: "2024",
-        description: "Serbulent Unsal received her B.Sc. degree in Statistics and Computer Sciences from Karadeniz Technical University in Turkey.",
-        status: "completed"
-      }
-    ]
-  },
-  {
-    year: "2023",
-    title: "2023 Webinars",
-    description: "Webinars from 2023",
-    webinars: [
-      {
-        title: "Computational Challenges in Protein-RNA Interactions",
-        presenter: "Asst. Prof. Yaron Orenstein",
-        date: "2023",
-        description: "Yaron Orenstein is a Senior Lecturer and the head of the Computational Biology lab at the School of Electrical and Computer Engineering at Ben-Gurion University of the Negev.",
-        status: "completed"
-      }
-    ]
-  },
-  {
-    year: "2022",
-    title: "2022 Webinars",
-    description: "Webinars from 2022",
-    webinars: [
-      {
-        title: "Molecular Simulations as an in silico Experiment",
-        presenter: "Seyit Kale",
-        date: "2022",
-        description: "Seyit Kale received his Bachelor of Science in Physics from İhsan Doğramacı Bilkent University in 2006, and his Ph.D. in Biophysics and Structural Biology from Brandeis University in 2012.",
-        status: "completed"
-      }
-    ]
-  }
-];
+const allWebinars = await getCollection('webinars', ({ data }) => {
+  return data.lang === 'en';
+});
+
+// Group webinars by year, sorted descending
+const webinarsByYear = allWebinars.reduce((acc, w) => {
+  const year = String(w.data.year);
+  if (!acc[year]) acc[year] = [];
+  acc[year].push(w);
+  return acc;
+}, {} as Record<string, typeof allWebinars>);
+
+const sortedYears = Object.keys(webinarsByYear).sort((a, b) => Number(b) - Number(a));
+
+const webinars = sortedYears.map((year) => ({
+  year,
+  title: `${year} Webinars`,
+  webinars: webinarsByYear[year].map((w) => ({
+    title: w.data.title,
+    presenter: w.data.speaker,
+    date: w.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+    description: w.data.description,
+    status: w.data.date > new Date() ? 'upcoming' : 'completed',
+    youtubeUrl: w.data.youtubeUrl,
+  })),
+}));
 ---
 
 <BaseLayout pageTitle={pageTitle}>
