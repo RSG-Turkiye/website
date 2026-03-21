@@ -13,6 +13,11 @@ const webinarPosts = await getCollection('blog', ({ data }) =>
 const sortedPosts = webinarPosts.sort((a, b) =>
   b.data.pubDate.getTime() - a.data.pubDate.getTime()
 );
+
+const speakers = webinarPosts
+  .filter(p => p.data.speaker)
+  .map(p => ({ name: p.data.speaker, affiliation: p.data.speakerAffiliation, slug: p.id }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 ---
 
 <BaseLayout pageTitle={pageTitle}>
@@ -25,29 +30,75 @@ const sortedPosts = webinarPosts.sort((a, b) =>
   </div>
 
   <section class="bg-white py-10">
-    <div class="max-w-3xl mx-auto px-6">
-      {sortedPosts.length > 0 ? (
-        <div class="flex flex-col">
-          {sortedPosts.map((post) => (
-            <article class="py-5 border-b border-border">
-              <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
-                <time>{post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
-                {post.data.author && <span>{post.data.author}</span>}
-              </div>
-              <h2 class="text-lg font-semibold mb-1">
-                <a href={`/webinars/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">
-                  {post.data.title}
-                </a>
-              </h2>
-              {post.data.description && (
-                <p class="text-sm text-gray-500 leading-relaxed">{post.data.description}</p>
-              )}
-            </article>
-          ))}
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10">
+
+        <!-- Posts -->
+        <div>
+          {sortedPosts.length > 0 ? (
+            <div class="flex flex-col">
+              {sortedPosts.map((post) => (
+                <article class="py-5 border-b border-border">
+                  <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
+                    <time>{post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+                    {post.data.speaker && <span>{post.data.speaker}</span>}
+                  </div>
+                  <h2 class="text-lg font-semibold mb-1">
+                    <a href={`/webinars/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">
+                      {post.data.title}
+                    </a>
+                  </h2>
+                  {post.data.description && (
+                    <p class="text-sm text-gray-500 leading-relaxed">{post.data.description}</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p class="text-gray-500 text-sm">No webinar recaps yet.</p>
+          )}
         </div>
-      ) : (
-        <p class="text-gray-500 text-sm">No webinar recaps yet.</p>
-      )}
+
+        <!-- Sidebar -->
+        <aside class="flex flex-col gap-6">
+
+          <!-- About the series -->
+          <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
+            <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">About the Series</p>
+            <p class="text-sm text-gray-600 leading-relaxed">
+              RSG Turkey hosts regular webinars featuring researchers in bioinformatics, structural biology, and computational biology — open to everyone.
+            </p>
+          </div>
+
+          <!-- YouTube -->
+          <div class="rounded-lg border border-border bg-white p-5">
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Watch on YouTube</p>
+            <p class="text-sm text-gray-500 mb-3 leading-relaxed">All past webinar recordings are available on our YouTube channel.</p>
+            <a href="https://www.youtube.com/@RSG-Turkiye" target="_blank" rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded bg-red text-white text-sm font-medium hover:bg-red-hover transition-colors no-underline w-full justify-center">
+              Subscribe
+            </a>
+          </div>
+
+          <!-- Speakers -->
+          {speakers.length > 0 && (
+            <div class="rounded-lg border border-border bg-white p-5">
+              <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Speakers</p>
+              <ul class="flex flex-col gap-3">
+                {speakers.map((s) => (
+                  <li>
+                    <a href={`/webinars/${s.slug}`} class="text-sm font-medium text-navy hover:text-navy-mid transition-colors no-underline">
+                      {s.name}
+                    </a>
+                    {s.affiliation && <p class="text-xs text-gray-400 mt-0.5">{s.affiliation}</p>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+        </aside>
+      </div>
     </div>
   </section>
 

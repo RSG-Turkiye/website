@@ -9,11 +9,16 @@ const t = useTranslations(lang);
 const allBlogPosts = await getCollection('blog', ({ data }) => data.lang === 'en' && !data.draft && data.type !== 'webinar');
 const sortedPosts = allBlogPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 const pageTitle = "Blog - RSG Turkey";
+
+const facts = [
+  "RSG Turkey has a published academic article in a peer-reviewed journal.",
+  "RSG Turkey was first founded in 2012, with Prof. Nurcan Tunçbağ as our founding advisor — who is still with us today.",
+  "We organize our annual symposium every year, our flagship event bringing together the bioinformatics community.",
+];
 ---
 
 <BaseLayout pageTitle={pageTitle}>
 
-  <!-- Page Header -->
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
       <h1 class="text-3xl font-bold text-white">{t('blog.title')}</h1>
@@ -22,65 +27,97 @@ const pageTitle = "Blog - RSG Turkey";
   </div>
 
   <section class="bg-white py-10">
-    <div class="max-w-3xl mx-auto px-6">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10">
 
-      <!-- Search -->
-      <div class="mb-8">
-        <input
-          type="text"
-          id="searchPosts"
-          placeholder={t('blog.search')}
-          class="w-full border border-border rounded-md px-4 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
-        />
-      </div>
-
-      <!-- Featured posts (top 2) -->
-      {sortedPosts.slice(0, 2).map((post: any) => (
-        <article class="post-item py-5 border-b border-border"
-          data-title={post.data.title}
-          data-description={post.data.description || ''}>
-          <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
-            <time>{new Date(post.data.pubDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
-            {post.data.author && <span>{post.data.author}</span>}
-          </div>
-          <h2 class="text-lg font-semibold mb-1">
-            <a href={`/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
-          </h2>
-          {post.data.description && <p class="text-sm text-gray-500 leading-relaxed mb-2">{post.data.description}</p>}
-          {post.data.tags && post.data.tags.length > 0 && (
-            <div class="flex flex-wrap gap-1.5">
-              {post.data.tags.slice(0, 3).map((tag: string) => (
-                <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{tag}</span>
-              ))}
-            </div>
-          )}
-        </article>
-      ))}
-
-      <!-- Remaining posts -->
-      <div id="postsGrid">
-        {sortedPosts.slice(2).map((post: any) => (
-          <article class="post-item py-4 border-b border-border"
-            data-title={post.data.title}
-            data-description={post.data.description || ''}>
-            <div class="flex items-center gap-3 text-xs text-gray-400 mb-1">
-              <time>{new Date(post.data.pubDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
-              {post.data.author && <span>{post.data.author}</span>}
-            </div>
-            <h3 class="text-base font-semibold mb-1">
-              <a href={`/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
-            </h3>
-            {post.data.tags && post.data.tags.length > 0 && (
-              <div class="flex flex-wrap gap-1.5">
-                {post.data.tags.slice(0, 3).map((tag: string) => (
-                  <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{tag}</span>
-                ))}
+        <!-- Posts -->
+        <div>
+          {sortedPosts.slice(0, 2).map((post: any) => (
+            <article class="post-item py-5 border-b border-border"
+              data-title={post.data.title}
+              data-description={post.data.description || ''}>
+              <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
+                <time>{new Date(post.data.pubDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+                {post.data.author && <span>{post.data.author}</span>}
               </div>
-            )}
-          </article>
-        ))}
-      </div>
+              <h2 class="text-lg font-semibold mb-1">
+                <a href={`/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
+              </h2>
+              {post.data.description && <p class="text-sm text-gray-500 leading-relaxed mb-2">{post.data.description}</p>}
+              {post.data.tags && post.data.tags.length > 0 && (
+                <div class="flex flex-wrap gap-1.5">
+                  {post.data.tags.slice(0, 3).map((tag: string) => (
+                    <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{tag}</span>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
 
+          <div id="postsGrid">
+            {sortedPosts.slice(2).map((post: any) => (
+              <article class="post-item py-4 border-b border-border"
+                data-title={post.data.title}
+                data-description={post.data.description || ''}>
+                <div class="flex items-center gap-3 text-xs text-gray-400 mb-1">
+                  <time>{new Date(post.data.pubDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
+                  {post.data.author && <span>{post.data.author}</span>}
+                </div>
+                <h3 class="text-base font-semibold mb-1">
+                  <a href={`/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
+                </h3>
+                {post.data.tags && post.data.tags.length > 0 && (
+                  <div class="flex flex-wrap gap-1.5">
+                    {post.data.tags.slice(0, 3).map((tag: string) => (
+                      <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="flex flex-col gap-6">
+
+          <!-- Search -->
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Search</p>
+            <input
+              type="text"
+              id="searchPosts"
+              placeholder={t('blog.search')}
+              class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
+            />
+          </div>
+
+          <!-- About RSG Turkey -->
+          <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
+            <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">About RSG Turkey</p>
+            <p class="text-sm text-gray-600 leading-relaxed">
+              RSG Turkey is the Regional Student Group of ISCB in Turkey, connecting students and young researchers in bioinformatics and computational biology.
+            </p>
+            <a href="/about" class="inline-block mt-3 text-xs font-medium text-navy-mid hover:text-navy transition-colors no-underline">
+              Learn more →
+            </a>
+          </div>
+
+          <!-- Did you know? -->
+          <div class="rounded-lg border border-border bg-white p-5">
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Did you know?</p>
+            <ul class="flex flex-col gap-3">
+              {facts.map((fact) => (
+                <li class="flex items-start gap-2 text-sm text-gray-600 leading-snug">
+                  <span class="shrink-0 mt-0.5 text-red font-bold">✦</span>
+                  {fact}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+        </aside>
+      </div>
     </div>
   </section>
 

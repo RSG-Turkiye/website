@@ -91,7 +91,11 @@ const faqs = [
               <ul class="flex flex-col gap-1.5">
                 {['Twitter', 'LinkedIn', 'GitHub', 'YouTube', 'Instagram'].map((platform) => (
                   <li>
-                    <a href={`https://${platform.toLowerCase()}.com/${platform === 'LinkedIn' ? 'company/' : ''}rsgturkey`}
+                    <a href={
+                        platform === 'YouTube' ? 'https://www.youtube.com/@RSG-Turkiye' :
+                        platform === 'LinkedIn' ? 'https://linkedin.com/company/rsgturkey' :
+                        `https://${platform.toLowerCase()}.com/rsgturkey`
+                      }
                       target="_blank" rel="noopener noreferrer"
                       class="text-sm text-navy-mid hover:text-navy transition-colors">{platform}</a>
                   </li>
