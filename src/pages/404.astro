@@ -3,33 +3,21 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout pageTitle="Page Not Found">
-  <section class="error-page text-center py-5">
-    <div class="container">
-      <div class="row justify-content-center">
-        <div class="col-lg-6">
-          <h1 class="display-1 fw-bold text-primary mb-3">404</h1>
-          <h2 class="display-6 fw-bold mb-4">Page Not Found</h2>
-          <p class="lead text-muted mb-5">
-            The page you're looking for doesn't exist or has been moved.
-          </p>
-          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/" class="btn btn-primary btn-lg px-4">
-              <i class="fas fa-home me-2"></i>Go Home
-            </a>
-            <a href="/blog" class="btn btn-outline-primary btn-lg px-4">
-              <i class="fas fa-blog me-2"></i>Read Blog
-            </a>
-          </div>
-        </div>
+  <section class="min-h-[60vh] flex items-center bg-white">
+    <div class="max-w-7xl mx-auto px-6 text-center w-full py-16">
+      <p class="text-8xl font-bold text-navy mb-4">404</p>
+      <h1 class="text-2xl font-semibold text-navy mb-3">Page Not Found</h1>
+      <p class="text-gray-500 text-lg max-w-sm mx-auto mb-8">The page you're looking for doesn't exist or has been moved.</p>
+      <div class="flex gap-3 justify-center flex-wrap">
+        <a href="/"
+          class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium hover:bg-red-hover transition-colors no-underline">
+          Go Home
+        </a>
+        <a href="/blog"
+          class="inline-flex items-center px-6 py-3 rounded border border-navy text-navy font-medium hover:bg-navy hover:text-white transition-colors no-underline">
+          Read Blog
+        </a>
       </div>
     </div>
   </section>
 </BaseLayout>
-
-<style>
-  .error-page {
-    min-height: 60vh;
-    display: flex;
-    align-items: center;
-  }
-</style>

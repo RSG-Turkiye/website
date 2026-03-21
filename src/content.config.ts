@@ -13,6 +13,14 @@ const blog = defineCollection({
     image: z.string().default(""),
     lang: z.enum(["en", "tr"]).default("tr"),
     draft: z.boolean().default(false),
+    type: z.enum(["post", "webinar"]).default("post"),
+    youtubeUrl: z.string().default(""),
+    speaker: z.string().default(""),
+    speakerAffiliation: z.string().default(""),
+    speakerTitle: z.string().default(""),
+    topic: z.string().default(""),
+    keyTakeaways: z.array(z.string()).default([]),
+    slidesUrl: z.string().default(""),
   }),
 });
 

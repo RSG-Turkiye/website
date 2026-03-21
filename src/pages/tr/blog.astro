@@ -1,427 +1,92 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import BlogPost from '../../components/BlogPost.astro';
-import { getLangFromUrl, useTranslations } from '../../i18n/ui';
+import { useTranslations } from '../../i18n/ui';
 import { getCollection } from 'astro:content';
 
 const lang = 'tr';
 const t = useTranslations(lang);
 
-const allBlogPosts = await getCollection('blog', ({ data }) => {
-  return data.lang === 'tr' && !data.draft;
-});
-
-const sortedPosts = allBlogPosts.sort((a, b) => {
-  return b.data.pubDate.getTime() - a.data.pubDate.getTime();
-});
-
+const allBlogPosts = await getCollection('blog', ({ data }) => data.lang === 'tr' && !data.draft && data.type !== 'webinar');
+const sortedPosts = allBlogPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 const pageTitle = "Blog - RSG Türkiye";
 ---
 
 <BaseLayout pageTitle={pageTitle}>
-  <!-- Hero Section -->
-  <section class="hero text-center py-5">
-    <div class="container">
-      <div class="row align-items-center min-vh-75">
-        <div class="col-lg-8 mx-auto">
-          <h1 class="display-4 fw-bold mb-4">
-            <span class="text-gradient">RSG Türkiye</span> {t('blog.title')}
-          </h1>
-          <p class="lead mb-5">
-            {t('blog.subtitle')}
-          </p>
-          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="#featured-posts" class="btn btn-primary btn-lg px-4">
-              <i class="fas fa-star me-2"></i>{t('blog.featured')}
-            </a>
-            <a href="#all-posts" class="btn btn-outline-light btn-lg px-4">
-              <i class="fas fa-list me-2"></i>{t('blog.allArticles')}
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- Featured Posts Section -->
-  <section id="featured-posts" class="py-5">
-    <div class="container">
-      <div class="row mb-5">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-3">{t('blog.featured')}</h2>
-          <p class="lead text-muted">
-            Hesaplamalı biyoloji, araştırma güncellemeleri ve topluluk etkinlikleri hakkındaki en popüler ve önemli yazılarımız.
-          </p>
-        </div>
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">{t('blog.title')}</h1>
+      <p class="text-white/70 mt-2">{t('blog.subtitle')}</p>
+    </div>
+  </div>
+
+  <section class="bg-white py-10">
+    <div class="max-w-3xl mx-auto px-6">
+      <div class="mb-8">
+        <input type="text" id="searchPosts" placeholder={t('blog.search')}
+          class="w-full border border-border rounded-md px-4 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors" />
       </div>
-      
-      <div class="row g-4">
-        {sortedPosts.slice(0, 3).map((post: any) => (
-          <div class="col-lg-4 col-md-6">
-            <article class="blog-card featured">
-              <div class="blog-card-image">
-                <img 
-                  src={post.data.image || '/images/default-blog.jpg'} 
-                  alt={post.data.title}
-                  class="img-fluid"
-                />
-                <div class="blog-card-overlay">
-                  <span class="badge bg-primary">Öne Çıkan</span>
-                </div>
-              </div>
-              <div class="blog-card-body">
-                <div class="blog-meta mb-3">
-                  <span class="blog-date">
-                    <i class="fas fa-calendar-alt me-1"></i>
-                    {new Date(post.data.pubDate).toLocaleDateString('tr-TR', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </span>
-                  {post.data.author && (
-                    <span class="blog-author">
-                      <i class="fas fa-user me-1"></i>
-                      {post.data.author}
-                    </span>
-                  )}
-                </div>
-                <h3 class="blog-title">
-                  <a href={`/tr/blog/${post.id}`}>{post.data.title}</a>
-                </h3>
-                <p class="blog-excerpt">
-                  {post.data.description || post.data.excerpt || 'Bu ilginç konu hakkında daha fazla bilgi edinin...'}
-                </p>
-                <div class="blog-tags mb-3">
-                  {post.data.tags && post.data.tags.slice(0, 3).map((tag: string) => (
-                    <span class="badge bg-light text-dark me-1">{tag}</span>
-                  ))}
-                </div>
-                <a href={`/tr/blog/${post.id}`} class="btn btn-outline-primary btn-sm">
-                  Devamını Oku <i class="fas fa-arrow-right ms-1"></i>
-                </a>
-              </div>
-            </article>
+
+      {sortedPosts.slice(0, 2).map((post: any) => (
+        <article class="post-item py-5 border-b border-border"
+          data-title={post.data.title}
+          data-description={post.data.description || ''}>
+          <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
+            <time>{new Date(post.data.pubDate).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+            {post.data.author && <span>{post.data.author}</span>}
           </div>
+          <h2 class="text-lg font-semibold mb-1">
+            <a href={`/tr/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
+          </h2>
+          {post.data.description && <p class="text-sm text-gray-500 leading-relaxed mb-2">{post.data.description}</p>}
+          {post.data.tags && post.data.tags.length > 0 && (
+            <div class="flex flex-wrap gap-1.5">
+              {post.data.tags.slice(0, 3).map((tag: string) => (
+                <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{tag}</span>
+              ))}
+            </div>
+          )}
+        </article>
+      ))}
+
+      <div id="postsGrid">
+        {sortedPosts.slice(2).map((post: any) => (
+          <article class="post-item py-4 border-b border-border"
+            data-title={post.data.title}
+            data-description={post.data.description || ''}>
+            <div class="flex items-center gap-3 text-xs text-gray-400 mb-1">
+              <time>{new Date(post.data.pubDate).toLocaleDateString('tr-TR', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
+              {post.data.author && <span>{post.data.author}</span>}
+            </div>
+            <h3 class="text-base font-semibold mb-1">
+              <a href={`/tr/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
+            </h3>
+            {post.data.tags && post.data.tags.length > 0 && (
+              <div class="flex flex-wrap gap-1.5">
+                {post.data.tags.slice(0, 3).map((tag: string) => (
+                  <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{tag}</span>
+                ))}
+              </div>
+            )}
+          </article>
         ))}
       </div>
     </div>
   </section>
 
-  <!-- All Posts Section -->
-  <section id="all-posts" class="py-5 bg-light">
-    <div class="container">
-      <div class="row mb-5">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-3">{t('blog.allArticles')}</h2>
-          <p class="lead text-muted">
-            Tüm blog yazılarımızı, araştırma güncellemelerimizi ve topluluk hikayelerimizi gözden geçirin.
-          </p>
-        </div>
-      </div>
-
-      <!-- Filter and Search -->
-      <div class="row mb-4">
-        <div class="col-lg-8 mx-auto">
-          <div class="search-filter-card">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <div class="input-group">
-                  <span class="input-group-text">
-                    <i class="fas fa-search"></i>
-                  </span>
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    id="searchPosts" 
-                    placeholder={t('blog.search')}
-                  />
-                </div>
-              </div>
-              <div class="col-md-6">
-                <select class="form-select" id="categoryFilter">
-                  <option value="">{t('blog.allCategories')}</option>
-                  <option value="research">Araştırma</option>
-                  <option value="community">Topluluk</option>
-                  <option value="events">Etkinlikler</option>
-                  <option value="tutorial">Eğitim</option>
-                  <option value="news">Haberler</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Posts Grid -->
-      <div class="row g-4" id="postsGrid">
-        {sortedPosts.map((post: any) => (
-          <div class="col-lg-6 col-md-6 post-item" data-category={post.data.category || 'general'}>
-            <article class="blog-card">
-              <div class="blog-card-image">
-                <img 
-                  src={post.data.image || '/images/default-blog.jpg'} 
-                  alt={post.data.title}
-                  class="img-fluid"
-                />
-                <div class="blog-card-overlay">
-                  <span class="badge bg-secondary">{post.data.category || 'Genel'}</span>
-                </div>
-              </div>
-              <div class="blog-card-body">
-                <div class="blog-meta mb-3">
-                  <span class="blog-date">
-                    <i class="fas fa-calendar-alt me-1"></i>
-                    {new Date(post.data.pubDate).toLocaleDateString('tr-TR', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </span>
-                  {post.data.author && (
-                    <span class="blog-author">
-                      <i class="fas fa-user me-1"></i>
-                      {post.data.author}
-                    </span>
-                  )}
-                </div>
-                <h3 class="blog-title">
-                  <a href={`/tr/blog/${post.id}`}>{post.data.title}</a>
-                </h3>
-                <p class="blog-excerpt">
-                  {post.data.description || post.data.excerpt || 'Bu ilginç konu hakkında daha fazla bilgi edinin...'}
-                </p>
-                <div class="blog-tags mb-3">
-                  {post.data.tags && post.data.tags.slice(0, 2).map((tag: string) => (
-                    <span class="badge bg-light text-dark me-1">{tag}</span>
-                  ))}
-                </div>
-                <a href={`/tr/blog/${post.id}`} class="btn btn-outline-primary btn-sm">
-                  Devamını Oku <i class="fas fa-arrow-right ms-1"></i>
-                </a>
-              </div>
-            </article>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- Newsletter Section -->
-  <section class="newsletter py-5">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">{t('blog.newsletter.title')}</h2>
-          <p class="lead mb-4">
-            {t('blog.newsletter.description')}
-          </p>
-          <div class="newsletter-form">
-            <div class="row justify-content-center">
-              <div class="col-md-6">
-                <div class="input-group">
-                  <input 
-                    type="email" 
-                    class="form-control" 
-                    placeholder={t('blog.newsletter.placeholder')}
-                    aria-label="Email address"
-                  />
-                  <button class="btn btn-primary" type="button">
-                    {t('blog.newsletter.subscribe')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 </BaseLayout>
 
-<style>
-  .hero {
-    background: var(--gradient-hero);
-    min-height: 75vh;
-    display: flex;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-    opacity: 0.3;
-  }
-
-  .hero .container {
-    position: relative;
-    z-index: 1;
-  }
-
-  .min-vh-75 {
-    min-height: 75vh;
-  }
-
-  .text-gradient {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .blog-card {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-normal);
-    border: 1px solid var(--border-light);
-    overflow: hidden;
-    height: 100%;
-  }
-
-  .blog-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-2xl);
-  }
-
-  .blog-card.featured {
-    border: 2px solid var(--primary-600);
-  }
-
-  .blog-card-image {
-    position: relative;
-    overflow: hidden;
-    height: 200px;
-  }
-
-  .blog-card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform var(--transition-normal);
-  }
-
-  .blog-card:hover .blog-card-image img {
-    transform: scale(1.05);
-  }
-
-  .blog-card-overlay {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-  }
-
-  .blog-card-body {
-    padding: var(--spacing-lg);
-  }
-
-  .blog-meta {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-  }
-
-  .blog-meta span {
-    margin-right: var(--spacing-md);
-  }
-
-  .blog-title {
-    font-size: var(--font-size-xl);
-    font-weight: 600;
-    margin-bottom: var(--spacing-md);
-  }
-
-  .blog-title a {
-    color: var(--text-primary);
-    text-decoration: none;
-    transition: color var(--transition-fast);
-  }
-
-  .blog-title a:hover {
-    color: var(--primary-600);
-  }
-
-  .blog-excerpt {
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-md);
-    line-height: 1.6;
-  }
-
-  .blog-tags .badge {
-    font-size: var(--font-size-xs);
-    padding: 0.25rem 0.5rem;
-  }
-
-  .search-filter-card {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-  }
-
-  .newsletter {
-    background: var(--gradient-primary);
-    color: white;
-  }
-
-  .newsletter-form .form-control {
-    border: none;
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-    padding: 0.75rem 1rem;
-  }
-
-  .newsletter-form .btn {
-    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-    padding: 0.75rem 1.5rem;
-  }
-</style>
-
 <script>
-  // Search and filter functionality
-  function initBlogSearch() {
+  document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchPosts') as HTMLInputElement;
-    const categoryFilter = document.getElementById('categoryFilter') as HTMLSelectElement;
-    const postItems = document.querySelectorAll('.post-item');
-
-    if (!searchInput || !categoryFilter) return;
-
-    function filterPosts() {
-      const searchTerm = searchInput.value.toLowerCase();
-      const selectedCategory = categoryFilter.value.toLowerCase();
-
-      postItems.forEach((item) => {
-        const titleElement = item.querySelector('.blog-title a') as HTMLElement;
-        const excerptElement = item.querySelector('.blog-excerpt') as HTMLElement;
-        const category = item.getAttribute('data-category')?.toLowerCase() || '';
-
-        if (!titleElement || !excerptElement) return;
-
-        const title = titleElement.textContent?.toLowerCase() || '';
-        const excerpt = excerptElement.textContent?.toLowerCase() || '';
-
-        const matchesSearch = title.includes(searchTerm) || excerpt.includes(searchTerm);
-        const matchesCategory = !selectedCategory || category === selectedCategory;
-
-        if (matchesSearch && matchesCategory) {
-          (item as HTMLElement).style.display = 'block';
-        } else {
-          (item as HTMLElement).style.display = 'none';
-        }
+    if (!searchInput) return;
+    searchInput.addEventListener('input', function() {
+      const term = this.value.toLowerCase();
+      document.querySelectorAll<HTMLElement>('.post-item').forEach(item => {
+        const title = (item.dataset.title || '').toLowerCase();
+        const desc = (item.dataset.description || '').toLowerCase();
+        item.style.display = (title.includes(term) || desc.includes(term)) ? '' : 'none';
       });
-    }
-
-    searchInput.addEventListener('input', filterPosts);
-    categoryFilter.addEventListener('change', filterPosts);
-  }
-
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', initBlogSearch);
-</script> 
+    });
+  });
+</script>

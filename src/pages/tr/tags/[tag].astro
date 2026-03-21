@@ -1,9 +1,9 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
-  const allPosts = await getCollection('blog', ({ data }) => data.lang === 'en' && !data.draft && data.type !== 'webinar');
+  const allPosts = await getCollection('blog', ({ data }) => data.lang === 'tr' && !data.draft && data.type !== 'webinar');
   const uniqueTags = [...new Set(allPosts.flatMap((post) => post.data.tags))];
 
   return uniqueTags.map((tag) => {
@@ -19,11 +19,11 @@ const { tag } = Astro.params;
 const { posts } = Astro.props;
 ---
 
-<BaseLayout pageTitle={`Tag: ${tag}`}>
+<BaseLayout pageTitle={`Etiket: ${tag}`}>
 
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
-      <p class="text-white/60 text-sm mb-1">Tag</p>
+      <p class="text-white/60 text-sm mb-1">Etiket</p>
       <h1 class="text-3xl font-bold text-white">"{tag}"</h1>
     </div>
   </div>
@@ -33,11 +33,11 @@ const { posts } = Astro.props;
       {posts.map((post: any) => (
         <article class="py-4 border-b border-border">
           <div class="flex items-center gap-3 text-xs text-gray-400 mb-1">
-            <time>{new Date(post.data.pubDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
+            <time>{new Date(post.data.pubDate).toLocaleDateString('tr-TR', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
             {post.data.author && <span>{post.data.author}</span>}
           </div>
           <h3 class="text-base font-semibold mb-1">
-            <a href={`/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">
+            <a href={`/tr/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">
               {post.data.title}
             </a>
           </h3>
@@ -53,9 +53,9 @@ const { posts } = Astro.props;
       ))}
 
       <div class="mt-6">
-        <a href="/blog"
+        <a href="/tr/blog"
           class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
-          ← Back to Blog
+          ← Bloga Dön
         </a>
       </div>
     </div>

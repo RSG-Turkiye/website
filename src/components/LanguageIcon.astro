@@ -1,173 +1,48 @@
 ---
-// Language switcher component
 ---
-
-<button class="language-toggle" id="languageToggle" aria-label="Toggle language">
-  <div class="flag-container">
-    <img src="/flags/en.svg" alt="English" class="flag flag-en" />
-    <img src="/flags/tr.svg" alt="Turkish" class="flag flag-tr" />
+<button
+  class="cursor-pointer flex items-center justify-center w-9 h-9 rounded border border-[#E5E4DF] hover:border-[#3D5A9E] transition-colors bg-transparent"
+  id="languageToggle"
+  aria-label="Toggle language"
+>
+  <div class="relative w-6 h-4">
+    <img src="/flags/en.svg" alt="English" class="flag flag-en absolute inset-0 w-full h-full object-cover rounded-sm" />
+    <img src="/flags/tr.svg" alt="Turkish" class="flag flag-tr absolute inset-0 w-full h-full object-cover rounded-sm" />
   </div>
 </button>
 
 <script>
-  // Language switching functionality
   function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) return;
 
-    // Detect current language from URL path
     const currentPath = window.location.pathname;
-    let currentLang = 'en';
-    
-    if (currentPath.startsWith('/tr')) {
-      currentLang = 'tr';
-    }
-    
-    // Set the data attribute based on current URL
+    let currentLang = currentPath.startsWith('/tr') ? 'tr' : 'en';
     document.documentElement.setAttribute('data-lang', currentLang);
-    
-    // Update localStorage to match current URL
-    localStorage.setItem('language', currentLang);
-    
-    // Debug: log current language
-    console.log('Current language detected:', currentLang, 'from path:', currentPath);
 
     languageToggle.addEventListener('click', () => {
       const currentLang = document.documentElement.getAttribute('data-lang') || 'en';
       const newLang = currentLang === 'en' ? 'tr' : 'en';
-      
-      // Update the data attribute
       document.documentElement.setAttribute('data-lang', newLang);
-      
-      // Save to localStorage
-      localStorage.setItem('language', newLang);
-      
-      // Redirect to the appropriate language-specific URL
+
       const currentPath = window.location.pathname;
       let newPath;
-      
       if (newLang === 'tr') {
-        // Switch to Turkish
-        if (currentPath === '/') {
-          newPath = '/tr';
-        } else if (currentPath.startsWith('/tr/')) {
-          newPath = currentPath; // Already Turkish
-        } else {
-          newPath = '/tr' + currentPath;
-        }
+        newPath = currentPath === '/' ? '/tr' : (currentPath.startsWith('/tr/') ? currentPath : '/tr' + currentPath);
       } else {
-        // Switch to English
-        if (currentPath === '/tr') {
-          newPath = '/';
-        } else if (currentPath.startsWith('/tr/')) {
-          newPath = currentPath.replace('/tr', '');
-        } else {
-          newPath = currentPath; // Already English
-        }
+        newPath = currentPath === '/tr' ? '/' : (currentPath.startsWith('/tr/') ? currentPath.replace('/tr', '') : currentPath);
       }
-      
-      // Navigate to the new URL
       window.location.href = newPath;
     });
   }
 
-  // Initialize on page load
   document.addEventListener('DOMContentLoaded', initLanguageToggle);
 </script>
 
 <style>
-  .language-toggle {
-    background: var(--bg-elevated);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-full);
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all var(--transition-normal);
-    color: var(--text-secondary);
-    position: relative;
-    overflow: hidden;
-    margin-left: 8px;
-  }
+  .flag-en { opacity: 1; z-index: 2; }
+  .flag-tr { opacity: 0; z-index: 1; }
 
-  .language-toggle:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .language-toggle::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
-    transition: left var(--transition-slow);
-  }
-
-  .language-toggle:hover::before {
-    left: 100%;
-  }
-
-  .flag-container {
-    position: relative;
-    width: 32px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .flag {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 3px;
-    transition: opacity 0.3s ease;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .flag-en {
-    opacity: 1 !important;
-    z-index: 2;
-  }
-
-  .flag-tr {
-    opacity: 0 !important;
-    z-index: 1;
-  }
-
-  /* Show Turkish flag when Turkish is active */
-  html[data-lang="tr"] .flag-en {
-    opacity: 0 !important;
-    z-index: 1;
-  }
-
-  html[data-lang="tr"] .flag-tr {
-    opacity: 1 !important;
-    z-index: 2;
-  }
-
-  /* Light theme adjustments */
-  [data-theme="light"] .language-toggle {
-    background: var(--bg-elevated);
-    border: 2px solid var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  [data-theme="light"] .language-toggle:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  }
-</style> 
+  :global(html[data-lang="tr"]) .flag-en { opacity: 0; z-index: 1; }
+  :global(html[data-lang="tr"]) .flag-tr { opacity: 1; z-index: 2; }
+</style>

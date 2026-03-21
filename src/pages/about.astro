@@ -7,333 +7,119 @@ import { getLangFromUrl, useTranslations } from '../i18n/ui';
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "About Us - RSG Turkey";
-
-// Get committees data based on language
 const committees = getCommittees(lang);
 ---
 
 <BaseLayout pageTitle={pageTitle}>
-  <!-- Hero Section -->
-  <section class="hero text-center py-5">
-    <div class="container">
-      <div class="row align-items-center min-vh-50">
-        <div class="col-lg-8 mx-auto">
-          <h1 class="display-3 fw-bold mb-4">{t('about.title')}</h1>
-          <p class="lead fs-4">
-            {t('about.subtitle')}
-          </p>
+
+  <!-- Page Header -->
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">{t('about.title')}</h1>
+      <p class="text-white/70 mt-2">{t('about.subtitle')}</p>
+    </div>
+  </div>
+
+  <!-- Who We Are -->
+  <section class="bg-white py-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+        <div>
+          <h2 class="text-2xl font-semibold text-navy mb-4">{t('about.whoWeAre.title')}</h2>
+          <p class="text-gray-600 leading-relaxed mb-3">{t('about.whoWeAre.description')}</p>
+          <p class="text-gray-600 leading-relaxed">{t('about.whoWeAre.detail')}</p>
+        </div>
+        <div>
+          <img src="/images/foraboutpage.jpeg" alt="RSG Turkey Community"
+            class="w-full rounded-lg border border-border" />
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Who We Are Section -->
-  <section class="who-we-are py-5">
-    <div class="container">
-      <div class="row align-items-center">
-        <div class="col-lg-6">
-          <h2 class="display-5 fw-bold mb-4">{t('about.whoWeAre.title')}</h2>
-          <p class="lead mb-4">
-            {t('about.whoWeAre.description')}
-          </p>
-          <p class="fs-5 mb-4">
-            {t('about.whoWeAre.detail')}
-          </p>
-          <div class="d-flex align-items-center mb-3">
-            <i class="fas fa-globe fa-2x text-primary me-3"></i>
-            <div>
-              <h5 class="mb-1">{t('about.affiliation.title')}</h5>
-              <p class="text-muted mb-0">{t('about.affiliation.description')}</p>
-            </div>
-          </div>
-          <div class="d-flex align-items-center mb-3">
-            <i class="fas fa-users fa-2x text-primary me-3"></i>
-            <div>
-              <h5 class="mb-1">{t('about.community.title')}</h5>
-              <p class="text-muted mb-0">{t('about.community.description')}</p>
-            </div>
-          </div>
-          <div class="d-flex align-items-center">
-            <i class="fas fa-dna fa-2x text-primary me-3"></i>
-            <div>
-              <h5 class="mb-1">{t('about.research.title')}</h5>
-              <p class="text-muted mb-0">{t('about.research.description')}</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="about-image text-center">
-            <img src="/images/foraboutpage.jpeg" alt="RSG Turkey Community" class="img-fluid about-page-image" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- What We Do Section -->
-  <section class="what-we-do py-5 bg-light">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">{t('about.whatWeDo.title')}</h2>
-          <p class="lead">
-            {t('about.whatWeDo.subtitle')}
-          </p>
-        </div>
-      </div>
-      <div class="row g-4">
-        <div class="col-lg-4 col-md-6">
-          <div class="activity-card h-100 p-4 text-center">
-            <div class="activity-icon mb-3">
-              <i class="fas fa-calendar-alt fa-3x text-primary"></i>
-            </div>
-            <h3 class="h4 mb-3">{t('about.symposiums.title')}</h3>
-            <p class="text-muted">
-              {t('about.symposiums.description')}
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="activity-card h-100 p-4 text-center">
-            <div class="activity-icon mb-3">
-              <i class="fas fa-video fa-3x text-primary"></i>
-            </div>
-            <h3 class="h4 mb-3">{t('about.webinars.title')}</h3>
-            <p class="text-muted">
-              {t('about.webinars.description')}
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="activity-card h-100 p-4 text-center">
-            <div class="activity-icon mb-3">
-              <i class="fas fa-chalkboard-teacher fa-3x text-primary"></i>
-            </div>
-            <h3 class="h4 mb-3">{t('about.presentations.title')}</h3>
-            <p class="text-muted">
-              {t('about.presentations.description')}
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="activity-card h-100 p-4 text-center">
-            <div class="activity-icon mb-3">
-              <i class="fas fa-briefcase fa-3x text-primary"></i>
-            </div>
-            <h3 class="h4 mb-3">Career Development</h3>
-            <p class="text-muted">
-              Career fairs and markets to expand education and work opportunities for students and early-career researchers.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="activity-card h-100 p-4 text-center">
-            <div class="activity-icon mb-3">
-              <i class="fas fa-handshake fa-3x text-primary"></i>
-            </div>
-            <h3 class="h4 mb-3">International Collaboration</h3>
-            <p class="text-muted">
-              Building bridges between the Turkish community and international colleagues through ISCB Student Council.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="activity-card h-100 p-4 text-center">
-            <div class="activity-icon mb-3">
-              <i class="fas fa-book fa-3x text-primary"></i>
-            </div>
-            <h3 class="h4 mb-3">Educational Resources</h3>
-            <p class="text-muted">
-              Providing educational materials, tools, and resources for the computational biology community.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ISCB Affiliation Section -->
-  <section class="iscb-affiliation py-5">
-    <div class="container">
-      <div class="row align-items-center">
-        <div class="col-lg-6">
-          <h2 class="display-5 fw-bold mb-4">ISCB Student Council Affiliation</h2>
-          <p class="lead mb-4">
-            We are proud to be a member of the International Society for Computational Biology (ISCB) Student Council.
-          </p>
-          <p class="fs-5 mb-4">
-            The ISCB Student Council is a student-focused organization that provides a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics worldwide.
-          </p>
-          <div class="iscb-benefits">
-            <div class="benefit-item d-flex align-items-center mb-3">
-              <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Access to international conferences and events</span>
-            </div>
-            <div class="benefit-item d-flex align-items-center mb-3">
-              <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Networking opportunities with global researchers</span>
-            </div>
-            <div class="benefit-item d-flex align-items-center mb-3">
-              <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Educational resources and training programs</span>
-            </div>
-            <div class="benefit-item d-flex align-items-center">
-              <i class="fas fa-check-circle text-primary me-3"></i>
-              <span>Collaboration opportunities with other RSGs</span>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6 text-center">
-          <div class="iscb-logo p-4">
-            <img src="/logo/iscb-logo.png" alt="ISCB Student Council" class="img-fluid mb-3" style="max-height: 80px;">
-            <h4>ISCB Student Council</h4>
-            <p class="text-muted">International Society for Computational Biology</p>
-            <a href="https://www.iscb.org/iscb-student-council" target="_blank" class="btn btn-outline-primary">
-              Visit ISCB Student Council
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Committees Section -->
-  <section class="committees py-5 bg-light">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">{t('about.committees.title')}</h2>
-          <p class="lead">
-            {t('about.committees.subtitle')}
-          </p>
-        </div>
-      </div>
-      <div class="row">
-        {committees.map((committee, index) => (
-          <div class={index === 0 ? "col-12 mb-4" : "col-lg-6 mb-4"}>
-            <CommitteeCard
-              name={committee.name}
-              description={committee.description}
-              members={committee.members}
-            />
+  <!-- What We Do -->
+  <section class="bg-[#F7F7F6] py-16 border-t border-border border-b">
+    <div class="max-w-7xl mx-auto px-6">
+      <h2 class="text-2xl font-semibold text-navy text-center mb-2">{t('about.whatWeDo.title')}</h2>
+      <p class="text-gray-500 text-center max-w-xl mx-auto mb-10">{t('about.whatWeDo.subtitle')}</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          { title: t('about.symposiums.title'), desc: t('about.symposiums.description') },
+          { title: t('about.webinars.title'), desc: t('about.webinars.description') },
+          { title: t('about.presentations.title'), desc: t('about.presentations.description') },
+          {
+            title: lang === 'tr' ? 'Kariyer Gelişimi' : 'Career Development',
+            desc: lang === 'tr'
+              ? 'Öğrenciler ve erken kariyer araştırmacıları için eğitim ve iş fırsatlarını genişletmek amacıyla kariyer fuarları ve pazarları.'
+              : 'Career fairs and markets to expand education and work opportunities for students and early-career researchers.',
+          },
+          {
+            title: lang === 'tr' ? 'Uluslararası İşbirliği' : 'International Collaboration',
+            desc: lang === 'tr'
+              ? 'ISCB Öğrenci Konseyi aracılığıyla Türk topluluğu ile uluslararası meslektaşlar arasında köprüler kurmak.'
+              : 'Building bridges between the Turkish community and international colleagues through ISCB Student Council.',
+          },
+          {
+            title: lang === 'tr' ? 'Eğitim Kaynakları' : 'Educational Resources',
+            desc: lang === 'tr'
+              ? 'Hesaplamalı biyoloji topluluğu için eğitim materyalleri, araçlar ve kaynaklar sağlamak.'
+              : 'Providing educational materials, tools, and resources for the computational biology community.',
+          },
+        ].map(({ title, desc }) => (
+          <div class="bg-white border border-[#C4CEEA] rounded-lg p-5 hover:border-navy-mid transition-colors">
+            <h4 class="font-semibold text-navy mb-2">{title}</h4>
+            <p class="text-sm text-gray-500 leading-relaxed m-0">{desc}</p>
           </div>
         ))}
       </div>
     </div>
   </section>
 
-  <!-- Join Us Section -->
-  <section class="join-us py-5">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">{t('about.join.title')}</h2>
-          <p class="lead mb-4">
-            {t('about.join.description')}
-          </p>
-          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/join" class="btn btn-primary btn-lg px-4">{t('about.join.today')}</a>
-            <a href="/contact" class="btn btn-outline-primary btn-lg px-4">{t('about.join.getInTouch')}</a>
-          </div>
+  <!-- ISCB Affiliation -->
+  <section class="bg-white py-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+        <div>
+          <h2 class="text-2xl font-semibold text-navy mb-4">ISCB Student Council Affiliation</h2>
+          <p class="text-gray-600 leading-relaxed mb-3">We are proud to be a member of the International Society for Computational Biology (ISCB) Student Council.</p>
+          <p class="text-gray-600 leading-relaxed mb-4">The ISCB Student Council provides a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics worldwide.</p>
+          <ul class="space-y-2">
+            {['Access to international conferences and events', 'Networking opportunities with global researchers', 'Educational resources and training programs', 'Collaboration opportunities with other RSGs'].map((item) => (
+              <li class="flex items-start gap-2 text-gray-600 text-sm">
+                <span class="text-navy font-bold mt-0.5">✓</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div class="text-center p-8 bg-navy-light border border-[#C4CEEA] rounded-lg">
+          <img src="/logo/iscb-logo.png" alt="ISCB Student Council" class="max-h-16 mx-auto mb-4" />
+          <h4 class="font-semibold text-navy mb-1">ISCB Student Council</h4>
+          <p class="text-sm text-gray-500 mb-4">International Society for Computational Biology</p>
+          <a href="https://www.iscb.org/iscb-student-council" target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
+            Visit ISCB Student Council
+          </a>
         </div>
       </div>
     </div>
   </section>
+
+  <!-- Committees -->
+  <section class="bg-[#F7F7F6] py-16 border-t border-border">
+    <div class="max-w-7xl mx-auto px-6">
+      <h2 class="text-2xl font-semibold text-navy text-center mb-2">{t('about.committees.title')}</h2>
+      <p class="text-gray-500 text-center max-w-xl mx-auto mb-10">{t('about.committees.subtitle')}</p>
+      <div class="flex flex-col gap-6">
+        {committees.map((committee) => (
+          <CommitteeCard
+            name={committee.name}
+            description={committee.description}
+            members={committee.members}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
 </BaseLayout>
-
-<style>
-  .hero {
-    background: var(--gradient-hero);
-    min-height: 50vh;
-    display: flex;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-    opacity: 0.3;
-  }
-
-  .hero .container {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Light theme hero grid */
-  [data-theme="light"] .hero::before {
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-    opacity: 0.4;
-  }
-
-  .min-vh-50 {
-    min-height: 50vh;
-  }
-
-  .activity-card {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-normal);
-    border: 1px solid var(--border-light);
-    padding: var(--spacing-xl);
-  }
-
-  .activity-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-2xl);
-  }
-
-  .iscb-logo {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-    padding: var(--spacing-xl);
-  }
-
-  .benefit-item {
-    font-size: 1.1rem;
-  }
-
-  /* About page image styling */
-  .about-page-image {
-    max-width: 100%;
-    height: auto;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
-    transition: all var(--transition-normal);
-    border: 1px solid var(--border-light);
-  }
-
-  .about-page-image:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-2xl);
-  }
-
-  /* Who We Are section styling */
-  .who-we-are {
-    background: var(--bg-secondary);
-  }
-
-  /* Light theme adjustments */
-  [data-theme="light"] .who-we-are {
-    background: var(--bg-secondary);
-  }
-
-  [data-theme="light"] .about-page-image {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  }
-
-  [data-theme="light"] .about-page-image:hover {
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
-  }
-</style>

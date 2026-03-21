@@ -1,57 +1,62 @@
 ---
-import { Icon } from "astro-icon/components";
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-
-const socialMediaIcons: Record<string, string> = {
-  twitter: "fa-brands:twitter",
-  linkedin: "fa-brands:linkedin",
-  facebook: "fa-brands:facebook",
-  github: "fa-brands:github",
-  instagram: "fa-brands:instagram",
-};
+const prefix = lang === 'tr' ? '/tr' : '';
 ---
-<footer class="bg-dark text-white py-4" style="background: var(--bg-primary) !important; color: var(--text-primary) !important;">
-  <div class="container text-center">
-    <p>{t('footer.copyright')}</p>
-    <div class="d-flex justify-content-center gap-3">
-      <a href="https://twitter.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
-        <Icon name={socialMediaIcons.twitter} class="social-icon" />
-      </a>
-      <a href="https://github.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
-        <Icon name={socialMediaIcons.github} class="social-icon" />
-      </a>
-      <a href="https://youtube.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
-        <Icon name="fa-brands:youtube" class="social-icon" />
-      </a>
-      <a href="https://linkedin.com/company/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
-        <Icon name={socialMediaIcons.linkedin} class="social-icon" />
-      </a>
-      <a href="https://instagram.com/rsgturkey" style="color: var(--text-primary) !important;" target="_blank" rel="noopener noreferrer">
-        <Icon name={socialMediaIcons.instagram} class="social-icon" />
-      </a>
+<footer class="bg-navy text-white mt-auto">
+  <div class="max-w-7xl mx-auto px-6 py-12">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+
+      <!-- Brand -->
+      <div class="lg:col-span-1">
+        <div class="flex items-center gap-2 mb-3">
+          <img src="/logo/rsgturkey_logo.png" alt="RSG Turkey" width="28" height="28" class="rounded bg-white p-0.5" />
+          <strong class="text-white font-semibold">{t('hero.title')}</strong>
+        </div>
+        <p class="text-white/60 text-sm leading-relaxed">{t('footer.description')}</p>
+      </div>
+
+      <!-- Quick Links -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{t('footer.quickLinks')}</h4>
+        <ul class="space-y-2">
+          <li><a href={`${prefix}/about`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.about')}</a></li>
+          <li><a href={`${prefix}/blog`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.blog')}</a></li>
+          <li><a href={`${prefix}/webinars`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.webinars')}</a></li>
+          <li><a href={`${prefix}/events`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.events')}</a></li>
+          <li><a href={`${prefix}/resources`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.resources')}</a></li>
+        </ul>
+      </div>
+
+      <!-- Community -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{lang === 'tr' ? 'Topluluk' : 'Community'}</h4>
+        <ul class="space-y-2">
+          <li><a href={`${prefix}/join`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.join')}</a></li>
+          <li><a href={`${prefix}/contact`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.contact')}</a></li>
+          <li><a href="https://www.iscb.org/iscb-student-council" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">ISCB Student Council</a></li>
+        </ul>
+      </div>
+
+      <!-- Connect -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{t('footer.follow')}</h4>
+        <ul class="space-y-2">
+          <li><a href="mailto:turkey.rsg@gmail.com" class="text-sm text-white/75 hover:text-white transition-colors">turkey.rsg@gmail.com</a></li>
+          <li><a href="https://twitter.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">Twitter</a></li>
+          <li><a href="https://github.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">GitHub</a></li>
+          <li><a href="https://youtube.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">YouTube</a></li>
+          <li><a href="https://linkedin.com/company/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">LinkedIn</a></li>
+          <li><a href="https://instagram.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">Instagram</a></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="border-t border-white/10 mt-10 pt-6 text-center">
+      <p class="text-xs text-white/40">{t('footer.copyright')}</p>
     </div>
   </div>
 </footer>
-
-<style>
-  .social-icon {
-    font-size: 1.5rem; /* Adjust icon size */
-    color: var(--text-primary); /* Use theme-aware color */
-    transition: color 0.2s ease-in-out;
-  }
-
-  .social-icon:hover {
-    color: var(--primary-600); /* Hover color */
-  }
-
-  .d-flex {
-    display: flex;
-  }
-
-  .gap-3 {
-    gap: 1rem;
-  }
-</style>

@@ -1,163 +1,124 @@
 ---
-import ThemeIcon from './ThemeIcon.astro';
 import LanguageIcon from './LanguageIcon.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+const prefix = lang === 'tr' ? '/tr' : '';
 ---
-<header class="navbar navbar-expand-lg fixed-top">
-      <div class="container d-flex align-items-center justify-content-between">
-    <!-- Logo -->
-          <a class="navbar-brand d-flex align-items-center" href="/">
-        <div class="logo-container me-3">
-          <img src="/logo/rsgturkey_logo.png" alt="RSG Turkey Logo" height="40" class="logo-image" />
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-navy h-16 border-b border-[#1a2744]">
+  <div class="max-w-7xl mx-auto px-6 flex items-center justify-between h-full gap-4">
+
+    <!-- Logo / Brand -->
+    <a href={prefix || '/'} class="flex items-center gap-2 text-white font-bold text-lg shrink-0 no-underline">
+      <img src="/logo/rsgturkey_logo.png" alt="RSG Turkey Logo" width="36" height="36" class="rounded bg-white p-0.5" />
+      <span class="hidden sm:inline">{t('hero.title')}</span>
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="hidden lg:flex items-center gap-1">
+      <a href={prefix || '/'} class="nav-link">{t('nav.home')}</a>
+      <a href={`${prefix}/about`} class="nav-link">{t('nav.about')}</a>
+      <a href={`${prefix}/blog`} class="nav-link">{t('nav.blog')}</a>
+
+      <!-- Webinars dropdown -->
+      <div class="relative group">
+        <a href={`${prefix}/webinars`} class="nav-link">{t('nav.webinars')}</a>
+        <div class="dropdown-menu">
+          <a href={`${prefix}/webinars#2025`} class="dropdown-item">2025</a>
+          <a href={`${prefix}/webinars#2024`} class="dropdown-item">2024</a>
+          <a href={`${prefix}/webinars#2023`} class="dropdown-item">2023</a>
+          <a href={`${prefix}/webinars#2022`} class="dropdown-item">2022</a>
         </div>
-        <span class="fs-4 fw-bold">{t('hero.title')}</span>
-      </a>
+      </div>
 
-    <!-- Navigation -->
-    <nav class="d-none d-lg-flex">
-      <ul class="navbar-nav">
-        <li class="nav-item">
-          <a class="nav-link" href={lang === 'tr' ? '/tr' : '/'}>{t('nav.home')}</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href={lang === 'tr' ? '/tr/about' : '/about'}>{t('nav.about')}</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href={lang === 'tr' ? '/tr/blog' : '/blog'}>{t('nav.blog')}</a>
-        </li>
-        <li class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle"
-            href="/webinars"
-            id="webinarDropdown"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
-            {t('nav.webinars')}
-          </a>
-          <ul class="dropdown-menu" aria-labelledby="webinarDropdown">
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2025' : '/webinars#2025'}>2025 Webinars</a></li>
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2024' : '/webinars#2024'}>2024 Webinars</a></li>
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2023' : '/webinars#2023'}>2023 Webinars</a></li>
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#2022' : '/webinars#2022'}>2022 Webinars</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/webinars#student' : '/webinars#student'}>Student Webinars</a></li>
-          </ul>
-        </li>
-        <li class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle"
-            href="/events"
-            id="eventDropdown"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
-            {t('nav.events')}
-          </a>
-          <ul class="dropdown-menu" aria-labelledby="eventDropdown">
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/events#symposiums' : '/events#symposiums'}>Symposiums</a></li>
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/events#workshops' : '/events#workshops'}>Workshops</a></li>
-            <li><a class="dropdown-item" href={lang === 'tr' ? '/tr/events#upcoming' : '/events#upcoming'}>Upcoming Events</a></li>
-          </ul>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href={lang === 'tr' ? '/tr/resources' : '/resources'}>{t('nav.resources')}</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href={lang === 'tr' ? '/tr/contact' : '/contact'}>{t('nav.contact')}</a>
-        </li>
-      </ul>
+      <!-- Events dropdown -->
+      <div class="relative group">
+        <a href={`${prefix}/events`} class="nav-link">{t('nav.events')}</a>
+        <div class="dropdown-menu">
+          <a href={`${prefix}/events#symposiums`} class="dropdown-item">{lang === 'tr' ? 'Sempozyumlar' : 'Symposiums'}</a>
+          <a href={`${prefix}/events#workshops`} class="dropdown-item">{lang === 'tr' ? 'Atölyeler' : 'Workshops'}</a>
+        </div>
+      </div>
+
+      <a href={`${prefix}/resources`} class="nav-link">{t('nav.resources')}</a>
+      <a href={`${prefix}/contact`} class="nav-link">{t('nav.contact')}</a>
     </nav>
-    <!-- Call-to-Action Button -->
-    <a href={lang === 'tr' ? '/tr/join' : '/join'} class="btn btn-primary btn-sm d-none d-lg-inline-block me-3">{t('nav.join')}</a>
 
-    <!-- Theme Toggle -->
-    <ThemeIcon />
-    
-    <!-- Language Toggle -->
-    <LanguageIcon />
-
-    <!-- Hamburger Menu for Mobile -->
-    <button
-      class="navbar-toggler d-lg-none"
-      type="button"
-      data-bs-toggle="collapse"
-      data-bs-target="#mobileMenu"
-      aria-controls="mobileMenu"
-      aria-expanded="false"
-      aria-label="Toggle navigation"
-    >
-      <span class="navbar-toggler-icon"></span>
-    </button>
+    <!-- Actions -->
+    <div class="flex items-center gap-2 shrink-0">
+      <a href={`${prefix}/join`} class="hidden lg:inline-flex items-center px-4 py-1.5 rounded bg-red text-white text-sm font-medium hover:bg-red-hover transition-colors no-underline">
+        {t('nav.join')}
+      </a>
+      <LanguageIcon />
+      <!-- Hamburger -->
+      <button
+        id="mobileMenuBtn"
+        aria-label="Toggle menu"
+        aria-expanded="false"
+        class="lg:hidden flex items-center justify-center w-9 h-9 rounded text-white hover:bg-white/10 transition-colors"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+    </div>
   </div>
 
-  <!-- Mobile Menu -->
-  <div class="collapse" id="mobileMenu">
-    <ul class="navbar-nav text-center py-3">
-      <li class="nav-item">
-        <a class="nav-link" href={lang === 'tr' ? '/tr' : '/'}>{t('nav.home')}</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href={lang === 'tr' ? '/tr/about' : '/about'}>{t('nav.about')}</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href={lang === 'tr' ? '/tr/blog' : '/blog'}>{t('nav.blog')}</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href={lang === 'tr' ? '/tr/webinars' : '/webinars'}>{t('nav.webinars')}</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href={lang === 'tr' ? '/tr/events' : '/events'}>{t('nav.events')}</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href={lang === 'tr' ? '/tr/resources' : '/resources'}>{t('nav.resources')}</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href={lang === 'tr' ? '/tr/contact' : '/contact'}>{t('nav.contact')}</a>
-      </li>
-      <li class="nav-item">
-        <a class="btn btn-primary btn-sm" href={lang === 'tr' ? '/tr/join' : '/join'}>{t('nav.join')}</a>
-      </li>
-    </ul>
+  <!-- Mobile nav -->
+  <div id="mobileNav" class="hidden lg:hidden bg-navy border-t border-white/10 px-6 pb-4 flex-col">
+    <a href={prefix || '/'} class="mobile-link">{t('nav.home')}</a>
+    <a href={`${prefix}/about`} class="mobile-link">{t('nav.about')}</a>
+    <a href={`${prefix}/blog`} class="mobile-link">{t('nav.blog')}</a>
+    <a href={`${prefix}/webinars`} class="mobile-link">{t('nav.webinars')}</a>
+    <a href={`${prefix}/events`} class="mobile-link">{t('nav.events')}</a>
+    <a href={`${prefix}/resources`} class="mobile-link">{t('nav.resources')}</a>
+    <a href={`${prefix}/contact`} class="mobile-link">{t('nav.contact')}</a>
+    <a href={`${prefix}/join`} class="mt-3 flex items-center justify-center px-4 py-2 rounded bg-red text-white text-sm font-medium no-underline">
+      {t('nav.join')}
+    </a>
   </div>
-  
 </header>
 
 <style>
-  .logo-container {
-    width: 50px;
-    height: 50px;
-    background: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all var(--transition-normal);
+  @reference "../styles/global.css";
+
+  /* Nav links: white text, red underline on active/hover */
+  .nav-link {
+    @apply px-3 py-1.5 text-sm font-medium text-white/90 rounded hover:text-white hover:bg-white/10 transition-colors no-underline;
   }
 
-  .logo-container:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* Dropdown panel */
+  .dropdown-menu {
+    @apply hidden absolute top-full left-0 mt-1 min-w-[160px] bg-white rounded shadow-lg border border-border py-1 z-10;
   }
 
-  .logo-image {
-    max-width: 35px;
-    max-height: 35px;
-    object-fit: contain;
+  .group:hover .dropdown-menu {
+    @apply flex flex-col;
   }
 
-  /* Light theme adjustments */
-  [data-theme="light"] .logo-container {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  .dropdown-item {
+    @apply block px-4 py-2 text-sm text-navy hover:bg-navy-light hover:text-navy-mid no-underline transition-colors;
   }
 
-  [data-theme="light"] .logo-container:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  /* Mobile links */
+  .mobile-link {
+    @apply block py-2.5 text-sm text-white/90 hover:text-white border-b border-white/10 no-underline;
   }
 </style>
+
+<script is:inline>
+  (function () {
+    var btn = document.getElementById('mobileMenuBtn');
+    var nav = document.getElementById('mobileNav');
+    if (!btn || !nav) return;
+    btn.addEventListener('click', function () {
+      var open = nav.classList.toggle('hidden');
+      nav.classList.toggle('flex', !open);
+      btn.setAttribute('aria-expanded', String(!open));
+    });
+  })();
+</script>

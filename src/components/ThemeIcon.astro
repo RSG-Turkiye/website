@@ -1,7 +1,7 @@
 ---
 ---
 <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
-  <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="5" class="sun"/>
     <line x1="12" y1="1" x2="12" y2="3" class="sun"/>
     <line x1="12" y1="21" x2="12" y2="23" class="sun"/>
@@ -17,101 +17,42 @@
 
 <style>
   .theme-toggle {
-    background: var(--bg-elevated);
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-full);
-    width: 44px;
-    height: 44px;
+    background: none;
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition-normal);
-    color: var(--text-secondary);
-    position: relative;
-    overflow: hidden;
+    color: var(--text-muted);
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
 
   .theme-toggle:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
-    color: var(--primary-600);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    color: var(--text-heading);
+    border-color: var(--border-strong);
   }
 
-  .theme-toggle::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
-    transition: left var(--transition-slow);
-  }
+  .sun { transition: opacity 0.15s ease; }
+  .moon { transition: opacity 0.15s ease; }
 
-  .theme-toggle:hover::before {
-    left: 100%;
-  }
-
-  .sun {
-    opacity: 1;
-    transition: opacity var(--transition-fast);
-  }
-
-  .moon {
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-  }
-
-  [data-theme="dark"] .sun {
-    opacity: 0;
-  }
-
-  [data-theme="dark"] .moon {
-    opacity: 1;
-  }
-
-  /* Light theme toggle styles */
-  [data-theme="light"] .theme-toggle {
-    background: var(--bg-elevated);
-    border: 2px solid var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  [data-theme="light"] .theme-toggle:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--border-medium);
-    color: var(--primary-600);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  }
+  :global([data-theme="light"]) .sun { opacity: 1; }
+  :global([data-theme="light"]) .moon { opacity: 0; }
+  :global([data-theme="dark"]) .sun { opacity: 0; }
+  :global([data-theme="dark"]) .moon { opacity: 1; }
 </style>
 
 <script is:inline>
-  const theme = (() => {
-    const localStorageTheme = localStorage?.getItem("theme") ?? '';
-    if (['dark', 'light'].includes(localStorageTheme)) {
-      return localStorageTheme;
-    }
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
+  (function() {
+    var btn = document.getElementById('themeToggle');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      var el = document.documentElement;
+      var next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      el.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
   })();
-
-  // Set initial theme
-  document.documentElement.setAttribute('data-theme', theme);
-  window.localStorage.setItem('theme', theme);
-
-  const handleToggleClick = () => {
-    const element = document.documentElement;
-    const currentTheme = element.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    element.setAttribute('data-theme', newTheme);
-    localStorage.setItem("theme", newTheme);
-  }
-
-  document.getElementById("themeToggle")?.addEventListener("click", handleToggleClick);
 </script>

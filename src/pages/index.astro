@@ -1,614 +1,137 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import AnnouncementCard from '../components/AnnouncementCard.astro';
-import { announcements } from '../data/announcements';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import { getCollection } from 'astro:content';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "RSG Turkey - Computational Biology Community";
+
+const latestPosts = (await getCollection('blog', ({ data }) => data.lang === 'en' && !data.draft))
+  .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
+  .slice(0, 3);
 ---
 
 <BaseLayout pageTitle={pageTitle}>
-  <!-- Hero Section -->
-  <section class="hero text-center py-5">
-    <div class="container">
-      <div class="row align-items-center min-vh-75">
-        <div class="col-lg-8 mx-auto">
-          <div class="hero-logo-container mb-4">
-            <img src="/logo/rsgturkey_logo.png" alt="RSG Turkey Logo" class="hero-logo-image" />
-          </div>
-          <h1 class="display-3 fw-bold mb-4">{t('hero.title')}</h1>
-          <p class="lead fs-4 mb-4">
-            {t('hero.description')}
-          </p>
-          <p class="fs-5 mb-5">
-            {t('hero.membership')}
-          </p>
-          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/about" class="btn btn-primary btn-lg px-4">{t('hero.learnMore')}</a>
-            <a href="/join" class="btn btn-outline-light btn-lg px-4">{t('hero.joinCommunity')}</a>
-          </div>
+
+  <!-- ── Hero ─────────────────────────────────────────── -->
+  <section
+    class="py-24 text-center bg-navy bg-cover bg-center"
+    style="background-image: linear-gradient(rgba(26,39,68,0.78), rgba(26,39,68,0.88)), url('https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto/404A1947_mzkouu');"
+  >
+    <div class="max-w-2xl mx-auto px-6">
+      <img
+        src="/logo/rsgturkey_logo.png"
+        alt="RSG Turkey Logo"
+        width="72" height="72"
+        class="mx-auto mb-6 rounded-lg bg-white p-1"
+      />
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+        {t('hero.title')}
+      </h1>
+      <p class="text-white/75 text-lg leading-relaxed mb-8 max-w-xl mx-auto">
+        {t('hero.description')}
+      </p>
+      <a
+        href="/join"
+        class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium text-base hover:bg-red-hover transition-colors no-underline"
+      >
+        {t('hero.joinCommunity')}
+      </a>
+    </div>
+  </section>
+
+  <!-- ── Mission + Stats ───────────────────────────────── -->
+  <section class="bg-white py-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-12 items-start">
+
+        <!-- Mission text -->
+        <div>
+          <h2 class="text-2xl font-semibold text-navy mb-4">{t('mission.title')}</h2>
+          <p class="text-gray-600 leading-relaxed mb-3">{t('mission.description')}</p>
+          <p class="text-gray-600 leading-relaxed">{t('mission.goal')}</p>
         </div>
+
+        <!-- Stats grid -->
+        <div class="grid grid-cols-2 gap-4">
+          {[
+            { n: '10+', label: t('stats.years') },
+            { n: '50+', label: t('stats.members') },
+            { n: '100+', label: t('stats.webinars') },
+            { n: '15+', label: lang === 'tr' ? 'Sempozyum' : 'Symposiums' },
+          ].map(({ n, label }) => (
+            <div class="text-center p-5 rounded-lg bg-navy-light border border-[#C4CEEA]">
+              <span class="block text-3xl font-bold text-navy">{n}</span>
+              <span class="block text-sm text-gray-500 mt-1">{label}</span>
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   </section>
 
-  <!-- Announcements Section -->
-  <section class="announcements py-5">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">
-            <i class="fas fa-bullhorn text-primary me-3"></i>
-            {t('announcements.title')}
-          </h2>
-          <p class="lead">
-            {t('announcements.subtitle')}
-          </p>
-        </div>
-      </div>
-      <div class="row g-4">
-        {announcements.map((announcement) => (
-          <div class="col-lg-4 col-md-6">
-            <AnnouncementCard {...announcement} />
-          </div>
-        ))}
-      </div>
-      <div class="row mt-5">
-        <div class="col-12 text-center">
-          <a href="/events" class="btn btn-outline-primary btn-lg px-4">
-            <i class="fas fa-calendar-alt me-2"></i>
-            {t('announcements.viewAll')}
+  <!-- ── Content Cards ─────────────────────────────────── -->
+  <section class="bg-[#F7F7F6] py-16 border-t border-border border-b">
+    <div class="max-w-7xl mx-auto px-6">
+      <h2 class="text-2xl font-semibold text-navy text-center mb-2">{t('contentCards.title')}</h2>
+      <p class="text-gray-500 text-center max-w-lg mx-auto mb-10">{t('contentCards.subtitle')}</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- Webinar card -->
+        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors">
+          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4">
+            Webinar
+          </span>
+          <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.webinar.title')}</h3>
+          <p class="text-sm text-gray-500 leading-relaxed mb-4">{t('contentCards.webinar.description')}</p>
+          <a href="/webinars" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">
+            {t('contentCards.webinar.button')} →
           </a>
         </div>
+
+        <!-- Events card -->
+        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors">
+          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4">
+            {lang === 'tr' ? 'Etkinlik' : 'Event'}
+          </span>
+          <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.events.title')}</h3>
+          <p class="text-sm text-gray-500 leading-relaxed mb-4">{t('contentCards.events.description')}</p>
+          <a href="/events" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">
+            {t('contentCards.events.button')} →
+          </a>
+        </div>
+
+        <!-- Blog card -->
+        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors">
+          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4">
+            Blog
+          </span>
+          <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.blog.title')}</h3>
+          <p class="text-sm text-gray-500 leading-relaxed mb-4">{t('contentCards.blog.description')}</p>
+          <a href="/blog" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">
+            {t('contentCards.blog.button')} →
+          </a>
+        </div>
+
       </div>
     </div>
   </section>
 
-  <!-- Mission Section -->
-  <section class="mission py-5 bg-light">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">{t('mission.title')}</h2>
-          <p class="lead mb-4">
-            {t('mission.description')}
-          </p>
-          <p class="fs-5">
-            {t('mission.goal')}
-          </p>
-        </div>
-      </div>
+  <!-- ── Join CTA ──────────────────────────────────────── -->
+  <section class="bg-white py-16 text-center">
+    <div class="max-w-2xl mx-auto px-6">
+      <h2 class="text-2xl font-semibold text-navy mb-3">{t('cta.title')}</h2>
+      <p class="text-gray-500 mb-6">{t('cta.description')}</p>
+      <a
+        href="/join"
+        class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium hover:bg-red-hover transition-colors no-underline"
+      >
+        {t('cta.joinToday')}
+      </a>
     </div>
   </section>
 
-  <!-- Statistics Section -->
-  <section class="stats py-5">
-    <div class="container">
-      <div class="row text-center">
-        <div class="col-md-3 col-6 mb-4">
-          <div class="stat-card">
-            <div class="stat-icon mb-3">
-              <i class="fas fa-calendar-alt fa-2x"></i>
-            </div>
-            <div class="stat-number">10+</div>
-            <div class="stat-label">{t('stats.years')}</div>
-          </div>
-        </div>
-        <div class="col-md-3 col-6 mb-4">
-          <div class="stat-card">
-            <div class="stat-icon mb-3">
-              <i class="fas fa-users fa-2x"></i>
-            </div>
-            <div class="stat-number">50+</div>
-            <div class="stat-label">{t('stats.members')}</div>
-          </div>
-        </div>
-        <div class="col-md-3 col-6 mb-4">
-          <div class="stat-card">
-            <div class="stat-icon mb-3">
-              <i class="fas fa-video fa-2x"></i>
-            </div>
-            <div class="stat-number">100+</div>
-            <div class="stat-label">{t('stats.webinars')}</div>
-          </div>
-        </div>
-        <div class="col-md-3 col-6 mb-4">
-          <div class="stat-card">
-            <div class="stat-icon mb-3">
-              <i class="fas fa-graduation-cap fa-2x"></i>
-            </div>
-            <div class="stat-number">15+</div>
-            <div class="stat-label">Symposiums</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- What We Do Section -->
-  <section class="what-we-do py-5 bg-light">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">What We Do</h2>
-          <p class="lead">
-            We organize various activities to support the computational biology community in Turkey
-          </p>
-        </div>
-      </div>
-      <div class="row g-4">
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-graduation-cap"></i>
-            </div>
-            <h3 class="h4 mb-3">Annual Symposiums</h3>
-            <p class="text-muted">
-              We organize annual symposiums and workshops throughout Turkey to bring together researchers and students in computational biology.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-video"></i>
-            </div>
-            <h3 class="h4 mb-3">Webinar Series</h3>
-            <p class="text-muted">
-              Our ongoing webinar project on Bioinfonet shares knowledge with the community, featuring experts from around the world.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-users"></i>
-            </div>
-            <h3 class="h4 mb-3">Student Presentations</h3>
-            <p class="text-muted">
-              Regular student paper presentations and discussions to introduce research areas and foster collaboration.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-briefcase"></i>
-            </div>
-            <h3 class="h4 mb-3">Career Fairs</h3>
-            <p class="text-muted">
-              Career fairs and markets to expand education and work opportunities for students and early-career researchers.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-globe"></i>
-            </div>
-            <h3 class="h4 mb-3">International Connections</h3>
-            <p class="text-muted">
-              Building bridges between the Turkish community and international colleagues through ISCB Student Council.
-            </p>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <i class="fas fa-book"></i>
-            </div>
-            <h3 class="h4 mb-3">Educational Resources</h3>
-            <p class="text-muted">
-              Providing educational materials, tools, and resources for the computational biology community.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Recent Content Section -->
-  <section class="recent-content py-5">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">{t('contentCards.title')}</h2>
-          <p class="lead">
-            {t('contentCards.subtitle')}
-          </p>
-        </div>
-      </div>
-      <div class="row g-4">
-        <div class="col-lg-4 col-md-6">
-          <div class="content-card h-100">
-            <div class="card h-100">
-              <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                  <i class="fas fa-video text-primary me-2"></i>
-                  <span class="badge bg-primary">Webinar</span>
-                </div>
-                <h5 class="card-title">{t('contentCards.webinar.title')}</h5>
-                <p class="card-text text-muted">
-                  {t('contentCards.webinar.description')}
-                </p>
-                <a href="/webinars" class="btn btn-outline-primary btn-sm">{t('contentCards.webinar.button')}</a>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="content-card h-100">
-            <div class="card h-100">
-              <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                  <i class="fas fa-calendar text-primary me-2"></i>
-                  <span class="badge bg-primary">Event</span>
-                </div>
-                <h5 class="card-title">{t('contentCards.events.title')}</h5>
-                <p class="card-text text-muted">
-                  {t('contentCards.events.description')}
-                </p>
-                <a href="/events" class="btn btn-outline-primary btn-sm">{t('contentCards.events.button')}</a>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-4 col-md-6">
-          <div class="content-card h-100">
-            <div class="card h-100">
-              <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                  <i class="fas fa-newspaper text-primary me-2"></i>
-                  <span class="badge bg-info">Blog</span>
-                </div>
-                <h5 class="card-title">{t('contentCards.blog.title')}</h5>
-                <p class="card-text text-muted">
-                  {t('contentCards.blog.description')}
-                </p>
-                <a href="/blog" class="btn btn-outline-primary btn-sm">{t('contentCards.blog.button')}</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Call to Action Section -->
-  <section class="cta py-5 bg-primary">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">{t('cta.title')}</h2>
-          <p class="lead mb-4">
-            {t('cta.description')}
-          </p>
-          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/join" class="btn btn-light btn-lg px-4">{t('cta.joinToday')}</a>
-            <a href="/contact" class="btn btn-outline-light btn-lg px-4">{t('cta.contactUs')}</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 </BaseLayout>
-
-<style>
-  .hero {
-    background: var(--gradient-hero);
-    min-height: 75vh;
-    display: flex;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-    opacity: 0.3;
-  }
-
-  .hero .container {
-    position: relative;
-    z-index: 1;
-  }
-
-  .min-vh-75 {
-    min-height: 75vh;
-  }
-
-  .stat-card {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    text-align: center;
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-normal);
-    border: 1px solid var(--border-light);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--gradient-primary);
-  }
-
-  .stat-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-2xl);
-  }
-
-  .stat-icon {
-    color: var(--primary-600);
-    opacity: 0.8;
-  }
-
-  .stat-number {
-    font-size: var(--font-size-4xl);
-    font-weight: 700;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .stat-label {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .feature-card {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    text-align: center;
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-normal);
-    border: 1px solid var(--border-light);
-    height: 100%;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .feature-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--gradient-accent);
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-  }
-
-  .feature-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-2xl);
-  }
-
-  .feature-card:hover::before {
-    opacity: 1;
-  }
-
-  .feature-icon {
-    width: 80px;
-    height: 80px;
-    background: var(--gradient-primary);
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto var(--spacing-lg);
-    color: var(--text-inverse);
-    font-size: var(--font-size-2xl);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .content-card {
-    transition: transform 0.3s ease;
-  }
-
-  .content-card:hover {
-    transform: translateY(-5px);
-  }
-
-  .card {
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-sm);
-  }
-
-  /* Announcements Section */
-  .announcement-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    height: 100%;
-    transition: all var(--transition-normal);
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  }
-
-  .announcement-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--gradient-accent);
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-  }
-
-  .announcement-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  }
-
-  .announcement-card:hover::before {
-    opacity: 1;
-  }
-
-  .announcement-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-  }
-
-  .announcement-badge {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    background: var(--gradient-primary);
-    color: var(--text-inverse);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-full);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .announcement-badge i {
-    font-size: var(--font-size-sm);
-  }
-
-  .announcement-date {
-    color: var(--text-muted);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-  }
-
-  .announcement-content h4 {
-    color: var(--text-primary);
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    margin-bottom: var(--spacing-sm);
-    line-height: 1.3;
-  }
-
-  .announcement-content p {
-    color: var(--text-secondary);
-    font-size: var(--font-size-sm);
-    line-height: 1.6;
-    margin-bottom: var(--spacing-lg);
-  }
-
-  .announcement-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
-  }
-
-  .announcement-actions .btn {
-    font-size: var(--font-size-xs);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-weight: 500;
-  }
-
-  /* Light theme adjustments */
-  [data-theme="light"] .announcement-card {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  }
-
-  [data-theme="light"] .announcement-card:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-  }
-
-  /* Hero logo styling */
-  .hero-logo-container {
-    width: 140px;
-    height: 140px;
-    background: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    transition: all var(--transition-normal);
-  }
-
-  .hero-logo-container:hover {
-    transform: scale(1.05);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
-  }
-
-  .hero-logo-image {
-    max-width: 100px;
-    max-height: 100px;
-    object-fit: contain;
-  }
-
-  /* Light theme hero logo adjustments */
-  [data-theme="light"] .hero-logo-container {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  }
-
-  [data-theme="light"] .hero-logo-container:hover {
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
-  }
-
-  /* Hero text shadow for better readability */
-  .hero h1 {
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-  }
-
-  .hero .lead {
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  }
-
-  .hero .fs-5 {
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  }
-
-  /* Dark theme text shadow enhancement */
-  [data-theme="dark"] .hero h1 {
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
-  }
-
-  [data-theme="dark"] .hero .lead {
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
-  }
-
-  [data-theme="dark"] .hero .fs-5 {
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
-  }
-
-  /* Light theme text shadow adjustments */
-  [data-theme="light"] .hero h1 {
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  }
-
-  [data-theme="light"] .hero .lead {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  }
-
-  [data-theme="light"] .hero .fs-5 {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  }
-</style>

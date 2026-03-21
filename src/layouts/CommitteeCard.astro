@@ -10,178 +10,45 @@ interface Member {
 }
 
 const { name, description, members = [] } = Astro.props as { name: string; description: string; members: Member[] };
-
-// Map social media platforms to their respective Font Awesome icons
-const socialMediaIcons: Record<string, string> = {
-  twitter: "fa-brands fa-twitter",
-  linkedin: "fa-brands fa-linkedin",
-  facebook: "fa-brands fa-facebook",
-  github: "fa-brands fa-github",
-  instagram: "fa-brands fa-instagram",
-};
 ---
-<div class="committee-card p-4">
-  <h3 class="text-center mb-3">{name}</h3>
-  <p class="text-center mb-4">{description}</p>
-  <div class="row g-3 justify-content-center">
+<div class="bg-white border border-border rounded-lg p-6">
+  <h3 class="text-lg font-semibold text-navy text-center mb-1">{name}</h3>
+  <p class="text-sm text-gray-500 text-center mb-6">{description}</p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     {members.map((member) => (
-      <div class="col-md-6 col-lg-4">
-        <div class="member-card text-center p-3">
-          <div class="member-image-container mb-3">
-            <img
-              src={member.image}
-              alt={member.name}
-              class="member-image"
-              width="150"
-              height="150"
-            />
-          </div>
-          <h5 class="mb-2">{member.name}</h5>
-          <p class="text-muted mb-1">{member.role}</p>
-          
-          {/* Education Section - moved right after role */}
-          {member.education && member.education.length > 0 && (
-            <div class="education-info mb-2">
-              {member.education.map((edu, index) => (
-                <p class="text-muted small mb-1">
-                  {edu.degree} • {edu.field}
-                  {edu.institution && ` • ${edu.institution}`}
-                  {edu.year && ` (${edu.year})`}
-                </p>
-              ))}
-            </div>
-          )}
-          
-          <p class="text-muted small mb-2">{member.institution}</p>
-          
-          {/* Email section removed */}
-          
-          {member.socialMedia && (
-            <div class="social-links">
-              {member.socialMedia.map((social) => (
-                <a href={social.url} target="_blank" rel="noopener noreferrer" class="me-2">
-                  <i class={socialMediaIcons[social.platform] || "fa-solid fa-question-circle"}></i>
-                </a>
-              ))}
-            </div>
-          )}
+      <div class="text-center p-4 bg-navy-light border border-[#C4CEEA] rounded-lg hover:border-navy-mid transition-colors">
+        <div class="w-24 h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-navy-mid">
+          <img src={member.image} alt={member.name} width="96" height="96" class="w-full h-full object-cover" />
         </div>
+        <h5 class="font-semibold text-navy text-sm mb-0.5">{member.name}</h5>
+        <p class="text-xs text-navy-mid mb-1">{member.role}</p>
+
+        {member.education && member.education.length > 0 && (
+          <div class="mb-1">
+            {member.education.map((edu) => (
+              <p class="text-xs text-gray-400">
+                {edu.degree} · {edu.field}
+                {edu.institution && ` · ${edu.institution}`}
+                {edu.year && ` (${edu.year})`}
+              </p>
+            ))}
+          </div>
+        )}
+
+        <p class="text-xs text-gray-400 mb-2">{member.institution}</p>
+
+        {member.socialMedia && member.socialMedia.length > 0 && (
+          <div class="flex gap-2 justify-center flex-wrap">
+            {member.socialMedia.map((social) => (
+              <a href={social.url} target="_blank" rel="noopener noreferrer"
+                class="text-xs text-navy-mid hover:text-navy transition-colors">
+                {social.platform}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     ))}
   </div>
 </div>
-
-<style>
-  .committee-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-normal);
-    /* Tüm komite kutularının yüksekliğini eşitleme */
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .committee-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-  
-  .committee-card h3 {
-    color: var(--text-primary);
-  }
-  
-  .committee-card p {
-    color: var(--text-secondary);
-  }
-  
-  .member-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--transition-normal);
-    height: 100%;
-  }
-  
-  .member-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-  }
-  
-  .member-image-container {
-    width: 150px;
-    height: 150px;
-    background: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-normal);
-    /* Çerçeve ekleme */
-    border: 4px solid var(--primary-500);
-    padding: 4px;
-  }
-
-  .member-image-container:hover {
-    transform: scale(1.05);
-    box-shadow: var(--shadow-lg);
-    /* Hover'da çerçeve rengini değiştirme */
-    border-color: var(--primary-600);
-  }
-
-  .member-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    /* Fotoğrafın çerçeve içinde tamamen kaplanması */
-    object-position: center;
-  }
-  
-  .member-card h5 {
-    color: var(--text-primary);
-    font-size: 1.1rem;
-    font-weight: 600;
-  }
-  
-  .member-card p {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-  }
-  
-  .social-links a {
-    display: inline-block;
-    margin-right: 8px;
-    font-size: 1.2rem;
-    color: var(--text-secondary);
-    transition: all var(--transition-normal);
-  }
-  
-  .social-links a:hover {
-    color: var(--primary-600);
-    transform: translateY(-2px);
-  }
-
-  /* LinkedIn icon specific styling */
-  .social-links a[href*="linkedin"] .social-icon {
-    color: #0077b5;
-  }
-  
-  .social-links a[href*="linkedin"]:hover .social-icon {
-    color: #005885;
-  }
-
-  /* Light theme adjustments for member images */
-  [data-theme="light"] .member-image-container {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  }
-
-  [data-theme="light"] .member-image-container:hover {
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  }
-</style>

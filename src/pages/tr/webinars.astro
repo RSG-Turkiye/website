@@ -1,269 +1,54 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getLangFromUrl, useTranslations } from '../../i18n/ui';
+import { useTranslations } from '../../i18n/ui';
 import { getCollection } from 'astro:content';
 
 const lang = 'tr';
 const t = useTranslations(lang);
 const pageTitle = "Webinarlar - RSG Türkiye";
 
-const allWebinars = await getCollection('webinars', ({ data }) => {
-  return data.lang === 'tr';
-});
-
-// Group webinars by year, sorted descending
-const webinarsByYear = allWebinars.reduce((acc, w) => {
-  const year = String(w.data.year);
-  if (!acc[year]) acc[year] = [];
-  acc[year].push(w);
-  return acc;
-}, {} as Record<string, typeof allWebinars>);
-
-const sortedYears = Object.keys(webinarsByYear).sort((a, b) => Number(b) - Number(a));
-
-const webinars = sortedYears.map((year) => ({
-  year,
-  title: `${year} Webinarları`,
-  webinars: webinarsByYear[year].map((w) => ({
-    title: w.data.title,
-    presenter: w.data.speaker,
-    date: w.data.date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' }),
-    description: w.data.description,
-    status: w.data.date > new Date() ? 'upcoming' : 'completed',
-    youtubeUrl: w.data.youtubeUrl,
-  })),
-}));
+const webinarPosts = await getCollection('blog', ({ data }) =>
+  data.lang === 'tr' && !data.draft && data.type === 'webinar'
+);
+const sortedPosts = webinarPosts.sort((a, b) =>
+  b.data.pubDate.getTime() - a.data.pubDate.getTime()
+);
 ---
 
 <BaseLayout pageTitle={pageTitle}>
-  <!-- Hero Section -->
-  <section class="hero text-center py-5">
-    <div class="container">
-      <div class="row align-items-center min-vh-50">
-        <div class="col-lg-8 mx-auto">
-          <h1 class="display-3 fw-bold mb-4">{t('webinars.title')}</h1>
-          <p class="lead fs-4">
-            {t('webinars.subtitle')}
-          </p>
+
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">{t('webinars.title')}</h1>
+      <p class="text-white/70 mt-2">{t('webinars.subtitle')}</p>
+    </div>
+  </div>
+
+  <section class="bg-white py-10">
+    <div class="max-w-3xl mx-auto px-6">
+      {sortedPosts.length > 0 ? (
+        <div class="flex flex-col">
+          {sortedPosts.map((post) => (
+            <article class="py-5 border-b border-border">
+              <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
+                <time>{post.data.pubDate.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+                {post.data.author && <span>{post.data.author}</span>}
+              </div>
+              <h2 class="text-lg font-semibold mb-1">
+                <a href={`/tr/webinars/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">
+                  {post.data.title}
+                </a>
+              </h2>
+              {post.data.description && (
+                <p class="text-sm text-gray-500 leading-relaxed">{post.data.description}</p>
+              )}
+            </article>
+          ))}
         </div>
-      </div>
+      ) : (
+        <p class="text-gray-500 text-sm">Henüz webinar özeti bulunmuyor.</p>
+      )}
     </div>
   </section>
 
-  <!-- Bioinfonet Project Section -->
-  <section class="bioinfonet py-5">
-    <div class="container">
-      <div class="row align-items-center">
-        <div class="col-lg-6">
-          <h2 class="display-5 fw-bold mb-4">{t('webinars.bioinfonet.title')}</h2>
-          <p class="lead mb-4">
-            {t('webinars.bioinfonet.description')}
-          </p>
-          <p class="fs-5 mb-4">
-            {t('webinars.bioinfonet.detail')}
-          </p>
-          <div class="project-features">
-            <div class="feature-item d-flex align-items-center mb-3">
-              <i class="fas fa-globe fa-2x text-primary me-3"></i>
-              <div>
-                <h5 class="mb-1">{t('webinars.features.global.title')}</h5>
-                <p class="text-muted mb-0">{t('webinars.features.global.description')}</p>
-              </div>
-            </div>
-            <div class="feature-item d-flex align-items-center mb-3">
-              <i class="fas fa-graduation-cap fa-2x text-primary me-3"></i>
-              <div>
-                <h5 class="mb-1">{t('webinars.features.expert.title')}</h5>
-                <p class="text-muted mb-0">{t('webinars.features.expert.description')}</p>
-              </div>
-            </div>
-            <div class="feature-item d-flex align-items-center">
-              <i class="fas fa-users fa-2x text-primary me-3"></i>
-              <div>
-                <h5 class="mb-1">{t('webinars.features.interactive.title')}</h5>
-                <p class="text-muted mb-0">{t('webinars.features.interactive.description')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6 text-center">
-          <div class="bioinfonet-logo p-4">
-            <i class="fas fa-video fa-5x text-primary mb-3"></i>
-            <h4>Bioinfonet</h4>
-            <p class="text-muted">ISCB Öğrenci Konseyi Destekli Proje</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Webinar Years Section -->
-  <section class="webinar-years py-5 bg-light">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">{t('webinars.schedule.title')}</h2>
-          <p class="lead">
-            {t('webinars.schedule.subtitle')}
-          </p>
-        </div>
-      </div>
-      
-      {webinars.map((yearGroup) => (
-        <div class="webinar-year mb-5">
-          <div class="row">
-            <div class="col-12">
-              <h3 class="h2 mb-4 text-center">{yearGroup.title}</h3>
-              <div class="row g-4">
-                {yearGroup.webinars.map((webinar) => (
-                  <div class="col-lg-6 col-md-12">
-                    <div class="webinar-card h-100">
-                      <div class="card h-100">
-                        <div class="card-body">
-                          <div class="d-flex justify-content-between align-items-start mb-3">
-                            <span class={`badge ${webinar.status === 'upcoming' ? 'bg-accent' : 'bg-secondary'}`}>
-                              {webinar.status === 'upcoming' ? t('webinars.status.upcoming') : t('webinars.status.completed')}
-                            </span>
-                            <small class="text-muted">{webinar.date}</small>
-                          </div>
-                          <h5 class="card-title mb-3">{webinar.title}</h5>
-                          {webinar.presenter && (
-                            <p class="text-primary fw-bold mb-2">
-                              <i class="fas fa-user me-2"></i>{t('webinars.presenter')}: {webinar.presenter}
-                            </p>
-                          )}
-                          <p class="card-text text-muted">{webinar.description}</p>
-                          {webinar.status === 'upcoming' && (
-                            <a href="/tr/contact" class="btn btn-primary btn-sm">{t('webinars.register')}</a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </section>
-
-  <!-- Open Student Webinars Section -->
-  <section class="open-student-webinars py-5">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">Açık Öğrenci Webinarları</h2>
-          <p class="lead mb-4">
-            Türk hesaplamalı biyoloji topluluğundan araştırma sunumları ve tartışmaları içeren öğrenci liderliğindeki webinar serimiz.
-          </p>
-          <div class="row g-4 mt-4">
-            <div class="col-lg-4 col-md-6">
-              <div class="feature-card text-center p-4">
-                <div class="feature-icon mb-3">
-                  <i class="fas fa-microscope fa-3x text-primary"></i>
-                </div>
-                <h4 class="h5 mb-3">Araştırma Sunumları</h4>
-                <p class="text-muted">
-                  Öğrencilerimizin en son araştırma bulgularını paylaştığı oturumlar.
-                </p>
-              </div>
-            </div>
-            <div class="col-lg-4 col-md-6">
-              <div class="feature-card text-center p-4">
-                <div class="feature-icon mb-3">
-                  <i class="fas fa-comments fa-3x text-primary"></i>
-                </div>
-                <h4 class="h5 mb-3">İnteraktif Tartışmalar</h4>
-                <p class="text-muted">
-                  Sunumlar sonrası soru-cevap ve tartışma oturumları.
-                </p>
-              </div>
-            </div>
-            <div class="col-lg-4 col-md-6">
-              <div class="feature-card text-center p-4">
-                <div class="feature-icon mb-3">
-                  <i class="fas fa-network-wired fa-3x text-primary"></i>
-                </div>
-                <h4 class="h5 mb-3">Ağ Oluşturma</h4>
-                <p class="text-muted">
-                  Öğrenciler arasında işbirliği ve bağlantı kurma fırsatları.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div class="mt-5">
-            <a href="/tr/contact" class="btn btn-primary btn-lg px-4">
-              <i class="fas fa-envelope me-2"></i>Katılım İsteği Gönder
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 </BaseLayout>
-
-<style>
-  .hero {
-    background: var(--gradient-hero);
-    min-height: 50vh;
-    display: flex;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-    opacity: 0.3;
-  }
-
-  .hero .container {
-    position: relative;
-    z-index: 1;
-  }
-
-  .min-vh-50 {
-    min-height: 50vh;
-  }
-
-  .bioinfonet-logo {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-  }
-
-  .webinar-card {
-    transition: transform var(--transition-normal);
-  }
-
-  .webinar-card:hover {
-    transform: translateY(-4px);
-  }
-
-  .feature-card {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-normal);
-  }
-
-  .feature-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .feature-icon {
-    color: var(--primary-600);
-  }
-</style> 

@@ -1,386 +1,183 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
 const pageTitle = "Join Us - RSG Turkey";
 
 const benefits = [
-  {
-    icon: "fas fa-globe",
-    title: "International Network",
-    description: "Connect with researchers worldwide through ISCB Student Council affiliation"
-  },
-  {
-    icon: "fas fa-graduation-cap",
-    title: "Learning Opportunities",
-    description: "Access to webinars, workshops, and educational resources"
-  },
-  {
-    icon: "fas fa-users",
-    title: "Community Support",
-    description: "Join a supportive community of computational biology enthusiasts"
-  },
-  {
-    icon: "fas fa-briefcase",
-    title: "Career Development",
-    description: "Career fairs, networking events, and professional development opportunities"
-  },
-  {
-    icon: "fas fa-handshake",
-    title: "Collaboration",
-    description: "Opportunities to collaborate on research projects and events"
-  },
-  {
-    icon: "fas fa-calendar-alt",
-    title: "Event Access",
-    description: "Priority access to symposiums, workshops, and special events"
-  }
+  { title: lang === 'tr' ? 'Uluslararası Ağ' : 'International Network', desc: lang === 'tr' ? 'ISCB Öğrenci Konseyi bağlantısı ile dünya çapında araştırmacılarla bağlantı kurun' : 'Connect with researchers worldwide through ISCB Student Council affiliation' },
+  { title: lang === 'tr' ? 'Öğrenme Fırsatları' : 'Learning Opportunities', desc: lang === 'tr' ? 'Webinarlara, atölyelere ve eğitim kaynaklarına erişim' : 'Access to webinars, workshops, and educational resources' },
+  { title: lang === 'tr' ? 'Topluluk Desteği' : 'Community Support', desc: lang === 'tr' ? 'Hesaplamalı biyoloji meraklılarından oluşan destekleyici bir topluluğa katılın' : 'Join a supportive community of computational biology enthusiasts' },
+  { title: lang === 'tr' ? 'Kariyer Gelişimi' : 'Career Development', desc: lang === 'tr' ? 'Kariyer fuarları, ağ oluşturma etkinlikleri ve profesyonel gelişim fırsatları' : 'Career fairs, networking events, and professional development opportunities' },
+  { title: lang === 'tr' ? 'İşbirliği' : 'Collaboration', desc: lang === 'tr' ? 'Araştırma projelerinde ve etkinliklerde işbirliği fırsatları' : 'Opportunities to collaborate on research projects and events' },
+  { title: lang === 'tr' ? 'Etkinlik Erişimi' : 'Event Access', desc: lang === 'tr' ? 'Sempozyumlara, atölyelere ve özel etkinliklere öncelikli erişim' : 'Priority access to symposiums, workshops, and special events' },
 ];
 
 const membershipTypes = [
   {
-    type: "Student Member",
-    description: "For undergraduate and graduate students",
-    features: [
-      "Access to all webinars and events",
-      "Student presentation opportunities",
-      "Mentorship programs",
-      "Resource library access"
-    ],
-    eligibility: "Currently enrolled students in computational biology or related fields"
+    type: lang === 'tr' ? 'Öğrenci Üye' : 'Student Member',
+    description: lang === 'tr' ? 'Lisans ve lisansüstü öğrenciler için' : 'For undergraduate and graduate students',
+    features: lang === 'tr'
+      ? ['Tüm webinar ve etkinliklere erişim', 'Öğrenci sunum fırsatları', 'Mentorluk programları', 'Kaynak kütüphanesine erişim']
+      : ['Access to all webinars and events', 'Student presentation opportunities', 'Mentorship programs', 'Resource library access'],
   },
   {
-    type: "Early Career Researcher",
-    description: "For postdocs and early career researchers",
-    features: [
-      "All student member benefits",
-      "Leadership opportunities",
-      "Committee participation",
-      "International conference support"
-    ],
-    eligibility: "Postdocs and researchers within 5 years of completing their PhD"
+    type: lang === 'tr' ? 'Erken Kariyer Araştırmacı' : 'Early Career Researcher',
+    description: lang === 'tr' ? 'Doktora sonrası ve erken kariyer araştırmacıları için' : 'For postdocs and early career researchers',
+    features: lang === 'tr'
+      ? ['Tüm öğrenci üye avantajları', 'Liderlik fırsatları', 'Komite katılımı', 'Uluslararası konferans desteği']
+      : ['All student member benefits', 'Leadership opportunities', 'Committee participation', 'International conference support'],
   },
   {
-    type: "Professional Member",
-    description: "For established professionals and faculty",
-    features: [
-      "All member benefits",
-      "Mentoring opportunities",
-      "Event organization roles",
-      "International collaboration facilitation"
-    ],
-    eligibility: "Faculty members, industry professionals, and established researchers"
-  }
+    type: lang === 'tr' ? 'Profesyonel Üye' : 'Professional Member',
+    description: lang === 'tr' ? 'Yerleşik profesyoneller ve akademisyenler için' : 'For established professionals and faculty',
+    features: lang === 'tr'
+      ? ['Tüm üye avantajları', 'Mentorluk fırsatları', 'Etkinlik organizasyon rolleri', 'Uluslararası işbirliği kolaylaştırma']
+      : ['All member benefits', 'Mentoring opportunities', 'Event organization roles', 'International collaboration facilitation'],
+  },
 ];
 ---
 
 <BaseLayout pageTitle={pageTitle}>
-  <!-- Hero Section -->
-  <section class="hero text-center py-5">
-    <div class="container">
-      <div class="row align-items-center min-vh-50">
-        <div class="col-lg-8 mx-auto">
-          <h1 class="display-3 fw-bold mb-4">Join Our Community</h1>
-          <p class="lead fs-4">
-            Anyone interested in computational biology & bioinformatics is welcome to join our community. We love meeting new people!
-          </p>
+
+  <!-- Page Header -->
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">{t('join.title')}</h1>
+      <p class="text-white/70 mt-2">{t('join.subtitle')}</p>
+    </div>
+  </div>
+
+  <!-- Benefits + Membership Types -->
+  <section class="bg-white py-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+
+        <!-- Benefits -->
+        <div>
+          <h2 class="text-xl font-semibold text-navy mb-6">{t('join.benefits.title')}</h2>
+          <ul class="flex flex-col">
+            {benefits.map((b) => (
+              <li class="py-3 border-b border-border flex flex-col gap-0.5">
+                <strong class="text-navy text-sm">{b.title}</strong>
+                <span class="text-sm text-gray-500">{b.desc}</span>
+              </li>
+            ))}
+          </ul>
         </div>
+
+        <!-- Membership Types -->
+        <div>
+          <h2 class="text-xl font-semibold text-navy mb-6">{lang === 'tr' ? 'Üyelik Türleri' : 'Membership Types'}</h2>
+          <div class="flex flex-col gap-3">
+            {membershipTypes.map((m) => (
+              <div class="p-4 bg-navy-light border border-[#C4CEEA] rounded-lg hover:border-navy-mid transition-colors">
+                <h3 class="font-semibold text-navy text-sm mb-0.5">{m.type}</h3>
+                <p class="text-xs text-gray-500 mb-2">{m.description}</p>
+                <ul class="list-disc list-inside text-xs text-gray-600 space-y-0.5">
+                  {m.features.map((f) => <li>{f}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
 
-  <!-- Why Join Section -->
-  <section class="why-join py-5">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">Why Join RSG Turkey?</h2>
-          <p class="lead">
-            Become part of a vibrant community dedicated to advancing computational biology and bioinformatics in Turkey.
-          </p>
-        </div>
-      </div>
-      <div class="row g-4">
-        {benefits.map((benefit) => (
-          <div class="col-lg-4 col-md-6">
-            <div class="benefit-card text-center p-4">
-              <div class="benefit-icon mb-3">
-                <i class={`${benefit.icon} fa-3x text-primary`}></i>
-              </div>
-              <h3 class="h4 mb-3">{benefit.title}</h3>
-              <p class="text-muted">{benefit.description}</p>
-            </div>
+  <!-- Membership Form -->
+  <section class="bg-[#F7F7F6] py-16 border-t border-border">
+    <div class="max-w-2xl mx-auto px-6">
+      <h2 class="text-2xl font-semibold text-navy text-center mb-8">
+        {lang === 'tr' ? 'Üyelik Başvurusu' : 'Membership Application'}
+      </h2>
+      <form id="membershipForm" class="flex flex-col gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="firstName" class="block text-sm font-medium text-navy mb-1">{lang === 'tr' ? 'Ad' : 'First Name'} *</label>
+            <input type="text" id="firstName" name="firstName" required class="input-field" />
           </div>
-        ))}
-      </div>
+          <div>
+            <label for="lastName" class="block text-sm font-medium text-navy mb-1">{lang === 'tr' ? 'Soyad' : 'Last Name'} *</label>
+            <input type="text" id="lastName" name="lastName" required class="input-field" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="email" class="block text-sm font-medium text-navy mb-1">{t('join.form.email')} *</label>
+            <input type="email" id="email" name="email" required class="input-field" />
+          </div>
+          <div>
+            <label for="institution" class="block text-sm font-medium text-navy mb-1">{t('join.form.institution')} *</label>
+            <input type="text" id="institution" name="institution" required class="input-field" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="position" class="block text-sm font-medium text-navy mb-1">{lang === 'tr' ? 'Pozisyon/Ünvan' : 'Position/Title'} *</label>
+            <input type="text" id="position" name="position" required class="input-field" />
+          </div>
+          <div>
+            <label for="membershipType" class="block text-sm font-medium text-navy mb-1">{lang === 'tr' ? 'Üyelik Türü' : 'Membership Type'} *</label>
+            <select id="membershipType" name="membershipType" required class="input-field">
+              <option value="">{lang === 'tr' ? 'Seçin...' : 'Choose...'}</option>
+              <option value="student">{lang === 'tr' ? 'Öğrenci Üye' : 'Student Member'}</option>
+              <option value="early-career">{lang === 'tr' ? 'Erken Kariyer Araştırmacı' : 'Early Career Researcher'}</option>
+              <option value="professional">{lang === 'tr' ? 'Profesyonel Üye' : 'Professional Member'}</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="researchInterests" class="block text-sm font-medium text-navy mb-1">{t('join.form.research')}</label>
+          <textarea id="researchInterests" name="researchInterests" rows="3" class="input-field resize-y"></textarea>
+        </div>
+        <div>
+          <label for="motivation" class="block text-sm font-medium text-navy mb-1">{t('join.form.motivation')} *</label>
+          <textarea id="motivation" name="motivation" rows="4" required class="input-field resize-y"></textarea>
+        </div>
+        <div class="flex items-start gap-2">
+          <input type="checkbox" id="newsletter" name="newsletter" checked class="mt-0.5 accent-navy" />
+          <label for="newsletter" class="text-sm text-gray-600">
+            {lang === 'tr' ? 'Etkinlik ve webinarlar hakkında güncellemeler almak için bültenimize abone olun' : 'Subscribe to our newsletter for updates about events and webinars'}
+          </label>
+        </div>
+        <div class="flex items-start gap-2">
+          <input type="checkbox" id="agree" name="agree" required class="mt-0.5 accent-navy" />
+          <label for="agree" class="text-sm text-gray-600">
+            {lang === 'tr' ? 'Şartları ve koşulları kabul ediyorum' : 'I agree to the terms and conditions'} *
+          </label>
+        </div>
+        <div class="text-center pt-2">
+          <button type="submit"
+            class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium hover:bg-red-hover transition-colors">
+            {t('join.form.submit')}
+          </button>
+        </div>
+        <div id="membershipFormMessage"></div>
+      </form>
     </div>
   </section>
 
-  <!-- Membership Types Section -->
-  <section class="membership-types py-5 bg-light">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center mb-5">
-          <h2 class="display-5 fw-bold mb-4">Membership Types</h2>
-          <p class="lead">
-            Choose the membership type that best fits your current status and goals.
-          </p>
-        </div>
-      </div>
-      <div class="row g-4">
-        {membershipTypes.map((membership) => (
-          <div class="col-lg-4 col-md-12">
-            <div class="membership-card h-100">
-              <div class="card h-100">
-                <div class="card-body p-4">
-                  <h3 class="card-title h4 mb-3">{membership.type}</h3>
-                  <p class="text-muted mb-4">{membership.description}</p>
-                  
-                  <h5 class="mb-3">Benefits:</h5>
-                  <ul class="list-unstyled mb-4">
-                    {membership.features.map((feature) => (
-                      <li class="mb-2">
-                        <i class="fas fa-check text-primary me-2"></i>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  <h5 class="mb-3">Eligibility:</h5>
-                  <p class="text-muted small">{membership.eligibility}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- How to Join Section -->
-  <section class="how-to-join py-5">
-    <div class="container">
-      <div class="row align-items-center">
-        <div class="col-lg-6">
-          <h2 class="display-5 fw-bold mb-4">How to Join</h2>
-          <p class="lead mb-4">
-            Joining RSG Turkey is easy! Follow these simple steps to become part of our community.
-          </p>
-          <div class="join-steps">
-            <div class="step-item d-flex align-items-center mb-4">
-              <div class="step-number me-3">1</div>
-              <div>
-                <h5 class="mb-1">Fill Out the Form</h5>
-                <p class="text-muted mb-0">Complete the membership application form below</p>
-              </div>
-            </div>
-            <div class="step-item d-flex align-items-center mb-4">
-              <div class="step-number me-3">2</div>
-              <div>
-                <h5 class="mb-1">Submit Application</h5>
-                <p class="text-muted mb-0">We'll review your application and get back to you</p>
-              </div>
-            </div>
-            <div class="step-item d-flex align-items-center mb-4">
-              <div class="step-number me-3">3</div>
-              <div>
-                <h5 class="mb-1">Welcome Email</h5>
-                <p class="text-muted mb-0">Receive your welcome package and member access</p>
-              </div>
-            </div>
-            <div class="step-item d-flex align-items-center">
-              <div class="step-number me-3">4</div>
-              <div>
-                <h5 class="mb-1">Start Participating</h5>
-                <p class="text-muted mb-0">Join events, webinars, and connect with the community</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="join-image text-center p-4">
-            <i class="fas fa-user-plus fa-5x text-primary mb-3"></i>
-            <h4>Ready to Join?</h4>
-            <p class="text-muted">Start your journey with RSG Turkey today</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Registration Form Section -->
-  <section class="registration-form py-5 bg-light">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto">
-          <div class="card">
-            <div class="card-body p-5">
-              <h2 class="text-center mb-4">Membership Application</h2>
-              <form id="membershipForm">
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label for="firstName" class="form-label">First Name *</label>
-                    <input type="text" class="form-control" id="firstName" name="firstName" required>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="lastName" class="form-label">Last Name *</label>
-                    <input type="text" class="form-control" id="lastName" name="lastName" required>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="email" class="form-label">Email Address *</label>
-                    <input type="email" class="form-control" id="email" name="email" required>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="phone" class="form-label">Phone Number</label>
-                    <input type="tel" class="form-control" id="phone" name="phone">
-                  </div>
-                  <div class="col-12">
-                    <label for="institution" class="form-label">Institution/Organization *</label>
-                    <input type="text" class="form-control" id="institution" name="institution" required>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="position" class="form-label">Position/Title *</label>
-                    <input type="text" class="form-control" id="position" name="position" required>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="membershipType" class="form-label">Membership Type *</label>
-                    <select class="form-select" id="membershipType" name="membershipType" required>
-                      <option value="">Choose membership type...</option>
-                      <option value="student">Student Member</option>
-                      <option value="early-career">Early Career Researcher</option>
-                      <option value="professional">Professional Member</option>
-                    </select>
-                  </div>
-                  <div class="col-12">
-                    <label for="researchInterests" class="form-label">Research Interests</label>
-                    <textarea class="form-control" id="researchInterests" name="researchInterests" rows="3" placeholder="Briefly describe your research interests in computational biology..."></textarea>
-                  </div>
-                  <div class="col-12">
-                    <label for="motivation" class="form-label">Why do you want to join RSG Turkey? *</label>
-                    <textarea class="form-control" id="motivation" name="motivation" rows="4" required placeholder="Tell us about your motivation for joining our community..."></textarea>
-                  </div>
-                  <div class="col-12">
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" id="newsletter" name="newsletter" checked>
-                      <label class="form-check-label" for="newsletter">
-                        Subscribe to our newsletter for updates about events and webinars
-                      </label>
-                    </div>
-                  </div>
-                  <div class="col-12">
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" id="agree" name="agree" required>
-                      <label class="form-check-label" for="agree">
-                        I agree to the terms and conditions and consent to RSG Turkey processing my personal data
-                      </label>
-                    </div>
-                  </div>
-                  <div class="col-12 text-center">
-                    <button type="submit" class="btn btn-primary btn-lg px-5">Submit Application</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Call to Action Section -->
-  <section class="cta py-5 bg-primary">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 mx-auto text-center">
-          <h2 class="display-5 fw-bold mb-4">Questions About Membership?</h2>
-          <p class="lead mb-4">
-            Not sure which membership type is right for you? Contact us for personalized guidance.
-          </p>
-          <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-            <a href="/contact" class="btn btn-light btn-lg px-4">Contact Us</a>
-            <a href="/about" class="btn btn-outline-light btn-lg px-4">Learn More</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 </BaseLayout>
 
 <style>
-  .hero {
-    background: linear-gradient(135deg, #00539F 0%, #00d1b2 100%);
-    min-height: 50vh;
-    display: flex;
-    align-items: center;
-  }
-
-  .min-vh-50 {
-    min-height: 50vh;
-  }
-
-  .benefit-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
-    border: 1px solid #dee2e6;
-  }
-
-  .benefit-card:hover {
-    transform: translateY(-5px);
-  }
-
-  .membership-card {
-    transition: transform 0.3s ease;
-  }
-
-  .membership-card:hover {
-    transform: translateY(-5px);
-  }
-
-  .card {
-    border: 1px solid #dee2e6;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  .join-image {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid #dee2e6;
-  }
-
-  .step-number {
-    width: 40px;
-    height: 40px;
-    background: #00d1b2;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.2rem;
+  @reference "../styles/global.css";
+  .input-field {
+    @apply w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors bg-white;
   }
 </style>
 
 <script>
   const membershipForm = document.getElementById('membershipForm') as HTMLFormElement;
-  if (membershipForm) {
+  const msgDiv = document.getElementById('membershipFormMessage');
+  if (membershipForm && msgDiv) {
     membershipForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      
-      // Get form data
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData);
-      
-      // Here you would typically send the data to your backend
-      console.log('Membership application submitted:', data);
-      
-      // Show success message
-      alert('Thank you for your membership application! We will review it and get back to you soon.');
-      
-      // Reset form
+      msgDiv.className = 'mt-2 p-3 rounded bg-green-50 text-green-800 border border-green-200 text-sm';
+      msgDiv.textContent = 'Thank you for your application! We will review it and get back to you soon.';
       this.reset();
     });
   }
