@@ -1,13 +1,13 @@
 ---
 title: Modeling RNA and Protein-RNA Complexes Using Different Computational Approaches
-pubDate: 2024-12-20
-description: "Dr. Elisa Frezza walks through computational strategies for modeling RNA structures and protein-RNA interactions, covering molecular dynamics simulations, normal mode analysis, and coarse-grained methods."
-author: RSG Turkey
-type: "webinar"
-youtubeUrl: "https://youtu.be/G6v_jCEClpc?si=ZwtcyNhg4RrPm85u"
+date: 2024-12-20
 speaker: "Dr. Elisa Frezza"
 speakerTitle: "Assistant Professor"
 speakerAffiliation: "Université Paris Cité, CiTCoM Laboratory"
+description: "Dr. Elisa Frezza walks through computational strategies for modeling RNA structures and protein-RNA interactions, covering molecular dynamics simulations, normal mode analysis, and coarse-grained methods."
+youtubeUrl: "https://youtu.be/G6v_jCEClpc?si=ZwtcyNhg4RrPm85u"
+slidesUrl: ""
+image: "https://rsgturkey.com/wp-content/uploads/2024/12/Elisa-Frezza-768x456.png"
 topic: "Structural Bioinformatics"
 keyTakeaways:
   - "When to choose all-atom vs. coarse-grained MD simulations for RNA systems"
@@ -15,12 +15,9 @@ keyTakeaways:
   - "Practical strategies for integrating experimental data into computational models"
   - "Key differences between modeling protein-RNA vs. protein-protein interactions"
   - "Overview of tools and pipelines used in RNA structure prediction workflows"
-slidesUrl: ""
-category: general
-tags: []
-image: "https://rsgturkey.com/wp-content/uploads/2024/12/Elisa-Frezza-768x456.png"
 lang: "en"
-draft: false
+year: 2024
+type: "bioinfonet"
 ---
 
 RNA molecules and their interactions with proteins play critical roles in gene regulation, splicing, and many other cellular processes — yet modeling them computationally remains a significant challenge due to their structural flexibility. In this webinar, Dr. Elisa Frezza presents a toolkit of computational approaches for tackling these problems: from all-atom and coarse-grained molecular dynamics simulations to normal mode analysis in internal coordinates. The talk covers practical strategies for integrating experimental data and handling the large conformational changes that make RNA and protein-RNA systems particularly difficult to study.
