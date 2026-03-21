@@ -25,6 +25,14 @@
       const newLang = currentLang === 'en' ? 'tr' : 'en';
       document.documentElement.setAttribute('data-lang', newLang);
 
+      // Use explicit translation URL if the page provides one
+      const translationMeta = document.querySelector('meta[name="translation-url"]') as HTMLMetaElement | null;
+      if (translationMeta?.content) {
+        window.location.href = translationMeta.content;
+        return;
+      }
+
+      // Fallback: naive path swap for pages with symmetric URLs
       const currentPath = window.location.pathname;
       let newPath;
       if (newLang === 'tr') {

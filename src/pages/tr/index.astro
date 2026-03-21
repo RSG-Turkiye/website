@@ -7,7 +7,7 @@ const lang = 'tr';
 const t = useTranslations(lang);
 const pageTitle = "RSG Türkiye - Hesaplamalı Biyoloji Topluluğu";
 
-const latestPosts = (await getCollection('blog', ({ data }) => data.lang === 'tr' && !data.draft))
+const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft))
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
   .slice(0, 3);
 ---

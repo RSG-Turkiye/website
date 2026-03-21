@@ -6,7 +6,7 @@ import { getCollection } from 'astro:content';
 const lang = 'tr';
 const t = useTranslations(lang);
 
-const allBlogPosts = await getCollection('blog', ({ data }) => data.lang === 'tr' && !data.draft && data.type !== 'webinar');
+const allBlogPosts = await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft && data.type !== 'webinar');
 const sortedPosts = allBlogPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 const pageTitle = "Blog - RSG Türkiye";
 
@@ -41,7 +41,7 @@ const facts = [
                 {post.data.author && <span>{post.data.author}</span>}
               </div>
               <h2 class="text-lg font-semibold mb-1">
-                <a href={`/tr/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
+                <a href={`/tr/blog/${post.id.replace(/^tr\//, '')}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
               </h2>
               {post.data.description && <p class="text-sm text-gray-500 leading-relaxed mb-2">{post.data.description}</p>}
               {post.data.tags && post.data.tags.length > 0 && (
@@ -64,7 +64,7 @@ const facts = [
                   {post.data.author && <span>{post.data.author}</span>}
                 </div>
                 <h3 class="text-base font-semibold mb-1">
-                  <a href={`/tr/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
+                  <a href={`/tr/blog/${post.id.replace(/^tr\//, '')}`} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
                 </h3>
                 {post.data.tags && post.data.tags.length > 0 && (
                   <div class="flex flex-wrap gap-1.5">

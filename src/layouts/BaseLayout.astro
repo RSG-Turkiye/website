@@ -8,9 +8,10 @@ interface Props {
   pageTitle: string;
   description?: string;
   image?: string;
+  translationUrl?: string; // exact URL for the other-language version of this page
 }
 
-const { pageTitle, description = 'RSG Turkey - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkey.', image = '' } = Astro.props;
+const { pageTitle, description = 'RSG Turkey - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkey.', image = '', translationUrl } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://rsgturkey.com');
@@ -42,6 +43,9 @@ const ogImage = image || '/logo/rsgturkey_logo.png';
 
     <!-- RSS Feed -->
     <link rel="alternate" type="application/rss+xml" title="RSG Turkey Blog RSS" href="/rss.xml" />
+
+    <!-- Translation URL: used by the language switcher to navigate to the correct page -->
+    {translationUrl && <meta name="translation-url" content={translationUrl} />}
   </head>
   <body>
     <Header />

@@ -7,7 +7,7 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "RSG Turkey - Computational Biology Community";
 
-const latestPosts = (await getCollection('blog', ({ data }) => data.lang === 'en' && !data.draft))
+const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith('en/') && !data.draft))
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
   .slice(0, 3);
 ---

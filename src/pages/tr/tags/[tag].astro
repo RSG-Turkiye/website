@@ -3,7 +3,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
 
 export async function getStaticPaths() {
-  const allPosts = await getCollection('blog', ({ data }) => data.lang === 'tr' && !data.draft && data.type !== 'webinar');
+  const allPosts = await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft && data.type !== 'webinar');
   const uniqueTags = [...new Set(allPosts.flatMap((post) => post.data.tags))];
 
   return uniqueTags.map((tag) => {
@@ -37,7 +37,7 @@ const { posts } = Astro.props;
             {post.data.author && <span>{post.data.author}</span>}
           </div>
           <h3 class="text-base font-semibold mb-1">
-            <a href={`/tr/blog/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">
+            <a href={`/tr/blog/${post.id.replace(/^tr\//, '')}`} class="text-navy hover:text-navy-mid transition-colors">
               {post.data.title}
             </a>
           </h3>

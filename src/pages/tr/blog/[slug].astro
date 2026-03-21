@@ -3,19 +3,25 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
-  const posts = await getCollection('blog', ({ data }) => data.lang === 'tr' && !data.draft);
-  return posts.map((post) => ({
-    params: { slug: post.id },
-    props: { post },
-  }));
+  const all = await getCollection('blog', ({ data }) => !data.draft);
+  const trPosts = all.filter(p => p.id.startsWith('tr/'));
+  const allIds = new Set(all.map(p => p.id));
+  return trPosts.map((post) => {
+    const slug = post.id.slice(3); // strip 'tr/'
+    return {
+      params: { slug },
+      props: { post, hasEnTranslation: allIds.has(`en/${slug}`) },
+    };
+  });
 }
 
-const { post } = Astro.props;
+const { post, hasEnTranslation } = Astro.props;
 const { Content } = await render(post);
 const { title, pubDate, description, author, tags, image, category } = post.data;
+const slug = post.id.slice(3);
 ---
 
-<BaseLayout pageTitle={title}>
+<BaseLayout pageTitle={title} translationUrl={hasEnTranslation ? `/blog/${slug}` : '/blog'}>
   <article class="py-10 pb-16">
     <div class="max-w-7xl mx-auto px-6">
 
@@ -35,6 +41,12 @@ const { title, pubDate, description, author, tags, image, category } = post.data
               )}
               {author}
             </span>
+          )}
+          {hasEnTranslation && (
+            <a href={`/blog/${slug}`}
+              class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
+              🇬🇧 Read in English
+            </a>
           )}
         </div>
         <h1 class="text-3xl font-bold text-navy leading-tight mb-3">{title}</h1>

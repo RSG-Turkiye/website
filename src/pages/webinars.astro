@@ -7,16 +7,13 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "Webinars - RSG Turkey";
 
-const webinarPosts = await getCollection('blog', ({ data }) =>
-  data.lang === 'en' && !data.draft && data.type === 'webinar'
-);
-const sortedPosts = webinarPosts.sort((a, b) =>
-  b.data.pubDate.getTime() - a.data.pubDate.getTime()
-);
+const allWebinars = await getCollection('webinars');
+const enWebinars = allWebinars.filter(w => w.id.startsWith('en/'));
+const sortedWebinars = enWebinars.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
-const speakers = webinarPosts
-  .filter(p => p.data.speaker)
-  .map(p => ({ name: p.data.speaker, affiliation: p.data.speakerAffiliation, slug: p.id }))
+const speakers = enWebinars
+  .filter(w => w.data.speaker)
+  .map(w => ({ name: w.data.speaker, affiliation: w.data.speakerAffiliation, slug: w.id.slice(3) }))
   .sort((a, b) => a.name.localeCompare(b.name));
 ---
 
@@ -35,27 +32,27 @@ const speakers = webinarPosts
 
         <!-- Posts -->
         <div>
-          {sortedPosts.length > 0 ? (
+          {sortedWebinars.length > 0 ? (
             <div class="flex flex-col">
-              {sortedPosts.map((post) => (
+              {sortedWebinars.map((webinar) => (
                 <article class="py-5 border-b border-border">
                   <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
-                    <time>{post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
-                    {post.data.speaker && <span>{post.data.speaker}</span>}
+                    <time>{webinar.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+                    {webinar.data.speaker && <span>{webinar.data.speaker}</span>}
                   </div>
                   <h2 class="text-lg font-semibold mb-1">
-                    <a href={`/webinars/${post.id}`} class="text-navy hover:text-navy-mid transition-colors">
-                      {post.data.title}
+                    <a href={`/webinars/${webinar.id.slice(3)}`} class="text-navy hover:text-navy-mid transition-colors">
+                      {webinar.data.title}
                     </a>
                   </h2>
-                  {post.data.description && (
-                    <p class="text-sm text-gray-500 leading-relaxed">{post.data.description}</p>
+                  {webinar.data.description && (
+                    <p class="text-sm text-gray-500 leading-relaxed">{webinar.data.description}</p>
                   )}
                 </article>
               ))}
             </div>
           ) : (
-            <p class="text-gray-500 text-sm">No webinar recaps yet.</p>
+            <p class="text-gray-500 text-sm">No webinars yet.</p>
           )}
         </div>
 

@@ -3,29 +3,29 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
-  const posts = await getCollection('blog', ({ data }) =>
-    data.lang === 'tr' && !data.draft && data.type === 'webinar'
-  );
-  return posts.map((post) => ({
-    params: { slug: post.id },
-    props: { post },
-  }));
+  const all = await getCollection('webinars');
+  const trWebinars = all.filter(w => w.id.startsWith('tr/'));
+  const allIds = new Set(all.map(w => w.id));
+  return trWebinars.map((webinar) => {
+    const slug = webinar.id.slice(3); // strip 'tr/'
+    return {
+      params: { slug },
+      props: { webinar, hasEnTranslation: allIds.has(`en/${slug}`) },
+    };
+  });
 }
 
-const { post } = Astro.props;
-const { Content } = await render(post);
-const {
-  title, pubDate, description, image,
-  speaker, speakerTitle, speakerAffiliation,
-  topic, keyTakeaways, youtubeUrl, slidesUrl,
-} = post.data;
+const { webinar, hasEnTranslation } = Astro.props;
+const { Content } = await render(webinar);
+const { title, date, description, image, speaker, speakerTitle, speakerAffiliation, topic, keyTakeaways, youtubeUrl, slidesUrl } = webinar.data;
+const slug = webinar.id.slice(3);
 
 const videoId = youtubeUrl
   ? youtubeUrl.replace(/.*(?:youtu\.be\/|v=|embed\/)([^?&]+).*/, '$1')
   : null;
 ---
 
-<BaseLayout pageTitle={title}>
+<BaseLayout pageTitle={title} translationUrl={hasEnTranslation ? `/webinars/${slug}` : '/webinars'}>
   <div class="py-10 pb-16">
     <div class="max-w-7xl mx-auto px-6">
 
@@ -34,7 +34,13 @@ const videoId = youtubeUrl
         <div class="flex items-center gap-2 flex-wrap mb-4">
           <span class="inline-block text-xs font-semibold uppercase tracking-widest px-2.5 py-1 rounded bg-red-tint text-red">Webinar</span>
           {topic && <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-navy-light text-navy-mid">{topic}</span>}
-          <span class="text-sm text-gray-400">{pubDate.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          <span class="text-sm text-gray-400">{date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          {hasEnTranslation && (
+            <a href={`/webinars/${slug}`}
+              class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
+              🇬🇧 Read in English
+            </a>
+          )}
         </div>
         <h1 class="text-3xl font-bold text-navy leading-tight mb-2">{title}</h1>
         {description && <p class="text-gray-500 text-lg leading-relaxed">{description}</p>}
