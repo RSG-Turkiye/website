@@ -1,11 +1,10 @@
 ---
 title: 2018 RSG Türkiye Etkinlikleri
 pubDate: 2018-11-21
-description: "2019 yılı hızla yaklaşırken, 2018 yılında neler yaptık kısaca özetlemek istedik! Bu yıl, etkinliklerimizin hız kazanmasıyla aktif üye grubumuzda ciddi bir artış oldu, Türkiye içinde farklı illerden ve üniversitelerden aramıza arkadaşların katılmasıyla etkinlik yelpazemiz genişledi ve farklı bakış açıları kazandık! 2018 Öğrenci Sempozyumu: Her yıl olduğu gibi zorlu bir organizasyon döneminden sonra çok keyif aldığımız, çok"
-author: RSG Turkey
+description: "2019 yılı hızla yaklaşırken, 2018 yılında neler yaptık kısaca özetlemek istedik! Bu yıl, etkinliklerimizin hız kazanmasıyla aktif üye grubumuzda ciddi bir artış oldu, Türkiye içinde farklı illerden ve üniversitelerden aramıza arkadaşların katılmasıyla etkinlik yelpazemiz genişledi ve farklı bakış açıları kazandık! 2018 Öğrenci Sempozyumu: Her yıl olduğu gibi zorlu bir organizasyon döneminden sonra çok keyif aldığımız, çok yararlı bulduğumuz bir sempozyum gerçekleştirdik."
+
 category: general
 tags: []
-image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"
 lang: "tr"
 draft: false
 ---
