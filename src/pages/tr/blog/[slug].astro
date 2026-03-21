@@ -17,8 +17,7 @@ export async function getStaticPaths() {
 
 const { post, hasEnTranslation } = Astro.props;
 const { Content } = await render(post);
-const { title, pubDate, description, author: rawAuthor, tags, image, category } = post.data;
-const author = rawAuthor && rawAuthor !== 'RSG Turkey' ? rawAuthor : '';
+const { title, pubDate, description, author, tags, image, category } = post.data;
 const slug = post.id.slice(3);
 ---
 

@@ -34,7 +34,7 @@ const { posts } = Astro.props;
         <article class="py-4 border-b border-border">
           <div class="flex items-center gap-3 text-xs text-gray-400 mb-1">
             <time>{new Date(post.data.pubDate).toLocaleDateString('tr-TR', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
-            {post.data.author && post.data.author !== 'RSG Turkey' && <span>{post.data.author}</span>}
+            {post.data.author && <span>{post.data.author}</span>}
           </div>
           <h3 class="text-base font-semibold mb-1">
             <a href={`/tr/blog/${post.id.replace(/^tr\//, '')}`} class="text-navy hover:text-navy-mid transition-colors">
