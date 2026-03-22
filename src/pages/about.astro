@@ -110,13 +110,15 @@ const committees = getCommittees(lang);
     <div class="max-w-7xl mx-auto px-6">
       <h2 class="text-2xl font-semibold text-navy text-center mb-2">{t('about.committees.title')}</h2>
       <p class="text-gray-500 text-center max-w-xl mx-auto mb-10">{t('about.committees.subtitle')}</p>
-      <div class="flex flex-col gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {committees.map((committee) => (
-          <CommitteeCard
-            name={committee.name}
-            description={committee.description}
-            members={committee.members}
-          />
+          <div class={committee.members.length >= 3 ? 'col-span-full' : committee.members.length === 2 ? 'md:col-span-2 lg:col-span-2' : ''}>
+            <CommitteeCard
+              name={committee.name}
+              description={committee.description}
+              members={committee.members}
+            />
+          </div>
         ))}
       </div>
     </div>
