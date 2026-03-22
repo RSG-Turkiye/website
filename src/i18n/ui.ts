@@ -68,13 +68,13 @@ export const ui = {
 
     // What We Do
     'about.whatWeDo.title': 'What Do We Do?',
-    'about.whatWeDo.subtitle': 'We organize various activities to support and grow the computational biology community in Turkey.',
-    'about.symposiums.title': 'Annual Symposiums',
-    'about.symposiums.description': 'We organize annual symposiums and workshops throughout Turkey, bringing together researchers and students from various institutions.',
-    'about.webinars.title': 'Webinar Series',
-    'about.webinars.description': 'Our ongoing webinar project on Bioinfonet shares knowledge with the community, featuring experts from around the world.',
+    'about.whatWeDo.subtitle': 'Since 2011, we have been building a space where students learn, present, connect, and grow together.',
+    'about.symposiums.title': 'Student Symposiums',
+    'about.symposiums.description': 'Our annual symposium brings students and expert speakers together to present research, exchange ideas, and build connections across institutions.',
+    'about.webinars.title': 'Webinars',
+    'about.webinars.description': 'Monthly online talks with researchers from leading centers worldwide — EMBL-EBI, Wellcome Sanger, and more. All recordings are freely available on our YouTube channel.',
     'about.presentations.title': 'Student Presentations',
-    'about.presentations.description': 'Regular student paper presentations and discussions to introduce research areas and foster collaboration.',
+    'about.presentations.description': 'Students present their own thesis work or papers to the community, developing both scientific communication skills and a culture of constructive feedback.',
 
     // Committees
     'about.committees.title': 'Our Committees',
@@ -318,13 +318,13 @@ export const ui = {
 
     // What We Do
     'about.whatWeDo.title': 'Ne Yapıyoruz?',
-    'about.whatWeDo.subtitle': 'Türkiye\'deki hesaplamalı biyoloji topluluğunu desteklemek ve büyütmek için çeşitli aktiviteler düzenliyoruz.',
-    'about.symposiums.title': 'Yıllık Sempozyumlar',
-    'about.symposiums.description': 'Türkiye genelinde yıllık sempozyumlar ve atölye çalışmaları düzenliyor, çeşitli kurumlardan araştırmacıları ve öğrencileri bir araya getiriyoruz.',
-    'about.webinars.title': 'Webinar Serisi',
-    'about.webinars.description': 'Bioinfonet üzerindeki devam eden webinar projemiz, dünyanın dört bir yanından uzmanları içeren toplulukla bilgi paylaşır.',
+    'about.whatWeDo.subtitle': '2011\'den bu yana öğrencilerin birlikte öğrendiği, sunduğu ve büyüdüğü bir alan inşa ediyoruz.',
+    'about.symposiums.title': 'Öğrenci Sempozyumları',
+    'about.symposiums.description': 'Her yıl düzenlediğimiz sempozyumda öğrenciler araştırmalarını sunar, uzman konuşmacılar ağırlanır ve kurumlar arası bağlar güçlenir.',
+    'about.webinars.title': 'Webinarlar',
+    'about.webinars.description': 'EMBL-EBI, Wellcome Sanger ve daha fazlasından araştırmacılarla her ay online seminerler düzenliyoruz. Tüm kayıtlar YouTube kanalımızda ücretsiz erişime açık.',
     'about.presentations.title': 'Öğrenci Sunumları',
-    'about.presentations.description': 'Araştırma alanlarını tanıtmak ve işbirliğini teşvik etmek için düzenli öğrenci makale sunumları ve tartışmaları.',
+    'about.presentations.description': 'Öğrenciler tez çalışmalarını veya makaleleri topluluk önünde sunar; hem bilimsel iletişim becerilerini hem de yapıcı geri bildirim kültürünü geliştirirler.',
 
     // Committees
     'about.committees.title': 'Komitelerimiz',

@@ -47,22 +47,22 @@ const committees = getCommittees(lang);
           { title: t('about.webinars.title'), desc: t('about.webinars.description') },
           { title: t('about.presentations.title'), desc: t('about.presentations.description') },
           {
-            title: lang === 'tr' ? 'Kariyer Gelişimi' : 'Career Development',
+            title: lang === 'tr' ? 'Makale Kulübü' : 'Journal Club',
             desc: lang === 'tr'
-              ? 'Öğrenciler ve erken kariyer araştırmacıları için eğitim ve iş fırsatlarını genişletmek amacıyla kariyer fuarları ve pazarları.'
-              : 'Career fairs and markets to expand education and work opportunities for students and early-career researchers.',
+              ? 'Güncel biyoinformatik makalelerini birlikte okuyup tartışıyoruz. Akademik okuma alışkanlığını ve eleştirel düşünceyi destekleyen düzenli buluşmalar.'
+              : 'We read and discuss current bioinformatics papers together — regular meetups that build academic reading habits and critical thinking.',
           },
           {
-            title: lang === 'tr' ? 'Uluslararası İşbirliği' : 'International Collaboration',
+            title: lang === 'tr' ? 'Uluslararası Ağ' : 'International Network',
             desc: lang === 'tr'
-              ? 'ISCB Öğrenci Konseyi aracılığıyla Türk topluluğu ile uluslararası meslektaşlar arasında köprüler kurmak.'
-              : 'Building bridges between the Turkish community and international colleagues through ISCB Student Council.',
+              ? 'ISCB Öğrenci Konseyi üyeliği sayesinde dünya genelindeki araştırmacılarla bağlantı kurma ve uluslararası konferanslara katılım fırsatları.'
+              : 'Through ISCB Student Council membership, opportunities to connect with researchers worldwide and participate in international conferences.',
           },
           {
-            title: lang === 'tr' ? 'Eğitim Kaynakları' : 'Educational Resources',
+            title: lang === 'tr' ? 'Fırsat Paylaşımı' : 'Opportunity Sharing',
             desc: lang === 'tr'
-              ? 'Hesaplamalı biyoloji topluluğu için eğitim materyalleri, araçlar ve kaynaklar sağlamak.'
-              : 'Providing educational materials, tools, and resources for the computational biology community.',
+              ? 'MSc, PhD ve PostDoc pozisyonları, burs ve konferans fırsatları Slack kanalımız üzerinden anında üyelerimizle paylaşılıyor.'
+              : 'MSc, PhD, and PostDoc positions, scholarships, and conference opportunities shared instantly with members via our Slack channel.',
           },
         ].map(({ title, desc }) => (
           <div class="bg-white border border-[#C4CEEA] rounded-lg p-5 hover:border-navy-mid transition-colors">
