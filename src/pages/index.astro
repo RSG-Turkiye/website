@@ -106,15 +106,30 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
         </div>
 
         <!-- Blog card -->
-        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors">
-          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4">
+        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
+          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
             Blog
           </span>
-          <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.blog.title')}</h3>
-          <p class="text-sm text-gray-500 leading-relaxed mb-4">{t('contentCards.blog.description')}</p>
-          <a href="/blog" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">
-            {t('contentCards.blog.button')} →
-          </a>
+          {latestPosts[0] ? (
+            <div class="flex-1 flex flex-col">
+              <p class="text-xs text-gray-400 mb-1">
+                {new Date(latestPosts[0].data.pubDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {latestPosts[0].data.author && <span> · {latestPosts[0].data.author}</span>}
+              </p>
+              <p class="text-sm font-semibold text-navy leading-snug mb-3">{latestPosts[0].data.title}</p>
+              {latestPosts[0].data.description && (
+                <p class="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{latestPosts[0].data.description.slice(0, 100)}{latestPosts[0].data.description.length > 100 ? '…' : ''}</p>
+              )}
+              <a href={`/blog/${latestPosts[0].id.replace(/^en\//, '')}`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
+                {t('common.readMore')} →
+              </a>
+            </div>
+          ) : (
+            <div class="flex-1 flex flex-col">
+              <p class="text-sm text-gray-500 leading-relaxed mb-4 flex-1">{t('contentCards.blog.description')}</p>
+              <a href="/blog" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">{t('contentCards.blog.button')} →</a>
+            </div>
+          )}
         </div>
 
       </div>
