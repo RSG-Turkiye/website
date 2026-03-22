@@ -1,0 +1,63 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const pageTitle = "Bize Katıl - RSG Türkiye";
+
+const benefits = [
+  { title: 'Uluslararası Ağ', desc: 'ISCB Öğrenci Konseyi bağlantısı ile dünya çapında araştırmacılarla bağlantı kurun' },
+  { title: 'Öğrenme Fırsatları', desc: 'Webinarlara, atölyelere ve eğitim kaynaklarına erişim' },
+  { title: 'Topluluk Desteği', desc: 'Hesaplamalı biyoloji meraklılarından oluşan destekleyici bir topluluğa katılın' },
+  { title: 'Kariyer Gelişimi', desc: 'Kariyer fuarları, ağ oluşturma etkinlikleri ve profesyonel gelişim fırsatları' },
+  { title: 'İşbirliği', desc: 'Araştırma projelerinde ve etkinliklerde işbirliği fırsatları' },
+  { title: 'Etkinlik Erişimi', desc: 'Sempozyumlara, atölyelere ve özel etkinliklere öncelikli erişim' },
+];
+---
+
+<BaseLayout pageTitle={pageTitle}>
+
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">RSG Türkiye'ye Katıl</h1>
+      <p class="text-white/70 mt-2">Türkiye'nin biyoinformatik öğrenci topluluğunun bir parçası ol</p>
+    </div>
+  </div>
+
+  <section class="bg-white py-14">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+
+        <!-- Benefits -->
+        <div>
+          <h2 class="text-xl font-semibold text-navy mb-6">Neden katılmalısın?</h2>
+          <ul class="flex flex-col">
+            {benefits.map((b) => (
+              <li class="py-3 border-b border-border flex flex-col gap-0.5">
+                <strong class="text-navy text-sm">{b.title}</strong>
+                <span class="text-sm text-gray-500">{b.desc}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <!-- Form embed -->
+        <div>
+          <h2 class="text-xl font-semibold text-navy mb-6">Üyelik Başvurusu</h2>
+          <iframe
+            src="https://docs.google.com/forms/d/e/1FAIpQLSeo8lI8mijdndi2Z0hURHUbn2mvJPkbW9OrsgQ2bH9iGfyS_g/viewform?embedded=true"
+            width="100%"
+            height="900"
+            frameborder="0"
+            marginheight="0"
+            marginwidth="0"
+            class="rounded-lg border border-border"
+            title="RSG Türkiye Üyelik Başvuru Formu"
+          >
+            Form yükleniyor…
+          </iframe>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</BaseLayout>

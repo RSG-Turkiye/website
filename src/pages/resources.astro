@@ -1,107 +1,284 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { getLangFromUrl, useTranslations } from '../i18n/ui';
-
-const lang = getLangFromUrl(Astro.url);
-const t = useTranslations(lang);
 const pageTitle = "Resources - RSG Turkey";
 
-const resources = [
+const learningResources = [
   {
-    category: t('resources.educational.title'),
-    items: [
-      { title: "Bioinformatics: Where to Start?", description: "A simplified resource list to provide a solution to the question of where/how to start regarding bioinformatics.", type: "guide", link: "#", tags: ["beginner", "learning-path"] },
-      { title: "Computational Biology Fundamentals", description: "Basic concepts and methodologies in computational biology and bioinformatics.", type: "course", link: "#", tags: ["fundamentals", "course"] },
-      { title: "Statistical Analysis in Bioinformatics", description: "Statistical methods commonly used in bioinformatics research and data analysis.", type: "tutorial", link: "#", tags: ["statistics", "analysis"] },
-    ]
+    title: "Rosalind",
+    description: "Learn bioinformatics by solving problems. Covers Python, algorithms, and classical bioinformatics problems interactively.",
+    url: "https://rosalind.info",
+    tags: ["beginner", "algorithms", "python"],
   },
   {
-    category: t('resources.tools.title'),
-    items: [
-      { title: "Sequence Analysis Tools", description: "Collection of tools for DNA/RNA sequence analysis, alignment, and annotation.", type: "tools", link: "#", tags: ["sequence-analysis", "alignment"] },
-      { title: "Protein Structure Analysis", description: "Tools for protein structure prediction, analysis, and visualization.", type: "tools", link: "#", tags: ["protein-structure", "prediction"] },
-      { title: "Single-Cell Analysis Pipeline", description: "Comprehensive pipeline for single-cell RNA sequencing data analysis.", type: "pipeline", link: "#", tags: ["single-cell", "rna-seq"] },
-    ]
+    title: "OSSU Bioinformatics",
+    description: "A free, open-source self-paced curriculum for a complete bioinformatics education. Curated from top university courses.",
+    url: "https://github.com/ossu/bioinformatics",
+    tags: ["curriculum", "self-paced", "free"],
   },
   {
-    category: t('resources.databases.title'),
-    items: [
-      { title: "Genomic Databases", description: "Access to major genomic databases and repositories for research data.", type: "database", link: "#", tags: ["genomics", "data"] },
-      { title: "Protein Databases", description: "Protein sequence and structure databases for research and analysis.", type: "database", link: "#", tags: ["proteins", "structures"] },
-      { title: "Expression Data Repositories", description: "Gene expression data repositories and analysis platforms.", type: "database", link: "#", tags: ["expression", "transcriptomics"] },
-    ]
+    title: "EMBL-EBI Training",
+    description: "Free online training courses in bioinformatics, genomics, proteomics, and data analysis from the European Bioinformatics Institute.",
+    url: "https://www.ebi.ac.uk/training",
+    tags: ["courses", "genomics", "proteomics"],
   },
   {
-    category: t('resources.career.title'),
-    items: [
-      { title: "Career Development Guide", description: "Guidance for career development in computational biology and bioinformatics.", type: "guide", link: "#", tags: ["career", "development"] },
-      { title: "Job Opportunities", description: "Current job openings and opportunities in the field of computational biology.", type: "jobs", link: "#", tags: ["jobs", "opportunities"] },
-    ]
-  }
+    title: "Harvard HBC Training",
+    description: "Workshop materials from the Harvard Chan Bioinformatics Core covering RNA-seq, ChIP-seq, scRNA-seq, and more.",
+    url: "https://hbctraining.github.io/main",
+    tags: ["workshops", "rna-seq", "single-cell"],
+  },
+  {
+    title: "StatQuest with Josh Starmer",
+    description: "Clearly explained statistics and machine learning concepts, with a focus on applications in biology and bioinformatics.",
+    url: "https://www.youtube.com/@statquest",
+    tags: ["statistics", "machine-learning", "youtube"],
+  },
+  {
+    title: "The Carpentries",
+    description: "Hands-on lessons for computing and data skills: Shell, Git, Python, R — designed for researchers.",
+    url: "https://carpentries.org",
+    tags: ["programming", "data-skills", "workshops"],
+  },
+  {
+    title: "Bioinformatics Specialization (Coursera)",
+    description: "A seven-course specialization by Pavel Pevzner and Phillip Compeau (UC San Diego) covering algorithms and sequence analysis.",
+    url: "https://www.coursera.org/specializations/bioinformatics",
+    tags: ["algorithms", "coursera", "sequence-analysis"],
+  },
 ];
 
-const externalLinks = [
-  { title: "ISCB Student Council", description: "International Society for Computational Biology Student Council", url: "https://www.iscb.org/iscb-student-council" },
-  { title: "Bioinformatics.org", description: "Open access to the world's computational biology community", url: "https://www.bioinformatics.org" },
-  { title: "NCBI Resources", description: "National Center for Biotechnology Information resources and tools", url: "https://www.ncbi.nlm.nih.gov" },
-  { title: "EMBL-EBI", description: "European Bioinformatics Institute resources and services", url: "https://www.ebi.ac.uk" },
+const databases = [
+  {
+    title: "NCBI",
+    description: "National Center for Biotechnology Information — home of GenBank, PubMed, BLAST, RefSeq, and many other essential databases.",
+    url: "https://www.ncbi.nlm.nih.gov",
+    tags: ["genomics", "literature", "sequences"],
+  },
+  {
+    title: "UniProt",
+    description: "Comprehensive protein sequence and functional annotation database, covering Swiss-Prot (curated) and TrEMBL (automated).",
+    url: "https://www.uniprot.org",
+    tags: ["proteins", "annotation"],
+  },
+  {
+    title: "RCSB Protein Data Bank (PDB)",
+    description: "Archive of 3D structural data of proteins, nucleic acids, and complex assemblies determined by X-ray, NMR, and cryo-EM.",
+    url: "https://www.rcsb.org",
+    tags: ["protein-structure", "3d"],
+  },
+  {
+    title: "AlphaFold Protein Structure Database",
+    description: "AI-predicted protein structures for nearly all known proteins, produced by DeepMind and EMBL-EBI.",
+    url: "https://alphafold.ebi.ac.uk",
+    tags: ["protein-structure", "AI", "prediction"],
+  },
+  {
+    title: "Ensembl",
+    description: "Genome browser and annotation database for vertebrate and model organism genomes, maintained by EMBL-EBI.",
+    url: "https://www.ensembl.org",
+    tags: ["genome", "annotation", "browser"],
+  },
+  {
+    title: "GEO — Gene Expression Omnibus",
+    description: "Public repository for high-throughput gene expression and functional genomics data (microarray, RNA-seq, etc.).",
+    url: "https://www.ncbi.nlm.nih.gov/geo",
+    tags: ["gene-expression", "transcriptomics"],
+  },
+  {
+    title: "STRING",
+    description: "Database of known and predicted protein–protein interactions, integrating data from experiments, text mining, and genomics.",
+    url: "https://string-db.org",
+    tags: ["protein-interactions", "networks"],
+  },
+  {
+    title: "KEGG",
+    description: "Kyoto Encyclopedia of Genes and Genomes — reference database for biological pathways, diseases, drugs, and genomes.",
+    url: "https://www.kegg.jp",
+    tags: ["pathways", "metabolism"],
+  },
+  {
+    title: "Human Cell Atlas",
+    description: "International effort to map every cell type in the human body using single-cell genomics and spatial transcriptomics.",
+    url: "https://www.humancellatlas.org",
+    tags: ["single-cell", "atlas", "transcriptomics"],
+  },
+  {
+    title: "GTEx Portal",
+    description: "Gene expression data across human tissues and the genetic variants (eQTLs) that regulate them.",
+    url: "https://gtexportal.org",
+    tags: ["gene-expression", "eQTL", "tissues"],
+  },
+];
+
+const tools = [
+  {
+    title: "Galaxy Project",
+    description: "Web-based platform for accessible, reproducible bioinformatics analysis — no command line required.",
+    url: "https://usegalaxy.org",
+    tags: ["web-platform", "reproducible", "beginners"],
+  },
+  {
+    title: "Bioconductor",
+    description: "Open-source R packages for bioinformatics: differential expression, ChIP-seq, single-cell, and more.",
+    url: "https://www.bioconductor.org",
+    tags: ["R", "packages", "genomics"],
+  },
+  {
+    title: "GATK",
+    description: "Genome Analysis Toolkit by the Broad Institute — industry-standard tools for variant discovery in high-throughput sequencing data.",
+    url: "https://gatk.broadinstitute.org",
+    tags: ["variant-calling", "WGS", "WES"],
+  },
+  {
+    title: "Nextflow",
+    description: "Reactive workflow framework for scalable and reproducible bioinformatics pipelines across HPC and cloud environments.",
+    url: "https://www.nextflow.io",
+    tags: ["workflow", "pipelines", "HPC"],
+  },
+  {
+    title: "Snakemake",
+    description: "Python-based workflow management system for reproducible and scalable data analyses.",
+    url: "https://snakemake.readthedocs.io",
+    tags: ["workflow", "python", "pipelines"],
+  },
+  {
+    title: "BLAST",
+    description: "Basic Local Alignment Search Tool — find regions of similarity between nucleotide or protein sequences and database entries.",
+    url: "https://blast.ncbi.nlm.nih.gov",
+    tags: ["sequence-search", "alignment"],
+  },
+  {
+    title: "Cytoscape",
+    description: "Open-source platform for visualizing and analyzing biological networks and pathways.",
+    url: "https://cytoscape.org",
+    tags: ["networks", "visualization"],
+  },
+  {
+    title: "IGV — Integrative Genomics Viewer",
+    description: "High-performance desktop and web application for interactive exploration of genomic data.",
+    url: "https://igv.org",
+    tags: ["genome-browser", "visualization"],
+  },
+];
+
+const community = [
+  {
+    title: "Biostars",
+    description: "Question & answer forum for bioinformatics — search before posting, the answer is probably already there.",
+    url: "https://www.biostars.org",
+    tags: ["forum", "Q&A"],
+  },
+  {
+    title: "ISCB Student Council",
+    description: "International organization for students and young researchers in computational biology, affiliated with ISCB.",
+    url: "https://www.iscb.org/iscb-student-council",
+    tags: ["community", "networking"],
+  },
+  {
+    title: "RSG Turkey GitHub",
+    description: "Our organization's GitHub — past training materials, scripts, and resources from RSG Turkey events.",
+    url: "https://github.com/rsgturkey",
+    tags: ["training", "open-source"],
+  },
 ];
 ---
 
 <BaseLayout pageTitle={pageTitle}>
 
-  <!-- Page Header -->
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
-      <h1 class="text-3xl font-bold text-white">{t('resources.title')}</h1>
-      <p class="text-white/70 mt-2">{t('resources.subtitle')}</p>
+      <h1 class="text-3xl font-bold text-white">Resources</h1>
+      <p class="text-white/70 mt-2">Curated bioinformatics learning materials, databases, and tools</p>
     </div>
   </div>
 
-  <!-- Resources by Category -->
-  <section class="bg-white py-16">
-    <div class="max-w-7xl mx-auto px-6">
-      {resources.map((category) => (
-        <div class="mb-12">
-          <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">
-            {category.category}
-          </h2>
-          <div class="flex flex-col">
-            {category.items.map((item) => (
-              <div class="py-4 border-b border-border">
-                <div class="flex items-center gap-2 mb-1">
-                  <a href={item.link} class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title}</a>
-                  <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{item.type}</span>
-                </div>
-                <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
-                <div class="flex flex-wrap gap-1.5">
-                  {item.tags.map((tag) => (
-                    <span class="inline-block text-xs px-2 py-0.5 rounded bg-[#F7F7F6] text-gray-400 border border-border">{tag}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </section>
+  <section class="bg-white py-12">
+    <div class="max-w-5xl mx-auto px-6 flex flex-col gap-14">
 
-  <!-- External Links -->
-  <section class="bg-[#F7F7F6] py-16 border-t border-border">
-    <div class="max-w-7xl mx-auto px-6">
-      <h2 class="text-xl font-semibold text-navy mb-6">{lang === 'tr' ? 'Harici Kaynaklar' : 'External Resources'}</h2>
-      <ul class="flex flex-col">
-        {externalLinks.map((link) => (
-          <li class="py-4 border-b border-border">
-            <a href={link.url} target="_blank" rel="noopener noreferrer"
-              class="font-medium text-navy-mid hover:text-navy transition-colors">
-              {link.title}
-            </a>
-            <span class="text-sm text-gray-500"> — {link.description}</span>
-          </li>
-        ))}
-      </ul>
+      <!-- Learning Resources -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Learning Resources</h2>
+        <div class="flex flex-col">
+          {learningResources.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Databases -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Databases</h2>
+        <div class="flex flex-col">
+          {databases.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Tools & Software -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Tools & Software</h2>
+        <div class="flex flex-col">
+          {tools.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Community -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Community</h2>
+        <div class="flex flex-col">
+          {community.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   </section>
 

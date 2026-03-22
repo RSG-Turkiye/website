@@ -1,50 +1,185 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { useTranslations } from '../../i18n/ui';
-
-const lang = 'tr';
-const t = useTranslations(lang);
 const pageTitle = "Kaynaklar - RSG Türkiye";
 
-const resources = [
+const learningResources = [
   {
-    category: t('resources.educational.title'),
-    items: [
-      { title: "Biyoinformatik: Nereden Başlamalı?", description: "Biyoinformatik konusunda nereden/nasıl başlanacağı sorusuna çözüm sunmak için basitleştirilmiş bir kaynak listesi.", type: "rehber", link: "#", tags: ["başlangıç", "öğrenme-yolu"] },
-      { title: "Hesaplamalı Biyoloji Temelleri", description: "Hesaplamalı biyoloji ve biyoinformatikte temel kavramlar ve metodolojiler.", type: "kurs", link: "#", tags: ["temel", "kurs"] },
-      { title: "Biyoinformatikte İstatistiksel Analiz", description: "Biyoinformatik araştırma ve veri analizinde yaygın kullanılan istatistiksel yöntemler.", type: "eğitim", link: "#", tags: ["istatistik", "analiz"] },
-    ]
+    title: "Rosalind",
+    description: "Problem çözerek biyoinformatik öğrenin. Python, algoritmalar ve klasik biyoinformatik problemlerini interaktif olarak kapsar.",
+    url: "https://rosalind.info",
+    tags: ["başlangıç", "algoritmalar", "python"],
   },
   {
-    category: t('resources.tools.title'),
-    items: [
-      { title: "Dizi Analiz Araçları", description: "DNA/RNA dizi analizi, hizalama ve açıklama için araç koleksiyonu.", type: "araçlar", link: "#", tags: ["dizi-analizi", "hizalama"] },
-      { title: "Protein Yapısı Analizi", description: "Protein yapısı tahmin, analiz ve görselleştirme araçları.", type: "araçlar", link: "#", tags: ["protein-yapısı", "tahmin"] },
-      { title: "Tek Hücreli Analiz Pipeline'ı", description: "Tek hücreli RNA dizileme verisi analizi için kapsamlı pipeline.", type: "pipeline", link: "#", tags: ["tek-hücreli", "rna-seq"] },
-    ]
+    title: "OSSU Bioinformatics",
+    description: "Kapsamlı bir biyoinformatik eğitimi için ücretsiz, açık kaynaklı ve kendi hızınızda ilerleyebileceğiniz müfredat.",
+    url: "https://github.com/ossu/bioinformatics",
+    tags: ["müfredat", "kendi-hızında", "ücretsiz"],
   },
   {
-    category: t('resources.databases.title'),
-    items: [
-      { title: "Genomik Veritabanları", description: "Araştırma verileri için büyük genomik veritabanları ve depolarına erişim.", type: "veritabanı", link: "#", tags: ["genomik", "veri"] },
-      { title: "Protein Veritabanları", description: "Araştırma ve analiz için protein dizisi ve yapı veritabanları.", type: "veritabanı", link: "#", tags: ["proteinler", "yapılar"] },
-      { title: "Ekspresyon Veri Depoları", description: "Gen ekspresyon veri depoları ve analiz platformları.", type: "veritabanı", link: "#", tags: ["ekspresyon", "transkriptomik"] },
-    ]
+    title: "EMBL-EBI Eğitim",
+    description: "Avrupa Biyoinformatik Enstitüsü'nden biyoinformatik, genomik, proteomik ve veri analizi alanlarında ücretsiz çevrimiçi kurslar.",
+    url: "https://www.ebi.ac.uk/training",
+    tags: ["kurslar", "genomik", "proteomik"],
   },
   {
-    category: t('resources.career.title'),
-    items: [
-      { title: "Kariyer Gelişimi Rehberi", description: "Hesaplamalı biyoloji ve biyoinformatikte kariyer gelişimi için rehberlik.", type: "rehber", link: "#", tags: ["kariyer", "gelişim"] },
-      { title: "İş Fırsatları", description: "Hesaplamalı biyoloji alanındaki güncel iş ilanları ve fırsatlar.", type: "iş", link: "#", tags: ["iş", "fırsatlar"] },
-    ]
-  }
+    title: "Harvard HBC Eğitim Materyalleri",
+    description: "Harvard Chan Biyoinformatik Çekirdeği'nin RNA-seq, ChIP-seq, tek hücreli RNA-seq ve daha fazlasını kapsayan atölye materyalleri.",
+    url: "https://hbctraining.github.io/main",
+    tags: ["atölyeler", "rna-seq", "tek-hücreli"],
+  },
+  {
+    title: "StatQuest — Josh Starmer",
+    description: "Biyoloji ve biyoinformatiğe odaklanan, açık anlatımıyla istatistik ve makine öğrenimi kavramlarını ele alan YouTube kanalı.",
+    url: "https://www.youtube.com/@statquest",
+    tags: ["istatistik", "makine-öğrenimi", "youtube"],
+  },
+  {
+    title: "The Carpentries",
+    description: "Araştırmacılar için tasarlanmış Shell, Git, Python ve R derslerini içeren uygulamalı veri ve hesaplama becerileri materyalleri.",
+    url: "https://carpentries.org",
+    tags: ["programlama", "veri-becerileri", "atölyeler"],
+  },
+  {
+    title: "Bioinformatics Specialization (Coursera)",
+    description: "Pavel Pevzner ve Phillip Compeau'nun (UC San Diego) hazırladığı, algoritmaları ve dizi analizini kapsayan yedi derslik uzmanlaşma programı.",
+    url: "https://www.coursera.org/specializations/bioinformatics",
+    tags: ["algoritmalar", "coursera", "dizi-analizi"],
+  },
 ];
 
-const externalLinks = [
-  { title: "ISCB Öğrenci Konseyi", description: "Uluslararası Hesaplamalı Biyoloji Derneği Öğrenci Konseyi", url: "https://www.iscb.org/iscb-student-council" },
-  { title: "Bioinformatics.org", description: "Dünya hesaplamalı biyoloji topluluğuna açık erişim", url: "https://www.bioinformatics.org" },
-  { title: "NCBI Kaynakları", description: "Ulusal Biyoteknoloji Bilgi Merkezi kaynakları ve araçları", url: "https://www.ncbi.nlm.nih.gov" },
-  { title: "EMBL-EBI", description: "Avrupa Biyoinformatik Enstitüsü kaynakları ve hizmetleri", url: "https://www.ebi.ac.uk" },
+const databases = [
+  {
+    title: "NCBI",
+    description: "Ulusal Biyoteknoloji Bilgi Merkezi — GenBank, PubMed, BLAST, RefSeq ve daha pek çok temel veritabanının evi.",
+    url: "https://www.ncbi.nlm.nih.gov",
+    tags: ["genomik", "literatür", "diziler"],
+  },
+  {
+    title: "UniProt",
+    description: "Swiss-Prot (küratörlü) ve TrEMBL (otomatik) bölümlerini kapsayan kapsamlı protein dizisi ve fonksiyonel açıklama veritabanı.",
+    url: "https://www.uniprot.org",
+    tags: ["proteinler", "açıklama"],
+  },
+  {
+    title: "RCSB Protein Veri Bankası (PDB)",
+    description: "X-ışını, NMR ve kryo-EM ile belirlenen proteinlerin, nükleik asitlerin ve kompleks yapıların 3B yapısal verilerinin arşivi.",
+    url: "https://www.rcsb.org",
+    tags: ["protein-yapısı", "3b"],
+  },
+  {
+    title: "AlphaFold Protein Yapısı Veritabanı",
+    description: "DeepMind ve EMBL-EBI tarafından üretilen, neredeyse tüm bilinen proteinler için yapay zeka tarafından tahmin edilmiş protein yapıları.",
+    url: "https://alphafold.ebi.ac.uk",
+    tags: ["protein-yapısı", "YZ", "tahmin"],
+  },
+  {
+    title: "Ensembl",
+    description: "EMBL-EBI tarafından yönetilen, omurgalı ve model organizma genomları için genom tarayıcısı ve açıklama veritabanı.",
+    url: "https://www.ensembl.org",
+    tags: ["genom", "açıklama", "tarayıcı"],
+  },
+  {
+    title: "GEO — Gen Ekspresyonu Omnibus",
+    description: "Yüksek işlem hacimli gen ekspresyonu ve fonksiyonel genomik verileri (mikrodizi, RNA-seq vb.) için herkese açık depo.",
+    url: "https://www.ncbi.nlm.nih.gov/geo",
+    tags: ["gen-ekspresyonu", "transkriptomik"],
+  },
+  {
+    title: "STRING",
+    description: "Deney, metin madenciliği ve genomikten elde edilen verileri entegre eden bilinen ve tahmin edilen protein-protein etkileşim veritabanı.",
+    url: "https://string-db.org",
+    tags: ["protein-etkileşimleri", "ağlar"],
+  },
+  {
+    title: "KEGG",
+    description: "Kyoto Genlerin ve Genomiğin Ansiklopedisi — biyolojik yollar, hastalıklar, ilaçlar ve genomlar için referans veritabanı.",
+    url: "https://www.kegg.jp",
+    tags: ["yollar", "metabolizma"],
+  },
+  {
+    title: "Human Cell Atlas",
+    description: "Tek hücreli genomik ve uzamsal transkriptomik kullanarak insan vücudundaki her hücre tipini haritalamaya yönelik uluslararası girişim.",
+    url: "https://www.humancellatlas.org",
+    tags: ["tek-hücreli", "atlas", "transkriptomik"],
+  },
+  {
+    title: "GTEx Portalı",
+    description: "İnsan dokularındaki gen ekspresyonu verileri ve bunları düzenleyen genetik varyantlar (eQTL'ler).",
+    url: "https://gtexportal.org",
+    tags: ["gen-ekspresyonu", "eQTL", "dokular"],
+  },
+];
+
+const tools = [
+  {
+    title: "Galaxy Project",
+    description: "Komut satırı gerektirmeyen, erişilebilir ve tekrarlanabilir biyoinformatik analiz için web tabanlı platform.",
+    url: "https://usegalaxy.org",
+    tags: ["web-platformu", "tekrarlanabilir", "başlangıç"],
+  },
+  {
+    title: "Bioconductor",
+    description: "Diferansiyel ekspresyon, ChIP-seq, tek hücreli analiz ve daha fazlası için açık kaynaklı R paketleri.",
+    url: "https://www.bioconductor.org",
+    tags: ["R", "paketler", "genomik"],
+  },
+  {
+    title: "GATK",
+    description: "Broad Enstitüsü'nün Genom Analiz Araç Seti — yüksek işlem hacimli dizileme verilerinde varyant keşfi için endüstri standardı araçlar.",
+    url: "https://gatk.broadinstitute.org",
+    tags: ["varyant-çağırma", "WGS", "WES"],
+  },
+  {
+    title: "Nextflow",
+    description: "HPC ve bulut ortamlarında ölçeklenebilir ve tekrarlanabilir biyoinformatik pipeline'ları için reaktif iş akışı çerçevesi.",
+    url: "https://www.nextflow.io",
+    tags: ["iş-akışı", "pipeline", "HPC"],
+  },
+  {
+    title: "Snakemake",
+    description: "Tekrarlanabilir ve ölçeklenebilir veri analizleri için Python tabanlı iş akışı yönetim sistemi.",
+    url: "https://snakemake.readthedocs.io",
+    tags: ["iş-akışı", "python", "pipeline"],
+  },
+  {
+    title: "BLAST",
+    description: "Temel Yerel Hizalama Arama Aracı — nükleotid veya protein dizileri ile veritabanı girdileri arasındaki benzerlik bölgelerini bulun.",
+    url: "https://blast.ncbi.nlm.nih.gov",
+    tags: ["dizi-arama", "hizalama"],
+  },
+  {
+    title: "Cytoscape",
+    description: "Biyolojik ağları ve yolları görselleştirmek ve analiz etmek için açık kaynaklı platform.",
+    url: "https://cytoscape.org",
+    tags: ["ağlar", "görselleştirme"],
+  },
+  {
+    title: "IGV — Bütünleşik Genomik Görüntüleyici",
+    description: "Genomik verilerin interaktif olarak keşfedilmesi için yüksek performanslı masaüstü ve web uygulaması.",
+    url: "https://igv.org",
+    tags: ["genom-tarayıcısı", "görselleştirme"],
+  },
+];
+
+const community = [
+  {
+    title: "Biostars",
+    description: "Biyoinformatik için soru-cevap forumu — göndermeden önce arayın, cevap büyük ihtimalle zaten oradadır.",
+    url: "https://www.biostars.org",
+    tags: ["forum", "soru-cevap"],
+  },
+  {
+    title: "ISCB Öğrenci Konseyi",
+    description: "ISCB bünyesindeki, hesaplamalı biyoloji öğrencileri ve genç araştırmacılar için uluslararası organizasyon.",
+    url: "https://www.iscb.org/iscb-student-council",
+    tags: ["topluluk", "ağ-oluşturma"],
+  },
+  {
+    title: "RSG Türkiye GitHub",
+    description: "Organizasyonumuzun GitHub sayfası — RSG Türkiye etkinliklerinden geçmiş eğitim materyalleri, scriptler ve kaynaklar.",
+    url: "https://github.com/rsgturkey",
+    tags: ["eğitim", "açık-kaynak"],
+  },
 ];
 ---
 
@@ -52,49 +187,98 @@ const externalLinks = [
 
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
-      <h1 class="text-3xl font-bold text-white">{t('resources.title')}</h1>
-      <p class="text-white/70 mt-2">{t('resources.subtitle')}</p>
+      <h1 class="text-3xl font-bold text-white">Kaynaklar</h1>
+      <p class="text-white/70 mt-2">Seçilmiş biyoinformatik öğrenme materyalleri, veritabanları ve araçlar</p>
     </div>
   </div>
 
-  <section class="bg-white py-16">
-    <div class="max-w-7xl mx-auto px-6">
-      {resources.map((category) => (
-        <div class="mb-12">
-          <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">{category.category}</h2>
-          <div class="flex flex-col">
-            {category.items.map((item) => (
-              <div class="py-4 border-b border-border">
-                <div class="flex items-center gap-2 mb-1">
-                  <a href={item.link} class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title}</a>
-                  <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{item.type}</span>
-                </div>
-                <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
-                <div class="flex flex-wrap gap-1.5">
-                  {item.tags.map((tag) => (
-                    <span class="inline-block text-xs px-2 py-0.5 rounded bg-[#F7F7F6] text-gray-400 border border-border">{tag}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </section>
+  <section class="bg-white py-12">
+    <div class="max-w-5xl mx-auto px-6 flex flex-col gap-14">
 
-  <section class="bg-[#F7F7F6] py-16 border-t border-border">
-    <div class="max-w-7xl mx-auto px-6">
-      <h2 class="text-xl font-semibold text-navy mb-6">Harici Kaynaklar</h2>
-      <ul class="flex flex-col">
-        {externalLinks.map((link) => (
-          <li class="py-4 border-b border-border">
-            <a href={link.url} target="_blank" rel="noopener noreferrer"
-              class="font-medium text-navy-mid hover:text-navy transition-colors">{link.title}</a>
-            <span class="text-sm text-gray-500"> — {link.description}</span>
-          </li>
-        ))}
-      </ul>
+      <!-- Learning Resources -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Öğrenme Kaynakları</h2>
+        <div class="flex flex-col">
+          {learningResources.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Databases -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Veritabanları</h2>
+        <div class="flex flex-col">
+          {databases.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Tools & Software -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Araçlar ve Yazılımlar</h2>
+        <div class="flex flex-col">
+          {tools.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Community -->
+      <div>
+        <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Topluluk</h2>
+        <div class="flex flex-col">
+          {community.map((item) => (
+            <div class="py-4 border-b border-border">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
+              </div>
+              <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
+              <div class="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   </section>
 
