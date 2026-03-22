@@ -145,3 +145,14 @@ type: bioinfonet           # or: student
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for a full guide on writing blog posts, translating content, and adding webinars.
+
+---
+
+## CI / GitHub Actions
+
+Two workflows run automatically on every pull request:
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| **Build Check** | All PRs to `main` | Runs `astro check` (type checking) then `npm run build`. The PR cannot be merged if either fails. |
+| **Translation Check** | PRs that touch `src/content/` | Detects newly added content files that don't have a matching translation in the other language, and posts a reminder comment. Not a blocker — just a nudge for the Translation Committee. |
