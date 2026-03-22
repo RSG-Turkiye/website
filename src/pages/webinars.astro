@@ -11,6 +11,14 @@ const allWebinars = await getCollection('webinars');
 const enWebinars = allWebinars.filter(w => w.id.startsWith('en/'));
 const sortedWebinars = enWebinars.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
+const byYear = sortedWebinars.reduce((acc, w) => {
+  const y = w.data.year;
+  if (!acc[y]) acc[y] = [];
+  acc[y].push(w);
+  return acc;
+}, {} as Record<number, typeof sortedWebinars>);
+const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
+
 const speakerMap = new Map<string, { name: string; slug: string; photo: string }>();
 enWebinars
   .filter(w => w.data.speaker)
@@ -46,33 +54,38 @@ function initials(name: string) {
 
         <!-- Posts -->
         <div>
-          {sortedWebinars.length > 0 ? (
-            <div id="webinarList" class="flex flex-col">
-              {sortedWebinars.map((webinar) => (
-                <article
-                  class="webinar-item py-5 border-b border-border"
-                  data-title={webinar.data.title}
-                  data-speaker={webinar.data.speaker || ''}
-                  data-description={webinar.data.description || ''}
-                >
-                  <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
-                    <time>{webinar.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
-                    {webinar.data.speaker && <span>{webinar.data.speaker}</span>}
-                  </div>
-                  <h2 class="text-lg font-semibold mb-1">
-                    <a href={`/webinars/${webinar.id.slice(3)}`} class="text-navy hover:text-navy-mid transition-colors">
-                      {webinar.data.title}
-                    </a>
-                  </h2>
-                  {webinar.data.description && (
-                    <p class="text-sm text-gray-500 leading-relaxed">{webinar.data.description}</p>
-                  )}
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p class="text-gray-500 text-sm">No webinars yet.</p>
-          )}
+          <div id="webinarList">
+            {years.map(year => (
+              <div class="year-section mb-10" id={String(year)}>
+                <h2 class="text-base font-semibold text-navy-mid uppercase tracking-widest mb-4 pb-2 border-b border-border">
+                  {year}
+                </h2>
+                <div class="flex flex-col">
+                  {byYear[year].map((webinar) => (
+                    <article
+                      class="webinar-item py-5 border-b border-border"
+                      data-title={webinar.data.title}
+                      data-speaker={webinar.data.speaker || ''}
+                      data-description={webinar.data.description || ''}
+                    >
+                      <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
+                        <time>{webinar.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+                        {webinar.data.speaker && <span>{webinar.data.speaker}</span>}
+                      </div>
+                      <h3 class="text-base font-semibold mb-1">
+                        <a href={`/webinars/${webinar.id.slice(3)}`} class="text-navy hover:text-navy-mid transition-colors">
+                          {webinar.data.title}
+                        </a>
+                      </h3>
+                      {webinar.data.description && (
+                        <p class="text-sm text-gray-500 leading-relaxed">{webinar.data.description}</p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
 
           <!-- Pagination controls -->
           <div id="pagination" class="mt-8 flex items-center justify-between gap-2 flex-wrap"></div>
@@ -236,6 +249,13 @@ function initials(name: string) {
 
     const start = (currentPage - 1) * PER_PAGE;
     filtered.slice(start, start + PER_PAGE).forEach(item => item.style.display = '');
+
+    // hide year sections with no visible items
+    document.querySelectorAll<HTMLElement>('.year-section').forEach(section => {
+      const hasVisible = Array.from(section.querySelectorAll<HTMLElement>('.webinar-item'))
+        .some(i => i.style.display !== 'none');
+      section.style.display = hasVisible ? '' : 'none';
+    });
 
     noResults.classList.toggle('hidden', filtered.length > 0);
     setPageInUrl(currentPage);
