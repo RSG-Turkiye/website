@@ -1,11 +1,11 @@
 ---
-title: R ile Populasyon Genetiği Simülasyonu Kursu
+title: "R ile Populasyon Genetiği Simülasyonu Kursu"
 pubDate: 2018-02-13
-description: "7-9 Şubat 2018 tarihleri arasında Biyogen, EkoEvo ve RSG Türkiye’nin ortak olarak düzenlediği ‘R ile Populasyon Genetiği Simülasyonlarına Giriş’ kursu ODTÜ Biyoloji Bölümü’nde gerçekleşti.  Temel Populasyon Genetiği modelleri teorik olarak anlatıldı ve R programlama dili kullanılarak anlatılan modellerin simülasyonları uygulamalı olarak gösterildi. Kursa farklı okullar ve bölümlerden yaklaşık olarak 20 kişinin katıldı. Yetkin Alıcı’nın teorik"
-author: Elif Bozlak
+description: "7-9 Şubat 2018 tarihleri arasında Biyogen, EkoEvo ve RSG Türkiye’nin ortak olarak düzenlediği ‘R ile Populasyon Genetiği Simülasyonlarına Giriş’ kursu ODTÜ..."
+author: ""
 category: general
-tags: []
-image: "https://secure.gravatar.com/avatar/2c3e02d799ffd8ab04d888f8b530cb88a4e2ee9874407fa9276bc347f6ea0384?s=30&d=mm&r=g"
+tags: ["workshop-tr"]
+image: ""
 lang: "tr"
 draft: false
 ---

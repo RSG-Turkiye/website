@@ -1,11 +1,11 @@
 ---
-title: Student Symposium 2020
-pubDate: 2021-03-11
-description: Student Symposium 2020
-author: Batuhan Çakır
+title: "Student Symposium 2020"
+pubDate: 2021-03-12
+description: "GO TO THE PAGE OF THE STUDENT SYMPOSIUM 2020"
+author: ""
 category: general
-tags: []
-image: "https://secure.gravatar.com/avatar/fbc52fb33a91e9934401466e99b61fc74ec614898bc26c7b67ed87ad339da350?s=30&d=mm&r=g"
+tags: ["symposium-en"]
+image: ""
 lang: "en"
 draft: false
 ---
