@@ -8,6 +8,10 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "About Us - RSG Turkey";
 const committees = getCommittees(lang);
+
+const singleColCommittees = committees.filter(c => c.members.length < 2);
+const lastSingleAlone = singleColCommittees.length % 3 === 1;
+const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
 ---
 
 <BaseLayout pageTitle={pageTitle}>
@@ -41,33 +45,41 @@ const committees = getCommittees(lang);
     <div class="max-w-7xl mx-auto px-6">
       <h2 class="text-2xl font-semibold text-navy text-center mb-2">{t('about.whatWeDo.title')}</h2>
       <p class="text-gray-500 text-center max-w-xl mx-auto mb-10">{t('about.whatWeDo.subtitle')}</p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="space-y-14">
         {[
-          { title: t('about.symposiums.title'), desc: t('about.symposiums.description') },
-          { title: t('about.webinars.title'), desc: t('about.webinars.description') },
-          { title: t('about.presentations.title'), desc: t('about.presentations.description') },
-          {
-            title: lang === 'tr' ? 'Makale Kulübü' : 'Journal Club',
-            desc: lang === 'tr'
-              ? 'Güncel biyoinformatik makalelerini birlikte okuyup tartışıyoruz. Akademik okuma alışkanlığını ve eleştirel düşünceyi destekleyen düzenli buluşmalar.'
-              : 'We read and discuss current bioinformatics papers together — regular meetups that build academic reading habits and critical thinking.',
-          },
-          {
-            title: lang === 'tr' ? 'Uluslararası Ağ' : 'International Network',
-            desc: lang === 'tr'
-              ? 'ISCB Öğrenci Konseyi üyeliği sayesinde dünya genelindeki araştırmacılarla bağlantı kurma ve uluslararası konferanslara katılım fırsatları.'
-              : 'Through ISCB Student Council membership, opportunities to connect with researchers worldwide and participate in international conferences.',
-          },
-          {
-            title: lang === 'tr' ? 'Fırsat Paylaşımı' : 'Opportunity Sharing',
-            desc: lang === 'tr'
-              ? 'MSc, PhD ve PostDoc pozisyonları, burs ve konferans fırsatları Slack kanalımız üzerinden anında üyelerimizle paylaşılıyor.'
-              : 'MSc, PhD, and PostDoc positions, scholarships, and conference opportunities shared instantly with members via our Slack channel.',
-          },
-        ].map(({ title, desc }) => (
-          <div class="bg-white border border-[#C4CEEA] rounded-lg p-5 hover:border-navy-mid transition-colors">
-            <h4 class="font-semibold text-navy mb-2">{title}</h4>
-            <p class="text-sm text-gray-500 leading-relaxed m-0">{desc}</p>
+          [
+            { title: t('about.symposiums.title'), desc: t('about.symposiums.description') },
+            { title: t('about.webinars.title'), desc: t('about.webinars.description') },
+            { title: t('about.presentations.title'), desc: t('about.presentations.description') },
+          ],
+          [
+            {
+              title: 'Journal Club',
+              desc: 'We read and discuss current bioinformatics papers together — regular meetups that build academic reading habits and critical thinking.',
+            },
+            {
+              title: 'International Network',
+              desc: 'Through ISCB Student Council membership, opportunities to connect with researchers worldwide and participate in international conferences.',
+            },
+            {
+              title: 'Opportunity Sharing',
+              desc: 'MSc, PhD, and PostDoc positions, scholarships, and conference opportunities shared instantly with members via our Slack channel.',
+            },
+          ],
+        ].map((row, rowIndex) => (
+          <div class="relative">
+            <div class="hidden md:block absolute top-5 left-[16.67%] right-[16.67%] h-px bg-navy/20"></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {row.map(({ title, desc }, i) => (
+                <div class="flex flex-col items-center text-center px-2">
+                  <div class="relative z-10 w-10 h-10 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center mb-5 shrink-0">
+                    {rowIndex * 3 + i + 1}
+                  </div>
+                  <h4 class="font-semibold text-navy mb-2">{title}</h4>
+                  <p class="text-sm text-gray-500 leading-relaxed m-0">{desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -110,15 +122,21 @@ const committees = getCommittees(lang);
       <h2 class="text-2xl font-semibold text-navy text-center mb-2">{t('about.committees.title')}</h2>
       <p class="text-gray-500 text-center max-w-xl mx-auto mb-10">{t('about.committees.subtitle')}</p>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {committees.map((committee) => (
-          <div class={committee.members.length >= 3 ? 'col-span-full' : committee.members.length === 2 ? 'md:col-span-2 lg:col-span-2' : ''}>
-            <CommitteeCard
-              name={committee.name}
-              description={committee.description}
-              members={committee.members}
-            />
-          </div>
-        ))}
+        {committees.map((committee) => {
+          const isFull = committee.members.length >= 3;
+          const isTwo = committee.members.length === 2;
+          const isLastAlone = lastSingleAlone && committee === lastSingleCommittee;
+          const colClass = isFull ? 'col-span-full' : isTwo ? 'md:col-span-2 lg:col-span-2' : isLastAlone ? 'md:col-start-2 lg:col-start-2' : '';
+          return (
+            <div class={colClass}>
+              <CommitteeCard
+                name={committee.name}
+                description={committee.description}
+                members={committee.members}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   </section>
