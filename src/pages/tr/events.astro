@@ -44,6 +44,18 @@ const events = [
     </div>
   </div>
 
+  <!-- Live Calendar Section -->
+  <section class="bg-[#F7F7F6] py-12 border-b border-border">
+    <div class="max-w-5xl mx-auto px-6">
+      <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">
+        Takvimden Yaklaşan Etkinlikler
+      </h2>
+      <div id="calendarEvents">
+        <p class="text-sm text-gray-400 italic">Etkinlikler yükleniyor…</p>
+      </div>
+    </div>
+  </section>
+
   <section class="bg-white py-16">
     <div class="max-w-7xl mx-auto px-6">
       {events.map((category) => (
@@ -80,3 +92,69 @@ const events = [
   </section>
 
 </BaseLayout>
+
+<script>
+  const CALENDAR_ID = 'itclr7bftj9s33vus9ct47d4v0@group.calendar.google.com';
+  const API_KEY = import.meta.env.PUBLIC_GOOGLE_CALENDAR_API_KEY;
+
+  const container = document.getElementById('calendarEvents')!;
+
+  async function loadCalendar() {
+    if (!API_KEY) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&orderBy=startTime&singleEvents=true&timeMin=${now}&maxResults=10`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const items: any[] = data.items || [];
+
+      if (items.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 italic">Yaklaşan etkinlik bulunamadı.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(event => {
+        const start = event.start?.dateTime || event.start?.date || '';
+        const dateObj = start ? new Date(start) : null;
+        const dateStr = dateObj
+          ? dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+          : '';
+        const timeStr = event.start?.dateTime
+          ? dateObj!.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+          : '';
+        const location = event.location || '';
+        const url = event.htmlLink || '#';
+
+        return `
+          <div class="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-4 py-5 border-b border-border items-start">
+            <div class="flex flex-col">
+              <span class="text-sm font-medium text-navy">${dateStr}</span>
+              ${timeStr ? `<span class="text-xs text-gray-400">${timeStr}</span>` : ''}
+              ${location ? `<span class="text-xs text-gray-400 mt-0.5">${location}</span>` : ''}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <strong class="text-navy">${event.summary || '(Başlık yok)'}</strong>
+                <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-red-tint text-red">Yaklaşan</span>
+              </div>
+              ${event.description ? `<p class="text-sm text-gray-500 leading-relaxed mb-2">${event.description.replace(/<[^>]*>/g, '').slice(0, 200)}</p>` : ''}
+              <a href="${url}" target="_blank" rel="noopener noreferrer"
+                class="inline-flex items-center px-3 py-1.5 rounded bg-red text-white text-xs font-medium hover:bg-red-hover transition-colors no-underline">
+                Takvime Ekle →
+              </a>
+            </div>
+          </div>`;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = '<p class="text-sm text-gray-400 italic">Etkinlikler yüklenemedi.</p>';
+    }
+  }
+
+  loadCalendar();
+</script>
