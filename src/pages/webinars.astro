@@ -33,9 +33,14 @@ const speakers = enWebinars
         <!-- Posts -->
         <div>
           {sortedWebinars.length > 0 ? (
-            <div class="flex flex-col">
+            <div id="webinarList" class="flex flex-col">
               {sortedWebinars.map((webinar) => (
-                <article class="py-5 border-b border-border">
+                <article
+                  class="webinar-item py-5 border-b border-border"
+                  data-title={webinar.data.title}
+                  data-speaker={webinar.data.speaker || ''}
+                  data-description={webinar.data.description || ''}
+                >
                   <div class="flex items-center gap-3 text-xs text-gray-400 mb-2">
                     <time>{webinar.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
                     {webinar.data.speaker && <span>{webinar.data.speaker}</span>}
@@ -54,10 +59,25 @@ const speakers = enWebinars
           ) : (
             <p class="text-gray-500 text-sm">No webinars yet.</p>
           )}
+
+          <!-- Pagination controls -->
+          <div id="pagination" class="mt-8 flex items-center justify-between gap-2 flex-wrap"></div>
+          <p id="noResults" class="hidden text-sm text-gray-500 py-4">No webinars match your search.</p>
         </div>
 
         <!-- Sidebar -->
         <aside class="flex flex-col gap-6">
+
+          <!-- Search -->
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Search</p>
+            <input
+              type="text"
+              id="searchWebinars"
+              placeholder="Search webinars..."
+              class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
+            />
+          </div>
 
           <!-- About the series -->
           <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
@@ -100,3 +120,75 @@ const speakers = enWebinars
   </section>
 
 </BaseLayout>
+
+<script>
+  const PER_PAGE = 20;
+  let currentPage = 1;
+  let filtered: HTMLElement[] = [];
+
+  const allItems = () => Array.from(document.querySelectorAll<HTMLElement>('.webinar-item'));
+  const searchInput = document.getElementById('searchWebinars') as HTMLInputElement;
+  const paginationEl = document.getElementById('pagination')!;
+  const noResults = document.getElementById('noResults')!;
+
+  function applyFilter(term: string) {
+    filtered = allItems().filter(item => {
+      const title = (item.dataset.title || '').toLowerCase();
+      const speaker = (item.dataset.speaker || '').toLowerCase();
+      const desc = (item.dataset.description || '').toLowerCase();
+      return title.includes(term) || speaker.includes(term) || desc.includes(term);
+    });
+    currentPage = 1;
+    render();
+  }
+
+  function render() {
+    const items = allItems();
+    items.forEach(item => item.style.display = 'none');
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * PER_PAGE;
+    filtered.slice(start, start + PER_PAGE).forEach(item => item.style.display = '');
+
+    noResults.classList.toggle('hidden', filtered.length > 0);
+    renderPagination(totalPages);
+  }
+
+  function renderPagination(totalPages: number) {
+    if (totalPages <= 1) { paginationEl.innerHTML = ''; return; }
+
+    const btnClass = 'px-3 py-1.5 rounded border text-sm font-medium transition-colors';
+    const activeClass = 'bg-navy text-white border-navy';
+    const inactiveClass = 'border-border text-gray-600 hover:bg-navy-light hover:border-navy-mid';
+
+    let html = `<button id="prevBtn" class="${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-border text-gray-400' : inactiveClass}"
+      ${currentPage === 1 ? 'disabled' : ''}>← Prev</button>`;
+    html += `<div class="flex items-center gap-1 flex-wrap">`;
+
+    for (let p = 1; p <= totalPages; p++) {
+      html += `<button class="page-btn ${btnClass} ${p === currentPage ? activeClass : inactiveClass}" data-page="${p}">${p}</button>`;
+    }
+
+    html += `</div>`;
+    html += `<button id="nextBtn" class="${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-border text-gray-400' : inactiveClass}"
+      ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>`;
+
+    paginationEl.innerHTML = html;
+
+    document.getElementById('prevBtn')?.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); } });
+    document.getElementById('nextBtn')?.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); } });
+    document.querySelectorAll('.page-btn').forEach(btn => {
+      btn.addEventListener('click', () => { currentPage = parseInt((btn as HTMLElement).dataset.page!); render(); window.scrollTo(0, 0); });
+    });
+  }
+
+  // Init
+  filtered = allItems();
+  render();
+
+  searchInput?.addEventListener('input', function () {
+    applyFilter(this.value.toLowerCase());
+  });
+</script>
