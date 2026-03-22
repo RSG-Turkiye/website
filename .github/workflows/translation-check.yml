@@ -77,18 +77,13 @@ jobs:
             const existing = comments.find(c => c.body.includes(marker));
 
             const lines = missing.map(m =>
-              `- **Added:** \`${m.added}\`\n  **Missing:** \`${m.missing}\` (${m.lang} version)`
+              '- **Added:** `' + m.added + '`\n  **Missing:** `' + m.missing + '` (' + m.lang + ' version)'
             ).join('\n');
 
-            const body = `${marker}
-
-## Missing Translation
-
-This PR adds content without a matching translation in the other language:
-
-${lines}
-
-This is not a blocker — you can merge and add the translation in a follow-up PR. Just making sure it's on the Translation Committee's radar!`;
+            const body = marker + '\n\n## Missing Translation\n\n' +
+              'This PR adds content without a matching translation in the other language:\n\n' +
+              lines + '\n\n' +
+              'This is not a blocker — you can merge and add the translation in a follow-up PR. Just making sure it\'s on the Translation Committee\'s radar!';
 
             if (existing) {
               await github.rest.issues.updateComment({
