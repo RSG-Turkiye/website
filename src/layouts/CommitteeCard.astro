@@ -10,6 +10,12 @@ interface Member {
 }
 
 const { name, description, members = [] } = Astro.props as { name: string; description: string; members: Member[] };
+
+function initials(memberName: string) {
+  const parts = memberName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 ---
 <div class="bg-white border border-border rounded-lg p-6">
   <h3 class="text-lg font-semibold text-navy text-center mb-1">{name}</h3>
@@ -18,8 +24,11 @@ const { name, description, members = [] } = Astro.props as { name: string; descr
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     {members.map((member) => (
       <div class="text-center p-4 bg-navy-light border border-[#C4CEEA] rounded-lg hover:border-navy-mid transition-colors">
-        <div class="w-24 h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-navy-mid">
-          <img src={member.image} alt={member.name} width="96" height="96" class="w-full h-full object-cover" />
+        <div class="w-24 h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-navy-mid bg-navy flex items-center justify-center">
+          {member.image
+            ? <img src={member.image} alt={member.name} width="96" height="96" class="w-full h-full object-cover" />
+            : <span class="text-white text-xl font-semibold">{initials(member.name)}</span>
+          }
         </div>
         <h5 class="font-semibold text-navy text-sm mb-0.5">{member.name}</h5>
         <p class="text-xs text-navy-mid mb-1">{member.role}</p>
