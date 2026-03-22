@@ -32,7 +32,7 @@ Ve array(3) ile başlayıp sekanslama(4) teknikleri ile devam eden süreçte, bi
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/Scopus_sequencing_by2020Oct1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196614/rsgturkey/10/Scopus_sequencing_by2020Oct1.png)
 
 <figcaption>
 
@@ -52,7 +52,7 @@ Bir örnekle, gelişime genetiğine dair bazı ipuçlarını ve değişimleri te
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/Scopus_singlecellseq_by2020Oct1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196600/rsgturkey/10/Scopus_singlecellseq_by2020Oct1.png)
 
 <figcaption>
 

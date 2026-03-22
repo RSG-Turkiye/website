@@ -30,7 +30,7 @@ Bir örnekle, İnsan Genom Projesi (Human Genome Project) tamamlanmaya yakın, f
 
 Ve array(3) ile başlayıp sekanslama(4) teknikleri ile devam eden süreçte, bilgi birikimi de arttı ki burada eşlik eden bilgisayarların işlem gücü, kapasitesi, vs.den bunu bağımsız düşünmek imkansız. Öte yandan, bu koca bilgi yığını, bazı cevaplar verse de yepyeni soruları da beraberinde getirdi. Yeni cevaplar, yeni sorular, yeni teknikler, yeni cevaplar, yeni sorular… ve yeni alt alanlar… ve yeni sorular, yeni cevaplar…
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/Scopus_sequencing_by2020Oct1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196614/rsgturkey/10/Scopus_sequencing_by2020Oct1.png)
 
 **Figür** 1: 1 Ekim itibari ile “sequencing\*” başlığı altında yayımlanan yıl başına düşen makale sayısı (Scopus). Hali hazırda İnsan Genom Projesinden sonra hızla gelişen tekniklerle beraber gelen dramatik artışı görmek mümkün. k=1000
 
@@ -42,7 +42,7 @@ Bir toplumda her ne kadar aynı bölgede yaşayan her birey nasıl aynı olmayac
 
 Bir örnekle, gelişime genetiğine dair bazı ipuçlarını ve değişimleri tek hücre düzeyinde yakalamak, bağlı hastalıkları ya da yaşlanmaya ve buna çözüme dair yepyeni ipuçları saklayabilir. Veyahut eğer kansere sebep olan koskoca hücre topluluğu içinde belli bir alt küme ise, sadece bu kümeyi hedef alacak bir çözüm, belki daha isabetli bir yaklaşım olacaktır.Ya da sağlam kalmayı başaran ve etkilenmeyen diğer alt gruplar, yeni bir yaklaşım sunacaktır.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/Scopus_singlecellseq_by2020Oct1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196600/rsgturkey/10/Scopus_singlecellseq_by2020Oct1.png)
 
 **Figür** 2: 1 Ekim itibari ile “single cell\*” AND “sequencing\*” başlığı altında yayımlanan yıl başına düşen makale sayısı (Scopus). Sahneye ilk 2011 yılında çıkan çoklu (transcript-wise and cell-wise high throughput) tek hücre methodları hala erken gelişim sürecinde ve buna rağmen son yıllardaki ilgili artışı gözden kaçırmak imkansız.
 

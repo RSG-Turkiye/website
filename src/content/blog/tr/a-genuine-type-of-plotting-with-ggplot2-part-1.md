@@ -92,7 +92,7 @@ mdataplot <- ggplot(mdata, aes(x=PubDate, y=log10ofCellCount, col=Type, size=Det
 mdataplot
 ```
 
-![](https://rsgturkey.com/wp-content/uploads/2021/05/Rplot.jpeg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196659/rsgturkey/05/Rplot.jpg)
 
 ```
 # Let's make it even cooler by adding annotations using ggplot2::geom_text
@@ -101,7 +101,7 @@ mdataplot + geom_text(aes(label = rownames(mdata)),
               size = 2.5, show.legend = TRUE)
 ```
 
-![](https://rsgturkey.com/wp-content/uploads/2021/05/Rplot02.jpeg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196633/rsgturkey/05/Rplot02.jpg)
 
 ```
 # You can show the legends as well
@@ -110,7 +110,7 @@ mdataplot + geom_text(aes(label = rownames(mdata)),
                       size = 2.5, show.legend = TRUE) #by changing the preference #for show.legend=TRUE
 ```
 
-![](https://rsgturkey.com/wp-content/uploads/2021/05/Rplot01-1.jpeg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196649/rsgturkey/05/Rplot01-1.jpg)
 
 ```
 # Use ggrepel::geom_text_repel to add some fancy boxes for the labels
@@ -123,7 +123,7 @@ mdataplot + geom_label_repel(aes(col=Type, label = rownames(mdata),
   theme(legend.position = "bottom") #You can adjust the legend position as well
 ```
 
-![](https://rsgturkey.com/wp-content/uploads/2021/05/Rplot03.jpeg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196637/rsgturkey/05/Rplot03.jpg)
 
 ```
 # I personally dont like the red dots and so I will use black dots and change the theme for classic (so there will be no gridlines)
@@ -136,7 +136,7 @@ mdataplot <- ggplot(mdata, aes(x=PubDate, y=log10ofCellCount, col=Type, size=Det
 mdataplot
 ```
 
-![](https://rsgturkey.com/wp-content/uploads/2021/05/Rplot04.jpeg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196638/rsgturkey/05/Rplot04.jpg)
 
 ```
 # Let's finalize it by adding titles and relevant axis labels
@@ -152,7 +152,7 @@ mdataplot + geom_label_repel(aes(col=Type, label = rownames(mdata),
 # The size of the points depicts the detection limit whereas the location in the y-axis shows the number of cells sequenced in parallel. x-axis shows the publication date.
 ```
 
-![](https://rsgturkey.com/wp-content/uploads/2021/05/Rplot06.jpeg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196630/rsgturkey/05/Rplot06.jpg)
 
 For more information, you can visit these websites:
 

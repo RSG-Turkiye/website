@@ -5,7 +5,7 @@ description: "Lorem Ipsum is simply dummy text of the printing and typesetting i
 author: Handan Çetin
 category: general
 tags: []
-image: "https://rsgturkey.com/wp-content/uploads/2019/04/9.jpg"
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196838/rsgturkey/04/9.jpg"
 lang: "en"
 draft: false
 ---

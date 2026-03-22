@@ -18,7 +18,7 @@ Hepimizin bildiği üzere yaşam bilimleri, çok disiplinli bir yapıda. Bu büy
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2022/07/Disiplinlerarasi-1024x815.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197004/rsgturkey/07/Disiplinlerarasi-1024x815.png)
 
 <figcaption>
 

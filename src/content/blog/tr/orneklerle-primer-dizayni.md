@@ -20,31 +20,31 @@ Lablarda sıkça kullandığımız qPCR gibi teknikler için primer dizaynına d
 
 NCBI ana sayfaya gittkten sonra “Search” (Arama) kutucuğuna genimizin ismini yazarak (ACTB genini örnek seçtim), “Gene” sekmesi altında aratıyoruz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197056/rsgturkey/07/image1.png)
 
 Figür 1: NCBI ana sayfaya gittkten sonra “Search” (Arama) kutucuğuna genimizin ismini yazarak (ACTB genini örnek seçtim), “Gene” sekmesi altında aratıyoruz.
 
 Daha sonra karşımıza bir süre seçenek çıkıyor. Bunlar aslında diğer canlılarda insandaki bu genin karşılığı olanlar (**ortholog**) ya da varsa eski bir zaman diliminde ikilenmiş (_duplication_) ve belki sadece sekans değil işlev (_function_) olarak da farklılaşmış insandaki benzer genler (**paralog**)a sizleri yönlendiren bir sayfa bu (neyden bahsediliyor diyen[ler için link](https://doi-org/10.1186/gb-2001-2-8-interactions1002)).
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image2.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197012/rsgturkey/07/image2.png)
 
 Figür 2: İnsan ACTB geni ile ilgilendiğimiz için homo sapiens ACTB ile devam edeceğiz.
 
 Burada ilgili genle ilgili pek çok bilgiye erişmeniz mümkün. Exonic intronic bölgeler, genin bulunduğu kromozom, tam lokasyonu, Expression kısmında hangi dokularda ifade olduğunu, veyahut hangi fenotiple ilişki içinde olduğunu, tek nüklotit varyantlarını (SNPs), vs. pek çok detayını öğrenmek mümkün (bu noktada bir diğer alternatif UCSC Genome Browser olacaktır).
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image4-1024x184.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196985/rsgturkey/07/image4-1024x184.png)
 
 Figür 3: Tam lokasyon ve hangi kromozom.
 
 Biraz daha aşağı inerseniz, bu genin tüm transcriptlerini (buradan ifade olunan RNAlar) görebilirsiniz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image5.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197018/rsgturkey/07/image5.png)
 
 Figür 4: Bu genle ilişkili bir transcript var. Şimdi üzerine tıklayıp ona gideceğiz.
 
 Şimdi ilgili genle ilgili mRNAnın detaylarına aslında NCBI-Gene yerine NCBI-Nucleotide kısmından da erişilebilir olduğunu göreceksiniz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image6-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197009/rsgturkey/07/image6-1.png)
 
 Figür 5: mRNA ile ilgili detaylar. Aşağı kaydırırsanız CDS (Coding Sequence/Rergion)la ilgili detaylı bilgi edinebilirsiniz.
 
@@ -54,7 +54,7 @@ Burada önümüze iki seçenek çıkıyor. Birinci sağdaki pembe kutu ile göst
 
 Pick Primer dedikten sonra sizi şöyle bir sayfaya yönlendirecek:
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196759/rsgturkey/08/image.png)
 
 Figür 6: Primer Blast, primer dizayn online aracı. Primer kriter seçimi.
 
@@ -72,7 +72,7 @@ Kahverengi karedeki “submit” seçeneği ile ne olacağını görebilirsiniz.
 
 Eğer ki daha fazla parametre ile ilgili bilgi sahibi iseniz, submit butonu aşağısındaki “**advanced parameters**” seçeneği ile diğer seçenekleri de düzenlemek mümkün.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196731/rsgturkey/08/image-1.png)
 
 Figür 7: İleri parametreler, primer algortiması değişimi, GC içeriği, vs.
 
@@ -80,13 +80,13 @@ Figür 7: İleri parametreler, primer algortiması değişimi, GC içeriği, vs.
 
 Submit ettikten sonra, şu şekilde biraz bekleyeceğiz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-2.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196676/rsgturkey/08/image-2.png)
 
 Figür 8: Submit ettikten sonra, işlem için beklerken.
 
 Evet, daha sonra çıkan sayfada, primerinizin tam olarak nereyi çoğaltacağını ve diğer özelliklerini (bağlanma sıcaklığı, kendi kendine birleşiyor mu, diğer primerle birleşiyor mu vs. gibi) bulacaksınız.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image10-1024x249.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196695/rsgturkey/08/image10-1024x249.png)
 
 Figür 9: Primer dizayn algoritması açlıştıktan sonra önerilen primerleri görselleyen grafik.
 
@@ -94,7 +94,7 @@ Siyah kutucuklar, adı üstünde exonlar. Sarı, içi boş kutucuk da exon-exon 
 
 Primer çiftlerimizin ikisi de şimdilik kriterlere uygun gözükse de bakalım gerçekten aradığımız gibi mi?
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-3.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196737/rsgturkey/08/image-3.png)
 
 Figür 10: Detaylı primer çitfi raporu.
 
@@ -106,19 +106,19 @@ Ve maalesef hedef dışı transcriptler görüyoruz, bu primer çiftleri ile ço
 
 Sizi [primer3′](http://bioinfo.ut.ee/primer3/)de şöyle bir sayfa karşılayacak, burada sarı okla gösterdiğim bölgeye [NCBI’dan kopyala yapıştır ile mRNA FASTA sekansı](https://www-ncbi-nlm-nih-gov/nuccore/NM_001101.5?report=fasta) yapıştırın:
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-4.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196686/rsgturkey/08/image-4.png)
 
 Figür 11: Primer 3 giriş, mRNA fasta sekansı yapıştırma (en üstteki task olarak generic seçiyorum).
 
 Ve tabiki burada da primer uzunluğu (primer size), hedef uzunluğu (target size), GC %, minimum-maximum Tm değerleri gibi değiştirebileceğiniz faktörler var. Biraz aşağı inerseniz aynı sayfada, şunları görebilirsiniz:
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-5.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196721/rsgturkey/08/image-5.png)
 
 Figür 12: Genel Primer Seçim Kriterleri. Turuncu kutucuk, primer uzunluğu; sarı kutucuk, primer Tm; yeşil kutucuk, GC oranı; kırmızı kutucuk, kaç tane aday versin algoritma bize.
 
 Seçimlerinizi yaptıktan sonra “pick primers” e basarsanız, şöyle bir sonuç alacaksınız:
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-6.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196692/rsgturkey/08/image-6.png)
 
 Figür 13: Primer 3 sonuçları
 
@@ -126,7 +126,7 @@ Sarı kutuda ilk primer çitfinin detayları ve kırmızı kutuda, hangi bölges
 
 Aşağı indiğiniz takdirde ise alternatif 9 aday primer çifti daha görebiliyorsunuz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-7.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196771/rsgturkey/08/image-7.png)
 
 Figür 14: Max return seçeneği ile sayısını belirlediğimiz 9 alternatif primer çifti.
 
@@ -136,19 +136,19 @@ Daha önce sol uca yakın seçmek istediğim için, 100-200 aralığındaki 2. a
 
 qPCR yapıp bir sürü materyali kullanmadan önce, programların dizayn ettiği primer çiftlerinin gerçekten hedefimizi mi yoksa başka bir şeyleri mi çoğalttığını görmek istiyoruz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-9.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196735/rsgturkey/08/image-9.png)
 
 Figür 15: UCSC In Silico PCR aracı seçim sayfası.
 
 Öte yandan exon-exon bağlantısı tarıyor seçeneğini primer3’de seçememiştik. Burada konfirme edeceğiz. Eğer arada en az bir intron varsa, ve yaptığımız PCRdaki hedeften daha uzun bir sonuç elde etti isek (agarose jelde yürüterek tespit edebilirsiniz), bunun sebebinin bir dna kontaminasyonu olduğunu tahmin edebiliriz (teoride transcriptte intron beklemiyoruz). Kısacası, PCR tüm çabalara rağmen çalışmadığı takdirde, bunun sebebine dair bize ipucu sunabilir. Öte yandan, eğer ki başka hedefleri de çoğaltıyorsa (multiple targets), bu durumda bunu [UCSC’un in silico pcr](https://www.genome.ucsc.edu/index.html) ile dry-lab (bilgisayar üzerinden) görmek mümkün.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-10.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196674/rsgturkey/08/image-10.png)
 
 Figür 16: In Silico PCR aracı, görünüm.
 
 Hangi canlı genomundasa ilgili transcript, onu seçiyoruz. Sonra en son (latest) “assembly” yi seçiyoruz. Seçilen baş ve son uç primer çiftimizi kopyala yapıştır yapıyoruz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-11.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196784/rsgturkey/08/image-11.png)
 
 Figür 17: In Slico PCR sonucu.
 

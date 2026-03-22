@@ -20,7 +20,7 @@ MD için biraz daha bilgi vermek gerekirse, MD sistemleri hızlıdır ve paramet
 
 MD simulasyonun temel işleyişi sırasıyla şöyledir. İlk olarka sistemin potansiyel enerjisi ilgili force-field kullanılarak hesaplanır. Bu enerjinin pozisyona göre türevi, o pozisyondaki kuvveti elde etmemize yarar. Bu kuvvetten de Newton mekaniğinden ivmeye, ivmeden de belli bir zaman aralığındaki hız değişimine gidilir. Bu hız değişiminden de yeni pozisyona gidilir. Sonuç olarak _dt_ kadar bir zaman aralığındaki hız ve pozisyon değişimi hesaplanmış olur. Aşağıda işlemlerin matametiksel ifadelerini sırasıyla bulabilirsiniz.
 
--   ![](https://rsgturkey.com/wp-content/uploads/2020/07/formule.png)
+-   ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197057/rsgturkey/07/formule.png)
     
 
 Şimdi yukarıdaki işlemler MD temel mantığı ve nasıl ilerlediğidir. Bizim n atomlu bir sistemimizde 3n tane kordinatımız olacak. Bundan dolayı analitik çözüm pek mümün değildir ve nümerik çözüm uygulanır. Bunun için de “_time symmetric_” integrasyon metoduları dediğimiz metodlar kullanılır örneğin _Leapfrog_ ve _Verlet_. Bunların ayrıntılı bilgisi için _Andrew R Leach – Molecular modelling principles and applications (2001)_ kitabını inceleye bilirsiniz.
@@ -31,21 +31,21 @@ MD simulasyonun temel işleyişi sırasıyla şöyledir. İlk olarka sistemin po
 
 Burada basit bir şekilde bir Protein Data Bank üzerinden alınan bir protein için simülasyon basit başlatırken neler yapmalıyız ona bakacağız. Bunun için ise kullanacağımız PDB kodu 1L1D ([https://www.rcsb.org/structure/1l1d](https://www.rcsb.org/structure/1l1d)). İlk olarak kullanılan proteinin aktif halinin monomer mi dimer mi veya türevleri şeklinde çalışılıp çalışılmadığının bilinmesi gerekiyor. Çalışacağınız protein hakkında ne kadar bilginiz olursa Moleküler Dinamik Simülasyonunu o kadar iyi uygulayabilirsiniz. Pdb formatındaki yapı -bizim şuan kullanacağımız yapı gibi- X-ray kristalografiden elde edilen tekrarlı yapılar olabilir. Bu yüzden resim 1’de göründüğü gibi yapıdan fazladan chain görülebilir. Bu chaine ait olan her şeyin silinmesi gerekiyor. Bunu text editör yardımı ile veya pymol gibi programlar kullanarak yapabilirsiniz. Bizim sistemimiz için B chainini ve onun içerdiği her şeyi sildik. Ayrıca sistemde kristalografi de kullanılan bufferdan kalan moleküller olabilir bunların da silinmesi gerkiyor. Dikkat edilmesi gerekilen bir husus, bir amino asit zincirinin bitiğini ve yeni bir yapının başladığını -bu yeni bir chain, su molekülleri ya da bir ligand olabilir- AMBER’in anlayabilmsi için PDB dosyasında ilgili chainin sonunda “TER” bulunması gerek. Ayrıca yapıda olmayan amino asitler varsa bunun homoloji model veya abinitio gibi yöntemlerle modellenmesi gerekmektedir. Bizim sistemimiz için böyle bir şeye ihtiyaç yok ve kristal yapıda eğer su varsa bunların tutulmasında yarar vardır. Pdb dosyasın en sonunda bazen “_CONNECT”_ ile başlayan bağları tanımlayan ifadeler bazen AMBER için yanlışlıklara neden olabileceğinden silmeliyiz. Sonuç olarak pdb dosyamızın içinde sadece olmasını istediğimiz yapıların kalmasını istiyoruz ve gerisini siliyoruz. Bizim sistemimiz için bunlar su molekülleri ve proteinin A zinciri.
 
--   ![](https://rsgturkey.com/wp-content/uploads/2020/07/figüre-1-1024x512.png)
+-   ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197069/rsgturkey/07/fig%C3%BCre-1-1024x512.png)
     
     Resim 1. 1L1D yapısının görüntüsü.
     
 
 Bunun yanında, sistemde standart olmayan amino asitler varsa ve eğer bu standart olmayan amino asitler sistemimiz de olamsını istediğimiz bir durum ise parametresinin eklenmesi gerekiyor. Aynı zaman da bir ligand ile çalışma yapacağımız zaman da parametrelerinin eklenmesi gerekecek. Bunun için çeşitli yöntemler var (bknz. [CGenFF](https://cgenff.umaryland.edu/)). Eğer istenmeyen bir durum ise bunu standart haline çevirmemiz gerekmektedir. Bizim proteinimizde metiyoninler, selenometiyonin olarak gözüküyor. Burada bir text editör yardımıyla pdb içinde “MSE” olarak yazılmış amino asitleri metiyonin AMBER için standart ismi olan “MET” ile değiştirmemiz ve selenyum içeren atomunun olduğu satırı silmeliyiz. Burada sildiğimiz atomun yerine sonradan AMBER kendisi kükürt atomunu koyabildiğinden yerine bir şey yazmamız gerekmiyor. Aşağıda bir örnek verilmiştir. Bu işlemi bütün “MSE” olan amino asitlere yapmamız gerekiyor.
 
--   ![](https://rsgturkey.com/wp-content/uploads/2020/07/met1-2-1024x165.png)
+-   ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197048/rsgturkey/07/met1-2-1024x165.png)
     
 
 -   **Protonasyonların Tanımlanması**
 
 Bundan sonraki aşamada ise bazı iyonize olabilecek amino asitlerin protonasyonlarının düzenlenmesi olacak. Bu kısım biraz uzun ve zahmetli olabiliyor. Bu yüzden otomatik yapan programlar mevcut örneğin [Charmm-gui](http://www.charmm-gui.org/), fakat burada uzun anlatımını yapacağız. Protonasyonu belirlememiz için iyonize olabilecek amino asitlerin pKa değerlerinin hesaplanması gerekiyor. Bunun için [PROPKA](http://server.poissonboltzmann.org/pdb2pqr) kullanacağız. Probka, pKa’ı ilgili amino asitin etrafındaki etkileşimlerine ve solvent erişebilir bir bölge olup olmama durmuna göre bize bir tahmin değer çıkarıyor. Önemli noktalardan biri her zaman Probka’dan elde ettiğimiz sonuca güvenmemeliyiz. Normalde pKa hesapları uzun ve zahmetlidir. Bu yüzde çıkan sonuçları kontrol etmeliyiz. Sonuca göre eğer elde edilen pKa değeri ortamın pH’sından düşük ise proton vermiş, eğer ortamın pH’sından -biz burada 7 olarak aldık- yüksek ise proton almış olarak düşünmeliyiz. Ayrıca elde ettiğimiz sonuçlarda çok olağan olmayan değerler elde edersek de bu amino asitlerin kontrollerinin yapılması gerek.
 
--   ![](https://rsgturkey.com/wp-content/uploads/2020/07/probka-1024x718.png)
+-   ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196991/rsgturkey/07/probka-1024x718.png)
     
 
 Probka’dan elde ettiğimiz sonuçlar aşağıda görülebilir. Burada pKmodel olarak yazan değerler, o amino asitin normal pH’da olan pKa değeridir. Ortadaki pKa ise bizim yapıdaki amino asitin pKa değeridir. Burada, GLU404’ün değeri normal değerinin yukarısında ve pH değerine yakın çıktığı için incelenmesinde yarar var. HIS’ler her zaman kontrol edilmesi gerekiyor. Çünkü histidinin protonasyonu normal pH’e çok yakın olduğu için protonasyonu çabuk değişim gösterebiliyor. Ayrıca bizim sistemde CYS440 ve CYS495 için elde edilen değerler ise normal pKa değerinden ciddi derecede farklı olduğundan incelenmesi gerek. Diğer değerler ise Probka’nın bir kaç birim hata yaptığını düşünsek bile çok bir değişiklik göstermeyeceğinden kabul edebiliriz.
@@ -85,17 +85,17 @@ SUMMARY OF THIS PREDICTION
 
 Burada, GLU404 için bakacak inceleyecğiz. Eğer bir amino asit proteinin gömülü (hidrofobik) bir yerindeyse nötr olmayı isteyecektir. Ayrıca, elektrostatik etkileşimler, hidrofobik ortamda perdelenmez ya da çok az perdelenir, o yüzden yüklü olan amino asitler hidrofobik ortamda etrafındaki amino asitlerin pKa değerlerinde yakın olmasalar bile önemli bir değişime neden olur. Bu durum HIS amino asitlerinde daha çok dikkat edilmesi gerek bir durum. Burada bizim yapımızda GLU kısmen gömülü diyebileceğimiz bir bölgede olduğu için pKa’sında artışa neden olmuş olabilir. GLU’nun etrafındaki 4 Å mesafede olan amino asitlerle olan etkileşimleri incelememiz gerekiyor. Burada cevaplamamız gereken ilk soru, GLU’nun iyonize olmuş halini stabilize edebilecek amino asitler var mı ? Sonuç olarak, 3 tane hidrojen bağı yapabilecek durum söz konusu ve probkadan elde ettiğimiz sonucun makul olduğunu görüyoruz. Eğer proton alması gereken bir durum olduğunu düşünseydik ismini pdbde GLH olarak değiştirilmesi gerekecekti.
 
--   ![](https://rsgturkey.com/wp-content/uploads/2020/07/glu404-1024x512.png)
+-   ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197032/rsgturkey/07/glu404-1024x512.png)
     
 
 HIS için ise hepsinin kontrol edilmesi gerekiyor demiştik. Ama burada bir tanesini örnek olarak göstereceğiz. HIS için 4 farklı durum söz konusudur. İlki histidinin hem delta hem epsilon azotunda proton olmadığı hal -ki bu çok istisna bir durum olmadıkça olmuyor, o yüzden düşünülmesine gerek yok-, ikinci olarak deltada proton var epsilonda yok (ismini HID yapmalıyız), üçüncü olarak ikinci durumun tam tersi (ismini HIE yapmalıyız) ve son olarak ise ikisinde de proton var (ismini HIP yapmalıyız). HIS409 için baktığımızda, amino asitin bulunuduğu yerin kısmen su erişebileceği bir bölgede olduğunu görüyoruz. Ayrıca TYR411’in ana yapısındaki (backbone) azotu ile de bir hidrojen bağı yaptığı gözüküyor. Bir backbone azotta bir hidrojen olacağından HIS deltasında hidrojen olmamasını bekleriz. Bu yüzden epsilon azot üzerinde hidrojen var diyebiliriz ve ismini HIE olarak değiştiriyoruz. Diğer HIS’leri de bulunduğu lokasyonun solvent erişebilirliği ve etrafındaki etkileşimler açısından değerlendiriyoruz. Sonuç olarak, HIS413 için HID, HIS457 için HID ,HIS477 için HIP ve HIS480 için HIP olarak histidinleri tanımlamış olduk. Buradaki isim değiştirme işleminde önemli meselerden biri, eğer histidin HIS olarak bırakılırsa AMBER bunları otomatik olarak HIE olarak tanımlıyor. Bu yüzden istenmeyen bazı durumlar olabilir. Bu işlemleri yapmamızın en temel sebebi X-ray çalışmalarında hidrojenler görülmez, bu yüzden de bu atomların durumunun değerlendirilmesi gerekmektedir.
 
--   ![](https://rsgturkey.com/wp-content/uploads/2020/07/his409-1024x512.png)
+-   ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197010/rsgturkey/07/his409-1024x512.png)
     
 
 CYS440 ve CYS495 için bakacak olursak. X-ray de CYS495 için iki tane durum çözümlenmiş olarak duruyor. Bunlar, pdb içinde ACYS ve BCYS olarak tanımlanır. Bizim istediğimiz durum hangisi ise A ya da B den birinin olduğu tüm atomlar silinir ve geriye kalanların isimleri standart isimleriyle değiştirilir. Bizim durumumuzda BCYS disulfat bağ yapabilecek şekilde duruyorlar. Bu yüzden ACYS’e ait atomları sildik. BCYS isimini ise CYX olarak değiştirilmesi gerekiyor. Bundan dolayı CYS440 adını da CYX olarak değiştirilir. Eğer disulfat bağını istemeseydik BCYS’e ait atomlar silinir ve isimleri CYS olarak değiştirilirdi.
 
--   ![](https://rsgturkey.com/wp-content/uploads/2020/07/cys-1024x512.png)
+-   ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197057/rsgturkey/07/cys-1024x512.png)
     
 
 Bizim şuan incelediğimiz sistemde, pdbde yapılması gerekilen bir diğer değişiklik ise SER500 için yapılması gerek. Yukarıdaki CYS495’deki gibi burada da iki farklı durum için yapı çıkarılmış ve bunlardan birini tercih etmemiz gerek. Biz burada tamamen isteğe bağlı olarak ASER’i seçittik ve diğer atomları siliyoruz. ASER adını da SER olarak değiştiriyoruz.

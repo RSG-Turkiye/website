@@ -8,7 +8,7 @@ youtubeUrl: ""
 slidesUrl: ""
 year: 2023
 type: "bioinfonet"
-image: "https://rsgturkey.com/wp-content/uploads/2023/06/ob5.jpg"
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197131/rsgturkey/06/ob5.jpg"
 ---
 
 **Presenter**

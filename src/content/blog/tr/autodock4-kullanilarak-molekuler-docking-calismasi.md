@@ -72,7 +72,7 @@ AutoDock4 programının docking işlemleri için bazı parametre dosyalarına ih
 
 **1) Protein ve Ligandın Yüklenmesi**
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/image-8.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196611/rsgturkey/10/image-8.png)
 
 Figür 1. Ligandın yüklenmesi.
 
@@ -82,7 +82,7 @@ Proteinimizi programa yüklemek için “Grid -> Macromolecule -> Open ->” kı
 
 **2) Grid Parametre Dosyalarının Hazırlanması.**
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/image-9.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196604/rsgturkey/10/image-9.png)
 
 Figür 2. Grid Box oluşturulması.
 
@@ -90,13 +90,13 @@ Figür 2. Grid Box oluşturulması.
 
 **3) Docking Parametre Dosyalarının Hazırlanması**
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/image-10.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196584/rsgturkey/10/image-10.png)
 
 Figür 3. dpf (Docking Paremeter File) dosyası için ligand ve proteinin belirtilmesi.
 
 “Docking -> Macromolecule -> Set Rigid Filename” sekmelerinden makro molekülümüzü yani proteinimizi seçiyoruz ve bu seçim aynı zamanda docking esnasında proteinimizi sabitlemeye yarıyor peki neden proteini sabitliyoruz (Figüre 3)? Program çalışırken her bir adımda ligand molekülündeki hareket edebilecek, moleküle esneklik sağlayan ve belli açılara kadar esneyebilen noktalar program tarafından önceden tanımlanmıştır. Program bu noktaları farklı şekillerde, belli açılar içerisinde çevirerek ligand için proteinin içerisinde yeni pozisyonlar arar ve bu pozisyonlar için enerji hesaplamaları yapar. Bundan dolayı bir ligandta bu noktalardan ne kadar çok olursa docking işlemi o kadar uzun sürer. Ligandların aksine proteinde bu noktalardan yüzlerce sayıda olabilir. Bu yüzden zamandan kazanmak ve hesaplama yükünü azaltmak için ligand serbest, protein ise sabit bırakılır. Şimdi iste “Docking -> Ligand -> Chose Ligand” seçeneği ile ligandımızı seçiyoruz.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/image-11.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196618/rsgturkey/10/image-11.png)
 
 Figür 4. Lamarkian Genetik algoritma değerleri.
 
@@ -104,11 +104,11 @@ Ligandımızın ve proteinimizin docking esnasında nasıl davranacağını prog
 
 **4) Terminalden Docking işleminin başlatılması**
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/image-12.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196614/rsgturkey/10/image-12.png)
 
 Figür 5. Autogrid4 kullanılarak map dosyalarının oluşturulması.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/image-13.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196588/rsgturkey/10/image-13.png)
 
 Figür 6. Autodock kullanılarak docking işleminin başlatılması.
 
@@ -118,7 +118,7 @@ Bu işlemden sonra Docking başlamış oluyor, yeni bir terminalde “top” yaz
 
 **5) Sonuçlar**
 
-![](https://rsgturkey.com/wp-content/uploads/2020/10/image-14.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196601/rsgturkey/10/image-14.png)
 
 Figür 7. result.dlg dosya içeriği.
 

@@ -14,4 +14,4 @@ We are ready for our next event: Student Symposium 2018. Our event will be a sat
 
 Sıradaki etkinliğimiz için hazırız: 2018 Öğrenci Sempozyumu. [HIBIT'18](http://www.hibit2018.org/)e uydu olarak düzenlenen bu etkinliğimiz Antalya'da gerçekleşecek. [Detaylar ve ücretsiz kayıt için tıklayın!](https://rsgturkeysymposium2018.wordpress.com/) Antalya'da görüşmek üzere!!
 
-[![poster2](http://rsgturkey.com/wp-content/uploads/2018/06/poster2.jpg)](https://rsgturkeysymposium2018.wordpress.com/)
+[![poster2](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197071/rsgturkey/06/poster2.jpg)](https://rsgturkeysymposium2018.wordpress.com/)

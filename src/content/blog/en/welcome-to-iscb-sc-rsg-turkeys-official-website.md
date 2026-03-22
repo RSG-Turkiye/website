@@ -16,7 +16,7 @@ Most of the people who contact us say "Do you still continue organising webinars
 
 [ISCB: International Society for Computational Biology](https://www.iscb.org) [ISCB SC: International Society for Computational Biology _Student Council_](http://www.iscbsc.org) [ISCB SC RSG: International Society for Computational Biology Student Council Regional Student Group](http://rsg.iscbsc.org) And here we are: ISCB SC RSG Turkey!
 
-![ActiveRSGWorldMap](http://rsgturkey.com/wp-content/uploads/2017/04/activersgworldmap.png)
+![ActiveRSGWorldMap](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196835/rsgturkey/04/activersgworldmap.png)
 
 But why do we have such a long name?
 

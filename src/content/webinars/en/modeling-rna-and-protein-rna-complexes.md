@@ -4,11 +4,11 @@ date: 2024-12-20
 speaker: "Dr. Elisa Frezza"
 speakerTitle: "Assistant Professor"
 speakerAffiliation: "Université Paris Cité, CiTCoM Laboratory"
-speakerPhoto: "https://rsgturkey.com/wp-content/uploads/2024/12/Elisa-Frezza-768x456.png"
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196580/rsgturkey/12/Elisa-Frezza-768x456.png"
 description: "Dr. Elisa Frezza walks through computational strategies for modeling RNA structures and protein-RNA interactions, covering molecular dynamics simulations, normal mode analysis, and coarse-grained methods."
 youtubeUrl: "https://youtu.be/G6v_jCEClpc?si=ZwtcyNhg4RrPm85u"
 slidesUrl: ""
-image: "https://rsgturkey.com/wp-content/uploads/2024/12/Elisa-Frezza-768x456.png"
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196580/rsgturkey/12/Elisa-Frezza-768x456.png"
 topic: "Structural Bioinformatics"
 keyTakeaways:
   - "When to choose all-atom vs. coarse-grained MD simulations for RNA systems"

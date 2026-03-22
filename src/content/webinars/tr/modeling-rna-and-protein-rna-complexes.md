@@ -4,11 +4,11 @@ date: 2024-11-20
 speaker: "Dr. Elisa Frezza"
 speakerTitle: "Yardımcı Doçent"
 speakerAffiliation: "Université Paris Cité, CiTCoM Laboratuvarı"
-speakerPhoto: "https://rsgturkey.com/wp-content/uploads/2024/12/Elisa-Frezza-768x456.png"
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196580/rsgturkey/12/Elisa-Frezza-768x456.png"
 description: "Dr. Elisa Frezza, RNA yapılarını ve protein-RNA etkileşimlerini modellemek için hesaplamalı stratejileri ele almakta; moleküler dinamik simülasyonları, normal mod analizi ve kaba taneli yöntemleri kapsamaktadır."
 youtubeUrl: "https://youtu.be/G6v_jCEClpc?si=ZwtcyNhg4RrPm85u"
 slidesUrl: ""
-image: "https://rsgturkey.com/wp-content/uploads/2024/12/Elisa-Frezza-768x456.png"
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196580/rsgturkey/12/Elisa-Frezza-768x456.png"
 topic: "Yapısal Biyoinformatik"
 keyTakeaways: []
 lang: "tr"

@@ -22,7 +22,7 @@ NCBI ana sayfaya gittkten sonra "Search" (Arama) kutucuğuna genimizin ismini ya
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197056/rsgturkey/07/image1.png)
 
 <figcaption>
 
@@ -36,7 +36,7 @@ Daha sonra karşımıza bir süre seçenek çıkıyor. Bunlar aslında diğer ca
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image2.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197012/rsgturkey/07/image2.png)
 
 <figcaption>
 
@@ -50,7 +50,7 @@ Burada ilgili genle ilgili pek çok bilgiye erişmeniz mümkün. Exonic intronic
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image4-1024x184.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196985/rsgturkey/07/image4-1024x184.png)
 
 <figcaption>
 
@@ -64,7 +64,7 @@ Biraz daha aşağı inerseniz, bu genin tüm transcriptlerini (buradan ifade olu
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image5.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197018/rsgturkey/07/image5.png)
 
 <figcaption>
 
@@ -78,7 +78,7 @@ Figür 4: Bu genle ilişkili bir transcript var. Şimdi üzerine tıklayıp ona 
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image6-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197009/rsgturkey/07/image6-1.png)
 
 <figcaption>
 
@@ -96,7 +96,7 @@ Pick Primer dedikten sonra sizi şöyle bir sayfaya yönlendirecek:
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196759/rsgturkey/08/image.png)
 
 <figcaption>
 
@@ -122,7 +122,7 @@ Eğer ki daha fazla parametre ile ilgili bilgi sahibi iseniz, submit butonu aşa
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196731/rsgturkey/08/image-1.png)
 
 <figcaption>
 
@@ -138,7 +138,7 @@ Submit ettikten sonra, şu şekilde biraz bekleyeceğiz.
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-2.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196676/rsgturkey/08/image-2.png)
 
 <figcaption>
 
@@ -152,7 +152,7 @@ Evet, daha sonra çıkan sayfada, primerinizin tam olarak nereyi çoğaltacağı
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image10-1024x249.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196695/rsgturkey/08/image10-1024x249.png)
 
 <figcaption>
 
@@ -168,7 +168,7 @@ Primer çiftlerimizin ikisi de şimdilik kriterlere uygun gözükse de bakalım 
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-3.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196737/rsgturkey/08/image-3.png)
 
 <figcaption>
 
@@ -188,7 +188,7 @@ Sizi [primer3'](http://bioinfo.ut.ee/primer3/)de şöyle bir sayfa karşılayaca
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-4.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196686/rsgturkey/08/image-4.png)
 
 <figcaption>
 
@@ -202,7 +202,7 @@ Ve tabiki burada da primer uzunluğu (primer size), hedef uzunluğu (target size
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-5.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196721/rsgturkey/08/image-5.png)
 
 <figcaption>
 
@@ -216,7 +216,7 @@ Seçimlerinizi yaptıktan sonra "pick primers" e basarsanız, şöyle bir sonuç
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-6.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196692/rsgturkey/08/image-6.png)
 
 <figcaption>
 
@@ -232,7 +232,7 @@ Aşağı indiğiniz takdirde ise alternatif 9 aday primer çifti daha görebiliy
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-7.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196771/rsgturkey/08/image-7.png)
 
 <figcaption>
 
@@ -250,7 +250,7 @@ qPCR yapıp bir sürü materyali kullanmadan önce, programların dizayn ettiği
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-9.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196735/rsgturkey/08/image-9.png)
 
 <figcaption>
 
@@ -264,7 +264,7 @@ Figür 15: UCSC In Silico PCR aracı seçim sayfası.
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-10.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196674/rsgturkey/08/image-10.png)
 
 <figcaption>
 
@@ -278,7 +278,7 @@ Hangi canlı genomundasa ilgili transcript, onu seçiyoruz. Sonra en son (latest
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-11.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196784/rsgturkey/08/image-11.png)
 
 <figcaption>
 

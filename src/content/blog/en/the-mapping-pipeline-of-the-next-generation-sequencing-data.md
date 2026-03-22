@@ -18,7 +18,7 @@ Before the analysis of NGS data with publicly or commercially available algorith
 
 The raw data from a sequencing machine are most widely provided as _FASTQ (unaligned sequences)_ files, which include sequence information, similar to _FASTA_ files, but additionally contain further information, including sequence quality information. A FASTQ file consists of blocks, corresponding to reads, and each block consists of four elements in four lines.  
 
-![](http://rsgturkey.com/wp-content/uploads/2020/03/Ekran-Resmi-2020-03-25-13.53.59-1024x351.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196903/rsgturkey/03/Ekran-Resmi-2020-03-25-13.53.59-1024x351.png)
 
 **Line 1** begins with a ‘@’ character and is followed by a sequence identifier and an optional description  
 **Line 2** is the raw sequence letters  
@@ -70,7 +70,7 @@ Base Qualities = ASCII 33 + Phred scaled Q
 e: base-calling error probability  
 SAM encoding adds 33 to the value because ASCII 33 is the first visible character. 
 
-![](http://rsgturkey.com/wp-content/uploads/2020/03/qscores.gif)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196944/rsgturkey/03/qscores.gif)
 
 source: https://drive5.com/usearch/manual/quality\_score.html
 

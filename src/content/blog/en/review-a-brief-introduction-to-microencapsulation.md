@@ -14,11 +14,11 @@ draft: false
 
 The containment of a  core material inside of a  small capsule is called  microencapsulation. A polymeric material coates liquid or solid substances to protect polymeric material from circumambient area1. Microcapsules size vary between 50 nm to 2 mm2. Microcapsule’s size and structure differs according to core material being solid, liquid or gas as in figure 12. 
 
-![](https://rsgturkey.com/wp-content/uploads/2020/06/image.jpeg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197155/rsgturkey/06/image.jpg)
 
 **Figure 1:** (a) Mononuclear microcapsules carrying solid material, (b) Aggregated microcapsules carrying liquid material2.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/06/image-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197121/rsgturkey/06/image-1.png)
 
 **Figure 2:** Schematic presentation of a microcapsule2.
 
@@ -68,11 +68,11 @@ Cellulose nitrate
 
 Glyceryl stearates
 
-![](https://rsgturkey.com/wp-content/uploads/2020/06/image-2.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197166/rsgturkey/06/image-2.jpg)
 
 **Figure 4 :** Alginate coated adipose stem cells extracted from (A) rat and (B) human3. 
 
-![](https://rsgturkey.com/wp-content/uploads/2020/06/image-3.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197125/rsgturkey/06/image-3.png)
 
    
 **Figure 5 :** Confocal laser scanning microscope image of rhodamine-labeled hydrogel microcapsules4.
@@ -81,13 +81,13 @@ Glyceryl stearates
 
   The microencapsulation of adipose stem cells  coating with alginate is shown in figure 6. The cross- linking solution contains calcium chloride and glucose and is buffered with HEPES. Calcium chloride provides divalent cations to alginate during cross-linking. Glucose is useful for maintaining physiological osmolality of the cross-linking solution for the  adipose stem cells. HEPES is used tomaintain pH at or below pH 7.33.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/06/image-4.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197132/rsgturkey/06/image-4.jpg)
 
 **Figure 6:** Schematic presentation of method used for  microencapsulation of adipose stem cells3.
 
 The generation of hydrogel microcapsules with a microfluidic system is shown in figure 7. Oligosaccharides and  peptide–starPEG were inserted through two distinct channels. The flow rates of the oil phase and Oligosaccharides and  peptide–starPEG have been set  to get required droplet formation4.
 
-![](https://rsgturkey.com/wp-content/uploads/2020/06/image-5.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197118/rsgturkey/06/image-5.png)
 
 **Figure 7 :** Scheme of the microfluidic system used for hydrogel microcapsule generation4.
 

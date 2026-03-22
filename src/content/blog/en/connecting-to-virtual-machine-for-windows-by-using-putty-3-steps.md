@@ -24,7 +24,7 @@ I have been participating [COVID19-bh20](https://github.com/virtual-biohackathon
 -   After generation, you need to share the public key, shown in **red box**, with the admin of virtual machine/server
 -   Btw you need to generate a password, which is shown with **green box**
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/Generation.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196857/rsgturkey/04/Generation.png)
 
 ## Step-2
 
@@ -32,7 +32,7 @@ I have been participating [COVID19-bh20](https://github.com/virtual-biohackathon
 -   **(Do not open without changing the Connection settings, which will be done in the following steps)**
 -   Then you will enter the private key to access to VM via changing the Connection settings, shown with an **orange arrow**
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/Host.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196839/rsgturkey/04/Host.png)
 
 ## Step-3
 
@@ -42,7 +42,7 @@ I have been participating [COVID19-bh20](https://github.com/virtual-biohackathon
 -   When you select Auth, you need to add the path of the private key via browsing it, shown in **red box**
 -   Now you need to click **OPEN** to access, shown in green arrow
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/Process-1024x437.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196847/rsgturkey/04/Process-1024x437.png)
 
 -   Username is given by the admin **username**@IP\_address, highlighted with bold
 -   And the password will be the password you generated as key passphrase while generating the key.

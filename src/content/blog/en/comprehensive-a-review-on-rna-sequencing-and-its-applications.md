@@ -52,7 +52,7 @@ After sequencing has been completed, the starting point for analysis is the data
 
 <figure>
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-1024x848.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196824/rsgturkey/04/image-1024x848.png)
 
 <figcaption>
 
@@ -67,7 +67,7 @@ After normalization step, genes with low expression across samples are filtered 
 
 <figure>
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-1-1024x407.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196845/rsgturkey/04/image-1-1024x407.png)
 
 <figcaption>
 
@@ -82,7 +82,7 @@ After normalization step, genes with low expression across samples are filtered 
 
 <figure>
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-2-1024x724.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196815/rsgturkey/04/image-2-1024x724.png)
 
 <figcaption>
 
@@ -97,7 +97,7 @@ A detailed RNA-seq work-flow is shown in (**Figure 4**)12.
 
 <figure>
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-3-1024x740.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196856/rsgturkey/04/image-3-1024x740.png)
 
 <figcaption>
 
@@ -149,7 +149,7 @@ Autism Spectrum Disorder (ASD) is an early-onset neuropsychiatric disorder. ASD 
 
 <figure>
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-4.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196819/rsgturkey/04/image-4.png)
 
 <figcaption>
 

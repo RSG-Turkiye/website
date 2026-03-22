@@ -50,28 +50,28 @@ After RNA extraction from all samples, libraries are prepared for sequencing acc
 
 After sequencing has been completed, the starting point for analysis is the data files, which contain base-called sequencing reads, usually in the form of FASTQ. The reads having poor quality in FASTQ files are eliminated before the alignment process in which raw sequences are aligned to a reference genome to find their relevant genes. Each sequence read is converted to one or more genomic coordinates and Sequence Alignment Map (SAM) files containing those coordinates are obtained after alignment process7,12. This process has traditionally been accomplished using distinct alignment tools, such as TopHat13, STAR14, or HISAT15, which rely on a reference genome. The SAM files are converted to Binary Alignment Map (BAM) files for further analyses because of their large size and this process is carried out by using Samtools16. After alignment and file conversation steps, reads (transcripts) quantification across samples is performed by using some tools such as featureCounts17 to obtain expression matrix in which each row corresponds to individual genes, however, each column corresponds to individual samples7. Normalization of transcripts abundance across samples is made by using expression matrix to lessen range-based gene expression differences between samples7,18,19. Normalization methods are shown in (**Figure 1**)20.
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-1024x848.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196824/rsgturkey/04/image-1024x848.png)
 
   
 **Figure 1.** Normalization methods that are used in RNA-seq analyses.
 
 After normalization step, genes with low expression across samples are filtered to prevent statistical noise7, and then statistically meaningful genes (namely, differentially expressed genes) can be detected by using some tools such as edgeR21, DESeq222. In the end, obtained genes can be used for enrichment analyses such as KEGG and Reactome to find out which pathways are affected. RNA-seq technology is utilized for distinct aims, some of which are shown in (**Figure 2**). The representations of RNA-seq results are shown in (**Figure 3**).
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-1-1024x407.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196845/rsgturkey/04/image-1-1024x407.png)
 
   
 **Figure 2.** RNA-seq usage fields.  
   
   
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-2-1024x724.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196815/rsgturkey/04/image-2-1024x724.png)
 
   
 **Figure 3. Representation of differential expression, splicing, and co-expression results.** In differential expression figure, each row represents the expression amount of a gene, however, each column represents each sample. Red color shows higher expressions, but the yellow color shows lower expressions. In the co-expression figure, a network containing the interaction of each gene with other genes is depicted. In the differential alternative splicing figure, differential usage of E010 exon between control and knockdown groups is depicted.
 
 A detailed RNA-seq work-flow is shown in (**Figure 4**)12.
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-3-1024x740.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196856/rsgturkey/04/image-3-1024x740.png)
 
   
 **Figure 4.** An example of differential expression work-flow.
@@ -172,7 +172,7 @@ In addition to differential expression pipelines above, If you want to examine m
 
 Autism Spectrum Disorder (ASD) is an early-onset neuropsychiatric disorder. ASD is clinically described with behavioural abnormalities such as restrictive interest and repetitive behaviour. ASD is genetically heterogeneous and heritable (~50%) and 80% of its genetic background is unclear. Aberrations in autistic brains take mostly place in cortex regions (Figure 5) rather than cerebellum. When ASD is compared with other neuropsychiatric disorders such as schizophrenia and bipolar disorder, it has a higher heritability-rate than them, which means that it appears with the more strong genetic background than schizophrenia and bipolar disorder. Studies have revealed that ASD-related genes are enriched in brain-development, neuronal activity, signalling, and transcription regulation. Wnt signalling, synaptic function, and translational regulation are pathways that are affected by mutations in ASD-related genes31.
 
-![](http://rsgturkey.com/wp-content/uploads/2020/04/image-4.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196819/rsgturkey/04/image-4.png)
 
   
 **Figure 5.** Brain regions most affected in autism.

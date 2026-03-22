@@ -16,7 +16,7 @@ Structures of biological macromolecules cannot be easily determined, as they are
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/09/Screen-Shot-2020-09-28-at-15.24.39-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197248/rsgturkey/09/Screen-Shot-2020-09-28-at-15.24.39-1.png)
 
 <figcaption>
 
@@ -34,7 +34,7 @@ Integrative modeling has iterative four stages: (1) gathering information, (2) r
 
 ![A screenshot of a cell phone
 <div></div>
-Description automatically generated](https://rsgturkey.com/wp-content/uploads/2020/09/Screen-Shot-2020-09-22-at-19.16.49.png)
+Description automatically generated](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197182/rsgturkey/09/Screen-Shot-2020-09-22-at-19.16.49.png)
 
 <figcaption>
 
@@ -57,7 +57,7 @@ As a following, you can find another representation of these iterative four stag
 
 ![A picture containing timeline
 <div></div>
-Description automatically generated](https://rsgturkey.com/wp-content/uploads/2020/09/Screen-Shot-2020-09-30-at-01.07.27.png)
+Description automatically generated](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197184/rsgturkey/09/Screen-Shot-2020-09-30-at-01.07.27.png)
 
 <figcaption>
 
@@ -75,7 +75,7 @@ X-ray crystallography and nuclear magnetic resonance (NMR) spectroscopy are comm
 
 ![Table
 <div></div>
-Description automatically generated](https://rsgturkey.com/wp-content/uploads/2020/09/Screen-Shot-2020-09-26-at-00.02.31.png)
+Description automatically generated](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197177/rsgturkey/09/Screen-Shot-2020-09-26-at-00.02.31.png)
 
 <figcaption>
 
@@ -99,7 +99,7 @@ In Table 2, some of commonly used suite of tools with their methods are listed w
 
 ![Table
 <div></div>
-Description automatically generated](https://rsgturkey.com/wp-content/uploads/2020/09/Screen-Shot-2020-09-26-at-00.26.51-1024x911.png)
+Description automatically generated](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197226/rsgturkey/09/Screen-Shot-2020-09-26-at-00.26.51-1024x911.png)
 
 <figcaption>
 
@@ -115,7 +115,7 @@ Description automatically generated](https://rsgturkey.com/wp-content/uploads/20
 
 ![Diagram
 <div></div>
-Description automatically generated](https://rsgturkey.com/wp-content/uploads/2020/09/Screen-Shot-2020-09-30-at-00.54.34-1024x787.png)
+Description automatically generated](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197201/rsgturkey/09/Screen-Shot-2020-09-30-at-00.54.34-1024x787.png)
 
 <figcaption>
 

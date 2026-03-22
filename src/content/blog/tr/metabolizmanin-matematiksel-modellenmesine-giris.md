@@ -13,15 +13,15 @@ draft: false
 Aşağıdaki figürdeki gibi basit bir hücre düşünün: **A** metaboliti hücreye b1 hızında girebiliyor ve bu metabolit hücre içerisinde sırasıyla v1 ve v2 hızlarında **B** ve **C** metabolitlerine dönüşebiliyor. Aynı anda **C** metaboliti v3 hızında **A**’ya geri dönüşebiliyor. Tabii bütün bu dengeyi enzim kinetiklerini hesaba katmadan ve kütle dengesinin sağlandığını varsayarak kurmalıyız (bu cümle yazının devamında daha anlamlı hale gelecektir).
 
 ![A picture containing clock
-Description automatically generated](http://rsgturkey.com/wp-content/uploads/2020/06/toymodel.png)
+Description automatically generated](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197099/rsgturkey/06/toymodel.png)
 
 Yapacağımız diğer bir varsayım da hücrenin steady-state (kararlı durumda) olduğudur. Bu varsayımımız üzerine A metaboliti üzerinden geçen bütün reaksiyonları bilir hale geliyoruz ve A’nın üretildiği hızda tüketildiğini kabul ettiğimiz için aşağıdaki diferensiyel denklemi yazabiliyoruz:
 
-![](http://rsgturkey.com/wp-content/uploads/2020/06/dAdt.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197109/rsgturkey/06/dAdt.png)
 
 Diğer bir deyişle, yukarıdaki denklemi yazarak hücre içerisinde A metabolitinin birikmeyeceğini kararlaştırmış olduk. Aynı denklemi B ve C metabolitleri için de yazarsak, 3 metabolit ve 7 reaksiyonlu bu diferensiyel denklemleri doğrusal denklem sistemi halinde ifade edebiliriz:
 
-![](http://rsgturkey.com/wp-content/uploads/2020/06/sleq-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197163/rsgturkey/06/sleq-1.png)
 
 İfade ettiğimiz doğrusal denklem sistemini biraz daha açıklayalım: Oluşturduğumuz matrikste reaksiyonların stokiyometrik katsayılarını barındırıyoruz, bu matrikse “S matriksi” diyeceğiz. S matriksinin her bir sütunu tek bir reaksiyonu temsil ederken bu reaksiyona katılan metabolitler arasındaki bağlantılar hakkında bize bilgi verdiğini görebiliyoruz. Benzer şekilde, S matriksinin her bir satırı ise, bir metabolitin katıldığı tüm reaksiyonlar hakkında bilgi veriyor.  S matriksinin yanında gördüğümüz vektör ise bizim flux (akı) vektörümüz, metabolitlerin konsantrasyon değişikliklerini barındırıyor. Diğer bir deyişle, flux vektörü her metabolitin zamana bağlı akış hızını temsil ediyor.
 
@@ -44,7 +44,7 @@ Flux Balance Analizi (FBA), hücrelerin bir amaca doğru hayatlarını optimize 
 Matematiksel olarak anlatmak gerekirse, FBA aşağıdaki doğrusal problemi çözmeye çalışır:
 
 ![A picture containing clock, meter
-Description automatically generated](http://rsgturkey.com/wp-content/uploads/2020/06/fba.png)
+Description automatically generated](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197159/rsgturkey/06/fba.png)
 
 Bu denklemlerde **c** objektif fonksiyon vektörü, **v** flux vektörü ve **S** stokiyometrik matrikstir. Flux vektörünü sınırlayan **vlb** ve **vub** vektörleri, her bir fluxın alabileceği minimum (lower bound) ve maksimum (upper bound) değeri kısıtlayan vektörlerdir.
 

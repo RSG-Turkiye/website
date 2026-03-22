@@ -8,7 +8,7 @@ youtubeUrl: ""
 slidesUrl: ""
 year: 2021
 type: "bioinfonet"
-image: "https://rsgturkey.com/wp-content/uploads/2021/06/baris_480.jpg"
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197082/rsgturkey/06/baris_480.jpg"
 ---
 
 **Presenter**

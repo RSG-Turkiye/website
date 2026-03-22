@@ -12,4 +12,4 @@ draft: false
 
 [**GO TO THE PAGE OF THE STUDENT SYMPOSIUM 2019**](http://symposium.rsgturkey.com/)
 
-![](https://rsgturkey.com/wp-content/uploads/2021/03/SS2019_Poster_Yatay-1024x724.jpg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196906/rsgturkey/03/SS2019_Poster_Yatay-1024x724.jpg)

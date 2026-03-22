@@ -58,7 +58,7 @@ Type the target (gene) name to the NCBI“Search” box. For the sake of this tu
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197056/rsgturkey/07/image1.png)
 
 <figcaption>
 
@@ -72,7 +72,7 @@ You will see different options after click search. These are either the correspo
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image2.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197012/rsgturkey/07/image2.png)
 
 <figcaption>
 
@@ -86,7 +86,7 @@ You can find various information about the target gene here. To exemplify, exoni
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image4-1024x184.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196985/rsgturkey/07/image4-1024x184.png)
 
 <figcaption>
 
@@ -100,7 +100,7 @@ When you scroll down little bit, you can see all the transcripts (_the expressed
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image5.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197018/rsgturkey/07/image5.png)
 
 <figcaption>
 
@@ -114,7 +114,7 @@ Let's see the details of relevant mRNA of the gene simply from NCBI-Nucleotide i
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/07/image6-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197009/rsgturkey/07/image6-1.png)
 
 <figcaption>
 
@@ -132,7 +132,7 @@ If you have chosen "Pick Primer", this will lead you to the page below:
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196759/rsgturkey/08/image.png)
 
 <figcaption>
 
@@ -159,7 +159,7 @@ You can always use “**advanced parameters**” if you know what you are doing 
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-1.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196731/rsgturkey/08/image-1.png)
 
 <figcaption>
 
@@ -175,7 +175,7 @@ Let's wait little bit after the submission.
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-2.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196676/rsgturkey/08/image-2.png)
 
 <figcaption>
 
@@ -189,7 +189,7 @@ In the next window, you will see the region your primer pairs will be amplifying
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image10-1024x249.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196695/rsgturkey/08/image10-1024x249.png)
 
 <figcaption>
 
@@ -209,7 +209,7 @@ Even if they seem okay, we need to look them in detail.
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-3.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196737/rsgturkey/08/image-3.png)
 
 <figcaption>
 
@@ -237,7 +237,7 @@ The home page of Primer3 is [here](https://bioinfo.ut.ee/primer3/). As a next st
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-4.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196686/rsgturkey/08/image-4.png)
 
 <figcaption>
 
@@ -251,7 +251,7 @@ Here, you have similar parameters (e.g. primer size, target size, GC %, minimum-
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-5.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196721/rsgturkey/08/image-5.png)
 
 <figcaption>
 
@@ -265,7 +265,7 @@ Click “pick primers” after adjusting the parameters based on your need:
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-6.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196692/rsgturkey/08/image-6.png)
 
 <figcaption>
 
@@ -281,7 +281,7 @@ When you scroll down, you can see 9 primer pair candidates that suit with the pa
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-7.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196771/rsgturkey/08/image-7.png)
 
 <figcaption>
 
@@ -301,7 +301,7 @@ Before setting up qPCR for the primers or ordering them for qPCR, it is better t
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-9.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196735/rsgturkey/08/image-9.png)
 
 <figcaption>
 
@@ -319,7 +319,7 @@ If the primers are not specific and amplify other sequences than the targets (_m
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-10.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196674/rsgturkey/08/image-10.png)
 
 <figcaption>
 
@@ -333,7 +333,7 @@ It would be better to choose the latest assembly of human genome for more accura
 
 <figure>
 
-![](https://rsgturkey.com/wp-content/uploads/2020/08/image-11.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196784/rsgturkey/08/image-11.png)
 
 <figcaption>
 

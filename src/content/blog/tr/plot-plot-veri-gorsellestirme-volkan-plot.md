@@ -30,7 +30,7 @@ Artan/azalan gen ifadesi ve bunun p-değerlerini bir grafikte göstermek istedin
 
 _Soru:_ _İ__statistiksel olarak önemli kaç/hangi gen fark yaratt_ı? _Herhangi bir trend var mı?_
 
-![](http://rsgturkey.com/wp-content/uploads/2020/05/EYexTJeUwAAp033.jpg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196640/rsgturkey/05/EYexTJeUwAAp033.jpg)
 
 Kendi tezimden bir volkano plot görseli, örnek olarak konulmuştur (Plotta ifade edilen verinin detayı için tezimi okumanızı öneririm). log2FC için sınır değeri **0.5849** seçilmişken, dikey nokta nokta çizgiye karşılık gelen değer; p değeri için sınır değeri **0.05** seçilmiştir, yatay eksendeki nokta nokta çizginin karşılık geldiği değer).
 

@@ -14,7 +14,7 @@ Bir baska eglenceli RSG Turkey etkinligini arkada birakirken, yeni arkadaslarimi
 
 28 - 30 Haziran tarihleri arasinda duzenlenen HIBIT 2017’ye ([http://hibit2017.ii.metu.edu.tr/](http://hibit2017.ii.metu.edu.tr/)) uydu toplanti olarak gerceklestirdigimiz RSG Turkey sempozyumumuz oldukca iyi bir katilimla sonlandi. 28 Haziran’da harika bir etkinlik olarak baslayan HIBIT’17, 3 gun boyunca gerek davetli, gerek secilen konusmalari ve poster sunumlariyla bizlere iyi kalitede bir bilimsel etkinlik zevkini yasatirken, 30 Haziran’da gerceklestirdigimiz ogrenci sempozyumumuz sayesinde daha sicak bir ortamda, ogrencilere yonelik yonlendirici / motivasyon icerikli konusmalar ve tanisma oturumumuz sayesinde birbirimizi daha iyi tanidik, ileriye yonelik calismalarimiz icin moral bulduk ve belki de olasi kolaboratif calismalarin temelini attik.
 
-![badge](http://rsgturkey.com/wp-content/uploads/2017/07/badge.png)
+![badge](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197007/rsgturkey/07/badge.png)
 
 28 Haziran’dan itibaren HIBIT organizasyon komitesinin bize sagladigi destek sayesinde kayit masasinda yerimizi bulduk ve bir cok yeni arkadasla tanisma firsati elde ettik. Bu sirada grubumuzdan Cansu Dincer & Zeynep Ozkeserli ortaklasmasinin ortaya cikardigi RSG Turkey rozetlerimizi dagitmayi da ihmal etmedik tabii!
 
@@ -30,15 +30,15 @@ En iyi poster odulu: Handan Melike Donertas - Drug Repurposing for Ageing: A Con
 
 30 Haziran’da konferansimiz Ugur Sezerman tarafindan verilen motive edici konusma ile basladi. Konusmasinda hesaplamali biyoloji ve biyoenformatigin uygulama alanlarina kendi grubundan orneklerle yer veren Ugur Hoca’miz, ‘you can go where no man has gone before, sky is the limit!’ diyerek konusmasini bitirdi. Genc biyoenformatikci adaylar icin oldukca motive edici bir konusma oldu!
 
-![ugursezerman](http://rsgturkey.com/wp-content/uploads/2017/07/ugursezerman.png)
+![ugursezerman](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197002/rsgturkey/07/ugursezerman.png)
 
 Etkinligimiz, gonullu arkadaslarimizin kisaca kendilerini ve ilgilendikleri calismalari tanittiklari oturumla devam etti. Bu sayede ortak ilgi alanlarimizi kesfettik, gelecekte calismalarimizi daha detayli tartismak uzere sozlestik.
 
-![scienceslam.png](http://rsgturkey.com/wp-content/uploads/2017/07/scienceslam.png)
+![scienceslam.png](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197050/rsgturkey/07/scienceslam.png)
 
 Sonrasinda bizim icin cok degerli olan bir baska konusma ile devam ettik. Emre Guney - ‘Should I stay or should I go, NOW?’ Isimli konusmasiyla bizimle kendi deneyimlerini paylasti ve bu deneyimlerinden hareketle onerilerde bulundu. Bu konusma sadece iceriginin bizler icin cok onemli olmasi nedeniyle degil ayni zamanda Emre Guney'in grubumuzun kurucularindan biri olmasi nedeniyle de cok degerliydi.
 
-\[caption id="attachment\_219" align="aligncenter" width="640"\]![Emre Guney](http://rsgturkey.com/wp-content/uploads/2017/07/emre.png) Doing what you love is freedom, Loving what you do is happiness\[/caption\]
+\[caption id="attachment\_219" align="aligncenter" width="640"\]![Emre Guney](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197015/rsgturkey/07/emre.png) Doing what you love is freedom, Loving what you do is happiness\[/caption\]
 
 Grubumuz her gecen gun buyuyup ve Turkiye Hesaplamali Biyoloji Camiasinda yerini edinirken, HIBIT gibi organizasyonlar ve organizasyon komitelerinin destegi sayesinde grubumuzun amaclarini saglamaya daha da yaklasiyoruz.
 

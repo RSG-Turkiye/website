@@ -47,4 +47,4 @@ Mülakatı geçtiniz, istediğiniz laboratuvar ile anlaştınız, peki hangi oku
 
 Değinmek istediğim son konu ise program maaş sağlıyor mu? Evet, doktora süreciniz boyunca maaş alıyorsunuz. Son olarak dediğim gibi, bu bilgiler her sene değişebilir/güncellenebilir o yüzden lütfen kontrol ediniz. Yazıyı mülakat sürecinde çektiğim bir fotoğraf ile kapatmak istiyorum 🙂 Eğer başvurmayı düşünürseniz, şimdiden bol şanslar!
 
-![](http://rsgturkey.com/wp-content/uploads/2020/03/DSC_0060_1-1024x576.jpg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196873/rsgturkey/03/DSC_0060_1-1024x576.jpg)
