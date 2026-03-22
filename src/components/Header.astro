@@ -33,15 +33,6 @@ const prefix = lang === 'tr' ? '/tr' : '';
         </div>
       </div>
 
-      <!-- Events dropdown -->
-      <div class="relative group">
-        <a href={`${prefix}/events`} class="nav-link">{t('nav.events')}</a>
-        <div class="dropdown-menu">
-          <a href={`${prefix}/events#symposiums`} class="dropdown-item">{lang === 'tr' ? 'Sempozyumlar' : 'Symposiums'}</a>
-          <a href={`${prefix}/events#workshops`} class="dropdown-item">{lang === 'tr' ? 'Atölyeler' : 'Workshops'}</a>
-        </div>
-      </div>
-
       <a href={`${prefix}/resources`} class="nav-link">{t('nav.resources')}</a>
     </nav>
 
@@ -73,7 +64,6 @@ const prefix = lang === 'tr' ? '/tr' : '';
     <a href={`${prefix}/about`} class="mobile-link">{t('nav.about')}</a>
     <a href={`${prefix}/blog`} class="mobile-link">{t('nav.blog')}</a>
     <a href={`${prefix}/webinars`} class="mobile-link">{t('nav.webinars')}</a>
-    <a href={`${prefix}/events`} class="mobile-link">{t('nav.events')}</a>
     <a href={`${prefix}/resources`} class="mobile-link">{t('nav.resources')}</a>
     <a href={`${prefix}/join`} class="mt-3 flex items-center justify-center px-4 py-2 rounded bg-red text-white text-sm font-medium no-underline">
       {t('nav.join')}

@@ -69,11 +69,15 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
           <p class="text-sm text-gray-500 leading-relaxed mb-4">{t('contentCards.webinar.description')}</p>
           <a href="/tr/webinars" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">{t('contentCards.webinar.button')} →</a>
         </div>
-        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors">
-          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red mb-4">Etkinlik</span>
-          <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.events.title')}</h3>
-          <p class="text-sm text-gray-500 leading-relaxed mb-4">{t('contentCards.events.description')}</p>
-          <a href="/tr/events" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">{t('contentCards.events.button')} →</a>
+        <!-- Events card (live calendar) -->
+        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
+          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red mb-4 self-start">Etkinlik</span>
+          <div id="calendarCard" class="flex-1 flex flex-col">
+            <div class="flex flex-col gap-2 animate-pulse">
+              <div class="h-3 bg-navy/10 rounded w-3/4"></div>
+              <div class="h-3 bg-navy/10 rounded w-1/2"></div>
+            </div>
+          </div>
         </div>
         <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors">
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red mb-4">Blog</span>
@@ -98,3 +102,60 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
   </section>
 
 </BaseLayout>
+
+<script>
+  const CALENDAR_ID = 'itclr7bftj9s33vus9ct47d4v0@group.calendar.google.com';
+  const API_KEY = import.meta.env.PUBLIC_GOOGLE_CALENDAR_API_KEY;
+  const card = document.getElementById('calendarCard')!;
+
+  const SOCIALS = [
+    { label: 'Twitter', url: 'https://twitter.com/rsgturkey' },
+    { label: 'Instagram', url: 'https://instagram.com/rsgturkey' },
+    { label: 'LinkedIn', url: 'https://linkedin.com/company/rsgturkey' },
+  ];
+
+  function emptyState() {
+    const links = SOCIALS.map(s =>
+      `<a href="${s.url}" target="_blank" rel="noopener noreferrer"
+        class="text-xs text-navy-mid hover:text-navy transition-colors no-underline">${s.label}</a>`
+    ).join('<span class="text-gray-300">·</span>');
+    card.innerHTML = `
+      <p class="text-sm font-semibold text-navy mb-1">Yakında yeni etkinlikler planlanıyor!</p>
+      <p class="text-xs text-gray-500 mb-4">Haberdar olmak için bizi takip edin</p>
+      <div class="flex items-center gap-2 flex-wrap">${links}</div>`;
+  }
+
+  async function loadCalendar() {
+    if (!API_KEY) { emptyState(); return; }
+
+    const now = new Date().toISOString();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&orderBy=startTime&singleEvents=true&timeMin=${now}&maxResults=2`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const items: any[] = data.items || [];
+
+      if (items.length === 0) { emptyState(); return; }
+
+      const html = items.map(ev => {
+        const start = ev.start?.dateTime || ev.start?.date || '';
+        const dateStr = start
+          ? new Date(start).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '';
+        return `
+          <div class="mb-3 last:mb-0">
+            <p class="text-sm font-semibold text-navy leading-snug">${ev.summary || ''}</p>
+            ${dateStr ? `<p class="text-xs text-gray-400 mt-0.5">${dateStr}</p>` : ''}
+          </div>`;
+      }).join('');
+
+      card.innerHTML = `${html}<a href="/tr/events" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-2 inline-block">Tüm etkinlikler →</a>`;
+    } catch {
+      emptyState();
+    }
+  }
+
+  loadCalendar();
+</script>
