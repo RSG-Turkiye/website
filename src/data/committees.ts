@@ -30,7 +30,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Emre Taha Çevik",
         role: "President",
-        image: "/public/images/committee-members/emrecevik.png",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199905/rsgturkey/committee/emre-taha-cevik.png",
         education: [
           {
             degree: 'MSc',
@@ -46,7 +46,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Gizem Beyza Anık",
         role: "Vice President",
-        image: "/public/images/committee-members/gizembeyza.jpg",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199906/rsgturkey/committee/gizem-beyza-anik.jpg",
         education: [
           {
             degree: 'Graduated',
@@ -62,7 +62,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Sude Karaoğlan",
         role: "Secretary",
-        image: "/public/images/committee-members/sudekaraoglan.jpg",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199910/rsgturkey/committee/sude-karaoglan.jpg",
         education: [
           {
             degree: 'Undergraduate',
@@ -84,7 +84,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Ezgi Gokce",
         role: "Webinar Leader",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199910/rsgturkey/committee/ezgi-gokce.jpg",
       },
     ],
   },
@@ -95,7 +95,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Mariam Aseyakhe",
         role: "Outreach Leader",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199912/rsgturkey/committee/mariam-aseyakhe.jpg",
       },
     ],
   },
@@ -106,7 +106,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Zeynep Ateşgil",
         role: "Social Media Leader",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.heic",
       },
     ],
   },
@@ -117,7 +117,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Gökçe Koçak",
         role: "Sponsorship Leader",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199950/rsgturkey/committee/gokce-kocak.jpg",
       },
     ],
   },
@@ -128,7 +128,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Kurayi Chawatama",
         role: "Translation Leader",
-        image: "/public/images/committee-members/kurayichawatama.png",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199953/rsgturkey/committee/kurayi-chawatama.png",
         education: [
           {
             degree: 'Undergraduate',
@@ -150,7 +150,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Hilal Kınalı",
         role: "Website Leader",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199962/rsgturkey/committee/hilal-kinali.jpg",
       },
     ],
   },
@@ -161,7 +161,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Ayşe Akkan",
         role: "Graphic Design Leader",
-        image: "/public/images/committee-members/ayseakkan.jpg",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199964/rsgturkey/committee/ayse-akkan.jpg",
         education: [
           {
             degree: 'Undergraduate',
@@ -187,7 +187,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Emre Taha Çevik",
         role: "Başkan",
-        image: "/public/images/committee-members/emrecevik.png",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199905/rsgturkey/committee/emre-taha-cevik.png",
         education: [
           {
             degree: 'Yüksek Lisans',
@@ -202,7 +202,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Gizem Beyza Anık",
         role: "Başkan Yardımcısı",
-        image: "/public/images/committee-members/gizembeyza.jpg",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199906/rsgturkey/committee/gizem-beyza-anik.jpg",
         education: [
           {
             degree: 'Mezun',
@@ -217,7 +217,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Sude Karaoğlan",
         role: "Sekreter",
-        image: "/public/images/committee-members/sudekaraoglan.jpg",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199910/rsgturkey/committee/sude-karaoglan.jpg",
         education: [
           {
             degree: 'Lisans',
@@ -238,7 +238,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Ezgi Gokce",
         role: "Webinar Ekibi Lideri",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199910/rsgturkey/committee/ezgi-gokce.jpg",
       },
     ],
   },
@@ -249,7 +249,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Mariam Aseyakhe",
         role: "Topluluk İlişkileri Ekibi Lideri",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199912/rsgturkey/committee/mariam-aseyakhe.jpg",
       },
     ],
   },
@@ -260,7 +260,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Zeynep Ateşgil",
         role: "Sosyal Medya Ekibi Lideri",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.heic",
       },
     ],
   },
@@ -271,7 +271,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Gökçe Koçak",
         role: "Sponsorluk Ekibi Lideri",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199950/rsgturkey/committee/gokce-kocak.jpg",
       },
     ],
   },
@@ -282,7 +282,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Kurayi Chawatama",
         role: "Çeviri Ekibi Lideri",
-        image: "/public/images/committee-members/kurayichawatama.png",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199953/rsgturkey/committee/kurayi-chawatama.png",
         education: [
           {
             degree: 'Lisans',
@@ -303,7 +303,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Hilal Kınalı",
         role: "Web Sitesi Ekibi Lideri",
-        image: "",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199962/rsgturkey/committee/hilal-kinali.jpg",
       },
     ],
   },
@@ -314,7 +314,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Ayşe Akkan",
         role: "Grafik Tasarım Ekibi Lideri",
-        image: "/public/images/committee-members/ayseakkan.jpg",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199964/rsgturkey/committee/ayse-akkan.jpg",
         education: [
           {
             degree: 'Lisans',
