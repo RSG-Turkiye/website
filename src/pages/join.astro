@@ -3,6 +3,25 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 const pageTitle = "Join Us - RSG Turkey";
 
+const faqs = [
+  {
+    q: "How can I join RSG Turkey?",
+    a: "Anyone interested in computational biology and bioinformatics is welcome to join. Fill out the membership form above or reach out to us at turkey.rsg@gmail.com.",
+  },
+  {
+    q: "Are your events open to international participants?",
+    a: "Yes! Many of our events, especially webinars, are open to international participants. We welcome collaboration and participation from researchers worldwide.",
+  },
+  {
+    q: "How can I stay updated about upcoming events?",
+    a: "Follow us on Twitter, LinkedIn, or YouTube, or check this website regularly for event announcements.",
+  },
+  {
+    q: "Can I propose a webinar or workshop topic?",
+    a: "Absolutely! We welcome suggestions for webinar topics and workshop themes. Contact us at turkey.rsg@gmail.com with your proposal.",
+  },
+];
+
 const benefits = [
   { title: 'International Network', desc: 'Connect with researchers worldwide through ISCB Student Council affiliation' },
   { title: 'Learning Opportunities', desc: 'Access to webinars, workshops, and educational resources' },
@@ -56,6 +75,30 @@ const benefits = [
           </iframe>
         </div>
 
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="bg-[#F7F7F6] py-14 border-t border-border">
+    <div class="max-w-2xl mx-auto px-6">
+      <h2 class="text-xl font-semibold text-navy text-center mb-8">Frequently Asked Questions</h2>
+      <div class="flex flex-col gap-2">
+        {faqs.map((faq) => (
+          <div class="bg-white border border-border rounded-lg overflow-hidden">
+            <button
+              class="w-full flex justify-between items-center px-5 py-4 text-left text-sm font-medium text-navy hover:bg-navy-light transition-colors"
+              aria-expanded="false"
+              onclick="const b=this.nextElementSibling;const open=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!open));b.style.display=open?'none':'block'"
+            >
+              {faq.q}
+              <span class="text-xl font-light text-gray-400 ml-4 shrink-0">+</span>
+            </button>
+            <div class="px-5 pb-4 text-sm text-gray-600 leading-relaxed" style="display:none;">
+              {faq.a}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   </section>

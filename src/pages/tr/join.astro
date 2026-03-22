@@ -3,6 +3,25 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
 const pageTitle = "Bize Katıl - RSG Türkiye";
 
+const faqs = [
+  {
+    q: "RSG Türkiye'ye nasıl katılabilirim?",
+    a: "Hesaplamalı biyoloji ve biyoinformatik ile ilgilenen herkes topluluğumuza katılabilir. Yukarıdaki üyelik formunu doldurun veya turkey.rsg@gmail.com adresinden bize ulaşın.",
+  },
+  {
+    q: "Etkinlikleriniz uluslararası katılımcılara açık mı?",
+    a: "Evet! Etkinliklerimizin çoğu, özellikle webinarlar, uluslararası katılımcılara açıktır. Dünyanın dört bir yanından araştırmacıların katılımını memnuniyetle karşılıyoruz.",
+  },
+  {
+    q: "Yaklaşan etkinliklerden nasıl haberdar olabilirim?",
+    a: "Twitter, LinkedIn veya YouTube'da bizi takip edebilir ya da etkinlik duyuruları için bu web sitesini düzenli olarak ziyaret edebilirsiniz.",
+  },
+  {
+    q: "Webinar veya atölye konusu önerebilir miyim?",
+    a: "Kesinlikle! Webinar konuları ve atölye temaları için önerilerinizi bekliyoruz. Teklifinizle birlikte turkey.rsg@gmail.com adresinden bize ulaşın.",
+  },
+];
+
 const benefits = [
   { title: 'Uluslararası Ağ', desc: 'ISCB Öğrenci Konseyi bağlantısı ile dünya çapında araştırmacılarla bağlantı kurun' },
   { title: 'Öğrenme Fırsatları', desc: 'Webinarlara, atölyelere ve eğitim kaynaklarına erişim' },
@@ -56,6 +75,30 @@ const benefits = [
           </iframe>
         </div>
 
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="bg-[#F7F7F6] py-14 border-t border-border">
+    <div class="max-w-2xl mx-auto px-6">
+      <h2 class="text-xl font-semibold text-navy text-center mb-8">Sıkça Sorulan Sorular</h2>
+      <div class="flex flex-col gap-2">
+        {faqs.map((faq) => (
+          <div class="bg-white border border-border rounded-lg overflow-hidden">
+            <button
+              class="w-full flex justify-between items-center px-5 py-4 text-left text-sm font-medium text-navy hover:bg-navy-light transition-colors"
+              aria-expanded="false"
+              onclick="const b=this.nextElementSibling;const open=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!open));b.style.display=open?'none':'block'"
+            >
+              {faq.q}
+              <span class="text-xl font-light text-gray-400 ml-4 shrink-0">+</span>
+            </button>
+            <div class="px-5 pb-4 text-sm text-gray-600 leading-relaxed" style="display:none;">
+              {faq.a}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   </section>
