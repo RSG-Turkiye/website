@@ -11,13 +11,15 @@ const allWebinars = await getCollection('webinars');
 const enWebinars = allWebinars.filter(w => w.id.startsWith('en/'));
 const sortedWebinars = enWebinars.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
-const speakerMap = new Map<string, { name: string; slug: string }>();
+const speakerMap = new Map<string, { name: string; slug: string; photo: string }>();
 enWebinars
   .filter(w => w.data.speaker)
   .forEach(w => {
     const key = w.data.speaker!.trim().toLowerCase();
-    if (!speakerMap.has(key)) {
-      speakerMap.set(key, { name: w.data.speaker!, slug: w.id.slice(3) });
+    const existing = speakerMap.get(key);
+    const photo = w.data.speakerPhoto || '';
+    if (!existing || (!existing.photo && photo)) {
+      speakerMap.set(key, { name: w.data.speaker!, slug: w.id.slice(3), photo });
     }
   });
 const speakers = Array.from(speakerMap.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -123,7 +125,10 @@ function initials(name: string) {
                     data-name={s.name}
                     aria-label={s.name}
                   >
-                    {initials(s.name)}
+                    {s.photo
+                      ? <img src={s.photo} alt={s.name} class="w-full h-full object-cover" />
+                      : initials(s.name)
+                    }
                   </a>
                 ))}
               </div>
@@ -145,7 +150,8 @@ function initials(name: string) {
     justify-content: center;
     width: 36px;
     height: 36px;
-    border-radius: 50%;
+    border-radius: 8px;
+    overflow: hidden;
     background-color: #1a2744;
     color: white;
     font-size: 11px;

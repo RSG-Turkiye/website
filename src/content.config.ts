@@ -40,6 +40,7 @@ const webinars = defineCollection({
     speaker: z.string(),
     speakerAffiliation: z.string().default(""),
     speakerTitle: z.string().default(""),
+    speakerPhoto: z.string().default(""),
     description: z.string(),
     youtubeUrl: z.string().default(""),
     slidesUrl: z.string().default(""),
