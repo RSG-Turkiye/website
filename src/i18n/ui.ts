@@ -183,7 +183,7 @@ export const ui = {
     
     // Webinars Page
     'webinars.title': 'Webinars',
-    'webinars.subtitle': 'Our ongoing webinar project on Bioinfonet shares knowledge with the community, featuring experts from around the world.',
+    'webinars.subtitle': 'Talks and seminars featuring experts from around the world, open to everyone.',
     'webinars.bioinfonet.title': 'Bioinfonet Project',
     'webinars.bioinfonet.description': 'Bioinfonet project is an ISCB Student Council supported webinar project.',
     'webinars.bioinfonet.detail': 'Our main aim is to build bridges between bioinformatics professionals and young bioinformatics students, mainly who live in developing countries and have difficulty joining the aura of international conferences and workshops.',
@@ -433,7 +433,7 @@ export const ui = {
     
     // Webinars Page
     'webinars.title': 'Webinarlar',
-    'webinars.subtitle': 'Bioinfonet üzerindeki devam eden webinar projemiz, dünyanın dört bir yanından uzmanları içeren toplulukla bilgi paylaşır.',
+    'webinars.subtitle': 'Dünyanın dört bir yanından uzmanların katıldığı, herkese açık konuşmalar ve seminerler.',
     'webinars.bioinfonet.title': 'Bioinfonet Projesi',
     'webinars.bioinfonet.description': 'Bioinfonet projesi, ISCB Öğrenci Konseyi tarafından desteklenen bir webinar projesidir.',
     'webinars.bioinfonet.detail': 'Ana amacımız, özellikle gelişmekte olan ülkelerde yaşayan ve uluslararası konferans ve atölye çalışmalarına katılmakta zorluk yaşayan biyoinformatik profesyonelleri ile genç biyoinformatik öğrencileri arasında köprüler kurmaktır.',
