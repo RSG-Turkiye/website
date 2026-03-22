@@ -1,0 +1,107 @@
+name: Translation Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/content/blog/**
+      - src/content/webinars/**
+
+jobs:
+  check:
+    name: Check for missing translations
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check translations and comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            const added = files
+              .filter(f => f.status === 'added')
+              .map(f => f.filename);
+
+            const missing = [];
+
+            for (const file of added) {
+              const enMatch = file.match(/^src\/content\/(blog|webinars)\/en\/(.+\.md)$/);
+              const trMatch = file.match(/^src\/content\/(blog|webinars)\/tr\/(.+\.md)$/);
+
+              if (enMatch) {
+                const counterpart = `src/content/${enMatch[1]}/tr/${enMatch[2]}`;
+                if (added.includes(counterpart)) continue;
+                try {
+                  await github.rest.repos.getContent({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    path: counterpart,
+                  });
+                } catch {
+                  missing.push({ added: file, missing: counterpart, lang: 'Turkish' });
+                }
+              } else if (trMatch) {
+                const counterpart = `src/content/${trMatch[1]}/en/${trMatch[2]}`;
+                if (added.includes(counterpart)) continue;
+                try {
+                  await github.rest.repos.getContent({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    path: counterpart,
+                  });
+                } catch {
+                  missing.push({ added: file, missing: counterpart, lang: 'English' });
+                }
+              }
+            }
+
+            if (missing.length === 0) return;
+
+            // Avoid duplicate comments on re-runs
+            const marker = '<!-- translation-check-bot -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+
+            const lines = missing.map(m =>
+              `- **Added:** \`${m.added}\`\n  **Missing:** \`${m.missing}\` (${m.lang} version)`
+            ).join('\n');
+
+            const body = `${marker}
+
+## Missing Translation
+
+This PR adds content without a matching translation in the other language:
+
+${lines}
+
+This is not a blocker — you can merge and add the translation in a follow-up PR. Just making sure it's on the Translation Committee's radar!`;
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
