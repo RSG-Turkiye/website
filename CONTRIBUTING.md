@@ -23,7 +23,7 @@ This guide is for members of the **website committee** and **translation committ
 You need Git and Node.js installed. Clone the repo and install dependencies:
 
 ```bash
-git clone https://github.com/<org>/website.git
+git clone https://github.com/RSG-Turkiye/website.git
 cd website
 npm install
 npm run dev          # visit http://localhost:4321 to preview
@@ -288,7 +288,7 @@ Once merged into `main`, Netlify automatically rebuilds and deploys the site wit
 | `topic` | No | string | Topic badge shown on the page |
 | `keyTakeaways` | No | list | Bullet list of learning outcomes |
 | `year` | Yes | number | Year of the webinar |
-| `type` | Yes | string | `bioinfonet` or `student` |
+| `type` | Yes | string | `rsg` for RSG Turkey webinars, `bioinfonet` for older Bioinfonet series, `student` for student webinars |
 
 ---
 
