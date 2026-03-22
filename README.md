@@ -4,6 +4,11 @@ Official website of [RSG Turkey](https://rsgturkey.com) — the ISCB Regional St
 
 Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcss.com). Deployed automatically via Netlify on every push to `main`.
 
+| | |
+|---|---|
+| **Production** | [rsgturkey.com](https://rsgturkey.com) |
+| **Preview / Debug** | [rsg-turkiye-website.netlify.app](https://rsg-turkiye-website.netlify.app) |
+
 ---
 
 ## Tech Stack
