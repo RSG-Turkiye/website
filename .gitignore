@@ -24,3 +24,5 @@ pnpm-debug.log*
 .idea/
 rsgturkey.WordPress.2026-03-22.xml
 wp-import/
+wp-image-urls.txt
+wp-images/
