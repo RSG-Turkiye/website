@@ -3,14 +3,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 const pageTitle = "Kaynaklar - RSG Türkiye";
 
 const sections = [
-  { id: "learning",   label: "Öğrenme" },
-  { id: "md-drug",    label: "MD & İlaç Tasarımı" },
-  { id: "databases",  label: "Veritabanları" },
-  { id: "tools",      label: "Araçlar & Yazılımlar" },
-  { id: "community",  label: "Topluluk" },
+  { id: "learning",  label: "Öğrenme" },
+  { id: "md-drug",   label: "MD & İlaç Tasarımı" },
+  { id: "databases", label: "Veritabanları" },
+  { id: "tools",     label: "Araçlar & Yazılımlar" },
+  { id: "community", label: "Topluluk" },
 ];
 
-const learningResources = [
+type Resource = { title: string; description: string; url: string; tags: string[]; opensource: boolean };
+
+const learningResources: Resource[] = [
   { title: "Rosalind", description: "Problem çözerek biyoinformatik öğrenin. Python, algoritmalar ve klasik biyoinformatik problemlerini interaktif olarak kapsar.", url: "https://rosalind.info", tags: ["başlangıç", "algoritmalar", "python"], opensource: false },
   { title: "OSSU Bioinformatics", description: "Kapsamlı bir biyoinformatik eğitimi için ücretsiz, açık kaynaklı ve kendi hızınızda ilerleyebileceğiniz müfredat.", url: "https://github.com/ossu/bioinformatics", tags: ["müfredat", "kendi-hızında"], opensource: true },
   { title: "EMBL-EBI Eğitim", description: "Avrupa Biyoinformatik Enstitüsü'nden biyoinformatik, genomik, proteomik ve veri analizi alanlarında ücretsiz çevrimiçi kurslar.", url: "https://www.ebi.ac.uk/training", tags: ["kurslar", "genomik", "proteomik"], opensource: false },
@@ -22,28 +24,29 @@ const learningResources = [
   { title: "Bioinformatics Specialization (Coursera)", description: "Pavel Pevzner ve Phillip Compeau'nun (UC San Diego) hazırladığı, algoritmaları ve dizi analizini kapsayan yedi derslik uzmanlaşma programı.", url: "https://www.coursera.org/specializations/bioinformatics", tags: ["algoritmalar", "coursera", "dizi-analizi"], opensource: false },
 ];
 
-const mdResources = [
+const mdResources: Resource[] = [
   { title: "GROMACS Eğitimleri (Lemkul)", description: "Justin Lemkul'un en yaygın kullanılan GROMACS eğitim serisi. Protein-ligand sistemleri, membranlar, serbest enerji hesaplamaları ve daha fazlasını kapsar.", url: "http://www.mdtutorials.com/gmx", tags: ["GROMACS", "MD", "eğitimler"], opensource: true },
   { title: "NAMD Eğitimleri (UIUC)", description: "Illinois Üniversitesi Teorik ve Hesaplamalı Biyofizik Grubu'nun resmi NAMD eğitimleri. Dengeleme, yönlendirilmiş MD, serbest enerji ve daha fazlasını kapsar.", url: "https://www.ks.uiuc.edu/Training/Tutorials", tags: ["NAMD", "MD", "eğitimler"], opensource: true },
-  { title: "CHARMM-GUI", description: "Karmaşık biyomoleküler sistemler oluşturmak için web tabanlı platform. GROMACS, NAMD, AMBER, CHARMM ve diğer MD motorları için çalışmaya hazır girdi dosyaları üretir.", url: "https://www.charmm-gui.org", tags: ["sistem-oluşturucu", "GROMACS", "NAMD", "AMBER"], opensource: false },
-  { title: "TeachOpenCADD", description: "Jupyter notebook tabanlı bilgisayar destekli ilaç tasarımı öğretim platformu. Açık kaynaklı, Python tabanlı; ligand ve yapı tabanlı yaklaşımları kapsar.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "ilaç-tasarımı", "açık-kaynak"], opensource: true },
+  { title: "CHARMM-GUI", description: "Karmaşık biyomoleküler sistemler oluşturmak için web tabanlı platform. GROMACS, NAMD, AMBER ve CHARMM için çalışmaya hazır girdi dosyaları üretir.", url: "https://www.charmm-gui.org", tags: ["sistem-oluşturucu", "GROMACS", "NAMD", "AMBER"], opensource: false },
+  { title: "TeachOpenCADD", description: "Jupyter notebook tabanlı bilgisayar destekli ilaç tasarımı öğretim platformu. Açık kaynaklı, Python tabanlı; ligand ve yapı tabanlı yaklaşımları kapsar.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "ilaç-tasarımı", "jupyter"], opensource: true },
   { title: "Galaxy ile Moleküler Dinamik", description: "MD simülasyon analizi için Galaxy tabanlı iş akışları — GROMACS, MDAnalysis ve görselleştirme araçlarını tekrarlanabilir bir pipeline'da entegre eder.", url: "https://usegalaxy.eu/workflows", tags: ["galaxy", "GROMACS", "tekrarlanabilir"], opensource: true },
 ];
 
-const databases = [
+const databases: Resource[] = [
   { title: "NCBI", description: "Ulusal Biyoteknoloji Bilgi Merkezi — GenBank, PubMed, BLAST, RefSeq ve daha pek çok temel veritabanının evi.", url: "https://www.ncbi.nlm.nih.gov", tags: ["genomik", "literatür", "diziler"], opensource: false },
   { title: "UniProt", description: "Swiss-Prot (küratörlü) ve TrEMBL (otomatik) bölümlerini kapsayan kapsamlı protein dizisi ve fonksiyonel açıklama veritabanı.", url: "https://www.uniprot.org", tags: ["proteinler", "açıklama"], opensource: false },
   { title: "RCSB Protein Veri Bankası (PDB)", description: "X-ışını, NMR ve kryo-EM ile belirlenen proteinlerin, nükleik asitlerin ve kompleks yapıların 3B yapısal verilerinin arşivi.", url: "https://www.rcsb.org", tags: ["protein-yapısı", "3b"], opensource: false },
   { title: "AlphaFold Protein Yapısı Veritabanı", description: "DeepMind ve EMBL-EBI tarafından üretilen, neredeyse tüm bilinen proteinler için yapay zeka tarafından tahmin edilmiş protein yapıları.", url: "https://alphafold.ebi.ac.uk", tags: ["protein-yapısı", "YZ", "tahmin"], opensource: false },
   { title: "Ensembl", description: "EMBL-EBI tarafından yönetilen, omurgalı ve model organizma genomları için genom tarayıcısı ve açıklama veritabanı.", url: "https://www.ensembl.org", tags: ["genom", "açıklama", "tarayıcı"], opensource: false },
-  { title: "GEO — Gen Ekspresyonu Omnibus", description: "Yüksek işlem hacimli gen ekspresyonu ve fonksiyonel genomik verileri (mikrodizi, RNA-seq vb.) için herkese açık depo.", url: "https://www.ncbi.nlm.nih.gov/geo", tags: ["gen-ekspresyonu", "transkriptomik"], opensource: false },
+  { title: "GEO — Gen Ekspresyonu Omnibus", description: "Yüksek işlem hacimli gen ekspresyonu ve fonksiyonel genomik verileri (mikrodizi, RNA-seq, ChIP-seq vb.) için herkese açık depo.", url: "https://www.ncbi.nlm.nih.gov/geo", tags: ["gen-ekspresyonu", "transkriptomik"], opensource: false },
   { title: "STRING", description: "Deney, metin madenciliği ve genomikten elde edilen verileri entegre eden bilinen ve tahmin edilen protein-protein etkileşim veritabanı.", url: "https://string-db.org", tags: ["protein-etkileşimleri", "ağlar"], opensource: false },
   { title: "KEGG", description: "Kyoto Genlerin ve Genomiğin Ansiklopedisi — biyolojik yollar, hastalıklar, ilaçlar ve genomlar için referans veritabanı.", url: "https://www.kegg.jp", tags: ["yollar", "metabolizma"], opensource: false },
   { title: "Human Cell Atlas", description: "Tek hücreli genomik ve uzamsal transkriptomik kullanarak insan vücudundaki her hücre tipini haritalamaya yönelik uluslararası girişim.", url: "https://www.humancellatlas.org", tags: ["tek-hücreli", "atlas", "transkriptomik"], opensource: false },
   { title: "GTEx Portalı", description: "İnsan dokularındaki gen ekspresyonu verileri ve bunları düzenleyen genetik varyantlar (eQTL'ler).", url: "https://gtexportal.org", tags: ["gen-ekspresyonu", "eQTL", "dokular"], opensource: false },
 ];
 
-const tools = [
+const tools: Resource[] = [
+  { title: "nf-core", description: "Küratörlü, hakemli Nextflow pipeline'larını bir araya getiren topluluk girişimi. RNA-seq, ChIP-seq, tek hücre, varyant çağırma ve daha fazlasını kapsayan 100+ pipeline.", url: "https://nf-co.re", tags: ["nextflow", "pipeline", "topluluk"], opensource: true },
   { title: "Galaxy Project", description: "Komut satırı gerektirmeyen, erişilebilir ve tekrarlanabilir biyoinformatik analiz için web tabanlı platform.", url: "https://usegalaxy.org", tags: ["web-platformu", "tekrarlanabilir", "başlangıç"], opensource: true },
   { title: "Bioconductor", description: "Diferansiyel ekspresyon, ChIP-seq, tek hücreli analiz ve daha fazlası için açık kaynaklı R paketleri.", url: "https://www.bioconductor.org", tags: ["R", "paketler", "genomik"], opensource: true },
   { title: "GATK", description: "Broad Enstitüsü'nün Genom Analiz Araç Seti — yüksek işlem hacimli dizileme verilerinde varyant keşfi için endüstri standardı araçlar.", url: "https://gatk.broadinstitute.org", tags: ["varyant-çağırma", "WGS", "WES"], opensource: true },
@@ -54,10 +57,18 @@ const tools = [
   { title: "IGV — Bütünleşik Genomik Görüntüleyici", description: "Genomik verilerin interaktif olarak keşfedilmesi için yüksek performanslı masaüstü ve web uygulaması.", url: "https://igv.org", tags: ["genom-tarayıcısı", "görselleştirme"], opensource: true },
 ];
 
-const community = [
+const community: Resource[] = [
   { title: "Biostars", description: "Biyoinformatik için soru-cevap forumu — göndermeden önce arayın, cevap büyük ihtimalle zaten oradadır.", url: "https://www.biostars.org", tags: ["forum", "soru-cevap"], opensource: false },
   { title: "ISCB Öğrenci Konseyi", description: "ISCB bünyesindeki, hesaplamalı biyoloji öğrencileri ve genç araştırmacılar için uluslararası organizasyon.", url: "https://www.iscb.org/iscb-student-council", tags: ["topluluk", "ağ-oluşturma"], opensource: false },
   { title: "RSG Türkiye GitHub", description: "Organizasyonumuzun GitHub sayfası — RSG Türkiye etkinliklerinden geçmiş eğitim materyalleri, scriptler ve kaynaklar.", url: "https://github.com/rsgturkey", tags: ["eğitim", "açık-kaynak"], opensource: true },
+];
+
+const allSections = [
+  { id: "learning",  label: "Öğrenme",                items: learningResources },
+  { id: "md-drug",   label: "MD & İlaç Tasarımı",     items: mdResources },
+  { id: "databases", label: "Veritabanları",           items: databases },
+  { id: "tools",     label: "Araçlar & Yazılımlar",   items: tools },
+  { id: "community", label: "Topluluk",                items: community },
 ];
 ---
 
@@ -72,146 +83,156 @@ const community = [
 
   <section class="bg-white py-12">
     <div class="max-w-7xl mx-auto px-6">
-      <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-10 items-start">
+      <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10 items-start">
 
-        <!-- Sticky sidebar nav -->
-        <nav class="hidden lg:flex flex-col gap-1 sticky top-8">
-          <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Bölümler</p>
+        <!-- Sticky sidebar -->
+        <aside class="hidden lg:flex flex-col gap-1 sticky top-8">
+          <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Bölümler</p>
           {sections.map(s => (
-            <a href={`#${s.id}`}
-              class="text-sm text-gray-600 hover:text-navy transition-colors py-1 border-l-2 border-transparent hover:border-navy pl-3 no-underline">
+            <a href={`#${s.id}`} data-nav={s.id}
+              class="nav-link text-sm text-gray-500 hover:text-navy py-1.5 border-l-2 border-transparent hover:border-navy pl-3 no-underline transition-all duration-150">
               {s.label}
             </a>
           ))}
-          <div class="mt-6 pt-4 border-t border-border">
-            <span class="inline-flex items-center gap-1.5 text-xs text-green-700 font-medium px-2 py-1 rounded bg-green-50 border border-green-200">
-              <span>✓</span> Açık Kaynak
-            </span>
-            <p class="text-xs text-gray-400 mt-1.5 leading-relaxed">Bu rozetle işaretlenmiş kaynaklar açık kaynaklı veya ücretsiz erişimlidir.</p>
+
+          <!-- Search -->
+          <div class="mt-6 pt-5 border-t border-border">
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Arama</p>
+            <input
+              id="resourceSearch"
+              type="text"
+              placeholder="Kaynakları filtrele…"
+              class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
+            />
           </div>
-        </nav>
+
+          <!-- Legend -->
+          <div class="mt-4">
+            <span class="inline-flex items-center gap-1.5 text-xs text-green-700 font-medium px-2 py-1 rounded bg-green-50 border border-green-200">
+              ✓ Açık Kaynak
+            </span>
+            <p class="text-xs text-gray-400 mt-1.5 leading-relaxed">Ücretsiz erişilebilir veya açık kaynaklı araç ve materyaller.</p>
+          </div>
+
+          <!-- No results -->
+          <p id="noResults" class="hidden text-xs text-gray-400 mt-4 italic">Eşleşen kaynak bulunamadı.</p>
+        </aside>
 
         <!-- Main content -->
-        <div class="flex flex-col gap-14">
-
-          <div id="learning">
-            <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Öğrenme Kaynakları</h2>
-            <div class="flex flex-col">
-              {learningResources.map((item) => (
-                <div class="py-4 border-b border-border">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <a href={item.url} target="_blank" rel="noopener noreferrer"
-                      class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
-                    {item.opensource && (
-                      <span class="inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200">✓ Açık Kaynak</span>
-                    )}
+        <div class="flex flex-col gap-16" id="resourceContent">
+          {allSections.map(section => (
+            <div id={section.id} class="resource-section">
+              <div class="flex items-baseline gap-3 mb-6">
+                <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block">
+                  {section.label}
+                </h2>
+                <span class="section-count text-xs font-medium text-gray-400 tabular-nums">
+                  {section.items.length} kaynak
+                </span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {section.items.map(item => (
+                  <div
+                    class="resource-card group flex flex-col p-5 rounded-xl border border-border bg-white hover:border-navy-mid hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default"
+                    data-title={item.title.toLowerCase()}
+                    data-description={item.description.toLowerCase()}
+                    data-tags={item.tags.join(' ').toLowerCase()}
+                  >
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                      <a href={item.url} target="_blank" rel="noopener noreferrer"
+                        class="font-semibold text-navy group-hover:text-navy-mid transition-colors leading-snug no-underline">
+                        {item.title}
+                        <span class="text-navy-mid opacity-60 ml-0.5">→</span>
+                      </a>
+                      {item.opensource && (
+                        <span class="shrink-0 inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200 whitespace-nowrap">
+                          ✓ Açık Kaynak
+                        </span>
+                      )}
+                    </div>
+                    <p class="text-sm text-gray-500 leading-relaxed mb-3 flex-1">{item.description}</p>
+                    <div class="flex flex-wrap gap-1.5 mt-auto">
+                      {item.tags.map(tag => (
+                        <span class="tag-chip inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA] cursor-pointer hover:bg-navy hover:text-white transition-colors">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-
-          <div id="md-drug">
-            <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Moleküler Dinamik & İlaç Tasarımı</h2>
-            <div class="flex flex-col">
-              {mdResources.map((item) => (
-                <div class="py-4 border-b border-border">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <a href={item.url} target="_blank" rel="noopener noreferrer"
-                      class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
-                    {item.opensource && (
-                      <span class="inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200">✓ Açık Kaynak</span>
-                    )}
-                  </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div id="databases">
-            <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Veritabanları</h2>
-            <div class="flex flex-col">
-              {databases.map((item) => (
-                <div class="py-4 border-b border-border">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <a href={item.url} target="_blank" rel="noopener noreferrer"
-                      class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
-                    {item.opensource && (
-                      <span class="inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200">✓ Açık Kaynak</span>
-                    )}
-                  </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div id="tools">
-            <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Araçlar & Yazılımlar</h2>
-            <div class="flex flex-col">
-              {tools.map((item) => (
-                <div class="py-4 border-b border-border">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <a href={item.url} target="_blank" rel="noopener noreferrer"
-                      class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
-                    {item.opensource && (
-                      <span class="inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200">✓ Açık Kaynak</span>
-                    )}
-                  </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div id="community">
-            <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">Topluluk</h2>
-            <div class="flex flex-col">
-              {community.map((item) => (
-                <div class="py-4 border-b border-border">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <a href={item.url} target="_blank" rel="noopener noreferrer"
-                      class="font-semibold text-navy hover:text-navy-mid transition-colors">{item.title} →</a>
-                    {item.opensource && (
-                      <span class="inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200">✓ Açık Kaynak</span>
-                    )}
-                  </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{item.description}</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <span class="inline-block text-xs px-2 py-0.5 rounded bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          ))}
         </div>
+
       </div>
     </div>
   </section>
 
 </BaseLayout>
+
+<script>
+  // ── Search ──────────────────────────────────────────────────────────────
+  const searchInput = document.getElementById('resourceSearch') as HTMLInputElement;
+  const noResults   = document.getElementById('noResults')!;
+  const cards       = Array.from(document.querySelectorAll<HTMLElement>('.resource-card'));
+  const sections    = Array.from(document.querySelectorAll<HTMLElement>('.resource-section'));
+
+  function filterResources(term: string) {
+    let anyVisible = false;
+    cards.forEach(card => {
+      const matches = !term
+        || (card.dataset.title || '').includes(term)
+        || (card.dataset.description || '').includes(term)
+        || (card.dataset.tags || '').includes(term);
+      card.style.display = matches ? '' : 'none';
+      if (matches) anyVisible = true;
+    });
+
+    // hide empty sections, update counts
+    sections.forEach(section => {
+      const visible = Array.from(section.querySelectorAll<HTMLElement>('.resource-card'))
+        .filter(c => c.style.display !== 'none');
+      section.style.display = visible.length ? '' : 'none';
+      const count = section.querySelector('.section-count');
+      if (count) count.textContent = `${visible.length} kaynak`;
+    });
+
+    noResults.classList.toggle('hidden', anyVisible);
+  }
+
+  searchInput?.addEventListener('input', e => {
+    filterResources((e.target as HTMLInputElement).value.toLowerCase().trim());
+  });
+
+  // Click tag to search by it
+  document.querySelectorAll<HTMLElement>('.tag-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const tag = chip.textContent?.trim() || '';
+      if (searchInput) {
+        searchInput.value = tag;
+        filterResources(tag.toLowerCase());
+      }
+    });
+  });
+
+  // ── Active nav on scroll ────────────────────────────────────────────────
+  const navLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-nav]'));
+  const activeClass    = ['border-navy', 'text-navy', 'font-medium'];
+  const inactiveClass  = ['border-transparent', 'text-gray-500'];
+
+  function setActive(id: string) {
+    navLinks.forEach(link => {
+      const isActive = link.dataset.nav === id;
+      activeClass.forEach(c  => link.classList.toggle(c, isActive));
+      inactiveClass.forEach(c => link.classList.toggle(c, !isActive));
+    });
+  }
+
+  const observer = new IntersectionObserver(entries => {
+    const visible = entries.filter(e => e.isIntersecting);
+    if (visible.length) setActive(visible[0].target.id);
+  }, { rootMargin: '-10% 0px -60% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
