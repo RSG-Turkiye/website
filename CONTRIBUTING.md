@@ -20,7 +20,20 @@ This guide is for members of the **website committee** and **translation committ
 
 ## 1. Setup
 
-You need Git and Node.js installed. Clone the repo and install dependencies:
+### Install prerequisites
+
+You need **Git** and **Node.js** installed before anything else.
+
+**Git:**
+- Windows / macOS: download from [git-scm.com](https://git-scm.com/downloads) and run the installer
+- Linux: `sudo apt install git` (Ubuntu/Debian) or `sudo dnf install git` (Fedora)
+
+**Node.js:**
+- Go to [nodejs.org](https://nodejs.org) and download the **LTS** version
+- Run the installer (Windows / macOS) or follow the instructions for your Linux distro
+- Verify it worked: `node --version` should print something like `v22.x.x`
+
+### Clone and run
 
 ```bash
 git clone https://github.com/RSG-Turkiye/website.git
