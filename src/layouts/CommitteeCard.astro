@@ -21,7 +21,7 @@ function initials(memberName: string) {
   <h3 class="text-lg font-semibold text-navy text-center mb-1">{name}</h3>
   <p class="text-sm text-gray-500 text-center mb-6">{description}</p>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div class={`grid gap-4 justify-center ${members.length === 1 ? 'grid-cols-1 max-w-xs mx-auto' : members.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-sm sm:max-w-lg mx-auto' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
     {members.map((member) => (
       <div class="text-center p-4 bg-navy-light border border-[#C4CEEA] rounded-lg hover:border-navy-mid transition-colors">
         <div class="w-24 h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-navy-mid bg-navy flex items-center justify-center">
