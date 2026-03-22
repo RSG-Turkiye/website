@@ -11,10 +11,22 @@ const allWebinars = await getCollection('webinars');
 const enWebinars = allWebinars.filter(w => w.id.startsWith('en/'));
 const sortedWebinars = enWebinars.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
-const speakers = enWebinars
+const speakerMap = new Map<string, { name: string; slug: string }>();
+enWebinars
   .filter(w => w.data.speaker)
-  .map(w => ({ name: w.data.speaker, affiliation: w.data.speakerAffiliation, slug: w.id.slice(3) }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+  .forEach(w => {
+    const key = w.data.speaker!.trim().toLowerCase();
+    if (!speakerMap.has(key)) {
+      speakerMap.set(key, { name: w.data.speaker!, slug: w.id.slice(3) });
+    }
+  });
+const speakers = Array.from(speakerMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 ---
 
 <BaseLayout pageTitle={pageTitle}>
@@ -100,17 +112,21 @@ const speakers = enWebinars
           <!-- Speakers -->
           {speakers.length > 0 && (
             <div class="rounded-lg border border-border bg-white p-5">
-              <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Speakers</p>
-              <ul class="flex flex-col gap-3">
+              <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+                Speakers <span class="text-gray-300 font-normal normal-case tracking-normal">({speakers.length})</span>
+              </p>
+              <div class="flex flex-wrap gap-2">
                 {speakers.map((s) => (
-                  <li>
-                    <a href={`/webinars/${s.slug}`} class="text-sm font-medium text-navy hover:text-navy-mid transition-colors no-underline">
-                      {s.name}
-                    </a>
-                    {s.affiliation && <p class="text-xs text-gray-400 mt-0.5">{s.affiliation}</p>}
-                  </li>
+                  <a
+                    href={`/webinars/${s.slug}`}
+                    class="speaker-avatar"
+                    data-name={s.name}
+                    aria-label={s.name}
+                  >
+                    {initials(s.name)}
+                  </a>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
 
@@ -120,6 +136,51 @@ const speakers = enWebinars
   </section>
 
 </BaseLayout>
+
+<style>
+  .speaker-avatar {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #1a2744;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: background-color 0.15s, transform 0.15s;
+    cursor: pointer;
+  }
+  .speaker-avatar:hover {
+    background-color: #2d4a8a;
+    transform: scale(1.12);
+    z-index: 10;
+  }
+  .speaker-avatar::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a2744;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .speaker-avatar:hover::after {
+    opacity: 1;
+  }
+</style>
 
 <script>
   const PER_PAGE = 20;
