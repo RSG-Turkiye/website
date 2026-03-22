@@ -112,7 +112,7 @@ description: "One or two sentence summary shown in listings."
 author: "Your Name"
 category: general          # or: tutorial, research, event, etc.
 tags: [bioinformatics, python]
-image: ""                  # URL to author photo (optional)
+image: ""                  # Thumbnail shown in the blog listing. If empty, the first image in the post body is used automatically.
 draft: false               # set true to hide from listings
 ```
 

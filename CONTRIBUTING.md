@@ -63,7 +63,7 @@ description: "A plain-language introduction to how CRISPR is being applied in on
 author: "Your Name"
 category: tutorial
 tags: [crispr, genomics, cancer]
-image: ""
+image: ""      # optional: URL to use as the listing thumbnail
 draft: false
 ---
 ```
@@ -92,6 +92,7 @@ If you want to commit a work-in-progress without it appearing on the live site, 
 - `category` is free text — use something descriptive like `tutorial`, `research`, `event`, `community`.
 - `tags` are used for tag pages. Use existing tags when possible to group related content.
 - Images in the article body can be external URLs or files placed in `public/images/`.
+- The `image` field sets the thumbnail shown on the blog listing page. If you leave it empty, the site automatically picks the first image found in your post body. Set it explicitly if you want a specific image as the thumbnail (e.g. a Cloudinary URL).
 
 ---
 
@@ -269,7 +270,7 @@ Once merged into `main`, Netlify automatically rebuilds and deploys the site wit
 | `author` | Yes | string | Author's full name |
 | `category` | Yes | string | Content category (free text) |
 | `tags` | No | list | e.g. `[bioinformatics, python]` |
-| `image` | No | string | URL to author photo |
+| `image` | No | string | Thumbnail shown next to the post in the blog listing. If empty, the first image in the post body is used automatically. Set this explicitly if you want a specific thumbnail. |
 | `draft` | No | boolean | `true` hides from listings. Default: `false` |
 
 ### Webinars (`src/content/webinars/en/` and `src/content/webinars/tr/`)
