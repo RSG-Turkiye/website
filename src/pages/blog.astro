@@ -108,13 +108,19 @@ const facts = [
 
 <script>
   const PER_PAGE = 20;
-  let currentPage = 1;
+  let currentPage = parseInt(new URLSearchParams(window.location.search).get('page') || '1') || 1;
   let filtered: HTMLElement[] = [];
 
   const allItems = () => Array.from(document.querySelectorAll<HTMLElement>('.post-item'));
   const searchInput = document.getElementById('searchPosts') as HTMLInputElement;
   const paginationEl = document.getElementById('pagination')!;
   const noResults = document.getElementById('noResults')!;
+
+  function setPageInUrl(page: number) {
+    const url = new URL(window.location.href);
+    page === 1 ? url.searchParams.delete('page') : url.searchParams.set('page', String(page));
+    history.replaceState(null, '', url.toString());
+  }
 
   function applyFilter(term: string) {
     filtered = allItems().filter(item => {
@@ -136,6 +142,7 @@ const facts = [
     filtered.slice(start, start + PER_PAGE).forEach(item => item.style.display = '');
 
     noResults.classList.toggle('hidden', filtered.length > 0);
+    setPageInUrl(currentPage);
     renderPagination(totalPages);
   }
 
