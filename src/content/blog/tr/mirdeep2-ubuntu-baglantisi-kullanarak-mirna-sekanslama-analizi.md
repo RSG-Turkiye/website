@@ -1,11 +1,11 @@
 ---
-title: miRDeep2 – Ubuntu Bağlantısı Kullanarak miRNA Sekanslama Analizi
-pubDate: 2020-03-12
-description: "minik RNAlar (mikroRNAlar/miRNAs/microRNAs) gen kodlamayan küçük RNAlar grubunda bir aileye ait. 20-25 nükleotid uzunluğunda epey kısa diziler/sekanslar olsalar da vücuttaki pek çok sürecin yönetilmesinde, mRNA (mesajcı RNAlar/mRNAs) üzerinden söz sahibiler. RNA dizilemede (RNA sequencing) yeterli olan dizileme derinliği (sequencing depth)/ kapsamı (coverage), maalesef tek bazen farklı tek baz ile birbirinden ayrılan miRNAların farklılığının tespiti için"
-author: Fatma Betul Dincaslan
+title: "miRDeep2 - Ubuntu Bağlantısı Kullanarak miRNA Sekanslama Analizi"
+pubDate: 2020-03-13
+description: "minik RNAlar (mikroRNAlar/miRNAs/microRNAs) gen kodlamayan küçük RNAlar grubunda bir aileye ait. 20-25 nükleotid uzunluğunda epey kısa diziler/sekanslar..."
+author: ""
 category: general
-tags: []
-image: "https://secure.gravatar.com/avatar/07ce4a41d2f51fc1f2b8058aa368436436945ba7539bbd1287aa4aa89dbc8ae8?s=30&d=mm&r=g"
+tags: ["minik-rna", "mirdeep2", "mirna", "mirna-sequencing"]
+image: ""
 lang: "tr"
 draft: false
 ---
@@ -20,11 +20,11 @@ Her ne kadar bir örnek kod dizisi paylaşmış olsalar da bu aracı ilk kez ind
 
 **1\. Adım: Ubuntu Terminal indirmek**
 
-miRDeep2, pek çok biyoenformatik araç gibi Windows uyumlu değil ve linux ortamı gerektiriyor. Windows kullanıyorsanız öncelikle Microsoft Store/Mağaza’dan Ubuntu Terminal indirmenizi öneririm.
+miRDeep2, pek çok biyoenformatik araç gibi Windows uyumlu değil ve linux ortamı gerektiriyor. Windows kullanıyorsanız öncelikle Microsoft Store/Mağaza'dan Ubuntu Terminal indirmenizi öneririm.
 
 **2\. Adım: miRDeep2 indirmek için conda install kullanımı**
 
-Eğer miRDeep2’yu conda install kullnamadan indirmeyi deneyip indiremediyseniz endişelenmeyin, çünkü öyle inmeyebiliyor. Tasasız indirmeler için kesinlikle conda install öneririm. İndirdikten sonra inmiş mi diye test etmek için şu perl programcığını çalıştrmanızı öneririm: mapper.pl.
+Eğer miRDeep2'yu conda install kullnamadan indirmeyi deneyip indiremediyseniz endişelenmeyin, çünkü öyle inmeyebiliyor. Tasasız indirmeler için kesinlikle conda install öneririm. İndirdikten sonra inmiş mi diye test etmek için şu perl programcığını çalıştrmanızı öneririm: mapper.pl.
 
 ```
  dincaslan@D:~$ sudo apt-get update
@@ -82,9 +82,9 @@ Tabi bu toplu kodu çalıştırmadan önce, gereken tüm dosyalar hazır mı emi
 (base) dincaslan@D:/mnt/c/Users/USER/Downloads/drmirdeep.github.io-master/drmirdeep.github.io-master$ miRDeep2.pl reads_collapsed.fa refdb.fa reads_vs_refdb.arf mature_ref.fa mature_other.fa hairpin_ref.fa -t hsa 2>report.log
 ```
 
-**4\. Adım: miRDeep2’yu kendi örneğiniz üzerinden çalıştırmak**
+**4\. Adım: miRDeep2'yu kendi örneğiniz üzerinden çalıştırmak**
 
-MiRDeep2’yu çalıştırmadan önce, fastq, dizileme dosyanızın, kalitesini kontrol etmek isteyebilirsiniz. Bunun için fastqc aracının indirmeniz gerekiyor. Daha sonra da gerekecek adaptör dizisi ya da çoklu A (poly-A) zincirinin kesilmesi için cutadapt kullanmanız gerekebilir. miRDeep2’nun da adaptör kesme fonksiyonu olsa da verinizim ihtiyacına binaen cutadapt gibi araçlar daha çok işinizi görebilir.
+MiRDeep2'yu çalıştırmadan önce, fastq, dizileme dosyanızın, kalitesini kontrol etmek isteyebilirsiniz. Bunun için fastqc aracının indirmeniz gerekiyor. Daha sonra da gerekecek adaptör dizisi ya da çoklu A (poly-A) zincirinin kesilmesi için cutadapt kullanmanız gerekebilir. miRDeep2'nun da adaptör kesme fonksiyonu olsa da verinizim ihtiyacına binaen cutadapt gibi araçlar daha çok işinizi görebilir.
 
 ```
 #for fastqc
@@ -110,7 +110,7 @@ MiRDeep2’yu çalıştırmadan önce, fastq, dizileme dosyanızın, kalitesini 
 
 Umarım bu yazıyı faydalı buldunuz. Aralarda verilen websitelerin ek olarak, her hangi bir sorunuz olmanız durumunda şu siteden istifade etmenizi şiddetle öneririm: [biostar](https://www.biostars.org/).
 
-Conda install’ı akıl etmeden önce eski örnek kod üzerinden indirmeye çalışırken can çekişirken 😛 bana çok yardımı dokunan kıymeli labdaşım (lab arkadaşım) Daniel’e ve AkademikTwitter’ın Biyoenformatik alanında bilinen simalarından Dr. Ming Tang’in beni kaale alıp özellikle bir noktayı aydınlatmasından ötürü çok teşekkür ederim.
+Conda install'ı akıl etmeden önce eski örnek kod üzerinden indirmeye çalışırken can çekişirken :P bana çok yardımı dokunan kıymeli labdaşım (lab arkadaşım) Daniel'e ve AkademikTwitter'ın Biyoenformatik alanında bilinen simalarından Dr. Ming Tang'in beni kaale alıp özellikle bir noktayı aydınlatmasından ötürü çok teşekkür ederim.
 
 **Referaslar:**
 
