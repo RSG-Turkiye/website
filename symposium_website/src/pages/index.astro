@@ -1,22 +1,22 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import SpeakerCard from "../components/SpeakerCard.astro";
-import SessionRow from "../components/SessionRow.astro";
 import SponsorLogo from "../components/SponsorLogo.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getSpeakersByEdition } from "../data/speakers";
-import { sponsors, getSponsorsByEdition } from "../data/sponsors";
-import { getSessionsByEdition } from "../data/sessions";
+import { getSponsorsByEdition } from "../data/sponsors";
+import { getCollection } from "astro:content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const prefix = lang === "tr" ? "/tr" : "";
 
-// Most recent known edition for speakers/schedule sections
-const LATEST_YEAR = 2024;
-const latestSpeakers = getSpeakersByEdition(LATEST_YEAR);
-const latestSessions = getSessionsByEdition(LATEST_YEAR);
-const latestSponsors = getSponsorsByEdition(LATEST_YEAR);
+// Show latest known sponsors (2024/2025)
+const latestSponsors = getSponsorsByEdition(2024);
+
+// Recent editions for the teaser strip
+const allEditions = (await getCollection("editions")).sort(
+  (a, b) => b.data.year - a.data.year
+);
+const recentEditions = allEditions.slice(0, 3);
 
 const BANNER =
   "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
@@ -29,19 +29,11 @@ const BANNER =
 >
   <!-- ── Hero ──────────────────────────────────────────────────── -->
   <section class="relative bg-navy text-white overflow-hidden min-h-[90vh] flex items-center">
-    <!-- Banner image -->
-    <div
-      class="absolute inset-0 bg-cover bg-center"
-      style={`background-image: url('${BANNER}')`}
-    ></div>
+    <div class="absolute inset-0 bg-cover bg-center" style={`background-image: url('${BANNER}')`}></div>
     <div class="absolute inset-0 bg-navy/75"></div>
 
     <div class="relative max-w-7xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-6 w-full">
-      <img
-        src="/logo/rsgturkey_logo_white.png"
-        alt="RSG-Türkiye"
-        class="h-16 w-auto mb-2"
-      />
+      <img src="/logo/rsgturkey_logo_white.png" alt="RSG-Türkiye" class="h-16 w-auto mb-2" />
       <h1 class="text-4xl sm:text-5xl font-bold leading-tight max-w-3xl">
         {t("hero.tagline")}
       </h1>
@@ -49,28 +41,30 @@ const BANNER =
         {t("hero.subtitle")}
       </p>
 
-      <!-- Next edition badge -->
-      <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm text-white/80 mt-2">
-        <span class="w-2 h-2 bg-red rounded-full animate-pulse"></span>
-        {lang === "tr" ? "Sonraki edisyon yakında duyurulacak" : "Next edition coming soon — stay tuned"}
+      <!-- 2026 TBA badge -->
+      <div class="flex flex-col items-center gap-2 mt-2">
+        <span class="text-white/50 text-xs uppercase tracking-widest">
+          {lang === "tr" ? "Sonraki Edisyon" : "Next Edition"}
+        </span>
+        <div class="inline-flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl px-6 py-3 text-white">
+          <span class="text-2xl font-bold">2026</span>
+          <span class="text-white/60">·</span>
+          <span class="text-sm text-white/70">
+            {lang === "tr" ? "Yakında duyurulacak" : "To be announced"}
+          </span>
+          <span class="w-2 h-2 bg-red rounded-full animate-pulse ml-1"></span>
+        </div>
       </div>
 
       <div class="flex flex-wrap justify-center gap-4 mt-2">
-        <a
-          href="#speakers"
-          class="px-6 py-3 rounded-lg bg-white text-navy font-semibold hover:bg-navy-light transition-colors text-sm"
-        >
-          {t("nav.speakers")}
+        <a href="#about" class="px-6 py-3 rounded-lg bg-white text-navy font-semibold hover:bg-navy-light transition-colors text-sm">
+          {t("hero.cta.about")}
         </a>
-        <a
-          href={`${prefix}/editions`}
-          class="px-6 py-3 rounded-lg border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors text-sm"
-        >
+        <a href={`${prefix}/editions`} class="px-6 py-3 rounded-lg border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors text-sm">
           {t("nav.editions")}
         </a>
       </div>
 
-      <!-- Scroll hint -->
       <a href="#about" class="mt-8 text-white/40 hover:text-white/70 transition-colors animate-bounce">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 5v14M5 12l7 7 7-7"/>
@@ -89,7 +83,7 @@ const BANNER =
         {
           [
             { label: lang === "tr" ? "Kuruluş Yılı" : "Since", value: "2012" },
-            { label: lang === "tr" ? "Edisyon" : "Editions", value: "11+" },
+            { label: lang === "tr" ? "Edisyon" : "Editions", value: "12+" },
             { label: lang === "tr" ? "Üye Ağı" : "Network", value: "ISCB SC" },
           ].map(({ label, value }) => (
             <div class="bg-navy-light rounded-xl p-5 text-center">
@@ -102,63 +96,58 @@ const BANNER =
     </div>
   </section>
 
-  <!-- ── Speakers ───────────────────────────────────────────────── -->
-  <section id="speakers" class="bg-navy-light py-20 scroll-mt-16">
+  <!-- ── Recent Editions teaser ─────────────────────────────────── -->
+  <section id="editions" class="bg-navy-light py-20 scroll-mt-16">
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex items-center justify-between mb-8">
-        <div>
-          <h2 class="text-2xl font-bold text-navy">{t("nav.speakers")}</h2>
-          <p class="text-sm text-gray-500 mt-1">
-            {lang === "tr" ? `${LATEST_YEAR} Edisyonu` : `${LATEST_YEAR} Edition`}
-          </p>
-        </div>
-        <a
-          href={`${prefix}/editions/${LATEST_YEAR}`}
-          class="text-sm text-navy-mid hover:text-navy transition-colors font-medium"
-        >
-          {lang === "tr" ? "Edisyon sayfası →" : "View edition →"}
+        <h2 class="text-2xl font-bold text-navy">{t("nav.editions")}</h2>
+        <a href={`${prefix}/editions`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
+          {lang === "tr" ? "Tümünü gör →" : "View all →"}
         </a>
       </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {latestSpeakers.filter((s) => s.photo).map((sp) => <SpeakerCard speaker={sp} compact={true} />)}
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Schedule ───────────────────────────────────────────────── -->
-  <section id="schedule" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-16">
-    <div class="max-w-3xl mx-auto">
-      <div class="mb-8">
-        <h2 class="text-2xl font-bold text-navy">{t("nav.schedule")}</h2>
-        <p class="text-sm text-gray-500 mt-1">
-          {lang === "tr" ? `${LATEST_YEAR} Edisyonu Programı` : `${LATEST_YEAR} Edition Programme`}
-        </p>
-      </div>
-
-      <div class="bg-white rounded-xl border border-border overflow-hidden">
-        <div class="bg-navy-light px-6 py-4 border-b border-border">
-          <p class="font-semibold text-navy">11th RSG-Türkiye Student Symposium</p>
-          <p class="text-sm text-gray-500 mt-0.5">📍 Mehmet Akif Ersoy Art Center, Pendik, Istanbul</p>
-        </div>
-        <div class="p-4 space-y-2">
-          {latestSessions.map((session) => <SessionRow session={session} />)}
-        </div>
+      <div class="grid sm:grid-cols-3 gap-6">
+        {
+          recentEditions.map((edition) => (
+            <a
+              href={`${prefix}/editions/${edition.data.year}`}
+              class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow"
+            >
+              {edition.data.posterImage && (
+                <div class="aspect-video overflow-hidden bg-navy-light">
+                  <img
+                    src={edition.data.posterImage}
+                    alt={edition.data.title}
+                    class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+              <div class="p-4 flex flex-col gap-1.5 flex-1">
+                <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded w-fit">
+                  {edition.data.year}
+                </span>
+                <h3 class="font-semibold text-navy text-sm leading-snug">{edition.data.title}</h3>
+                {edition.data.venueCity && (
+                  <p class="text-xs text-gray-400">📍 {edition.data.venueCity}</p>
+                )}
+              </div>
+            </a>
+          ))
+        }
       </div>
     </div>
   </section>
 
   <!-- ── Sponsors ───────────────────────────────────────────────── -->
-  <section id="sponsors" class="bg-navy-light py-20 scroll-mt-16">
-    <div class="max-w-7xl mx-auto px-6">
-      <h2 class="text-2xl font-bold text-navy text-center mb-8">{t("home.sponsors.title")}</h2>
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-3xl mx-auto">
-        {latestSponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
-      </div>
-      <div class="text-center mt-8">
-        <a href={`${prefix}/sponsors`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
-          {lang === "tr" ? "Tüm sponsorları gör →" : "View all sponsors →"}
-        </a>
-      </div>
+  <section id="sponsors" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-16">
+    <h2 class="text-2xl font-bold text-navy text-center mb-8">{t("home.sponsors.title")}</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-3xl mx-auto">
+      {latestSponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
+    </div>
+    <div class="text-center mt-8">
+      <a href={`${prefix}/sponsors`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
+        {lang === "tr" ? "Tüm sponsorları gör →" : "View all sponsors →"}
+      </a>
     </div>
   </section>
 </BaseLayout>

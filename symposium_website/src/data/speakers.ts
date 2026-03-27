@@ -75,6 +75,53 @@ Currently, she serves as a faculty member at Istanbul Medeniyet University, Facu
     bio: "",
   },
 
+  // ── 2025 Edition (12th Symposium) ────────────────────────────
+  {
+    slug: "ozkan-ozdemir",
+    name: "Özkan Özdemir",
+    position: "Researcher",
+    company: "",
+    photo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606636/rsgturkey/symposium/2025/09/Ozkan-Ozdemir.jpg",
+    editions: [2025],
+    bio: "Artificial Intelligence and FAIR Principles in Health. Also workshop instructor for GenNext Variant Filtering.",
+  },
+  {
+    slug: "ogun-adebali",
+    name: "Ogün Adebali",
+    position: "Researcher",
+    company: "",
+    photo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606631/rsgturkey/symposium/2025/09/Ogun_Adebali-scaled.jpg",
+    editions: [2025],
+    bio: "Evolutionary Analysis of Functional Specialization in Protein Families.",
+  },
+  {
+    slug: "nurcan-tuncbag",
+    name: "Nurcan Tunçbağ",
+    position: "Researcher",
+    company: "",
+    photo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606636/rsgturkey/symposium/2025/10/NTuncbag.jpg",
+    editions: [2025],
+    bio: "Discovery of Hidden Biomolecular Connections in Modeling Complex Diseases.",
+  },
+  {
+    slug: "vildan-atalay",
+    name: "Vildan Enisoğlu Atalay",
+    position: "Researcher",
+    company: "",
+    photo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606634/rsgturkey/symposium/2025/09/Vildan-Atalay.png.jpg",
+    editions: [2025],
+    bio: "A New Approach in Drug Design: Computational Chemistry.",
+  },
+  {
+    slug: "onur-emre-onat",
+    name: "Onur Emre Onat",
+    position: "Panel Moderator",
+    company: "",
+    photo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606632/rsgturkey/symposium/2025/09/Onur_Emre_Onat-scaled.png",
+    editions: [2025],
+    bio: "Moderator of the panel discussion: Bioinformatics in the Private Sector.",
+  },
+
   // ── 2023 Edition ──────────────────────────────────────────────
   {
     slug: "dr-ramazan-terzi",
