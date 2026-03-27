@@ -12,55 +12,58 @@ const year = new Date().getFullYear();
 ---
 
 <footer class="bg-navy text-white mt-auto">
-  <div class="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-    <!-- Brand -->
-    <div>
-      <div class="flex items-center gap-2 mb-3">
-        <span class="text-red text-xl">▲</span>
-        <span class="font-bold">RSG-Türkiye</span>
+  <div class="max-w-7xl mx-auto px-6 py-12">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+
+      <!-- Brand -->
+      <div class="lg:col-span-1">
+        <div class="flex items-center gap-2 mb-3">
+          <img src="/logo/rsgturkey_logo.png" alt="ISCB-SC RSG-Turkiye" width="28" height="28" class="rounded bg-white p-0.5" />
+          <strong class="text-white font-semibold">ISCB-SC RSG-Turkiye</strong>
+        </div>
+        <p class="text-white/60 text-sm leading-relaxed">{t("footer.tagline")}</p>
       </div>
-      <p class="text-white/60 text-sm leading-relaxed">{t("footer.tagline")}</p>
+
+      <!-- Quick Links -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{t("footer.links")}</h4>
+        <ul class="space-y-2">
+          <li><a href={`${prefix}/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.home")}</a></li>
+          <li><a href={`${prefix}/speakers`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.speakers")}</a></li>
+          <li><a href={`${prefix}/schedule`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.schedule")}</a></li>
+          <li><a href={`${prefix}/venue`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.venue")}</a></li>
+          <li><a href={`${prefix}/about`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.about")}</a></li>
+          <li><a href={`${prefix}/sponsors`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.sponsors")}</a></li>
+          <li><a href={`${prefix}/editions`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.editions")}</a></li>
+        </ul>
+      </div>
+
+      <!-- Community -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{lang === "tr" ? "Topluluk" : "Community"}</h4>
+        <ul class="space-y-2">
+          <li><a href="https://rsgturkey.com" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">rsgturkey.com</a></li>
+          <li><a href="https://iscbsc.org/" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">ISCB Student Council</a></li>
+        </ul>
+      </div>
+
+      <!-- Follow Us -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{t("footer.connect")}</h4>
+        <ul class="space-y-2">
+          <li><a href="mailto:turkey.rsg@gmail.com" class="text-sm text-white/75 hover:text-white transition-colors">turkey.rsg@gmail.com</a></li>
+          <li><a href="https://twitter.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">Twitter</a></li>
+          <li><a href="https://github.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">GitHub</a></li>
+          <li><a href="https://www.youtube.com/@RSG-Turkiye" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">YouTube</a></li>
+          <li><a href="https://linkedin.com/company/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">LinkedIn</a></li>
+          <li><a href="https://instagram.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">Instagram</a></li>
+        </ul>
+      </div>
+
     </div>
 
-    <!-- Quick links -->
-    <div>
-      <h3 class="text-sm font-semibold uppercase tracking-wider text-white/40 mb-3">
-        {t("footer.links")}
-      </h3>
-      <ul class="space-y-2 text-sm">
-        <li><a href={`${prefix}/`} class="text-white/75 hover:text-white transition-colors">{t("nav.home")}</a></li>
-        <li><a href={`${prefix}/speakers`} class="text-white/75 hover:text-white transition-colors">{t("nav.speakers")}</a></li>
-        <li><a href={`${prefix}/schedule`} class="text-white/75 hover:text-white transition-colors">{t("nav.schedule")}</a></li>
-        <li><a href={`${prefix}/venue`} class="text-white/75 hover:text-white transition-colors">{t("nav.venue")}</a></li>
-        <li><a href={`${prefix}/about`} class="text-white/75 hover:text-white transition-colors">{t("nav.about")}</a></li>
-        <li><a href={`${prefix}/sponsors`} class="text-white/75 hover:text-white transition-colors">{t("nav.sponsors")}</a></li>
-        <li><a href={`${prefix}/editions`} class="text-white/75 hover:text-white transition-colors">{t("nav.editions")}</a></li>
-      </ul>
-    </div>
-
-    <!-- Connect -->
-    <div>
-      <h3 class="text-sm font-semibold uppercase tracking-wider text-white/40 mb-3">
-        {t("footer.connect")}
-      </h3>
-      <ul class="space-y-2 text-sm">
-        <li>
-          <a href="mailto:turkey.rsg@gmail.com" class="text-white/75 hover:text-white transition-colors">
-            turkey.rsg@gmail.com
-          </a>
-        </li>
-        <li>
-          <a href="https://rsgturkey.com" class="text-white/75 hover:text-white transition-colors">
-            rsgturkey.com
-          </a>
-        </li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="border-t border-white/10">
-    <div class="max-w-7xl mx-auto px-6 py-4 text-center text-xs text-white/40">
-      {t("footer.copyright").replace("{year}", String(year))}
+    <div class="border-t border-white/10 mt-10 pt-6 text-center">
+      <p class="text-xs text-white/40">{t("footer.copyright").replace("{year}", String(year))}</p>
     </div>
   </div>
 </footer>
