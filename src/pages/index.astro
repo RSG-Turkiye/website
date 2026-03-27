@@ -57,9 +57,9 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
         <div class="grid grid-cols-2 gap-4">
           {[
             { n: '10+', label: t('stats.years') },
-            { n: '50+', label: t('stats.members') },
-            { n: '100+', label: t('stats.webinars') },
-            { n: '15+', label: lang === 'tr' ? 'Sempozyum' : 'Symposiums' },
+            { n: '500+', label: t('stats.members') },
+            { n: '80+', label: t('stats.webinars') },
+            { n: '12', label: lang === 'tr' ? 'Sempozyum' : 'Symposiums' },
           ].map(({ n, label }) => (
             <div class="text-center p-5 rounded-lg bg-navy-light border border-[#C4CEEA]">
               <span class="block text-3xl font-bold text-navy">{n}</span>
