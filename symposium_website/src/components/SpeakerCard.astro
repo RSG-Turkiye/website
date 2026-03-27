@@ -1,0 +1,71 @@
+---
+import type { Speaker } from "../data/speakers";
+
+interface Props {
+  speaker: Speaker;
+  compact?: boolean;
+}
+
+const { speaker, compact = false } = Astro.props;
+const initials = speaker.name
+  .split(" ")
+  .filter((w) => /^[A-ZÇĞİÖŞÜ]/.test(w))
+  .slice(-2)
+  .map((w) => w[0])
+  .join("");
+---
+
+<div
+  class="bg-white rounded-xl border border-border overflow-hidden flex flex-col transition-shadow hover:shadow-lg"
+>
+  <!-- Photo -->
+  <div class="aspect-square bg-navy-light flex items-center justify-center overflow-hidden">
+    {
+      speaker.photo ? (
+        <img
+          src={speaker.photo}
+          alt={speaker.name}
+          class="w-full h-full object-cover object-top"
+          loading="lazy"
+        />
+      ) : (
+        <span class="text-3xl font-bold text-navy/40">{initials}</span>
+      )
+    }
+  </div>
+
+  <!-- Info -->
+  <div class="p-4 flex flex-col gap-2 flex-1">
+    <h3 class="font-semibold text-navy text-base leading-snug">{speaker.name}</h3>
+    {
+      (speaker.position || speaker.company) && (
+        <p class="text-sm text-gray-500 leading-snug">
+          {[speaker.position, speaker.company].filter(Boolean).join(" · ")}
+        </p>
+      )
+    }
+
+    {
+      !compact && speaker.bio && (
+        <p class="text-sm text-gray-600 leading-relaxed line-clamp-4 mt-1">{speaker.bio}</p>
+      )
+    }
+
+    <!-- Links -->
+    {
+      speaker.linkedin && (
+        <a
+          href={speaker.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-auto inline-flex items-center gap-1.5 text-xs text-navy-mid hover:text-navy transition-colors pt-2"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+          </svg>
+          LinkedIn
+        </a>
+      )
+    }
+  </div>
+</div>

@@ -1,0 +1,31 @@
+---
+import type { Sponsor } from "../data/sponsors";
+
+interface Props {
+  sponsor: Sponsor;
+}
+
+const { sponsor } = Astro.props;
+---
+
+<a
+  href={sponsor.url}
+  target="_blank"
+  rel="noopener noreferrer"
+  class="flex flex-col items-center justify-center gap-3 bg-white rounded-xl border border-border p-6 hover:shadow-md transition-shadow group"
+  title={sponsor.name}
+>
+  {
+    sponsor.logo ? (
+      <img
+        src={sponsor.logo}
+        alt={sponsor.name}
+        class="max-h-16 max-w-[180px] w-auto object-contain grayscale group-hover:grayscale-0 transition-all"
+        loading="lazy"
+      />
+    ) : (
+      <span class="text-navy font-semibold text-lg">{sponsor.name}</span>
+    )
+  }
+  {sponsor.description && <p class="text-xs text-gray-500 text-center">{sponsor.description}</p>}
+</a>

@@ -1,0 +1,111 @@
+/* Google Fonts must come before @import "tailwindcss" */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+@import "tailwindcss";
+
+/* ============================================
+   RSG Turkiye Brand — Tailwind v4 theme tokens
+   (same as main site for design consistency)
+   ============================================ */
+@theme {
+  /* Brand colors */
+  --color-navy:        #1a2744;
+  --color-navy-mid:    #3D5A9E;
+  --color-navy-light:  #EEF1F8;
+  --color-red:         #C0232A;
+  --color-red-hover:   #E05555;
+  --color-red-tint:    #FDEAEA;
+  --color-neutral:     #F7F7F6;
+  --color-border:      #E5E4DF;
+
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ============================================
+   Base overrides
+   ============================================ */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+  }
+
+  body {
+    background-color: var(--color-neutral);
+    color: #333;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* ============================================
+   Rich content prose — applies to .prose-content
+   ============================================ */
+.prose-content {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #374151;
+}
+
+.prose-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-navy);
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-navy);
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-content p {
+  margin-bottom: 1.25rem;
+}
+
+.prose-content img {
+  display: block;
+  max-width: 100%;
+  max-height: 480px;
+  width: auto;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1.5rem auto;
+}
+
+.prose-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.prose-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.prose-content li {
+  margin-bottom: 0.375rem;
+}
+
+.prose-content a {
+  color: var(--color-navy-mid);
+  text-decoration: underline;
+}
+
+.prose-content a:hover {
+  color: var(--color-navy);
+}

@@ -1,0 +1,20 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { useTranslations, getLangFromUrl } from "../i18n/ui";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+---
+
+<BaseLayout pageTitle={t("404.title")}>
+  <section class="min-h-[60vh] flex items-center justify-center px-6">
+    <div class="text-center">
+      <p class="text-8xl font-bold text-border mb-4">404</p>
+      <h1 class="text-2xl font-bold text-navy mb-3">{t("404.title")}</h1>
+      <p class="text-gray-500 mb-8">{t("404.body")}</p>
+      <a href="/" class="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy-mid transition-colors text-sm">
+        {t("404.home")}
+      </a>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,56 @@
+---
+import type { Session } from "../data/sessions";
+import { sessionTypeColors } from "../data/sessions";
+import { speakers as allSpeakers } from "../data/speakers";
+
+interface Props {
+  session: Session;
+}
+
+const { session } = Astro.props;
+const sessionSpeakers = allSpeakers.filter((s) =>
+  session.speakerSlugs.includes(s.slug)
+);
+const colorClass = sessionTypeColors[session.type];
+const isBreak = session.type === "break";
+---
+
+<div
+  class:list={[
+    "flex items-start gap-3 rounded-lg px-4 py-3",
+    isBreak ? "bg-border/40 opacity-70" : "bg-white border border-border",
+  ]}
+>
+  <!-- Type badge -->
+  <span
+    class:list={[
+      "shrink-0 mt-0.5 text-xs font-semibold px-2 py-0.5 rounded-full capitalize",
+      colorClass,
+    ]}
+  >
+    {session.type}
+  </span>
+
+  <!-- Content -->
+  <div class="flex-1 min-w-0">
+    <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-500" : "text-navy"]}>
+      {session.title}
+    </p>
+
+    {
+      session.description && (
+        <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{session.description}</p>
+      )
+    }
+
+    {
+      sessionSpeakers.length > 0 && (
+        <div class="flex flex-wrap gap-2 mt-1.5">
+          {sessionSpeakers.map((sp) => (
+            <span class="text-xs text-navy-mid font-medium">{sp.name}</span>
+          ))}
+        </div>
+      )
+    }
+  </div>
+</div>

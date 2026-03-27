@@ -1,0 +1,57 @@
+---
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { getLangFromUrl, useTranslations } from "../i18n/ui";
+
+interface Props {
+  pageTitle: string;
+  description?: string;
+  image?: string;
+  translationUrl?: string;
+}
+
+const { pageTitle, description, image, translationUrl } = Astro.props;
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImage = image || "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606591/rsgturkey/symposium/2023/08/symposium2023.jpg";
+const metaDesc = description || t("site.description");
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href={canonicalURL} />
+    <title>{pageTitle} | {t("site.title")}</title>
+    <meta name="description" content={metaDesc} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={metaDesc} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:locale" content={lang === "tr" ? "tr_TR" : "en_US"} />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={metaDesc} />
+    <meta name="twitter:image" content={ogImage} />
+
+    {translationUrl && <meta name="translation-url" content={translationUrl} />}
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body>
+    <Header lang={lang} translationUrl={translationUrl} />
+    <main class="pt-16">
+      <slot />
+    </main>
+    <Footer lang={lang} />
+  </body>
+</html>

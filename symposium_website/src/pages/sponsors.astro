@@ -1,0 +1,88 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SponsorLogo from "../components/SponsorLogo.astro";
+import { useTranslations, getLangFromUrl } from "../i18n/ui";
+import { sponsors } from "../data/sponsors";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const gold = sponsors.filter((s) => s.tier === "gold");
+const silver = sponsors.filter((s) => s.tier === "silver");
+const supporters = sponsors.filter((s) => s.tier === "supporter");
+---
+
+<BaseLayout
+  pageTitle={t("sponsors.title")}
+  translationUrl={lang === "en" ? "/tr/sponsors" : "/sponsors"}
+>
+  <!-- Page header -->
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("sponsors.title")}</h1>
+      <p class="text-white/70 text-lg">{t("sponsors.subtitle")}</p>
+    </div>
+  </section>
+
+  <div class="max-w-4xl mx-auto px-6 py-16 space-y-12">
+    <!-- Gold sponsors -->
+    {
+      gold.length > 0 && (
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-6 text-center">
+            {lang === "tr" ? "Altın Sponsor" : "Gold Sponsors"}
+          </h2>
+          <div class="grid sm:grid-cols-2 gap-6">
+            {gold.map((sp) => <SponsorLogo sponsor={sp} />)}
+          </div>
+        </div>
+      )
+    }
+
+    <!-- Silver sponsors -->
+    {
+      silver.length > 0 && (
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-6 text-center">
+            {lang === "tr" ? "Gümüş Sponsor" : "Silver Sponsors"}
+          </h2>
+          <div class="grid sm:grid-cols-3 gap-4">
+            {silver.map((sp) => <SponsorLogo sponsor={sp} />)}
+          </div>
+        </div>
+      )
+    }
+
+    <!-- Supporters -->
+    {
+      supporters.length > 0 && (
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-6 text-center">
+            {lang === "tr" ? "Destekçiler" : "Supporters"}
+          </h2>
+          <div class="grid sm:grid-cols-3 gap-4">
+            {supporters.map((sp) => <SponsorLogo sponsor={sp} />)}
+          </div>
+        </div>
+      )
+    }
+
+    <!-- Become a sponsor CTA -->
+    <div class="bg-navy-light rounded-2xl p-8 text-center">
+      <h3 class="text-xl font-bold text-navy mb-3">{t("sponsors.become")}</h3>
+      <p class="text-gray-600 mb-5 text-sm">
+        {
+          lang === "tr"
+            ? "Sempozyumumuzu desteklemek ve topluluğumuza katkıda bulunmak ister misiniz?"
+            : "Interested in supporting our symposium and connecting with the computational biology community in Türkiye?"
+        }
+      </p>
+      <a
+        href="mailto:turkey.rsg@gmail.com"
+        class="inline-block bg-red text-white px-6 py-3 rounded-lg font-semibold text-sm hover:bg-red-hover transition-colors"
+      >
+        {lang === "tr" ? "Bizimle İletişime Geçin" : "Get in Touch"}
+      </a>
+    </div>
+  </div>
+</BaseLayout>

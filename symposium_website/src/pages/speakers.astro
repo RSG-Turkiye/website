@@ -1,0 +1,52 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SpeakerCard from "../components/SpeakerCard.astro";
+import { useTranslations, getLangFromUrl } from "../i18n/ui";
+import { speakers, getSpeakersByEdition } from "../data/speakers";
+import { editions } from "../data/editions";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const editionYears = [...new Set(editions.map((e) => e.year))].sort((a, b) => b - a);
+---
+
+<BaseLayout
+  pageTitle={t("speakers.title")}
+  translationUrl={lang === "en" ? "/tr/speakers" : "/speakers"}
+>
+  <!-- Page header -->
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("speakers.title")}</h1>
+      <p class="text-white/70 text-lg">{t("speakers.subtitle")}</p>
+    </div>
+  </section>
+
+  <!-- Speakers by edition -->
+  <div class="max-w-7xl mx-auto px-6 py-12 space-y-16">
+    {
+      editionYears.map((year) => {
+        const editionSpeakers = getSpeakersByEdition(year);
+        if (editionSpeakers.length === 0) return null;
+        const edition = editions.find((e) => e.year === year);
+        return (
+          <div>
+            <div class="flex items-center gap-4 mb-6">
+              <h2 class="text-xl font-bold text-navy">{year}</h2>
+              {edition && (
+                <span class="text-sm text-gray-500">{edition.title}</span>
+              )}
+              <div class="flex-1 h-px bg-border" />
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {editionSpeakers.map((sp) => (
+                <SpeakerCard speaker={sp} />
+              ))}
+            </div>
+          </div>
+        );
+      })
+    }
+  </div>
+</BaseLayout>

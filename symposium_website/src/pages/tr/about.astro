@@ -1,0 +1,60 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { useTranslations, getLangFromUrl } from "../../i18n/ui";
+import { editions } from "../../data/editions";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+const sortedEditions = [...editions].sort((a, b) => b.year - a.year);
+---
+
+<BaseLayout pageTitle={t("about.title")} translationUrl="/about">
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("about.title")}</h1>
+    </div>
+  </section>
+
+  <section class="max-w-3xl mx-auto px-6 py-16">
+    <h2 class="text-2xl font-bold text-navy mb-4">{t("about.mission.title")}</h2>
+    <p class="text-gray-600 leading-relaxed">{t("about.mission.body")}</p>
+    <div class="mt-8 grid sm:grid-cols-3 gap-4">
+      {[
+        { label: "Kuruluş Yılı", value: "2012" },
+        { label: "Sempozyum", value: "11+" },
+        { label: "Üye Ağı", value: "ISCB SC" },
+      ].map(({ label, value }) => (
+        <div class="bg-navy-light rounded-xl p-5 text-center">
+          <p class="text-3xl font-bold text-navy">{value}</p>
+          <p class="text-sm text-gray-500 mt-1">{label}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="bg-navy-light py-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <h2 class="text-2xl font-bold text-navy mb-8 text-center">{t("about.history.title")}</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {sortedEditions.map((edition) => (
+          <div class="bg-white rounded-xl border border-border overflow-hidden flex flex-col">
+            {edition.posterImage && (
+              <div class="aspect-video overflow-hidden bg-navy-light">
+                <img src={edition.posterImage} alt={`${edition.year} sempozyumu`} class="w-full h-full object-cover object-top" loading="lazy" />
+              </div>
+            )}
+            <div class="p-4 flex flex-col gap-2 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded">{edition.year}</span>
+                {edition.isLatest && <span class="bg-red text-white text-xs font-semibold px-2 py-0.5 rounded">Son</span>}
+              </div>
+              <h3 class="font-semibold text-navy text-sm">{edition.title}</h3>
+              {edition.venueCity && <p class="text-xs text-gray-400">📍 {edition.venueCity}</p>}
+              {edition.description && <p class="text-sm text-gray-600 leading-relaxed line-clamp-3">{edition.description}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

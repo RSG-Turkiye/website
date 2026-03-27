@@ -1,0 +1,65 @@
+---
+import { useTranslations, type Lang } from "../i18n/ui";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const prefix = lang === "tr" ? "/tr" : "";
+const year = new Date().getFullYear();
+---
+
+<footer class="bg-navy text-white mt-auto">
+  <div class="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <!-- Brand -->
+    <div>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-red text-xl">▲</span>
+        <span class="font-bold">RSG-Türkiye</span>
+      </div>
+      <p class="text-white/60 text-sm leading-relaxed">{t("footer.tagline")}</p>
+    </div>
+
+    <!-- Quick links -->
+    <div>
+      <h3 class="text-sm font-semibold uppercase tracking-wider text-white/40 mb-3">
+        {t("footer.links")}
+      </h3>
+      <ul class="space-y-2 text-sm">
+        <li><a href={`${prefix}/`} class="text-white/75 hover:text-white transition-colors">{t("nav.home")}</a></li>
+        <li><a href={`${prefix}/speakers`} class="text-white/75 hover:text-white transition-colors">{t("nav.speakers")}</a></li>
+        <li><a href={`${prefix}/schedule`} class="text-white/75 hover:text-white transition-colors">{t("nav.schedule")}</a></li>
+        <li><a href={`${prefix}/venue`} class="text-white/75 hover:text-white transition-colors">{t("nav.venue")}</a></li>
+        <li><a href={`${prefix}/about`} class="text-white/75 hover:text-white transition-colors">{t("nav.about")}</a></li>
+        <li><a href={`${prefix}/sponsors`} class="text-white/75 hover:text-white transition-colors">{t("nav.sponsors")}</a></li>
+      </ul>
+    </div>
+
+    <!-- Connect -->
+    <div>
+      <h3 class="text-sm font-semibold uppercase tracking-wider text-white/40 mb-3">
+        {t("footer.connect")}
+      </h3>
+      <ul class="space-y-2 text-sm">
+        <li>
+          <a href="mailto:turkey.rsg@gmail.com" class="text-white/75 hover:text-white transition-colors">
+            turkey.rsg@gmail.com
+          </a>
+        </li>
+        <li>
+          <a href="https://rsgturkey.com" class="text-white/75 hover:text-white transition-colors">
+            rsgturkey.com
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="border-t border-white/10">
+    <div class="max-w-7xl mx-auto px-6 py-4 text-center text-xs text-white/40">
+      {t("footer.copyright").replace("{year}", String(year))}
+    </div>
+  </div>
+</footer>

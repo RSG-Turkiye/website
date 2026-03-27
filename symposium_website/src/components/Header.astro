@@ -1,0 +1,103 @@
+---
+import { useTranslations, type Lang } from "../i18n/ui";
+
+interface Props {
+  lang: Lang;
+  translationUrl?: string;
+}
+
+const { lang, translationUrl } = Astro.props;
+const t = useTranslations(lang);
+const prefix = lang === "tr" ? "/tr" : "";
+const altLang = lang === "tr" ? "en" : "tr";
+const altPrefix = altLang === "tr" ? "/tr" : "";
+
+const navLinks = [
+  { href: `${prefix}/`, label: t("nav.home") },
+  { href: `${prefix}/speakers`, label: t("nav.speakers") },
+  { href: `${prefix}/schedule`, label: t("nav.schedule") },
+  { href: `${prefix}/venue`, label: t("nav.venue") },
+  { href: `${prefix}/about`, label: t("nav.about") },
+  { href: `${prefix}/sponsors`, label: t("nav.sponsors") },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-navy h-16 border-b border-white/10">
+  <div class="max-w-7xl mx-auto px-4 h-full flex items-center justify-between gap-4">
+    <!-- Logo -->
+    <a href={`${prefix}/`} class="flex items-center gap-2 text-white font-bold text-base shrink-0">
+      <span class="text-red text-xl">▲</span>
+      <span class="hidden sm:inline leading-tight">
+        RSG-Türkiye<br />
+        <span class="text-xs font-normal text-white/70">Student Symposium</span>
+      </span>
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="hidden lg:flex items-center gap-1">
+      {
+        navLinks.map(({ href, label }) => (
+          <a
+            href={href}
+            class:list={[
+              "px-3 py-1.5 rounded text-sm transition-colors",
+              currentPath === href || (href !== `${prefix}/` && currentPath.startsWith(href))
+                ? "bg-white/20 text-white font-medium"
+                : "text-white/80 hover:bg-white/10 hover:text-white",
+            ]}
+          >
+            {label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <!-- Right side: lang toggle + hamburger -->
+    <div class="flex items-center gap-2">
+      <!-- Language toggle -->
+      <a
+        href={translationUrl || `${altPrefix}/`}
+        class="text-xs text-white/70 hover:text-white border border-white/20 rounded px-2 py-1 transition-colors"
+        title={altLang === "tr" ? "Türkçe" : "English"}
+      >
+        {altLang === "tr" ? "TR" : "EN"}
+      </a>
+
+      <!-- Mobile hamburger -->
+      <button
+        id="hamburger"
+        aria-label="Open menu"
+        class="lg:hidden flex flex-col gap-1.5 p-1"
+      >
+        <span class="block w-6 h-0.5 bg-white transition-all"></span>
+        <span class="block w-6 h-0.5 bg-white transition-all"></span>
+        <span class="block w-6 h-0.5 bg-white transition-all"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div
+    id="mobile-menu"
+    class="hidden lg:hidden absolute top-16 left-0 right-0 bg-navy border-t border-white/10 px-4 py-2"
+  >
+    {
+      navLinks.map(({ href, label }) => (
+        <a
+          href={href}
+          class="block py-2.5 text-white/90 border-b border-white/10 last:border-0 hover:text-white text-sm"
+        >
+          {label}
+        </a>
+      ))
+    }
+  </div>
+</header>
+
+<script>
+  const btn = document.getElementById("hamburger");
+  const menu = document.getElementById("mobile-menu");
+  btn?.addEventListener("click", () => menu?.classList.toggle("hidden"));
+</script>

@@ -1,0 +1,52 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { useTranslations, getLangFromUrl } from "../../i18n/ui";
+import { latestEdition } from "../../data/editions";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+---
+
+<BaseLayout pageTitle={t("venue.title")} translationUrl="/venue">
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("venue.title")}</h1>
+      <p class="text-white/70 text-lg">{t("venue.subtitle")}</p>
+    </div>
+  </section>
+  <div class="max-w-4xl mx-auto px-6 py-16">
+    <div class="bg-white rounded-xl border border-border overflow-hidden mb-8">
+      <div class="bg-navy-light px-6 py-4 border-b border-border">
+        <h2 class="font-semibold text-navy text-lg">{latestEdition.title}</h2>
+      </div>
+      <div class="p-6 grid sm:grid-cols-2 gap-6">
+        <div class="space-y-4">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t("venue.date")}</p>
+            <p class="text-navy font-medium text-lg">{latestEdition.date}</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t("venue.location")}</p>
+            <p class="text-navy font-medium">{latestEdition.venue}</p>
+            <p class="text-gray-500 text-sm">{latestEdition.venueCity}</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">İletişim</p>
+            <a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy transition-colors text-sm">turkey.rsg@gmail.com</a>
+          </div>
+        </div>
+        <div class="flex items-center justify-center">
+          <div class="bg-navy-light rounded-lg w-full aspect-video flex items-center justify-center text-navy/30">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="prose-content">
+      <h2>Nasıl Ulaşılır</h2>
+      <p>Mekan hakkında daha fazla bilgi için bize e-posta gönderin: turkey.rsg@gmail.com</p>
+    </div>
+  </div>
+</BaseLayout>
