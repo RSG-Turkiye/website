@@ -15,23 +15,49 @@ This guide is for members of the **website committee** and **translation committ
 7. [File Naming Rules](#7-file-naming-rules)
 8. [Frontmatter Reference](#8-frontmatter-reference)
 9. [Markdown Tips](#9-markdown-tips)
+10. [Troubleshooting](#10-troubleshooting)
 
 ---
 
 ## 1. Setup
 
+**Only making a content change (blog post, translation, webinar page)?**
+You don't need to install anything. You can edit files directly in the browser — see [Editing in the Browser](#editing-in-the-browser) below.
+
+If you want to preview your changes locally before submitting, follow the full setup below.
+
+---
+
+### Editing in the Browser
+
+For content-only changes (adding or editing Markdown files), you can do everything on GitHub without installing anything:
+
+1. Navigate to the file you want to edit on [github.com/RSG-Turkiye/website](https://github.com/RSG-Turkiye/website)
+2. Click the pencil icon (Edit this file) in the top-right corner of the file view
+3. Make your changes in the editor
+4. Scroll down to **Propose changes**, write a short description, and click **Propose changes**
+5. On the next page, click **Create pull request**
+
+A committee lead will review and merge it. The site rebuilds automatically once merged.
+
+---
+
 ### Install prerequisites
 
-You need **Git** and **Node.js** installed before anything else.
+You need **Git** and **Node.js 18 or later** installed before anything else.
+
+> **Node.js version requirement:** This project requires Node.js **18 or later**. Using an older version will cause errors during `npm install` or `npm run dev`. Run `node --version` to check yours.
 
 **Git:**
 - Windows / macOS: download from [git-scm.com](https://git-scm.com/downloads) and run the installer
 - Linux: `sudo apt install git` (Ubuntu/Debian) or `sudo dnf install git` (Fedora)
 
-**Node.js:**
-- Go to [nodejs.org](https://nodejs.org) and download the **LTS** version
+**Node.js (version 18+):**
+- Go to [nodejs.org](https://nodejs.org) and download the **LTS** version (currently v22)
 - Run the installer (Windows / macOS) or follow the instructions for your Linux distro
-- Verify it worked: `node --version` should print something like `v22.x.x`
+- Verify it worked: `node --version` should print `v18.x.x` or higher
+
+If you manage multiple Node versions (e.g. for other projects), use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm). This repo includes a `.nvmrc` file, so `nvm use` will switch to the correct version automatically.
 
 ### Clone and run
 
@@ -349,3 +375,54 @@ Or add an image to `public/images/` and reference it as:
 ```markdown
 ![Speaker photo](/images/my-photo.png)
 ```
+
+---
+
+## 10. Troubleshooting
+
+### `npm install` fails or throws errors
+
+Almost always a Node version problem. Run `node --version` — if it prints anything below `v18`, you need to upgrade.
+
+- Download the latest LTS from [nodejs.org](https://nodejs.org), or
+- If you use nvm: `nvm install 18 && nvm use 18`
+- If you use fnm: `fnm install 18 && fnm use 18`
+
+Then run `npm install` again.
+
+### `astro: command not found`
+
+This can happen if `npm install` didn't complete successfully. Try:
+
+```bash
+npm install
+npx astro dev
+```
+
+Using `npx astro dev` instead of `npm run dev` also works in most cases.
+
+### Port 4321 is already in use
+
+Another process is using the default port. Run the dev server on a different port:
+
+```bash
+npm run dev -- --port 3000
+```
+
+Then visit `http://localhost:3000` instead.
+
+### Permission errors on Linux or macOS
+
+If `npm install` fails with `EACCES` or permission denied errors, do **not** use `sudo npm install`. Instead, fix your npm prefix:
+
+```bash
+mkdir ~/.npm-global
+npm config set prefix '~/.npm-global'
+export PATH=~/.npm-global/bin:$PATH
+```
+
+Add the `export` line to your `~/.bashrc` or `~/.zshrc` to make it permanent, then re-run `npm install`.
+
+### Changes not showing up in the browser
+
+Make sure `npm run dev` is still running in your terminal. If it is, try a hard refresh in your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`).
