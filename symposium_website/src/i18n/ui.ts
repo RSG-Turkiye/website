@@ -13,6 +13,7 @@ export const ui = {
     "nav.venue": "Venue",
     "nav.about": "About",
     "nav.sponsors": "Sponsors",
+    "nav.editions": "Past Editions",
 
     "hero.tagline": "ISCB SC RSG-Türkiye Student Symposium",
     "hero.subtitle":
@@ -70,6 +71,7 @@ export const ui = {
     "nav.venue": "Mekan",
     "nav.about": "Hakkında",
     "nav.sponsors": "Sponsorlar",
+    "nav.editions": "Geçmiş Edisyonlar",
 
     "hero.tagline": "ISCB SC RSG-Türkiye Öğrenci Sempozyumu",
     "hero.subtitle":

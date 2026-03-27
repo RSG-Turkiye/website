@@ -1,0 +1,42 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
+import { getCollection } from "astro:content";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const editions = (await getCollection("editions")).sort(
+  (a, b) => b.data.year - a.data.year
+);
+---
+
+<BaseLayout pageTitle={t("nav.editions")} translationUrl="/editions">
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("nav.editions")}</h1>
+      <p class="text-white/70">2012'den bu yana RSG-Türkiye öğrenci sempozyumlarının arşivi</p>
+    </div>
+  </section>
+  <div class="max-w-7xl mx-auto px-6 py-12">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {editions.map((edition) => (
+        <a href={`/tr/editions/${edition.data.year}`} class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
+          {edition.data.posterImage && (
+            <div class="aspect-video overflow-hidden bg-navy-light">
+              <img src={edition.data.posterImage} alt={edition.data.title} class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+          )}
+          <div class="p-5 flex flex-col gap-2 flex-1">
+            <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded w-fit">{edition.data.year}</span>
+            <h2 class="font-semibold text-navy">{edition.data.title}</h2>
+            {edition.data.subtitle && <p class="text-sm text-gray-500">{edition.data.subtitle}</p>}
+            {edition.data.venueCity && (
+              <p class="text-xs text-gray-400 mt-auto pt-2">📍 {edition.data.venueCity}{edition.data.date && ` · ${edition.data.date}`}</p>
+            )}
+          </div>
+        </a>
+      ))}
+    </div>
+  </div>
+</BaseLayout>

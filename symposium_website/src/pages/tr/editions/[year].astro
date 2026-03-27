@@ -1,0 +1,74 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import SpeakerCard from "../../../components/SpeakerCard.astro";
+import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
+import { getCollection, render } from "astro:content";
+import { getSpeakerBySlug } from "../../../data/speakers";
+
+export async function getStaticPaths() {
+  const editions = await getCollection("editions");
+  return editions.map((edition) => ({
+    params: { year: String(edition.data.year) },
+    props: { edition },
+  }));
+}
+
+const { edition } = Astro.props;
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const { Content } = await render(edition);
+const editionSpeakers = edition.data.speakers.map(getSpeakerBySlug).filter(Boolean);
+---
+
+<BaseLayout
+  pageTitle={edition.data.title}
+  image={edition.data.posterImage}
+  translationUrl={`/editions/${edition.data.year}`}
+>
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex items-center gap-3 mb-3">
+        <a href="/tr/editions" class="text-white/50 hover:text-white text-sm transition-colors">← {t("nav.editions")}</a>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold mb-2">{edition.data.title}</h1>
+      {edition.data.subtitle && <p class="text-white/70 text-lg">{edition.data.subtitle}</p>}
+      <div class="flex flex-wrap gap-4 mt-4 text-sm text-white/60">
+        {edition.data.date && <span>📅 {edition.data.date}</span>}
+        {edition.data.venueCity && <span>📍 {[edition.data.venue, edition.data.venueCity].filter(Boolean).join(", ")}</span>}
+      </div>
+    </div>
+  </section>
+
+  <div class="max-w-4xl mx-auto px-6 py-12 space-y-12">
+    {edition.data.posterImage && (
+      <div class="rounded-xl overflow-hidden border border-border max-h-96 flex items-center justify-center bg-navy-light">
+        <img src={edition.data.posterImage} alt={edition.data.title} class="max-h-96 w-auto object-contain" />
+      </div>
+    )}
+    {editionSpeakers.length > 0 && (
+      <div>
+        <h2 class="text-xl font-bold text-navy mb-5">{t("nav.speakers")}</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {editionSpeakers.map((sp) => sp && <SpeakerCard speaker={sp} />)}
+        </div>
+      </div>
+    )}
+    <div class="prose-content"><Content /></div>
+    {edition.data.galleryImages.length > 0 && (
+      <div>
+        <h2 class="text-xl font-bold text-navy mb-5">Galeri</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {edition.data.galleryImages.map((img) => (
+            <div class="aspect-video rounded-lg overflow-hidden bg-navy-light">
+              <img src={img} alt={`${edition.data.year} sempozyumu`} class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+    <div class="border-t border-border pt-8">
+      <a href="/tr/editions" class="text-navy-mid hover:text-navy transition-colors text-sm">← {t("nav.editions")}</a>
+    </div>
+  </div>
+</BaseLayout>

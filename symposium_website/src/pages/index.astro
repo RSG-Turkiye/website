@@ -1,107 +1,164 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SpeakerCard from "../components/SpeakerCard.astro";
+import SessionRow from "../components/SessionRow.astro";
 import SponsorLogo from "../components/SponsorLogo.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { speakers, getSpeakersByEdition } from "../data/speakers";
+import { getSpeakersByEdition } from "../data/speakers";
 import { sponsors, getSponsorsByEdition } from "../data/sponsors";
-import { latestEdition } from "../data/editions";
+import { getSessionsByEdition } from "../data/sessions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const prefix = lang === "tr" ? "/tr" : "";
 
-const latestSpeakers = getSpeakersByEdition(latestEdition.year);
-const latestSponsors = getSponsorsByEdition(latestEdition.year);
+// Most recent known edition for speakers/schedule sections
+const LATEST_YEAR = 2024;
+const latestSpeakers = getSpeakersByEdition(LATEST_YEAR);
+const latestSessions = getSessionsByEdition(LATEST_YEAR);
+const latestSponsors = getSponsorsByEdition(LATEST_YEAR);
+
+const BANNER =
+  "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
 ---
 
 <BaseLayout
   pageTitle={t("nav.home")}
+  image={BANNER}
   translationUrl={lang === "en" ? "/tr/" : "/"}
 >
-  <!-- Hero -->
-  <section class="relative bg-navy text-white overflow-hidden">
+  <!-- ── Hero ──────────────────────────────────────────────────── -->
+  <section class="relative bg-navy text-white overflow-hidden min-h-[90vh] flex items-center">
+    <!-- Banner image -->
     <div
-      class="absolute inset-0 bg-cover bg-center opacity-10"
-      style={`background-image: url('${latestEdition.posterImage}')`}
+      class="absolute inset-0 bg-cover bg-center"
+      style={`background-image: url('${BANNER}')`}
     ></div>
-    <div class="relative max-w-7xl mx-auto px-6 py-24 sm:py-32 flex flex-col items-center text-center gap-6">
-      <span
-        class="inline-block bg-red/20 text-red border border-red/30 text-xs font-semibold px-4 py-1 rounded-full uppercase tracking-widest"
-      >
-        {latestEdition.title}
-      </span>
+    <div class="absolute inset-0 bg-navy/75"></div>
+
+    <div class="relative max-w-7xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-6 w-full">
+      <img
+        src="/logo/rsgturkey_logo_white.png"
+        alt="RSG-Türkiye"
+        class="h-16 w-auto mb-2"
+      />
       <h1 class="text-4xl sm:text-5xl font-bold leading-tight max-w-3xl">
         {t("hero.tagline")}
       </h1>
-      <p class="text-lg text-white/75 max-w-2xl leading-relaxed">
+      <p class="text-lg text-white/80 max-w-2xl leading-relaxed">
         {t("hero.subtitle")}
       </p>
+
+      <!-- Next edition badge -->
+      <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm text-white/80 mt-2">
+        <span class="w-2 h-2 bg-red rounded-full animate-pulse"></span>
+        {lang === "tr" ? "Sonraki edisyon yakında duyurulacak" : "Next edition coming soon — stay tuned"}
+      </div>
+
       <div class="flex flex-wrap justify-center gap-4 mt-2">
         <a
-          href={`${prefix}/about`}
+          href="#speakers"
           class="px-6 py-3 rounded-lg bg-white text-navy font-semibold hover:bg-navy-light transition-colors text-sm"
         >
-          {t("hero.cta.about")}
+          {t("nav.speakers")}
         </a>
         <a
-          href={`${prefix}/schedule`}
+          href={`${prefix}/editions`}
           class="px-6 py-3 rounded-lg border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors text-sm"
         >
-          {t("nav.schedule")}
+          {t("nav.editions")}
         </a>
       </div>
 
-      <!-- Edition meta -->
-      <div class="flex flex-wrap justify-center gap-6 mt-4 text-sm text-white/60">
-        <span>📅 {latestEdition.date}</span>
-        <span>📍 {latestEdition.venue}, {latestEdition.venueCity}</span>
+      <!-- Scroll hint -->
+      <a href="#about" class="mt-8 text-white/40 hover:text-white/70 transition-colors animate-bounce">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12l7 7 7-7"/>
+        </svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── About ─────────────────────────────────────────────────── -->
+  <section id="about" class="max-w-7xl mx-auto px-6 py-20">
+    <div class="max-w-3xl mx-auto text-center">
+      <h2 class="text-2xl font-bold text-navy mb-4">{t("home.about.title")}</h2>
+      <p class="text-gray-600 leading-relaxed text-lg">{t("home.about.body")}</p>
+
+      <div class="mt-10 grid sm:grid-cols-3 gap-4">
+        {
+          [
+            { label: lang === "tr" ? "Kuruluş Yılı" : "Since", value: "2012" },
+            { label: lang === "tr" ? "Edisyon" : "Editions", value: "11+" },
+            { label: lang === "tr" ? "Üye Ağı" : "Network", value: "ISCB SC" },
+          ].map(({ label, value }) => (
+            <div class="bg-navy-light rounded-xl p-5 text-center">
+              <p class="text-3xl font-bold text-navy">{value}</p>
+              <p class="text-sm text-gray-500 mt-1">{label}</p>
+            </div>
+          ))
+        }
       </div>
     </div>
   </section>
 
-  <!-- About -->
-  <section class="max-w-7xl mx-auto px-6 py-16">
-    <div class="max-w-3xl mx-auto text-center">
-      <h2 class="text-2xl font-bold text-navy mb-4">{t("home.about.title")}</h2>
-      <p class="text-gray-600 leading-relaxed">{t("home.about.body")}</p>
+  <!-- ── Speakers ───────────────────────────────────────────────── -->
+  <section id="speakers" class="bg-navy-light py-20 scroll-mt-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h2 class="text-2xl font-bold text-navy">{t("nav.speakers")}</h2>
+          <p class="text-sm text-gray-500 mt-1">
+            {lang === "tr" ? `${LATEST_YEAR} Edisyonu` : `${LATEST_YEAR} Edition`}
+          </p>
+        </div>
+        <a
+          href={`${prefix}/editions/${LATEST_YEAR}`}
+          class="text-sm text-navy-mid hover:text-navy transition-colors font-medium"
+        >
+          {lang === "tr" ? "Edisyon sayfası →" : "View edition →"}
+        </a>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {latestSpeakers.filter((s) => s.photo).map((sp) => <SpeakerCard speaker={sp} compact={true} />)}
+      </div>
     </div>
   </section>
 
-  <!-- Speakers strip -->
-  {
-    latestSpeakers.filter((s) => s.photo).length > 0 && (
-      <section class="bg-navy-light py-16">
-        <div class="max-w-7xl mx-auto px-6">
-          <div class="flex items-center justify-between mb-8">
-            <h2 class="text-2xl font-bold text-navy">{t("speakers.title")}</h2>
-            <a href={`${prefix}/speakers`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
-              {lang === "tr" ? "Tümünü Gör →" : "View All →"}
-            </a>
-          </div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {latestSpeakers
-              .filter((s) => s.photo)
-              .map((sp) => (
-                <SpeakerCard speaker={sp} compact={true} />
-              ))}
-          </div>
-        </div>
-      </section>
-    )
-  }
+  <!-- ── Schedule ───────────────────────────────────────────────── -->
+  <section id="schedule" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-16">
+    <div class="max-w-3xl mx-auto">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-navy">{t("nav.schedule")}</h2>
+        <p class="text-sm text-gray-500 mt-1">
+          {lang === "tr" ? `${LATEST_YEAR} Edisyonu Programı` : `${LATEST_YEAR} Edition Programme`}
+        </p>
+      </div>
 
-  <!-- Sponsors -->
-  {
-    latestSponsors.length > 0 && (
-      <section class="max-w-7xl mx-auto px-6 py-16">
-        <h2 class="text-2xl font-bold text-navy text-center mb-8">{t("home.sponsors.title")}</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {latestSponsors.map((sp) => (
-            <SponsorLogo sponsor={sp} />
-          ))}
+      <div class="bg-white rounded-xl border border-border overflow-hidden">
+        <div class="bg-navy-light px-6 py-4 border-b border-border">
+          <p class="font-semibold text-navy">11th RSG-Türkiye Student Symposium</p>
+          <p class="text-sm text-gray-500 mt-0.5">📍 Mehmet Akif Ersoy Art Center, Pendik, Istanbul</p>
         </div>
-      </section>
-    )
-  }
+        <div class="p-4 space-y-2">
+          {latestSessions.map((session) => <SessionRow session={session} />)}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Sponsors ───────────────────────────────────────────────── -->
+  <section id="sponsors" class="bg-navy-light py-20 scroll-mt-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <h2 class="text-2xl font-bold text-navy text-center mb-8">{t("home.sponsors.title")}</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-3xl mx-auto">
+        {latestSponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
+      </div>
+      <div class="text-center mt-8">
+        <a href={`${prefix}/sponsors`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
+          {lang === "tr" ? "Tüm sponsorları gör →" : "View all sponsors →"}
+        </a>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
