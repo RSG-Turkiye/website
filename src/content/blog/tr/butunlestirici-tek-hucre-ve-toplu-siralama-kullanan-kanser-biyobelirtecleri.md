@@ -2,7 +2,7 @@
 title: Bütünleştirici Tek Hücre ve Toplu Sıralama Kullanan Kanser Biyobelirteçleri
 pubDate: 2018-10-15
 description: "Başlık: Cancer Biomarkers Using Integrative Single Cell and Bulk Sequencing Sunucu: Akdeş Sevim Harmancı Tarih: 23 Ekim, 2018 Dil: İngilizce Özet: Kanser genomik ve epigenomik değişikliklerin bir hastalığıdır. Tek nükleotid değişiklikleri, kopya sayısı varyasyonları (CNV), kromozomal yeniden düzenlemeler ve DNA metilasyonundaki modifikasyonlar birlikte bir tümör oluşumunu tetikler. Kanser araştırmalarındaki bütünleştirici ‘omik’ yaklaşımlar, tümör biyolojisinin daha"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

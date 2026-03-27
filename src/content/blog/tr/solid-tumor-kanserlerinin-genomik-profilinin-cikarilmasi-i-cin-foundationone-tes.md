@@ -2,7 +2,7 @@
 title: Solid Tümör Kanserlerinin Genomik Profilinin Çıkarılması İçin FoundationOne® Testi
 pubDate: 2018-10-01
 description: "Başlık: Solid Tümör Kanserlerinin Genomik Profilinin Çıkarılması İçin FoundationOne® Testi Sunucu: Dr. Abdullah Karaman,  University Hospital Zurich Tarih: 5 Ekim, 2018 Dil: İngilizce Özet: Kapsamlı genomik tümör profili oluşturma, modern kanser teşhisi ve tedavisinde hassas tıbbın temelidir. Kanser genomlarının profilini çıkarma ve bireysel tümörlerdeki sürücü mutasyonları belirleme olanağı, onkologların kanseri teşhis etme, tedavilere karar verme ve"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

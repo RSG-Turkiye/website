@@ -2,7 +2,7 @@
 title: "Bir Çalışmayı Anlamanın Kolay Bir Yolu: Öğrenci Sunumları"
 pubDate: 2018-03-20
 description: "12 Mart’ta gerçekleştirilen bu yılın ilk öğrenci webinarını Melike Donertaş sundu. Kaçınılmaz biyolojik süreçlerden biri olarak yaşlanma, “Yaşlanmayı Hedeflemek İçin Gen İfadesine Dayalı İlaçların Yeniden Kullanılması” başlıklı sunumun odak noktasıydı. Neredeyse iki saat boyunca Melike, yalnızca ilacın yeniden kullanılmasına yönelik çalışmanın metodolojisini değil, aynı zamanda şimdiye kadarki yaşlanma çalışmalarına genel bir bakışı da sundu. Eş"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

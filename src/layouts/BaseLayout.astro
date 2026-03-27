@@ -11,7 +11,7 @@ interface Props {
   translationUrl?: string; // exact URL for the other-language version of this page
 }
 
-const { pageTitle, description = 'RSG Turkey - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkey.', image = '', translationUrl } = Astro.props;
+const { pageTitle, description = 'RSG Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkey.', image = '', translationUrl } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://rsgturkey.com');
@@ -23,26 +23,26 @@ const ogImage = image || '/logo/rsgturkey_logo.png';
     <link rel="icon" type="image/png" href="/logo/rsgturkey_logo_white.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
-    <title>{pageTitle} | RSG Turkey</title>
+    <title>{pageTitle} | RSG Turkiye</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL.href} />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalURL.href} />
-    <meta property="og:title" content={`${pageTitle} | RSG Turkey`} />
+    <meta property="og:title" content={`${pageTitle} | RSG Turkiye`} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={new URL(ogImage, Astro.site || 'https://rsgturkey.com').href} />
     <meta property="og:locale" content={lang === 'tr' ? 'tr_TR' : 'en_US'} />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={`${pageTitle} | RSG Turkey`} />
+    <meta name="twitter:title" content={`${pageTitle} | RSG Turkiye`} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={new URL(ogImage, Astro.site || 'https://rsgturkey.com').href} />
 
     <!-- RSS Feed -->
-    <link rel="alternate" type="application/rss+xml" title="RSG Turkey Blog RSS" href="/rss.xml" />
+    <link rel="alternate" type="application/rss+xml" title="RSG Turkiye Blog RSS" href="/rss.xml" />
 
     <!-- Translation URL: used by the language switcher to navigate to the correct page -->
     {translationUrl && <meta name="translation-url" content={translationUrl} />}

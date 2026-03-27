@@ -2,7 +2,7 @@
 title: An evolutionary genomic framework for tackling problems in conservation and biodiversity.
 pubDate: 2018-03-31
 description: "Title: An evolutionary genomic framework for tackling problems in conservation and biodiversity. Presenter: Asst. Prof. İsmail K. Sağlam from Hacettepe University Date: April 16, 2018 Language: English Abstract: Today, the fıeld of conservation biology has risen to the forefront of scientific endeavors as only with a successful translation of conservation science to conservation practices can we"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

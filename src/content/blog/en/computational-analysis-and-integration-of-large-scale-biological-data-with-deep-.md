@@ -2,7 +2,7 @@
 title: Computational Analysis and Integration of Large-Scale Biological Data with Deep Learning Approaches
 pubDate: 2018-08-06
 description: "Title: Computational Analysis and Integration of Large-Scale Biological Data with Deep Learning Approaches Presenter: Dr. Tunca Doğan from EMBI – EBI & METU Date: August 2, 2018 Language: English Abstract: Machine learning and data mining techniques are frequently employed to make sense of large-scale and noisy biological/biomedical data accumulated in public servers. A key subject"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

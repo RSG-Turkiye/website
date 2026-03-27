@@ -2,7 +2,7 @@
 title: Sunum Çağrıları
 pubDate: 2018-03-22
 description: "Follow here for English! Ogrenci Webinarlari Bilginizi ve deneyiminizi paylasmak mi istiyorsunuz? Artik projenizi, tezlerinizi ve belirli bir alandaki uzman bilgi birikiminizi webinarlarimiz araciligi ile paylasabilirsiniz! Formu doldurun ve ozet gonderiminiz bilimsel komitemiz tarafindan incelendikten sonra sizinle iletisime gecip gerekli ayarlamalari yapalim! Ozet Cagrisi – Ogrenci Sunumlari Gelecek webinarlarimiz icin davet edilmek uzere arastirmacilar onerin! Calismalariniza"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

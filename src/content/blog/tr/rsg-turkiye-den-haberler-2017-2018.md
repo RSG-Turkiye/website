@@ -2,7 +2,7 @@
 title: "RSG Turkiye’den Haberler (2017->2018)"
 pubDate: 2018-02-05
 description: "Takvimde bir yili daha geride birakmisken, gectigimiz yil neler yaptik, bu yil icin planlarimiz neler sizlerle paylasmak istedik! 2017’de neler yaptik? 2017 disardan durgun gozukmus olsa da RSG Turkiye’de ciddi adimlarin atildigi, gelismelerin oldugu bir yildi. Aramiza bir cok yeni arkadas katildi. Turkiye’de hesaplamali biyoloji camiasinin buyumesine birebir tanik oluyor, ve bundan cok da guzel"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

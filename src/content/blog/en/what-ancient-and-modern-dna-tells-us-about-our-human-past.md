@@ -2,7 +2,7 @@
 title: What ancient and modern DNA tells us about our human past?
 pubDate: 2018-12-01
 description: "Title: What ancient and modern DNA tells us about our human past? Presenter: Dr. Stephan Schiffels from Max Planck Institute for the Science of Human History Date: December 12, 2018 Language: English Abstract: Our human past leaves traces in our genomes, via population size changes, admixture events and migration patterns. Via genetic analyses, we can therefore"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

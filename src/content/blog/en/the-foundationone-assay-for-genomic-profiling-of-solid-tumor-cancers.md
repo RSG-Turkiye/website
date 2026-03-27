@@ -2,7 +2,7 @@
 title: The FoundationOne® Assay for Genomic Profiling of Solid Tumor Cancers
 pubDate: 2018-09-30
 description: "Title: The FoundationOne® Assay for Genomic Profiling of Solid Tumor Cancers Presenter: Dr. Abdullah Karaman from  University Hospital Zurich Date: October 5, 2018 Language: English Abstract: Comprehensive genomic tumor profiling is the basis of precision medicine in the modern era of cancer diagnosis and treatment. The possibility to profile cancer genomes and identify driver mutations in"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

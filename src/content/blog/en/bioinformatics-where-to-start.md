@@ -2,7 +2,7 @@
 title: "Bioinformatics: Where to Start?"
 pubDate: 2024-07-05
 description: "A beginner-friendly resource guide for anyone wondering how to enter the field of bioinformatics and computational biology."
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: ["beginners", "resources", "learning"]
 image: ""
@@ -60,7 +60,7 @@ There is no sharp line between these groups, and most people move between them o
 
 Bioinformatics has a high learning curve. Working on real projects — especially with a mentor — accelerates progress more than working through tutorials alone.
 
-Being part of a community helps with motivation. RSG Turkey organizes free training events and connects students across Turkey working in bioinformatics and computational biology. Check our [GitHub](https://github.com/rsgturkey) for upcoming events and past materials.
+Being part of a community helps with motivation. RSG Turkiye organizes free training events and connects students across Turkey working in bioinformatics and computational biology. Check our [GitHub](https://github.com/rsgturkey) for upcoming events and past materials.
 
 For questions and troubleshooting, [Biostars](https://www.biostars.org/) and Stack Overflow remain the most reliable community resources. AI assistants (e.g. ChatGPT) can also be useful for quick explanations and debugging — but verify their output, especially for specialized tools.
 

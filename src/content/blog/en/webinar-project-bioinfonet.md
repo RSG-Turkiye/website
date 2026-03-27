@@ -2,7 +2,7 @@
 title: Webinar Project – Bioinfonet
 pubDate: 2017-05-08
 description: "Bioinfonet project is an ISCB Student Council supported webinar project. Our main aim is to build bridges between bioinformatics professionals and young bioinformatics students, mainly who live in developing countries and have difficulty joining the aura of the community. But anyone who want to get an idea of how bioinformatics is done, who are those bioinformaticians and"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

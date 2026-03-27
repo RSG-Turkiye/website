@@ -2,7 +2,7 @@
 title: "Upcoming Bioinformatics Workshop Series"
 pubDate: 2024-01-20
 description: "Join us for our comprehensive workshop series covering essential bioinformatics tools and techniques."
-author: "RSG Turkey Education Team"
+author: "RSG Turkiye Education Team"
 category: "events"
 tags:
   - "workshop"
@@ -40,7 +40,7 @@ We're excited to announce our upcoming **Bioinformatics Workshop Series**! This 
 
 ## Registration
 
-Workshops are free for RSG Turkey members. Non-members can join for a small fee. Each workshop includes:
+Workshops are free for RSG Turkiye members. Non-members can join for a small fee. Each workshop includes:
 
 - Hands-on practical sessions
 - Access to cloud computing resources

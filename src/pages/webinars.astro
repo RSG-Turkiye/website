@@ -5,7 +5,7 @@ import { getCollection } from 'astro:content';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-const pageTitle = "Webinars - RSG Turkey";
+const pageTitle = "Webinars - RSG Turkiye";
 
 const allWebinars = await getCollection('webinars');
 const enWebinars = allWebinars.filter(w => w.id.startsWith('en/'));
@@ -95,7 +95,7 @@ function initials(name: string) {
           <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
             <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">About the Series</p>
             <p class="text-sm text-gray-600 leading-relaxed">
-              RSG Turkey hosts regular webinars featuring researchers in bioinformatics, structural biology, and computational biology — open to everyone.
+              RSG Turkiye hosts regular webinars featuring researchers in bioinformatics, structural biology, and computational biology — open to everyone.
             </p>
           </div>
 

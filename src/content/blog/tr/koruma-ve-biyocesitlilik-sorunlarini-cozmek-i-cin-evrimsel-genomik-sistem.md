@@ -2,7 +2,7 @@
 title: Koruma ve Biyoçeşitlilik Sorunlarını Çözmek İçin Evrimsel Genomik Sistem
 pubDate: 2018-04-01
 description: "Başlık: Koruma ve biyolojik çeşitlilikteki sorunların üstesinden gelmek için evrimsel bir genomik sistem Sunucu: Yrd. Doç. İsmail K. Sağlam, Hacettepe University Tarih: 16 Nisan, 2018 Dil: İngilizce Özet: Günümüzde koruma biyolojisi alanı bilimsel çabaların ön saflarına çıkmıştır; yalnızca koruma biliminin koruma uygulamalarına başarılı bir şekilde aktarılmasıyla ekosistemlerimizin sürdürülebilirliğine ve refahına yönelik tehditlerle mücadele etmeyi umabiliriz. Biyoloji"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

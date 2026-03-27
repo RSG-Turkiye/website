@@ -2,7 +2,7 @@
 title: Biyomoleküler Komplekslerin Bütünleştirici Modellemesi
 pubDate: 2018-01-01
 description: "Başlık: Biyomoleküler Komplekslerin Bütünleştirici Modellemesi Sunucu: Doç. Dr. Ezgi Karaca, Dokuz Eylül Üniversitesi Tarih: 31 Ocak, 2018 Dil: İngilizce Özet: Yaşam, biyomoleküllerin orkestrasyonlu iletişimi yoluyla nanometre ölçeğinde işletilmektedir. Bu nano dünyayı inceleyerek, biyolojik makromoleküllerin nasıl işlediğine, hastalıklarla bağlantılı yollarla nasıl ilişkili olduklarına ve bunları hedefleyen ilaçların nasıl tasarlanacağına dair temel bir anlayış edinebiliriz. Bu anlayış, biyomoleküllerin"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

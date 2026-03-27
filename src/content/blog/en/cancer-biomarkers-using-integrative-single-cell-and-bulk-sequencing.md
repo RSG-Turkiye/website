@@ -2,7 +2,7 @@
 title: Cancer Biomarkers Using Integrative Single Cell and Bulk Sequencing
 pubDate: 2018-10-14
 description: "Title: Cancer Biomarkers Using Integrative Single Cell and Bulk Sequencing Presenter: Akdeş Sevim Harmancı Date: October 23, 2018 Language: English Abstract: Cancer is a disease of genomic and epigenomic alterations. Single nucleotide changes, copy number variations (CNV), chromosomal rearrangements and modification in DNA methylation together drive the formation of a tumor. The integrative ‘omic’ approaches"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

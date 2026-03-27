@@ -2,7 +2,7 @@
 title: HIBIT 2018 Ardından
 pubDate: 2018-11-10
 description: "Bu sene ISCB-SC-RSG Türkiye grubu olarak 5.sini gerçekleştirdiğimiz öğrenci sempozyumumuzun detaylarını sizinle paylaşmaktan mutluluk duyuyoruz! Öğrenci sempozyumumuz 25-27 Ekim tarihleri arasında gerçekleşen HIBIT 2018’in 3.gününde Falez Uygulama Oteli’nde harika bir katılımla gerçekleşti. Öğrenci sempozyumu düzenlerken başlıca hedeflerimiz yüksek lisans ve doktora öğrencileri ile akademisyenleri bir araya getirmek, kariyer tercihlerimiz hakkında konuşmak, öğrenmek ve bildiklerimizi aktarmak ve"
-author: RSG Turkey
+author: RSG Turkiye
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/0ba579064b92f1d5b9988e9f1314171f8375d12cc124ff565127fdeb9a2759cf?s=30&d=mm&r=g"

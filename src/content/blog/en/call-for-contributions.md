@@ -1,7 +1,7 @@
 ---
 title: Call for Contributions
 pubDate: 2015-01-30
-description: "Thanks to our community members and colleagues from ISCB RSG Turkey, BioInfoNet Project is growing day by day. We now have 172 members signed up to our Biomarker community and we have proudly organised 3 important webinars! It is good to know that there will be more ahead! At this stage, we felt that we are ready"
+description: "Thanks to our community members and colleagues from ISCB RSG Turkiye, BioInfoNet Project is growing day by day. We now have 172 members signed up to our Biomarker community and we have proudly organised 3 important webinars! It is good to know that there will be more ahead! At this stage, we felt that we are ready"
 author: Zeynep Ozkeserli
 category: general
 tags: []
@@ -10,7 +10,7 @@ lang: "en"
 draft: false
 ---
 
-Thanks to our community members and colleagues from ISCB RSG Turkey, BioInfoNet Project is growing day by day. We now have 172 members signed up to our Biomarker community and we have proudly organised 3 important webinars! It is good to know that there will be more ahead!
+Thanks to our community members and colleagues from ISCB RSG Turkiye, BioInfoNet Project is growing day by day. We now have 172 members signed up to our Biomarker community and we have proudly organised 3 important webinars! It is good to know that there will be more ahead!
 
 At this stage, we felt that we are ready to make calls for presentations for both professionals and students.
 

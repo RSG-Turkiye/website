@@ -20,4 +20,4 @@ At the beginning of the talk, she gave a general introduction on the detection o
 
 If you are interested in how short tandem repeats influence cancer and how they can be used for immunotherapy purposes, we strongly suggest you watch this webinar: https://youtu.be/GmjwyTZinjU (unfortunately, this webinar is only available in Turkish)
 
-As ISCB RSG Turkey, we want to thank Tugce again for accepting our invitation and giving this very informative talk!
+As ISCB RSG Turkiye, we want to thank Tugce again for accepting our invitation and giving this very informative talk!

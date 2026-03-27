@@ -1,7 +1,7 @@
 ---
-title: "Welcome to ISCB SC RSG Turkey’s Official Website!"
+title: "Welcome to ISCB SC RSG Turkiye’s Official Website!"
 pubDate: 2017-04-19
-description: "Welcome to ISCB SC RSG Turkey’s official website! Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkey?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC"
+description: "Welcome to ISCB SC RSG Turkiye’s official website! Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkey?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC"
 author: Zeynep Ozkeserli
 category: general
 tags: []
@@ -10,14 +10,14 @@ lang: "en"
 draft: false
 ---
 
-Welcome to ISCB SC RSG Turkey’s official website!
+Welcome to ISCB SC RSG Turkiye’s official website!
 
-Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkey?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC RSG Turkey without any struggle:
+Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkey?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC RSG Turkiye without any struggle:
 
 [ISCB: International Society for Computational Biology  
 ](https://www.iscb.org)[ISCB SC: International Society for Computational Biology _Student Council_](http://www.iscbsc.org)  
 [ISCB SC RSG: International Society for Computational Biology Student Council Regional Student Group](http://rsg.iscbsc.org)  
-And here we are: ISCB SC RSG Turkey!
+And here we are: ISCB SC RSG Turkiye!
 
 ![ActiveRSGWorldMap](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196835/rsgturkey/04/activersgworldmap.png)
 

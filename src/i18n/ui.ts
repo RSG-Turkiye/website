@@ -18,7 +18,7 @@ export const ui = {
     'nav.join': 'Join Us',
 
     // Hero Section
-    'hero.title': 'RSG Turkey',
+    'hero.title': 'RSG Turkiye',
     'hero.description': 'A non-profit student society providing a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics in Turkey.',
     'hero.membership': 'Member of the International Society for Computational Biology (ISCB) Student Council (SC) Regional Student Groups (RSG)',
     'hero.learnMore': 'Learn More',
@@ -54,10 +54,10 @@ export const ui = {
     'features.innovation.description': 'Stay at the forefront of bioinformatics innovation.',
 
     // About Page
-    'about.title': 'About RSG Turkey',
+    'about.title': 'About RSG Turkiye',
     'about.subtitle': 'A non-profit community of early career researchers interested in computational biology and bioinformatics.',
     'about.whoWeAre.title': 'Who Are We?',
-    'about.whoWeAre.description': 'RSG-Turkey is a volunteer platform affiliated with the International Society for Computational Biology (ISCB) Student Council, bringing together students and early-career researchers in computational biology and bioinformatics across Turkey.',
+    'about.whoWeAre.description': 'RSG-Turkiye is a volunteer platform affiliated with the International Society for Computational Biology (ISCB) Student Council, bringing together students and early-career researchers in computational biology and bioinformatics across Turkey.',
     'about.whoWeAre.detail': 'Operating entirely on volunteerism since 2011, we are a non-hierarchical community that creates and supports one another. We organize annual student symposiums, monthly webinars with international experts, journal club meetings, and hands-on workshops — connecting young scientists in Turkey with each other and with colleagues around the world.',
     'about.affiliation.title': 'International Affiliation',
     'about.affiliation.description': 'Member of ISCB Student Council Regional Student Groups',
@@ -121,7 +121,7 @@ export const ui = {
     'contact.info.social': 'Social Media',
 
     // Join Page
-    'join.title': 'Join RSG Turkey',
+    'join.title': 'Join RSG Turkiye',
     'join.subtitle': 'Become part of our growing community',
     'join.form.name': 'Full Name',
     'join.form.email': 'Email Address',
@@ -141,7 +141,7 @@ export const ui = {
     'footer.quickLinks': 'Quick Links',
     'footer.contact': 'Contact',
     'footer.follow': 'Follow Us',
-    'footer.copyright': '© 2024 RSG Turkey. All rights reserved.',
+    'footer.copyright': '© 2024 RSG Turkiye. All rights reserved.',
 
     // Common
     'common.readMore': 'Read More',

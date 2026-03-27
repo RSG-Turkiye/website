@@ -7,8 +7,8 @@ export async function GET(context: APIContext) {
   const sortedPosts = posts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 
   return rss({
-    title: 'RSG Turkey Blog',
-    description: 'Latest blog posts from RSG Turkey - ISCB Student Council Regional Student Group',
+    title: 'RSG Turkiye Blog',
+    description: 'Latest blog posts from RSG Turkiye - ISCB Student Council Regional Student Group',
     site: context.site!,
     items: sortedPosts.map((post) => ({
       title: post.data.title,

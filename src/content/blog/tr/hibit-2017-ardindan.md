@@ -1,7 +1,7 @@
 ---
 title: "HIBIT 2017 Ardından"
 pubDate: 2017-07-03
-description: "Bir baska eglenceli RSG Turkey etkinligini arkada birakirken, yeni arkadaslarimizla tanismanin ve gelecekte guzel isler yapabilme ihtimallerinin dogmasinin..."
+description: "Bir baska eglenceli RSG Turkiye etkinligini arkada birakirken, yeni arkadaslarimizla tanismanin ve gelecekte guzel isler yapabilme ihtimallerinin dogmasinin..."
 author: ""
 category: general
 tags: ["symposium-tr"]
@@ -10,13 +10,13 @@ lang: "tr"
 draft: false
 ---
 
-Bir baska eglenceli RSG Turkey etkinligini arkada birakirken, yeni arkadaslarimizla tanismanin ve gelecekte guzel isler yapabilme ihtimallerinin dogmasinin heyecanini sizlerle paylasmak istedik.
+Bir baska eglenceli RSG Turkiye etkinligini arkada birakirken, yeni arkadaslarimizla tanismanin ve gelecekte guzel isler yapabilme ihtimallerinin dogmasinin heyecanini sizlerle paylasmak istedik.
 
-28 - 30 Haziran tarihleri arasinda duzenlenen HIBIT 2017’ye ([http://hibit2017.ii.metu.edu.tr/](http://hibit2017.ii.metu.edu.tr/)) uydu toplanti olarak gerceklestirdigimiz RSG Turkey sempozyumumuz oldukca iyi bir katilimla sonlandi. 28 Haziran’da harika bir etkinlik olarak baslayan HIBIT’17, 3 gun boyunca gerek davetli, gerek secilen konusmalari ve poster sunumlariyla bizlere iyi kalitede bir bilimsel etkinlik zevkini yasatirken, 30 Haziran’da gerceklestirdigimiz ogrenci sempozyumumuz sayesinde daha sicak bir ortamda, ogrencilere yonelik yonlendirici / motivasyon icerikli konusmalar ve tanisma oturumumuz sayesinde birbirimizi daha iyi tanidik, ileriye yonelik calismalarimiz icin moral bulduk ve belki de olasi kolaboratif calismalarin temelini attik.
+28 - 30 Haziran tarihleri arasinda duzenlenen HIBIT 2017’ye ([http://hibit2017.ii.metu.edu.tr/](http://hibit2017.ii.metu.edu.tr/)) uydu toplanti olarak gerceklestirdigimiz RSG Turkiye sempozyumumuz oldukca iyi bir katilimla sonlandi. 28 Haziran’da harika bir etkinlik olarak baslayan HIBIT’17, 3 gun boyunca gerek davetli, gerek secilen konusmalari ve poster sunumlariyla bizlere iyi kalitede bir bilimsel etkinlik zevkini yasatirken, 30 Haziran’da gerceklestirdigimiz ogrenci sempozyumumuz sayesinde daha sicak bir ortamda, ogrencilere yonelik yonlendirici / motivasyon icerikli konusmalar ve tanisma oturumumuz sayesinde birbirimizi daha iyi tanidik, ileriye yonelik calismalarimiz icin moral bulduk ve belki de olasi kolaboratif calismalarin temelini attik.
 
 ![badge](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197007/rsgturkey/07/badge.png)
 
-28 Haziran’dan itibaren HIBIT organizasyon komitesinin bize sagladigi destek sayesinde kayit masasinda yerimizi bulduk ve bir cok yeni arkadasla tanisma firsati elde ettik. Bu sirada grubumuzdan Cansu Dincer & Zeynep Ozkeserli ortaklasmasinin ortaya cikardigi RSG Turkey rozetlerimizi dagitmayi da ihmal etmedik tabii!
+28 Haziran’dan itibaren HIBIT organizasyon komitesinin bize sagladigi destek sayesinde kayit masasinda yerimizi bulduk ve bir cok yeni arkadasla tanisma firsati elde ettik. Bu sirada grubumuzdan Cansu Dincer & Zeynep Ozkeserli ortaklasmasinin ortaya cikardigi RSG Turkiye rozetlerimizi dagitmayi da ihmal etmedik tabii!
 
 Kayitlar sirasinda tanisma firsati da buldugumuzdan 2 gun suresince yeni arkadaslarimizla grubumuzu tartistik, tanittik, yaptigimiz etkinliklerden bahsettik. Ayrica bu sene grubumuz ISCB SC tarafindan desteklenerek, HIBIT’17 posterlerinden en iyi 3 postere odul verilmesini sagladi. Poster oturumu sirasinda HIBIT’17 nin bilimsel komitesi (Ercument Cicek, Can Alkan, Ozgur Sahin, Attila Gursoy, Ozlem Keskin) tarafindan degerlendirilen posterlerden en iyi ucune 29 Haziran HIBIT’17 kapanisi sirasinda bilimsel komiteyi temsilen Ercument Cicek tarafindan odulleri verildi.
 
@@ -50,6 +50,6 @@ Tesekkurler:
 
 2- HIBIT’17 nin bizler icin bir diger onemi de organizasyon yoneticilerinden Nurcan Tuncbag’in da grubumuz kurucularindan olmasiydi. Hem Nurcan Tuncbag hem de Emre Guney, bu organizasyonda bize desteklerini sunmanin yani sira, bizlere gelecekte yapabileceklerimiz ve yapmamiz gerekenlerle ilgili cok onemli ornek de oldular. Bu vesileyle kendilerine ozellikle tesekkurlerimizi sunuyoruz.
 
-3- Basta Zeynep Ozkeserli, Burcu Yaldiz, Melike Donertas, Elif Bozlak, Cansu Dincer ve Cansu Demirel olmak uzere tum RSG Turkey aktif uyelerine ve organizasyon suresince grubumuzla ic ice calisarak cok iyi bir deneyim gecirmemizi saglayan HIBIT’17 komitesine sonsuz tesekkurler!
+3- Basta Zeynep Ozkeserli, Burcu Yaldiz, Melike Donertas, Elif Bozlak, Cansu Dincer ve Cansu Demirel olmak uzere tum RSG Turkiye aktif uyelerine ve organizasyon suresince grubumuzla ic ice calisarak cok iyi bir deneyim gecirmemizi saglayan HIBIT’17 komitesine sonsuz tesekkurler!
 
 4- ISCB SC bu etkinligimiz icin bize maddi destek saglayarak, etkinlikteki posterlerin odullendirilmesini saglamistir. Bu sebeple ISCB SC destek degerlendirme komitesine tesekkurlerimizi sunuyoruz.

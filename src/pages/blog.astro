@@ -8,7 +8,7 @@ const t = useTranslations(lang);
 
 const allBlogPosts = await getCollection('blog', ({ id, data }) => id.startsWith('en/') && !data.draft && data.type !== 'webinar');
 const sortedPosts = allBlogPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
-const pageTitle = "Blog - RSG Turkey";
+const pageTitle = "Blog - RSG Turkiye";
 
 function getThumbnail(post: any): string | null {
   const img = post.data.image;
@@ -19,8 +19,8 @@ function getThumbnail(post: any): string | null {
 }
 
 const facts = [
-  "RSG Turkey has a published academic article in a peer-reviewed journal.",
-  "RSG Turkey was first founded in 2012, with Prof. Nurcan Tunçbağ as our founding advisor — who is still with us today.",
+  "RSG Turkiye has a published academic article in a peer-reviewed journal.",
+  "RSG Turkiye was first founded in 2012, with Prof. Nurcan Tunçbağ as our founding advisor — who is still with us today.",
   "We organize our annual symposium every year, our flagship event bringing together the bioinformatics community.",
 ];
 ---
@@ -103,11 +103,11 @@ const facts = [
             />
           </div>
 
-          <!-- About RSG Turkey -->
+          <!-- About RSG Turkiye -->
           <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
-            <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">About RSG Turkey</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">About RSG Turkiye</p>
             <p class="text-sm text-gray-600 leading-relaxed">
-              RSG Turkey is the Regional Student Group of ISCB in Turkey, connecting students and young researchers in bioinformatics and computational biology.
+              RSG Turkiye is the Regional Student Group of ISCB in Turkey, connecting students and young researchers in bioinformatics and computational biology.
             </p>
             <a href="/about" class="inline-block mt-3 text-xs font-medium text-navy-mid hover:text-navy transition-colors no-underline">
               Learn more →

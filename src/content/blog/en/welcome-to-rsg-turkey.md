@@ -1,8 +1,8 @@
 ---
-title: "Welcome to RSG Turkey Blog"
+title: "Welcome to RSG Turkiye Blog"
 pubDate: 2024-01-15
 description: "Introducing our new blog platform for sharing computational biology insights and community updates."
-author: "RSG Turkey Team"
+author: "RSG Turkiye Team"
 category: "community"
 tags:
   - "community"
@@ -14,7 +14,7 @@ lang: "en"
 draft: false
 ---
 
-Welcome to the **RSG Turkey Blog**! We're excited to launch our new platform for sharing insights, research updates, and community stories from the computational biology world.
+Welcome to the **RSG Turkiye Blog**! We're excited to launch our new platform for sharing insights, research updates, and community stories from the computational biology world.
 
 ## What We'll Share
 
@@ -28,7 +28,7 @@ Our blog will feature:
 
 ## Our Mission
 
-As part of the ISCB Student Council, RSG Turkey is committed to fostering a vibrant computational biology community in Turkey. Through this blog, we aim to:
+As part of the ISCB Student Council, RSG Turkiye is committed to fostering a vibrant computational biology community in Turkey. Through this blog, we aim to:
 
 - Share knowledge and insights with our community
 - Highlight the work of our members

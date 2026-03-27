@@ -1,7 +1,7 @@
 ---
 title: "Celebrating the BioInfoNet Project!"
 pubDate: 2014-09-27
-description: I met ISCB RSG Turkey guys in 2011 in the first student symposium which was held as a satellite meeting with HiBiT. I was working in a de novo genome project and it was my first time talking about a serious project as a graduate student at a symposium. Many of you can picture my anxiety. But
+description: I met ISCB RSG Turkiye guys in 2011 in the first student symposium which was held as a satellite meeting with HiBiT. I was working in a de novo genome project and it was my first time talking about a serious project as a graduate student at a symposium. Many of you can picture my anxiety. But
 author: Zeynep Ozkeserli
 category: general
 tags: []
@@ -10,7 +10,7 @@ lang: "en"
 draft: false
 ---
 
-I met ISCB RSG Turkey guys in 2011 in the first student symposium which was held as a satellite meeting with HiBiT. I was working in a _de novo_ genome project and it was my first time talking about a serious project as a graduate student at a symposium. Many of you can picture my anxiety. But things got better immediately: I met colleagues from Turkey!
+I met ISCB RSG Turkiye guys in 2011 in the first student symposium which was held as a satellite meeting with HiBiT. I was working in a _de novo_ genome project and it was my first time talking about a serious project as a graduate student at a symposium. Many of you can picture my anxiety. But things got better immediately: I met colleagues from Turkey!
 
 Some of you may have difficulty understanding why it would be “that” important and pleasing to meet colleagues. Well…
 

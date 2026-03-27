@@ -5,7 +5,7 @@ import { getCollection } from 'astro:content';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-const pageTitle = "RSG Turkey - Computational Biology Community";
+const pageTitle = "RSG Turkiye - Computational Biology Community";
 
 const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith('en/') && !data.draft))
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
@@ -22,7 +22,7 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
     <div class="max-w-2xl mx-auto px-6">
       <img
         src="/logo/rsgturkey_logo.png"
-        alt="RSG Turkey Logo"
+        alt="RSG Turkiye Logo"
         width="72" height="72"
         class="mx-auto mb-6 rounded-lg bg-white p-1"
       />
