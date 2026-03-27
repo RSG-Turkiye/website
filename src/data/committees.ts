@@ -106,7 +106,7 @@ export const committeesEn: Committee[] = [
       {
         name: "Zeynep Ateşgil",
         role: "Social Media Leader",
-        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.heic",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.jpg",
       },
     ],
   },
@@ -260,7 +260,7 @@ export const committeesTr: Committee[] = [
       {
         name: "Zeynep Ateşgil",
         role: "Sosyal Medya Ekibi Lideri",
-        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.heic",
+        image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.jpg",
       },
     ],
   },
