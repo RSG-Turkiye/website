@@ -1,0 +1,152 @@
+---
+/**
+ * ResourceCard — renders a single learning path resource with a progress checkbox.
+ *
+ * URL resolution order for webinar resources:
+ *   1. webinarSlug  → /webinars/<slug>   (internal page)
+ *   2. youtubeUrl   → YouTube             (external, before the page exists)
+ *   3. neither      → no link            ("Recording not yet available")
+ *
+ * For non-webinar resources: url is always used.
+ */
+
+interface Resource {
+  title: string;
+  description: string;
+  tag: string;
+  url?: string;
+  webinarSlug?: string;
+  youtubeUrl?: string;
+  speaker?: string;
+  year?: number;
+}
+
+interface Props {
+  resource: Resource;
+  resourceId: string; // unique ID used for localStorage progress tracking
+}
+
+const { resource, resourceId } = Astro.props;
+
+const isWebinar = resource.tag === 'Webinar';
+
+// Resolve the URL and link label
+let href: string | null = null;
+let isExternal = false;
+let linkLabel = 'Open →';
+let unavailable = false;
+
+if (isWebinar) {
+  if (resource.webinarSlug) {
+    href = `/webinars/${resource.webinarSlug}`;
+    linkLabel = 'Watch →';
+  } else if (resource.youtubeUrl) {
+    href = resource.youtubeUrl;
+    isExternal = true;
+    linkLabel = 'Watch on YouTube →';
+  } else {
+    unavailable = true;
+  }
+} else if (resource.url) {
+  // Internal links (starting with /) stay internal
+  isExternal = !resource.url.startsWith('/');
+  href = resource.url;
+  linkLabel = resource.tag === 'Reading' || resource.tag === 'Paper' ? 'Read →' :
+              resource.tag === 'Course' || resource.tag === 'Tutorial' || resource.tag === 'Book' ? 'Open →' :
+              resource.tag === 'Videos' ? 'Watch →' :
+              resource.tag === 'Interactive' ? 'Try it →' :
+              resource.tag === 'Dataset' ? 'Browse →' :
+              'Open →';
+}
+
+const tagClass = isWebinar
+  ? 'bg-red-tint text-red border-red/20'
+  : 'bg-navy-light text-navy-mid border-[#C4CEEA]';
+---
+
+<label
+  class:list={[
+    'resource-item group flex items-start gap-4 p-4 rounded-xl border border-border bg-white',
+    'hover:border-navy-mid hover:shadow-sm transition-all duration-200 cursor-pointer',
+    unavailable && 'opacity-60 cursor-default',
+  ]}
+  data-resource-id={resourceId}>
+
+  <!-- Checkbox (hidden input + custom visual) -->
+  {!unavailable && (
+    <div class="shrink-0 mt-0.5">
+      <input type="checkbox" id={resourceId} class="hidden" />
+      <div class="custom-check w-5 h-5 rounded border-2 border-border flex items-center justify-center transition-colors">
+        <svg class="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  )}
+  {unavailable && <div class="shrink-0 mt-0.5 w-5 h-5" />}
+
+  <!-- Content -->
+  <div class="flex-1 min-w-0">
+    <div class="flex items-start justify-between gap-2 mb-1">
+      <span class:list={[
+        'text-sm font-semibold text-navy leading-snug transition-colors done-strikethrough',
+        !unavailable && 'group-hover:text-navy-mid',
+      ]}>
+        {resource.title}
+      </span>
+      <div class="flex items-center gap-2 shrink-0">
+        {resource.tag && (
+          <span class={`text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${tagClass}`}>
+            {resource.tag}
+          </span>
+        )}
+        {!unavailable && href && isExternal && (
+          <span class="text-gray-300 text-xs">↗</span>
+        )}
+      </div>
+    </div>
+
+    <!-- Speaker + year for webinars -->
+    {isWebinar && (resource.speaker || resource.year) && (
+      <p class="text-xs text-gray-400 mb-1">
+        {resource.speaker && <span>{resource.speaker}</span>}
+        {resource.speaker && resource.year && <span class="mx-1">·</span>}
+        {resource.year && <span>{resource.year}</span>}
+      </p>
+    )}
+
+    <p class="text-xs text-gray-500 leading-relaxed">{resource.description}</p>
+
+    {!unavailable && href && (
+      <a
+        href={href}
+        target={isExternal ? '_blank' : undefined}
+        rel={isExternal ? 'noopener noreferrer' : undefined}
+        class="inline-flex items-center gap-1 mt-2 text-xs font-medium text-navy-mid hover:text-navy no-underline transition-colors"
+        onclick="event.stopPropagation()">
+        {linkLabel}
+      </a>
+    )}
+    {unavailable && (
+      <span class="inline-block mt-2 text-xs text-gray-400 italic">Recording not yet available</span>
+    )}
+  </div>
+</label>
+
+<style>
+  .custom-check svg { opacity: 0; }
+
+  .resource-item:has(input:checked) .custom-check {
+    background-color: rgb(34 197 94);
+    border-color: rgb(34 197 94);
+  }
+  .resource-item:has(input:checked) .custom-check svg { opacity: 1; }
+  .resource-item:has(input:checked) .done-strikethrough {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+  .resource-item:has(input:checked) {
+    background-color: #f9faf9;
+    border-color: rgba(134, 239, 172, 0.5);
+  }
+</style>

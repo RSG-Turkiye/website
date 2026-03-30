@@ -11,11 +11,12 @@ This guide is for members of the **website committee** and **translation committ
 3. [Translating an Article](#3-translating-an-article)
 4. [Adding a Webinar Page](#4-adding-a-webinar-page)
 5. [Translating a Webinar Page](#5-translating-a-webinar-page)
-6. [Submitting Your Work](#6-submitting-your-work)
-7. [File Naming Rules](#7-file-naming-rules)
-8. [Frontmatter Reference](#8-frontmatter-reference)
-9. [Markdown Tips](#9-markdown-tips)
-10. [Troubleshooting](#10-troubleshooting)
+6. [Managing Learning Paths](#6-managing-learning-paths)
+7. [Submitting Your Work](#7-submitting-your-work)
+8. [File Naming Rules](#8-file-naming-rules)
+9. [Frontmatter Reference](#9-frontmatter-reference)
+10. [Markdown Tips](#10-markdown-tips)
+11. [Troubleshooting](#11-troubleshooting)
 
 ---
 
@@ -264,7 +265,122 @@ Then translate `title`, `description`, `speakerTitle`, `speakerAffiliation`, `to
 
 ---
 
-## 6. Submitting Your Work
+## 6. Managing Learning Paths
+
+Learning path content lives in three folders, all editable without touching any code.
+
+```
+src/content/
+  lp-domains/       one file per domain  (genomics.md, ml.md, …)
+  lp-levels/        one file per domain × level  (genomics-researcher.md, …)
+  lp-roadmap/       one file per stage of the beginner roadmap  (01-discover.md, …)
+```
+
+### Adding a resource to an existing path
+
+Open the right `lp-levels/` file (e.g. `genomics-practitioner.md`) and add an item to the correct `type:` section (`foundations`, `toolkit`, `webinars`, or `papers`):
+
+```yaml
+sections:
+  - type: toolkit
+    resources:
+      - title: "My New Tool"
+        description: "Why this tool earns its place — what does it give the reader that others don't?"
+        tag: Tool
+        url: "https://..."
+```
+
+**Allowed `tag` values:** `Reading`, `Course`, `Tutorial`, `Tool`, `Pipeline`, `Videos`, `Interactive`, `Webinar`, `Paper`, `Dataset`, `Book`, `Platform`, `Challenge`, `Action`
+
+The build will fail with a clear error if you use a tag not in this list — that's intentional.
+
+### Adding a webinar to a learning path
+
+Webinars can be in one of three states. Use the right fields depending on where the recording is:
+
+**The webinar has a page on this site** (e.g. `/webinars/my-webinar-slug`):
+```yaml
+- title: "Webinar Title"
+  description: "Why someone at this level should watch this."
+  tag: Webinar
+  speaker: "Dr. Someone"
+  year: 2025
+  webinarSlug: my-webinar-slug
+```
+
+**The webinar is recorded but only on YouTube (no site page yet):**
+```yaml
+- title: "Webinar Title"
+  description: "Why someone at this level should watch this."
+  tag: Webinar
+  speaker: "Dr. Someone"
+  year: 2025
+  youtubeUrl: "https://youtu.be/VIDEO_ID"
+```
+
+**The webinar is not yet recorded or uploaded:**
+```yaml
+- title: "Webinar Title"
+  description: "Why someone at this level should watch this."
+  tag: Webinar
+  speaker: "Dr. Someone"
+  year: 2025
+  # no webinarSlug or youtubeUrl — renders as "Recording not yet available"
+```
+
+**When a webinar gets a site page later:** find its entry in the level file, replace `youtubeUrl` with `webinarSlug: the-slug`. The card upgrades automatically on the next deploy.
+
+### Adding a new domain (e.g. Population Genetics)
+
+1. Create `src/content/lp-domains/popgen.md` with domain metadata:
+
+```yaml
+---
+name: Population Genetics & Evolution
+emoji: 🌿
+tagline: Variant calling, selection, phylogenomics — understanding diversity across populations.
+order: 5
+goDeeper:
+  - title: "Some great resource"
+    description: "Why it's useful."
+    url: "https://..."
+---
+```
+
+2. Create `src/content/lp-levels/popgen-explorer.md` (and other levels as you have content for them). The index page and domain routing pick them up automatically on the next deploy.
+
+Levels you don't have content for yet don't need files — the domain page will show those tabs as "Coming soon" automatically.
+
+### Level files reference
+
+**File naming:** `<domainId>-<levelId>.md`
+**Domain IDs:** `genomics`, `ml`, `structural`, `metagenomics` (or whatever you named your domain file)
+**Level IDs:** `explorer`, `practitioner`, `researcher`, `specialist`
+
+**Required frontmatter fields:**
+
+```yaml
+---
+domain: genomics           # must match a domain file in lp-domains/
+level: researcher          # explorer | practitioner | researcher | specialist
+orientation: "One or two sentences shown at the top of this level."
+prerequisites:
+  - Know what a BAM file is
+  - Have run at least one RNA-seq pipeline
+sections:
+  - type: foundations      # foundations | toolkit | webinars | papers
+    resources:
+      - title: "..."
+        description: "..."
+        tag: Reading
+        url: "https://..."
+---
+```
+
+---
+
+## 7. Submitting Your Work
+
 
 1. **Stage your files:**
    ```bash
@@ -287,7 +403,7 @@ Once merged into `main`, Netlify automatically rebuilds and deploys the site wit
 
 ---
 
-## 7. File Naming Rules
+## 8. File Naming Rules
 
 - **Lowercase only** — `my-article.md`, not `My-Article.md`
 - **Hyphens for spaces** — `genome-editing.md`, not `genome_editing.md`
@@ -297,7 +413,7 @@ Once merged into `main`, Netlify automatically rebuilds and deploys the site wit
 
 ---
 
-## 8. Frontmatter Reference
+## 9. Frontmatter Reference
 
 ### Blog posts (`src/content/blog/en/` and `src/content/blog/tr/`)
 
@@ -332,7 +448,7 @@ Once merged into `main`, Netlify automatically rebuilds and deploys the site wit
 
 ---
 
-## 9. Markdown Tips
+## 10. Markdown Tips
 
 ```markdown
 ## Heading 2        ← use these; avoid H1 (the title comes from frontmatter)
@@ -378,7 +494,7 @@ Or add an image to `public/images/` and reference it as:
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 ### `npm install` fails or throws errors
 

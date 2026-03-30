@@ -1,0 +1,325 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ResourceCard from '../../components/learning-paths/ResourceCard.astro';
+import ProgressBar from '../../components/learning-paths/ProgressBar.astro';
+import LevelSwitcher from '../../components/learning-paths/LevelSwitcher.astro';
+
+export async function getStaticPaths() {
+  const domains = await getCollection('lpDomains');
+  return domains.map(domain => ({
+    params: { domain: domain.id },
+    props: { domain },
+  }));
+}
+
+const { domain } = Astro.props;
+const { name, emoji, tagline, goDeeper } = domain.data;
+
+// Load all level content for this domain
+const allLevelEntries = await getCollection('lpLevels', e => e.data.domain === domain.id);
+
+const LEVEL_ORDER = ['explorer', 'practitioner', 'researcher', 'specialist'] as const;
+type LevelId = typeof LEVEL_ORDER[number];
+
+const LEVEL_LABELS: Record<LevelId, string> = {
+  explorer:     'Explorer',
+  practitioner: 'Practitioner',
+  researcher:   'Researcher',
+  specialist:   'Specialist',
+};
+
+const SECTION_LABELS: Record<string, string> = {
+  foundations: 'Foundations',
+  toolkit:     'Toolkit',
+  webinars:    'RSG Turkey Sessions',
+  papers:      'Landmark Papers',
+};
+
+// Build a map of levelId → content
+const levelMap = new Map(allLevelEntries.map(e => [e.data.level, e.data]));
+
+const levels = LEVEL_ORDER.map(id => ({
+  id,
+  label: LEVEL_LABELS[id],
+  exists: levelMap.has(id),
+  content: levelMap.get(id) ?? null,
+}));
+
+// Default active level = first one that exists
+const defaultLevel = levels.find(l => l.exists)?.id ?? 'explorer';
+
+// Pre-compute stable resource IDs: domain-level-sectionType-index
+// These match what the client script uses.
+const levelResourceIds = levels.map(level => {
+  if (!level.content) return [];
+  return level.content.sections.map(section =>
+    section.resources.map((_, ri) => `${domain.id}-${level.id}-${section.type}-${ri}`)
+  );
+});
+
+// Count total resources per level (for the progress bar)
+const levelTotals = levels.map((level, li) =>
+  levelResourceIds[li].flat().length
+);
+
+// Serialize for client script
+const levelsForScript = levels.map((level, li) => ({
+  id: level.id,
+  exists: level.exists,
+  resourceIds: levelResourceIds[li].flat(),
+  total: levelTotals[li],
+}));
+---
+
+<BaseLayout
+  pageTitle={`${name} — Learning Path — RSG Turkiye`}
+  description={tagline}>
+
+  <!-- ── Hero ── -->
+  <div class="bg-navy py-14 text-center relative overflow-hidden">
+    <div class="absolute inset-0 opacity-5" style="background-image: repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%); background-size: 20px 20px;"></div>
+    <div class="relative max-w-3xl mx-auto px-6">
+      <a href="/learning-paths" class="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 mb-5 no-underline transition-colors">
+        ← Learning Paths
+      </a>
+      <div class="text-5xl mb-4">{emoji}</div>
+      <h1 class="text-4xl md:text-5xl font-bold text-white leading-tight mb-4">{name}</h1>
+      <p class="text-white/70 text-base leading-relaxed max-w-xl mx-auto">{tagline}</p>
+    </div>
+  </div>
+
+  <!-- ── Level switcher ── -->
+  <LevelSwitcher
+    levels={levels.map(l => ({ id: l.id, label: l.label, exists: l.exists }))}
+    activeLevel={defaultLevel}
+  />
+
+  <!-- ── Progress bar ── -->
+  <ProgressBar accentColor="navy" />
+
+  <!-- ── Level sections ── -->
+  <div class="bg-white py-12">
+    <div class="max-w-4xl mx-auto px-6">
+
+      {levels.map((level, li) => level.exists && level.content && (
+        <div
+          id={`level-${level.id}`}
+          class:list={['level-section', level.id !== defaultLevel && 'hidden']}>
+
+          <!-- Orientation + prerequisites -->
+          <div class="mb-10">
+            <p class="text-base text-gray-600 leading-relaxed mb-4">{level.content.orientation}</p>
+            {level.content.prerequisites && level.content.prerequisites.length > 0 && (
+              <div class="bg-navy-light border border-[#C4CEEA] rounded-xl px-5 py-4">
+                <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-2">What you should already know</p>
+                <ul class="space-y-1">
+                  {level.content.prerequisites.map(p => (
+                    <li class="flex items-start gap-2 text-sm text-navy">
+                      <span class="text-navy-mid mt-0.5 shrink-0">✓</span>
+                      <span>{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <!-- Sections -->
+          {level.content.sections.map((section, si) => (
+            <div class="mb-10">
+              <h3 class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-4 flex items-center gap-2">
+                {SECTION_LABELS[section.type] ?? section.type}
+                <span id={`section-count-${level.id}-${section.type}`} class="text-gray-300 font-normal normal-case tracking-normal"></span>
+              </h3>
+              <div class="flex flex-col gap-3">
+                {section.resources.map((res, ri) => (
+                  <ResourceCard
+                    resource={res}
+                    resourceId={levelResourceIds[li][si][ri]}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <!-- What's next bridge -->
+          {(() => {
+            const nextLevel = levels.find((l, idx) => idx > li && l.exists);
+            return nextLevel ? (
+              <div class="mt-8 mb-12 p-5 rounded-xl bg-navy-light border border-[#C4CEEA] flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-1">When you're ready</p>
+                  <p class="text-sm text-navy">Continue to the <strong>{nextLevel.label}</strong> level</p>
+                </div>
+                <button
+                  class="level-tab shrink-0 text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors px-4 py-2 rounded-lg"
+                  data-level={nextLevel.id}>
+                  {nextLevel.label} →
+                </button>
+              </div>
+            ) : null;
+          })()}
+
+        </div>
+      ))}
+
+      <!-- Go Deeper -->
+      {goDeeper && goDeeper.length > 0 && (
+        <div class="mt-8 rounded-2xl border border-dashed border-navy-mid bg-navy-light p-6">
+          <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-4">Go Deeper →</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {goDeeper.map(item => (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group flex items-start gap-3 p-3 rounded-lg bg-white border border-border hover:border-navy-mid hover:shadow-sm transition-all duration-150 no-underline">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-navy group-hover:text-navy-mid transition-colors leading-tight">
+                    {item.title} <span class="text-gray-300 font-normal text-xs">↗</span>
+                  </p>
+                  <p class="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <!-- CTA -->
+      <div class="mt-12 bg-navy rounded-2xl px-8 py-10 text-center">
+        <h3 class="text-white font-bold text-lg mb-2">Want to shape what gets added next?</h3>
+        <p class="text-white/60 text-sm mb-6 max-w-md mx-auto">
+          Learning path curation is a community effort. Join RSG Turkey and help build the next level.
+        </p>
+        <a href="/join" class="inline-block bg-red hover:bg-red-hover text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors no-underline">
+          Join RSG Turkey →
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+</BaseLayout>
+
+<script define:vars={{ domainId: domain.id, levelsForScript, defaultLevel }}>
+  const STORAGE_PREFIX = 'rsg-lp-';
+
+  function storageKey(levelId) {
+    return `${STORAGE_PREFIX}${domainId}-${levelId}-v1`;
+  }
+
+  // ── Level switching ────────────────────────────────────────────
+
+  let currentLevel = defaultLevel;
+
+  // Read ?level= from URL on load
+  const urlParam = new URLSearchParams(window.location.search).get('level');
+  const validLevel = levelsForScript.find(l => l.exists && l.id === urlParam);
+  if (validLevel) {
+    currentLevel = validLevel.id;
+    // Show correct section (already hidden via SSR class)
+    document.querySelectorAll('.level-section').forEach(el => {
+      el.classList.toggle('hidden', el.id !== `level-${currentLevel}`);
+    });
+  }
+
+  function switchLevel(levelId) {
+    if (levelId === currentLevel) return;
+    const target = levelsForScript.find(l => l.id === levelId);
+    if (!target || !target.exists) return;
+
+    // Show/hide sections
+    document.querySelectorAll('.level-section').forEach(el => {
+      el.classList.toggle('hidden', el.id !== `level-${levelId}`);
+    });
+
+    // Update tab active states
+    document.querySelectorAll('.level-tab').forEach(btn => {
+      const isActive = btn.dataset.level === levelId;
+      btn.classList.toggle('border-navy', isActive);
+      btn.classList.toggle('text-navy', isActive);
+      btn.classList.toggle('border-transparent', !isActive);
+      btn.classList.toggle('text-gray-400', !isActive);
+    });
+
+    currentLevel = levelId;
+    history.replaceState(null, '', `?level=${levelId}`);
+    updateProgress();
+  }
+
+  // Wire up all level-tab buttons (tabs + "next level" bridges)
+  document.querySelectorAll('.level-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchLevel(btn.dataset.level));
+  });
+
+  // ── Progress tracking ──────────────────────────────────────────
+
+  function getActiveIds() {
+    const level = levelsForScript.find(l => l.id === currentLevel);
+    return level ? level.resourceIds : [];
+  }
+
+  function loadSaved(levelId) {
+    try { return JSON.parse(localStorage.getItem(storageKey(levelId)) || '{}'); } catch { return {}; }
+  }
+
+  function saveState(levelId) {
+    const ids = levelsForScript.find(l => l.id === levelId)?.resourceIds ?? [];
+    const state = {};
+    ids.forEach(id => {
+      const cb = document.getElementById(id);
+      if (cb) state[id] = cb.checked;
+    });
+    localStorage.setItem(storageKey(levelId), JSON.stringify(state));
+  }
+
+  // Restore all levels' saved states on page load
+  levelsForScript.forEach(level => {
+    if (!level.exists) return;
+    const saved = loadSaved(level.id);
+    level.resourceIds.forEach(id => {
+      const cb = document.getElementById(id);
+      if (cb && saved[id]) cb.checked = true;
+    });
+  });
+
+  function updateProgress() {
+    const activeIds = getActiveIds();
+    const cbs = activeIds.map(id => document.getElementById(id)).filter(Boolean);
+    const done = cbs.filter(cb => cb.checked).length;
+    const total = cbs.length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const fill = document.getElementById('progressFill');
+    const label = document.getElementById('progressLabel');
+    if (fill) fill.style.width = pct + '%';
+    if (label) label.textContent = total > 0 ? `${done} / ${total}` : '—';
+  }
+
+  // Listen to all checkboxes across all levels
+  levelsForScript.forEach(level => {
+    if (!level.exists) return;
+    level.resourceIds.forEach(id => {
+      const cb = document.getElementById(id);
+      cb?.addEventListener('change', () => {
+        saveState(level.id);
+        if (level.id === currentLevel) updateProgress();
+      });
+    });
+  });
+
+  document.getElementById('resetBtn')?.addEventListener('click', () => {
+    if (!confirm(`Reset your ${currentLevel} level progress?`)) return;
+    const activeIds = getActiveIds();
+    activeIds.forEach(id => {
+      const cb = document.getElementById(id);
+      if (cb) cb.checked = false;
+    });
+    localStorage.removeItem(storageKey(currentLevel));
+    updateProgress();
+  });
+
+  updateProgress();
+</script>

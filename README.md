@@ -28,20 +28,29 @@ Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcs
 /
 ├── public/                  Static assets (images, flags, logo)
 ├── src/
-│   ├── components/          Reusable Astro components
+│   ├── components/
+│   │   ├── learning-paths/  ResourceCard, ProgressBar, LevelSwitcher, DomainCard
+│   │   └── …                Other reusable components
 │   ├── content/
 │   │   ├── blog/
 │   │   │   ├── en/          English blog posts
 │   │   │   └── tr/          Turkish blog posts
-│   │   └── webinars/
-│   │       ├── en/          English webinar pages
-│   │       └── tr/          Turkish webinar pages
+│   │   ├── webinars/
+│   │   │   ├── en/          English webinar pages
+│   │   │   └── tr/          Turkish webinar pages
+│   │   ├── lp-domains/      Learning path domain metadata (one file per domain)
+│   │   ├── lp-levels/       Learning path content (one file per domain × level)
+│   │   └── lp-roadmap/      Beginner roadmap stages (one file per stage)
 │   ├── data/                Static data (committees, announcements)
 │   ├── i18n/                Translation strings (ui.ts)
 │   ├── layouts/             Page layouts (BaseLayout.astro)
-│   ├── pages/               English routes
+│   ├── pages/
 │   │   ├── blog/[slug].astro
 │   │   ├── webinars/[slug].astro
+│   │   ├── learning-paths/
+│   │   │   ├── index.astro         Learning paths hub
+│   │   │   ├── roadmap.astro       Sequential beginner path
+│   │   │   └── [domain].astro      Dynamic domain pages
 │   │   └── tr/              Turkish routes (mirrors pages/)
 │   └── styles/              Global CSS
 ├── astro.config.mjs
@@ -139,6 +148,21 @@ keyTakeaways:
 year: 2025
 type: bioinfonet           # or: student
 ```
+
+### Learning Paths (`src/content/lp-domains/`, `lp-levels/`, `lp-roadmap/`)
+
+Curated resource paths organised by domain and experience level. All content is Markdown — no code changes needed to add or update resources.
+
+**Domains:** genomics, ml, structural, metagenomics (more can be added by creating a new `lp-domains/` file)
+
+**Levels:** explorer → practitioner → researcher → specialist
+
+**Routes:**
+- `/learning-paths/` — index with two entry axes (sequential roadmap + domain grid)
+- `/learning-paths/roadmap` — beginner path (8 stages, data from `lp-roadmap/`)
+- `/learning-paths/[domain]` — domain pages with per-level tab switcher
+
+See [CONTRIBUTING.md § Managing Learning Paths](CONTRIBUTING.md#6-managing-learning-paths) for the full member workflow.
 
 ---
 

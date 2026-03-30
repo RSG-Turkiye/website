@@ -1,0 +1,62 @@
+---
+/**
+ * LevelSwitcher — sticky tab bar for switching between levels on a domain page.
+ *
+ * Tabs with exists=false are rendered as disabled "Coming Soon" pills.
+ * Client-side JS in [domain].astro drives the actual show/hide behaviour.
+ */
+
+interface Level {
+  id: string;
+  label: string;
+  exists: boolean;
+}
+
+interface Props {
+  levels: Level[];
+  activeLevel: string;
+}
+
+const { levels, activeLevel } = Astro.props;
+
+const levelDescriptions: Record<string, string> = {
+  explorer:     'No prior experience required',
+  practitioner: 'Have run pipelines, know the basics',
+  researcher:   'Design analyses independently',
+  specialist:   'Active in the field, frontier-level',
+};
+---
+
+<div class="sticky top-16 z-30 bg-white border-b border-border">
+  <div class="max-w-4xl mx-auto px-6">
+    <div class="flex items-end gap-1 overflow-x-auto no-scrollbar py-0">
+      {levels.map(level => (
+        level.exists ? (
+          <button
+            class:list={[
+              'level-tab shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap',
+              level.id === activeLevel
+                ? 'border-navy text-navy'
+                : 'border-transparent text-gray-400 hover:text-navy hover:border-navy-light',
+            ]}
+            data-level={level.id}
+            title={levelDescriptions[level.id] ?? ''}>
+            {level.label}
+          </button>
+        ) : (
+          <span
+            class="shrink-0 px-4 py-3 text-sm font-medium text-gray-300 border-b-2 border-transparent whitespace-nowrap cursor-default"
+            title="Coming soon">
+            {level.label}
+            <span class="ml-1 text-xs font-normal">(soon)</span>
+          </span>
+        )
+      ))}
+    </div>
+  </div>
+</div>
+
+<style>
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>

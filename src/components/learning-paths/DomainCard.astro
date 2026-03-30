@@ -1,0 +1,75 @@
+---
+/**
+ * DomainCard — domain grid card shown on the learning paths index page.
+ *
+ * Shows domain name, tagline, available levels as pills, and a webinar count
+ * badge if webinarCount > 0.
+ */
+
+interface Level {
+  id: string;
+  label: string;
+  exists: boolean;
+}
+
+interface Props {
+  id: string;       // domain slug (e.g. "genomics")
+  name: string;
+  emoji: string;
+  tagline: string;
+  levels: Level[];
+  webinarCount: number;
+}
+
+const { id, name, emoji, tagline, levels, webinarCount } = Astro.props;
+
+const levelColors: Record<string, string> = {
+  explorer:     'bg-green-50 text-green-700 border-green-200',
+  practitioner: 'bg-blue-50 text-blue-700 border-blue-200',
+  researcher:   'bg-purple-50 text-purple-700 border-purple-200',
+  specialist:   'bg-orange-50 text-orange-700 border-orange-200',
+};
+---
+
+<a
+  href={`/learning-paths/${id}`}
+  class="group relative flex flex-col p-7 rounded-2xl border-2 border-border bg-white hover:border-navy-mid hover:shadow-xl transition-all duration-300 no-underline overflow-hidden">
+
+  <!-- Hover accent line -->
+  <div class="absolute top-0 left-0 right-0 h-1 bg-navy-mid scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-t-2xl"></div>
+
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-4">
+    <span class="text-4xl">{emoji}</span>
+    {webinarCount > 0 && (
+      <span class="text-xs font-semibold text-red bg-red-tint border border-red/20 px-2 py-0.5 rounded-full">
+        {webinarCount} RSG Turkey {webinarCount === 1 ? 'session' : 'sessions'}
+      </span>
+    )}
+  </div>
+
+  <!-- Name + tagline -->
+  <h2 class="text-lg font-bold text-navy mb-2 leading-snug group-hover:text-navy-mid transition-colors">
+    {name}
+  </h2>
+  <p class="text-sm text-gray-500 leading-relaxed mb-5 flex-1">{tagline}</p>
+
+  <!-- Level pills -->
+  <div class="flex flex-wrap gap-1.5 mb-5">
+    {levels.map(level => (
+      <span class:list={[
+        'text-xs px-2 py-0.5 rounded-full border font-medium',
+        level.exists
+          ? levelColors[level.id] ?? 'bg-navy-light text-navy-mid border-[#C4CEEA]'
+          : 'bg-gray-50 text-gray-300 border-gray-200',
+      ]}>
+        {level.label}
+        {!level.exists && <span class="ml-0.5 opacity-60">·</span>}
+      </span>
+    ))}
+  </div>
+
+  <div class="mt-auto flex items-center gap-2 text-navy-mid font-semibold text-sm group-hover:gap-3 transition-all">
+    Explore domain <span>→</span>
+  </div>
+</a>

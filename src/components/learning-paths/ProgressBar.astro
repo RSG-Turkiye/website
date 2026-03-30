@@ -1,0 +1,33 @@
+---
+/**
+ * ProgressBar — sticky progress bar at the top of learning path pages.
+ *
+ * Renders the HTML shell only. The driving script lives in the parent page
+ * (roadmap.astro or [domain].astro) because it needs to know which
+ * checkboxes belong to the active view.
+ *
+ * Required DOM IDs that the parent script must target:
+ *   #progressFill   — the filled div inside the bar
+ *   #progressLabel  — "X / Y" text
+ *   #resetBtn       — reset button
+ */
+
+interface Props {
+  accentColor?: 'red' | 'navy'; // colour of the fill bar
+}
+
+const { accentColor = 'red' } = Astro.props;
+
+const fillClass = accentColor === 'red' ? 'bg-red' : 'bg-navy-mid';
+---
+
+<div class="sticky top-16 z-40 bg-white border-b border-border shadow-sm py-3">
+  <div class="max-w-4xl mx-auto px-6 flex items-center gap-4">
+    <span class="text-xs font-semibold text-navy shrink-0">Your progress</span>
+    <div class="flex-1 h-2 bg-navy-light rounded-full overflow-hidden">
+      <div id="progressFill" class={`h-full ${fillClass} rounded-full transition-all duration-500`} style="width: 0%"></div>
+    </div>
+    <span id="progressLabel" class="text-xs font-semibold text-gray-400 shrink-0 tabular-nums">—</span>
+    <button id="resetBtn" class="text-xs text-gray-300 hover:text-red transition-colors shrink-0 underline">Reset</button>
+  </div>
+</div>

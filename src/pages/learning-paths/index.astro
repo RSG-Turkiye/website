@@ -1,0 +1,136 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DomainCard from '../../components/learning-paths/DomainCard.astro';
+
+const allDomains = await getCollection('lpDomains');
+const domains = allDomains.sort((a, b) => a.data.order - b.data.order);
+
+const allLevels = await getCollection('lpLevels');
+const allWebinars = await getCollection('webinars');
+
+const LEVEL_ORDER = ['explorer', 'practitioner', 'researcher', 'specialist'];
+const LEVEL_LABELS: Record<string, string> = {
+  explorer:     'Explorer',
+  practitioner: 'Practitioner',
+  researcher:   'Researcher',
+  specialist:   'Specialist',
+};
+
+// For each domain: which levels have content files, and how many RSG Turkey webinars are curated
+const domainMeta = domains.map(domain => {
+  const domainLevels = allLevels.filter(l => l.data.domain === domain.id);
+  const existingLevelIds = new Set(domainLevels.map(l => l.data.level));
+
+  const levels = LEVEL_ORDER.map(id => ({
+    id,
+    label: LEVEL_LABELS[id],
+    exists: existingLevelIds.has(id),
+  }));
+
+  // Count webinar resources curated across all levels for this domain
+  const webinarCount = domainLevels.reduce((sum, entry) => {
+    return sum + entry.data.sections.reduce((s, sec) => {
+      return s + sec.resources.filter(r => r.tag === 'Webinar').length;
+    }, 0);
+  }, 0);
+
+  return { domain, levels, webinarCount };
+});
+---
+
+<BaseLayout
+  pageTitle="Learning Paths — RSG Turkiye"
+  description="Curated learning paths in bioinformatics — structured by both your level and the domain you want to master.">
+
+  <!-- ── Hero ── -->
+  <div class="bg-navy py-16 text-center relative overflow-hidden">
+    <div class="absolute inset-0 opacity-5" style="background-image: repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%); background-size: 20px 20px;"></div>
+    <div class="relative max-w-3xl mx-auto px-6">
+      <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Learning Paths</h1>
+      <p class="text-white/70 text-lg leading-relaxed">
+        Curated journeys through bioinformatics. Pick your entry point.
+      </p>
+    </div>
+  </div>
+
+  <div class="bg-[#F7F7F6] min-h-screen">
+
+    <!-- ── Entry 1: Start from scratch ── -->
+    <section class="max-w-4xl mx-auto px-6 pt-16 pb-8">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 mb-6">Don't know where to start?</p>
+      <a
+        href="/learning-paths/roadmap"
+        class="group flex flex-col md:flex-row items-start md:items-center gap-6 p-8 bg-white rounded-2xl border-2 border-border hover:border-red hover:shadow-xl transition-all duration-300 no-underline overflow-hidden relative">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-red scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-t-2xl"></div>
+        <div class="text-5xl shrink-0">🗺️</div>
+        <div class="flex-1">
+          <h2 class="text-xl font-bold text-navy mb-2 group-hover:text-navy-mid transition-colors">Start with the Roadmap</h2>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            8 stages, zero prior experience required. Works equally for biology backgrounds and CS backgrounds.
+            Covers the foundations, first tools, and points you toward a domain when you're ready.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            {["No prerequisites", "8 stages", "Progress tracking"].map(tag => (
+              <span class="text-xs px-2.5 py-1 rounded-full bg-navy-light text-navy-mid border border-[#C4CEEA]">{tag}</span>
+            ))}
+          </div>
+        </div>
+        <div class="shrink-0 flex items-center gap-2 text-red font-semibold text-sm group-hover:gap-3 transition-all">
+          Begin <span>→</span>
+        </div>
+      </a>
+    </section>
+
+    <!-- ── Entry 2: Browse by domain ── -->
+    <section class="max-w-4xl mx-auto px-6 py-8">
+      <div class="flex items-end justify-between mb-6">
+        <p class="text-xs font-bold tracking-widest uppercase text-gray-400">Know what you want to study?</p>
+        <div class="hidden md:flex items-center gap-2 text-xs text-gray-400">
+          <span>Level key:</span>
+          {[
+            { id: 'explorer', color: 'bg-green-50 text-green-700 border-green-200' },
+            { id: 'practitioner', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+            { id: 'researcher', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+            { id: 'specialist', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+          ].map(l => (
+            <span class={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ${l.color}`}>{l.id}</span>
+          ))}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {domainMeta.map(({ domain, levels, webinarCount }) => (
+          <DomainCard
+            id={domain.id}
+            name={domain.data.name}
+            emoji={domain.data.emoji}
+            tagline={domain.data.tagline}
+            levels={levels}
+            webinarCount={webinarCount}
+          />
+        ))}
+      </div>
+    </section>
+
+    <!-- ── Level guide ── -->
+    <section class="max-w-4xl mx-auto px-6 py-8 pb-16">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 mb-6">What do the levels mean?</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { id: 'explorer',     color: 'border-green-200 bg-green-50',  label: 'Explorer',     desc: 'Never run a bioinformatics analysis. Starting from biological intuition or programming basics.' },
+          { id: 'practitioner', color: 'border-blue-200 bg-blue-50',   label: 'Practitioner', desc: 'Have used at least one pipeline end-to-end. Know what FASTQ means. Struggle with method choice.' },
+          { id: 'researcher',   color: 'border-purple-200 bg-purple-50', label: 'Researcher',   desc: 'Design analyses independently. Read the primary literature. Need depth, not breadth.' },
+          { id: 'specialist',   color: 'border-orange-200 bg-orange-50', label: 'Specialist',   desc: 'Active in the domain. Want landmark papers, frontier tools, and expert perspective.' },
+        ].map(l => (
+          <div class={`p-4 rounded-xl border-2 ${l.color}`}>
+            <p class="text-sm font-bold text-navy mb-1">{l.label}</p>
+            <p class="text-xs text-gray-500 leading-relaxed">{l.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+  </div>
+
+</BaseLayout>
