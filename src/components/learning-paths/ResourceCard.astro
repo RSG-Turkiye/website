@@ -38,6 +38,7 @@ const L = lang === 'tr' ? {
   read:         'Oku →',
   tryIt:        'Dene →',
   browse:       'Gözat →',
+  go:           'Git →',
   unavailable:  'Kayıt henüz mevcut değil',
 } : {
   watch:        'Watch →',
@@ -46,6 +47,7 @@ const L = lang === 'tr' ? {
   read:         'Read →',
   tryIt:        'Try it →',
   browse:       'Browse →',
+  go:           'Go →',
   unavailable:  'Recording not yet available',
 };
 
@@ -75,6 +77,7 @@ if (isWebinar) {
               resource.tag === 'Videos' ? L.watch :
               resource.tag === 'Interactive' ? L.tryIt :
               resource.tag === 'Dataset' ? L.browse :
+              resource.tag === 'Action' || resource.tag === 'Challenge' ? L.go :
               L.open;
 }
 
