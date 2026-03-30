@@ -24,26 +24,45 @@ interface Resource {
 interface Props {
   resource: Resource;
   resourceId: string; // unique ID used for localStorage progress tracking
+  lang?: 'en' | 'tr';
 }
 
-const { resource, resourceId } = Astro.props;
+const { resource, resourceId, lang = 'en' } = Astro.props;
 
 const isWebinar = resource.tag === 'Webinar';
+
+const L = lang === 'tr' ? {
+  watch:        'İzle →',
+  watchYouTube: 'YouTube\'da İzle →',
+  open:         'Aç →',
+  read:         'Oku →',
+  tryIt:        'Dene →',
+  browse:       'Gözat →',
+  unavailable:  'Kayıt henüz mevcut değil',
+} : {
+  watch:        'Watch →',
+  watchYouTube: 'Watch on YouTube →',
+  open:         'Open →',
+  read:         'Read →',
+  tryIt:        'Try it →',
+  browse:       'Browse →',
+  unavailable:  'Recording not yet available',
+};
 
 // Resolve the URL and link label
 let href: string | null = null;
 let isExternal = false;
-let linkLabel = 'Open →';
+let linkLabel = L.open;
 let unavailable = false;
 
 if (isWebinar) {
   if (resource.webinarSlug) {
     href = `/webinars/${resource.webinarSlug}`;
-    linkLabel = 'Watch →';
+    linkLabel = L.watch;
   } else if (resource.youtubeUrl) {
     href = resource.youtubeUrl;
     isExternal = true;
-    linkLabel = 'Watch on YouTube →';
+    linkLabel = L.watchYouTube;
   } else {
     unavailable = true;
   }
@@ -51,12 +70,12 @@ if (isWebinar) {
   // Internal links (starting with /) stay internal
   isExternal = !resource.url.startsWith('/');
   href = resource.url;
-  linkLabel = resource.tag === 'Reading' || resource.tag === 'Paper' ? 'Read →' :
-              resource.tag === 'Course' || resource.tag === 'Tutorial' || resource.tag === 'Book' ? 'Open →' :
-              resource.tag === 'Videos' ? 'Watch →' :
-              resource.tag === 'Interactive' ? 'Try it →' :
-              resource.tag === 'Dataset' ? 'Browse →' :
-              'Open →';
+  linkLabel = resource.tag === 'Reading' || resource.tag === 'Paper' ? L.read :
+              resource.tag === 'Course' || resource.tag === 'Tutorial' || resource.tag === 'Book' ? L.open :
+              resource.tag === 'Videos' ? L.watch :
+              resource.tag === 'Interactive' ? L.tryIt :
+              resource.tag === 'Dataset' ? L.browse :
+              L.open;
 }
 
 const tagClass = isWebinar
@@ -128,7 +147,7 @@ const tagClass = isWebinar
       </a>
     )}
     {unavailable && (
-      <span class="inline-block mt-2 text-xs text-gray-400 italic">Recording not yet available</span>
+      <span class="inline-block mt-2 text-xs text-gray-400 italic">{L.unavailable}</span>
     )}
   </div>
 </label>

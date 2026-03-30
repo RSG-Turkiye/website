@@ -15,9 +15,10 @@ interface Level {
 interface Props {
   levels: Level[];
   activeLevel: string;
+  comingSoonText?: string; // "(soon)" / "(yakında)"
 }
 
-const { levels, activeLevel } = Astro.props;
+const { levels, activeLevel, comingSoonText = '(soon)' } = Astro.props;
 
 const levelDescriptions: Record<string, string> = {
   explorer:     'No prior experience required',
@@ -48,7 +49,7 @@ const levelDescriptions: Record<string, string> = {
             class="shrink-0 px-4 py-3 text-sm font-medium text-gray-300 border-b-2 border-transparent whitespace-nowrap cursor-default"
             title="Coming soon">
             {level.label}
-            <span class="ml-1 text-xs font-normal">(soon)</span>
+            <span class="ml-1 text-xs font-normal">{comingSoonText}</span>
           </span>
         )
       ))}

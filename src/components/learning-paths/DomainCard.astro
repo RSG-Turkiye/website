@@ -13,15 +13,24 @@ interface Level {
 }
 
 interface Props {
-  id: string;       // domain slug (e.g. "genomics")
+  id: string;               // domain slug (e.g. "genomics")
   name: string;
   emoji: string;
   tagline: string;
   levels: Level[];
   webinarCount: number;
+  hrefBase?: string;        // defaults to '/learning-paths'
+  exploreLabel?: string;    // defaults to 'Explore domain'
+  sessionsBadge?: string;   // if set, overrides the auto "X RSG Turkey sessions" text
 }
 
-const { id, name, emoji, tagline, levels, webinarCount } = Astro.props;
+const { id, name, emoji, tagline, levels, webinarCount, hrefBase = '/learning-paths', exploreLabel = 'Explore domain', sessionsBadge } = Astro.props;
+
+const defaultSessionsBadge = webinarCount === 1
+  ? `${webinarCount} RSG Turkey session`
+  : `${webinarCount} RSG Turkey sessions`;
+
+const badgeText = sessionsBadge ?? defaultSessionsBadge;
 
 const levelColors: Record<string, string> = {
   explorer:     'bg-green-50 text-green-700 border-green-200',
@@ -32,7 +41,7 @@ const levelColors: Record<string, string> = {
 ---
 
 <a
-  href={`/learning-paths/${id}`}
+  href={`${hrefBase}/${id}`}
   class="group relative flex flex-col p-7 rounded-2xl border-2 border-border bg-white hover:border-navy-mid hover:shadow-xl transition-all duration-300 no-underline overflow-hidden">
 
   <!-- Hover accent line -->
@@ -43,7 +52,7 @@ const levelColors: Record<string, string> = {
     <span class="text-4xl">{emoji}</span>
     {webinarCount > 0 && (
       <span class="text-xs font-semibold text-red bg-red-tint border border-red/20 px-2 py-0.5 rounded-full">
-        {webinarCount} RSG Turkey {webinarCount === 1 ? 'session' : 'sessions'}
+        {badgeText}
       </span>
     )}
   </div>
@@ -70,6 +79,6 @@ const levelColors: Record<string, string> = {
   </div>
 
   <div class="mt-auto flex items-center gap-2 text-navy-mid font-semibold text-sm group-hover:gap-3 transition-all">
-    Explore domain <span>→</span>
+    {exploreLabel} <span>→</span>
   </div>
 </a>

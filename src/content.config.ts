@@ -102,7 +102,7 @@ const resourceSchema = z.object({
 // lp-domains — one file per domain, contains metadata and "go deeper" links
 // File name becomes the domain ID (e.g. genomics.md → id "genomics")
 const lpDomains = defineCollection({
-  loader: glob({ pattern: "*.md", base: "./src/content/lp-domains" }),
+  loader: glob({ pattern: "**/*.md", base: "./src/content/lp-domains" }),
   schema: z.object({
     name: z.string(),
     emoji: z.string(),
@@ -123,7 +123,7 @@ const lpDomains = defineCollection({
 // File name convention: <domainId>-<levelId>.md  (e.g. genomics-researcher.md)
 // Valid levelIds: explorer, practitioner, researcher, specialist
 const lpLevels = defineCollection({
-  loader: glob({ pattern: "*.md", base: "./src/content/lp-levels" }),
+  loader: glob({ pattern: "**/*.md", base: "./src/content/lp-levels" }),
   schema: z.object({
     // Must match a domain ID in lp-domains (e.g. "genomics")
     domain: z.string(),
@@ -144,7 +144,7 @@ const lpLevels = defineCollection({
 // File name convention: <number>-<slug>.md  (e.g. 01-discover.md)
 // Number controls the display order.
 const lpRoadmap = defineCollection({
-  loader: glob({ pattern: "*.md", base: "./src/content/lp-roadmap" }),
+  loader: glob({ pattern: "**/*.md", base: "./src/content/lp-roadmap" }),
   schema: z.object({
     number: z.number(),
     emoji: z.string(),

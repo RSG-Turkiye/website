@@ -1,15 +1,15 @@
 ---
 import { getCollection } from 'astro:content';
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import ResourceCard from '../../components/learning-paths/ResourceCard.astro';
-import ProgressBar from '../../components/learning-paths/ProgressBar.astro';
-import LevelSwitcher from '../../components/learning-paths/LevelSwitcher.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ResourceCard from '../../../components/learning-paths/ResourceCard.astro';
+import ProgressBar from '../../../components/learning-paths/ProgressBar.astro';
+import LevelSwitcher from '../../../components/learning-paths/LevelSwitcher.astro';
 
 export async function getStaticPaths() {
   const allDomains = await getCollection('lpDomains');
-  const domains = allDomains.filter(d => d.id.startsWith('en/'));
+  const domains = allDomains.filter(d => d.id.startsWith('tr/'));
   return domains.map(domain => ({
-    params: { domain: domain.id.slice(3) }, // 'en/genomics' → 'genomics'
+    params: { domain: domain.id.slice(3) }, // 'tr/genomics' → 'genomics'
     props: { domain, domainSlug: domain.id.slice(3) },
   }));
 }
@@ -17,27 +17,26 @@ export async function getStaticPaths() {
 const { domain, domainSlug } = Astro.props;
 const { name, emoji, tagline, goDeeper } = domain.data;
 
-// Load all level content for this domain (EN only)
-const allLevelEntries = await getCollection('lpLevels', e => e.data.domain === domainSlug && e.id.startsWith('en/'));
+// Load all level content for this domain (TR only)
+const allLevelEntries = await getCollection('lpLevels', e => e.data.domain === domainSlug && e.id.startsWith('tr/'));
 
 const LEVEL_ORDER = ['explorer', 'practitioner', 'researcher', 'specialist'] as const;
 type LevelId = typeof LEVEL_ORDER[number];
 
 const LEVEL_LABELS: Record<LevelId, string> = {
-  explorer:     'Explorer',
-  practitioner: 'Practitioner',
-  researcher:   'Researcher',
-  specialist:   'Specialist',
+  explorer:     'Keşifçi',
+  practitioner: 'Uygulayıcı',
+  researcher:   'Araştırmacı',
+  specialist:   'Uzman',
 };
 
 const SECTION_LABELS: Record<string, string> = {
-  foundations: 'Foundations',
-  toolkit:     'Toolkit',
-  webinars:    'RSG Turkey Sessions',
-  papers:      'Landmark Papers',
+  foundations: 'Temel Kaynaklar',
+  toolkit:     'Araçlar',
+  webinars:    'RSG Türkiye Oturumları',
+  papers:      'Önemli Makaleler',
 };
 
-// Build a map of levelId → content
 const levelMap = new Map(allLevelEntries.map(e => [e.data.level, e.data]));
 
 const levels = LEVEL_ORDER.map(id => ({
@@ -47,24 +46,19 @@ const levels = LEVEL_ORDER.map(id => ({
   content: levelMap.get(id) ?? null,
 }));
 
-// Default active level = first one that exists
 const defaultLevel = levels.find(l => l.exists)?.id ?? 'explorer';
 
-// Pre-compute stable resource IDs: domain-level-sectionType-index
-// These match what the client script uses.
 const levelResourceIds = levels.map(level => {
   if (!level.content) return [];
   return level.content.sections.map(section =>
-    section.resources.map((_, ri) => `${domainSlug}-${level.id}-${section.type}-${ri}`)
+    section.resources.map((_, ri) => `tr-${domainSlug}-${level.id}-${section.type}-${ri}`)
   );
 });
 
-// Count total resources per level (for the progress bar)
 const levelTotals = levels.map((level, li) =>
   levelResourceIds[li].flat().length
 );
 
-// Serialize for client script
 const levelsForScript = levels.map((level, li) => ({
   id: level.id,
   exists: level.exists,
@@ -74,15 +68,15 @@ const levelsForScript = levels.map((level, li) => ({
 ---
 
 <BaseLayout
-  pageTitle={`${name} — Learning Path — RSG Turkiye`}
+  pageTitle={`${name} — Öğrenme Yolu — RSG Türkiye`}
   description={tagline}>
 
   <!-- ── Hero ── -->
   <div class="bg-navy py-14 text-center relative overflow-hidden">
     <div class="absolute inset-0 opacity-5" style="background-image: repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%); background-size: 20px 20px;"></div>
     <div class="relative max-w-3xl mx-auto px-6">
-      <a href="/learning-paths" class="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 mb-5 no-underline transition-colors">
-        ← Learning Paths
+      <a href="/tr/learning-paths" class="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 mb-5 no-underline transition-colors">
+        ← Öğrenme Yolları
       </a>
       <div class="text-5xl mb-4">{emoji}</div>
       <h1 class="text-4xl md:text-5xl font-bold text-white leading-tight mb-4">{name}</h1>
@@ -94,10 +88,11 @@ const levelsForScript = levels.map((level, li) => ({
   <LevelSwitcher
     levels={levels.map(l => ({ id: l.id, label: l.label, exists: l.exists }))}
     activeLevel={defaultLevel}
+    comingSoonText="(yakında)"
   />
 
   <!-- ── Progress bar ── -->
-  <ProgressBar accentColor="navy" />
+  <ProgressBar accentColor="navy" progressLabel="İlerlemeniz" resetLabel="Sıfırla" />
 
   <!-- ── Level sections ── -->
   <div class="bg-white py-12">
@@ -113,7 +108,7 @@ const levelsForScript = levels.map((level, li) => ({
             <p class="text-base text-gray-600 leading-relaxed mb-4">{level.content.orientation}</p>
             {level.content.prerequisites && level.content.prerequisites.length > 0 && (
               <div class="bg-navy-light border border-[#C4CEEA] rounded-xl px-5 py-4">
-                <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-2">What you should already know</p>
+                <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-2">Bilinmesi gerekenler</p>
                 <ul class="space-y-1">
                   {level.content.prerequisites.map(p => (
                     <li class="flex items-start gap-2 text-sm text-navy">
@@ -138,6 +133,7 @@ const levelsForScript = levels.map((level, li) => ({
                   <ResourceCard
                     resource={res}
                     resourceId={levelResourceIds[li][si][ri]}
+                    lang="tr"
                   />
                 ))}
               </div>
@@ -150,8 +146,8 @@ const levelsForScript = levels.map((level, li) => ({
             return nextLevel ? (
               <div class="mt-8 mb-12 p-5 rounded-xl bg-navy-light border border-[#C4CEEA] flex items-center justify-between gap-4">
                 <div>
-                  <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-1">When you're ready</p>
-                  <p class="text-sm text-navy">Continue to the <strong>{nextLevel.label}</strong> level</p>
+                  <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-1">Hazır olduğunuzda</p>
+                  <p class="text-sm text-navy"><strong>{nextLevel.label}</strong> seviyesine devam edin</p>
                 </div>
                 <button
                   class="level-tab shrink-0 text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors px-4 py-2 rounded-lg"
@@ -168,7 +164,7 @@ const levelsForScript = levels.map((level, li) => ({
       <!-- Go Deeper -->
       {goDeeper && goDeeper.length > 0 && (
         <div class="mt-8 rounded-2xl border border-dashed border-navy-mid bg-navy-light p-6">
-          <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-4">Go Deeper →</p>
+          <p class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-4">Daha Derine İnin →</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {goDeeper.map(item => (
               <a
@@ -190,12 +186,12 @@ const levelsForScript = levels.map((level, li) => ({
 
       <!-- CTA -->
       <div class="mt-12 bg-navy rounded-2xl px-8 py-10 text-center">
-        <h3 class="text-white font-bold text-lg mb-2">Want to shape what gets added next?</h3>
+        <h3 class="text-white font-bold text-lg mb-2">Bir sonraki eklemeleri şekillendirmek ister misiniz?</h3>
         <p class="text-white/60 text-sm mb-6 max-w-md mx-auto">
-          Learning path curation is a community effort. Join RSG Turkey and help build the next level.
+          Öğrenme yollarını düzenlemek topluluk çabasıdır. RSG Türkiye'ye katılın ve bir sonraki seviyeyi birlikte oluşturun.
         </p>
         <a href="/join" class="inline-block bg-red hover:bg-red-hover text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors no-underline">
-          Join RSG Turkey →
+          RSG Türkiye'ye Katıl →
         </a>
       </div>
 
@@ -205,22 +201,18 @@ const levelsForScript = levels.map((level, li) => ({
 </BaseLayout>
 
 <script define:vars={{ domainId: domainSlug, levelsForScript, defaultLevel }}>
-  const STORAGE_PREFIX = 'rsg-lp-';
+  const STORAGE_PREFIX = 'rsg-lp-tr-';
 
   function storageKey(levelId) {
     return `${STORAGE_PREFIX}${domainId}-${levelId}-v1`;
   }
 
-  // ── Level switching ────────────────────────────────────────────
-
   let currentLevel = defaultLevel;
 
-  // Read ?level= from URL on load
   const urlParam = new URLSearchParams(window.location.search).get('level');
   const validLevel = levelsForScript.find(l => l.exists && l.id === urlParam);
   if (validLevel) {
     currentLevel = validLevel.id;
-    // Show correct section (already hidden via SSR class)
     document.querySelectorAll('.level-section').forEach(el => {
       el.classList.toggle('hidden', el.id !== `level-${currentLevel}`);
     });
@@ -231,12 +223,10 @@ const levelsForScript = levels.map((level, li) => ({
     const target = levelsForScript.find(l => l.id === levelId);
     if (!target || !target.exists) return;
 
-    // Show/hide sections
     document.querySelectorAll('.level-section').forEach(el => {
       el.classList.toggle('hidden', el.id !== `level-${levelId}`);
     });
 
-    // Update tab active states
     document.querySelectorAll('.level-tab').forEach(btn => {
       const isActive = btn.dataset.level === levelId;
       btn.classList.toggle('border-navy', isActive);
@@ -250,12 +240,9 @@ const levelsForScript = levels.map((level, li) => ({
     updateProgress();
   }
 
-  // Wire up all level-tab buttons (tabs + "next level" bridges)
   document.querySelectorAll('.level-tab').forEach(btn => {
     btn.addEventListener('click', () => switchLevel(btn.dataset.level));
   });
-
-  // ── Progress tracking ──────────────────────────────────────────
 
   function getActiveIds() {
     const level = levelsForScript.find(l => l.id === currentLevel);
@@ -276,7 +263,6 @@ const levelsForScript = levels.map((level, li) => ({
     localStorage.setItem(storageKey(levelId), JSON.stringify(state));
   }
 
-  // Restore all levels' saved states on page load
   levelsForScript.forEach(level => {
     if (!level.exists) return;
     const saved = loadSaved(level.id);
@@ -299,7 +285,6 @@ const levelsForScript = levels.map((level, li) => ({
     if (label) label.textContent = total > 0 ? `${done} / ${total}` : '—';
   }
 
-  // Listen to all checkboxes across all levels
   levelsForScript.forEach(level => {
     if (!level.exists) return;
     level.resourceIds.forEach(id => {
@@ -312,7 +297,7 @@ const levelsForScript = levels.map((level, li) => ({
   });
 
   document.getElementById('resetBtn')?.addEventListener('click', () => {
-    if (!confirm(`Reset your ${currentLevel} level progress?`)) return;
+    if (!confirm(`${currentLevel} seviyesi ilerlemenizi sıfırlansın mı?`)) return;
     const activeIds = getActiveIds();
     activeIds.forEach(id => {
       const cb = document.getElementById(id);

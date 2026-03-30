@@ -15,6 +15,7 @@ export const ui = {
     'nav.events': 'Events',
     'nav.resources': 'Resources',
     'nav.contact': 'Contact',
+    'nav.learningPaths': 'Learning Paths',
     'nav.join': 'Join Us',
 
     // Hero Section
@@ -265,6 +266,7 @@ export const ui = {
     'nav.events': 'Etkinlikler',
     'nav.resources': 'Kaynaklar',
     'nav.contact': 'İletişim',
+    'nav.learningPaths': 'Öğrenme Yolları',
     'nav.join': 'Katıl',
 
     // Hero Section
