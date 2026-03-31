@@ -1,0 +1,9 @@
+name = "rsg-website"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rsg-members"
+database_id = "ff7b1d7b-7bcc-4dc6-88d3-ade479ee2d08"
