@@ -40,7 +40,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
 
     <!-- Actions -->
     <div class="flex items-center gap-2 shrink-0">
-      <a href={`${prefix}/join`} class="hidden lg:inline-flex items-center px-4 py-1.5 rounded bg-red text-white text-sm font-medium hover:bg-red-hover transition-colors no-underline">
+      <a id="joinBtn" href={`${prefix}/join`} class="hidden items-center px-4 py-1.5 rounded bg-red text-white text-sm font-medium hover:bg-red-hover transition-colors no-underline">
         {t('nav.join')}
       </a>
       <!-- Auth button: swapped by JS after /api/me check -->
@@ -133,12 +133,14 @@ const prefix = lang === 'tr' ? '/tr' : '';
     fetch('/api/me')
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        authArea.classList.remove('hidden');
-        if (data.user && data.user.is_member) {
-          // Hide "Join Us" for verified members
-          var joinBtn = document.querySelector('a[href$="/join"]');
-          if (joinBtn) joinBtn.style.display = 'none';
+        var joinBtn = document.getElementById('joinBtn');
+        if (joinBtn) {
+          if (!data.user || !data.user.is_member) {
+            joinBtn.classList.remove('hidden');
+            joinBtn.classList.add('lg:inline-flex');
+          }
         }
+        authArea.classList.remove('hidden');
         if (data.user) {
           var profileHref = data.profile ? '/account' : '/account/setup';
           var avatarHtml = data.profile && data.profile.avatar_url
@@ -182,6 +184,8 @@ const prefix = lang === 'tr' ? '/tr' : '';
       })
       .catch(function () {
         authArea.classList.remove('hidden');
+        var joinBtn = document.getElementById('joinBtn');
+        if (joinBtn) { joinBtn.classList.remove('hidden'); joinBtn.classList.add('lg:inline-flex'); }
       });
   })();
 </script>
