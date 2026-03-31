@@ -1,8 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
-const { username } = Astro.params;
-
 const BADGE_LABELS: Record<string, string> = {
   open_to_work:        'Looking for a job / internship',
   open_to_collaborate: 'Open to collaborate on a project',
@@ -12,7 +10,7 @@ const BADGE_LABELS: Record<string, string> = {
 };
 ---
 
-<BaseLayout pageTitle={`@${username} — RSG Turkey`} description={`RSG Turkey member profile: ${username}`}>
+<BaseLayout pageTitle="Member Profile — RSG Turkey" description="RSG Turkey member profile.">
   <div class="min-h-screen bg-[#F7F7F6] pt-24 pb-16 px-4">
     <div class="max-w-2xl mx-auto">
 
@@ -59,8 +57,16 @@ const BADGE_LABELS: Record<string, string> = {
   </div>
 </BaseLayout>
 
-<script define:vars={{ username, BADGE_LABELS }}>
+<script define:vars={{ BADGE_LABELS }}>
   (async () => {
+    // Get username from URL path: /members/someusername
+    const username = window.location.pathname.split('/').filter(Boolean).pop();
+
+    if (!username || username === 'profile') {
+      window.location.href = '/members';
+      return;
+    }
+
     const res = await fetch(`/api/members/${username}`);
     document.getElementById('loadingState').classList.add('hidden');
 
@@ -73,10 +79,13 @@ const BADGE_LABELS: Record<string, string> = {
     const m = data.member;
     document.getElementById('profileContent').classList.remove('hidden');
 
+    // Update page title
+    document.title = `@${m.username} — RSG Turkey`;
+
     // Avatar
     const avatarWrap = document.getElementById('avatarWrap');
     if (m.avatar_url) {
-      avatarWrap.innerHTML = `<img src="${m.avatar_url}" class="w-20 h-20 rounded-full object-cover" />`;
+      avatarWrap.innerHTML = `<img src="${m.avatar_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />`;
     } else {
       const initial = (m.display_name || '?').charAt(0).toUpperCase();
       avatarWrap.innerHTML = `<div style="width:80px;height:80px;border-radius:50%;background:#e8edf5;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#0f2045;">${initial}</div>`;
