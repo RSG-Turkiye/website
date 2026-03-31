@@ -1,0 +1,264 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout pageTitle="Admin Panel — RSG Turkey" description="RSG Turkey committee admin panel.">
+  <div class="min-h-screen bg-[#F7F7F6] py-10 px-4">
+    <div class="max-w-5xl mx-auto">
+
+      <!-- Not authorized -->
+      <div id="notAuth" class="hidden text-center py-24">
+        <p class="text-gray-500">You don't have access to this page.</p>
+        <a href="/" class="mt-4 inline-block text-sm text-navy hover:underline">Go home</a>
+      </div>
+
+      <!-- Loading -->
+      <div id="loadingState" class="flex items-center justify-center py-24">
+        <div class="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <!-- Admin content -->
+      <div id="adminContent" class="hidden">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h1 class="text-2xl font-bold text-navy">Admin Panel</h1>
+            <p class="text-sm text-gray-500 mt-1">Manage members and content</p>
+          </div>
+          <div id="statsRow" class="flex gap-4"></div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6 flex flex-wrap items-center gap-3">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Search by email, username, name..."
+            class="flex-1 min-w-48 px-4 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid transition-colors"
+          />
+          <div class="flex gap-2">
+            <button data-filter="all" class="filter-btn active-filter px-4 py-2 rounded-xl text-sm font-medium transition-colors">All</button>
+            <button data-filter="members" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">Members</button>
+            <button data-filter="pending" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">Pending</button>
+          </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
+
+        <!-- User table -->
+        <div class="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border bg-[#F7F7F6]">
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">User</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Email</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Joined</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody">
+            </tbody>
+          </table>
+          <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-400">No users found.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  @reference "../../styles/global.css";
+
+  .filter-btn {
+    @apply bg-[#F7F7F6] text-gray-500 hover:bg-navy-light hover:text-navy;
+  }
+  .active-filter {
+    @apply bg-navy text-white hover:bg-navy;
+  }
+</style>
+
+<script>
+  let currentFilter = 'all';
+  let searchTimer: ReturnType<typeof setTimeout>;
+
+  function showToast(message: string, isError = false) {
+    const toast = document.getElementById('toast')!;
+    toast.textContent = message;
+    toast.style.background = isError ? '#dc2626' : '#0f2045';
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+  }
+
+  function formatDate(ts: number) {
+    return new Date(ts * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  async function doAction(userId: string, action: string, btn: HTMLButtonElement) {
+    btn.disabled = true;
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, action }),
+    });
+    if (res.ok) {
+      showToast('Done');
+      loadUsers();
+    } else {
+      const err = await res.json() as { error: string };
+      showToast(err.error || 'Error', true);
+      btn.disabled = false;
+    }
+  }
+
+  function renderUsers(users: any[]) {
+    const tbody = document.getElementById('userTableBody')!;
+    const empty = document.getElementById('emptyState')!;
+
+    if (users.length === 0) {
+      tbody.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    tbody.innerHTML = users.map(u => {
+      const name = u.display_name || '—';
+      const username = u.username ? `@${u.username}` : '<span class="text-gray-300">no profile</span>';
+      const institution = u.institution ? `<span class="text-xs text-gray-400">${u.institution}</span>` : '';
+      const memberBadge = u.is_member
+        ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">Member</span>'
+        : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Pending</span>';
+      const adminBadge = u.is_admin
+        ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">Admin</span>'
+        : '';
+      const privateBadge = u.is_public === 0
+        ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">Private</span>'
+        : '';
+
+      const verifyBtn = u.is_member
+        ? `<button data-id="${u.id}" data-action="unverify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">Unverify</button>`
+        : `<button data-id="${u.id}" data-action="verify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition-colors">Verify</button>`;
+
+      const moreActions = `
+        <div class="relative inline-block">
+          <button data-menu="${u.id}" class="more-btn text-xs px-2 py-1.5 rounded-lg border border-border text-gray-400 hover:text-navy hover:border-navy-mid transition-colors">⋯</button>
+          <div id="menu-${u.id}" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-border py-1 z-10 min-w-[160px]">
+            ${u.is_admin
+              ? `<button data-id="${u.id}" data-action="remove_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Remove admin</button>`
+              : `<button data-id="${u.id}" data-action="make_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Make admin</button>`
+            }
+            <button data-id="${u.id}" data-action="make_private" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Make profile private</button>
+            <button data-id="${u.id}" data-action="clear_bio" class="action-btn block w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50">Clear bio</button>
+          </div>
+        </div>`;
+
+      return `
+        <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
+          <td class="px-5 py-4">
+            <div class="font-medium text-navy">${name}</div>
+            <div class="text-xs text-gray-400 mt-0.5">${username}</div>
+            ${institution}
+          </td>
+          <td class="px-5 py-4 text-gray-500">${u.email}</td>
+          <td class="px-5 py-4">${memberBadge}${adminBadge}${privateBadge}</td>
+          <td class="px-5 py-4 text-gray-400">${formatDate(u.created_at)}</td>
+          <td class="px-5 py-4 text-right">
+            <div class="flex items-center justify-end gap-2">
+              ${verifyBtn}
+              ${moreActions}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Action buttons
+    tbody.querySelectorAll('.action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const b = e.currentTarget as HTMLButtonElement;
+        doAction(b.dataset.id!, b.dataset.action!, b);
+      });
+    });
+
+    // More menus
+    tbody.querySelectorAll('.more-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = (btn as HTMLButtonElement).dataset.menu!;
+        const menu = document.getElementById(`menu-${id}`)!;
+        // Close all others
+        document.querySelectorAll('[id^="menu-"]').forEach(m => {
+          if (m.id !== `menu-${id}`) m.classList.add('hidden');
+        });
+        menu.classList.toggle('hidden');
+      });
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('[id^="menu-"]').forEach(m => m.classList.add('hidden'));
+    }, { once: true });
+  }
+
+  async function loadUsers() {
+    const search = (document.getElementById('searchInput') as HTMLInputElement).value.trim();
+    const params = new URLSearchParams({ filter: currentFilter });
+    if (search) params.set('search', search);
+
+    const res = await fetch(`/api/admin/users?${params}`);
+    if (!res.ok) return;
+    const data = await res.json() as { users: any[] };
+    renderUsers(data.users);
+
+    // Update stats
+    const total = data.users.length;
+    const members = data.users.filter(u => u.is_member).length;
+    document.getElementById('statsRow')!.innerHTML = `
+      <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
+        <div class="text-lg font-bold text-navy">${total}</div>
+        <div class="text-xs text-gray-400">Shown</div>
+      </div>
+      <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
+        <div class="text-lg font-bold text-green-600">${members}</div>
+        <div class="text-xs text-gray-400">Members</div>
+      </div>
+      <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
+        <div class="text-lg font-bold text-gray-400">${total - members}</div>
+        <div class="text-xs text-gray-400">Pending</div>
+      </div>`;
+  }
+
+  // Init
+  (async () => {
+    const res = await fetch('/api/me');
+    const data = await res.json() as { user: any };
+
+    document.getElementById('loadingState')!.classList.add('hidden');
+
+    if (!data.user || !data.user.is_admin) {
+      document.getElementById('notAuth')!.classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('adminContent')!.classList.remove('hidden');
+    await loadUsers();
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFilter = (btn as HTMLButtonElement).dataset.filter!;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
+        btn.classList.add('active-filter');
+        loadUsers();
+      });
+    });
+
+    // Search
+    document.getElementById('searchInput')!.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadUsers, 350);
+    });
+  })();
+</script>
