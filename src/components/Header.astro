@@ -135,27 +135,42 @@ const prefix = lang === 'tr' ? '/tr' : '';
       .then(function (data) {
         authArea.classList.remove('hidden');
         if (data.user) {
-          var username = data.profile ? data.profile.username : null;
-          var profileHref = username ? '/account' : '/account/setup';
+          var profileHref = data.profile ? '/account' : '/account/setup';
+          var avatarHtml = data.profile && data.profile.avatar_url
+            ? '<img src="' + data.profile.avatar_url + '" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" />'
+            : '<span style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.2);display:inline-flex;align-items:center;justify-content:center;font-size:11px;">👤</span>';
+          var displayName = data.profile ? data.profile.display_name : 'Account';
+
           authArea.innerHTML =
-            '<div class="relative group">' +
-              '<a href="' + profileHref + '" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-colors no-underline">' +
-                (data.profile && data.profile.avatar_url
-                  ? '<img src="' + data.profile.avatar_url + '" class="w-5 h-5 rounded-full object-cover" />'
-                  : '<span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">👤</span>') +
-                '<span>' + (data.profile ? data.profile.display_name : 'Account') + '</span>' +
-              '</a>' +
-              '<div class="dropdown-menu right-0 left-auto">' +
-                '<a href="/account" class="dropdown-item">My Profile</a>' +
-                '<form action="/auth/logout" method="POST" style="margin:0">' +
-                  '<button type="submit" class="dropdown-item w-full text-left">Sign Out</button>' +
+            '<div style="position:relative;">' +
+              '<button id="userMenuBtn" style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:white;font-size:14px;font-weight:500;cursor:pointer;">' +
+                avatarHtml +
+                '<span>' + displayName + '</span>' +
+                '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.7"><path d="M2 4l4 4 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+              '</button>' +
+              '<div id="userMenu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:white;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:1px solid #e5e7eb;padding:4px;z-index:100;">' +
+                '<a href="' + profileHref + '" style="display:block;padding:8px 12px;font-size:14px;color:#0f2045;text-decoration:none;border-radius:6px;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">My Profile</a>' +
+                '<form action="/auth/logout" method="POST" style="margin:0;">' +
+                  '<button type="submit" style="display:block;width:100%;padding:8px 12px;font-size:14px;color:#dc2626;text-align:left;background:transparent;border:none;border-radius:6px;cursor:pointer;" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'\'">Sign Out</button>' +
                 '</form>' +
               '</div>' +
             '</div>';
+
+          // Toggle dropdown
+          var menuBtn = document.getElementById('userMenuBtn');
+          var menu = document.getElementById('userMenu');
+          menuBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+          });
+          document.addEventListener('click', function () {
+            menu.style.display = 'none';
+          });
+
           mobileAuthArea.innerHTML =
-            '<a href="/account" class="flex items-center justify-center px-4 py-2 rounded border border-white/30 text-white text-sm font-medium no-underline">My Profile</a>' +
-            '<form action="/auth/logout" method="POST" class="mt-2">' +
-              '<button type="submit" class="w-full flex items-center justify-center px-4 py-2 rounded border border-white/30 text-white text-sm font-medium">Sign Out</button>' +
+            '<a href="' + profileHref + '" style="display:flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;margin-bottom:8px;">My Profile</a>' +
+            '<form action="/auth/logout" method="POST" style="margin:0;">' +
+              '<button type="submit" style="display:flex;width:100%;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:white;font-size:14px;font-weight:500;cursor:pointer;">Sign Out</button>' +
             '</form>';
         }
       })
