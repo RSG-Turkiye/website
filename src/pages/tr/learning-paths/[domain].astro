@@ -308,4 +308,52 @@ const levelsForScript = levels.map((level, li) => ({
   });
 
   updateProgress();
+
+  // ── Server sync (logged-in users only) ────────────────────────
+  (async () => {
+    const authData = await fetch('/api/me').then(r => r.json()).catch(() => null);
+    if (!authData?.user) return;
+
+    const progData = await fetch('/api/progress').then(r => r.json()).catch(() => null);
+    if (!progData) return;
+    const serverCompleted = new Set(progData.completed || []);
+
+    const allIds = levelsForScript.flatMap(l => l.exists ? l.resourceIds : []);
+
+    const toSync = allIds
+      .filter(id => {
+        const cb = document.getElementById(id);
+        return cb && cb.checked && !serverCompleted.has(id);
+      })
+      .map(id => ({ resource_id: id, completed: true }));
+
+    let changed = false;
+    serverCompleted.forEach(id => {
+      const cb = document.getElementById(id);
+      if (cb && !cb.checked) { cb.checked = true; changed = true; }
+    });
+    if (changed) {
+      levelsForScript.forEach(level => { if (level.exists) saveState(level.id); });
+      updateProgress();
+    }
+
+    if (toSync.length > 0) {
+      fetch('/api/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: toSync }),
+      });
+    }
+
+    allIds.forEach(id => {
+      const cb = document.getElementById(id);
+      cb?.addEventListener('change', () => {
+        fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resource_id: id, completed: cb.checked }),
+        });
+      });
+    });
+  })();
 </script>
