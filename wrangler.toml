@@ -7,3 +7,6 @@ pages_build_output_dir = "dist"
 binding = "DB"
 database_name = "rsg-members"
 database_id = "ff7b1d7b-7bcc-4dc6-88d3-ade479ee2d08"
+
+[vars]
+GOOGLE_CLIENT_ID = "273051123979-t52aq69ueh1mji460qie6ip2j68c3agc.apps.googleusercontent.com"
