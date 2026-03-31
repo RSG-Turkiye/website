@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const { username } = Astro.params;
+
+const BADGE_LABELS: Record<string, string> = {
+  open_to_work:        'Looking for a job / internship',
+  open_to_collaborate: 'Open to collaborate on a project',
+  open_to_mentor:      'Open to mentoring',
+  seeking_mentor:      'Looking for a mentor',
+  open_to_review:      'Open to reviewing papers / code',
+};
+---
+
+<BaseLayout pageTitle={`@${username} — RSG Turkey`} description={`RSG Turkey member profile: ${username}`}>
+  <div class="min-h-screen bg-[#F7F7F6] pt-24 pb-16 px-4">
+    <div class="max-w-2xl mx-auto">
+
+      <div id="loadingState" class="flex items-center justify-center py-24">
+        <div class="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <div id="notFound" class="hidden text-center py-24">
+        <p class="text-gray-400 mb-4">This member profile doesn't exist or is private.</p>
+        <a href="/members" class="text-sm text-navy hover:underline">← Back to members</a>
+      </div>
+
+      <div id="profileContent" class="hidden flex flex-col gap-5">
+
+        <a href="/members" class="text-sm text-gray-400 hover:text-navy transition-colors no-underline">← All members</a>
+
+        <div class="bg-white rounded-2xl border border-border shadow-sm p-8">
+          <div class="flex items-start gap-6">
+            <div id="avatarWrap" class="shrink-0"></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h1 id="displayName" class="text-xl font-bold text-navy"></h1>
+                <span id="memberBadge" class="hidden text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">Member</span>
+              </div>
+              <p id="usernameEl" class="text-sm text-gray-400 mt-0.5"></p>
+              <p id="institutionEl" class="text-sm text-gray-500 mt-1 hidden"></p>
+              <p id="bioEl" class="text-sm text-gray-600 mt-3 leading-relaxed hidden"></p>
+            </div>
+          </div>
+        </div>
+
+        <div id="badgesCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
+          <h2 class="text-sm font-semibold text-navy mb-3">Status</h2>
+          <div id="badgesList" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div id="interestsCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
+          <h2 class="text-sm font-semibold text-navy mb-3">Research interests</h2>
+          <div id="interestsList" class="flex flex-wrap gap-2"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script define:vars={{ username, BADGE_LABELS }}>
+  (async () => {
+    const res = await fetch(`/api/members/${username}`);
+    document.getElementById('loadingState').classList.add('hidden');
+
+    if (!res.ok) {
+      document.getElementById('notFound').classList.remove('hidden');
+      return;
+    }
+
+    const data = await res.json();
+    const m = data.member;
+    document.getElementById('profileContent').classList.remove('hidden');
+
+    // Avatar
+    const avatarWrap = document.getElementById('avatarWrap');
+    if (m.avatar_url) {
+      avatarWrap.innerHTML = `<img src="${m.avatar_url}" class="w-20 h-20 rounded-full object-cover" />`;
+    } else {
+      const initial = (m.display_name || '?').charAt(0).toUpperCase();
+      avatarWrap.innerHTML = `<div style="width:80px;height:80px;border-radius:50%;background:#e8edf5;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#0f2045;">${initial}</div>`;
+    }
+
+    document.getElementById('displayName').textContent = m.display_name;
+    document.getElementById('usernameEl').textContent = '@' + m.username;
+
+    if (m.is_member) document.getElementById('memberBadge').classList.remove('hidden');
+
+    if (m.institution) {
+      const el = document.getElementById('institutionEl');
+      el.textContent = m.institution;
+      el.classList.remove('hidden');
+    }
+
+    if (m.bio) {
+      const el = document.getElementById('bioEl');
+      el.textContent = m.bio;
+      el.classList.remove('hidden');
+    }
+
+    if (m.badges && m.badges.length > 0) {
+      document.getElementById('badgesCard').classList.remove('hidden');
+      const list = document.getElementById('badgesList');
+      m.badges.forEach(b => {
+        const span = document.createElement('span');
+        span.className = 'text-xs px-3 py-1.5 rounded-full bg-navy-light text-navy border border-navy/20 font-medium';
+        span.textContent = BADGE_LABELS[b] || b;
+        list.appendChild(span);
+      });
+    }
+
+    if (m.interests && m.interests.length > 0) {
+      document.getElementById('interestsCard').classList.remove('hidden');
+      const list = document.getElementById('interestsList');
+      m.interests.forEach(i => {
+        const span = document.createElement('span');
+        span.className = 'text-xs px-3 py-1.5 rounded-full bg-[#F7F7F6] text-gray-600 border border-border';
+        span.textContent = i;
+        list.appendChild(span);
+      });
+    }
+  })();
+</script>
