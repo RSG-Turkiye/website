@@ -43,6 +43,12 @@ const prefix = lang === 'tr' ? '/tr' : '';
       <a href={`${prefix}/join`} class="hidden lg:inline-flex items-center px-4 py-1.5 rounded bg-red text-white text-sm font-medium hover:bg-red-hover transition-colors no-underline">
         {t('nav.join')}
       </a>
+      <!-- Auth button: swapped by JS after /api/me check -->
+      <div id="authArea" class="hidden lg:block">
+        <a href="/auth/login" class="inline-flex items-center px-4 py-1.5 rounded border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-colors no-underline">
+          {t('nav.signIn')}
+        </a>
+      </div>
       <LanguageIcon />
       <!-- Hamburger -->
       <button
@@ -71,6 +77,11 @@ const prefix = lang === 'tr' ? '/tr' : '';
     <a href={`${prefix}/join`} class="mt-3 flex items-center justify-center px-4 py-2 rounded bg-red text-white text-sm font-medium no-underline">
       {t('nav.join')}
     </a>
+    <div id="mobileAuthArea" class="mt-2">
+      <a href="/auth/login" class="flex items-center justify-center px-4 py-2 rounded border border-white/30 text-white text-sm font-medium no-underline">
+        {t('nav.signIn')}
+      </a>
+    </div>
   </div>
 </header>
 
@@ -111,5 +122,45 @@ const prefix = lang === 'tr' ? '/tr' : '';
       nav.classList.toggle('flex', !open);
       btn.setAttribute('aria-expanded', String(!open));
     });
+  })();
+
+  // Auth state
+  (function () {
+    var authArea = document.getElementById('authArea');
+    var mobileAuthArea = document.getElementById('mobileAuthArea');
+    if (!authArea || !mobileAuthArea) return;
+
+    fetch('/api/me')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        authArea.classList.remove('hidden');
+        if (data.user) {
+          var username = data.profile ? data.profile.username : null;
+          var profileHref = username ? '/account' : '/account/setup';
+          authArea.innerHTML =
+            '<div class="relative group">' +
+              '<a href="' + profileHref + '" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-colors no-underline">' +
+                (data.profile && data.profile.avatar_url
+                  ? '<img src="' + data.profile.avatar_url + '" class="w-5 h-5 rounded-full object-cover" />'
+                  : '<span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs">👤</span>') +
+                '<span>' + (data.profile ? data.profile.display_name : 'Account') + '</span>' +
+              '</a>' +
+              '<div class="dropdown-menu right-0 left-auto">' +
+                '<a href="/account" class="dropdown-item">My Profile</a>' +
+                '<form action="/auth/logout" method="POST" style="margin:0">' +
+                  '<button type="submit" class="dropdown-item w-full text-left">Sign Out</button>' +
+                '</form>' +
+              '</div>' +
+            '</div>';
+          mobileAuthArea.innerHTML =
+            '<a href="/account" class="flex items-center justify-center px-4 py-2 rounded border border-white/30 text-white text-sm font-medium no-underline">My Profile</a>' +
+            '<form action="/auth/logout" method="POST" class="mt-2">' +
+              '<button type="submit" class="w-full flex items-center justify-center px-4 py-2 rounded border border-white/30 text-white text-sm font-medium">Sign Out</button>' +
+            '</form>';
+        }
+      })
+      .catch(function () {
+        authArea.classList.remove('hidden');
+      });
   })();
 </script>

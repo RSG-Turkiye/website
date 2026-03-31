@@ -17,6 +17,9 @@ export const ui = {
     'nav.contact': 'Contact',
     'nav.learningPaths': 'Learning Paths',
     'nav.join': 'Join Us',
+    'nav.signIn': 'Sign In',
+    'nav.myProfile': 'My Profile',
+    'nav.signOut': 'Sign Out',
 
     // Hero Section
     'hero.title': 'RSG Turkiye',
@@ -268,6 +271,9 @@ export const ui = {
     'nav.contact': 'İletişim',
     'nav.learningPaths': 'Öğrenme Yolları',
     'nav.join': 'Katıl',
+    'nav.signIn': 'Giriş Yap',
+    'nav.myProfile': 'Profilim',
+    'nav.signOut': 'Çıkış Yap',
 
     // Hero Section
     'hero.title': 'RSG Türkiye',
