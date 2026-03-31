@@ -1,7 +1,9 @@
 import type { Env } from '../../_lib/auth';
-import { jsonResponse } from '../../_lib/auth';
+import { getSessionUser, jsonResponse } from '../../_lib/auth';
 
-export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ request, params, env }) => {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   const username = (params.username as string)?.toLowerCase();
   if (!username) return jsonResponse({ error: 'Not found' }, 404);
 

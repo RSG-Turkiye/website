@@ -1,7 +1,9 @@
 import type { Env } from '../_lib/auth';
-import { jsonResponse } from '../_lib/auth';
+import { getSessionUser, jsonResponse } from '../_lib/auth';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   const url = new URL(request.url);
   const search = url.searchParams.get('search')?.trim() ?? '';
   const interest = url.searchParams.get('interest')?.trim() ?? '';
