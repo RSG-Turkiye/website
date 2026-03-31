@@ -144,7 +144,28 @@ const BADGES = [
 
     </div>
   </div>
+
+  <!-- Crop modal -->
+  <div id="cropModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col gap-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-navy">Crop your photo</h2>
+        <button id="cropCancel" class="text-gray-400 hover:text-navy transition-colors text-xl leading-none">&times;</button>
+      </div>
+      <div class="rounded-xl overflow-hidden bg-gray-100" style="max-height:340px;">
+        <img id="cropImage" src="" alt="Crop" style="max-width:100%;display:block;" />
+      </div>
+      <div class="flex gap-3">
+        <button id="cropCancel2" class="flex-1 py-2.5 rounded-xl border border-border text-sm text-gray-500 hover:border-navy-mid hover:text-navy transition-colors">Cancel</button>
+        <button id="cropConfirm" class="flex-1 py-2.5 rounded-xl bg-navy text-white text-sm font-semibold hover:bg-navy-mid transition-colors">Use this photo</button>
+      </div>
+    </div>
+  </div>
+
 </BaseLayout>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
 <style>
   @reference "../../styles/global.css";
@@ -170,7 +191,70 @@ const BADGES = [
   const avatarStatus = document.getElementById('avatarStatus') as HTMLElement;
   const avatarUrlInput = document.getElementById('avatar_url') as HTMLInputElement;
 
-  avatarInput?.addEventListener('change', async () => {
+  // Crop modal logic
+  const cropModal = document.getElementById('cropModal') as HTMLElement;
+  const cropImage = document.getElementById('cropImage') as HTMLImageElement;
+  const cropConfirm = document.getElementById('cropConfirm') as HTMLButtonElement;
+  const cropCancel = document.getElementById('cropCancel') as HTMLButtonElement;
+  const cropCancel2 = document.getElementById('cropCancel2') as HTMLButtonElement;
+  let cropper: any = null;
+  let objectUrl: string | null = null;
+
+  function closeCropModal() {
+    cropModal.classList.add('hidden');
+    if (cropper) { cropper.destroy(); cropper = null; }
+    if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+    avatarInput.value = '';
+  }
+
+  cropCancel.addEventListener('click', closeCropModal);
+  cropCancel2.addEventListener('click', closeCropModal);
+
+  cropConfirm.addEventListener('click', () => {
+    if (!cropper) return;
+    cropConfirm.disabled = true;
+    cropConfirm.textContent = 'Uploading...';
+
+    cropper.getCroppedCanvas({ width: 400, height: 400 }).toBlob(async (blob: Blob | null) => {
+      if (!blob) {
+        cropConfirm.disabled = false;
+        cropConfirm.textContent = 'Use this photo';
+        return;
+      }
+
+      closeCropModal();
+      avatarStatus.textContent = 'Uploading...';
+      avatarStatus.className = 'text-xs text-gray-400';
+
+      const formData = new FormData();
+      formData.append('file', blob, 'avatar.jpg');
+      formData.append('upload_preset', 'rsg-avatars');
+      formData.append('folder', 'rsgturkey/avatars');
+
+      try {
+        const res = await fetch('https://api.cloudinary.com/v1_1/dyuf14ra5/image/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error('Upload failed');
+
+        const data = await res.json() as { secure_url: string };
+        avatarUrlInput.value = data.secure_url;
+        avatarPreview.innerHTML = `<img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;" />`;
+        avatarStatus.textContent = '✓ Photo uploaded';
+        avatarStatus.className = 'text-xs text-green-600';
+      } catch {
+        avatarStatus.textContent = '✗ Upload failed. Please try again.';
+        avatarStatus.className = 'text-xs text-red-500';
+      }
+
+      cropConfirm.disabled = false;
+      cropConfirm.textContent = 'Use this photo';
+    }, 'image/jpeg', 0.9);
+  });
+
+  avatarInput?.addEventListener('change', () => {
     const file = avatarInput.files?.[0];
     if (!file) return;
 
@@ -180,31 +264,28 @@ const BADGES = [
       return;
     }
 
-    avatarStatus.textContent = 'Uploading...';
-    avatarStatus.className = 'text-xs text-gray-400';
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = URL.createObjectURL(file);
+    cropImage.src = objectUrl;
+    cropModal.classList.remove('hidden');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'rsg-avatars');
-    formData.append('folder', 'rsgturkey/avatars');
-
-    try {
-      const res = await fetch('https://api.cloudinary.com/v1_1/dyuf14ra5/image/upload', {
-        method: 'POST',
-        body: formData,
+    // Wait for image to load before initializing cropper
+    cropImage.onload = () => {
+      if (cropper) cropper.destroy();
+      cropper = new (window as any).Cropper(cropImage, {
+        aspectRatio: 1,
+        viewMode: 1,
+        dragMode: 'move',
+        autoCropArea: 0.8,
+        restore: false,
+        guides: false,
+        center: true,
+        highlight: false,
+        cropBoxMovable: true,
+        cropBoxResizable: true,
+        toggleDragModeOnDblclick: false,
       });
-
-      if (!res.ok) throw new Error('Upload failed');
-
-      const data = await res.json() as { secure_url: string };
-      avatarUrlInput.value = data.secure_url;
-      avatarPreview.innerHTML = `<img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;" />`;
-      avatarStatus.textContent = '✓ Photo uploaded';
-      avatarStatus.className = 'text-xs text-green-600';
-    } catch {
-      avatarStatus.textContent = '✗ Upload failed. Please try again.';
-      avatarStatus.className = 'text-xs text-red-500';
-    }
+    };
   });
 
   // Pre-fill existing profile data
