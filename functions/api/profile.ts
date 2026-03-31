@@ -25,6 +25,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     username?: string;
     institution?: string | null;
     bio?: string | null;
+    avatar_url?: string | null;
     interests?: string[];
     badges?: string[];
   };
@@ -69,15 +70,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     'SELECT user_id FROM profiles WHERE user_id = ?'
   ).bind(user.id).first();
 
+  // Validate avatar_url is a Cloudinary URL if provided
+  const avatarUrl = body.avatar_url?.startsWith('https://res.cloudinary.com/')
+    ? body.avatar_url
+    : null;
+
   if (existing) {
     await env.DB.prepare(
-      `UPDATE profiles SET username=?, display_name=?, institution=?, bio=?, updated_at=? WHERE user_id=?`
-    ).bind(username, displayName, body.institution ?? null, body.bio ?? null, now, user.id).run();
+      `UPDATE profiles SET username=?, display_name=?, institution=?, bio=?, avatar_url=?, updated_at=? WHERE user_id=?`
+    ).bind(username, displayName, body.institution ?? null, body.bio ?? null, avatarUrl, now, user.id).run();
   } else {
     await env.DB.prepare(
-      `INSERT INTO profiles (user_id, username, display_name, institution, bio, card_template, is_public, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'default', 1, ?)`
-    ).bind(user.id, username, displayName, body.institution ?? null, body.bio ?? null, now).run();
+      `INSERT INTO profiles (user_id, username, display_name, institution, bio, avatar_url, card_template, is_public, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'default', 1, ?)`
+    ).bind(user.id, username, displayName, body.institution ?? null, body.bio ?? null, avatarUrl, now).run();
   }
 
   // Replace interests

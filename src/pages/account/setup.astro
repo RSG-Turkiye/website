@@ -36,6 +36,26 @@ const BADGES = [
         <!-- Error banner -->
         <div id="errorBanner" class="hidden bg-red-50 border border-red/20 text-red text-sm rounded-lg px-4 py-3"></div>
 
+        <!-- Avatar -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-3">Profile picture</label>
+          <div class="flex items-center gap-5">
+            <!-- Preview -->
+            <div id="avatarPreview" class="w-20 h-20 rounded-full bg-navy-light flex items-center justify-center text-navy text-2xl font-bold shrink-0 overflow-hidden">
+              ?
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="avatarInput" class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm text-gray-500 hover:border-navy-mid hover:text-navy transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload photo
+              </label>
+              <input id="avatarInput" type="file" accept="image/*" class="hidden" />
+              <p id="avatarStatus" class="text-xs text-gray-400">JPG, PNG or WebP. Max 5MB.</p>
+              <input type="hidden" id="avatar_url" name="avatar_url" />
+            </div>
+          </div>
+        </div>
+
         <!-- Display name -->
         <div>
           <label class="block text-sm font-semibold text-navy mb-1.5" for="display_name">Display name <span class="text-red">*</span></label>
@@ -144,6 +164,49 @@ const BADGES = [
 </style>
 
 <script>
+  // Avatar upload via Cloudinary
+  const avatarInput = document.getElementById('avatarInput') as HTMLInputElement;
+  const avatarPreview = document.getElementById('avatarPreview') as HTMLElement;
+  const avatarStatus = document.getElementById('avatarStatus') as HTMLElement;
+  const avatarUrlInput = document.getElementById('avatar_url') as HTMLInputElement;
+
+  avatarInput?.addEventListener('change', async () => {
+    const file = avatarInput.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      avatarStatus.textContent = '✗ File too large. Max 5MB.';
+      avatarStatus.className = 'text-xs text-red-500';
+      return;
+    }
+
+    avatarStatus.textContent = 'Uploading...';
+    avatarStatus.className = 'text-xs text-gray-400';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'rsg-avatars');
+    formData.append('folder', 'rsgturkey/avatars');
+
+    try {
+      const res = await fetch('https://api.cloudinary.com/v1_1/dyuf14ra5/image/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+
+      const data = await res.json() as { secure_url: string };
+      avatarUrlInput.value = data.secure_url;
+      avatarPreview.innerHTML = `<img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;" />`;
+      avatarStatus.textContent = '✓ Photo uploaded';
+      avatarStatus.className = 'text-xs text-green-600';
+    } catch {
+      avatarStatus.textContent = '✗ Upload failed. Please try again.';
+      avatarStatus.className = 'text-xs text-red-500';
+    }
+  });
+
   // Username availability check
   const usernameInput = document.getElementById('username') as HTMLInputElement;
   const usernameStatus = document.getElementById('usernameStatus') as HTMLElement;
@@ -184,6 +247,7 @@ const BADGES = [
       username: data.get('username'),
       institution: data.get('institution') || null,
       bio: data.get('bio') || null,
+      avatar_url: data.get('avatar_url') || null,
       interests: data.getAll('interests'),
       badges: data.getAll('badges'),
     };
