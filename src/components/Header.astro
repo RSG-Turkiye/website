@@ -36,7 +36,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
 
       <a href={`${prefix}/resources`} class="nav-link">{t('nav.resources')}</a>
       <a href={`${prefix}/learning-paths`} class="nav-link">{t('nav.learningPaths')}</a>
-      <a href="/members" class="nav-link">{t('nav.members')}</a>
+      <a id="membersNavLink" href="/members" class="nav-link hidden">{t('nav.members')}</a>
     </nav>
 
     <!-- Actions -->
@@ -71,7 +71,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
     <a href={`${prefix}/webinars`} class="mobile-link">{t('nav.webinars')}</a>
     <a href={`${prefix}/resources`} class="mobile-link">{t('nav.resources')}</a>
     <a href={`${prefix}/learning-paths`} class="mobile-link">Learning Paths</a>
-    <a href="/members" class="mobile-link">{t('nav.members')}</a>
+    <a id="membersMobileLink" href="/members" class="mobile-link hidden">{t('nav.members')}</a>
     <a href={`${prefix}/join`} class="mt-3 flex items-center justify-center px-4 py-2 rounded bg-red text-white text-sm font-medium no-underline">
       {t('nav.join')}
     </a>
@@ -131,6 +131,12 @@ const prefix = lang === 'tr' ? '/tr' : '';
         if (joinBtn && (!data.user || !data.user.is_member)) {
           joinBtn.classList.remove('hidden');
           joinBtn.classList.add('lg:inline-flex');
+        }
+        if (data.user) {
+          var ml = document.getElementById('membersNavLink');
+          var mml = document.getElementById('membersMobileLink');
+          if (ml) ml.classList.remove('hidden');
+          if (mml) mml.classList.remove('hidden');
         }
         authArea.classList.remove('hidden');
         if (!data.user) {

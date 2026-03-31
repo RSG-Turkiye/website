@@ -164,13 +164,15 @@ const BADGE_LABELS: Record<string, string> = {
   }
 
   // Init — require login
-  const authRes = await fetch('/api/me');
-  const authData = await authRes.json();
-  if (!authData.user) {
-    window.location.href = '/login?next=/members';
-    return;
-  }
-  loadMembers(true);
+  (async () => {
+    const authRes = await fetch('/api/me');
+    const authData = await authRes.json();
+    if (!authData.user) {
+      window.location.replace('/login?next=/members');
+      return;
+    }
+    loadMembers(true);
+  })();
 
   // Search & filters
   document.getElementById('searchInput').addEventListener('input', () => {
