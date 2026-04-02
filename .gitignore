@@ -29,3 +29,5 @@ wp-images/
 cloudinary-mapping.json
 client_secret*.json
 *.credentials.json
+committee-photos/
+*.zip
