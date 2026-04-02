@@ -46,6 +46,28 @@ const ogImage = image || '/logo/rsgturkey_logo.png';
 
     <!-- Translation URL: used by the language switcher to navigate to the correct page -->
     {translationUrl && <meta name="translation-url" content={translationUrl} />}
+
+    <!-- Extra head content (JSON-LD, etc.) injected by individual pages -->
+    <slot name="head" />
+
+    <!-- Structured Data: Organization -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "RSG Turkiye",
+      "url": "https://rsg-turkiye.iscbsc.org",
+      "logo": "https://rsg-turkiye.iscbsc.org/logo/rsgturkey_logo.png",
+      "description": "ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkey.",
+      "sameAs": [
+        "https://twitter.com/RSGTurkiye",
+        "https://www.linkedin.com/company/rsg-turkiye"
+      ],
+      "memberOf": {
+        "@type": "Organization",
+        "name": "ISCB Student Council",
+        "url": "https://iscbsc.org"
+      }
+    })} />
   </head>
   <body>
     <Header />

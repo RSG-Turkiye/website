@@ -10,6 +10,8 @@ const allBlogPosts = await getCollection('blog', ({ id, data }) => id.startsWith
 const sortedPosts = allBlogPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 const pageTitle = "Blog - RSG Turkiye";
 
+const allTags = [...new Set(sortedPosts.flatMap((p: any) => p.data.tags || []))].sort();
+
 function getThumbnail(post: any): string | null {
   const img = post.data.image;
   if (img && img.startsWith('http') && !img.includes('gravatar.com')) return img;
@@ -47,7 +49,8 @@ const facts = [
               return (
                 <article class="post-item py-4 border-b border-border"
                   data-title={post.data.title}
-                  data-description={post.data.description || ''}>
+                  data-description={post.data.description || ''}
+                  data-tags={(post.data.tags || []).join(',')}>
                   <div class="flex gap-4 items-start">
                     <a href={postUrl} class="shrink-0" tabindex="-1" aria-hidden="true">
                       <div class="w-32 h-24 sm:w-40 sm:h-28 rounded-md overflow-hidden bg-[#E8ECF4]">
@@ -103,6 +106,15 @@ const facts = [
             />
           </div>
 
+          <!-- Tag filter -->
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Filter by tag</p>
+            <select id="tagFilter" class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors bg-white text-navy">
+              <option value="">All tags</option>
+              {allTags.map((tag: string) => <option value={tag}>{tag}</option>)}
+            </select>
+          </div>
+
           <!-- About RSG Turkiye -->
           <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
             <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">About RSG Turkiye</p>
@@ -141,6 +153,7 @@ const facts = [
 
   const allItems = () => Array.from(document.querySelectorAll<HTMLElement>('.post-item'));
   const searchInput = document.getElementById('searchPosts') as HTMLInputElement;
+  const tagFilter = document.getElementById('tagFilter') as HTMLSelectElement;
   const paginationEl = document.getElementById('pagination')!;
   const noResults = document.getElementById('noResults')!;
 
@@ -150,11 +163,16 @@ const facts = [
     history.replaceState(null, '', url.toString());
   }
 
-  function applyFilter(term: string) {
+  function applyFilter() {
+    const term = (searchInput?.value || '').toLowerCase();
+    const tag = tagFilter?.value || '';
     filtered = allItems().filter(item => {
       const title = (item.dataset.title || '').toLowerCase();
       const desc = (item.dataset.description || '').toLowerCase();
-      return title.includes(term) || desc.includes(term);
+      const tags = (item.dataset.tags || '').split(',');
+      const matchesText = !term || title.includes(term) || desc.includes(term);
+      const matchesTag = !tag || tags.includes(tag);
+      return matchesText && matchesTag;
     });
     currentPage = 1;
     render();
@@ -204,7 +222,6 @@ const facts = [
   filtered = allItems();
   render();
 
-  searchInput?.addEventListener('input', function () {
-    applyFilter(this.value.toLowerCase());
-  });
+  searchInput?.addEventListener('input', applyFilter);
+  tagFilter?.addEventListener('change', applyFilter);
 </script>

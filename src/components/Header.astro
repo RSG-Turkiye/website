@@ -46,6 +46,12 @@ const prefix = lang === 'tr' ? '/tr' : '';
       </a>
       <!-- Auth area: fully rendered by JS after /api/me check -->
       <div id="authArea" class="hidden lg:block"></div>
+      <!-- Search -->
+      <a href={`${prefix}/search`} aria-label="Search" class="flex items-center justify-center w-9 h-9 rounded text-white hover:bg-white/10 transition-colors">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+      </a>
       <LanguageIcon />
       <!-- Hamburger -->
       <button
@@ -124,8 +130,25 @@ const prefix = lang === 'tr' ? '/tr' : '';
     var mobileAuthArea = document.getElementById('mobileAuthArea');
     if (!authArea || !mobileAuthArea) return;
 
-    fetch('/api/me')
-      .then(function (r) { return r.json(); })
+    var CACHE_KEY = 'rsg_me_cache';
+    var CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    function getCached() {
+      try {
+        var raw = sessionStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        var entry = JSON.parse(raw);
+        if (Date.now() - entry.ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_KEY); return null; }
+        return entry.data;
+      } catch { return null; }
+    }
+
+    function setCache(data) {
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch {}
+    }
+
+    var cached = getCached();
+    (cached ? Promise.resolve(cached) : fetch('/api/me').then(function(r) { return r.json(); }).then(function(d) { setCache(d); return d; }))
       .then(function (data) {
         var joinBtn = document.getElementById('joinBtn');
         if (joinBtn && (!data.user || !data.user.is_member)) {
@@ -160,7 +183,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
               '</button>' +
               '<div id="userMenu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:white;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:1px solid #e5e7eb;padding:4px;z-index:100;">' +
                 '<a href="' + profileHref + '" style="display:block;padding:8px 12px;font-size:14px;color:#0f2045;text-decoration:none;border-radius:6px;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">My Profile</a>' +
-                '<form action="/auth/logout" method="POST" style="margin:0;">' +
+                '<form action="/auth/logout" method="POST" style="margin:0;" onsubmit="try{sessionStorage.removeItem(\'rsg_me_cache\')}catch(e){}">' +
                   '<button type="submit" style="display:block;width:100%;padding:8px 12px;font-size:14px;color:#dc2626;text-align:left;background:transparent;border:none;border-radius:6px;cursor:pointer;" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'\'">Sign Out</button>' +
                 '</form>' +
               '</div>' +

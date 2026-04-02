@@ -1,0 +1,181 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const blogPosts = await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft);
+const webinars = await getCollection('webinars', ({ id }) => id.startsWith('tr/'));
+
+const searchIndex = [
+  ...blogPosts.map(p => ({
+    type: 'post',
+    title: p.data.title,
+    description: p.data.description || '',
+    url: `/tr/blog/${p.id.slice(3)}`,
+    meta: p.data.author || '',
+    tags: (p.data.tags || []).join(' '),
+  })),
+  ...webinars.map(w => ({
+    type: 'webinar',
+    title: w.data.title,
+    description: w.data.description || '',
+    url: `/tr/webinars/${w.id.slice(3)}`,
+    meta: w.data.speaker || '',
+    tags: w.data.topic || '',
+  })),
+];
+---
+
+<BaseLayout pageTitle="Arama — RSG Türkiye" description="Blog yazıları, webinarlar ve üyeler arasında arama yapın.">
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-2xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white mb-4">Arama</h1>
+      <div class="relative">
+        <svg class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input
+          id="searchInput"
+          type="search"
+          autofocus
+          placeholder="Yazı, webinar, üye ara..."
+          class="w-full pl-11 pr-4 py-3 rounded-xl text-sm text-navy border-2 border-transparent focus:outline-none focus:border-navy-mid bg-white"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-3xl mx-auto px-6 py-10">
+
+    <!-- Type tabs -->
+    <div class="flex gap-2 mb-6 flex-wrap">
+      <button class="type-btn active-type px-4 py-1.5 rounded-full text-sm font-medium transition-colors" data-type="all">Tümü</button>
+      <button class="type-btn px-4 py-1.5 rounded-full text-sm font-medium transition-colors" data-type="post">Yazılar</button>
+      <button class="type-btn px-4 py-1.5 rounded-full text-sm font-medium transition-colors" data-type="webinar">Webinarlar</button>
+      <button class="type-btn px-4 py-1.5 rounded-full text-sm font-medium transition-colors" data-type="member">Üyeler</button>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="flex flex-col gap-3"></div>
+    <p id="emptyState" class="hidden text-sm text-gray-400 text-center py-12">Sonuç bulunamadı.</p>
+    <p id="hint" class="text-sm text-gray-400 text-center py-12">Aramak için bir şeyler yazın…</p>
+
+  </div>
+</BaseLayout>
+
+<style>
+  @reference "../../styles/global.css";
+  .type-btn { @apply bg-[#F7F7F6] text-gray-500 hover:bg-navy-light hover:text-navy; }
+  .active-type { @apply bg-navy text-white hover:bg-navy; }
+</style>
+
+<script define:vars={{ searchIndex }}>
+  const input = document.getElementById('searchInput');
+  const resultsEl = document.getElementById('results');
+  const emptyEl = document.getElementById('emptyState');
+  const hintEl = document.getElementById('hint');
+
+  let currentType = 'all';
+  let memberResults = [];
+  let memberTimer;
+
+  const TYPE_LABELS = { post: 'Yazı', webinar: 'Webinar', member: 'Üye' };
+  const TYPE_COLORS = {
+    post: 'bg-red-tint text-red',
+    webinar: 'bg-navy-light text-navy-mid',
+    member: 'bg-green-50 text-green-700',
+  };
+
+  function highlight(text, term) {
+    if (!term || !text) return text || '';
+    return text.replace(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark class="bg-yellow-100 rounded px-0.5">$1</mark>');
+  }
+
+  function renderCard(item, term) {
+    const badge = `<span class="text-xs font-medium px-2 py-0.5 rounded ${TYPE_COLORS[item.type] || 'bg-gray-100 text-gray-500'}">${TYPE_LABELS[item.type] || item.type}</span>`;
+    const meta = item.meta ? `<span class="text-xs text-gray-400">${item.meta}</span>` : '';
+    return `
+      <a href="${item.url}" class="block bg-white rounded-xl border border-border p-4 hover:border-navy-mid hover:shadow-sm transition-all no-underline group">
+        <div class="flex items-start gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">${badge}${meta}</div>
+            <div class="font-semibold text-navy text-sm leading-snug">${highlight(item.title, term)}</div>
+            ${item.description ? `<p class="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2">${highlight(item.description, term)}</p>` : ''}
+          </div>
+          <svg class="w-4 h-4 text-gray-300 group-hover:text-navy-mid shrink-0 mt-0.5 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </a>`;
+  }
+
+  async function fetchMembers(term) {
+    if (!term || term.length < 2) return [];
+    try {
+      const res = await fetch(`/api/members?search=${encodeURIComponent(term)}&limit=5`);
+      const data = await res.json();
+      return (data.members || []).map(m => ({
+        type: 'member',
+        title: m.display_name,
+        description: [m.institution, m.bio].filter(Boolean).join(' · '),
+        url: `/members/${m.username}`,
+        meta: `@${m.username}`,
+      }));
+    } catch { return []; }
+  }
+
+  function render(term) {
+    const staticFiltered = searchIndex.filter(item => {
+      if (currentType !== 'all' && currentType !== 'member' && item.type !== currentType) return false;
+      if (currentType === 'member') return false;
+      const q = term.toLowerCase();
+      return item.title.toLowerCase().includes(q)
+        || item.description.toLowerCase().includes(q)
+        || item.meta.toLowerCase().includes(q)
+        || item.tags.toLowerCase().includes(q);
+    });
+
+    const allResults = currentType === 'post' || currentType === 'webinar'
+      ? staticFiltered
+      : [...staticFiltered, ...memberResults];
+
+    hintEl.classList.add('hidden');
+    if (allResults.length === 0) {
+      resultsEl.innerHTML = '';
+      emptyEl.classList.remove('hidden');
+    } else {
+      emptyEl.classList.add('hidden');
+      resultsEl.innerHTML = allResults.map(r => renderCard(r, term)).join('');
+    }
+  }
+
+  function search() {
+    const term = input.value.trim();
+    if (!term) {
+      resultsEl.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      hintEl.classList.remove('hidden');
+      return;
+    }
+
+    memberResults = [];
+    render(term);
+
+    if (currentType === 'all' || currentType === 'member') {
+      clearTimeout(memberTimer);
+      memberTimer = setTimeout(async () => {
+        memberResults = await fetchMembers(term);
+        render(term);
+      }, 300);
+    }
+  }
+
+  input?.addEventListener('input', search);
+
+  document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentType = btn.dataset.type;
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active-type'));
+      btn.classList.add('active-type');
+      search();
+    });
+  });
+
+  const urlQ = new URLSearchParams(window.location.search).get('q');
+  if (urlQ) { input.value = urlQ; search(); }
+</script>
