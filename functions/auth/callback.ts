@@ -33,7 +33,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return redirectResponse(`${base}/?auth_error=token_exchange`);
   }
 
-  const tokens = await tokenRes.json<{ access_token: string }>();
+  let tokens: { access_token: string };
+  try {
+    tokens = await tokenRes.json<{ access_token: string }>();
+  } catch {
+    return redirectResponse(`${base}/?auth_error=token_parse`);
+  }
 
   // Get user info from Google
   const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -44,12 +49,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return redirectResponse(`${base}/?auth_error=userinfo`);
   }
 
-  const googleUser = await userRes.json<{
-    id: string;
-    email: string;
-    name: string;
-    picture: string;
-  }>();
+  let googleUser: { id: string; email: string; name: string; picture: string };
+  try {
+    googleUser = await userRes.json<{
+      id: string;
+      email: string;
+      name: string;
+      picture: string;
+    }>();
+  } catch {
+    return redirectResponse(`${base}/?auth_error=userinfo_parse`);
+  }
 
   const now = Math.floor(Date.now() / 1000);
 

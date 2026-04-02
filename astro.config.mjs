@@ -3,7 +3,7 @@ import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  site: 'https://rsgturkey.com',
+  site: 'https://rsg-turkiye.iscbsc.org',
   output: 'static',
   redirects: {
     '/learning-paths/undergrad': '/learning-paths/roadmap',

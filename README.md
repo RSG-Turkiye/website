@@ -106,6 +106,12 @@ blog/en/crispr-genome-editing.md   ←→   blog/tr/crispr-genome-editing.md
 
 Pushing to `main` triggers an automatic Cloudflare Pages build and deploy. No manual steps needed.
 
+> **Before going live with a new domain:** Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) and add the new domain's callback URL to the OAuth client's **Authorized redirect URIs**:
+> ```
+> https://rsg-turkiye.iscbsc.org/auth/callback
+> ```
+> Without this, Google login will fail with a `redirect_uri_mismatch` error. Remove any stale dev preview URLs (e.g. `website-dev-vi6.pages.dev`) from the same list.
+
 ---
 
 ## Content Types

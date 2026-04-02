@@ -1,5 +1,5 @@
 import type { Env } from '../_lib/auth';
-import { getSessionUser, jsonResponse } from '../_lib/auth';
+import { getSessionUser, jsonResponse, checkCsrf } from '../_lib/auth';
 
 const RESOURCE_ID_RE = /^[a-z0-9_-]+$/i;
 
@@ -15,6 +15,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
 

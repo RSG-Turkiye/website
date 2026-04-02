@@ -1,5 +1,5 @@
 import type { Env } from '../../_lib/auth';
-import { getSessionUser, jsonResponse } from '../../_lib/auth';
+import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
@@ -40,6 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
+  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   if (!user.is_admin) return jsonResponse({ error: 'Forbidden' }, 403);

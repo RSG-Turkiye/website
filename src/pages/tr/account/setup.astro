@@ -1,0 +1,390 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+const INTERESTS = [
+  'Genomics', 'Transcriptomics', 'Single-cell Analysis', 'Spatial Transcriptomics',
+  'Metagenomics', 'Microbiome', 'Structural Biology', 'Proteomics',
+  'ML & AI', 'Drug Discovery', 'Evolutionary Biology', 'Phylogenetics',
+  'Epigenetics', 'Variant Analysis', 'Bioinformatics Education',
+];
+
+const BADGES = [
+  { value: 'open_to_work',        label: 'İş / Staj Arıyor' },
+  { value: 'open_to_collaborate', label: 'Proje İşbirliğine Açık' },
+  { value: 'open_to_mentor',      label: 'Mentorluk Yapmaya Açık' },
+  { value: 'seeking_mentor',      label: 'Mentor Arıyor' },
+  { value: 'open_to_review',      label: 'Makale / Kod Değerlendirmeye Açık' },
+];
+---
+
+<BaseLayout pageTitle="Profilinizi Oluşturun — RSG Türkiye" description="RSG Türkiye üye profilinizi oluşturun.">
+  <div class="min-h-screen bg-[#F7F7F6] py-12 px-4">
+    <div class="max-w-2xl mx-auto">
+
+      <!-- Header -->
+      <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-navy mb-4">
+          <img src="/logo/rsgturkey_logo.png" alt="" width="40" height="40" class="rounded p-0.5" />
+        </div>
+        <h1 class="text-2xl font-bold text-navy mb-2">Profilinizi oluşturun</h1>
+        <p class="text-gray-500 text-sm">Yaklaşık bir dakika sürer. Her şeyi daha sonra güncelleyebilirsiniz.</p>
+      </div>
+
+      <!-- Form -->
+      <form id="setupForm" class="bg-white rounded-2xl border border-border shadow-sm p-8 flex flex-col gap-7">
+
+        <!-- Error banner -->
+        <div id="errorBanner" class="hidden bg-red-50 border border-red/20 text-red text-sm rounded-lg px-4 py-3"></div>
+
+        <!-- Avatar -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-3">Profil fotoğrafı</label>
+          <div class="flex items-center gap-5">
+            <!-- Preview -->
+            <div id="avatarPreview" class="w-20 h-20 rounded-full bg-navy-light flex items-center justify-center text-navy text-2xl font-bold shrink-0 overflow-hidden">
+              ?
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="avatarInput" class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm text-gray-500 hover:border-navy-mid hover:text-navy transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Fotoğraf yükle
+              </label>
+              <input id="avatarInput" type="file" accept="image/*" class="hidden" />
+              <p id="avatarStatus" class="text-xs text-gray-400">JPG, PNG veya WebP. Maks 5MB.</p>
+              <input type="hidden" id="avatar_url" name="avatar_url" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Display name -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-1.5" for="display_name">Görünen ad <span class="text-red">*</span></label>
+          <input
+            id="display_name" name="display_name" type="text" required maxlength="60"
+            placeholder="Tam adınız veya tercih ettiğiniz isim"
+            class="w-full px-4 py-2.5 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid transition-colors" />
+        </div>
+
+        <!-- Username -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-1.5" for="username">Kullanıcı adı <span class="text-red">*</span></label>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-400 text-sm">rsgturkey.org/members/</span>
+            <input
+              id="username" name="username" type="text" required minlength="3" maxlength="30"
+              pattern="[a-z0-9_\-]+"
+              placeholder="kullanici_adi"
+              class="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid transition-colors" />
+          </div>
+          <p class="text-xs text-gray-400 mt-1">3–30 karakter. Harf, rakam, alt çizgi ve tire kullanılabilir.</p>
+          <p id="usernameStatus" class="text-xs mt-1 hidden"></p>
+        </div>
+
+        <!-- Institution -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-1.5" for="institution">Kurum</label>
+          <input
+            id="institution" name="institution" type="text" maxlength="100"
+            placeholder="örn. ODTÜ, Bilkent, İstanbul Üniversitesi..."
+            class="w-full px-4 py-2.5 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid transition-colors" />
+        </div>
+
+        <!-- Bio -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-1.5" for="bio">Biyografi</label>
+          <textarea
+            id="bio" name="bio" maxlength="300" rows="3"
+            placeholder="Kendiniz ve araştırmanız hakkında kısa bir tanıtım..."
+            class="w-full px-4 py-2.5 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid transition-colors resize-none"></textarea>
+          <p class="text-xs text-gray-400 mt-1">Maks 300 karakter.</p>
+        </div>
+
+        <!-- Interests -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-3">Araştırma ilgi alanları</label>
+          <div class="flex flex-wrap gap-2">
+            {INTERESTS.map(interest => (
+              <label class="interest-chip cursor-pointer">
+                <input type="checkbox" name="interests" value={interest} class="hidden" />
+                <span class="block text-xs px-3 py-1.5 rounded-full border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors select-none">
+                  {interest}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <!-- Status badges -->
+        <div>
+          <label class="block text-sm font-semibold text-navy mb-3">Durum <span class="font-normal text-gray-400">(birden fazla seçebilirsiniz)</span></label>
+          <div class="flex flex-col gap-2">
+            {BADGES.map(badge => (
+              <label class="badge-chip flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-border hover:border-navy-mid transition-colors">
+                <input type="checkbox" name="badges" value={badge.value} class="hidden" />
+                <span class="w-4 h-4 rounded border-2 border-border flex items-center justify-center shrink-0 badge-check transition-colors">
+                  <svg class="w-2.5 h-2.5 text-white opacity-0" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="text-sm text-navy">{badge.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          id="submitBtn"
+          class="w-full py-3 rounded-xl bg-navy text-white font-semibold text-sm hover:bg-navy-mid transition-colors">
+          Profil oluştur
+        </button>
+
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Crop modal -->
+  <div id="cropModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col gap-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-navy">Fotoğrafı kırp</h2>
+        <button id="cropCancel" class="text-gray-400 hover:text-navy transition-colors text-xl leading-none">&times;</button>
+      </div>
+      <div class="rounded-xl overflow-hidden bg-gray-100" style="max-height:340px;">
+        <img id="cropImage" src="" alt="Kırp" style="max-width:100%;display:block;" />
+      </div>
+      <div class="flex gap-3">
+        <button id="cropCancel2" class="flex-1 py-2.5 rounded-xl border border-border text-sm text-gray-500 hover:border-navy-mid hover:text-navy transition-colors">İptal</button>
+        <button id="cropConfirm" class="flex-1 py-2.5 rounded-xl bg-navy text-white text-sm font-semibold hover:bg-navy-mid transition-colors">Bu fotoğrafı kullan</button>
+      </div>
+    </div>
+  </div>
+
+</BaseLayout>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+
+<style>
+  @reference "../../../styles/global.css";
+
+  .interest-chip input:checked + span {
+    @apply border-navy bg-navy text-white;
+  }
+  .badge-chip:has(input:checked) {
+    @apply border-navy bg-navy-light;
+  }
+  .badge-chip:has(input:checked) .badge-check {
+    @apply border-navy bg-navy;
+  }
+  .badge-chip:has(input:checked) .badge-check svg {
+    @apply opacity-100;
+  }
+</style>
+
+<script>
+  // Avatar upload via Cloudinary
+  const avatarInput = document.getElementById('avatarInput') as HTMLInputElement;
+  const avatarPreview = document.getElementById('avatarPreview') as HTMLElement;
+  const avatarStatus = document.getElementById('avatarStatus') as HTMLElement;
+  const avatarUrlInput = document.getElementById('avatar_url') as HTMLInputElement;
+
+  // Crop modal logic
+  const cropModal = document.getElementById('cropModal') as HTMLElement;
+  const cropImage = document.getElementById('cropImage') as HTMLImageElement;
+  const cropConfirm = document.getElementById('cropConfirm') as HTMLButtonElement;
+  const cropCancel = document.getElementById('cropCancel') as HTMLButtonElement;
+  const cropCancel2 = document.getElementById('cropCancel2') as HTMLButtonElement;
+  let cropper: any = null;
+  let objectUrl: string | null = null;
+
+  function closeCropModal() {
+    cropModal.classList.add('hidden');
+    if (cropper) { cropper.destroy(); cropper = null; }
+    if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+    avatarInput.value = '';
+  }
+
+  cropCancel.addEventListener('click', closeCropModal);
+  cropCancel2.addEventListener('click', closeCropModal);
+
+  cropConfirm.addEventListener('click', () => {
+    if (!cropper) return;
+    cropConfirm.disabled = true;
+    cropConfirm.textContent = 'Yükleniyor...';
+
+    cropper.getCroppedCanvas({ width: 400, height: 400 }).toBlob(async (blob: Blob | null) => {
+      if (!blob) {
+        cropConfirm.disabled = false;
+        cropConfirm.textContent = 'Bu fotoğrafı kullan';
+        return;
+      }
+
+      closeCropModal();
+      avatarStatus.textContent = 'Yükleniyor...';
+      avatarStatus.className = 'text-xs text-gray-400';
+
+      const formData = new FormData();
+      formData.append('file', blob, 'avatar.jpg');
+      formData.append('upload_preset', 'rsg-avatars');
+      formData.append('folder', 'rsgturkey/avatars');
+
+      try {
+        const res = await fetch('https://api.cloudinary.com/v1_1/dyuf14ra5/image/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error('Upload failed');
+
+        const data = await res.json() as { secure_url: string };
+        avatarUrlInput.value = data.secure_url;
+        avatarPreview.innerHTML = `<img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;" />`;
+        avatarStatus.textContent = '✓ Fotoğraf yüklendi';
+        avatarStatus.className = 'text-xs text-green-600';
+      } catch {
+        avatarStatus.textContent = '✗ Yükleme başarısız. Lütfen tekrar deneyin.';
+        avatarStatus.className = 'text-xs text-red-500';
+      }
+
+      cropConfirm.disabled = false;
+      cropConfirm.textContent = 'Bu fotoğrafı kullan';
+    }, 'image/jpeg', 0.9);
+  });
+
+  avatarInput?.addEventListener('change', () => {
+    const file = avatarInput.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      avatarStatus.textContent = '✗ Dosya çok büyük. Maks 5MB.';
+      avatarStatus.className = 'text-xs text-red-500';
+      return;
+    }
+
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = URL.createObjectURL(file);
+    cropImage.src = objectUrl;
+    cropModal.classList.remove('hidden');
+
+    cropImage.onload = () => {
+      if (cropper) cropper.destroy();
+      cropper = new (window as any).Cropper(cropImage, {
+        aspectRatio: 1,
+        viewMode: 1,
+        dragMode: 'move',
+        autoCropArea: 0.8,
+        restore: false,
+        guides: false,
+        center: true,
+        highlight: false,
+        cropBoxMovable: true,
+        cropBoxResizable: true,
+        toggleDragModeOnDblclick: false,
+      });
+    };
+  });
+
+  // Pre-fill existing profile data
+  (async () => {
+    const res = await fetch('/api/me');
+    const data = await res.json() as { user: any; profile: any; badges: string[]; interests: string[] };
+    if (!data.user) { window.location.href = '/tr/login'; return; }
+
+    const p = data.profile;
+    if (!p) return;
+
+    const h1 = document.querySelector('h1');
+    if (h1) h1.textContent = 'Profilinizi düzenleyin';
+    const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+    if (submitBtn) submitBtn.textContent = 'Değişiklikleri kaydet';
+
+    if (p.avatar_url) {
+      (document.getElementById('avatar_url') as HTMLInputElement).value = p.avatar_url;
+      const preview = document.getElementById('avatarPreview') as HTMLElement;
+      preview.innerHTML = `<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover;" />`;
+    }
+
+    (document.getElementById('display_name') as HTMLInputElement).value = p.display_name || '';
+    (document.getElementById('username') as HTMLInputElement).value = p.username || '';
+    (document.getElementById('institution') as HTMLInputElement).value = p.institution || '';
+    (document.getElementById('bio') as HTMLTextAreaElement).value = p.bio || '';
+
+    data.interests?.forEach(interest => {
+      const checkbox = document.querySelector(`input[name="interests"][value="${interest}"]`) as HTMLInputElement;
+      if (checkbox) checkbox.checked = true;
+    });
+
+    data.badges?.forEach(badge => {
+      const checkbox = document.querySelector(`input[name="badges"][value="${badge}"]`) as HTMLInputElement;
+      if (checkbox) checkbox.checked = true;
+    });
+  })();
+
+  // Username availability check
+  const usernameInput = document.getElementById('username') as HTMLInputElement;
+  const usernameStatus = document.getElementById('usernameStatus') as HTMLElement;
+  let usernameTimer: ReturnType<typeof setTimeout>;
+
+  const originalUsername = usernameInput?.value ?? '';
+  usernameInput?.addEventListener('input', () => {
+    clearTimeout(usernameTimer);
+    const val = usernameInput.value.trim();
+    if (val.length < 3) { usernameStatus.classList.add('hidden'); return; }
+    if (val === originalUsername) { usernameStatus.classList.add('hidden'); return; }
+    usernameTimer = setTimeout(async () => {
+      const res = await fetch(`/api/check-username?username=${encodeURIComponent(val)}`);
+      const data = await res.json() as { available: boolean };
+      usernameStatus.classList.remove('hidden');
+      if (data.available) {
+        usernameStatus.textContent = '✓ Kullanılabilir';
+        usernameStatus.className = 'text-xs mt-1 text-green-600';
+      } else {
+        usernameStatus.textContent = '✗ Bu kullanıcı adı alınmış';
+        usernameStatus.className = 'text-xs mt-1 text-red-500';
+      }
+    }, 400);
+  });
+
+  // Form submission
+  const form = document.getElementById('setupForm') as HTMLFormElement;
+  const errorBanner = document.getElementById('errorBanner') as HTMLElement;
+  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBanner.classList.add('hidden');
+    const isEditing = submitBtn.textContent?.trim() === 'Değişiklikleri kaydet';
+    submitBtn.disabled = true;
+    submitBtn.textContent = isEditing ? 'Kaydediliyor...' : 'Profil oluşturuluyor...';
+
+    const formData = new FormData(form);
+    const body = {
+      display_name: formData.get('display_name'),
+      username: formData.get('username'),
+      institution: formData.get('institution') || null,
+      bio: formData.get('bio') || null,
+      avatar_url: formData.get('avatar_url') || null,
+      interests: formData.getAll('interests'),
+      badges: formData.getAll('badges'),
+    };
+
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      window.location.href = '/tr/account';
+    } else {
+      const err = await res.json() as { error: string };
+      errorBanner.textContent = err.error || 'Bir hata oluştu. Lütfen tekrar deneyin.';
+      errorBanner.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = isEditing ? 'Değişiklikleri kaydet' : 'Profil oluştur';
+    }
+  });
+</script>

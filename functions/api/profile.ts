@@ -1,5 +1,5 @@
 import type { Env } from '../_lib/auth';
-import { getSessionUser, jsonResponse, generateId } from '../_lib/auth';
+import { getSessionUser, jsonResponse, generateId, checkCsrf } from '../_lib/auth';
 
 const VALID_INTERESTS = new Set([
   'Genomics', 'Transcriptomics', 'Single-cell Analysis', 'Spatial Transcriptomics',
@@ -17,6 +17,7 @@ const RESERVED_USERNAMES = new Set([
 ]);
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
 

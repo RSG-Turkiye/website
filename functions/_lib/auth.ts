@@ -98,3 +98,16 @@ export function getBaseUrl(request: Request): string {
 export function getSessionDuration() {
   return SESSION_DURATION;
 }
+
+const ALLOWED_ORIGINS = new Set([
+  'https://rsg-turkiye.iscbsc.org',
+]);
+
+export function checkCsrf(request: Request): boolean {
+  // Allow same-origin requests (no Origin header means same-origin in most browsers)
+  const origin = request.headers.get('Origin');
+  if (!origin) return true;
+  // Allow localhost/preview URLs during development
+  if (origin.startsWith('http://localhost') || origin.endsWith('.pages.dev')) return true;
+  return ALLOWED_ORIGINS.has(origin);
+}
