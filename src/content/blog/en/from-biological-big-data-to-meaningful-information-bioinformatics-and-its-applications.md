@@ -2,7 +2,7 @@
 title: "From Biological Big Data to Meaningful Information: Bioinformatics and Its Applications"
 pubDate: 2025-08-07
 description: "You may have heard that we can predict protein structures in minutes using computer algorithms. Before these technologies emerged, predicting protein..."
-author: ""
+author: Zeynep Vurat
 category: general
 tags: ["2025-webinars"]
 image: ""
