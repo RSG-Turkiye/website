@@ -169,4 +169,46 @@ const stageResourceIds = stages.map(stage =>
   });
 
   updateProgress();
+
+  // ── Server sync (logged-in users only) ────────────────────────
+  (async () => {
+    const authData = await fetch('/api/me').then(r => r.json()).catch(() => null);
+    if (!authData?.user) return;
+
+    const progData = await fetch('/api/progress').then(r => r.json()).catch(() => null);
+    if (!progData) return;
+    const serverCompleted = new Set(progData.completed || []);
+
+    // Items completed locally but missing on server → sync up
+    const toSync = checkboxes
+      .filter(cb => cb.checked && !serverCompleted.has(cb.id))
+      .map(cb => ({ resource_id: cb.id, completed: true }));
+
+    // Items on server but not checked locally → restore them
+    let changed = false;
+    serverCompleted.forEach(id => {
+      const cb = document.getElementById(id);
+      if (cb && !cb.checked) { cb.checked = true; changed = true; }
+    });
+    if (changed) updateProgress();
+
+    if (toSync.length > 0) {
+      fetch('/api/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: toSync }),
+      });
+    }
+
+    // Wire up real-time sync on future changes
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resource_id: cb.id, completed: cb.checked }),
+        });
+      });
+    });
+  })();
 </script>

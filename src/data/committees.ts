@@ -96,6 +96,17 @@ export const committeesEn: Committee[] = [
         name: "Mariam Aseyakhe",
         role: "Outreach Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199912/rsgturkey/committee/mariam-aseyakhe.jpg",
+        education: [
+          {
+            degree: 'MSc',
+            field: 'Biological Sciences of Global Health',
+            institution: 'Univeristy of Ibn Zohr',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/mariam-aseyakhe-766424306/"  },
+        ],
       },
     ],
   },
@@ -107,6 +118,17 @@ export const committeesEn: Committee[] = [
         name: "Zeynep Ateşgil",
         role: "Social Media Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.jpg",
+        education: [
+          {
+            degree: 'BSc',
+            field: 'Molecular Biology and Genetics',
+            institution: 'Uludağ University',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/zeynep-ate%C5%9Fgil/"  },
+        ],
       },
     ],
   },
@@ -118,6 +140,7 @@ export const committeesEn: Committee[] = [
         name: "Gökçe Koçak",
         role: "Sponsorship Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199950/rsgturkey/committee/gokce-kocak.jpg",
+      
       },
     ],
   },
@@ -151,6 +174,17 @@ export const committeesEn: Committee[] = [
         name: "Hilal Kınalı",
         role: "Website Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199962/rsgturkey/committee/hilal-kinali.jpg",
+        education: [
+          {
+            degree: 'Undergraduate',
+            field: 'Molecular Biology and Genetics',
+            institution: 'Acıbadem University',
+          },
+        ],
+        email: "hilalkinali08@gmail.com",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/hilal-k%C4%B1nal%C4%B1-558260330/" },
+        ],
       },
     ],
   },
@@ -250,6 +284,17 @@ export const committeesTr: Committee[] = [
         name: "Mariam Aseyakhe",
         role: "Topluluk İlişkileri Ekibi Lideri",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199912/rsgturkey/committee/mariam-aseyakhe.jpg",
+        education: [
+          {
+            degree: 'Yüksek Lisans',
+            field: 'Biological Sciences of Global Health',
+            institution: 'Ibn Zohr Üniversitesi',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/mariam-aseyakhe-766424306/"  },
+        ],
       },
     ],
   },
@@ -261,6 +306,17 @@ export const committeesTr: Committee[] = [
         name: "Zeynep Ateşgil",
         role: "Sosyal Medya Ekibi Lideri",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.jpg",
+        education: [
+          {
+            degree: 'Lisans',
+            field: 'Molecular Biology and Genetics',
+            institution: 'Uludağ Üniversitesi',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/zeynep-ate%C5%9Fgil/"  },
+        ],
       },
     ],
   },
@@ -304,6 +360,16 @@ export const committeesTr: Committee[] = [
         name: "Hilal Kınalı",
         role: "Web Sitesi Ekibi Lideri",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199962/rsgturkey/committee/hilal-kinali.jpg",
+        education: [
+          {
+            degree: 'Lisans',
+            field: 'Moleküler Biyoloji ve Genetik',
+            institution: 'Acıbadem Üniversitesi',
+          },
+        ],
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/hilal-k%C4%B1nal%C4%B1-558260330/" },
+        ],
       },
     ],
   },

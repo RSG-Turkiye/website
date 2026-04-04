@@ -1,0 +1,161 @@
+RSG Türkiye Website — Kalan Yapılacaklar
+==========================================
+Son güncelleme: 2026-04-03
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+P1 — ÖNEMLİ (production öncesi veya hemen sonrası)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Dark mode desteği
+    - CSS variables zaten var (--color-navy vb.)
+    - ThemeIcon.astro bileşeni mevcut ama tema geçişi implement edilmemiş
+    - localStorage'da tercihi sakla, <html> class ile toggle et
+    - Astro'nun built-in dark mode desteğini kullan
+
+[ ] Newsletter / email signup
+    - Ana sayfada, footer'da hiç email koleksiyonu yok
+    - Buttondown, Mailchimp veya Resend ile entegrasyon yapılabilir
+    - En azından basit bir "email gir → listeye ekle" formu yeterli
+
+[ ] Astro <Image> component kullanımı
+    - Şu an tüm görseller düz <img> tag ile
+    - Astro'nun Image component'i WebP dönüşümü + srcset üretiyor
+    - Özellikle blog thumbnail'ları ve avatar'lar için öncelikli
+
+[ ] Speaker profil sayfası
+    - Webinar konuşmacılarına tıklanınca hiçbir yere gitmiyor
+    - /speakers/[slug].astro sayfası açılabilir
+    - Konuşmacının tüm webinarlarını listeler
+
+[ ] Privacy Policy ve Terms of Service sayfaları
+    - Google OAuth kullanan bir site için yasal zorunluluk
+    - /privacy.astro ve /terms.astro (+ TR versiyonları)
+
+[ ] Skeleton screen / loading state iyileştirmesi
+    - Index sayfasındaki calendar bölümünde ani HTML swap var
+    - Members, account sayfalarında spinner var ama layout kayması oluyor
+    - Skeleton placeholder ekle: gerçek içerikle aynı boyutta boş kartlar
+
+[ ] Page transition animasyonu
+    - Astro'nun View Transitions API'si built-in, 1 satır config
+    - astro.config.mjs'e ekle: import { viewTransitions } from 'astro:transitions'
+    - nf-core 180ms fade kullanıyor, aynısı yeterli
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+P2 — ORTA (sprint planına al)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Community Stories / Member Spotlight kategorisi
+    - Blog'da "spotlight" category ekle
+    - Üye başarıları, araştırma hikayeleri için ayrı sekme
+    - Bioconductor ve nf-core'da var, topluluk bağını güçlendiriyor
+
+[ ] Members sayfasında Mentor filtresi öne çıkarma
+    - open_to_mentor badge zaten var
+    - Filtre seçeneklerine "Mentors" kısayolu ekle
+    - Sidebar'da veya header'da "Find a Mentor" butonu
+
+[ ] ORCID profil alanı
+    - Account setup formuna opsiyonel ORCID alanı ekle
+    - D1 profiles tablosuna orcid kolonu ekle (migration gerekli)
+    - Profil kartında ORCID ikonuyla göster
+    - Carpentries'de mevcut, akademik topluluk için değerli
+
+[ ] Duyuru arşiv sayfası
+    - Ana sayfada sadece son 3 duyuru görünüyor, gerisi kaybolıyor
+    - /announcements/index.astro sayfası yeterli
+    - ANNOUNCEMENTS_GUIDE.md zaten var, içerik sistemi kurulu
+
+[ ] Webinar / atölye tamamlama rozeti
+    - Etkinlik katılımı için dijital sertifika veya badge
+    - Cloudflare D1'de completion kaydı tut
+    - PDF veya PNG olarak indirilebilir sertifika
+    - Carpentries ve ISCB'de mevcut, katılım teşvik eder
+
+[ ] Community growth dashboard
+    - Üye sayısı, webinar katılımı, büyüme grafiği
+    - /stats.astro sayfası — D1'den aggregate query'ler
+    - Sponsor ve paydaşlar için ikna edici
+    - Chart.js veya basit SVG grafikler yeterli
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BACKEND / GÜVENLİK (teknik borç)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] SESSION_SECRET'ı Env interface'inden kaldır
+    - functions/_lib/auth.ts satır 5'te tanımlı ama hiç kullanılmıyor
+    - Yanıltıcı — ya kullan (JWT imzalama için) ya da kaldır
+
+[ ] Expired session temizliği
+    - sessions tablosunda süresi dolmuş kayıtlar birikmeye devam ediyor
+    - Bir Cloudflare Cron Trigger ile haftalık temizlik:
+      DELETE FROM sessions WHERE expires_at < unixepoch()
+
+[ ] Rate limiting
+    - /api/check-username artık auth gerektiriyor (tamamlandı) ama
+    - /api/members endpoint'ine de basit rate limit ekle
+    - Cloudflare WAF Rules ile dashboard'dan yapılabilir
+
+[ ] .nvmrc güncelle
+    - .nvmrc şu an Node 18 diyor, .node-version 22 diyor
+    - .nvmrc içini "22" yap
+
+[ ] CSP (Content Security Policy) header
+    - nginx.conf'ta yok
+    - Cloudflare Pages Headers dosyasına (_headers) eklenebilir:
+      Content-Security-Policy: default-src 'self'; ...
+
+[ ] HSTS header
+    - nginx.conf'ta Strict-Transport-Security yok
+    - Cloudflare'de otomatik olabilir, kontrol et
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DEPLOYMENT / PRODUCTION HAZIRLIK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Google Cloud Console'da OAuth redirect URI güncelle
+    - https://rsg-turkiye.iscbsc.org/auth/callback eklenmeli
+    - Eski dev URL'leri (website-dev-vi6.pages.dev) temizlenmeli
+    - OLMADAN login çalışmaz!
+
+[ ] Cloudflare Pages'de production secrets kontrol et
+    - GOOGLE_CLIENT_SECRET → Workers Secret ✓ (mevcut)
+    - CLOUDINARY_API_SECRET → Workers Secret (kontrol et)
+    - SESSION_SECRET → Workers Secret (kullanılmıyor ama interface'de var)
+
+[ ] D1 production migration
+    - wrangler d1 migrations apply rsg-members --remote
+    - Schema değişikliği olduysa migration dosyası oluştur
+
+[ ] Cloudinary upload preset kontrolü
+    - rsg-avatars preset'i unsigned mı signed mı?
+    - Unsigned ise folder restriction ayarlı olmalı
+
+[ ] Analytics ekle
+    - Google Analytics veya Cloudflare Web Analytics (privacy-friendly)
+    - Cloudflare Web Analytics ücretsiz ve GDPR uyumlu, dashboard'dan 1 tıkla
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TAMAMLANANLAR (referans için)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[x] Global site search (/search, /tr/search)
+[x] robots.txt domain güncellendi
+[x] JSON-LD Organization + Article schema
+[x] Header /api/me sessionStorage cache (5dk TTL)
+[x] Blog tag filtresi
+[x] Sosyal paylaşım butonları (X, LinkedIn)
+[x] Focus-visible keyboard navigation
+[x] TR sayfalar: login, members, account, admin
+[x] CSRF koruması tüm POST endpoint'lere
+[x] auth/callback.ts try-catch
+[x] /api/check-username auth gerektiriyor
+[x] src/content/config.ts (Zod schema)
+[x] Header mobile "Learning Paths" i18n fix
+[x] Production domain rsg-turkiye.iscbsc.org
+[x] committee-photos + *.zip .gitignore'a eklendi

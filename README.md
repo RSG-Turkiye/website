@@ -2,12 +2,14 @@
 
 Official website of [RSG Turkey](https://rsgturkey.com) — the ISCB Regional Student Group for computational biology and bioinformatics in Turkey.
 
-Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcss.com). Deployed automatically via Netlify on every push to `main`.
+Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcss.com). Deployed automatically via Cloudflare Pages on every push.
 
 | | |
 |---|---|
 | **Production** | [rsgturkey.com](https://rsgturkey.com) |
-| **Preview / Debug** | [rsg-turkiye-website.netlify.app](https://rsg-turkiye-website.netlify.app) |
+| **Stable (Cloudflare)** | [website-dkh.pages.dev](https://website-dkh.pages.dev) |
+| **Dev branch** | [website-dev-vi6.pages.dev](https://website-dev-vi6.pages.dev) |
+| **Symposium** | [symposium-website.pages.dev](https://symposium-website.pages.dev) |
 
 ---
 
@@ -18,7 +20,7 @@ Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcs
 | [Astro 5](https://astro.build) | Static site generator |
 | [Tailwind CSS v4](https://tailwindcss.com) | Styling |
 | [Astro Content Collections](https://docs.astro.build/en/guides/content-collections/) | Blog posts and webinars as Markdown files |
-| [Netlify](https://netlify.com) | Hosting and CI/CD |
+| [Cloudflare Pages](https://pages.cloudflare.com) | Hosting and CI/CD |
 
 ---
 
@@ -102,7 +104,13 @@ blog/en/crispr-genome-editing.md   ←→   blog/tr/crispr-genome-editing.md
 
 ### Deployment
 
-Pushing to `main` triggers an automatic Netlify build and deploy. No manual steps needed.
+Pushing to `main` triggers an automatic Cloudflare Pages build and deploy. No manual steps needed.
+
+> **Before going live with a new domain:** Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) and add the new domain's callback URL to the OAuth client's **Authorized redirect URIs**:
+> ```
+> https://rsg-turkiye.iscbsc.org/auth/callback
+> ```
+> Without this, Google login will fail with a `redirect_uri_mismatch` error. Remove any stale dev preview URLs (e.g. `website-dev-vi6.pages.dev`) from the same list.
 
 ---
 

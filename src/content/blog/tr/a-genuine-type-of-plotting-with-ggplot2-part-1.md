@@ -1,7 +1,7 @@
 ---
 title: "A genuine type of plotting with ggplot2: Part-1"
 pubDate: 2021-05-13
-description: "We continue with the tutorial posts regarding data visualization. The first post was about Volcano Plot and how to interpret (in Turkish). Today, I will share the modified version of one example(original codes are here) I’ve used recently while I was writing a literature review for my research proposal. mtcars is a very well known"
+description: "We continue with the tutorial posts regarding data visualization. The first post was about Volcano Plot and how to interpret (in Turkish). Today, I will share the modified version of one example(original codes are here) I’ve used recently while I was writing a literature review for my research proposal."
 author: Fatma Betul Dincaslan
 category: general
 tags: []

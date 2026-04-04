@@ -1,7 +1,7 @@
 ---
 title: Büyük Ölçekli Biyolojik Verilerin Derin Öğrenme Yaklaşımlarıyla Hesaplamalı Analizi ve Entegrasyonu
 pubDate: 2018-08-07
-description: "Başlık: Büyük Ölçekli Biyolojik Verilerin Derin Öğrenme Yaklaşımlarıyla Hesaplamalı Analizi ve Entegrasyonu Sunucu: Dr. Tunca Doğan, EMBI – EBI & METU Tarih: 2 Ağustos, 2018 Dil: İngilizce Özet: Kamu sunucularında biriken büyük ölçekli ve gürültülü biyolojik/biyomedikal verileri anlamlandırmak için makine öğrenimi ve veri madenciliği teknikleri sıklıkla kullanılmaktadır. Bu çabanın kilit konularından biri, proteinlerin işlevleri ve"
+description: "Başlık: Büyük Ölçekli Biyolojik Verilerin Derin Öğrenme Yaklaşımlarıyla Hesaplamalı Analizi ve Entegrasyonu Sunucu: Dr. Tunca Doğan, EMBI – EBI & METU Tarih: 2 Ağustos, 2018 Dil: İngilizce Özet: Kamu sunucularında biriken büyük ölçekli ve gürültülü biyolojik/biyomedikal verileri anlamlandırmak için makine öğrenimi ve veri madenciliği teknikleri sıklıkla kullanılmaktadır.Bu çabanın kilit konularından biri, proteinlerin işlevleri ve etkileşimleri gibi özelliklerinin tahmin edilmesidir."
 author: RSG Turkiye
 category: general
 tags: []

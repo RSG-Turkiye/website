@@ -1,7 +1,7 @@
 ---
 title: RSG TURKEY Webinar + Tutorial
 pubDate: 2021-03-23
-description: "Translational control of cancer and stromal cells – Dr. Ola Larsson AbstractEstrogen receptor alpha (ERα) activity is associated with increased cancer cell proliferation. Studies aiming to understand the impact of ERα on cancer-associated phenotypes have largely been limited to its transcriptional activity. Herein, we demonstrate that ERα coordinates its transcriptional output with selective modulation of"
+description: "Translational control of cancer and stromal cells – Dr. Ola Larsson AbstractEstrogen receptor alpha (ERα) activity is associated with increased cancer cell proliferation. Studies aiming to understand the impact of ERα on cancer-associated phenotypes have largely been limited to its transcriptional activity. Herein, we demonstrate that ERα coordinates its transcriptional output with selective modulation of mRNA translation."
 author: Yasin Kaya
 category: general
 tags: []

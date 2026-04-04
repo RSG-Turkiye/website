@@ -1,18 +1,14 @@
 ---
 title: "Med&Omics: Hekimler için Biyoinformatik"
 pubDate: 2022-07-16
-description: "Yazarlar: Ali Osman Çetin, Mustafa Güven, Fatma Betül Dinçaslan Hepimizin bildiği üzere yaşam bilimleri, çok disiplinli bir yapıda. Bu büyük bilgi birikimi içerisinde yaşam bilimlerini bütüncül bir bakış açısıyla anlayabilmek önem arz ediyor. Diğer disiplinler hakkında bilgi sahibi olmak, bu bütüncül bakış açısına katkıda bulunacaktır. Bizim çalışma grubumuz, özellikle klinik alanda deneyim kazanmış tıp doktoru"
-author: Fatma Betul Dincaslan
+description: "Hepimizin bildiği üzere yaşam bilimleri, çok disiplinli bir yapıda. Bu büyük bilgi birikimi içerisinde yaşam bilimlerini bütüncül bir bakış açısıyla anlayabilmek önem arz ediyor. Diğer disiplinler hakkında bilgi sahibi olmak, bu bütüncül bakış açısına katkıda bulunacaktır."
+author: Fatma Betul Dincaslan, Ali Osman Çetin, Mustava Güven
 category: general
-tags: []
+tags: ["hekim", "tıp", "omics", ]
 image: "https://secure.gravatar.com/avatar/07ce4a41d2f51fc1f2b8058aa368436436945ba7539bbd1287aa4aa89dbc8ae8?s=30&d=mm&r=g"
 lang: "tr"
 draft: false
 ---
-
-Yazarlar: Ali Osman Çetin, Mustafa Güven, Fatma Betül Dinçaslan
-
-* * *
 
 Hepimizin bildiği üzere yaşam bilimleri, çok disiplinli bir yapıda. Bu büyük bilgi birikimi içerisinde yaşam bilimlerini bütüncül bir bakış açısıyla anlayabilmek önem arz ediyor. Diğer disiplinler hakkında bilgi sahibi olmak, bu bütüncül bakış açısına katkıda bulunacaktır. Bizim çalışma grubumuz, özellikle klinik alanda deneyim kazanmış tıp doktoru olan ya da biyoenformatik çalışmaların medikal alanda uygulamalarını merak eden, diğer disiplinler hakkında da idaha geniş bakış açısı kazandıracak kaynakları öğrenmenin sancısını çeken arkadaşlarımızın **ISCB RSG Türkiye**’nin bir makale toplantısında birbirlerinden habersizce buluşmaları sonrasında ortaya çıktı. Birkaç tıp doktoru ile birkaç biyoinformatikçinin, başkaları için de bir temel teşkil edebilme umuduyla gerçekleştirdikleri birlikte öğrenme serüveni de diyebiliriz.
 

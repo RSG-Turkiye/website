@@ -1,7 +1,7 @@
 ---
 title: "Biyoenformatik: Nerden Başlamalı?"
 pubDate: 2024-05-29
-description: "Biyoi(/e)nformatikle ilgili nerden/nasıl başlasam derdine çözüm sunmak için sadeleştirilmiş kaynak listesi. [ENG] Beginner friendly bioinformatics resources. Merhabalar,Yakın zamanda benden istenen tavsiye için kısaca derlediğim kaynakları paylaşacağım. Biyoinformatiğin veyahut yeni bir alana geçmenin en büyük sıkıntısı, nerden başlayacağını bil(e)memek olabilir. Özellikle çok fazla kaynak oluşmuşsa, bunu düşünürken bile insan yoruluyor. 2022’de med&omics için bir kaynak listesi"
+description: "Biyoi(/e)nformatikle ilgili nerden/nasıl başlasam derdine çözüm sunmak için sadeleştirilmiş kaynak listesi. [ENG] Beginner friendly bioinformatics resources. Merhabalar,Yakın zamanda benden istenen tavsiye için kısaca derlediğim kaynakları paylaşacağım. Biyoinformatiğin veyahut yeni bir alana geçmenin en büyük sıkıntısı, nerden başlayacağını bil(e)memek olabilir. Özellikle çok fazla kaynak oluşmuşsa, bunu düşünürken bile insan yoruluyor."
 author: Fatma Betul Dincaslan
 category: general
 tags: []

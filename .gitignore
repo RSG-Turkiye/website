@@ -27,3 +27,7 @@ wp-import/
 wp-image-urls.txt
 wp-images/
 cloudinary-mapping.json
+client_secret*.json
+*.credentials.json
+committee-photos/
+*.zip

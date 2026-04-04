@@ -1,7 +1,7 @@
 ---
 title: "Biyolojik Büyük Veri Düğümünden Anlamlı Bilgiye: Biyoinformatik ve Uygulamaları"
 pubDate: 2025-08-07
-description: Bilgisayar algoritmaları kullanarak dakikalar içinde protein yapısını tahmin edebildiğimizi duymuşsunuzdur. Bu teknolojiler ortaya çıkmadan önce protein yapılarını tahmin etmek için laboratuvarda yıllar süren zahmetli çalışmalar gerekiyordu. Peki ne değişti de işimiz bu kadar kolaylaştı? Hesaplamalı yöntemler ve gelişmiş algoritmalar sayesinde artık hastalığımıza özel tedavi planlarını genetik bilgilerimize göre kişiselleştirebilmemiz mümkün görünüyor. Bu gelişmeler maliyetli ve
+description: Bilgisayar algoritmaları kullanarak dakikalar içinde protein yapısını tahmin edebildiğimizi duymuşsunuzdur. Bu teknolojiler ortaya çıkmadan önce protein yapılarını tahmin etmek için laboratuvarda yıllar süren zahmetli çalışmalar gerekiyordu. Peki ne değişti de işimiz bu kadar kolaylaştı? 
 author: Zeynep Vurat
 category: general
 tags: []
