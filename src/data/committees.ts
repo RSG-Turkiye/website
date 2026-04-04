@@ -96,6 +96,17 @@ export const committeesEn: Committee[] = [
         name: "Mariam Aseyakhe",
         role: "Outreach Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199912/rsgturkey/committee/mariam-aseyakhe.jpg",
+        education: [
+          {
+            degree: 'MSc',
+            field: 'Biological Sciences of Global Health',
+            institution: 'Univeristy of Ibn Zohr',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/mariam-aseyakhe-766424306/"  },
+        ],
       },
     ],
   },
@@ -107,6 +118,17 @@ export const committeesEn: Committee[] = [
         name: "Zeynep Ateşgil",
         role: "Social Media Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.jpg",
+        education: [
+          {
+            degree: 'BSc',
+            field: 'Molecular Biology and Genetics',
+            institution: 'Uludağ University',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/zeynep-ate%C5%9Fgil/"  },
+        ],
       },
     ],
   },
@@ -262,6 +284,17 @@ export const committeesTr: Committee[] = [
         name: "Mariam Aseyakhe",
         role: "Topluluk İlişkileri Ekibi Lideri",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199912/rsgturkey/committee/mariam-aseyakhe.jpg",
+        education: [
+          {
+            degree: 'Yüksek Lisans',
+            field: 'Biological Sciences of Global Health',
+            institution: 'Ibn Zohr Üniversitesi',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/mariam-aseyakhe-766424306/"  },
+        ],
       },
     ],
   },
@@ -273,6 +306,17 @@ export const committeesTr: Committee[] = [
         name: "Zeynep Ateşgil",
         role: "Sosyal Medya Ekibi Lideri",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199947/rsgturkey/committee/zeynep-atesegil.jpg",
+        education: [
+          {
+            degree: 'Lisans',
+            field: 'Molecular Biology and Genetics',
+            institution: 'Uludağ Üniversitesi',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/zeynep-ate%C5%9Fgil/"  },
+        ],
       },
     ],
   },

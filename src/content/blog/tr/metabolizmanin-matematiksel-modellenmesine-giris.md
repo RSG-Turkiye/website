@@ -4,7 +4,7 @@ pubDate: 2020-06-01
 description: "Aşağıdaki figürdeki gibi basit bir hücre düşünün: A metaboliti hücreye b1 hızında girebiliyor ve bu metabolit hücre içerisinde sırasıyla v1 ve v2 hızlarında B ve C metabolitlerine dönüşebiliyor. Aynı anda C metaboliti v3 hızında A’ya geri dönüşebiliyor. Tabii bütün bu dengeyi enzim kinetiklerini hesaba katmadan ve kütle dengesinin sağlandığını varsayarak kurmalıyız (bu cümle yazının devamında"
 author: Handan Çetin
 category: general
-tags: []
+tags: ["hekim", "medicine", "omics", "tip"]
 image: "https://secure.gravatar.com/avatar/5a5274858740e51ede3e81ff3d7e1a84bf30528fb5deb0c9eb7b2e10688d7559?s=30&d=mm&r=g"
 lang: "tr"
 draft: false

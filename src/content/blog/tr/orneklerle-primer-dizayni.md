@@ -1,10 +1,10 @@
 ---
 title: Örneklerle Primer Dizaynı
 pubDate: 2020-08-30
-description: "Covid19 ile hiç duymamış olanların bile öğrendiği bir lab tekniği olan, moleküler bioyolojide yeni bir devir açan Nobelli teknik PCR (Polymerase Chain Reaction)’dan esinlenen bir method olarak kullandığımız qPCR (quantitative PCR)’ın temelinde iyi bir primer dizaynının yattığını söylemek yanlış olmaz sanırım. Kısaca, hedeflediğiniz sekansı çoğaltmak için baştan ve sondan 15-25 nucleotid dizisi uzunluğundaki “primer”leri polimeraz"
+description: "Covid19 ile hiç duymamış olanların bile öğrendiği bir lab tekniği olan, moleküler bioyolojide yeni bir devir açan Nobelli teknik PCR (Polymerase Chain Reaction)’dan esinlenen bir method olarak kullandığımız qPCR (quantitative PCR)’ın temelinde iyi bir primer dizaynının yattığını söylemek yanlış olmaz sanırım."
 author: Fatma Betul Dincaslan
 category: general
-tags: []
+tags: ["gen-ifadesi", "in-silico-pcr", "primer-dizayni", "qpcr", "referans-gen"]
 image: "https://secure.gravatar.com/avatar/07ce4a41d2f51fc1f2b8058aa368436436945ba7539bbd1287aa4aa89dbc8ae8?s=30&d=mm&r=g"
 lang: "tr"
 draft: false

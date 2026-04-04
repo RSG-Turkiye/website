@@ -1,10 +1,10 @@
 ---
 title: "Zarf Atmadan Ortalama İfade Mitine: Omik Alanının Çok Kısa Evrimi ve Tek Hücre Yöntemlerin Doğuşu"
 pubDate: 2020-10-01
-description: "Açı/Görüş “Gestalt: something that is made of many parts and yet is somehow more than or different from the combination of its parts”(0)- bir şey pek çok parçadan oluşsa da bütünün kendisi, bu parçaların birleşiminden fazlasını ifade eder. https://www.merriam-webster.com/dictionary/gestalt “Genomics, trancriptomics, proteomics, metabolomics…”, fakat nedir bu “-omics”? Aslında bir alana dair bütünlüğü ifade eden bir"
+description: "Açı/Görüş “Gestalt: something that is made of many parts and yet is somehow more than or different from the combination of its parts”(0)- bir şey pek çok parçadan oluşsa da bütünün kendisi, bu parçaların birleşiminden fazlasını ifade eder. https://www.merriam-webster.com/dictionary/gestalt “Genomics, trancriptomics, proteomics, metabolomics…”, fakat nedir bu “-omics”?"
 author: Fatma Betul Dincaslan
 category: general
-tags: []
+tags: ["omik-tr", "sekanslama-tr", "tek-hucre-tr"]
 image: "https://secure.gravatar.com/avatar/07ce4a41d2f51fc1f2b8058aa368436436945ba7539bbd1287aa4aa89dbc8ae8?s=30&d=mm&r=g"
 lang: "tr"
 draft: false
