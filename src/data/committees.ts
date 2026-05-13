@@ -85,6 +85,17 @@ export const committeesEn: Committee[] = [
         name: "Ezgi Gokce",
         role: "Webinar Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199910/rsgturkey/committee/ezgi-gokce.jpg",
+        education: [
+          {
+            degree: 'BSc',
+            field: 'Biology',
+            institution: 'Hacettepe University',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/ezgigokceaydore/"  },
+        ],
       },
     ],
   },
@@ -140,7 +151,17 @@ export const committeesEn: Committee[] = [
         name: "Gökçe Koçak",
         role: "Sponsorship Leader",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199950/rsgturkey/committee/gokce-kocak.jpg",
-      
+        education: [
+          {
+            degree: 'BSc',
+            field: 'Molecular Biology and Genetics',
+            institution: 'Uludağ University',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/g%C3%B6k%C3%A7e-ko%C3%A7ak-535b76250/" },  
+          ],
       },
     ],
   },
@@ -273,6 +294,17 @@ export const committeesTr: Committee[] = [
         name: "Ezgi Gokce",
         role: "Webinar Ekibi Lideri",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199910/rsgturkey/committee/ezgi-gokce.jpg",
+        education: [
+          {
+            degree: 'Lisans',
+            field: 'Biyoloji',
+            institution: 'Hacettepe Üniversitesi',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/ezgigokceaydore/"  },
+        ],
       },
     ],
   },
@@ -328,6 +360,17 @@ export const committeesTr: Committee[] = [
         name: "Gökçe Koçak",
         role: "Sponsorluk Ekibi Lideri",
         image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774199950/rsgturkey/committee/gokce-kocak.jpg",
+        education: [
+          {
+            degree: 'Lisans',
+            field: 'Moleküler Biyoloji ve Genetik',
+            institution: 'Uludağ Üniversitesi',
+          },
+        ],
+        email: "",
+        socialMedia: [
+          { platform: "linkedin", url: "https://www.linkedin.com/in/g%C3%B6k%C3%A7e-ko%C3%A7ak-535b76250/?skipRedirect=true"  },
+        ],
       },
     ],
   },
