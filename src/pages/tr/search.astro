@@ -3,7 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
 
 const blogPosts = await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft);
-const webinars = await getCollection('webinars', ({ id }) => id.startsWith('tr/'));
+const webinars = await getCollection('webinars', ({ id, data }) => id.startsWith('tr/') && !data.draft);
 
 const searchIndex = [
   ...blogPosts.map(p => ({

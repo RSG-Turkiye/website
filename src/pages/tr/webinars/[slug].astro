@@ -3,7 +3,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
-  const all = await getCollection('webinars');
+  const all = await getCollection('webinars', ({ data }) => !data.draft);
   const trWebinars = all.filter(w => w.id.startsWith('tr/'));
   const allIds = new Set(all.map(w => w.id));
   return trWebinars.map((webinar) => {

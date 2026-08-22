@@ -7,7 +7,7 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "Webinars - RSG Turkiye";
 
-const allWebinars = await getCollection('webinars');
+const allWebinars = await getCollection('webinars', ({ data }) => !data.draft);
 const enWebinars = allWebinars.filter(w => w.id.startsWith('en/'));
 const sortedWebinars = enWebinars.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 

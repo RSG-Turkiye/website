@@ -12,6 +12,7 @@ type: bioinfonet
 image: ""
 topic: ""
 keyTakeaways: []
+draft: true
 ---
 
 **Sunucu**
