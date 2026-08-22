@@ -5,7 +5,7 @@ speaker: Vidit Goyal
 speakerAffiliation: Dr. A.P.J Abdul Kalam Technical University
 speakerTitle: ""
 description: A convolutional neural network approach using Modified Inception and MobileNet models to detect and classify skin cancer types, evaluated on the HAM10000 dataset.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=505_aaVEpXw"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

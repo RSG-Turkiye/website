@@ -6,7 +6,7 @@ speakerAffiliation: Stockholm University
 speakerTitle: Postdoctoral Researcher
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437335/rsgturkey/webinars/gulsah-merve-kilinc.png"
 description: Ancient DNA analysis of 40 individuals spanning 17,000–550 years from Yakutia and Lake Baikal, revealing gene flow events, Palaeo-Inuit ancestors, and Yersinia pestis in ancient Northeast Asia.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=tZY_m1_C8s8"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

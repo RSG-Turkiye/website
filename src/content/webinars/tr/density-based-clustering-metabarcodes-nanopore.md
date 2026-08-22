@@ -6,7 +6,7 @@ speakerAffiliation: Biyoçeşitlilik Genomiği Merkezi, Guelph Üniversitesi
 speakerTitle: Doktora Sonrası Araştırmacı
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436909/rsgturkey/webinars/bilgenur-baloglu.jpg"
 description: Oxford Nanopore MinION ve döngüsel daire amplifikasyon protokolü kullanılarak tatlı su sahte topluluğunun %99'dan fazla dizi doğruluğuyla değerlendirildiği ASHURE Python pipeline'ı.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=9s66xlGB7BM"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

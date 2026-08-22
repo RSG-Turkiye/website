@@ -6,7 +6,7 @@ speakerAffiliation: Stockholm Üniversitesi
 speakerTitle: Doktora Sonrası Araştırmacı
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437335/rsgturkey/webinars/gulsah-merve-kilinc.png"
 description: Yakutya ve Baykal Gölü'nden 40 eski birey üzerinde yapılan antik DNA analizi; Paleolitik'ten Demir Çağı'na uzanan gen akışı olayları, Palaeo-Inuit ataları ve Yersinia pestis bulguları.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=tZY_m1_C8s8"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

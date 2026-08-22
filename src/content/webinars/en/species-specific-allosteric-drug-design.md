@@ -5,7 +5,7 @@ speaker: "Reyhan Metin / Metehan Çelebi"
 speakerAffiliation: ""
 speakerTitle: ""
 description: A study using Constraint Molecular Dynamics simulation to clarify how glycolytic enzymes are allosterically inhibited in a species-specific manner, enabling targeted drug design.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=8_c8dQFNqlI"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

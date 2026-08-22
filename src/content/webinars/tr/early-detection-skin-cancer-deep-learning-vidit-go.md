@@ -5,7 +5,7 @@ speaker: Vidit Goyal
 speakerAffiliation: Dr. A.P.J Abdul Kalam Teknik Üniversitesi
 speakerTitle: ""
 description: HAM10000 veri seti kullanılarak Melanoma, Dermatofibroma ve Benign Keratoz lezyonlarını tespit eden ve sınıflandıran Modifiye Inception ve MobileNet CNN modelleri ile cilt kanseri erken tespiti.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=505_aaVEpXw"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
