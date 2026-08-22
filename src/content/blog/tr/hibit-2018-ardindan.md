@@ -14,7 +14,7 @@ Bu sene ISCB-SC-RSG Türkiye grubu olarak 5.sini gerçekleştirdiğimiz öğrenc
 
 Öğrenci sempozyumumuz 25-27 Ekim tarihleri arasında gerçekleşen HIBIT 2018’in 3.gününde Falez Uygulama Oteli’nde harika bir katılımla gerçekleşti. Öğrenci sempozyumu düzenlerken başlıca hedeflerimiz yüksek lisans ve doktora öğrencileri ile akademisyenleri bir araya getirmek, kariyer tercihlerimiz hakkında konuşmak, öğrenmek ve bildiklerimizi aktarmak ve biraz da motive olmak. Bu amaçlarımızı bu sempozyumda yerine getirmeye çalışırken  aynı zamanda aramıza katılan yeni arkadaşlarla her geçen gün öğrenip, daha iyisini yapmak için yeni fikirlerle dolduğumuz bir sempozyumu geride bıraktık.
 
-İlk olarak HIBIT 2018’in ilk saatlerinden itibaren HBIT komitesinin bize sağladığı masamızda yerimizi aldık. Hem yeni arkadaşlarla tanışıp, neler yapıyoruz/neleri amaçlıyoruz bundan bahsettik hem de ilk günden itibaren herkesin kaynaşacağı bir ortam yaratmak amacı ile bir oyun başlattık. Bu oyunda bir kağıda yazılı  tanımlayıcı özelliklerin kime ait olduğunu bulmak için birileriyle tanışıp sorular sorulması ve o kişinin adının kağıda yazılması gerekiyordu. En çok kişiyle tanışan ise oyunu kazanıyor. Kazanan arkadaşımıza RSG-Turkey yazılı bir kupa hediye ettik. HIBIT boyunca, öğrenci sempozyumumuza daha önceden kayıt yaptırmayan arkadaşlarımızdan da oldukça iyi sayıda bir kayıt almayı başardık 🙂
+İlk olarak HIBIT 2018’in ilk saatlerinden itibaren HBIT komitesinin bize sağladığı masamızda yerimizi aldık. Hem yeni arkadaşlarla tanışıp, neler yapıyoruz/neleri amaçlıyoruz bundan bahsettik hem de ilk günden itibaren herkesin kaynaşacağı bir ortam yaratmak amacı ile bir oyun başlattık. Bu oyunda bir kağıda yazılı  tanımlayıcı özelliklerin kime ait olduğunu bulmak için birileriyle tanışıp sorular sorulması ve o kişinin adının kağıda yazılması gerekiyordu. En çok kişiyle tanışan ise oyunu kazanıyor. Kazanan arkadaşımıza RSG-Türkiye yazılı bir kupa hediye ettik. HIBIT boyunca, öğrenci sempozyumumuza daha önceden kayıt yaptırmayan arkadaşlarımızdan da oldukça iyi sayıda bir kayıt almayı başardık 🙂
 
 **Ve 3.gün, öğrenci sempozyumumuz:** Bu sene keynote konuşmacılarımız Orta Doğu Teknik Üniversitesi’nden **Prof.** **Dr. Tolga Can** ve İzmir Biyotıp ve Genom Merkezi’nden **Dr. Ezgi Karaca** idi. Bu konuşmalarda bir yandan iki hocamızın çalışmaları hakkında bilgi sahibi olup öğrenirken bir yandan da fazlasıyla motive olduk. Daha sonra ise HIBIT bilimsel komitesi tarafından seçilen farklı üniversitelerden 3 öğrenci (Samet Tenekeci, Heval Ataş ve Umut Gerlevik) sempozyumumuzda 10-15 dakika aralığında sunum yaptılar. Bu sayede de farklı alanlarda yapılan çalışmalar hakkında bilgi sahibi olmuş olduk.
 
@@ -40,7 +40,7 @@ Bu sempozyum sonunda 15 yeni üyeyi aramıza kattık! Grubumuzun Türkiye Hesapl
 Teşekkürler:
 
 1.  Organizasyon süresince destekleri için HIBIT’18 organizasyon komitesine,
-2.  Basta Melike Dönertaş, Tülay Karakulak, Yasin Kaya, Deniz Doğan, Sevilay Güleşen, Melike Çağlayan, Ece Çağlayan ve Beste Turanlı olmak üzere, tüm RSG-Turkey aktif üyelerine,
+2.  Basta Melike Dönertaş, Tülay Karakulak, Yasin Kaya, Deniz Doğan, Sevilay Güleşen, Melike Çağlayan, Ece Çağlayan ve Beste Turanlı olmak üzere, tüm RSG-Türkiye aktif üyelerine,
 3.  Öğrenci sempozyumu hazırlığı süresince bize yol gösteren ve sempozyumun daha iyi olmasını sağlayan Dr. Ezgi Karaca’ya,
 4.  Sağladığı destek sayesinde poster ödülü vermemizi sağlayan ISCB Student Council’a
 5.  Posterleri değerlendiren bütün Hocalarımıza,

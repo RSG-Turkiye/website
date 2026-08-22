@@ -44,7 +44,7 @@ Bana yetmez derseniz, [şu şekilde kendiniz yürüteceğiniz bir eğitimin](ht
 
 Deneye yanıla öğrenirken bazı analizleri, [Biostars](https://www.biostars.org/) topluluğu ve Stack overflow vardı bizim zamanımızda; şimdi ücretsiz **ChatGPT** versiyonu vs. bile epey işinize yarayacaktır. Deneyip görmek lazım. **Pratikle olgunlaşıyor çoğu yetenek seti**.
 
-**Proje bazlı ve bir mentör ile ilerlemek süreci hızlandırabilir**. Bir topluluğun parçası olmak da **motivasyonu korumak** için güzel oluyor. Lokal olarak faaliyet gösteren _ISCB-RSG-Türkiye_ ve benzeri gruplar faydalı olabilir. Nitekim **RSG-Turkey**’in ara ara ücretsiz eğitimler verdiği oluyor, istifade etmenizi öneririm: [https://github.com/rsgturkey](https://github.com/rsgturkey) .
+**Proje bazlı ve bir mentör ile ilerlemek süreci hızlandırabilir**. Bir topluluğun parçası olmak da **motivasyonu korumak** için güzel oluyor. Lokal olarak faaliyet gösteren _ISCB-RSG-Türkiye_ ve benzeri gruplar faydalı olabilir. Nitekim **RSG-Türkiye**’in ara ara ücretsiz eğitimler verdiği oluyor, istifade etmenizi öneririm: [https://github.com/rsgturkey](https://github.com/rsgturkey) .
 
 * * *
 

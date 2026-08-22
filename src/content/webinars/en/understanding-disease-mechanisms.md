@@ -18,7 +18,7 @@ keyTakeaways: []
 
 **Dr. Ayesha Fatima**
 
-Dr. Fatima is a pharmacist by profession. She graduated from University of the Punjab, Lahore, Pakistan, went to Malaysia for M.Sc and PhD. She worked in the pharmaceutical industry for a short period and took up academia because she wanted to pursue research in drug and formulation development. She has a keen interest in disease mechanistics and designing rational drugs that affect a whole signalling pathway. Presently, Dr. Fatima pursuing her research in Khan's Big Data and Bioinformatics Lab at BILSAB as a post-doctoral fellow.
+Dr. Fatima is a pharmacist by profession. She graduated from University of the Punjab, Lahore, Pakistan, went to Malaysia for M.Sc and PhD. She worked in the pharmaceutical industry for a short period and took up academia because she wanted to pursue research in drug and formulation development. She has a keen interest in disease mechanistics and designing rational drugs that affect a whole signalling pathway. Presently, Dr. Fatima is pursuing her research in Khan's Big Data and Bioinformatics Lab at BILSAB as a post-doctoral fellow.
 
 **Abstract**
 

@@ -14,7 +14,7 @@ topic: ""
 keyTakeaways: []
 ---
 
-Son webinarımız 11 Haziran'da Gebze Teknik Üniversitesi'nden Doç. Prof. Tunahan Çakır tarafından verildi. Yüksek katılımlı bu oturumda, hücre metabolizmasının sistem genelinde analizi ve ağların genom ölçeğinde modellenmesi temel konular arasındaydı. Sunum boyunca odak noktaları şunlardı: 1) Beyindeki iki temel hücre tipi olan nöron-astrositin metabolizması ve etkileşimleri, 2) Nörodejeneratif hastalıklar için reporter pathways adı verilen bir grafik tabanlı yaklaşım kullanarak transkriptom verilerinin haritalanması, 3) Beyin tümörlerinin metabolik değerlendirmesi için beyin metabolik ağlarının kısıt tabanlı modellemesi ve akı denge analizi (FBA).
+Son webinarımız 11 Haziran'da Gebze Teknik Üniversitesi'nden Doç. Dr. Tunahan Çakır tarafından verildi. Yüksek katılımlı bu oturumda, hücre metabolizmasının sistem genelinde analizi ve ağların genom ölçeğinde modellenmesi temel konular arasındaydı. Sunum boyunca odak noktaları şunlardı: 1) Beyindeki iki temel hücre tipi olan nöron-astrositin metabolizması ve etkileşimleri, 2) Nörodejeneratif hastalıklar için reporter pathways adı verilen bir grafik tabanlı yaklaşım kullanarak transkriptom verilerinin haritalanması, 3) Beyin tümörlerinin metabolik değerlendirmesi için beyin metabolik ağlarının kısıt tabanlı modellemesi ve akı denge analizi (FBA).
 
 Canlı oturumu kaçırdıysanız veya tekrar izlemek isterseniz Youtube'da mevcuttur: [https://youtu.be/z8MV-eu65zI](https://youtu.be/z8MV-eu65zI)
 

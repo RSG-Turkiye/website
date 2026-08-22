@@ -28,7 +28,7 @@ Our blog will feature:
 
 ## Our Mission
 
-As part of the ISCB Student Council, RSG Turkiye is committed to fostering a vibrant computational biology community in Turkey. Through this blog, we aim to:
+As part of the ISCB Student Council, RSG Turkiye is committed to fostering a vibrant computational biology community in Turkiye. Through this blog, we aim to:
 
 - Share knowledge and insights with our community
 - Highlight the work of our members

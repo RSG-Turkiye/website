@@ -17,7 +17,7 @@ keyTakeaways: []
 
 **Sunucu**
 
-**Doç. Prof. Mohammad Asif Khan**
+**Doç. Dr. Mohammad Asif Khan**
 
 Prof. Khan, Singapur Ulusal Üniversitesi'nden Biyoteknoloji, Bilimsel Hesaplama ve Multimedya İletişimi alanlarında lisans derecesini aldı. Singapur Ulusal Üniversitesi Biyoinformatik Bölümü'nden MSc ve doktora derecelerini aldı. APBioNet başkanıdır. Araştırması Aşı Bilişimi, İmmün Bilişimi, Zehir Bilişimi, Hastalık Biyobelirteç Bilişimi alanlarına odaklanmaktadır.
 

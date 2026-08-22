@@ -17,7 +17,7 @@ keyTakeaways: []
 
 **Presenter**
 
-**Begüm Serra Büyütarakçı**
+**Begüm Serra Büyüktarakçı**
 
 After I completed BSc at Boğaziçi University, Molecular Biology and Genetics department, I moved to Sweden for MSc and studied Evolutionary Biology at Uppsala University. Meanwhile, I got interested in bioinformatics and focused on phylogenetic analysis in the thesis of my master's degree. I am currently working as a research assistant in Molecular Evolution group of Jan Andersson at Biomedical Centre (BMC), Uppsala University.
 

@@ -17,7 +17,7 @@ keyTakeaways: []
 
 **Sunucu**
 
-**Begüm Serra Büyütarakçı**
+**Begüm Serra Büyüktarakçı**
 
 Boğaziçi Üniversitesi Moleküler Biyoloji ve Genetik bölümünden mezun olduktan sonra, Uppsala Üniversitesi'nde Evrimsel Biyoloji alanında yüksek lisans yapmak için İsveç'e taşındım. Bu süreçte biyoinformatiğe ilgi duydum ve yüksek lisans tezimde filogenetik analize odaklandım. Şu anda Uppsala Üniversitesi Biyomedikal Merkezi'nde (BMC) Jan Andersson'ın Moleküler Evrim grubunda araştırma asistanı olarak çalışıyorum.
 

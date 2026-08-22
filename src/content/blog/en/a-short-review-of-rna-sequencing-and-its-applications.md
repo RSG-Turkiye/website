@@ -4,7 +4,7 @@ pubDate: 2020-04-26
 description: "What are the omics sciences? Omics sciences are targeting quantification of whole biomolecules such as RNA and proteins at organism, tissue, or a single-cell level. Omics sciences are separated into several branches such as genomics, transcriptomics, and proteomics1. What is transcriptomics? Transcriptomics is one of the omics sciences dissecting the organism’s transcriptome which is the"
 author: Kaan Okay
 category: general
-tags: []
+tags: ["autism-spectrum-disorder", "rna-seq"]
 image: "https://secure.gravatar.com/avatar/bef4143423348fcbf125ed974009038a554896dbf2d6a6533b55d5401da2eceb?s=30&d=mm&r=g"
 lang: "en"
 draft: false
@@ -50,121 +50,96 @@ After RNA extraction from all samples, libraries are prepared for sequencing acc
 
 After sequencing has been completed, the starting point for analysis is the data files, which contain base-called sequencing reads, usually in the form of FASTQ. The reads having poor quality in FASTQ files are eliminated before the alignment process in which raw sequences are aligned to a reference genome to find their relevant genes. Each sequence read is converted to one or more genomic coordinates and Sequence Alignment Map (SAM) files containing those coordinates are obtained after alignment process7,12. This process has traditionally been accomplished using distinct alignment tools, such as TopHat13, STAR14, or HISAT15, which rely on a reference genome. The SAM files are converted to Binary Alignment Map (BAM) files for further analyses because of their large size and this process is carried out by using Samtools16. After alignment and file conversation steps, reads (transcripts) quantification across samples is performed by using some tools such as featureCounts17 to obtain expression matrix in which each row corresponds to individual genes, however, each column corresponds to individual samples7. Normalization of transcripts abundance across samples is made by using expression matrix to lessen range-based gene expression differences between samples7,18,19. Normalization methods are shown in (**Figure 1**)20.
 
+<figure>
+
 ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196824/rsgturkey/04/image-1024x848.png)
+
+<figcaption>
 
   
 **Figure 1.** Normalization methods that are used in RNA-seq analyses.
 
+</figcaption>
+
+</figure>
+
 After normalization step, genes with low expression across samples are filtered to prevent statistical noise7, and then statistically meaningful genes (namely, differentially expressed genes) can be detected by using some tools such as edgeR21, DESeq222. In the end, obtained genes can be used for enrichment analyses such as KEGG and Reactome to find out which pathways are affected. RNA-seq technology is utilized for distinct aims, some of which are shown in (**Figure 2**). The representations of RNA-seq results are shown in (**Figure 3**).
 
+<figure>
+
 ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196845/rsgturkey/04/image-1-1024x407.png)
+
+<figcaption>
 
   
 **Figure 2.** RNA-seq usage fields.  
   
   
 
+</figcaption>
+
+</figure>
+
+<figure>
+
 ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196815/rsgturkey/04/image-2-1024x724.png)
+
+<figcaption>
 
   
 **Figure 3. Representation of differential expression, splicing, and co-expression results.** In differential expression figure, each row represents the expression amount of a gene, however, each column represents each sample. Red color shows higher expressions, but the yellow color shows lower expressions. In the co-expression figure, a network containing the interaction of each gene with other genes is depicted. In the differential alternative splicing figure, differential usage of E010 exon between control and knockdown groups is depicted.
 
+</figcaption>
+
+</figure>
+
 A detailed RNA-seq work-flow is shown in (**Figure 4**)12.
+
+<figure>
 
 ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196856/rsgturkey/04/image-3-1024x740.png)
 
+<figcaption>
+
   
 **Figure 4.** An example of differential expression work-flow.
+
+</figcaption>
+
+</figure>
 
 The various tools that are used for RNA-seq and their tutorials were listed below as well as visualization tools that are used for high-throughput data.
 
 **Table 1**. List of RNA-seq tool and their usage fields.
 
-**Tool names**
-
-**Usage**
-
-**Tutorial Link**
-
-DESeq222
-
-Differential expression
-
-https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html
-
-edgeR21
-
-Differential expression
-
-https://bioconductor.org/packages/release/bioc/vignettes/edgeR/inst/doc/edgeRUsersGuide.pdf
-
-DEXSeq23
-
-Differential splicing
-
-https://bioconductor.org/packages/release/bioc/vignettes/DEXSeq/inst/doc/DEXSeq.html
-
-WGCNA24
-
-Co-expression
-
-https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/Rpackages/WGCNA/Tutorials/
-
-GATK25
-
-Variant-calling
-
-https://gatk.broadinstitute.org/hc/en-us
+| **Tool names** | **Usage** | **Tutorial Link** |
+| --- | --- | --- |
+| DESeq222 | Differential expression | https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html |
+| edgeR21 | Differential expression | https://bioconductor.org/packages/release/bioc/vignettes/edgeR/inst/doc/edgeRUsersGuide.pdf |
+| DEXSeq23 | Differential splicing | https://bioconductor.org/packages/release/bioc/vignettes/DEXSeq/inst/doc/DEXSeq.html |
+| WGCNA24 | Co-expression | https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/Rpackages/WGCNA/Tutorials/ |
+| GATK25 | Variant-calling | https://gatk.broadinstitute.org/hc/en-us |
 
 **Table 2.** List of high-throughput visualization and enrichment tools.
 
-**Tool** **names**
-
-**Usage**
-
-pheatmap26
-
-Heatmap plot for differentially expressed genes
-
-ggplot227
-
-Most various visualizations ranging from bar charts to violin plots
-
-igraph28
-
-Network visualization for co-expression networks and other network types
-
-Enrichr29
-
-Enrichment analysis of genes
-
-DAVID30
-
-Enrichment analysis of genes
+| **Tool** **names** | **Usage** |
+| --- | --- |
+| pheatmap26 | Heatmap plot for differentially expressed genes |
+| ggplot227 | Most various visualizations ranging from bar charts to violin plots |
+| igraph28 | Network visualization for co-expression networks and other network types |
+| Enrichr29 | Enrichment analysis of genes |
+| DAVID30 | Enrichment analysis of genes |
 
 **Note/** Most of the listed tools are dependent on the R statistical computing environment.
 
 **Table 3.** Examples of differential expression work-flows.
 
-**Examples**
-
-**Links**
-
-Example 1
-
-https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq\_gene\_CSAMA2016.html
-
-Example 2
-
-https://digibio.blogspot.com/2017/11/rna-seq-analysis-hisat2-featurecounts.html
-
-Example 3
-
-https://bioinformaticsworkbook.org/dataAnalysis/RNA-Seq/RNA-SeqIntro/RNAseq-using-a-genome.html
-
-Example 4
-
-https://uclouvain-cbio.github.io/BSS2019/rnaseq\_gene\_summerschool\_belgium\_2019.html
+| **Examples** | **Links** |
+| --- | --- |
+| Example 1 | https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq\_gene\_CSAMA2016.html |
+| Example 2 | https://digibio.blogspot.com/2017/11/rna-seq-analysis-hisat2-featurecounts.html |
+| Example 3 | https://bioinformaticsworkbook.org/dataAnalysis/RNA-Seq/RNA-SeqIntro/RNAseq-using-a-genome.html |
+| Example 4 | https://uclouvain-cbio.github.io/BSS2019/rnaseq\_gene\_summerschool\_belgium\_2019.html |
 
 In addition to differential expression pipelines above, If you want to examine my pipeline containing differential expression analysis with DESeq2, you can visit this **https://github.com/kaanokay/Differential-Expression-Analysis/blob/master/HISAT2-featureCounts-DESeq2-workflow.md** website address in which I attached my Linux and R scripts.
 
@@ -172,16 +147,24 @@ In addition to differential expression pipelines above, If you want to examine m
 
 Autism Spectrum Disorder (ASD) is an early-onset neuropsychiatric disorder. ASD is clinically described with behavioural abnormalities such as restrictive interest and repetitive behaviour. ASD is genetically heterogeneous and heritable (~50%) and 80% of its genetic background is unclear. Aberrations in autistic brains take mostly place in cortex regions (Figure 5) rather than cerebellum. When ASD is compared with other neuropsychiatric disorders such as schizophrenia and bipolar disorder, it has a higher heritability-rate than them, which means that it appears with the more strong genetic background than schizophrenia and bipolar disorder. Studies have revealed that ASD-related genes are enriched in brain-development, neuronal activity, signalling, and transcription regulation. Wnt signalling, synaptic function, and translational regulation are pathways that are affected by mutations in ASD-related genes31.
 
+<figure>
+
 ![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196819/rsgturkey/04/image-4.png)
+
+<figcaption>
 
   
 **Figure 5.** Brain regions most affected in autism.
+
+</figcaption>
+
+</figure>
 
 Transcriptome studies have shown that mRNA, microRNA (miRNA), small nucleolar RNA (snoRNA), and long non-coding RNA (lncRNAs) misexpression occurred in autistic brains. Genes with mRNA misregulation are especially enriched in immune and neuronal pathways, briefly neuronal development and immune system activation are both misregulated in the brains of individuals with ASD. Misregulated miRNAs in autistic brains target mostly genes with synaptic function. Additionally, alternative splicing is misregulated in splicing regulators and this causes mis-splicing patterns in autistic individuals31.
 
 To summarize, RNA-seq is strong technology for understanding diseases and it can be used for various aims.
 
-That’s all 🙂
+That’s all :)
 
 If you have any questions about this short review and my differential expression pipeline in GitHub, you feel free to contact me via [kaan.okay@msfr.ibg.edu.tr](mailto:kaan.okay@msfr.ibg.edu.tr) e-mail address.
 

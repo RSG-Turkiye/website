@@ -24,7 +24,7 @@ Bu geniş kapsamlı bilgilendirici seminer için ve webinar projemize destek ver
 [https://www.bigmarker.com/bioinfonet/EzgiKaraca](https://www.bigmarker.com/bioinfonet/EzgiKaraca)
 
 - **Başlık:** Biyomoleküler Komplekslerin Bütünleştirici Modellemesi / Integrative Modeling of Biomolecular Complexes
-- **Sunucu:** Doç. Dokuz Eylül Üniversitesi'nden Prof. Dr. Ezgi Karaca
+- **Sunucu:** Dokuz Eylül Üniversitesi'nden Doç. Dr. Ezgi Karaca
 - **Tarih:** 31 Ocak 2018
 - **Dil:** İngilizce
 - **Youtube:** [https://www.youtube.com/watch?v=jmFxZDTmEBo](https://www.youtube.com/watch?v=jmFxZDTmEBo)

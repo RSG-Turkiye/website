@@ -18,7 +18,7 @@ keyTakeaways: []
 
 **Ercüment Çiçek**
 
-I am, an assistant professor at the computer engineering department of bilkent university. I am an adj. Faculty member at the computational biology department of school of computer science, carnegie mellon university. I was a lane fellow in computational biology at carnegie mellon university. My advisors were kathryn roeder and ziv bar-joseph. I got my ph.d. in computer science from case western reserve university in 2013. My advisor was gultekin ozsoyoglu.
+I am an assistant professor at the computer engineering department of Bilkent University. I am an adjunct faculty member at the computational biology department of the school of computer science, Carnegie Mellon University. I was a Lane Fellow in computational biology at Carnegie Mellon University. My advisors were Kathryn Roeder and Ziv Bar-Joseph. I got my Ph.D. in computer science from Case Western Reserve University in 2013. My advisor was Gultekin Ozsoyoglu.
 
 **Abstract**
 

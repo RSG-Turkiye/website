@@ -51,4 +51,4 @@ Dr. Kaya has been instrumental in:
 
 Dr. Kaya is currently working on establishing a national computational biology consortium and hopes to expand RSG Turkiye's international collaborations.
 
-We're proud to have Dr. Kaya as part of our community and look forward to her continued contributions to computational biology in Turkey!
+We're proud to have Dr. Kaya as part of our community and look forward to her continued contributions to computational biology in Turkiye!

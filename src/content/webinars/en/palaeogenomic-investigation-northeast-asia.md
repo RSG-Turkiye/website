@@ -19,7 +19,7 @@ keyTakeaways: []
 
 **Dr. Gülşah Merve Kılınç**
 
-Gülşah Merve Kılınç graduated from Hacettepe University, Department of Biology and received her PhD in Molecular Biology and Genetics from Bilkent University. She worked as postdoctoral researcher at CompEvo Lab in the Department of Biology at Middle East Technical University. She continued her postdoctoral studies at Stockholm University at the Department of Archaeology and Classical Studies. Her research focuses on analysing ancient human genome sequences from different time periods extending from Palaeolithic to present-day to better understand the human population genetic history. She uses ancient DNA from different parts of the world to infer the migrations and genetic structure of past human populations. Her research published in prestigious journals such as Science Advances, Current Biology and Plos Biology.
+Gülşah Merve Kılınç graduated from Hacettepe University, Department of Biology and received her PhD in Molecular Biology and Genetics from Bilkent University. She worked as postdoctoral researcher at CompEvo Lab in the Department of Biology at Middle East Technical University. She continued her postdoctoral studies at Stockholm University at the Department of Archaeology and Classical Studies. Her research focuses on analysing ancient human genome sequences from different time periods extending from Palaeolithic to present-day to better understand the human population genetic history. She uses ancient DNA from different parts of the world to infer the migrations and genetic structure of past human populations. Her research has been published in prestigious journals such as Science Advances, Current Biology and Plos Biology.
 
 **Abstract**
 

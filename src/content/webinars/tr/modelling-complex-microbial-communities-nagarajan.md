@@ -5,14 +5,14 @@ speaker: Niranjan Nagarajan
 speakerAffiliation: Singapur Genom Enstitüsü / Singapur Ulusal Üniversitesi
 speakerTitle: Doçent
 description: Kesitsel mikrobiyom veri kümelerinden ekolojik etkileşim ağlarını çıkarmak için bir beklenti maksimizasyon algoritması (BEEM-Static); enterotip yapısını ve ekolojik dinamikleri ortaya koymak.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=JVcwYxyn814"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
 image: ""
 topic: ""
 keyTakeaways: []
-draft: true
+
 ---
 
 **Sunucu**
