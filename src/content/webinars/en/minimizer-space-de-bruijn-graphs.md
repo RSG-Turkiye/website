@@ -3,6 +3,7 @@ title: "Minimizer-space de Bruijn Graphs"
 date: 2021-06-25
 speaker: "Barış Ekim"
 speakerAffiliation: "Massachusetts Institute of Technology"
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437262/rsgturkey/webinars/baris-ekim.jpg"
 description: "Barış Ekim introduces minimizer-space sequencing data analysis (mdBG), achieving orders-of-magnitude improvements in genome assembly speed and memory usage over existing methods."
 youtubeUrl: ""
 slidesUrl: ""

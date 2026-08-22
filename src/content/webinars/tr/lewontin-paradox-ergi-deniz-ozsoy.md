@@ -4,6 +4,7 @@ date: 2020-08-08
 speaker: Ergi Deniz Özsoy
 speakerAffiliation: Hacettepe Üniversitesi
 speakerTitle: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437183/rsgturkey/webinars/ergi-deniz-ozsoy.jpg"
 description: Lewontin Paradoksu'nun çözümüne işaret eden modern çalışmaların ve yaklaşımların özeti; klasik Hill-Robertson etkisi bağlamında "bağlantılı seçilim" sürecine vurgu yapılarak.
 youtubeUrl: ""
 slidesUrl: ""

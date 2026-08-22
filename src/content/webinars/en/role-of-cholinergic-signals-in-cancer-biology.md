@@ -4,6 +4,7 @@ date: 2021-04-14
 speaker: Özlen Konu
 speakerAffiliation: Bilkent University
 speakerTitle: Associate Professor
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437847/rsgturkey/webinars/ozlen-konu.jpg"
 description: An in silico, in vitro, and in vivo investigation of cholinergic signals in cancer progression, including the role of CHRNA5 in breast cancer and zebrafish xenograft models for liver cancer.
 youtubeUrl: ""
 slidesUrl: ""

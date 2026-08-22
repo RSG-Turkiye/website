@@ -4,6 +4,7 @@ date: 2020-07-16
 speaker: Kimberly Gilbert
 speakerAffiliation: Lozan Üniversitesi
 speakerTitle: Doktora Sonrası Araştırmacı
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437499/rsgturkey/webinars/kimberly-gilbert-v2.jpg"
 description: Çok lokuslu ilişkisel üstünlüğün (AOD) düşük rekombinasyon bölgelerindeki genetik çeşitliliği nasıl artırabileceğine dair teorik ve ampirik bir çalışma; insan genomunda 22 bu tür bölge tespit edilmiştir.
 youtubeUrl: ""
 slidesUrl: ""

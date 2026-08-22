@@ -4,6 +4,7 @@ date: 2018-07-01
 speaker: Tugce Bilgin Sonay
 speakerAffiliation: University of Lausanne
 speakerTitle: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437988/rsgturkey/webinars/tugce-bilgin-sonay.png"
 description: A webinar on Microsatellite Instability in tumours — the impact of short tandem repeats on gene expression, epigenetics, and how these effects can be utilized for immunotherapy.
 youtubeUrl: "https://youtu.be/GmjwyTZinjU"
 slidesUrl: ""

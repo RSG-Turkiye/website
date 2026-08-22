@@ -4,6 +4,7 @@ date: 2021-03-30
 speaker: Mohammad Asif Khan
 speakerAffiliation: Perdana Üniversitesi / Bezmialem Vakıf Üniversitesi
 speakerTitle: Doçent
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787438111/rsgturkey/webinars/mohammad-asif-khan.jpg"
 description: Protein dizisi düzeyinde viral çeşitlilik dinamikleri ve virüslerin konakçı bağışıklık tepkisinden kaçma mekanizmaları; aşı tasarımına yönelik çıkarımlar.
 youtubeUrl: ""
 slidesUrl: ""

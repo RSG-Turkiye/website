@@ -4,6 +4,7 @@ date: 2020-03-05
 speaker: Seyit Kale
 speakerAffiliation: Izmir Biomedicine and Genome Center
 speakerTitle: Research Group Leader
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437299/rsgturkey/webinars/seyit-kale.jpg"
 description: A historical and physical perspective on how molecular simulations can be thought of as in silico experiments, exploring the analogy between simulation and wet-lab experiments in structural biology.
 youtubeUrl: ""
 slidesUrl: ""

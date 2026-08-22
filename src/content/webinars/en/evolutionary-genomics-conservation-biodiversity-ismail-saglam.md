@@ -4,6 +4,7 @@ date: 2018-04-16
 speaker: Ismail Saglam
 speakerAffiliation: Hacettepe University
 speakerTitle: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437001/rsgturkey/webinars/ismail-saglam.jpg"
 description: A webinar on how computational approaches and evolutionary genomics can help study conservation and biodiversity, including testing evolutionary models and understanding the evolutionary basis of adaptation.
 youtubeUrl: "https://youtu.be/PzRpvKu8GMk"
 slidesUrl: ""

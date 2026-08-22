@@ -4,6 +4,7 @@ date: 2021-02-27
 speaker: Cansu Dinçer
 speakerAffiliation: ""
 speakerTitle: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436697/rsgturkey/webinars/cansu-dincer.jpg"
 description: Presentation of CEN-tools, a website and Python package for interrogating gene essentiality from large-scale CRISPR screens across biological contexts including tissue of origin, mutation profiles, and drug response levels.
 youtubeUrl: ""
 slidesUrl: ""

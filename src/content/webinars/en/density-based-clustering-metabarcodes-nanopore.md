@@ -4,6 +4,7 @@ date: 2020-08-28
 speaker: Bilgenur Baloğlu
 speakerAffiliation: Centre for Biodiversity Genomics, University of Guelph
 speakerTitle: Postdoctoral Researcher
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436909/rsgturkey/webinars/bilgenur-baloglu.jpg"
 description: Presentation of a new Python pipeline (ASHURE) for density-based clustering and error correction of metabarcodes using Oxford Nanopore sequencing, achieving >99% sequence accuracy for freshwater mock communities.
 youtubeUrl: ""
 slidesUrl: ""

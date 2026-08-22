@@ -4,6 +4,7 @@ date: 2021-02-27
 speaker: Cansu Dinçer
 speakerAffiliation: ""
 speakerTitle: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436697/rsgturkey/webinars/cansu-dincer.jpg"
 description: "CEN-tools sunum: büyük ölçekli CRISPR taramalarından gen esansiyalitesini doku tipi, mutasyon profilleri ve ilaç yanıt seviyeleri gibi biyolojik bağlamlarda sorgulayan web sitesi ve Python paketi."
 youtubeUrl: ""
 slidesUrl: ""

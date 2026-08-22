@@ -4,6 +4,7 @@ date: 2020-09-30
 speaker: Begüm Serra Büyüktarakçı
 speakerAffiliation: Uppsala Üniversitesi
 speakerTitle: Araştırma Asistanı
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437912/rsgturkey/webinars/begum-serra-buyuktarakci.jpg"
 description: Hexamita inflata'daki cinsiyetle ilişkili genlerin karşılaştırmalı filogenomik analizi, nükleer füzyon ve mayotik inter-homolog rekombinasyona dair kanıtlar.
 youtubeUrl: ""
 slidesUrl: ""
