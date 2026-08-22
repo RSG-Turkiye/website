@@ -90,8 +90,8 @@ const BADGE_LABELS: Record<string, string> = {
   function getFilters() {
     return {
       search: (document.getElementById('searchInput') as HTMLInputElement).value.trim(),
-      interest: (document.getElementById('interestFilter') as HTMLSelectElement).value,
-      badge: (document.getElementById('badgeFilter') as HTMLSelectElement).value,
+      interest: (document.getElementById('interestFilter') as unknown as HTMLSelectElement).value,
+      badge: (document.getElementById('badgeFilter') as unknown as HTMLSelectElement).value,
     };
   }
 
@@ -155,7 +155,7 @@ const BADGE_LABELS: Record<string, string> = {
     if (badge) params.set('badge', badge);
 
     const res = await fetch(`/api/members?${params}`);
-    const data = await res.json();
+    const data: any = await res.json();
 
     document.getElementById('loadingState')!.classList.add('hidden');
 
@@ -180,7 +180,7 @@ const BADGE_LABELS: Record<string, string> = {
   // Init — require login
   (async () => {
     const authRes = await fetch('/api/me');
-    const authData = await authRes.json();
+    const authData: any = await authRes.json();
     if (!authData.user) {
       window.location.replace('/login?next=/members');
       return;
