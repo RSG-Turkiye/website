@@ -16,7 +16,7 @@ Some of you may have difficulty understanding why it would be “that” importa
 
 If you live and study in a developing country and you are, almost, trying to study in a new research area, here’s your life’s new soundtrack: “All by myself”. Every single living thing in life needs a proper environment to become something. So, like a plant needs soil, water and light, becoming a scientist requires a scientific environment.
 
-So, as a living organism, I made connections and became a part of the group. Then we found out that we needed another  movement towards real scientific talk. With this need, BioInfoNet Project was born. We wrote a proposal to the ISCB (International Society for Computational Biology) Student Council. They kindly supported us and here we are.
+So, as a living organism, I made connections and became a part of the group. Then we found out that we needed another movement towards real scientific talk. With this need, BioInfoNet Project was born. We wrote a proposal to the ISCB (International Society for Computational Biology) Student Council. They kindly supported us and here we are.
 
 Today, as a student group, we have reached roughly 250 people all around the world (and the number is increasing). We have completed two successful [webinars](https://www.bigmarker.com/communities/bioinfonet/conferences) given by top-notch researchers, which we were really pleased to participate in. We are planning ahead for a student symposium and many more webinars.
 
