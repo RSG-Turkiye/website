@@ -5,7 +5,7 @@ speaker: "Nazlı S. Kara, Meltem Kutnu, Yasemin Utkueri, Funda Yılmaz, Elif Boz
 speakerAffiliation: "İstinye University / METU / Sabancı University / Radboud University / University of Veterinary Medicine Vienna / University of Arizona"
 speakerTitle: ""
 description: A comparative study of SARS-CoV-2 genome variants identified by the Galaxy Project and INSaFLU workflows, presented by RSG-Turkey active members.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jZCzRShkFTM"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

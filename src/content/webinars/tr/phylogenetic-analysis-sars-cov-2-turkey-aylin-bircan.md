@@ -5,7 +5,7 @@ speaker: Aylin Bircan
 speakerAffiliation: Sabancı Üniversitesi
 speakerTitle: Doktora Öğrencisi
 description: 15.277 global SARS-CoV-2 genomu ile Türkiye'deki viral izolatların filogenetik analizi; virüsün raporlanan ilk vakadan önce ülkeye girdiğini ve çoklu bağımsız uluslararası giriş yollarını ortaya koyuyor.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=8lz2Dl49bIs"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

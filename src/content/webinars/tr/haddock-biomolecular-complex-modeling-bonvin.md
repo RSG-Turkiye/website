@@ -6,7 +6,7 @@ speakerAffiliation: Utrecht Üniversitesi / Bijvoet Biyomoleküler Araştırma M
 speakerTitle: Profesör
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437097/rsgturkey/webinars/alexandre-bonvin.jpg"
 description: "HADDOCK yazılımı etrafındaki son gelişmelerin vurgulandığı konuşma: biyomoleküler kompleks yapı tahmininde bütünleştirici modellemenin önemi ve yalnızca dizilimden antikor-antijen etkileşimlerinin modellenmesi."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=dHbW0cRX5gA"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

@@ -6,7 +6,7 @@ speakerAffiliation: University of Perdana / Bezmialem Vakıf University
 speakerTitle: Associate Professor
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787438111/rsgturkey/webinars/mohammad-asif-khan.jpg"
 description: An exploration of viral diversity dynamics at the protein sequence level, focusing on how viruses evade host immune responses through rapid mutation and the implications for vaccine design.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=dgFkmhO0hB4"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

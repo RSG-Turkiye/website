@@ -5,7 +5,7 @@ speaker: "Reyhan Metin / Metehan Çelebi"
 speakerAffiliation: ""
 speakerTitle: ""
 description: Glikolitik enzimlerin allosterik inhibisyonunu çeşitli analiz yöntemleriyle açıklamak için Kısıtlı Moleküler Dinamik simülasyon yönteminin kullanımı.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=8_c8dQFNqlI"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

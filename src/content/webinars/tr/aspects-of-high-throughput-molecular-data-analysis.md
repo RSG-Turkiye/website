@@ -6,14 +6,13 @@ speakerAffiliation: ""
 speakerTitle: ""
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436584/rsgturkey/webinars/arif-harmanci.jpg"
 description: Genomiğin, transkriptomiğin ve epigenetiğin bireysel sağlığa nasıl yansıdığını anlama biçimimizi nasıl değiştirdiğine dair farklı boyutların gözden geçirilmesi ve yüksek verimli veri analizinin gelecekteki zorlukları.
-youtubeUrl: "https://www.youtube.com/watch?v=byv0BT9shwA"
+youtubeUrl: "https://www.youtube.com/watch?v=AxqdPMEUfyg"
 slidesUrl: ""
 year: 2019
 type: bioinfonet
 image: ""
 topic: ""
 keyTakeaways: []
-draft: true
 ---
 
 **Sunucu**

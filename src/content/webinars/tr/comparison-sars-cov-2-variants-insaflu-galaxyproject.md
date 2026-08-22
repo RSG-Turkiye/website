@@ -5,7 +5,7 @@ speaker: "Nazlı S. Kara, Meltem Kutnu, Yasemin Utkueri, Funda Yılmaz, Elif Boz
 speakerAffiliation: "İstinye Üniversitesi / ODTÜ / Sabancı Üniversitesi / Radboud Üniversitesi / Viyana Veteriner Tıbbı Üniversitesi / Arizona Üniversitesi"
 speakerTitle: ""
 description: "RSG-Türkiye aktif üyeleri tarafından yürütülen çalışma: Galaxy Project ve INSaFLU iş akışları tarafından tanımlanan SARS-CoV-2 genomik varyantlarının karşılaştırmalı analizi."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jZCzRShkFTM"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

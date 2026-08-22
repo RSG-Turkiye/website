@@ -6,14 +6,13 @@ speakerAffiliation: ""
 speakerTitle: ""
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436584/rsgturkey/webinars/arif-harmanci.jpg"
 description: An overview of how genomics, transcriptomics, and epigenetics are changing our understanding of molecular health, and the future challenges of high-throughput data analysis.
-youtubeUrl: "https://www.youtube.com/watch?v=byv0BT9shwA"
+youtubeUrl: "https://www.youtube.com/watch?v=AxqdPMEUfyg"
 slidesUrl: ""
 year: 2019
 type: bioinfonet
 image: ""
 topic: ""
 keyTakeaways: []
-draft: true
 ---
 
 **Presenter**

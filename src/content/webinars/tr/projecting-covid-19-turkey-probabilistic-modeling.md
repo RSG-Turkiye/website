@@ -6,7 +6,7 @@ speakerAffiliation: ODTÜ Bilişim Enstitüsü
 speakerTitle: Araştırma Asistanı
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437699/rsgturkey/webinars/huseyin-cahit-burduroglu.png"
 description: Türkiye'deki COVID-19 pandemisinin projeksiyonu için Bayesci negatif binom çok düzeyli model; önlemlere uyum devam ettiğinde salgın eğrisinin azaldığını gösteriyor.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=vaGt4LfpPPY"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

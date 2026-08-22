@@ -6,7 +6,7 @@ speakerAffiliation: University of Lausanne
 speakerTitle: Postdoctoral Fellow
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437499/rsgturkey/webinars/kimberly-gilbert-v2.jpg"
 description: A theoretical and empirical study of how multi-locus associative overdominance can amplify genetic diversity in low-recombination regions, with evidence of this phenomenon in the human genome.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=bz6RzlWpDns"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

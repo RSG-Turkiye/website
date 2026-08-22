@@ -6,7 +6,7 @@ speakerAffiliation: SciLifeLab / Lund University
 speakerTitle: Bioinformatician
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437497/rsgturkey/webinars/nikolay-oskolkov-v2.jpg"
 description: An overview of applications of Artificial Neural Networks to Single Cell Genomics, Microscopy Imaging, and Genomics/Ancient DNA research, addressing the challenges of big data in life sciences.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=t38ciyb42vY"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

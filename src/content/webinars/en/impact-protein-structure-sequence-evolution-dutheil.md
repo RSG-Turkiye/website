@@ -5,7 +5,7 @@ speaker: Julien Y. Dutheil
 speakerAffiliation: Max Planck Institute for Evolutionary Biology
 speakerTitle: ""
 description: Investigation of how protein structure influences sequence evolution, focusing on the distribution of adaptive mutations along 3D protein structures and coevolution between positions.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=VBBZS5xLjec"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

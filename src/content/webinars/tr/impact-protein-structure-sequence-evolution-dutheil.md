@@ -5,7 +5,7 @@ speaker: Julien Y. Dutheil
 speakerAffiliation: Max Planck Evrimsel Biyoloji Enstitüsü
 speakerTitle: ""
 description: Protein yapısının sekans evrimi üzerindeki etkisinin araştırılması; 3D protein yapıları boyunca adaptif mutasyonların dağılımı ve pozisyonlar arasındaki eş-evrim.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=VBBZS5xLjec"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

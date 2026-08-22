@@ -5,7 +5,7 @@ speaker: Aylin Bircan
 speakerAffiliation: Sabanci University
 speakerTitle: PhD Student
 description: A comprehensive phylogenetic analysis of SARS-CoV-2 genomes in Turkey using 15,277 global sequences, revealing early introduction of the virus and multiple independent international transmission events.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=8lz2Dl49bIs"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

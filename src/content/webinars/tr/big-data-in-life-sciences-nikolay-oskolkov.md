@@ -6,7 +6,7 @@ speakerAffiliation: SciLifeLab / Lund Üniversitesi
 speakerTitle: Biyoinformatikçi
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437497/rsgturkey/webinars/nikolay-oskolkov-v2.jpg"
 description: Yapay Sinir Ağları'nın Tek Hücre Genomiği, Mikroskopi Görüntüleme ve Genomik/Antik DNA araştırma alanlarına uygulamalarına genel bakış; yaşam bilimlerinde büyük verinin zorluklarını ele alıyor.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=t38ciyb42vY"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

@@ -5,7 +5,7 @@ speaker: Aashil A. Batavia
 speakerAffiliation: Institute of Pathology and Molecular Pathology, USZ / ETH Zurich
 speakerTitle: PhD Researcher
 description: An introduction to accessing The Cancer Genome Atlas repository and tools for multi-omics assessment of tumours, focusing on renal cell carcinomas.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=rr5bhWKIR_I"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

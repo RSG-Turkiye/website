@@ -5,7 +5,7 @@ speaker: Aashil A. Batavia
 speakerAffiliation: USZ Patoloji ve Moleküler Patoloji Enstitüsü / ETH Zurich
 speakerTitle: Doktora Araştırmacısı
 description: TCGA deposuna erişim yolları ve renal hücre karsinomlarının çoklu omik değerlendirmesi için kullanılan araçların tanıtımı.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=rr5bhWKIR_I"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

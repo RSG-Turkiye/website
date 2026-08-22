@@ -4,7 +4,7 @@ date: 2022-04-08
 speaker: "Dilara Uzuner, Ecehan Abdik, Hatice Büşra Lüleci, Müberra Fatma Cesur"
 speakerAffiliation: "Gebze Technical University"
 description: "Four graduate students from Gebze Technical University present their research in cancer dormancy, Parkinson's disease metabolism, Alzheimer's disease, and Klebsiella pneumoniae drug targets."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=E2th8MhiaZE"
 slidesUrl: ""
 year: 2022
 type: "student"

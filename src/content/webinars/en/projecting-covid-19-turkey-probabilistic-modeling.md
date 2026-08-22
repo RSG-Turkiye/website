@@ -6,7 +6,7 @@ speakerAffiliation: METU Informatics Institute
 speakerTitle: Research Assistant
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437699/rsgturkey/webinars/huseyin-cahit-burduroglu.png"
 description: A Bayesian negative binomial multilevel model with mixed effects for projecting COVID-19 confirmed daily and cumulative cases in Turkey, showing a decreasing epidemic curve under compliance with containment measures.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=vaGt4LfpPPY"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
