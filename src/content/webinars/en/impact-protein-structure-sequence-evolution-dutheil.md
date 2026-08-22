@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How protein 3D structure shapes the distribution of adaptive mutations"
+  - "Investigating coevolution between structurally linked amino acid positions"
+  - "Extending the McDonald-Kreitman approach to infer rates of adaptive substitution"
+  - "Using substitution mapping to detect coevolving sequence positions"
+  - "Why comparative genome analysis is key to studying structure-driven sequence evolution"
 ---
 
 **Presenter**

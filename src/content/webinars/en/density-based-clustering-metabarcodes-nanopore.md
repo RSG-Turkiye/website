@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=9s66xlGB7BM"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436909/rsgturkey/webinars/bilgenur-baloglu.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How Oxford Nanopore MinION sequencing enables portable, field-based metabarcoding"
+  - "The ASHURE pipeline for density-based clustering and error correction of nanopore reads"
+  - "Using rolling circle amplification to counter nanopore's high per-read error rates"
+  - "How the method achieves over 99% sequence accuracy for a freshwater mock community"
+  - "Why long-read metabarcoding matters for ecology, food safety, and disease surveillance"
 ---
 
 **Presenter**

@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=vaGt4LfpPPY"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437699/rsgturkey/webinars/huseyin-cahit-burduroglu.png"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Karma etkili Bayesyen negatif binom çok düzeyli bir model kurma"
+  - "%80/95/99 tahmin aralıklarıyla günlük ve kümülatif COVID-19 vaka sayılarının projeksiyonu"
+  - "Önlemlere uyumun öngörülen salgın eğrisini nasıl şekillendirdiği"
+  - "Olasılıksal epidemiyolojik modellemenin özellikle Türkiye vakasına uygulanması"
+  - "Projeksiyon doğruluğunun 12 günlük bir tahmin aralığı bandına karşı doğrulanması"
 ---
 
 **Sunucu**

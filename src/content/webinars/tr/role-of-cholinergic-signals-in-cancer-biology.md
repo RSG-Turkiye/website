@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=bmi9kpz6H2Y"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437847/rsgturkey/webinars/ozlen-konu.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Kolinerjik sinyalleşmenin (asetilkolin ve nikotinik reseptörler yoluyla) kanser hücresi davranışını nasıl etkilediği"
+  - "CHRNA5'in meme kanserindeki proliferatif ve prognostik rolü"
+  - "Karaciğer kanserinde mikroçevre ve ilaç yanıtını incelemek için zebra balığı ksenograft modellerinin kullanımı"
+  - "Epitelyal kolinerjik sinyalleşmenin nöronal sinyalleşmeye kıyasla neden hâlâ az araştırıldığı"
+  - "Kanser ilerlemesini incelemek için in silico, in vitro ve in vivo yaklaşımların birleştirilmesi"
 ---
 
 **Sunucu**

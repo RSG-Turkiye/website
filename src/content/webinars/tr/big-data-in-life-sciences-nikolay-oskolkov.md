@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=t38ciyb42vY"
 slidesUrl: ""
 year: 2019
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437497/rsgturkey/webinars/nikolay-oskolkov-v2.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Yapay Sinir Ağlarının Tek Hücre Genomiğine nasıl uygulandığı"
+  - "Biyolojide mikroskopi görüntü analizi için derin öğrenme yaklaşımları"
+  - "Sinir ağlarının genomik ve antik DNA araştırma sorularını ele almak için kullanılması"
+  - "Yaşam bilimlerindeki büyük verinin diğer alanlardan farklı analitik zorluklar barındırması"
+  - "Makine ve derin öğrenme yöntemlerinin klasik istatistiğe göre ne zaman daha uygun olduğu"
 ---
 
 **Sunucu**

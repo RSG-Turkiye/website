@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=jmFxZDTmEBo"
 slidesUrl: ""
 year: 2018
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437044/rsgturkey/webinars/ezgi-karaca.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Core structural biology techniques and the data types they produce"
+  - "How to incorporate experimental structural data into biomolecular simulations"
+  - "The role of docking methods, particularly HADDOCK, in integrative modeling"
+  - "How integrative modeling research gets published and validated (as in Nature Methods)"
+  - "Why structural biology is essential for understanding disease-linked pathways and drug design"
 ---
 
 - **Title:** Integrative Modeling of Biomolecular Complexes

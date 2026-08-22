@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "The Cancer Genome Atlas (TCGA) deposundaki 33 kanser türüne nasıl erişilir ve nasıl gezinilir"
+  - "Tümör örneklerinde tekil ve entegre çoklu-omik değerlendirme için kullanılan araç ve iş akışları"
+  - "Çoklu-omik veri setlerinin yeni araştırma alanlarını belirlemek ve istatistiksel yöntemleri kıyaslamak için nasıl kullanıldığı"
+  - "Yabani tip von Hippel-Lindau berrak hücreli renal hücreli karsinom çalışmalarında dikkat edilmesi gerekenler"
+  - "Halka açık kanser veri setlerinin hem tümöre özgü hem de pan-kanser araştırmaları nasıl desteklediği"
 ---
 
 **Sunucu**

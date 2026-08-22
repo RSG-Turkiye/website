@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How the Galaxy Project and INSaFLU workflows detect SARS-CoV-2 variants from sequencing data"
+  - "Comparing SNP and indel variant calls across two independent bioinformatics pipelines"
+  - "Why replicase polyprotein 1ab showed the highest concentration of shared variants"
+  - "The difference between synonymous and non-synonymous variant frequencies in this dataset"
+  - "Trade-offs to consider when choosing between variant-calling workflows for outbreak analysis"
 ---
 
 **Those Who Conducted the Study**

@@ -11,7 +11,12 @@ year: 2021
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Why catalytic regions are evolutionarily conserved while allosteric regions vary more"
+  - "How species-specific allosteric inhibition enables selective drug targeting"
+  - "Using Constraint Molecular Dynamics simulation without needing a parameterized ligand"
+  - "How restricting residue movement can mimic ligand-bound allosteric states"
+  - "Implications for designing drugs that target bacterial but not human glycolytic enzymes"
 ---
 
 **Presenter**

@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=bz6RzlWpDns"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437499/rsgturkey/webinars/kimberly-gilbert-v2.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Arka plan seçilimi (BGS) ile ilişkisel aşırı baskınlık (AOD) arasındaki ayrım"
+  - "Çok-lokuslu dinamiklerin AOD'yi tek-lokus tahminlerinin ötesinde nasıl güçlendirebildiği"
+  - "Sözde-aşırı baskınlığın BGS'den AOD'ye geçişi hangi koşullarda tetiklediği"
+  - "Simülasyonların düşük rekombinasyonlu bölgelerde artan çeşitliliği nasıl doğruladığı"
+  - "İnsan genomunda AOD'ye dair kanıt bulunan 22 bölge"
 ---
 
 **Sunucu**

@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Building a CNN-based mobile application to detect and classify skin cancer types"
+  - "Comparing a Modified Inception model against Google's MobileNet for lesion classification"
+  - "Using the HAM10000 dataset to evaluate dermatoscopic image classifiers"
+  - "Distinguishing Melanoma, Dermatofibroma, and Benign Keratosis lesions with deep learning"
+  - "How mobile CNN tools could support earlier dermatological screening"
 ---
 
 **Presenter**

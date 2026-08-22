@@ -9,7 +9,13 @@ youtubeUrl: "https://www.youtube.com/watch?v=_IDr-TbAHv8"
 slidesUrl: ""
 year: 2021
 type: "bioinfonet"
-image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197082/rsgturkey/06/baris_480.jpg"
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437262/rsgturkey/webinars/baris-ekim.jpg"
+keyTakeaways:
+  - "Minimizer-uzayında dizileme verisi analizi ve k-min-mer kavramı"
+  - "mdBG'nin genom montajında hız ve bellek kullanımında büyüklük mertebesinde iyileştirmeyi nasıl sağladığı"
+  - "Sadece 8 çekirdek ve 10 GB RAM kullanarak bir insan genomunu 10 dakikanın altında monte etmek"
+  - "Minimizer-uzayı yöntemlerinin metagenom montajı ve pangenom aramasına uygulanması"
+  - "rust-mdbg'nin PacBio HiFi uzun okumalarının hızlı, düşük bellekli montajını nasıl mümkün kıldığı"
 ---
 
 **Sunucu**

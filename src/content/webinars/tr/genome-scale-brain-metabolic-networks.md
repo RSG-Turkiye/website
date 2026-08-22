@@ -11,7 +11,12 @@ year: 2018
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Beyindeki nöron-astrosit metabolik etkileşimlerinin sistem düzeyinde analizi"
+  - "Nörodejeneratif hastalık ağlarına transkriptom verisini haritalamak için reporter pathway yönteminin kullanımı"
+  - "Beyin metabolizmasına uygulanan kısıt tabanlı modelleme ve akış denge analizi (FBA)"
+  - "Genom ölçekli metabolik ağların beyin tümörlerindeki metabolik değişiklikleri değerlendirmeye nasıl yardımcı olduğu"
+  - "Hastalıkla ilişkili değişiklikleri haritalamak için beyin metabolik ağı iskelelerinin neden faydalı olduğu"
 ---
 
 Son webinarımız 11 Haziran'da Gebze Teknik Üniversitesi'nden Doç. Dr. Tunahan Çakır tarafından verildi. Yüksek katılımlı bu oturumda, hücre metabolizmasının sistem genelinde analizi ve ağların genom ölçeğinde modellenmesi temel konular arasındaydı. Sunum boyunca odak noktaları şunlardı: 1) Beyindeki iki temel hücre tipi olan nöron-astrositin metabolizması ve etkileşimleri, 2) Nörodejeneratif hastalıklar için reporter pathways adı verilen bir grafik tabanlı yaklaşım kullanarak transkriptom verilerinin haritalanması, 3) Beyin tümörlerinin metabolik değerlendirmesi için beyin metabolik ağlarının kısıt tabanlı modellemesi ve akı denge analizi (FBA).

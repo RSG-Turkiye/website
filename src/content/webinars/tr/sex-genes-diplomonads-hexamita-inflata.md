@@ -10,7 +10,7 @@ youtubeUrl: ""
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437912/rsgturkey/webinars/begum-serra-buyuktarakci.jpg"
 topic: ""
 keyTakeaways: []
 ---

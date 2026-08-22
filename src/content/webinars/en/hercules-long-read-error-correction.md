@@ -11,7 +11,12 @@ year: 2019
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Why long-read sequencing technologies trade accuracy for fragment length"
+  - "How Hercules uses Hidden Markov Models to learn technology-specific error profiles"
+  - "Comparing machine-learning-based correction against graph/alignment-based methods"
+  - "How Hercules achieves higher mapping rates on both DNA and RNA sequencing datasets"
+  - "Why modeling error profiles directly improves long-read error correction"
 ---
 
 **Presenter**

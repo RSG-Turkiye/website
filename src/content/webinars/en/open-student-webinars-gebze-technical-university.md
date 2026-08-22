@@ -9,6 +9,12 @@ slidesUrl: ""
 year: 2022
 type: "student"
 image: ""
+keyTakeaways:
+  - "How protein-protein and gene-regulatory network mapping reveals cancer dormancy mechanisms"
+  - "Reconstructing the first brain-specific mouse metabolic network model for Parkinson's research"
+  - "Using the iMAT algorithm to predict personalized metabolic reaction activity in Alzheimer's disease"
+  - "Genome-scale screening for drug targets against Klebsiella pneumoniae, including KdsA inhibitors"
+  - "How graduate student research spans cancer, neurodegeneration, and antimicrobial drug discovery"
 ---
 
 **Presenters**

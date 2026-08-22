@@ -10,7 +10,7 @@ youtubeUrl: "http://www.youtube.com/watch?v=nfF_kZeZSJQ"
 slidesUrl: ""
 year: 2014
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437794/rsgturkey/webinars/tolga-can.png"
 topic: ""
 keyTakeaways: []
 draft: true

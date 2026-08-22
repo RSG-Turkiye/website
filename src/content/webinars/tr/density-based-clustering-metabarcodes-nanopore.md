@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=9s66xlGB7BM"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436909/rsgturkey/webinars/bilgenur-baloglu.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Oxford Nanopore MinION dizilemesinin taşınabilir, saha bazlı metabarkodlamayı nasıl mümkün kıldığı"
+  - "Nanopore okumalarının yoğunluk tabanlı kümelenmesi ve hata düzeltmesi için ASHURE hattı"
+  - "Nanopore'un yüksek okuma-başı hata oranlarını dengelemek için dönen daire amplifikasyonunun kullanımı"
+  - "Yöntemin tatlı su model topluluğu için %99'un üzerinde dizi doğruluğuna nasıl ulaştığı"
+  - "Uzun okuma metabarkodlamanın ekoloji, gıda güvenliği ve hastalık gözetimi için neden önemli olduğu"
 ---
 
 **Sunucu**

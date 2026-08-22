@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=bz6RzlWpDns"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437499/rsgturkey/webinars/kimberly-gilbert-v2.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "The distinction between background selection (BGS) and associative overdominance (AOD)"
+  - "How multi-locus dynamics can amplify AOD beyond single-locus predictions"
+  - "The conditions under which pseudo-overdominance drives a transition from BGS to AOD"
+  - "How simulations confirm elevated diversity in low-recombination genomic regions"
+  - "Evidence for AOD in 22 regions of the human genome"
 ---
 
 **Presenter**

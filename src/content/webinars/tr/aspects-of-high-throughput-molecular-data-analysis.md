@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=AxqdPMEUfyg"
 slidesUrl: ""
 year: 2019
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436584/rsgturkey/webinars/arif-harmanci.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Genomik, transkriptomik ve epigenetik verilerin moleküler sağlık anlayışımızı nasıl dönüştürdüğü"
+  - "Azalan dizileme maliyetlerinin moleküler veri üretimindeki patlamayı nasıl tetiklediği"
+  - "Veri hacmi ile hücresel bilgi işleme süreçlerini yorumlama kapasitemiz arasındaki açık"
+  - "Birden fazla omik katmanını önceliklendirme ve entegre etmedeki temel zorluklar"
+  - "Yüksek verimli veri toplama ve analizinde gelecekteki yönelimler"
 ---
 
 **Sunucu**

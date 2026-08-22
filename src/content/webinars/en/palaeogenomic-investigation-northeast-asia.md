@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=tZY_m1_C8s8"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437335/rsgturkey/webinars/gulsah-merve-kilinc.png"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How ancient DNA reveals population dynamics spanning 17,000 to 550 years ago"
+  - "Genetic evidence for gene flow and admixture events from the Late Upper Palaeolithic to the Iron Age"
+  - "Direct genetic evidence linking ancient Siberian populations to Palaeo-Inuit ancestry"
+  - "Detecting Yersinia pestis DNA in ancient Northeast Asian individuals"
+  - "How genome sequencing of 40 ancient individuals reshapes migration history models"
 ---
 
 **Presenter**

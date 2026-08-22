@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Building a phylogenetic tree from 15,277 global SARS-CoV-2 genomes"
+  - "Clustering virus isolates using phylogenetic and classification-based methods"
+  - "Evidence that SARS-CoV-2 entered Turkiye earlier than the first reported case"
+  - "Identifying sub-clusters enriched with isolates circulating within the country"
+  - "Tracing multiple independent international introduction events via phylogenetic placement"
 ---
 
 **Presenter**

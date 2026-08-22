@@ -10,7 +10,7 @@ youtubeUrl: "https://www.youtube.com/watch?v=jmFxZDTmEBo"
 slidesUrl: ""
 year: 2018
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437044/rsgturkey/webinars/ezgi-karaca.jpg"
 topic: ""
 keyTakeaways: []
 ---

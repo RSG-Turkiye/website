@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=vaGt4LfpPPY"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437699/rsgturkey/webinars/huseyin-cahit-burduroglu.png"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Building a Bayesian negative binomial multilevel model with mixed effects"
+  - "Projecting daily and cumulative COVID-19 case counts with 80/95/99% prediction intervals"
+  - "How compliance with containment measures shaped the projected epidemic curve"
+  - "Applying probabilistic epidemiological modeling specifically to the Turkish case"
+  - "Validating projection accuracy against a 12-day prediction interval band"
 ---
 
 **Presenter**

@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=bmi9kpz6H2Y"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437847/rsgturkey/webinars/ozlen-konu.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How cholinergic signaling (via acetylcholine and nicotinic receptors) affects cancer cell behavior"
+  - "The proliferative and prognostic role of CHRNA5 in breast cancer"
+  - "Using zebrafish xenograft models to study liver cancer microenvironment and drug response"
+  - "Why epithelial cholinergic signaling remains understudied compared to neuronal signaling"
+  - "Combining in silico, in vitro, and in vivo approaches to study cancer progression"
 ---
 
 **Presenter**

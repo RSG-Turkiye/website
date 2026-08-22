@@ -11,7 +11,12 @@ year: 2019
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Uzun okuma dizileme teknolojilerinin doğruluğu parça uzunluğu karşılığında neden feda ettiği"
+  - "Hercules'un teknolojiye özgü hata profillerini öğrenmek için Gizli Markov Modellerini nasıl kullandığı"
+  - "Makine öğrenimi tabanlı düzeltmenin grafik/hizalama tabanlı yöntemlerle karşılaştırılması"
+  - "Hercules'un hem DNA hem RNA dizileme veri setlerinde daha yüksek eşleme oranlarına nasıl ulaştığı"
+  - "Hata profillerini doğrudan modellemenin uzun okuma hata düzeltmesini neden iyileştirdiği"
 ---
 
 **Sunucu**

@@ -10,9 +10,14 @@ youtubeUrl: "https://youtu.be/GmjwyTZinjU"
 slidesUrl: ""
 year: 2018
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437988/rsgturkey/webinars/tugce-bilgin-sonay.png"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How short tandem repeats affect phenotype, gene expression, and epigenetics"
+  - "The link between faulty DNA damage repair and Microsatellite Instability (MSI) in tumours"
+  - "How short tandem repeat effects in tumours are identified and characterized"
+  - "Why MSI-related findings can be leveraged for cancer immunotherapy"
+  - "Current research directions connecting repeat instability to immune-based treatment"
 ---
 
 Our July webinar was given by Tugce Bilgin Sonay, from the Department of Computational Biology in the University of Lausanne. In this session, apart from her work, Tugce also explained other studies in this area.

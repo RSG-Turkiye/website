@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=dgFkmhO0hB4"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787438111/rsgturkey/webinars/mohammad-asif-khan.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Genetik çeşitliliğin virüslerin konak bağışıklık yanıtından kaçmasına nasıl yardımcı olduğu"
+  - "RNA virüslerinin neden daha hızlı mutasyona uğradığı ve daha fazla varyant ürettiği"
+  - "Viral çeşitlilik dinamiklerinin protein dizisi düzeyinde analiz edilmesi"
+  - "Büyük ölçekli viral genetik varyasyonu incelemek için halka açık dizi veri tabanlarının kullanımı"
+  - "Viral çeşitlilik dinamiklerinin aşı tasarımı için çıkarımları"
 ---
 
 **Sunucu**

@@ -11,7 +11,12 @@ year: 2018
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Systems-wide analysis of neuron-astrocyte metabolic interactions in the brain"
+  - "Using reporter pathways to map transcriptome data onto neurodegenerative disease networks"
+  - "Constraint-based modelling and flux balance analysis (FBA) applied to brain metabolism"
+  - "How genome-scale metabolic networks help evaluate metabolic alterations in brain tumors"
+  - "Why brain metabolic network scaffolds are useful for mapping disease-related changes"
 ---
 
 Our recent webinar on June 11th was given by Assoc. Prof. Tunahan Cakir from Gebze Technical University. In this session with high attendance, systems-wide analysis of cell metabolism and modeling networks at genome-scale were major topics. Focuses through the presentation were on 1) metabolism and interactions between neuron-astrocyte, two essential cell types in the brain, 2) mapping transcriptome data for neurodegenerative diseases using a graph-based approach termed reporter pathways, 3) constraint-based modelling of brain metabolic networks and flux balance analysis (FBA) for the metabolic evaluation of brain tumors.
