@@ -20,7 +20,7 @@ Dr. Bayraktar, doktorasını David Rowitch'le birlikte Kaliforniya Üniversitesi
 
 Dr. Bayraktar, Drosophila kullanarak nöral çeşitliliğin gelişimsel özelliklerini anlamak için doktorasını HHMI'da Chris Doe ile yaptı. Meyve sineği beyninde, insan sinir kök hücreleriyle benzerlikler taşıyan yeni bir sinir kök hücre modelini tanımladı. Çoklu zamansal desenleme programlarının, transit yükseltici progenitörlerin nöral çeşitlilik çıktısını genişletmek için kombinatoryal bir tarzda hareket ettiğini keşfetti.
 
-Şu anda Wellcome Sanger Enstitüsü'nde grup lideridir. Araştırması, büyük ölçekli yaklaşımlar kullanarak insan beyninin hücresel çeşitliliğini keşfetmeyi amaçlıyor.
+Şu anda Wellcome Sanger Enstitüsü'nde grup lideridir. Araştırması, sağlık ve hastalıkta nöral çeşitliliği incelemek için uzamsal transkriptomik, görüntüleme ve fonksiyonel taramadan yararlanarak büyük ölçekli yaklaşımlar kullanarak insan beyninin hücresel çeşitliliğini keşfetmeyi amaçlıyor.
 
 **Özet**
 

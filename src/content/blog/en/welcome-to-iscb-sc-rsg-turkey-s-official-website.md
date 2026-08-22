@@ -1,7 +1,7 @@
 ---
 title: "Welcome to ISCB SC RSG Turkiye’s Official Website!"
 pubDate: 2017-04-19
-description: "Welcome to ISCB SC RSG Turkiye’s official website! Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkey?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC"
+description: "Welcome to ISCB SC RSG Turkiye’s official website! Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkiye?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC"
 author: Zeynep Ozkeserli
 category: general
 tags: []
@@ -12,7 +12,7 @@ draft: false
 
 Welcome to ISCB SC RSG Turkiye’s official website!
 
-Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkey?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC RSG Turkiye without any struggle:
+Most of the people who contact us say “Do you still continue organising webinars with rshfjskh Turkiye?”. This “rshfjskh” feeling comes, because, I come to the conclusion that, they do not know the abbreviation 🙂 So, here is the step by step tutorial for saying ISCB SC RSG Turkiye without any struggle:
 
 [ISCB: International Society for Computational Biology  
 ](https://www.iscb.org)[ISCB SC: International Society for Computational Biology _Student Council_](http://www.iscbsc.org)  

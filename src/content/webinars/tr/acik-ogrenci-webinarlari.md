@@ -1,9 +1,9 @@
 ---
-title: "Acik Ogrenci Webinarlari"
+title: "Açık Öğrenci Webinarları"
 date: 2025-01-01
-speaker: "Ogrenci Sunuculari"
+speaker: "Öğrenci Sunucuları"
 speakerAffiliation: ""
-description: "Ogrenci liderliginde arastirma sunumlari ve tartismalar"
+description: "Öğrenci liderliğinde araştırma sunumları ve tartışmalar"
 youtubeUrl: ""
 slidesUrl: ""
 lang: "tr"
@@ -11,4 +11,4 @@ year: 2025
 type: "student"
 ---
 
-Ogrenci liderliginde arastirma sunumlari ve tartismalar, aylik olarak duzenlenmektedir.
+Öğrenci liderliğinde araştırma sunumları ve tartışmalar, aylık olarak düzenlenmektedir.

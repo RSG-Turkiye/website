@@ -25,7 +25,7 @@ keyTakeaways: []
 
 **Özet**
 
-2020 BioHackathon, COVID-19 için mevcut varyant tespit iş akışlarının geliştirilmesine veya oluşturulan büyük miktarda veriyi analiz etmek için yeni iş akışlarının oluşturulmasına ev sahipliği yaptı. Bunların arasında Galaxy Project, INSaFLU ve nf-core yer almaktadır. Bu çalışmada, Galaxy Project tarafından yayınlanan SARS-CoV-2 genomik varyantlarını INSaFLU iş akışı tarafından tanımlanan varyantlarla karşılaştırmayı hedefledik. Sonuç olarak, her iki iş akışına da ortak yaklaşık 600 varyant bulduk. Bu varyantların neredeyse yarısının replikaz polipeptit 1ab'de olduğunu bulduk. Eş anlamlı olmayan varyantların eş anlamlı varyantlardan daha yaygın olduğunu bulduk.
+2020 BioHackathon, COVID-19 için mevcut varyant tespit iş akışlarının geliştirilmesine veya oluşturulan büyük miktarda veriyi analiz etmek için yeni iş akışlarının oluşturulmasına ev sahipliği yaptı. Bunların arasında Galaxy Project, INSaFLU ve nf-core yer almaktadır. Bu iş akışları, farklı algoritmalarına göre farklı avantaj ve dezavantajlara sahiptir. Bu çalışmada, Galaxy Project tarafından yayınlanan SARS-CoV-2 genomik varyantlarını INSaFLU iş akışı tarafından tanımlanan varyantlarla karşılaştırmayı hedefledik. Sonuç olarak, her iki iş akışına da ortak yaklaşık 600 varyant bulduk. Bu varyantların neredeyse yarısının replikaz polipeptit 1ab'de olduğunu bulduk. Eş anlamlı olmayan varyantların eş anlamlı varyantlardan daha yaygın olduğunu bulduk. Bu çalışmada belirlenen ortak ve benzersiz varyantlar, gelecekteki çalışmalarda daha ayrıntılı olarak analiz edilebilir.
 
 **Tarih:** 21 Haziran, 2020 – 20:00 (GMT+3)
 

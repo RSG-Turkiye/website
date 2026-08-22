@@ -17,9 +17,9 @@ keyTakeaways: []
 
 **Sunucu**
 
-**Doç. Prof. Özlen Konu**
+**Doç. Dr. Özlen Konu**
 
-Dr. Ozlen Konu, 1987 yılında Türkiye Orta Doğu Teknik Üniversitesi'nden Biyolojik Bilimler alanında lisans derecesiyle mezun oldu. Dr. Konu, yüksek lisans çalışmalarını ABD Texas Tech Üniversitesi Biyoloji Bölümü'nde sürdürdü ve sırasıyla 1992 ve 1999 yıllarında M.S. ve doktora derecelerini aldı. 2000-2002 yılları arasında ABD'deki Memphis Tennessee Üniversitesi'nde doktora sonrası araştırma bursiyer olarak görev yaptı. Eylül 2002'den bu yana Bilkent Üniversitesi Moleküler Biyoloji ve Genetik Bölümü'nde öğretim üyesidir. Dr. Konu'nun araştırma ilgi alanları, bağımlılık ve kansere uygulandığı şekliyle kolinerjik sinyalleşmeye ilişkin gen ekspresyon verisi analizi ve meta-analizi ile zebra balığı modeli kullanılarak karşılaştırmalı ekspresyon profillemesini kapsamaktadır.
+Dr. Ozlen Konu, 1987 yılında Türkiye'deki Orta Doğu Teknik Üniversitesi'nden Biyolojik Bilimler alanında lisans derecesiyle mezun oldu. Dr. Konu, yüksek lisans çalışmalarını ABD Texas Tech Üniversitesi Biyoloji Bölümü'nde sürdürdü ve sırasıyla 1992 ve 1999 yıllarında M.S. ve doktora derecelerini aldı. 2000-2002 yılları arasında ABD'deki Memphis Tennessee Üniversitesi'nde doktora sonrası araştırma bursiyer olarak görev yaptı. Eylül 2002'den bu yana Bilkent Üniversitesi Moleküler Biyoloji ve Genetik Bölümü'nde öğretim üyesidir. Dr. Konu'nun araştırma ilgi alanları, bağımlılık ve kansere uygulandığı şekliyle kolinerjik sinyalleşmeye ilişkin gen ekspresyon verisi analizi ve meta-analizi ile zebra balığı modeli kullanılarak karşılaştırmalı ekspresyon profillemesini kapsamaktadır.
 
 **Özet**
 

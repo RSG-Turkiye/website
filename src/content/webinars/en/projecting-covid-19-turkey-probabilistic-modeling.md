@@ -1,11 +1,11 @@
 ---
-title: "Projecting the Course of COVID-19 in Turkey: A Probabilistic Modeling Approach – Hüseyin Cahit Burduroğlu"
+title: "Projecting the Course of COVID-19 in Türkiye: A Probabilistic Modeling Approach – Hüseyin Cahit Burduroğlu"
 date: 2020-08-21
 speaker: Hüseyin Cahit Burduroğlu
 speakerAffiliation: METU Informatics Institute
 speakerTitle: Research Assistant
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437699/rsgturkey/webinars/huseyin-cahit-burduroglu.png"
-description: A Bayesian negative binomial multilevel model with mixed effects for projecting COVID-19 confirmed daily and cumulative cases in Turkey, showing a decreasing epidemic curve under compliance with containment measures.
+description: A Bayesian negative binomial multilevel model with mixed effects for projecting COVID-19 confirmed daily and cumulative cases in Türkiye, showing a decreasing epidemic curve under compliance with containment measures.
 youtubeUrl: "https://www.youtube.com/watch?v=vaGt4LfpPPY"
 slidesUrl: ""
 year: 2020
@@ -23,8 +23,8 @@ He graduated from the Molecular Biology and Genetics department of Yildiz Techni
 
 **Abstract**
 
-The COVID-19 Pandemic originated in Wuhan, China, in December 2019 and became one of the worst global health crises ever. The first confirmed cases were announced early in March and since then, serious containment measures have taken place in Turkey. Here, we present a different approach, a Bayesian negative binomial multilevel model with mixed effects, for the projection of the COVID-19 pandemic and apply this model to the Turkish case. We predicted confirmed daily cases and cumulative numbers for June 6th to June 26th with 80%, 95%, and 99% prediction intervals (PI). Our projections showed that if we continued to comply with measures and no drastic changes are seen in diagnosis or management protocols, the epidemic curve would tend to decrease in this time interval. Also, the predictive validity analysis suggests that proposed model projections should be in the 95% PI band for the first 12 days of the projections.
+The COVID-19 Pandemic originated in Wuhan, China, in December 2019 and became one of the worst global health crises ever. The first confirmed cases were announced early in March and since then, serious containment measures have taken place in Türkiye. Here, we present a different approach, a Bayesian negative binomial multilevel model with mixed effects, for the projection of the COVID-19 pandemic and apply this model to the Turkish case. We predicted confirmed daily cases and cumulative numbers for June 6th to June 26th with 80%, 95%, and 99% prediction intervals (PI). Our projections showed that if we continued to comply with measures and no drastic changes are seen in diagnosis or management protocols, the epidemic curve would tend to decrease in this time interval. Also, the predictive validity analysis suggests that proposed model projections should be in the 95% PI band for the first 12 days of the projections.
 
-**Date:** August 21th, 2020 – 2:00 pm (GMT+3)
+**Date:** August 21st, 2020 – 2:00 pm (GMT+3)
 
 **Language:** English

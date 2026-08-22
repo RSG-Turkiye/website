@@ -1,7 +1,7 @@
 ---
 title: ISMB2018 – 26th Conference on Intelligent Systems for Molecular Biology
 pubDate: 2018-09-07
-description: "We as RSG-Turkey are so proud to be part of great organization ISCB and ISCBSC. ISMB2018, one of the conferences organized by ISCB, was held in Chicago between 6-11 July. I have nominated for ISCB-SC RSG Leadership Travel Fellowship for the conference and she had the opportunity to attend the conference. Despite this post were"
+description: "We as RSG-Turkiye are so proud to be part of great organization ISCB and ISCBSC. ISMB2018, one of the conferences organized by ISCB, was held in Chicago between 6-11 July. I have nominated for ISCB-SC RSG Leadership Travel Fellowship for the conference and she had the opportunity to attend the conference. Despite this post were"
 author: Beste Turanlı
 category: general
 tags: []
@@ -10,7 +10,7 @@ lang: "en"
 draft: false
 ---
 
-We as RSG-Turkey are so proud to be part of great organization ISCB and ISCBSC. ISMB2018, one of the conferences organized by ISCB, was held in Chicago between 6-11 July. I have nominated for ISCB-SC RSG Leadership Travel Fellowship for the conference and she had the opportunity to attend the conference. Despite this post were overdue, it has a bunch of highlights which should be recorded.
+We as RSG-Turkiye are so proud to be part of great organization ISCB and ISCBSC. ISMB2018, one of the conferences organized by ISCB, was held in Chicago between 6-11 July. I have nominated for ISCB-SC RSG Leadership Travel Fellowship for the conference and she had the opportunity to attend the conference. Despite this post were overdue, it has a bunch of highlights which should be recorded.
 
 The first thing worth to mention is ISCB Communities of Special Interest (COSIs) which are topically-focused collaborative communities of shared interest wherein scientists communicate with one another on research problems and/or opportunities in specific areas of computational biology. For detailed information about sixteen COSIs of ISCB, click on the [link](https://www.iscb.org/ismb2018general/iscb-cosi). One of my favorites is  [SysMod](https://sysmod.info/) COSI where I got a chance to present my Ph.D. project and meet the great scientist as well as my future collaborators.
 

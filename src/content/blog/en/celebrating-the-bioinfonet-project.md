@@ -10,7 +10,7 @@ lang: "en"
 draft: false
 ---
 
-I met the ISCB RSG Turkiye team in 2011 in the first student symposium which was held as a satellite meeting with HiBiT. I was working in a _de novo_ genome project and it was my first time presenting a serious project as a graduate student at a symposium. Many of you can picture my anxiety. But things got better immediately: I met colleagues from Turkey!
+I met the ISCB RSG Turkiye team in 2011 in the first student symposium which was held as a satellite meeting with HiBiT. I was working in a _de novo_ genome project and it was my first time presenting a serious project as a graduate student at a symposium. Many of you can picture my anxiety. But things got better immediately: I met colleagues from Turkiye!
 
 Some of you may have difficulty understanding why it would be “that” important and pleasing to meet colleagues. Well…
 

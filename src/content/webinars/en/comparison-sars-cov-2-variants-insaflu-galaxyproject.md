@@ -1,10 +1,10 @@
 ---
-title: Comparison of SARS-CoV-2 Variants with INSaFLU and Galaxyproject – RSG-Turkey Active Members
+title: Comparison of SARS-CoV-2 Variants with INSaFLU and Galaxyproject – RSG-Türkiye Active Members
 date: 2020-06-21
 speaker: "Nazlı S. Kara, Meltem Kutnu, Yasemin Utkueri, Funda Yılmaz, Elif Bozlak, Evrim Fer"
 speakerAffiliation: "İstinye University / METU / Sabancı University / Radboud University / University of Veterinary Medicine Vienna / University of Arizona"
 speakerTitle: ""
-description: A comparative study of SARS-CoV-2 genome variants identified by the Galaxy Project and INSaFLU workflows, presented by RSG-Turkey active members.
+description: A comparative study of SARS-CoV-2 genome variants identified by the Galaxy Project and INSaFLU workflows, presented by RSG-Türkiye active members.
 youtubeUrl: "https://www.youtube.com/watch?v=jZCzRShkFTM"
 slidesUrl: ""
 year: 2020
