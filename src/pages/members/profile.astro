@@ -1,13 +1,5 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-
-const BADGE_LABELS: Record<string, string> = {
-  open_to_work:        'Looking for a job / internship',
-  open_to_collaborate: 'Open to collaborate on a project',
-  open_to_mentor:      'Open to mentoring',
-  seeking_mentor:      'Looking for a mentor',
-  open_to_review:      'Open to reviewing papers / code',
-};
 ---
 
 <BaseLayout pageTitle="Member Profile — RSG Turkey" description="RSG Turkey member profile.">
@@ -39,7 +31,13 @@ const BADGE_LABELS: Record<string, string> = {
               <p id="institutionEl" class="text-sm text-gray-500 mt-1 hidden"></p>
               <p id="bioEl" class="text-sm text-gray-600 mt-3 leading-relaxed hidden"></p>
             </div>
+            <div id="rankBadgeWrap" class="shrink-0"></div>
           </div>
+        </div>
+
+        <div id="achievementsCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
+          <h2 class="text-sm font-semibold text-navy mb-3">Pipeline badges</h2>
+          <div id="achievementsList" class="flex flex-wrap gap-4"></div>
         </div>
 
         <div id="badgesCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
@@ -57,7 +55,20 @@ const BADGE_LABELS: Record<string, string> = {
   </div>
 </BaseLayout>
 
-<script define:vars={{ BADGE_LABELS }}>
+<script>
+  import { rankBadgeSvg, achievementBadgeSvg, achievementLabel } from '../../lib/badges.ts';
+
+  // define:vars forces a script to run as a classic (non-module) script, which
+  // can't use `import` -- so this stays a plain static-object literal here
+  // instead, kept in sync with the frontmatter copy above by hand (it's tiny).
+  const BADGE_LABELS: Record<string, string> = {
+    open_to_work: 'Looking for a job / internship',
+    open_to_collaborate: 'Open to collaborate on a project',
+    open_to_mentor: 'Open to mentoring',
+    seeking_mentor: 'Looking for a mentor',
+    open_to_review: 'Open to reviewing papers / code',
+  };
+
   (async () => {
     // Require login
     const authRes = await fetch('/api/me');
@@ -76,22 +87,22 @@ const BADGE_LABELS: Record<string, string> = {
     }
 
     const res = await fetch(`/api/members/${username}`);
-    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('loadingState')!.classList.add('hidden');
 
     if (!res.ok) {
-      document.getElementById('notFound').classList.remove('hidden');
+      document.getElementById('notFound')!.classList.remove('hidden');
       return;
     }
 
     const data = await res.json();
     const m = data.member;
-    document.getElementById('profileContent').classList.remove('hidden');
+    document.getElementById('profileContent')!.classList.remove('hidden');
 
     // Update page title
     document.title = `@${m.username} — RSG Turkey`;
 
     // Avatar
-    const avatarWrap = document.getElementById('avatarWrap');
+    const avatarWrap = document.getElementById('avatarWrap')!;
     if (m.avatar_url) {
       avatarWrap.innerHTML = `<img src="${m.avatar_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />`;
     } else {
@@ -99,27 +110,43 @@ const BADGE_LABELS: Record<string, string> = {
       avatarWrap.innerHTML = `<div style="width:80px;height:80px;border-radius:50%;background:#e8edf5;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#0f2045;">${initial}</div>`;
     }
 
-    document.getElementById('displayName').textContent = m.display_name;
-    document.getElementById('usernameEl').textContent = '@' + m.username;
+    document.getElementById('displayName')!.textContent = m.display_name;
+    document.getElementById('usernameEl')!.textContent = '@' + m.username;
 
-    if (m.is_member) document.getElementById('memberBadge').classList.remove('hidden');
+    if (m.is_member) document.getElementById('memberBadge')!.classList.remove('hidden');
 
     if (m.institution) {
-      const el = document.getElementById('institutionEl');
+      const el = document.getElementById('institutionEl')!;
       el.textContent = m.institution;
       el.classList.remove('hidden');
     }
 
     if (m.bio) {
-      const el = document.getElementById('bioEl');
+      const el = document.getElementById('bioEl')!;
       el.textContent = m.bio;
       el.classList.remove('hidden');
     }
 
+    document.getElementById('rankBadgeWrap')!.innerHTML = rankBadgeSvg(m.rank || 'seed', 64);
+
+    if (m.achievement_badges && m.achievement_badges.length > 0) {
+      const card = document.getElementById('achievementsCard')!;
+      const list = document.getElementById('achievementsList')!;
+      card.classList.remove('hidden');
+      m.achievement_badges.forEach((code: string) => {
+        const svg = achievementBadgeSvg(code, 56);
+        if (!svg) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-col items-center gap-1.5';
+        wrap.innerHTML = svg + `<span class="text-xs text-gray-500 text-center max-w-[80px]">${achievementLabel(code)}</span>`;
+        list.appendChild(wrap);
+      });
+    }
+
     if (m.badges && m.badges.length > 0) {
-      document.getElementById('badgesCard').classList.remove('hidden');
-      const list = document.getElementById('badgesList');
-      m.badges.forEach(b => {
+      document.getElementById('badgesCard')!.classList.remove('hidden');
+      const list = document.getElementById('badgesList')!;
+      m.badges.forEach((b: string) => {
         const span = document.createElement('span');
         span.className = 'text-xs px-3 py-1.5 rounded-full bg-navy-light text-navy border border-navy/20 font-medium';
         span.textContent = BADGE_LABELS[b] || b;
@@ -128,9 +155,9 @@ const BADGE_LABELS: Record<string, string> = {
     }
 
     if (m.interests && m.interests.length > 0) {
-      document.getElementById('interestsCard').classList.remove('hidden');
-      const list = document.getElementById('interestsList');
-      m.interests.forEach(i => {
+      document.getElementById('interestsCard')!.classList.remove('hidden');
+      const list = document.getElementById('interestsList')!;
+      m.interests.forEach((i: string) => {
         const span = document.createElement('span');
         span.className = 'text-xs px-3 py-1.5 rounded-full bg-[#F7F7F6] text-gray-600 border border-border';
         span.textContent = i;
