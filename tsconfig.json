@@ -5,7 +5,8 @@
     "**/*"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "symposium_website"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",
