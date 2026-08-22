@@ -1,5 +1,6 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
+import { RANK_ORDINALS, awardRank, type Rank } from '../../_lib/rank';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
@@ -13,7 +14,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   let query = `
     SELECT
       u.id, u.email, u.is_member, u.is_admin, u.created_at, u.last_login,
-      p.username, p.display_name, p.institution, p.is_public
+      p.username, p.display_name, p.institution, p.is_public,
+      COALESCE(
+        (SELECT rank FROM rank_history rh WHERE rh.user_id = u.id
+         ORDER BY rank_ordinal DESC, computed_at DESC LIMIT 1),
+        'seed'
+      ) as current_rank,
+      (SELECT GROUP_CONCAT(badge_code) FROM user_achievement_badges uab
+       WHERE uab.user_id = u.id) as badge_codes
     FROM users u
     LEFT JOIN profiles p ON p.user_id = u.id
   `;
@@ -36,7 +44,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const stmt = env.DB.prepare(query);
   const result = await (bindings.length > 0 ? stmt.bind(...bindings) : stmt).all();
 
-  return jsonResponse({ users: result.results });
+  const badgeCatalog = await env.DB.prepare(
+    'SELECT code, name_en, name_tr FROM achievement_badges ORDER BY name_en'
+  ).all();
+
+  return jsonResponse({ users: result.results, badge_catalog: badgeCatalog.results });
 };
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
@@ -47,7 +59,9 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
 
   const body = await request.json<{
     user_id: string;
-    action: 'verify' | 'unverify' | 'make_admin' | 'remove_admin' | 'make_private' | 'clear_bio';
+    action: 'verify' | 'unverify' | 'make_admin' | 'remove_admin' | 'make_private' | 'clear_bio'
+      | 'set_rank' | 'award_badge' | 'revoke_badge';
+    value?: string;
   }>();
 
   if (!body.user_id || !body.action) {
@@ -78,6 +92,26 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     case 'clear_bio':
       await env.DB.prepare('UPDATE profiles SET bio = NULL WHERE user_id = ?').bind(body.user_id).run();
       break;
+    case 'set_rank': {
+      const rank = body.value as Rank | undefined;
+      if (!rank || !(rank in RANK_ORDINALS)) return jsonResponse({ error: 'Invalid rank' }, 400);
+      await awardRank(body.user_id, rank, 'admin_manual', env);
+      break;
+    }
+    case 'award_badge': {
+      if (!body.value) return jsonResponse({ error: 'Missing badge code' }, 400);
+      await env.DB.prepare(
+        'INSERT OR IGNORE INTO user_achievement_badges (user_id, badge_code, awarded_at, awarded_by) VALUES (?, ?, ?, ?)'
+      ).bind(body.user_id, body.value, Math.floor(Date.now() / 1000), user.id).run();
+      break;
+    }
+    case 'revoke_badge': {
+      if (!body.value) return jsonResponse({ error: 'Missing badge code' }, 400);
+      await env.DB.prepare(
+        'DELETE FROM user_achievement_badges WHERE user_id = ? AND badge_code = ?'
+      ).bind(body.user_id, body.value).run();
+      break;
+    }
     default:
       return jsonResponse({ error: 'Unknown action' }, 400);
   }

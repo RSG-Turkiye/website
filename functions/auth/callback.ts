@@ -6,6 +6,7 @@ import {
   redirectResponse,
   getBaseUrl,
 } from '../_lib/auth';
+import { awardRank } from '../_lib/rank';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const url = new URL(request.url);
@@ -74,6 +75,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       'INSERT INTO users (id, google_id, email, is_member, is_admin, created_at, last_login) VALUES (?, ?, ?, 0, 0, ?, ?)'
     ).bind(newId, googleUser.id, googleUser.email, now, now).run();
     user = { id: newId, email: googleUser.email };
+    await awardRank(newId, 'seed', 'new_member_default', env);
 
     // Redirect new users to profile setup
     const { token, expires } = await createSession(user.id, env);
