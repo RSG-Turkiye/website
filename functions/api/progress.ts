@@ -1,5 +1,6 @@
 import type { Env } from '../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../_lib/auth';
+import { maybeAutoPromote } from '../_lib/rank';
 
 const RESOURCE_ID_RE = /^[a-z0-9_-]+$/i;
 
@@ -55,6 +56,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         completed_at = CASE WHEN excluded.completed = 1 THEN excluded.completed_at ELSE completed_at END
     `).bind(user.id, item.resource_id, completed, completedAt).run();
   }
+
+  await maybeAutoPromote(user.id, env);
 
   return jsonResponse({ ok: true });
 };
