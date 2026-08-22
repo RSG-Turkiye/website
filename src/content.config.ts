@@ -54,6 +54,7 @@ const webinars = defineCollection({
     // Valid values: genomics, ml, structural, metagenomics, popgen, systems
     // Example: domains: [genomics, ml]
     domains: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
   }),
 });
 

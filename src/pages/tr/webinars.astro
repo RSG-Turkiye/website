@@ -7,7 +7,7 @@ const lang = 'tr';
 const t = useTranslations(lang);
 const pageTitle = "Webinarlar - RSG Türkiye";
 
-const allWebinars = await getCollection('webinars');
+const allWebinars = await getCollection('webinars', ({ data }) => !data.draft);
 const trWebinars = allWebinars.filter(w => w.id.startsWith('tr/'));
 const sortedWebinars = trWebinars.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
