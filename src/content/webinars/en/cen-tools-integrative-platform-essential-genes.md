@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=xhp6-yzRkPs"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436697/rsgturkey/webinars/cansu-dincer.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How gene essentiality varies across biological contexts such as tissue type and mutation profile"
+  - "Using CEN-tools to interrogate CRISPR screen data for context-specific gene dependencies"
+  - "How dependency networks (CENs) can reveal novel gene functions"
+  - "Integrating dependency networks with protein-protein interaction data to find essential pathways in cancer"
+  - "The role of context-specific essentiality mapping in building a human cellular dependency map"
 ---
 
 **Presenter**

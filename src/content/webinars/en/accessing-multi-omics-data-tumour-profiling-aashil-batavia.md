@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How to access and navigate The Cancer Genome Atlas (TCGA) repository across 33 cancer types"
+  - "Tools and workflows for single and integrated multi-omics assessment of tumour samples"
+  - "How multi-omics datasets are used to identify novel research areas and benchmark statistical methods"
+  - "Key considerations for studying wild-type von Hippel-Lindau clear cell renal cell carcinoma"
+  - "How publicly available cancer datasets support both tumour-specific and pan-cancer research"
 ---
 
 **Presenter**

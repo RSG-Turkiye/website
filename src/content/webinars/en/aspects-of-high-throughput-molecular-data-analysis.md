@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=AxqdPMEUfyg"
 slidesUrl: ""
 year: 2019
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436584/rsgturkey/webinars/arif-harmanci.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How genomics, transcriptomics, and epigenetics data are reshaping our understanding of molecular health"
+  - "Why decreasing sequencing costs are driving explosive growth in molecular data generation"
+  - "The gap between data volume and our ability to interpret cellular information processing"
+  - "Key challenges in triaging and integrating multiple omics layers"
+  - "Future directions for high-throughput data acquisition and analysis"
 ---
 
 **Presenter**

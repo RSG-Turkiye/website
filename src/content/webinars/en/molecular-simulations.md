@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=Nc3uD6b8zP0"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437299/rsgturkey/webinars/seyit-kale.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "The historical and physical analogy between molecular simulation and wet-lab experiments"
+  - "How atomic coordinate data captures a structural snapshot but misses dynamics"
+  - "Why faster algorithms and better interaction potentials expanded simulation's reach"
+  - "How simulations propagate Newtonian equations of motion at biological length/time scales"
+  - "Framing molecular simulation as an in silico experiment in structural biology"
 ---
 
 **Presenter**

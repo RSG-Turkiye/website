@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=dgFkmhO0hB4"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787438111/rsgturkey/webinars/mohammad-asif-khan.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How genetic diversity helps viruses evade host immune responses"
+  - "Why RNA viruses mutate more rapidly and generate more variants"
+  - "Analyzing viral diversity dynamics at the protein sequence level"
+  - "Using public sequence databases to study large-scale viral genetic variation"
+  - "Implications of viral diversity dynamics for vaccine design"
 ---
 
 **Presenter**

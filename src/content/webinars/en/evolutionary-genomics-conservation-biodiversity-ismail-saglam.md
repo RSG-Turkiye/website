@@ -10,9 +10,14 @@ youtubeUrl: "https://youtu.be/PzRpvKu8GMk"
 slidesUrl: ""
 year: 2018
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437001/rsgturkey/webinars/ismail-saglam.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How computational genomics contributes to conservation and biodiversity research"
+  - "Using genomics to test evolutionary models and understand forces shaping genetic diversity"
+  - "How evolutionary history reconstruction informs conservation strategy design"
+  - "Understanding the evolutionary basis of adaptation through genomic data"
+  - "Why evolutionary genomics should be viewed as an applied, not purely theoretical, field"
 ---
 
 We had our last webinar on April 16th, given by Dr. Ismail Saglam from Hacettepe University. In this interesting session, we get to know more about evolutionary genomics, and how computational approaches can help us to study conservation and biodiversity. Ismail summarised common methods and questions in the area in general, and he also gave an insight into his research, done in collaboration with different labs in Türkiye and US. In particular, he explained how genomics can help 1) to test different evolutionary models and understand the forces shaping the diversity, 2) to discover the evolutionary history of species to set conservation strategies, and 3) to understand the evolutionary basis of adaptation.

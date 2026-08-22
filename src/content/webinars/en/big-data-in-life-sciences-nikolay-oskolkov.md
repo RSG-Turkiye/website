@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=t38ciyb42vY"
 slidesUrl: ""
 year: 2019
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437497/rsgturkey/webinars/nikolay-oskolkov-v2.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "How Artificial Neural Networks are applied to Single Cell Genomics"
+  - "Deep learning approaches for microscopy image analysis in biology"
+  - "Using neural networks to tackle genomics and ancient DNA research questions"
+  - "Why big data in life sciences poses distinct analytical challenges from other fields"
+  - "When machine and deep learning methods are best suited over classical statistics"
 ---
 
 **Presenter**

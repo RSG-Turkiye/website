@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=tZY_m1_C8s8"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437335/rsgturkey/webinars/gulsah-merve-kilinc.png"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Antik DNA'nın 17.000 ile 550 yıl öncesine uzanan popülasyon dinamiklerini nasıl ortaya koyduğu"
+  - "Geç Üst Paleolitik'ten Demir Çağı'na kadar gen akışı ve karışım olaylarına dair genetik kanıtlar"
+  - "Antik Sibirya popülasyonlarını Paleo-İnuit atalarına bağlayan doğrudan genetik kanıt"
+  - "Antik Kuzeydoğu Asya bireylerinde Yersinia pestis DNA'sının tespiti"
+  - "40 antik bireyin genom dizilemesinin göç tarihi modellerini nasıl yeniden şekillendirdiği"
 ---
 
 **Sunucu**

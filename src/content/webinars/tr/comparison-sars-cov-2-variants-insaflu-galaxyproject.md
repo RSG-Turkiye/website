@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Galaxy Project ve INSaFLU iş akışlarının dizileme verisinden SARS-CoV-2 varyantlarını nasıl tespit ettiği"
+  - "İki bağımsız biyoinformatik iş akışı arasında SNP ve indel varyant çağrılarının karşılaştırılması"
+  - "Replikaz poliprotein 1ab'nin neden en yüksek ortak varyant yoğunluğunu gösterdiği"
+  - "Bu veri setinde sinonim ve sinonim olmayan varyant sıklıkları arasındaki fark"
+  - "Salgın analizi için varyant çağırma iş akışları seçilirken göz önünde bulundurulması gereken ödünleşimler"
 ---
 
 **Çalışmayı Yürütenler**

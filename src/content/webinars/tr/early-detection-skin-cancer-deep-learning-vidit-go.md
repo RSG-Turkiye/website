@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Cilt kanseri türlerini tespit etmek ve sınıflandırmak için CNN tabanlı bir mobil uygulama geliştirme"
+  - "Lezyon sınıflandırması için Modified Inception modelinin Google'ın MobileNet'i ile karşılaştırılması"
+  - "Dermatoskopik görüntü sınıflandırıcılarını değerlendirmek için HAM10000 veri setinin kullanımı"
+  - "Derin öğrenme ile Melanom, Dermatofibrom ve İyi Huylu Keratoz lezyonlarının ayırt edilmesi"
+  - "Mobil CNN araçlarının dermatolojik taramayı erken aşamada nasıl destekleyebileceği"
 ---
 
 **Sunucu**

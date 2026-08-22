@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Protein 3B yapısının adaptif mutasyonların dağılımını nasıl şekillendirdiği"
+  - "Yapısal olarak bağlantılı amino asit pozisyonları arasındaki eş-evrimin araştırılması"
+  - "Adaptif ikame oranlarını tahmin etmek için McDonald-Kreitman yaklaşımının genişletilmesi"
+  - "Eş-evrimleşen dizi pozisyonlarını tespit etmek için ikame haritalama yönteminin kullanımı"
+  - "Yapı odaklı dizi evriminin incelenmesinde karşılaştırmalı genom analizinin neden anahtar olduğu"
 ---
 
 **Sunucu**

@@ -10,9 +10,14 @@ youtubeUrl: "https://www.youtube.com/watch?v=xhp6-yzRkPs"
 slidesUrl: ""
 year: 2021
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787436697/rsgturkey/webinars/cansu-dincer.jpg"
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Gen esansiyalliğinin doku tipi ve mutasyon profili gibi biyolojik bağlamlara göre nasıl değiştiği"
+  - "CRISPR tarama verilerinden bağlama özgü gen bağımlılıklarını sorgulamak için CEN-tools'un kullanımı"
+  - "Bağımlılık ağlarının (CEN'ler) yeni gen fonksiyonlarını nasıl ortaya çıkarabildiği"
+  - "Bağımlılık ağlarının protein-protein etkileşim verileriyle bütünleştirilerek kanserdeki esansiyel yolakların bulunması"
+  - "Bağlama özgü esansiyallik haritalamasının insan hücresel bağımlılık haritası oluşturmadaki rolü"
 ---
 
 **Sunucu**

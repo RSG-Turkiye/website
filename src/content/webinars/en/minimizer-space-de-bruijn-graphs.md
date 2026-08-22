@@ -9,7 +9,13 @@ youtubeUrl: "https://www.youtube.com/watch?v=_IDr-TbAHv8"
 slidesUrl: ""
 year: 2021
 type: "bioinfonet"
-image: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774197082/rsgturkey/06/baris_480.jpg"
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437262/rsgturkey/webinars/baris-ekim.jpg"
+keyTakeaways:
+  - "The concept of minimizer-space sequencing data analysis and k-min-mers"
+  - "How mdBG achieves order-of-magnitude speed and memory improvements in genome assembly"
+  - "Assembling a human genome in under 10 minutes using just 8 cores and 10 GB RAM"
+  - "Applying minimizer-space methods to metagenome assembly and pangenome search"
+  - "How rust-mdbg enables fast, low-memory assembly of PacBio HiFi long reads"
 ---
 
 **Presenter**

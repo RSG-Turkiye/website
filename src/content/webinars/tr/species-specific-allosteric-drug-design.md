@@ -11,7 +11,12 @@ year: 2021
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "Katalitik bölgelerin evrimsel olarak korunurken allosterik bölgelerin neden daha fazla çeşitlendiği"
+  - "Türe özgü allosterik inhibisyonun seçici ilaç hedeflemeyi nasıl mümkün kıldığı"
+  - "Parametrelendirilmiş bir ligand gerektirmeden Kısıtlı Moleküler Dinamik simülasyonunun kullanımı"
+  - "Kalıntı hareketini kısıtlamanın ligand-bağlı allosterik durumları nasıl taklit edebildiği"
+  - "Bakteriyel ama insan glikolitik enzimlerini hedeflemeyen ilaçlar tasarlamanın çıkarımları"
 ---
 
 **Sunucu**

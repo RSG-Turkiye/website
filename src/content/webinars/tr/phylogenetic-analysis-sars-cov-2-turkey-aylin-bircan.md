@@ -11,7 +11,12 @@ year: 2020
 type: bioinfonet
 image: ""
 topic: ""
-keyTakeaways: []
+keyTakeaways:
+  - "15.277 küresel SARS-CoV-2 genomundan bir filogenetik ağaç oluşturma"
+  - "Filogenetik ve sınıflandırma tabanlı yöntemlerle virüs izolatlarının kümelenmesi"
+  - "SARS-CoV-2'nin Türkiye'ye ilk bildirilen vakadan daha önce girdiğine dair kanıt"
+  - "Ülke içinde dolaşan izolatlarca zenginleştirilmiş alt kümelerin belirlenmesi"
+  - "Filogenetik konumlandırma yoluyla birden fazla bağımsız uluslararası giriş olayının izlenmesi"
 ---
 
 **Sunucu**
