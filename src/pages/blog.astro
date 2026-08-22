@@ -153,7 +153,7 @@ const facts = [
 
   const allItems = () => Array.from(document.querySelectorAll<HTMLElement>('.post-item'));
   const searchInput = document.getElementById('searchPosts') as HTMLInputElement;
-  const tagFilter = document.getElementById('tagFilter') as HTMLSelectElement;
+  const tagFilter = document.getElementById('tagFilter') as unknown as HTMLSelectElement;
   const paginationEl = document.getElementById('pagination')!;
   const noResults = document.getElementById('noResults')!;
 

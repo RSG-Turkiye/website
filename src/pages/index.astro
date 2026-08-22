@@ -191,7 +191,7 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data: any = await res.json();
       const items: any[] = data.items || [];
 
       if (items.length === 0) { emptyState(); return; }
