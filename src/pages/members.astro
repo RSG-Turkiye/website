@@ -67,22 +67,35 @@ const BADGE_LABELS: Record<string, string> = {
   </div>
 </BaseLayout>
 
-<script define:vars={{ BADGE_LABELS }}>
+<script>
+  import { rankBadgeSvg } from '../lib/badges.ts';
+
+  // define:vars forces a script to run as a classic (non-module) script, which
+  // can't use `import` -- so this stays a plain static-object literal here
+  // instead, kept in sync with the frontmatter copy above by hand (it's tiny).
+  const BADGE_LABELS: Record<string, string> = {
+    open_to_work: 'Looking for a job / internship',
+    open_to_collaborate: 'Open to collaborate on a project',
+    open_to_mentor: 'Open to mentoring',
+    seeking_mentor: 'Looking for a mentor',
+    open_to_review: 'Open to reviewing papers / code',
+  };
+
   const LIMIT = 24;
   let offset = 0;
   let isLoading = false;
   let hasMore = false;
-  let searchTimer;
+  let searchTimer: ReturnType<typeof setTimeout>;
 
   function getFilters() {
     return {
-      search: document.getElementById('searchInput').value.trim(),
-      interest: document.getElementById('interestFilter').value,
-      badge: document.getElementById('badgeFilter').value,
+      search: (document.getElementById('searchInput') as HTMLInputElement).value.trim(),
+      interest: (document.getElementById('interestFilter') as HTMLSelectElement).value,
+      badge: (document.getElementById('badgeFilter') as HTMLSelectElement).value,
     };
   }
 
-  function avatarHtml(member) {
+  function avatarHtml(member: any) {
     if (member.avatar_url) {
       return `<img src="${member.avatar_url}" class="w-14 h-14 rounded-full object-cover" />`;
     }
@@ -90,12 +103,12 @@ const BADGE_LABELS: Record<string, string> = {
     return `<div style="width:56px;height:56px;border-radius:50%;background:#e8edf5;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#0f2045;">${initial}</div>`;
   }
 
-  function renderCard(member) {
-    const badges = (member.badges || []).slice(0, 2).map(b =>
+  function renderCard(member: any) {
+    const badges = (member.badges || []).slice(0, 2).map((b: string) =>
       `<span style="font-size:11px;padding:3px 10px;border-radius:99px;background:#e8edf5;color:#0f2045;font-weight:500;">${BADGE_LABELS[b] || b}</span>`
     ).join('');
 
-    const interests = (member.interests || []).slice(0, 3).map(i =>
+    const interests = (member.interests || []).slice(0, 3).map((i: string) =>
       `<span style="font-size:11px;padding:3px 10px;border-radius:99px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;">${i}</span>`
     ).join('');
 
@@ -115,6 +128,7 @@ const BADGE_LABELS: Record<string, string> = {
             <div style="font-size:12px;color:#9ca3af;margin-top:2px;">@${member.username}</div>
             ${member.institution ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">${member.institution}</div>` : ''}
           </div>
+          <div style="flex-shrink:0;">${rankBadgeSvg(member.rank || 'seed', 48)}</div>
         </div>
         ${member.bio ? `<p style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${member.bio}</p>` : ''}
         ${badges ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">${badges}</div>` : ''}
@@ -128,14 +142,14 @@ const BADGE_LABELS: Record<string, string> = {
 
     if (reset) {
       offset = 0;
-      document.getElementById('memberGrid').innerHTML = '';
-      document.getElementById('memberGrid').classList.add('hidden');
-      document.getElementById('emptyState').classList.add('hidden');
-      document.getElementById('loadingState').classList.remove('hidden');
+      document.getElementById('memberGrid')!.innerHTML = '';
+      document.getElementById('memberGrid')!.classList.add('hidden');
+      document.getElementById('emptyState')!.classList.add('hidden');
+      document.getElementById('loadingState')!.classList.remove('hidden');
     }
 
     const { search, interest, badge } = getFilters();
-    const params = new URLSearchParams({ limit: LIMIT, offset });
+    const params = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) });
     if (search) params.set('search', search);
     if (interest) params.set('interest', interest);
     if (badge) params.set('badge', badge);
@@ -143,23 +157,23 @@ const BADGE_LABELS: Record<string, string> = {
     const res = await fetch(`/api/members?${params}`);
     const data = await res.json();
 
-    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('loadingState')!.classList.add('hidden');
 
-    const grid = document.getElementById('memberGrid');
+    const grid = document.getElementById('memberGrid')!;
     const members = data.members || [];
     hasMore = members.length === LIMIT;
     offset += members.length;
 
     if (reset && members.length === 0) {
-      document.getElementById('emptyState').classList.remove('hidden');
+      document.getElementById('emptyState')!.classList.remove('hidden');
     } else {
       grid.classList.remove('hidden');
-      members.forEach(m => {
+      members.forEach((m: any) => {
         grid.insertAdjacentHTML('beforeend', renderCard(m));
       });
     }
 
-    document.getElementById('loadMoreBtn').classList.toggle('hidden', !hasMore);
+    document.getElementById('loadMoreBtn')!.classList.toggle('hidden', !hasMore);
     isLoading = false;
   }
 
@@ -175,11 +189,11 @@ const BADGE_LABELS: Record<string, string> = {
   })();
 
   // Search & filters
-  document.getElementById('searchInput').addEventListener('input', () => {
+  document.getElementById('searchInput')!.addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => loadMembers(true), 350);
   });
-  document.getElementById('interestFilter').addEventListener('change', () => loadMembers(true));
-  document.getElementById('badgeFilter').addEventListener('change', () => loadMembers(true));
-  document.getElementById('loadMoreBtn').addEventListener('click', () => loadMembers(false));
+  document.getElementById('interestFilter')!.addEventListener('change', () => loadMembers(true));
+  document.getElementById('badgeFilter')!.addEventListener('change', () => loadMembers(true));
+  document.getElementById('loadMoreBtn')!.addEventListener('click', () => loadMembers(false));
 </script>
