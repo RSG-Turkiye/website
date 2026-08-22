@@ -148,7 +148,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
     }
 
     var cached = getCached();
-    (cached ? Promise.resolve(cached) : fetch('/api/me').then(function(r) { return r.json(); }).then(function(d) { setCache(d); return d; }))
+    (cached ? Promise.resolve(cached) : fetch('/api/me').then(function(r) { return r.json(); }).then(function(d) { if (d.user) { setCache(d); } return d; }))
       .then(function (data) {
         var joinBtn = document.getElementById('joinBtn');
         if (joinBtn && (!data.user || !data.user.is_member)) {
