@@ -3,6 +3,7 @@ title: Uzamsal Transkriptomik Kullanarak İnsan Dokusu Mimarisini ve Patolojisin
 date: 2023-06-21
 speaker: "Dr. Ömer Ali Bayraktar"
 speakerAffiliation: "Wellcome Sanger Enstitüsü"
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437222/rsgturkey/webinars/omer-ali-bayraktar.jpg"
 description: "Dr. Bayraktar, uzamsal transkriptomik verilerde ince taneli hücre tiplerini çözmek için bir Bayesian modeli olan cell2location'ı ve glioblastomadaki tümör dokusu mimarisini haritalamak için çok modlu bir genomik yaklaşım olan GBM-space'i sunuyor."
 youtubeUrl: ""
 slidesUrl: ""

@@ -4,6 +4,7 @@ date: 2021-06-11
 speaker: Hatice Ülkü Osmanbeyoğlu
 speakerAffiliation: University of Pittsburgh Medical School / UPMC Hillman Cancer Center
 speakerTitle: Assistant Professor
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437613/rsgturkey/webinars/hatice-ulku-osmanbeyoglu.jpg"
 description: Presentation of SPaRTAN, a computational method to link cell-surface receptors to transcription factors using CITE-seq datasets, applied to predict signaling-coupled TF states in tumor infiltrating CD8+ T cells.
 youtubeUrl: ""
 slidesUrl: ""

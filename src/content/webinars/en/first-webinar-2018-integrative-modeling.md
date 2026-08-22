@@ -4,6 +4,7 @@ date: 2018-01-31
 speaker: Ezgi Karaca
 speakerAffiliation: Izmir Biomedicine and Genome Center
 speakerTitle: Associate Professor
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437044/rsgturkey/webinars/ezgi-karaca.jpg"
 description: A recap of the first webinar of 2018, given by Assoc. Prof. Ezgi Karaca on integrative modeling of biomolecular complexes including structural biology techniques and the HADDOCK docking program.
 youtubeUrl: "https://www.bigmarker.com/bioinfonet/EzgiKaraca"
 slidesUrl: ""

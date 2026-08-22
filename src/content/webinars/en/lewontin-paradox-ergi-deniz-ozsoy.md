@@ -4,6 +4,7 @@ date: 2020-08-08
 speaker: Ergi Deniz Özsoy
 speakerAffiliation: Hacettepe University
 speakerTitle: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437183/rsgturkey/webinars/ergi-deniz-ozsoy.jpg"
 description: A summary of modern studies and approaches related to the Lewontin Paradox — the contradiction between population size and neutral genetic variation — with emphasis on the Hill-Robertson effect and linked selection.
 youtubeUrl: ""
 slidesUrl: ""

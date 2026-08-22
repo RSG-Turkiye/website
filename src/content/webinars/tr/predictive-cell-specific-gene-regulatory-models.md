@@ -4,6 +4,7 @@ date: 2021-06-11
 speaker: Hatice Ülkü Osmanbeyoğlu
 speakerAffiliation: Pittsburgh Üniversitesi Tıp Okulu / UPMC Hillman Kanser Merkezi
 speakerTitle: Yardımcı Doçent
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437613/rsgturkey/webinars/hatice-ulku-osmanbeyoglu.jpg"
 description: SPaRTAN — CITE-seq veri setlerini kullanarak hücre yüzey reseptörlerini transkripsiyon faktörleriyle ilişkilendiren bir hesaplamalı yöntem; tümör infiltre eden CD8+ T hücrelerindeki sinyalleşme durumlarını tahmin etmek için uygulandı.
 youtubeUrl: ""
 slidesUrl: ""

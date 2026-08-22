@@ -4,6 +4,7 @@ date: 2020-09-30
 speaker: Begüm Serra Büyüktarakçı
 speakerAffiliation: Uppsala University
 speakerTitle: Research Assistant
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437912/rsgturkey/webinars/begum-serra-buyuktarakci.jpg"
 description: A comparative phylogenomic study of sex-related genes in Hexamita inflata, showing evidence for nuclear fusion and meiotic inter-homolog recombination in this diplomonad.
 youtubeUrl: ""
 slidesUrl: ""

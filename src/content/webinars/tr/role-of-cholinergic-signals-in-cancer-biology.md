@@ -4,6 +4,7 @@ date: 2021-04-14
 speaker: Özlen Konu
 speakerAffiliation: Bilkent Üniversitesi
 speakerTitle: Doçent
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437847/rsgturkey/webinars/ozlen-konu.jpg"
 description: Kolinerjik sinyallerin kanser ilerlemesindeki rolüne dair in silico, in vitro ve in vivo bulgular; meme kanserinde CHRNA5'in rolü ve karaciğer kanseri için zebra balığı ksenograft modelleri.
 youtubeUrl: ""
 slidesUrl: ""

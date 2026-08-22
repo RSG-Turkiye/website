@@ -3,6 +3,7 @@ title: Mapping Human Tissue Architecture and Pathology Using Spatial Transcripto
 date: 2023-06-21
 speaker: "Dr. Ömer Ali Bayraktar"
 speakerAffiliation: "Wellcome Sanger Institute"
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437222/rsgturkey/webinars/omer-ali-bayraktar.jpg"
 description: "Dr. Bayraktar presents cell2location, a Bayesian model for resolving fine-grained cell types in spatial transcriptomic data, and GBM-space, a multi-modal genomics approach to mapping tumour tissue architecture in glioblastoma."
 youtubeUrl: ""
 slidesUrl: ""

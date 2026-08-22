@@ -3,6 +3,7 @@ title: "Minimizer-Uzay De Bruijn Grafikleri"
 date: 2021-06-25
 speaker: "Barış Ekim"
 speakerAffiliation: "Massachusetts Institute of Technology"
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437262/rsgturkey/webinars/baris-ekim.jpg"
 description: "Barış Ekim, minimizer-uzay dizileme veri analizini (mdBG) tanıtıyor: mevcut yöntemlere kıyasla genom birleştirmede hız ve bellek kullanımında büyük ölçüde iyileşme sağlayan yeni bir yaklaşım."
 youtubeUrl: ""
 slidesUrl: ""

@@ -4,6 +4,7 @@ date: 2017-12-31
 speaker: Ezgi Karaca
 speakerAffiliation: Dokuz Eylül University
 speakerTitle: Associate Professor
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437044/rsgturkey/webinars/ezgi-karaca.jpg"
 description: An introduction to structural biology techniques and how to incorporate structural data into biomolecular simulations, especially docking, with discussion of integrative modeling published in Nature Methods.
 youtubeUrl: "https://www.youtube.com/watch?v=jmFxZDTmEBo"
 slidesUrl: ""
