@@ -72,9 +72,54 @@ CREATE TABLE IF NOT EXISTS progress (
   PRIMARY KEY (user_id, resource_id)
 );
 
+-- Growth rank: Tohum/Seed -> Filiz/Sprout -> Fidan/Sapling -> Çınar/Legacy Tree.
+-- Insert-only log, never updated or deleted. A user's current rank is always
+-- the highest rank_ordinal ever recorded for them (see idx below) -- this is
+-- what makes rank a high-water mark: a later drop in activity can only add a
+-- lower-ordinal row, which never changes the MAX(), so rank can't regress.
+-- The score behind each entry is computed in application code from a blend
+-- of learning-path progress, event/project participation, and community
+-- contribution; the weighting between those is intentionally not encoded
+-- here so it stays tunable without a schema change.
+CREATE TABLE IF NOT EXISTS rank_history (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rank         TEXT NOT NULL CHECK (rank IN ('seed', 'sprout', 'sapling', 'legacy_tree')),
+  rank_ordinal INTEGER NOT NULL CHECK (rank_ordinal BETWEEN 1 AND 4),
+  reason       TEXT,
+  computed_at  INTEGER NOT NULL
+);
+
+-- Pipeline: rare, unordered specialty badges for demonstrated bioinformatics
+-- skills. Independent of Growth rank -- earning one has no bearing on rank,
+-- and they aren't earned in any particular sequence. Catalog is meant to
+-- grow (RNA-seq, metagenomics, phylogenetics, ...) without implying an order.
+CREATE TABLE IF NOT EXISTS achievement_badges (
+  code        TEXT PRIMARY KEY,
+  name_en     TEXT NOT NULL,
+  name_tr     TEXT NOT NULL,
+  description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS user_achievement_badges (
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  badge_code TEXT NOT NULL REFERENCES achievement_badges(code),
+  awarded_at INTEGER NOT NULL,
+  awarded_by TEXT REFERENCES users(id),
+  PRIMARY KEY (user_id, badge_code)
+);
+
+INSERT OR IGNORE INTO achievement_badges (code, name_en, name_tr, description) VALUES
+  ('variant_analysis', 'Variant Analysis', 'Varyant Analizi', 'Identifying and interpreting variants from aligned sequencing data.'),
+  ('read_qc',          'Read QC',          'Okuma QC',        'Assessing and cleaning raw sequencing reads before downstream analysis.'),
+  ('read_alignment',   'Read Alignment',   'Okuma Hizalama',  'Mapping sequencing reads to a reference.'),
+  ('genome_assembly',  'Genome Assembly',  'Genom Montajı',   'Assembling a genome from sequencing reads without a reference.');
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_progress_user_id ON progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_rank_history_user_ordinal ON rank_history(user_id, rank_ordinal);
+CREATE INDEX IF NOT EXISTS idx_user_achievement_badges_user_id ON user_achievement_badges(user_id);
