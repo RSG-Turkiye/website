@@ -39,10 +39,6 @@ sections:
 
   - type: webinars
     resources:
-      - title: "Reconstruction of Signaling Network Topology"
-        description: "Sinyal biyolojisine uygulanan ML tabanlı ağ çıkarımı. Graf tabanlı modellerin biyolojik ağ verisini nasıl işlediğini gösteren teknik yoğun bir konuşma."
-        tag: Webinar
-        webinarSlug: reconstruction-signaling-network-topology
       - title: "CEN Tools — Integrative Platform for Essential Genes"
         description: "Esansiyallik tahmini için çok-omik entegrasyonu. Hedef belirleme, CRISPR ekranı analizi veya çok-modal veri füzyonu üzerinde çalışıyorsanız ilgili."
         tag: Webinar

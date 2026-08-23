@@ -40,5 +40,5 @@ sections:
       - title: "Integrative Modeling of Biomolecular Complexes (2018)"
         description: "Yapısal biyoloji üzerine ilk RSG Türkiye webinarı. Büyük soruları kapsıyor: kristalize edilemeyen büyük kompleksleri nasıl modelleriz? Alanın kapsamına iyi bir yönlendirme."
         tag: Webinar
-        webinarSlug: first-webinar-2018-integrative-modeling
+        webinarSlug: integrative-modeling-of-biomolecular-complexes
 ---

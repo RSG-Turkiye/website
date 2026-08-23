@@ -39,10 +39,6 @@ sections:
 
   - type: webinars
     resources:
-      - title: "Reconstruction of Signaling Network Topology"
-        description: "ML-based network inference applied to signalling biology. A technically dense talk that demonstrates how graph-based models handle biological network data."
-        tag: Webinar
-        webinarSlug: reconstruction-signaling-network-topology
       - title: "CEN Tools — Integrative Platform for Essential Genes"
         description: "Multi-omics integration for essentiality prediction. Relevant if you work on target identification, CRISPR screen analysis, or multi-modal data fusion."
         tag: Webinar
