@@ -30,11 +30,4 @@ sections:
         description: "QIIME2's introductory tutorial uses time-series data from a real study. Follow it end-to-end using their test data — you'll see the full 16S workflow before applying it to your own samples."
         tag: Tutorial
         url: "https://docs.qiime2.org/2024.10/tutorials/moving-pictures/"
-
-  - type: webinars
-    resources:
-      - title: "Computational Metagenomics at the Species Level"
-        description: "A foundational talk on the computational challenges of metagenomic analysis — taxonomic profiling, assembly, and the assumptions behind each approach. A good conceptual grounding before touching tools."
-        tag: Webinar
-        webinarSlug: computational-metagenomics-species-level
 ---

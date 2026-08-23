@@ -30,11 +30,4 @@ sections:
         description: "QIIME2'nin tanıtım eğitimi, gerçek bir çalışmadan zaman serisi verisi kullanıyor. Test verileriyle uçtan uca takip edin — kendi örneklerinize uygulamadan önce tam 16S iş akışını göreceksiniz."
         tag: Tutorial
         url: "https://docs.qiime2.org/2024.10/tutorials/moving-pictures/"
-
-  - type: webinars
-    resources:
-      - title: "Computational Metagenomics at the Species Level"
-        description: "Metagenomik analizin hesaplamalı zorlukları üzerine temel bir konuşma — taksonomik profilleme, montaj ve her yaklaşımın arkasındaki varsayımlar. Araçlara dokunmadan önce iyi bir kavramsal zemin."
-        tag: Webinar
-        webinarSlug: computational-metagenomics-species-level
 ---
