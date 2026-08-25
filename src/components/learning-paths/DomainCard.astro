@@ -21,14 +21,14 @@ interface Props {
   webinarCount: number;
   hrefBase?: string;        // defaults to '/learning-paths'
   exploreLabel?: string;    // defaults to 'Explore domain'
-  sessionsBadge?: string;   // if set, overrides the auto "X RSG Turkey sessions" text
+  sessionsBadge?: string;   // if set, overrides the auto "X RSG Turkiye sessions" text
 }
 
 const { id, name, emoji, tagline, levels, webinarCount, hrefBase = '/learning-paths', exploreLabel = 'Explore domain', sessionsBadge } = Astro.props;
 
 const defaultSessionsBadge = webinarCount === 1
-  ? `${webinarCount} RSG Turkey session`
-  : `${webinarCount} RSG Turkey sessions`;
+  ? `${webinarCount} RSG Turkiye session`
+  : `${webinarCount} RSG Turkiye sessions`;
 
 const badgeText = sessionsBadge ?? defaultSessionsBadge;
 

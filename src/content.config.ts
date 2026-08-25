@@ -134,7 +134,7 @@ const lpLevels = defineCollection({
     // Bullet points shown in the "what you should already know" callout
     prerequisites: z.array(z.string()).default([]),
     sections: z.array(z.object({
-      // foundations = readings/courses, toolkit = tools, webinars = RSG Turkey, papers = landmark papers
+      // foundations = readings/courses, toolkit = tools, webinars = RSG Turkiye, papers = landmark papers
       type: z.enum(["foundations", "toolkit", "webinars", "papers"]),
       resources: z.array(resourceSchema),
     })),
