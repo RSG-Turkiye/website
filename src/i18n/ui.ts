@@ -63,8 +63,8 @@ export const ui = {
     'about.title': 'About RSG Turkiye',
     'about.subtitle': 'A non-profit community of early career researchers interested in computational biology and bioinformatics.',
     'about.whoWeAre.title': 'Who Are We?',
-    'about.whoWeAre.description': 'RSG-Turkiye is a volunteer platform affiliated with the International Society for Computational Biology (ISCB) Student Council, bringing together students and early-career researchers in computational biology and bioinformatics across Turkey.',
-    'about.whoWeAre.detail': 'Operating entirely on volunteerism since 2011, we are a non-hierarchical community that creates and supports one another. We organize annual student symposiums, monthly webinars with international experts, journal club meetings, and hands-on workshops — connecting young scientists in Turkey with each other and with colleagues around the world.',
+    'about.whoWeAre.description': 'RSG-Turkiye is a volunteer platform affiliated with the International Society for Computational Biology (ISCB) Student Council, bringing together students and early-career researchers in computational biology and bioinformatics across Turkiye.',
+    'about.whoWeAre.detail': 'Operating entirely on volunteerism since 2011, we are a non-hierarchical community that creates and supports one another. We organize annual student symposiums, monthly webinars with international experts, journal club meetings, and hands-on workshops — connecting young scientists in Turkiye with each other and with colleagues around the world.',
     'about.affiliation.title': 'International Affiliation',
     'about.affiliation.description': 'Member of ISCB Student Council Regional Student Groups',
     'about.community.title': 'Community Focus',
@@ -213,7 +213,7 @@ export const ui = {
     
     // Events Page
     'events.title': 'Events',
-    'events.subtitle': 'Join us for symposiums, workshops, and networking events throughout Turkey.',
+    'events.subtitle': 'Join us for symposiums, workshops, and networking events throughout Turkiye.',
     'events.overview.title': 'Our Events',
     'events.overview.subtitle': 'Discover our annual symposiums, workshops, and networking opportunities.',
     'events.symposiums.title': 'Annual Symposiums',

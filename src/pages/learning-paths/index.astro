@@ -16,7 +16,7 @@ const LEVEL_LABELS: Record<string, string> = {
   specialist:   'Specialist',
 };
 
-// For each domain: which levels have content files, and how many RSG Turkey webinars are curated
+// For each domain: which levels have content files, and how many RSG Turkiye webinars are curated
 const domainMeta = domains.map(domain => {
   const domainSlug = domain.id.slice(3); // 'en/genomics' → 'genomics'
   const domainLevels = allLevels.filter(l => l.data.domain === domainSlug && l.id.startsWith('en/'));

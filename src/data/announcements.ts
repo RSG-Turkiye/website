@@ -88,7 +88,7 @@ export const announcements: Announcement[] = [
     type: 'international',
     date: 'April 15, 2025',
     title: 'ISCB Student Council Meeting',
-    description: 'Representing Turkey at the international ISCB Student Council meeting. Share your ideas and connect with global peers.',
+    description: 'Representing Turkiye at the international ISCB Student Council meeting. Share your ideas and connect with global peers.',
     primaryAction: {
       text: 'Learn More',
       url: '/about'
