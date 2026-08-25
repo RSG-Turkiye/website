@@ -1,7 +1,7 @@
 ---
 number: 6
 emoji: "🎬"
-title: "RSG Turkey — Watch the Experts"
+title: "RSG Turkiye — Watch the Experts"
 subtitle: "These sessions from our archive are accessible to anyone starting out. Real researchers, real problems, explained well."
 color: red
 resources:
