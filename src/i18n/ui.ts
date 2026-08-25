@@ -25,7 +25,7 @@ export const ui = {
 
     // Hero Section
     'hero.title': 'RSG Turkiye',
-    'hero.description': 'A non-profit student society providing a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics in Turkey.',
+    'hero.description': 'A non-profit student society providing a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics in Turkiye.',
     'hero.membership': 'Member of the International Society for Computational Biology (ISCB) Student Council (SC) Regional Student Groups (RSG)',
     'hero.learnMore': 'Learn More',
     'hero.joinCommunity': 'Join Our Community',
