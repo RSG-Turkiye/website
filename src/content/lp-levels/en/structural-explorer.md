@@ -38,7 +38,7 @@ sections:
         tag: Webinar
         webinarSlug: molecular-simulations
       - title: "Integrative Modeling of Biomolecular Complexes (2018)"
-        description: "The first RSG Turkey webinar on structural biology. Covers the big questions: how do we model large assemblies that can't be crystallised? A good orientation to the field's scope."
+        description: "The first RSG Turkiye webinar on structural biology. Covers the big questions: how do we model large assemblies that can't be crystallised? A good orientation to the field's scope."
         tag: Webinar
         webinarSlug: integrative-modeling-of-biomolecular-complexes
 ---

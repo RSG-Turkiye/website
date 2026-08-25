@@ -38,7 +38,7 @@ sections:
   - type: webinars
     resources:
       - title: "Early Detection of Skin Cancer with Deep Learning"
-        description: "A complete end-to-end case study: from raw images to a clinical-grade classifier. The clearest example of ML solving a real biological problem in the RSG Turkey archive."
+        description: "A complete end-to-end case study: from raw images to a clinical-grade classifier. The clearest example of ML solving a real biological problem in the RSG Turkiye archive."
         tag: Webinar
         webinarSlug: early-detection-skin-cancer-deep-learning-vidit-go
       - title: "Big Data in Life Sciences"
