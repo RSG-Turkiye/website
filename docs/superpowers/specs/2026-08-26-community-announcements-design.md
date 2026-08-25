@@ -61,8 +61,8 @@ All new endpoints live under `functions/api/`, following the existing `_lib/auth
 - **`GET /api/announcements`** — public, no auth. Returns all rows where `expires_at > now()`, ordered by `created_at DESC` (newest announcement takes the leftmost slot). This is what the homepage fetches client-side.
 - **`GET /api/admin/announcements`** — auth: `is_admin OR is_announcer`. Returns all rows (including expired, for the management table) ordered by `created_at DESC`.
 - **`POST /api/admin/announcements`** — auth: `is_admin OR is_announcer`. Body: `{ title, description, button_text, button_url, show_as_popup, expires_at }`. Inserts a row with `created_by` = the caller's user id.
+- **`PATCH /api/admin/announcements/:id`** — auth: `is_admin OR is_announcer`. Body: any subset of `{ title, description, button_text, button_url, show_as_popup, expires_at }`. Updates in place; `created_at` (and therefore card-slot ordering) is untouched by an edit.
 - **`DELETE /api/admin/announcements/:id`** — auth: `is_admin OR is_announcer`. Hard delete.
-- No `PATCH`/edit endpoint in v1 — editing a mistake is delete + recreate. (Flagged in self-review below; confirm this is acceptable.)
 
 ## 4. Admin UI
 
@@ -72,7 +72,7 @@ Extend `src/pages/admin/index.astro`:
 - Render logic branches on the caller's flags:
   - `is_admin` sees the full existing page (user table with verify/admin/announcer actions) **plus** a new "Announcements" section.
   - `is_announcer` (and not `is_admin`) sees **only** the "Announcements" section — no user table, no member/rank/badge controls.
-- Announcements section: a simple table of existing announcements (title, expires date, popup y/n, delete button) plus a form to create a new one (title, description, button text, button URL, expiry date, "also show as popup" checkbox).
+- Announcements section: a simple table of existing announcements (title, expires date, popup y/n, edit button, delete button) plus a form to create a new one (title, description, button text, button URL, expiry date, "also show as popup" checkbox). The edit button opens the same form pre-filled with that row's values; submitting sends a `PATCH` instead of a `POST` and does not change the announcement's position in the card order (§5) since `created_at` is left untouched.
 - The existing user table gains two new action buttons per row (admin-only, same style as the current verify/make-admin buttons): "Make announcer" / "Remove announcer".
 
 ## 5. Homepage integration
@@ -112,7 +112,4 @@ Same client-side script that fetches `/api/announcements`:
 - Confirm an announcer-only test account can reach `/admin`, sees only the announcements section, and a plain member (`is_announcer=0, is_admin=0`) hitting `/admin` or the admin API still gets 403/redirected exactly as today.
 - Let a test announcement's `expires_at` pass; confirm the default card set reappears on next page load with no manual action.
 - Confirm popup dismissal persists across a reload in the same browser, and that a second, different announcement still pops up after the first is dismissed.
-
-## Open question flagged during self-review
-
-No edit/PATCH endpoint exists in v1 — fixing a typo means deleting and recreating the announcement (which also resets its `created_at`, potentially changing its slot order relative to other active announcements). This seemed acceptable given how small/simple these entries are, but flagging explicitly in case that's not fine in practice.
+- Confirm editing an announcement via `PATCH` updates its content without changing its position among other active announcements.
