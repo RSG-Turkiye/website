@@ -31,3 +31,5 @@ client_secret*.json
 *.credentials.json
 committee-photos/
 *.zip
+
+.superpowers/
