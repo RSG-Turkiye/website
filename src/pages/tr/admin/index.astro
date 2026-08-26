@@ -29,6 +29,10 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <div id="statsRow" class="flex gap-4"></div>
         </div>
 
+        <!-- Toast -->
+        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
+
+        <div id="userManagementSection">
         <!-- Filters -->
         <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6 flex flex-wrap items-center gap-3">
           <input
@@ -43,9 +47,6 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             <button data-filter="pending" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">Bekleyen</button>
           </div>
         </div>
-
-        <!-- Toast -->
-        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
 
         <!-- User table -->
         <div class="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -63,6 +64,58 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             </tbody>
           </table>
           <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-400">Kullanıcı bulunamadı.</div>
+        </div>
+        </div>
+
+        <!-- Announcements section -->
+        <div id="announcementsSection" class="mt-8">
+          <h2 class="text-lg font-semibold text-navy mb-4">Duyurular</h2>
+
+          <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6">
+            <form id="announcementForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input type="hidden" id="announcementEditId" value="" />
+              <input id="annTitle" type="text" placeholder="Başlık" required
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2" />
+              <textarea id="annDescription" placeholder="Açıklama" required rows="2"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2"></textarea>
+              <input id="annButtonText" type="text" placeholder="Buton metni (örn. Formu Doldur)" required
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <input id="annButtonUrl" type="url" placeholder="Buton URL'si" required
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <label class="flex items-center gap-2 text-sm text-gray-600">
+                Bitiş tarihi
+                <input id="annExpiresAt" type="date" required
+                  class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+              </label>
+              <label class="flex items-center gap-2 text-sm text-gray-600">
+                <input id="annShowAsPopup" type="checkbox" class="rounded border-border" />
+                Popup olarak da göster
+              </label>
+              <div class="sm:col-span-2 flex items-center gap-2">
+                <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+                  Duyuruyu kaydet
+                </button>
+                <button type="button" id="cancelEditBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+                  Düzenlemeyi iptal et
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-[#F7F7F6]">
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Başlık</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Bitiş</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Popup</th>
+                  <th class="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody id="announcementsTableBody"></tbody>
+            </table>
+            <div id="announcementsEmptyState" class="hidden text-center py-12 text-sm text-gray-400">Henüz duyuru yok.</div>
+          </div>
         </div>
 
       </div>
@@ -84,6 +137,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 <script>
   let currentFilter = 'all';
   let searchTimer: ReturnType<typeof setTimeout>;
+  let canManageAnnouncements = false;
 
   function showToast(message: string, isError = false) {
     const toast = document.getElementById('toast')!;
@@ -95,6 +149,121 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 
   function formatDate(ts: number) {
     return new Date(ts * 1000).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function escapeHtml(s: unknown): string {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c] as string));
+  }
+
+  function renderAnnouncements(items: any[]) {
+    const tbody = document.getElementById('announcementsTableBody')!;
+    const empty = document.getElementById('announcementsEmptyState')!;
+
+    if (items.length === 0) {
+      tbody.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    tbody.innerHTML = items.map(a => `
+      <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
+        <td class="px-5 py-4 text-navy font-medium">${escapeHtml(a.title)}</td>
+        <td class="px-5 py-4 text-gray-400">${formatDate(a.expires_at)}</td>
+        <td class="px-5 py-4 text-gray-400">${a.show_as_popup ? 'Evet' : 'Hayır'}</td>
+        <td class="px-5 py-4 text-right">
+          <button data-id="${a.id}" class="edit-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2">Düzenle</button>
+          <button data-id="${a.id}" class="delete-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">Sil</button>
+        </td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('.edit-announcement-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
+        const item = items.find(a => a.id === id);
+        if (!item) return;
+        (document.getElementById('announcementEditId') as HTMLInputElement).value = item.id;
+        (document.getElementById('annTitle') as HTMLInputElement).value = item.title;
+        (document.getElementById('annDescription') as HTMLTextAreaElement).value = item.description;
+        (document.getElementById('annButtonText') as HTMLInputElement).value = item.button_text;
+        (document.getElementById('annButtonUrl') as HTMLInputElement).value = item.button_url;
+        const expiresDate = new Date(item.expires_at * 1000);
+        const localExpiresDateStr = `${expiresDate.getFullYear()}-${String(expiresDate.getMonth() + 1).padStart(2, '0')}-${String(expiresDate.getDate()).padStart(2, '0')}`;
+        (document.getElementById('annExpiresAt') as HTMLInputElement).value = localExpiresDateStr;
+        (document.getElementById('annShowAsPopup') as HTMLInputElement).checked = item.show_as_popup;
+        document.getElementById('cancelEditBtn')!.classList.remove('hidden');
+      });
+    });
+
+    tbody.querySelectorAll('.delete-announcement-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const b = e.currentTarget as HTMLButtonElement;
+        b.disabled = true;
+        const res = await fetch(`/api/admin/announcements/${b.dataset.id}`, { method: 'DELETE' });
+        if (res.ok) { showToast('Silindi'); await loadAnnouncements(); }
+        else { showToast('Hata oluştu', true); b.disabled = false; }
+      });
+    });
+  }
+
+  async function loadAnnouncements() {
+    const res = await fetch('/api/admin/announcements');
+    if (!res.ok) return;
+    const data = await res.json() as { announcements: any[] };
+    renderAnnouncements(data.announcements);
+  }
+
+  // One-time wiring of the announcement form's submit/cancel listeners.
+  // Must run exactly once for the page's lifetime — loadAnnouncements() is
+  // called repeatedly (after every create/update/delete) and #announcementForm
+  // / #cancelEditBtn are static DOM nodes, so attaching listeners inside
+  // loadAnnouncements would stack a new listener on every reload.
+  function setupAnnouncementForm() {
+    if (!canManageAnnouncements) return;
+
+    const form = document.getElementById('announcementForm') as HTMLFormElement;
+    const cancelBtn = document.getElementById('cancelEditBtn')!;
+
+    function resetForm() {
+      form.reset();
+      (document.getElementById('announcementEditId') as HTMLInputElement).value = '';
+      cancelBtn.classList.add('hidden');
+    }
+
+    cancelBtn.addEventListener('click', resetForm);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = (document.getElementById('announcementEditId') as HTMLInputElement).value;
+      const expiresDate = (document.getElementById('annExpiresAt') as HTMLInputElement).value;
+      const body = {
+        title: (document.getElementById('annTitle') as HTMLInputElement).value,
+        description: (document.getElementById('annDescription') as HTMLTextAreaElement).value,
+        button_text: (document.getElementById('annButtonText') as HTMLInputElement).value,
+        button_url: (document.getElementById('annButtonUrl') as HTMLInputElement).value,
+        show_as_popup: (document.getElementById('annShowAsPopup') as HTMLInputElement).checked,
+        expires_at: Math.floor(new Date(expiresDate + 'T23:59:59').getTime() / 1000),
+      };
+
+      const url = editId ? `/api/admin/announcements/${editId}` : '/api/admin/announcements';
+      const method = editId ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        showToast(editId ? 'Güncellendi' : 'Oluşturuldu');
+        resetForm();
+        await loadAnnouncements();
+      } else {
+        const err = await res.json() as { error: string };
+        showToast(err.error || 'Hata oluştu', true);
+      }
+    });
   }
 
   async function doAction(userId: string, action: string, btn: HTMLButtonElement) {
@@ -135,6 +304,9 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       const adminBadge = u.is_admin
         ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">Admin</span>'
         : '';
+      const announcerBadge = u.is_announcer
+        ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">Announcer</span>'
+        : '';
       const privateBadge = u.is_public === 0
         ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">Gizli</span>'
         : '';
@@ -151,6 +323,10 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
               ? `<button data-id="${u.id}" data-action="remove_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Admin yetkisini kaldır</button>`
               : `<button data-id="${u.id}" data-action="make_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Admin yap</button>`
             }
+            ${u.is_announcer
+              ? `<button data-id="${u.id}" data-action="remove_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Announcer yetkisini kaldır</button>`
+              : `<button data-id="${u.id}" data-action="make_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Announcer yap</button>`
+            }
             <button data-id="${u.id}" data-action="make_private" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Profili gizle</button>
             <button data-id="${u.id}" data-action="clear_bio" class="action-btn block w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50">Biyografiyi temizle</button>
           </div>
@@ -164,7 +340,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             ${institution}
           </td>
           <td class="px-5 py-4 text-gray-500">${u.email}</td>
-          <td class="px-5 py-4">${memberBadge}${adminBadge}${privateBadge}</td>
+          <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${privateBadge}</td>
           <td class="px-5 py-4 text-gray-400">${formatDate(u.created_at)}</td>
           <td class="px-5 py-4 text-right">
             <div class="flex items-center justify-end gap-2">
@@ -233,13 +409,18 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 
     document.getElementById('loadingState')!.classList.add('hidden');
 
-    if (!data.user || !data.user.is_admin) {
+    if (!data.user || (!data.user.is_admin && !data.user.is_announcer)) {
       document.getElementById('notAuth')!.classList.remove('hidden');
       return;
     }
 
     document.getElementById('adminContent')!.classList.remove('hidden');
-    await loadUsers();
+    const isFullAdmin = data.user.is_admin === true;
+    canManageAnnouncements = data.user.is_admin === true || data.user.is_announcer === true;
+    document.getElementById('userManagementSection')!.classList.toggle('hidden', !isFullAdmin);
+    await loadAnnouncements();
+    setupAnnouncementForm();
+    if (isFullAdmin) await loadUsers();
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
