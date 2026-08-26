@@ -13,7 +13,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   let query = `
     SELECT
-      u.id, u.email, u.is_member, u.is_admin, u.created_at, u.last_login,
+      u.id, u.email, u.is_member, u.is_admin, u.is_announcer, u.created_at, u.last_login,
       p.username, p.display_name, p.institution, p.is_public,
       COALESCE(
         (SELECT rank FROM rank_history rh WHERE rh.user_id = u.id
@@ -59,8 +59,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
 
   const body = await request.json<{
     user_id: string;
-    action: 'verify' | 'unverify' | 'make_admin' | 'remove_admin' | 'make_private' | 'clear_bio'
-      | 'set_rank' | 'award_badge' | 'revoke_badge';
+    action: 'verify' | 'unverify' | 'make_admin' | 'remove_admin' | 'make_announcer' | 'remove_announcer'
+      | 'make_private' | 'clear_bio' | 'set_rank' | 'award_badge' | 'revoke_badge';
     value?: string;
   }>();
 
@@ -85,6 +85,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       break;
     case 'remove_admin':
       await env.DB.prepare('UPDATE users SET is_admin = 0 WHERE id = ?').bind(body.user_id).run();
+      break;
+    case 'make_announcer':
+      await env.DB.prepare('UPDATE users SET is_announcer = 1 WHERE id = ?').bind(body.user_id).run();
+      break;
+    case 'remove_announcer':
+      await env.DB.prepare('UPDATE users SET is_announcer = 0 WHERE id = ?').bind(body.user_id).run();
       break;
     case 'make_private':
       await env.DB.prepare('UPDATE profiles SET is_public = 0 WHERE user_id = ?').bind(body.user_id).run();
