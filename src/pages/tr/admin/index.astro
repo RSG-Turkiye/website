@@ -74,11 +74,11 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6">
             <form id="announcementForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input type="hidden" id="announcementEditId" value="" />
-              <input id="annTitle" type="text" placeholder="Başlık" required
+              <input id="annTitle" type="text" placeholder="Başlık" required maxlength="80"
                 class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2" />
-              <textarea id="annDescription" placeholder="Açıklama" required rows="2"
+              <textarea id="annDescription" placeholder="Açıklama" required rows="2" maxlength="200"
                 class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2"></textarea>
-              <input id="annButtonText" type="text" placeholder="Buton metni (örn. Formu Doldur)" required
+              <input id="annButtonText" type="text" placeholder="Buton metni (örn. Formu Doldur)" required maxlength="30"
                 class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
               <input id="annButtonUrl" type="url" placeholder="Buton URL'si" required
                 class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />

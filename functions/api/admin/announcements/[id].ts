@@ -27,6 +27,14 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   if (body.show_as_popup !== undefined) { fields.push('show_as_popup = ?'); bindings.push(body.show_as_popup ? 1 : 0); }
   if (body.expires_at !== undefined) { fields.push('expires_at = ?'); bindings.push(body.expires_at); }
 
+  if (
+    (body.title !== undefined && body.title.length > 80) ||
+    (body.description !== undefined && body.description.length > 200) ||
+    (body.button_text !== undefined && body.button_text.length > 30)
+  ) {
+    return jsonResponse({ error: 'Field too long' }, 400);
+  }
+
   if (fields.length === 0) return jsonResponse({ error: 'No fields to update' }, 400);
 
   bindings.push(id);

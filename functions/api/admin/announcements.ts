@@ -54,6 +54,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ error: 'Missing required field' }, 400);
   }
 
+  if (body.title.length > 80 || body.description.length > 200 || body.button_text.length > 30) {
+    return jsonResponse({ error: 'Field too long' }, 400);
+  }
+
   const id = generateId();
   const now = Math.floor(Date.now() / 1000);
 
