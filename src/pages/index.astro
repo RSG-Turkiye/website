@@ -290,7 +290,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
       const res = await fetch('/api/announcements');
       if (!res.ok) return;
       const data = await res.json() as { announcements: ApiAnnouncement[] };
-      const active = data.announcements;
+      const active = data.announcements.slice(0, 3);
       if (active.length === 0) return;
 
       const grid = document.getElementById('contentCardsGrid')!;
