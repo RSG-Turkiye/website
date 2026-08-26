@@ -33,3 +33,4 @@ committee-photos/
 *.zip
 
 .superpowers/
+.wrangler/

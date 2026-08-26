@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   button_text   TEXT NOT NULL,
   button_url    TEXT NOT NULL,
   show_as_popup INTEGER NOT NULL DEFAULT 0,
-  expires_at    INTEGER NOT NULL,        -- unix ms; row is "active" while now < expires_at
+  expires_at    INTEGER NOT NULL,        -- unix seconds; row is "active" while now < expires_at
   created_by    TEXT NOT NULL REFERENCES users(id),
   created_at    INTEGER NOT NULL
 );
