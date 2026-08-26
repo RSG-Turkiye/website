@@ -270,7 +270,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
         <div class="flex-1 flex flex-col">
           <h3 class="text-sm font-semibold text-navy leading-snug mb-3">${escapeHtml(a.title)}</h3>
           <p class="text-xs text-gray-500 leading-relaxed mb-4 flex-1">${escapeHtml(a.description)}</p>
-          <a href="${escapeHtml(safeUrl(a.button_url))}" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">${escapeHtml(a.button_text)} →</a>
+          <a href="${escapeHtml(safeUrl(a.button_url))}" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">${escapeHtml(a.button_text)} →</a>
         </div>
       </div>`;
   }
@@ -287,7 +287,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
         <button aria-label="${closeLabel}" style="position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;border:none;background:#F7F7F6;color:#0f2045;cursor:pointer;font-size:16px;">✕</button>
         <h3 style="font-size:18px;font-weight:700;color:#0f2045;margin:0 0 8px;">${escapeHtml(a.title)}</h3>
         <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0 0 20px;">${escapeHtml(a.description)}</p>
-        <a href="${escapeHtml(safeUrl(a.button_url))}" style="display:inline-flex;align-items:center;padding:10px 20px;border-radius:8px;background:#dc2626;color:white;font-size:14px;font-weight:500;text-decoration:none;">${escapeHtml(a.button_text)}</a>
+        <a href="${escapeHtml(safeUrl(a.button_url))}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;padding:10px 20px;border-radius:8px;background:#dc2626;color:white;font-size:14px;font-weight:500;text-decoration:none;">${escapeHtml(a.button_text)}</a>
       </div>`;
 
     function close() {
