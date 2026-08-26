@@ -29,6 +29,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <div id="statsRow" class="flex gap-4"></div>
         </div>
 
+        <!-- Toast -->
+        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
+
         <div id="userManagementSection">
         <!-- Filters -->
         <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6 flex flex-wrap items-center gap-3">
@@ -44,9 +47,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <button data-filter="pending" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">Pending</button>
           </div>
         </div>
-
-        <!-- Toast -->
-        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
 
         <!-- User table -->
         <div class="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -140,6 +140,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   let currentFilter = 'all';
   let searchTimer: ReturnType<typeof setTimeout>;
   let badgeCatalog: Array<{ code: string; name_en: string; name_tr: string }> = [];
+  let canManageAnnouncements = false;
 
   const RANKS = [
     { value: 'seed', label: '🌱 Seed' },
@@ -160,10 +161,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     return new Date(ts * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  function formatExpiryDate(ts: number) {
-    return new Date(ts * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  }
-
   function renderAnnouncements(items: any[]) {
     const tbody = document.getElementById('announcementsTableBody')!;
     const empty = document.getElementById('announcementsEmptyState')!;
@@ -178,7 +175,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     tbody.innerHTML = items.map(a => `
       <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
         <td class="px-5 py-4 text-navy font-medium">${a.title}</td>
-        <td class="px-5 py-4 text-gray-400">${formatExpiryDate(a.expires_at)}</td>
+        <td class="px-5 py-4 text-gray-400">${formatDate(a.expires_at)}</td>
         <td class="px-5 py-4 text-gray-400">${a.show_as_popup ? 'Yes' : 'No'}</td>
         <td class="px-5 py-4 text-right">
           <button data-id="${a.id}" class="edit-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2">Edit</button>
@@ -207,19 +204,26 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const b = e.currentTarget as HTMLButtonElement;
         b.disabled = true;
         const res = await fetch(`/api/admin/announcements/${b.dataset.id}`, { method: 'DELETE' });
-        if (res.ok) { showToast('Deleted'); await loadAnnouncements(true); }
+        if (res.ok) { showToast('Deleted'); await loadAnnouncements(); }
         else { showToast('Error', true); b.disabled = false; }
       });
     });
   }
 
-  async function loadAnnouncements(canWrite: boolean) {
+  async function loadAnnouncements() {
     const res = await fetch('/api/admin/announcements');
     if (!res.ok) return;
     const data = await res.json() as { announcements: any[] };
     renderAnnouncements(data.announcements);
+  }
 
-    if (!canWrite) return;
+  // One-time wiring of the announcement form's submit/cancel listeners.
+  // Must run exactly once for the page's lifetime — loadAnnouncements() is
+  // called repeatedly (after every create/update/delete) and #announcementForm
+  // / #cancelEditBtn are static DOM nodes, so attaching listeners inside
+  // loadAnnouncements would stack a new listener on every reload.
+  function setupAnnouncementForm() {
+    if (!canManageAnnouncements) return;
 
     const form = document.getElementById('announcementForm') as HTMLFormElement;
     const cancelBtn = document.getElementById('cancelEditBtn')!;
@@ -256,7 +260,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       if (res.ok) {
         showToast(editId ? 'Updated' : 'Created');
         resetForm();
-        await loadAnnouncements(true);
+        await loadAnnouncements();
       } else {
         const err = await res.json() as { error: string };
         showToast(err.error || 'Error', true);
@@ -457,8 +461,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     document.getElementById('adminContent')!.classList.remove('hidden');
     const isFullAdmin = data.user.is_admin === true;
+    canManageAnnouncements = data.user.is_admin === true || data.user.is_announcer === true;
     document.getElementById('userManagementSection')!.classList.toggle('hidden', !isFullAdmin);
-    await loadAnnouncements(isFullAdmin);
+    await loadAnnouncements();
+    setupAnnouncementForm();
     if (isFullAdmin) await loadUsers();
 
     // Filter buttons
