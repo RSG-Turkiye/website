@@ -1,12 +1,25 @@
 -- RSG Turkey Member Platform Schema
 -- Apply with: wrangler d1 execute rsg-members --file=db/schema.sql
--- REQUIRED: run this against production BEFORE deploying this branch.
--- functions/api/admin/users.ts now unconditionally SELECTs is_announcer;
--- deploying without this migration first will break the existing admin
--- user list (D1 "no such column: is_announcer" error). ALTER TABLE ADD
--- COLUMN is not idempotent, so this intentionally lives here as a note
--- rather than as a statement in this file:
---   wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_announcer INTEGER NOT NULL DEFAULT 0"
+-- REQUIRED: run BOTH of the following against production BEFORE deploying
+-- this branch (both are idempotent/safe to re-run):
+--
+-- 1. functions/api/admin/users.ts unconditionally SELECTs is_announcer;
+--    deploying without this first will break the existing admin user list
+--    (D1 "no such column: is_announcer" error). ALTER TABLE ADD COLUMN is
+--    not idempotent, so this intentionally lives here as a note rather
+--    than as a statement in this file:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_announcer INTEGER NOT NULL DEFAULT 0"
+--
+-- 2. This file's `CREATE TABLE IF NOT EXISTS announcements` statement
+--    below is NOT applied to production automatically by any deploy step
+--    -- it must be run by hand (`IF NOT EXISTS` makes it safe to re-run):
+--      wrangler d1 execute rsg-members --remote --command="CREATE TABLE IF NOT EXISTS announcements (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL, button_text TEXT NOT NULL, button_url TEXT NOT NULL, show_as_popup INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL, created_by TEXT NOT NULL REFERENCES users(id), created_at INTEGER NOT NULL)"
+--      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS idx_announcements_expires_at ON announcements(expires_at)"
+--    Without this, every write to /api/admin/announcements (create/edit)
+--    500s with a raw Cloudflare "Worker threw exception" error page
+--    instead of a JSON error -- which surfaces client-side as the Save
+--    button silently doing nothing (the client's error handler calls
+--    res.json() on a non-JSON error body and throws uncaught).
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
