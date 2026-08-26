@@ -10,6 +10,9 @@ const pageTitle = "RSG Turkiye - Computational Biology Community";
 const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith('en/') && !data.draft))
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
   .slice(0, 3);
+
+const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.startsWith('en/') && !data.draft))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())[0];
 ---
 
 <BaseLayout pageTitle={pageTitle}>
@@ -78,22 +81,39 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
       <h2 class="text-2xl font-semibold text-navy text-center mb-2">{t('contentCards.title')}</h2>
       <p class="text-gray-500 text-center max-w-lg mx-auto mb-10">{t('contentCards.subtitle')}</p>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div id="contentCardsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         <!-- Webinar card -->
-        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors">
-          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4">
+        <div id="webinarCard" class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
+          <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
             Webinar
           </span>
-          <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.webinar.title')}</h3>
-          <p class="text-sm text-gray-500 leading-relaxed mb-4">{t('contentCards.webinar.description')}</p>
-          <a href="/webinars" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">
-            {t('contentCards.webinar.button')} →
-          </a>
+          {latestWebinar ? (
+            <div class="flex-1 flex flex-col">
+              <p class="text-xs text-gray-400 mb-1">
+                {new Date(latestWebinar.data.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+              <h3 class="text-sm font-semibold text-navy leading-snug mb-3">{latestWebinar.data.title}</h3>
+              {latestWebinar.data.description && (
+                <p class="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{latestWebinar.data.description.slice(0, 100)}{latestWebinar.data.description.length > 100 ? '…' : ''}</p>
+              )}
+              <a href={`/webinars/${latestWebinar.id.replace(/^en\//, '')}`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
+                {t('common.readMore')} →
+              </a>
+            </div>
+          ) : (
+            <div class="flex-1 flex flex-col">
+              <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.webinar.title')}</h3>
+              <p class="text-sm text-gray-500 leading-relaxed mb-4 flex-1">{t('contentCards.webinar.description')}</p>
+              <a href="/webinars" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">
+                {t('contentCards.webinar.button')} →
+              </a>
+            </div>
+          )}
         </div>
 
         <!-- Events card (live calendar) -->
-        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
+        <div id="eventCard" class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
             {lang === 'tr' ? 'Etkinlik' : 'Event'}
           </span>
@@ -106,7 +126,7 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
         </div>
 
         <!-- Blog card -->
-        <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
+        <div id="blogCard" class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
             Blog
           </span>
@@ -217,4 +237,78 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
   }
 
   loadCalendar();
+
+  type ApiAnnouncement = {
+    id: string;
+    title: string;
+    description: string;
+    button_text: string;
+    button_url: string;
+    show_as_popup: boolean;
+  };
+
+  function announcementCardHtml(a: ApiAnnouncement): string {
+    const label = isTR ? 'Duyuru' : 'Announcement';
+    return `
+      <div class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
+        <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">${label}</span>
+        <div class="flex-1 flex flex-col">
+          <h3 class="text-sm font-semibold text-navy leading-snug mb-3">${a.title}</h3>
+          <p class="text-xs text-gray-500 leading-relaxed mb-4 flex-1">${a.description}</p>
+          <a href="${a.button_url}" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">${a.button_text} →</a>
+        </div>
+      </div>`;
+  }
+
+  function showAnnouncementPopup(a: ApiAnnouncement) {
+    const dismissKey = `dismissed_announcement_${a.id}`;
+    if (localStorage.getItem(dismissKey)) return;
+
+    const closeLabel = isTR ? 'Kapat' : 'Close';
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,32,69,0.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px;';
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:16px;max-width:420px;width:100%;padding:28px;position:relative;">
+        <button aria-label="${closeLabel}" style="position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;border:none;background:#F7F7F6;color:#0f2045;cursor:pointer;font-size:16px;">✕</button>
+        <h3 style="font-size:18px;font-weight:700;color:#0f2045;margin:0 0 8px;">${a.title}</h3>
+        <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0 0 20px;">${a.description}</p>
+        <a href="${a.button_url}" style="display:inline-flex;align-items:center;padding:10px 20px;border-radius:8px;background:#dc2626;color:white;font-size:14px;font-weight:500;text-decoration:none;">${a.button_text}</a>
+      </div>`;
+
+    function close() {
+      localStorage.setItem(dismissKey, '1');
+      overlay.remove();
+    }
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('button')!.addEventListener('click', close);
+
+    document.body.appendChild(overlay);
+  }
+
+  async function loadAnnouncements() {
+    try {
+      const res = await fetch('/api/announcements');
+      if (!res.ok) return;
+      const data = await res.json() as { announcements: ApiAnnouncement[] };
+      const active = data.announcements;
+      if (active.length === 0) return;
+
+      const grid = document.getElementById('contentCardsGrid')!;
+      const defaults = [
+        document.getElementById('webinarCard')!,
+        document.getElementById('eventCard')!,
+        document.getElementById('blogCard')!,
+      ];
+      const announcementHtml = active.map(announcementCardHtml).join('');
+      const keptDefaults = defaults.slice(active.length).map(el => el.outerHTML).join('');
+      grid.innerHTML = announcementHtml + keptDefaults;
+
+      const popupAnnouncement = active.find(a => a.show_as_popup);
+      if (popupAnnouncement) showAnnouncementPopup(popupAnnouncement);
+    } catch {
+      // Network error: leave the three default cards exactly as server-rendered.
+    }
+  }
+
+  loadAnnouncements();
 </script>
