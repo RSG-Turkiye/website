@@ -1,9 +1,11 @@
 -- RSG Turkey Member Platform Schema
 -- Apply with: wrangler d1 execute rsg-members --file=db/schema.sql
--- One-time migration already applied to production alongside this file's
--- `announcements` table (safe to re-run — schema.sql itself is idempotent,
--- but ALTER TABLE ADD COLUMN is not, so this line intentionally lives here
--- as a note rather than as a statement in this file):
+-- REQUIRED: run this against production BEFORE deploying this branch.
+-- functions/api/admin/users.ts now unconditionally SELECTs is_announcer;
+-- deploying without this migration first will break the existing admin
+-- user list (D1 "no such column: is_announcer" error). ALTER TABLE ADD
+-- COLUMN is not idempotent, so this intentionally lives here as a note
+-- rather than as a statement in this file:
 --   wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_announcer INTEGER NOT NULL DEFAULT 0"
 
 CREATE TABLE IF NOT EXISTS users (

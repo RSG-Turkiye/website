@@ -161,6 +161,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     return new Date(ts * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
+  function escapeHtml(s: unknown): string {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c] as string));
+  }
+
   function renderAnnouncements(items: any[]) {
     const tbody = document.getElementById('announcementsTableBody')!;
     const empty = document.getElementById('announcementsEmptyState')!;
@@ -174,7 +180,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     tbody.innerHTML = items.map(a => `
       <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
-        <td class="px-5 py-4 text-navy font-medium">${a.title}</td>
+        <td class="px-5 py-4 text-navy font-medium">${escapeHtml(a.title)}</td>
         <td class="px-5 py-4 text-gray-400">${formatDate(a.expires_at)}</td>
         <td class="px-5 py-4 text-gray-400">${a.show_as_popup ? 'Yes' : 'No'}</td>
         <td class="px-5 py-4 text-right">
@@ -193,7 +199,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         (document.getElementById('annDescription') as HTMLTextAreaElement).value = item.description;
         (document.getElementById('annButtonText') as HTMLInputElement).value = item.button_text;
         (document.getElementById('annButtonUrl') as HTMLInputElement).value = item.button_url;
-        (document.getElementById('annExpiresAt') as HTMLInputElement).value = new Date(item.expires_at * 1000).toISOString().slice(0, 10);
+        const expiresDate = new Date(item.expires_at * 1000);
+        const localExpiresDateStr = `${expiresDate.getFullYear()}-${String(expiresDate.getMonth() + 1).padStart(2, '0')}-${String(expiresDate.getDate()).padStart(2, '0')}`;
+        (document.getElementById('annExpiresAt') as HTMLInputElement).value = localExpiresDateStr;
         (document.getElementById('annShowAsPopup') as HTMLInputElement).checked = item.show_as_popup;
         document.getElementById('cancelEditBtn')!.classList.remove('hidden');
       });
@@ -246,7 +254,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         button_text: (document.getElementById('annButtonText') as HTMLInputElement).value,
         button_url: (document.getElementById('annButtonUrl') as HTMLInputElement).value,
         show_as_popup: (document.getElementById('annShowAsPopup') as HTMLInputElement).checked,
-        expires_at: Math.floor(new Date(expiresDate).getTime() / 1000),
+        expires_at: Math.floor(new Date(expiresDate + 'T23:59:59').getTime() / 1000),
       };
 
       const url = editId ? `/api/admin/announcements/${editId}` : '/api/admin/announcements';
