@@ -1,14 +1,20 @@
 -- RSG Turkey Member Platform Schema
 -- Apply with: wrangler d1 execute rsg-members --file=db/schema.sql
+-- One-time migration already applied to production alongside this file's
+-- `announcements` table (safe to re-run — schema.sql itself is idempotent,
+-- but ALTER TABLE ADD COLUMN is not, so this line intentionally lives here
+-- as a note rather than as a statement in this file):
+--   wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_announcer INTEGER NOT NULL DEFAULT 0"
 
 CREATE TABLE IF NOT EXISTS users (
-  id          TEXT PRIMARY KEY,
-  google_id   TEXT UNIQUE NOT NULL,
-  email       TEXT UNIQUE NOT NULL,
-  is_member   INTEGER NOT NULL DEFAULT 0,
-  is_admin    INTEGER NOT NULL DEFAULT 0,
-  created_at  INTEGER NOT NULL,
-  last_login  INTEGER NOT NULL
+  id            TEXT PRIMARY KEY,
+  google_id     TEXT UNIQUE NOT NULL,
+  email         TEXT UNIQUE NOT NULL,
+  is_member     INTEGER NOT NULL DEFAULT 0,
+  is_admin      INTEGER NOT NULL DEFAULT 0,
+  is_announcer  INTEGER NOT NULL DEFAULT 0,
+  created_at    INTEGER NOT NULL,
+  last_login    INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS profiles (
@@ -114,6 +120,24 @@ INSERT OR IGNORE INTO achievement_badges (code, name_en, name_tr, description) V
   ('read_qc',          'Read QC',          'Okuma QC',        'Assessing and cleaning raw sequencing reads before downstream analysis.'),
   ('read_alignment',   'Read Alignment',   'Okuma Hizalama',  'Mapping sequencing reads to a reference.'),
   ('genome_assembly',  'Genome Assembly',  'Genom Montajı',   'Assembling a genome from sequencing reads without a reference.');
+
+-- Community announcements: social-media-team-managed homepage cards.
+-- "Active" is derived purely from expires_at > now — there is no is_active
+-- flag. Editing (PATCH) never changes created_at, so an edit can't change
+-- an announcement's position among other active announcements.
+CREATE TABLE IF NOT EXISTS announcements (
+  id            TEXT PRIMARY KEY,
+  title         TEXT NOT NULL,
+  description   TEXT NOT NULL,
+  button_text   TEXT NOT NULL,
+  button_url    TEXT NOT NULL,
+  show_as_popup INTEGER NOT NULL DEFAULT 0,
+  expires_at    INTEGER NOT NULL,
+  created_by    TEXT NOT NULL REFERENCES users(id),
+  created_at    INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_announcements_expires_at ON announcements(expires_at);
 
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
