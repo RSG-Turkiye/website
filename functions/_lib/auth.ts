@@ -11,6 +11,7 @@ export interface User {
   email: string;
   is_member: number;
   is_admin: number;
+  is_announcer: number;
   created_at: number;
   last_login: number;
 }
@@ -97,6 +98,10 @@ export function getBaseUrl(request: Request): string {
 
 export function getSessionDuration() {
   return SESSION_DURATION;
+}
+
+export function canManageAnnouncements(user: Pick<User, 'is_admin' | 'is_announcer'>): boolean {
+  return user.is_admin === 1 || user.is_announcer === 1;
 }
 
 const ALLOWED_ORIGINS = new Set([
