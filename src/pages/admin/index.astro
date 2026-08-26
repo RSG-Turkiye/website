@@ -29,6 +29,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <div id="statsRow" class="flex gap-4"></div>
         </div>
 
+        <div id="userManagementSection">
         <!-- Filters -->
         <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6 flex flex-wrap items-center gap-3">
           <input
@@ -65,6 +66,58 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             </tbody>
           </table>
           <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-400">No users found.</div>
+        </div>
+        </div>
+
+        <!-- Announcements section -->
+        <div id="announcementsSection" class="mt-8">
+          <h2 class="text-lg font-semibold text-navy mb-4">Announcements</h2>
+
+          <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6">
+            <form id="announcementForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input type="hidden" id="announcementEditId" value="" />
+              <input id="annTitle" type="text" placeholder="Title" required
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2" />
+              <textarea id="annDescription" placeholder="Description" required rows="2"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2"></textarea>
+              <input id="annButtonText" type="text" placeholder="Button text (e.g. Formu Doldur)" required
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <input id="annButtonUrl" type="url" placeholder="Button URL" required
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <label class="flex items-center gap-2 text-sm text-gray-600">
+                Expires on
+                <input id="annExpiresAt" type="date" required
+                  class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+              </label>
+              <label class="flex items-center gap-2 text-sm text-gray-600">
+                <input id="annShowAsPopup" type="checkbox" class="rounded border-border" />
+                Also show as popup
+              </label>
+              <div class="sm:col-span-2 flex items-center gap-2">
+                <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+                  Save announcement
+                </button>
+                <button type="button" id="cancelEditBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+                  Cancel edit
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-[#F7F7F6]">
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Title</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Expires</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Popup</th>
+                  <th class="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="announcementsTableBody"></tbody>
+            </table>
+            <div id="announcementsEmptyState" class="hidden text-center py-12 text-sm text-gray-400">No announcements yet.</div>
+          </div>
         </div>
 
       </div>
@@ -107,6 +160,110 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     return new Date(ts * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
+  function formatExpiryDate(ts: number) {
+    return new Date(ts * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function renderAnnouncements(items: any[]) {
+    const tbody = document.getElementById('announcementsTableBody')!;
+    const empty = document.getElementById('announcementsEmptyState')!;
+
+    if (items.length === 0) {
+      tbody.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    tbody.innerHTML = items.map(a => `
+      <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
+        <td class="px-5 py-4 text-navy font-medium">${a.title}</td>
+        <td class="px-5 py-4 text-gray-400">${formatExpiryDate(a.expires_at)}</td>
+        <td class="px-5 py-4 text-gray-400">${a.show_as_popup ? 'Yes' : 'No'}</td>
+        <td class="px-5 py-4 text-right">
+          <button data-id="${a.id}" class="edit-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2">Edit</button>
+          <button data-id="${a.id}" class="delete-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">Delete</button>
+        </td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('.edit-announcement-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
+        const item = items.find(a => a.id === id);
+        if (!item) return;
+        (document.getElementById('announcementEditId') as HTMLInputElement).value = item.id;
+        (document.getElementById('annTitle') as HTMLInputElement).value = item.title;
+        (document.getElementById('annDescription') as HTMLTextAreaElement).value = item.description;
+        (document.getElementById('annButtonText') as HTMLInputElement).value = item.button_text;
+        (document.getElementById('annButtonUrl') as HTMLInputElement).value = item.button_url;
+        (document.getElementById('annExpiresAt') as HTMLInputElement).value = new Date(item.expires_at * 1000).toISOString().slice(0, 10);
+        (document.getElementById('annShowAsPopup') as HTMLInputElement).checked = item.show_as_popup;
+        document.getElementById('cancelEditBtn')!.classList.remove('hidden');
+      });
+    });
+
+    tbody.querySelectorAll('.delete-announcement-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const b = e.currentTarget as HTMLButtonElement;
+        b.disabled = true;
+        const res = await fetch(`/api/admin/announcements/${b.dataset.id}`, { method: 'DELETE' });
+        if (res.ok) { showToast('Deleted'); await loadAnnouncements(true); }
+        else { showToast('Error', true); b.disabled = false; }
+      });
+    });
+  }
+
+  async function loadAnnouncements(canWrite: boolean) {
+    const res = await fetch('/api/admin/announcements');
+    if (!res.ok) return;
+    const data = await res.json() as { announcements: any[] };
+    renderAnnouncements(data.announcements);
+
+    if (!canWrite) return;
+
+    const form = document.getElementById('announcementForm') as HTMLFormElement;
+    const cancelBtn = document.getElementById('cancelEditBtn')!;
+
+    function resetForm() {
+      form.reset();
+      (document.getElementById('announcementEditId') as HTMLInputElement).value = '';
+      cancelBtn.classList.add('hidden');
+    }
+
+    cancelBtn.addEventListener('click', resetForm);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = (document.getElementById('announcementEditId') as HTMLInputElement).value;
+      const expiresDate = (document.getElementById('annExpiresAt') as HTMLInputElement).value;
+      const body = {
+        title: (document.getElementById('annTitle') as HTMLInputElement).value,
+        description: (document.getElementById('annDescription') as HTMLTextAreaElement).value,
+        button_text: (document.getElementById('annButtonText') as HTMLInputElement).value,
+        button_url: (document.getElementById('annButtonUrl') as HTMLInputElement).value,
+        show_as_popup: (document.getElementById('annShowAsPopup') as HTMLInputElement).checked,
+        expires_at: Math.floor(new Date(expiresDate).getTime() / 1000),
+      };
+
+      const url = editId ? `/api/admin/announcements/${editId}` : '/api/admin/announcements';
+      const method = editId ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        showToast(editId ? 'Updated' : 'Created');
+        resetForm();
+        await loadAnnouncements(true);
+      } else {
+        const err = await res.json() as { error: string };
+        showToast(err.error || 'Error', true);
+      }
+    });
+  }
+
   async function doAction(userId: string, action: string, btn: HTMLButtonElement | HTMLSelectElement, value?: string) {
     btn.disabled = true;
     const res = await fetch('/api/admin/users', {
@@ -145,6 +302,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const adminBadge = u.is_admin
         ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">Admin</span>'
         : '';
+      const announcerBadge = u.is_announcer
+        ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">Announcer</span>'
+        : '';
       const privateBadge = u.is_public === 0
         ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">Private</span>'
         : '';
@@ -180,6 +340,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               ? `<button data-id="${u.id}" data-action="remove_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Remove admin</button>`
               : `<button data-id="${u.id}" data-action="make_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Make admin</button>`
             }
+            ${u.is_announcer
+              ? `<button data-id="${u.id}" data-action="remove_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Remove announcer</button>`
+              : `<button data-id="${u.id}" data-action="make_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Make announcer</button>`
+            }
             <button data-id="${u.id}" data-action="make_private" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Make profile private</button>
             <button data-id="${u.id}" data-action="clear_bio" class="action-btn block w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50">Clear bio</button>
           </div>
@@ -193,7 +357,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             ${institution}
           </td>
           <td class="px-5 py-4 text-gray-500">${u.email}</td>
-          <td class="px-5 py-4">${memberBadge}${adminBadge}${privateBadge}</td>
+          <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${privateBadge}</td>
           <td class="px-5 py-4">${rankSelect}</td>
           <td class="px-5 py-4"><div class="flex flex-wrap gap-1 max-w-[220px]">${badgeChips}</div></td>
           <td class="px-5 py-4 text-gray-400">${formatDate(u.created_at)}</td>
@@ -286,13 +450,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     document.getElementById('loadingState')!.classList.add('hidden');
 
-    if (!data.user || !data.user.is_admin) {
+    if (!data.user || (!data.user.is_admin && !data.user.is_announcer)) {
       document.getElementById('notAuth')!.classList.remove('hidden');
       return;
     }
 
     document.getElementById('adminContent')!.classList.remove('hidden');
-    await loadUsers();
+    const isFullAdmin = data.user.is_admin === true;
+    document.getElementById('userManagementSection')!.classList.toggle('hidden', !isFullAdmin);
+    await loadAnnouncements(isFullAdmin);
+    if (isFullAdmin) await loadUsers();
 
     // Filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
