@@ -112,6 +112,17 @@ Pushing to `main` triggers an automatic Cloudflare Pages build and deploy. No ma
 > ```
 > Without this, Google login will fail with a `redirect_uri_mismatch` error. Remove any stale dev preview URLs (e.g. `website-dev-vi6.pages.dev`) from the same list.
 
+#### Member blog submissions — required setup
+
+The member blog submission feature (members write a post on `/account`, an admin approves it, and the site auto-opens a GitHub PR) needs three things configured that aren't part of a normal deploy:
+
+1. **A GitHub secret**, `GITHUB_PAT` — a fine-grained Personal Access Token from a dedicated GitHub account, scoped to *only* this repo, with **Contents: Read and write**, **Pull requests: Read and write**, and **Issues: Read and write** permissions. Set via:
+   ```
+   wrangler pages secret put GITHUB_PAT --project-name website
+   ```
+2. **An R2 bucket**, `rsg-blog-images`, with public access enabled (`wrangler r2 bucket create rsg-blog-images` then `wrangler r2 bucket dev-url enable rsg-blog-images`) — its public URL goes in `wrangler.toml`'s `PUBLIC_BLOG_IMAGES_URL`.
+3. **`GITHUB_NOTIFY_USERNAME`** in `wrangler.toml`'s `[vars]` — the GitHub username of whoever should be notified the moment a member submits a post (before any admin approves it, so nothing sits unnoticed). This **must be a different account than whoever `GITHUB_PAT` belongs to** — GitHub never sends a notification to an account for actions that account itself performed, so the PAT's own account can never be notified this way. **Update this whenever the person responsible for reviewing submissions changes** (e.g. a new committee president) — it's a plain config value, no code change needed.
+
 ---
 
 ## Content Types

@@ -15,3 +15,9 @@ bucket_name = "rsg-blog-images"
 [vars]
 GOOGLE_CLIENT_ID = "273051123979-t52aq69ueh1mji460qie6ip2j68c3agc.apps.googleusercontent.com"
 PUBLIC_BLOG_IMAGES_URL = "https://pub-5c845f6be1514cfeb871010a8014ce1e.r2.dev"
+# GitHub username to notify (via a GitHub issue assigned to them) the
+# moment a member submits a blog post -- must be a real person's account,
+# never the same account GITHUB_PAT belongs to (GitHub never notifies an
+# account about its own actions). Update this when leadership changes --
+# see the README's Deployment section for the full explanation.
+GITHUB_NOTIFY_USERNAME = "bogrum"

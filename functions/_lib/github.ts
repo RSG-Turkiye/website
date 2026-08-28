@@ -161,3 +161,44 @@ export async function openBlogPostPR(params: OpenPrParams, env: Env): Promise<Op
     return { success: false, error: e instanceof Error ? e.message : 'Unknown GitHub API error' };
   }
 }
+
+/**
+ * Opens a GitHub issue assigned to env.GITHUB_NOTIFY_USERNAME so that
+ * account gets a real "you were assigned" notification. Used to alert a
+ * human the moment a member submits a post, since no PR exists yet at
+ * that point (a PR only exists after an admin approves).
+ *
+ * Note: since GITHUB_PAT authors the issue, GitHub will never notify
+ * that same token's own account about it (GitHub never notifies an
+ * account about its own actions) -- GITHUB_NOTIFY_USERNAME must be a
+ * different, real person's GitHub username for this to have any effect.
+ *
+ * Best-effort: never throws. A failure here must not block or fail the
+ * member's actual submission, so callers should not await this in a way
+ * that surfaces its errors to the submitter.
+ */
+export async function notifyNewSubmission(title: string, body: string, env: Env): Promise<void> {
+  if (!env.GITHUB_NOTIFY_USERNAME) return;
+  try {
+    const res = await githubRequest(
+      `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          body,
+          assignees: [env.GITHUB_NOTIFY_USERNAME],
+        }),
+      },
+      env
+    );
+    if (!res.ok) {
+      // Swallow -- a missing "Issues: Read and write" permission on the
+      // fine-grained PAT is the most likely cause, and a notification
+      // failure must never block the submission itself.
+      console.error('notifyNewSubmission failed', res.status, await res.text());
+    }
+  } catch (e) {
+    console.error('notifyNewSubmission threw', e);
+  }
+}
