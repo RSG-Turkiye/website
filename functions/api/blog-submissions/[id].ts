@@ -22,11 +22,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
 
   const id = params.id as string;
   const existing = await env.DB.prepare(
-    'SELECT id, submitted_by, status, paired_submission_id FROM blog_submissions WHERE id = ?'
-  ).bind(id).first<{ id: string; submitted_by: string; status: string; paired_submission_id: string | null }>();
+    'SELECT id, submitted_by, status, paired_submission_id, image_url FROM blog_submissions WHERE id = ?'
+  ).bind(id).first<{ id: string; submitted_by: string; status: string; paired_submission_id: string | null; image_url: string }>();
 
   if (!existing) return jsonResponse({ error: 'Not found' }, 404);
   if (existing.submitted_by !== user.id) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (user.is_writer !== 1) return jsonResponse({ error: 'Forbidden' }, 403);
   if (existing.status !== 'rejected') {
     return jsonResponse({ error: 'Only a rejected submission can be edited and resubmitted' }, 400);
   }
@@ -35,8 +36,16 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   if (!body.title || !body.description || !body.category || !body.author || !body.body) {
     return jsonResponse({ error: 'Missing required field' }, 400);
   }
+  if (existing.paired_submission_id && !body.translation) {
+    return jsonResponse({ error: 'This is a paired submission -- include the translation to resubmit both languages together' }, 400);
+  }
+  if (existing.paired_submission_id && body.translation) {
+    if (!body.translation.title || !body.translation.description || !body.translation.body) {
+      return jsonResponse({ error: 'Missing required field in translation' }, 400);
+    }
+  }
 
-  const imageUrl = body.image_url ?? '';
+  const imageUrl = body.image_url !== undefined ? body.image_url : existing.image_url;
   const tagsJson = JSON.stringify(body.tags ?? []);
 
   await env.DB.prepare(

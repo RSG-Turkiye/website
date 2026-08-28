@@ -314,6 +314,9 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       const announcerBadge = u.is_announcer
         ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">Announcer</span>'
         : '';
+      const writerBadge = u.is_writer
+        ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">Writer</span>'
+        : '';
       const privateBadge = u.is_public === 0
         ? '<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">Gizli</span>'
         : '';
@@ -334,6 +337,10 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
               ? `<button data-id="${u.id}" data-action="remove_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Announcer yetkisini kaldır</button>`
               : `<button data-id="${u.id}" data-action="make_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Announcer yap</button>`
             }
+            ${u.is_writer
+              ? `<button data-id="${u.id}" data-action="remove_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Writer yetkisini kaldır</button>`
+              : `<button data-id="${u.id}" data-action="make_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Writer yap</button>`
+            }
             <button data-id="${u.id}" data-action="make_private" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Profili gizle</button>
             <button data-id="${u.id}" data-action="clear_bio" class="action-btn block w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50">Biyografiyi temizle</button>
           </div>
@@ -347,7 +354,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             ${institution}
           </td>
           <td class="px-5 py-4 text-gray-500">${u.email}</td>
-          <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${privateBadge}</td>
+          <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${writerBadge}${privateBadge}</td>
           <td class="px-5 py-4 text-gray-400">${formatDate(u.created_at)}</td>
           <td class="px-5 py-4 text-right">
             <div class="flex items-center justify-end gap-2">
@@ -425,6 +432,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     const isFullAdmin = data.user.is_admin === true;
     canManageAnnouncements = data.user.is_admin === true || data.user.is_announcer === true;
     document.getElementById('userManagementSection')!.classList.toggle('hidden', !isFullAdmin);
+    document.getElementById('blogSubmissionsSection')!.classList.toggle('hidden', !isFullAdmin);
     await loadAnnouncements();
     setupAnnouncementForm();
     if (isFullAdmin) await loadUsers();
@@ -475,6 +483,8 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       <div class="mt-2 p-3 rounded-lg bg-[#F7F7F6] text-xs">
         <div class="font-medium text-navy">${langLabel(s)}: ${escapeHtmlForBlogReview(s.title)}</div>
         <div class="text-gray-500 mt-1">${escapeHtmlForBlogReview(s.description)}</div>
+        ${s.image_url ? `<img src="${escapeHtmlForBlogReview(s.image_url)}" class="mt-2 max-h-32 rounded" alt="" />` : ''}
+        ${s.tags.length > 0 ? `<div class="mt-2 flex flex-wrap gap-1">${s.tags.map(t => `<span class="px-2 py-0.5 rounded-full bg-white border border-border text-gray-500">${escapeHtmlForBlogReview(t)}</span>`).join('')}</div>` : ''}
         <pre class="whitespace-pre-wrap mt-2 text-gray-600">${escapeHtmlForBlogReview(s.body)}</pre>
       </div>`;
 
