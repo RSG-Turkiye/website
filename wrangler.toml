@@ -14,7 +14,4 @@ bucket_name = "rsg-blog-images"
 
 [vars]
 GOOGLE_CLIENT_ID = "273051123979-t52aq69ueh1mji460qie6ip2j68c3agc.apps.googleusercontent.com"
-# PLACEHOLDER — must be replaced with the real R2 bucket's public base URL
-# (after `wrangler r2 bucket create rsg-blog-images` + enabling public
-# access) before this branch is deployed to production.
-PUBLIC_BLOG_IMAGES_URL = "https://pub-placeholder.r2.dev"
+PUBLIC_BLOG_IMAGES_URL = "https://pub-5c845f6be1514cfeb871010a8014ce1e.r2.dev"
