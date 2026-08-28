@@ -12,6 +12,7 @@ export interface User {
   is_member: number;
   is_admin: number;
   is_announcer: number;
+  is_writer: number;
   created_at: number;
   last_login: number;
 }
