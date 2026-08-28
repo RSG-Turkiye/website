@@ -4,6 +4,7 @@ import { openBlogPostPR, fileExistsOnBaseBranch } from '../../../_lib/github';
 
 type SubmissionRow = {
   id: string;
+  submitted_by: string;
   lang: string;
   title: string;
   description: string;
@@ -49,8 +50,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   if (!admin.is_admin) return jsonResponse({ error: 'Forbidden' }, 403);
 
   const id = params.id as string;
-  const row = await env.DB.prepare('SELECT * FROM blog_submissions WHERE id = ?')
-    .bind(id).first<SubmissionRow>();
+  const row = await env.DB.prepare(
+    `SELECT s.*, u.email AS submitter_email
+     FROM blog_submissions s
+     JOIN users u ON u.id = s.submitted_by
+     WHERE s.id = ?`
+  ).bind(id).first<SubmissionRow & { submitter_email: string }>();
   if (!row) return jsonResponse({ error: 'Not found' }, 404);
 
   const body = await request.json<ActionBody>();
@@ -113,7 +118,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
       branchSlug: slug,
       files,
       title: `New blog post: ${row.title}`,
-      prBody: `Submitted by a member, approved by ${admin.email}.\n\n${row.description}`,
+      prBody: `Submitted by ${row.submitter_email}, approved by ${admin.email}.\n\n${row.description}`,
     },
     env
   );
