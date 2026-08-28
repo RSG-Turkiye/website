@@ -20,6 +20,15 @@
 --    instead of a JSON error -- which surfaces client-side as the Save
 --    button silently doing nothing (the client's error handler calls
 --    res.json() on a non-JSON error body and throws uncaught).
+--
+-- 3. This file's `CREATE TABLE IF NOT EXISTS blog_submissions` statement
+--    below is NOT applied to production automatically -- it must be run
+--    by hand (`IF NOT EXISTS` makes it safe to re-run):
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_writer INTEGER NOT NULL DEFAULT 0"
+--      wrangler d1 execute rsg-members --remote --command="CREATE TABLE IF NOT EXISTS blog_submissions (id TEXT PRIMARY KEY, submitted_by TEXT NOT NULL REFERENCES users(id), lang TEXT NOT NULL CHECK (lang IN ('en', 'tr')), title TEXT NOT NULL, description TEXT NOT NULL, category TEXT NOT NULL, tags TEXT NOT NULL DEFAULT '[]', author TEXT NOT NULL, image_url TEXT NOT NULL DEFAULT '', body TEXT NOT NULL, slug TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')), rejection_reason TEXT, pr_url TEXT, paired_submission_id TEXT REFERENCES blog_submissions(id), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewed_by TEXT REFERENCES users(id))"
+--      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS idx_blog_submissions_status ON blog_submissions(status)"
+--    Without this, /api/blog-submissions and /api/admin/blog-submissions
+--    500 with "no such table: blog_submissions".
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -28,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_member     INTEGER NOT NULL DEFAULT 0,
   is_admin      INTEGER NOT NULL DEFAULT 0,
   is_announcer  INTEGER NOT NULL DEFAULT 0,
+  is_writer     INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL,
   last_login    INTEGER NOT NULL
 );
@@ -152,7 +162,34 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_at    INTEGER NOT NULL
 );
 
+-- Member blog submissions: a member with is_writer submits through the
+-- website; an admin approves or rejects. Approval opens a real GitHub PR
+-- (see functions/_lib/github.ts) -- git remains the single source of
+-- truth for published posts, this table only holds the pending/rejected
+-- work-in-progress state before that PR exists.
+CREATE TABLE IF NOT EXISTS blog_submissions (
+  id                   TEXT PRIMARY KEY,
+  submitted_by         TEXT NOT NULL REFERENCES users(id),
+  lang                 TEXT NOT NULL CHECK (lang IN ('en', 'tr')),
+  title                TEXT NOT NULL,
+  description          TEXT NOT NULL,
+  category             TEXT NOT NULL,
+  tags                 TEXT NOT NULL DEFAULT '[]',
+  author               TEXT NOT NULL,
+  image_url            TEXT NOT NULL DEFAULT '',
+  body                 TEXT NOT NULL,
+  slug                 TEXT NOT NULL,
+  status               TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  rejection_reason     TEXT,
+  pr_url               TEXT,
+  paired_submission_id TEXT REFERENCES blog_submissions(id),
+  created_at           INTEGER NOT NULL,
+  reviewed_at          INTEGER,
+  reviewed_by          TEXT REFERENCES users(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_announcements_expires_at ON announcements(expires_at);
+CREATE INDEX IF NOT EXISTS idx_blog_submissions_status ON blog_submissions(status);
 
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
