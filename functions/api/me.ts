@@ -34,6 +34,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       is_member: user.is_member === 1,
       is_admin: user.is_admin === 1,
       is_announcer: user.is_announcer === 1,
+      is_writer: user.is_writer === 1,
     },
     profile: profile ?? null,
     badges: badges.results.map(b => b.badge),
