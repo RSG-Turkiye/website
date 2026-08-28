@@ -105,10 +105,20 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
               class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
             <input id="subAuthor" type="text" placeholder="Yazar adı" required
               class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
-            <input id="subImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
-              class="text-sm text-gray-600 sm:col-span-2" />
+            <div class="sm:col-span-2">
+              <label for="subImage" class="block text-xs text-gray-500 mb-1">Kapak görseli (opsiyonel — yazının küçük resmi olarak kullanılır)</label>
+              <input id="subImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                class="text-sm text-gray-600" />
+            </div>
             <textarea id="subBody" placeholder="Yazınızı Markdown ile yazın" required rows="10"
               class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2 font-mono"></textarea>
+
+            <div class="sm:col-span-2">
+              <label for="subBodyImage" class="block text-xs text-gray-500 mb-1">Yazının içine görsel eklemek için buradan yükleyin, sonra aşağıdaki Markdown kodunu metnin istediğiniz yerine yapıştırın</label>
+              <input id="subBodyImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                class="text-sm text-gray-600" />
+              <div id="bodyImagesList" class="flex flex-col gap-2 mt-2"></div>
+            </div>
 
             <label class="flex items-center gap-2 text-sm text-gray-600 sm:col-span-2">
               <input id="subAddTranslation" type="checkbox" class="rounded border-border" />
@@ -400,6 +410,50 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     document.getElementById('translationFields')!.classList.toggle('hidden', !(e.target as HTMLInputElement).checked);
   });
 
+  async function uploadImage(file: File): Promise<string | null> {
+    const uploadRes = await fetch('/api/blog-submissions/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!uploadRes.ok) return null;
+    const uploadData = await uploadRes.json() as { url: string };
+    return uploadData.url;
+  }
+
+  document.getElementById('subBodyImage')?.addEventListener('change', async (e) => {
+    const input = e.currentTarget as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const url = await uploadImage(file);
+    input.value = '';
+    if (!url) {
+      alert('Görsel yükleme başarısız oldu');
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2';
+    row.innerHTML = `
+      <input readonly value="${escapeHtml(`![](${url})`)}" class="flex-1 px-2 py-1 rounded-lg border border-border text-xs text-gray-600 font-mono" />
+      <button type="button" class="copy-body-image-btn text-xs px-2 py-1 rounded-lg border border-border text-navy-mid hover:border-navy-mid transition-colors">Kopyala</button>
+    `;
+    const urlInput = row.querySelector('input') as HTMLInputElement;
+    const copyBtn = row.querySelector('.copy-body-image-btn') as HTMLButtonElement;
+    copyBtn.addEventListener('click', async () => {
+      urlInput.select();
+      try {
+        await navigator.clipboard.writeText(urlInput.value);
+        copyBtn.textContent = 'Kopyalandı!';
+        setTimeout(() => { copyBtn.textContent = 'Kopyala'; }, 1500);
+      } catch {
+        // Clipboard API kullanılamayabilir (izinler, güvensiz bağlam) --
+        // input yine de select() edilmiş durumda, elle kopyalanabilir.
+      }
+    });
+    document.getElementById('bodyImagesList')!.appendChild(row);
+  });
+
   document.getElementById('submissionForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
@@ -408,18 +462,12 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     let imageUrl = '';
     const fileInput = document.getElementById('subImage') as HTMLInputElement;
     if (fileInput.files && fileInput.files.length > 0) {
-      const file = fileInput.files[0];
-      const uploadRes = await fetch('/api/blog-submissions/upload-image', {
-        method: 'POST',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!uploadRes.ok) {
+      const url = await uploadImage(fileInput.files[0]);
+      if (!url) {
         alert('Görsel yükleme başarısız oldu');
         return;
       }
-      const uploadData = await uploadRes.json() as { url: string };
-      imageUrl = uploadData.url;
+      imageUrl = url;
     }
 
     const addTranslation = (document.getElementById('subAddTranslation') as HTMLInputElement).checked;
@@ -456,6 +504,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       form.reset();
       delete form.dataset.editId;
       document.getElementById('translationFields')!.classList.add('hidden');
+      document.getElementById('bodyImagesList')!.innerHTML = '';
       await loadSubmissions();
     } else {
       const err = await res.json() as { error: string };
