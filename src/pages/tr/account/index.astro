@@ -83,6 +83,59 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <div id="interestsList" class="flex flex-wrap gap-2"></div>
         </div>
 
+        <!-- Write a post (writers only) -->
+        <div id="writerCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
+          <h2 class="text-sm font-semibold text-navy mb-4">Blog Yazısı Yaz</h2>
+
+          <form id="submissionForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            <select id="subLang" required class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid">
+              <option value="tr">Türkçe</option>
+              <option value="en">İngilizce</option>
+            </select>
+            <select id="subCategory" required class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid">
+              <option value="community">Topluluk</option>
+              <option value="events">Etkinlikler</option>
+              <option value="general">Genel</option>
+            </select>
+            <input id="subTitle" type="text" placeholder="Başlık" required
+              class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2" />
+            <textarea id="subDescription" placeholder="Kısa açıklama" required rows="2"
+              class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2"></textarea>
+            <input id="subTags" type="text" placeholder="Etiketler (virgülle ayırın)"
+              class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+            <input id="subAuthor" type="text" placeholder="Yazar adı" required
+              class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+            <input id="subImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+              class="text-sm text-gray-600 sm:col-span-2" />
+            <textarea id="subBody" placeholder="Yazınızı Markdown ile yazın" required rows="10"
+              class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2 font-mono"></textarea>
+
+            <label class="flex items-center gap-2 text-sm text-gray-600 sm:col-span-2">
+              <input id="subAddTranslation" type="checkbox" class="rounded border-border" />
+              Diğer dilde de bir çeviri göndermek istiyorum
+            </label>
+
+            <div id="translationFields" class="hidden sm:col-span-2 grid grid-cols-1 gap-3 pt-3 border-t border-border">
+              <input id="subTransTitle" type="text" placeholder="Başlık (çeviri)"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <textarea id="subTransDescription" placeholder="Kısa açıklama (çeviri)" rows="2"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid"></textarea>
+              <input id="subTransTags" type="text" placeholder="Etiketler (çeviri, virgülle ayırın)"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <textarea id="subTransBody" placeholder="Yazı içeriği (çeviri, Markdown)" rows="10"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid font-mono"></textarea>
+            </div>
+
+            <button type="submit" class="sm:col-span-2 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+              İncelemeye gönder
+            </button>
+          </form>
+
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Gönderilerim</h3>
+          <div id="submissionsList" class="flex flex-col gap-3"></div>
+          <p id="submissionsEmpty" class="hidden text-sm text-gray-400">Henüz gönderi yok.</p>
+        </div>
+
         <!-- Membership CTA -->
         <div id="membershipCta" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6 flex items-start gap-4">
           <div class="shrink-0 w-10 h-10 rounded-full bg-navy-light flex items-center justify-center text-navy">
@@ -186,6 +239,12 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
         document.getElementById('membershipCta')!.classList.remove('hidden');
       }
 
+      // Writer: blog submissions
+      if (data.user.is_writer) {
+        document.getElementById('writerCard')!.classList.remove('hidden');
+        await loadSubmissions();
+      }
+
       // Growth rank
       const rank = data.rank || 'seed';
       document.getElementById('rankCard')!.classList.remove('hidden');
@@ -238,4 +297,151 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       notLoggedIn.classList.remove('hidden');
     }
   })();
+
+  function escapeHtml(s: unknown): string {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c] as string));
+  }
+
+  type Submission = {
+    id: string;
+    lang: string;
+    title: string;
+    description: string;
+    category: string;
+    tags: string[];
+    author: string;
+    image_url: string;
+    body: string;
+    status: string;
+    rejection_reason: string | null;
+    pr_url: string | null;
+    paired_submission_id: string | null;
+  };
+
+  function submissionStatusHtml(s: Submission): string {
+    if (s.status === 'approved' && s.pr_url) {
+      return `<a href="${escapeHtml(s.pr_url)}" target="_blank" rel="noopener noreferrer" class="text-xs text-green-700">Onaylandı — PR'ı görüntüle →</a>`;
+    }
+    if (s.status === 'rejected') {
+      return `<span class="text-xs text-red-600">Reddedildi: ${escapeHtml(s.rejection_reason ?? '')}</span> <button data-id="${s.id}" class="edit-resubmit-btn text-xs text-navy-mid hover:underline ml-2">Düzenle ve tekrar gönder</button>`;
+    }
+    return `<span class="text-xs text-gray-400">İncelemede</span>`;
+  }
+
+  async function loadSubmissions() {
+    const res = await fetch('/api/blog-submissions');
+    if (!res.ok) return;
+    const data = await res.json() as { submissions: Submission[] };
+    const list = document.getElementById('submissionsList')!;
+    const empty = document.getElementById('submissionsEmpty')!;
+
+    // Render each submission once; a paired translation is shown as a
+    // suffix on its primary row rather than as its own separate row.
+    const shown = new Set<string>();
+    const rows = data.submissions.filter(s => {
+      if (shown.has(s.id)) return false;
+      if (s.paired_submission_id) shown.add(s.paired_submission_id);
+      shown.add(s.id);
+      return true;
+    });
+
+    if (rows.length === 0) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    list.innerHTML = rows.map(s => `
+      <div class="p-3 rounded-xl border border-border">
+        <div class="text-sm font-medium text-navy">${escapeHtml(s.title)}</div>
+        <div class="mt-1">${submissionStatusHtml(s)}</div>
+      </div>`).join('');
+
+    list.querySelectorAll('.edit-resubmit-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
+        const s = data.submissions.find(x => x.id === id);
+        if (!s) return;
+        (document.getElementById('subLang') as HTMLSelectElement).value = s.lang;
+        (document.getElementById('subCategory') as HTMLSelectElement).value = s.category;
+        (document.getElementById('subTitle') as HTMLInputElement).value = s.title;
+        (document.getElementById('subDescription') as HTMLTextAreaElement).value = s.description;
+        (document.getElementById('subTags') as HTMLInputElement).value = s.tags.join(', ');
+        (document.getElementById('subAuthor') as HTMLInputElement).value = s.author;
+        (document.getElementById('subBody') as HTMLTextAreaElement).value = s.body;
+        document.getElementById('submissionForm')!.dataset.editId = id;
+        document.getElementById('writerCard')!.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  }
+
+  document.getElementById('subAddTranslation')?.addEventListener('change', (e) => {
+    document.getElementById('translationFields')!.classList.toggle('hidden', !(e.target as HTMLInputElement).checked);
+  });
+
+  document.getElementById('submissionForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const editId = form.dataset.editId;
+
+    let imageUrl = '';
+    const fileInput = document.getElementById('subImage') as HTMLInputElement;
+    if (fileInput.files && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const uploadRes = await fetch('/api/blog-submissions/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!uploadRes.ok) {
+        alert('Image upload failed');
+        return;
+      }
+      const uploadData = await uploadRes.json() as { url: string };
+      imageUrl = uploadData.url;
+    }
+
+    const addTranslation = (document.getElementById('subAddTranslation') as HTMLInputElement).checked;
+    const payload: any = {
+      lang: (document.getElementById('subLang') as HTMLSelectElement).value,
+      category: (document.getElementById('subCategory') as HTMLSelectElement).value,
+      title: (document.getElementById('subTitle') as HTMLInputElement).value,
+      description: (document.getElementById('subDescription') as HTMLTextAreaElement).value,
+      tags: (document.getElementById('subTags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean),
+      author: (document.getElementById('subAuthor') as HTMLInputElement).value,
+      body: (document.getElementById('subBody') as HTMLTextAreaElement).value,
+    };
+    if (imageUrl) payload.image_url = imageUrl;
+
+    if (addTranslation) {
+      payload.translation = {
+        lang: payload.lang === 'en' ? 'tr' : 'en',
+        title: (document.getElementById('subTransTitle') as HTMLInputElement).value,
+        description: (document.getElementById('subTransDescription') as HTMLTextAreaElement).value,
+        tags: (document.getElementById('subTransTags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean),
+        body: (document.getElementById('subTransBody') as HTMLTextAreaElement).value,
+      };
+    }
+
+    const url = editId ? `/api/blog-submissions/${editId}` : '/api/blog-submissions';
+    const method = editId ? 'PATCH' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      form.reset();
+      delete form.dataset.editId;
+      document.getElementById('translationFields')!.classList.add('hidden');
+      await loadSubmissions();
+    } else {
+      const err = await res.json() as { error: string };
+      alert(err.error || 'Submission failed');
+    }
+  });
 </script>
