@@ -397,7 +397,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
         body: file,
       });
       if (!uploadRes.ok) {
-        alert('Image upload failed');
+        alert('Görsel yükleme başarısız oldu');
         return;
       }
       const uploadData = await uploadRes.json() as { url: string };
@@ -441,7 +441,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       await loadSubmissions();
     } else {
       const err = await res.json() as { error: string };
-      alert(err.error || 'Submission failed');
+      alert(err.error || 'Gönderim başarısız oldu');
     }
   });
 </script>

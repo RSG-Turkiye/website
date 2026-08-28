@@ -97,8 +97,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!body.lang || !body.title || !body.description || !body.category || !body.author || !body.body) {
     return jsonResponse({ error: 'Missing required field' }, 400);
   }
-  if (body.translation && (!body.translation.title || !body.translation.description || !body.translation.body)) {
-    return jsonResponse({ error: 'Missing required field in translation' }, 400);
+  if (body.lang !== 'en' && body.lang !== 'tr') {
+    return jsonResponse({ error: 'Invalid lang' }, 400);
+  }
+  if (body.translation) {
+    if (!body.translation.title || !body.translation.description || !body.translation.body) {
+      return jsonResponse({ error: 'Missing required field in translation' }, 400);
+    }
+    if (body.translation.lang !== 'en' && body.translation.lang !== 'tr') {
+      return jsonResponse({ error: 'Invalid translation lang' }, 400);
+    }
+    if (body.translation.lang === body.lang) {
+      return jsonResponse({ error: 'Translation must be in the other language' }, 400);
+    }
   }
 
   const slug = slugify(body.title);

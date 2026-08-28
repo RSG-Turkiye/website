@@ -58,14 +58,19 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   if (body.action === 'reject') {
     if (!body.reason) return jsonResponse({ error: 'A rejection reason is required' }, 400);
     const now = Math.floor(Date.now() / 1000);
-    await env.DB.prepare(
-      `UPDATE blog_submissions SET status = 'rejected', rejection_reason = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?`
-    ).bind(body.reason, now, admin.id, id).run();
-    if (row.paired_submission_id) {
-      await env.DB.prepare(
+    const rejectStatements = [
+      env.DB.prepare(
         `UPDATE blog_submissions SET status = 'rejected', rejection_reason = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?`
-      ).bind(body.reason, now, admin.id, row.paired_submission_id).run();
+      ).bind(body.reason, now, admin.id, id),
+    ];
+    if (row.paired_submission_id) {
+      rejectStatements.push(
+        env.DB.prepare(
+          `UPDATE blog_submissions SET status = 'rejected', rejection_reason = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?`
+        ).bind(body.reason, now, admin.id, row.paired_submission_id)
+      );
     }
+    await env.DB.batch(rejectStatements);
     return jsonResponse({ ok: true });
   }
 
