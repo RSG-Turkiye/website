@@ -365,8 +365,8 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
         const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
         const s = data.submissions.find(x => x.id === id);
         if (!s) return;
-        (document.getElementById('subLang') as HTMLSelectElement).value = s.lang;
-        (document.getElementById('subCategory') as HTMLSelectElement).value = s.category;
+        (document.getElementById('subLang') as unknown as HTMLSelectElement).value = s.lang;
+        (document.getElementById('subCategory') as unknown as HTMLSelectElement).value = s.category;
         (document.getElementById('subTitle') as HTMLInputElement).value = s.title;
         (document.getElementById('subDescription') as HTMLTextAreaElement).value = s.description;
         (document.getElementById('subTags') as HTMLInputElement).value = s.tags.join(', ');
@@ -424,8 +424,8 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 
     const addTranslation = (document.getElementById('subAddTranslation') as HTMLInputElement).checked;
     const payload: any = {
-      lang: (document.getElementById('subLang') as HTMLSelectElement).value,
-      category: (document.getElementById('subCategory') as HTMLSelectElement).value,
+      lang: (document.getElementById('subLang') as unknown as HTMLSelectElement).value,
+      category: (document.getElementById('subCategory') as unknown as HTMLSelectElement).value,
       title: (document.getElementById('subTitle') as HTMLInputElement).value,
       description: (document.getElementById('subDescription') as HTMLTextAreaElement).value,
       tags: (document.getElementById('subTags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean),
