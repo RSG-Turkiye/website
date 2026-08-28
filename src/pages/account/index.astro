@@ -372,6 +372,24 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         (document.getElementById('subTags') as HTMLInputElement).value = s.tags.join(', ');
         (document.getElementById('subAuthor') as HTMLInputElement).value = s.author;
         (document.getElementById('subBody') as HTMLTextAreaElement).value = s.body;
+
+        const translationCheckbox = document.getElementById('subAddTranslation') as HTMLInputElement;
+        const translationFields = document.getElementById('translationFields')!;
+        if (s.paired_submission_id) {
+          const paired = data.submissions.find(x => x.id === s.paired_submission_id);
+          if (paired) {
+            translationCheckbox.checked = true;
+            translationFields.classList.remove('hidden');
+            (document.getElementById('subTransTitle') as HTMLInputElement).value = paired.title;
+            (document.getElementById('subTransDescription') as HTMLTextAreaElement).value = paired.description;
+            (document.getElementById('subTransTags') as HTMLInputElement).value = paired.tags.join(', ');
+            (document.getElementById('subTransBody') as HTMLTextAreaElement).value = paired.body;
+          }
+        } else {
+          translationCheckbox.checked = false;
+          translationFields.classList.add('hidden');
+        }
+
         document.getElementById('submissionForm')!.dataset.editId = id;
         document.getElementById('writerCard')!.scrollIntoView({ behavior: 'smooth' });
       });
