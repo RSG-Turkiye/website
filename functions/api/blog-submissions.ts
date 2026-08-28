@@ -1,5 +1,6 @@
 import type { Env } from '../_lib/auth';
-import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../_lib/auth';
+import { getSessionUser, jsonResponse, checkCsrf, generateId, getBaseUrl } from '../_lib/auth';
+import { notifyNewSubmission } from '../_lib/github';
 
 type SubmissionRow = {
   id: string;
@@ -129,6 +130,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       tagsJson, body.author, imageUrl, body.body, slug, now
     ).run();
 
+    await notifyNewSubmission(
+      `New blog submission: ${body.title}`,
+      `Submitted by ${user.email} (${body.lang}).\n\n${body.description}\n\nReview it in the admin panel: ${getBaseUrl(request)}/admin`,
+      env
+    );
+
     return jsonResponse({ ok: true, id: primaryId });
   }
 
@@ -162,6 +169,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   await env.DB.prepare(
     'UPDATE blog_submissions SET paired_submission_id = ? WHERE id = ?'
   ).bind(pairedId, primaryId).run();
+
+  await notifyNewSubmission(
+    `New blog submission: ${body.title}`,
+    `Submitted by ${user.email} (${body.lang} + ${translation.lang} translation).\n\n${body.description}\n\nReview it in the admin panel: ${getBaseUrl(request)}/admin`,
+    env
+  );
 
   return jsonResponse({ ok: true, id: primaryId });
 };

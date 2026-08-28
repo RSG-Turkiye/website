@@ -4,6 +4,7 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
   GITHUB_PAT: string;
+  GITHUB_NOTIFY_USERNAME: string;
   BLOG_IMAGES: R2Bucket;
   PUBLIC_BLOG_IMAGES_URL: string;
 }
