@@ -58,13 +58,33 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   if (!user.is_admin) return jsonResponse({ error: 'Forbidden' }, 403);
 
-  const body = await request.json<{
-    user_id: string;
-    action: 'verify' | 'unverify' | 'make_admin' | 'remove_admin' | 'make_announcer' | 'remove_announcer'
-      | 'make_writer' | 'remove_writer' | 'make_private' | 'clear_bio' | 'set_rank' | 'award_badge' | 'revoke_badge'
-      | 'make_sender' | 'remove_sender';
-    value?: string;
-  }>();
+  let parsed: unknown;
+  try {
+    parsed = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+  if (parsed === null || typeof parsed !== 'object') {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+
+  const body = parsed as {
+    user_id?: unknown;
+    action?: unknown;
+    value?: unknown;
+  };
+
+  // request.json<T>()'s generic is compile-time only -- it does not check
+  // that the caller actually sent strings. Reject the wrong shape here, with
+  // a coded 400, before body.value?.trim() and the string-keyed switch below
+  // run on non-strings and throw (uncaught).
+  if (
+    typeof body.user_id !== 'string' ||
+    typeof body.action !== 'string' ||
+    (body.value !== undefined && typeof body.value !== 'string')
+  ) {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
 
   if (!body.user_id || !body.action) {
     return jsonResponse({ error: 'Missing user_id or action' }, 400);
