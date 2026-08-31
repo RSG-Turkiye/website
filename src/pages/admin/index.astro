@@ -195,6 +195,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     { value: 'legacy_tree', label: '🌲 Legacy Tree' },
   ];
 
+  const ATTACHMENT_ERRORS: Record<string, string> = {
+    unsupported_type: 'Unsupported file type.',
+    missing_filename: 'Missing filename.',
+    invalid_filename: 'Invalid filename.',
+    empty_file: 'The file is empty.',
+    attachments_too_large: 'File too large (max 18MB).',
+    missing_fields: 'Missing id or status.',
+    malformed_request: 'Malformed request.',
+    forbidden: 'You are not authorised to do that.',
+    not_authenticated: 'Your session expired. Please sign in again.',
+  };
+
   function showToast(message: string, isError = false) {
     const toast = document.getElementById('toast')!;
     toast.textContent = message;
@@ -611,12 +623,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     list.querySelectorAll<HTMLButtonElement>('.toggle-attachment-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         btn.disabled = true;
-        await fetch('/api/admin/mail-attachments', {
+        const res = await fetch('/api/admin/mail-attachments', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: btn.dataset.id, is_active: btn.dataset.active !== '1' }),
         });
-        await loadAdminAttachments();
+        if (res.ok) {
+          await loadAdminAttachments();
+        } else {
+          const data = await res.json().catch(() => null) as { code?: string } | null;
+          showToast(ATTACHMENT_ERRORS[data?.code ?? ''] ?? 'Upload failed.', true);
+          btn.disabled = false;
+        }
       });
     });
   }
@@ -634,13 +652,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         },
         body: file,
       });
-      const data = await res.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      const data = await res.json().catch(() => null) as { ok?: boolean; code?: string } | null;
       input.value = '';
       if (res.ok && data?.ok) {
         showToast('Attachment uploaded');
         await loadAdminAttachments();
       } else {
-        showToast(data?.error ?? 'Upload failed', true);
+        showToast(ATTACHMENT_ERRORS[data?.code ?? ''] ?? 'Upload failed.', true);
       }
     });
   }
