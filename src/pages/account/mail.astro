@@ -1,0 +1,220 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  pageTitle="Send mail as RSG — RSG Turkiye"
+  description="Send mail from the RSG Turkiye address."
+  translationUrl="/tr/account/mail"
+>
+  <div class="min-h-screen bg-[#F7F7F6] py-12 px-4">
+    <div class="max-w-3xl mx-auto">
+
+      <div id="loadingState" class="flex items-center justify-center py-24">
+        <div class="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <div id="notAllowed" class="hidden text-center py-24">
+        <p class="text-gray-500 mb-4">You are not authorised to send mail as RSG.</p>
+        <a href="/account" class="text-navy-mid hover:underline text-sm">Back to my profile</a>
+      </div>
+
+      <div id="composeContent" class="hidden flex flex-col gap-6">
+        <div>
+          <h1 class="text-xl font-bold text-navy">Send mail as RSG</h1>
+          <p class="text-sm text-gray-500 mt-1">
+            Sent from <span id="fromAddress" class="font-medium text-navy"></span>.
+            Replies come to your own address. Each recipient receives a separate
+            message and never sees the others.
+          </p>
+        </div>
+
+        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
+
+        <form id="composeForm" class="bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col gap-3">
+          <input id="mailTo" type="text" required placeholder="To (comma separated, max 10)"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+          <input id="mailRecipientName" type="text" placeholder="Recipient name (optional, single recipient only)"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+          <input id="mailSubject" type="text" required maxlength="200" placeholder="Subject"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+          <textarea id="mailBody" required rows="14" maxlength="20000" placeholder="Write your message"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid"></textarea>
+
+          <div id="attachmentsWrap" class="hidden border-t border-border pt-3">
+            <p class="text-xs font-semibold text-navy mb-2">Attachments</p>
+            <div id="attachmentsList" class="flex flex-col gap-1"></div>
+          </div>
+
+          <div class="flex items-center gap-3 pt-1">
+            <button type="submit" id="sendBtn"
+              class="px-5 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors disabled:opacity-50">
+              Send
+            </button>
+            <span id="sendStatus" class="text-xs text-gray-400"></span>
+          </div>
+        </form>
+
+        <div class="bg-white rounded-2xl border border-border shadow-sm p-6">
+          <h2 class="text-sm font-semibold text-navy mb-3">My sent mail</h2>
+          <div id="historyList" class="flex flex-col gap-2"></div>
+          <p id="historyEmpty" class="hidden text-sm text-gray-400">Nothing sent yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const ERRORS: Record<string, string> = {
+    no_recipients: 'Add at least one recipient.',
+    too_many_recipients: 'At most 10 recipients per message.',
+    invalid_email: 'One of the addresses is not a valid email.',
+    empty_subject: 'Subject cannot be empty.',
+    subject_too_long: 'Subject is too long (max 200 characters).',
+    empty_body: 'Message body cannot be empty.',
+    body_too_long: 'Message is too long (max 20000 characters).',
+    unknown_attachment: 'One of the selected attachments is no longer available.',
+    attachments_too_large: 'Attachments exceed the 18MB limit.',
+    rate_limit_hour: 'You have reached the hourly send limit (20). Try again later.',
+    rate_limit_day: 'You have reached the daily send limit (100).',
+    rate_limit_global: 'RSG has reached its daily send limit (300). Try again tomorrow.',
+    forbidden: 'You are not authorised to send mail as RSG.',
+    not_authenticated: 'Your session expired. Please sign in again.',
+    malformed_request: 'Your request could not be understood. Please try again.',
+  };
+
+  function showToast(message: string, isError = false) {
+    const toast = document.getElementById('toast')!;
+    toast.textContent = message;
+    toast.className = `fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50 ${
+      isError ? 'bg-red-500' : 'bg-navy'
+    }`;
+    setTimeout(() => toast.classList.add('hidden'), 6000);
+  }
+
+  function escapeHtml(s: unknown): string {
+    return String(s ?? '').replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+  }
+
+  function formatDate(ts: number) {
+    return new Date(ts * 1000).toLocaleString('en-GB');
+  }
+
+  async function loadHistory() {
+    const res = await fetch('/api/mail/history');
+    if (!res.ok) return;
+    const data: any = await res.json();
+    const list = document.getElementById('historyList')!;
+    const empty = document.getElementById('historyEmpty')!;
+    if (!data.sends.length) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    list.innerHTML = data.sends.map((s: any) => `
+      <div class="flex items-start justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
+        <div class="min-w-0">
+          <div class="text-navy truncate">${escapeHtml(s.subject)}</div>
+          <div class="text-xs text-gray-400">${escapeHtml(s.recipient_email)} · ${formatDate(s.sent_at)}</div>
+          ${s.status === 'failed' ? `<div class="text-xs text-red-600 mt-0.5">${escapeHtml(s.error_message)}</div>` : ''}
+        </div>
+        <span class="shrink-0 text-xs px-2 py-0.5 rounded-full ${
+          s.status === 'sent' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }">${s.status === 'sent' ? 'Sent' : 'Failed'}</span>
+      </div>`).join('');
+  }
+
+  async function loadAttachments() {
+    const res = await fetch('/api/admin/mail-attachments');
+    if (!res.ok) return;
+    const data: any = await res.json();
+    const active = data.attachments.filter((a: any) => a.is_active === 1);
+    if (!active.length) return;
+    document.getElementById('attachmentsWrap')!.classList.remove('hidden');
+    document.getElementById('attachmentsList')!.innerHTML = active.map((a: any) => `
+      <label class="flex items-center gap-2 text-sm text-gray-600">
+        <input type="checkbox" class="attachment-box rounded border-border" value="${escapeHtml(a.id)}" />
+        ${escapeHtml(a.filename)}
+        <span class="text-xs text-gray-400">${Math.round(a.size_bytes / 1024)} KB</span>
+      </label>`).join('');
+  }
+
+  function setupForm() {
+    const form = document.getElementById('composeForm') as HTMLFormElement;
+    const btn = document.getElementById('sendBtn') as HTMLButtonElement;
+    const status = document.getElementById('sendStatus')!;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      status.textContent = 'Sending…';
+
+      const attachment_ids = Array.from(
+        document.querySelectorAll<HTMLInputElement>('.attachment-box:checked')
+      ).map(b => b.value);
+
+      const res = await fetch('/api/mail/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: (document.getElementById('mailTo') as HTMLInputElement).value,
+          recipient_name: (document.getElementById('mailRecipientName') as HTMLInputElement).value,
+          subject: (document.getElementById('mailSubject') as HTMLInputElement).value,
+          body: (document.getElementById('mailBody') as HTMLTextAreaElement).value,
+          attachment_ids,
+        }),
+      });
+
+      // A non-JSON body means the Worker threw; say so rather than crashing
+      // the handler and leaving the button stuck on "Sending…".
+      const data: any = await res.json().catch(() => null);
+      btn.disabled = false;
+      status.textContent = '';
+
+      if (!data) {
+        showToast('Something went wrong. Please try again.', true);
+        return;
+      }
+      if (!res.ok && data.code) {
+        showToast(ERRORS[data.code] ?? 'Send failed.', true);
+        if (data.results) await loadHistory();
+        return;
+      }
+
+      const failed = (data.results ?? []).filter((r: any) => r.status === 'failed');
+      const sent = (data.results ?? []).length - failed.length;
+      if (failed.length === 0) {
+        showToast(`Sent to ${sent} recipient(s).`);
+        form.reset();
+      } else {
+        showToast(`Sent to ${sent}, failed for: ${failed.map((r: any) => r.recipient).join(', ')}`, true);
+      }
+      await loadHistory();
+    });
+  }
+
+  async function init() {
+    const res = await fetch('/api/me');
+    document.getElementById('loadingState')!.classList.add('hidden');
+
+    if (!res.ok) {
+      document.getElementById('notAllowed')!.classList.remove('hidden');
+      return;
+    }
+    const data: any = await res.json();
+    if (!data.user?.is_sender) {
+      document.getElementById('notAllowed')!.classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('composeContent')!.classList.remove('hidden');
+    document.getElementById('fromAddress')!.textContent = 'the RSG Turkiye address';
+    setupForm();
+    await Promise.all([loadHistory(), loadAttachments()]);
+  }
+
+  init();
+</script>

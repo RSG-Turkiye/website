@@ -83,6 +83,15 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <div id="interestsList" class="flex flex-wrap gap-2"></div>
         </div>
 
+        <!-- Send as RSG (only for authorised senders) -->
+        <div id="senderCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-semibold text-navy mb-1">RSG Adına Mail Gönder</h2>
+            <p class="text-sm text-gray-500">RSG Türkiye adresinden mail gönderme yetkiniz var.</p>
+          </div>
+          <a href="/tr/account/mail" class="shrink-0 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">Aç</a>
+        </div>
+
         <!-- Write a post (writers only) -->
         <div id="writerCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
           <h2 class="text-sm font-semibold text-navy mb-4">Blog Yazısı Yaz</h2>
@@ -247,6 +256,10 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
         document.getElementById('memberBadge')!.classList.remove('hidden');
       } else {
         document.getElementById('membershipCta')!.classList.remove('hidden');
+      }
+
+      if (data.user.is_sender) {
+        document.getElementById('senderCard')!.classList.remove('hidden');
       }
 
       // Writer: blog submissions
