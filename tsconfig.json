@@ -6,7 +6,8 @@
   ],
   "exclude": [
     "dist",
-    "symposium_website"
+    "symposium_website",
+    "tests"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",
