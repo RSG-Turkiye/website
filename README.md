@@ -172,6 +172,10 @@ has to change.
 
    Keep the `refresh_token` from the response.
 
+   **Where to get the client secret:** The OAuth client secret lives in [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials), under the same OAuth 2.0 Client ID. If Google will not display it (the console stopped showing secrets for newly created clients except at creation time), the only way forward is to add a new secret on that client in the Credentials UI. **This invalidates the existing secret — the same secret that member sign-in (`functions/auth/callback.ts`) also uses.** If you rotate it, you must immediately run `wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name website` with the new value in the same sitting, or login will break for everyone.
+
+   **Shell history warning.** The `curl` command above puts the secret on the command line, where it lands in your shell history and is visible to other users via `ps`. Run this command somewhere private (a private SSH session, or a machine where only you have access) and clear the shell history afterwards — it is a one-time admin action, not a recurring step.
+
 3. **Set the secret and create the bucket:**
 
    ```
