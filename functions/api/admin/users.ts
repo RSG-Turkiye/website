@@ -1,6 +1,7 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
 import { RANK_ORDINALS, awardRank, type Rank } from '../../_lib/rank';
+import { grantSender, revokeSender } from './senders';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
@@ -13,7 +14,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   let query = `
     SELECT
-      u.id, u.email, u.is_member, u.is_admin, u.is_announcer, u.is_writer, u.created_at, u.last_login,
+      u.id, u.email, u.is_member, u.is_admin, u.is_announcer, u.is_writer, u.is_sender, u.created_at, u.last_login,
       p.username, p.display_name, p.institution, p.is_public,
       COALESCE(
         (SELECT rank FROM rank_history rh WHERE rh.user_id = u.id
@@ -60,7 +61,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   const body = await request.json<{
     user_id: string;
     action: 'verify' | 'unverify' | 'make_admin' | 'remove_admin' | 'make_announcer' | 'remove_announcer'
-      | 'make_writer' | 'remove_writer' | 'make_private' | 'clear_bio' | 'set_rank' | 'award_badge' | 'revoke_badge';
+      | 'make_writer' | 'remove_writer' | 'make_private' | 'clear_bio' | 'set_rank' | 'award_badge' | 'revoke_badge'
+      | 'make_sender' | 'remove_sender';
     value?: string;
   }>();
 
@@ -124,6 +126,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       ).bind(body.user_id, body.value).run();
       break;
     }
+    case 'make_sender':
+      await grantSender(env, body.user_id, body.value?.trim() || null, user.id);
+      break;
+    case 'remove_sender':
+      await revokeSender(env, body.user_id, user.id);
+      break;
     default:
       return jsonResponse({ error: 'Unknown action' }, 400);
   }
