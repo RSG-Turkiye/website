@@ -34,6 +34,19 @@
 --       wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS idx_blog_submissions_status ON blog_submissions(status)"
 --     Without 3b, /api/blog-submissions and /api/admin/blog-submissions
 --     500 with "no such table: blog_submissions".
+--
+-- 4a. functions/api/admin/users.ts (Task 6) unconditionally SELECTs
+--     is_sender; deploying that without this first breaks the admin user
+--     list with D1 "no such column: is_sender". ALTER TABLE ADD COLUMN is
+--     NOT idempotent -- do not re-run this one:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_sender INTEGER NOT NULL DEFAULT 0"
+--
+-- 4b. This file's sender_grants / sent_emails / mail_attachments tables
+--     below are NOT applied by any deploy step -- run them by hand
+--     (`IF NOT EXISTS` makes these safe to re-run):
+--       wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--     Without this, every /api/mail/* and /api/admin/senders request 500s
+--     with "no such table: sent_emails".
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -43,6 +56,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_admin      INTEGER NOT NULL DEFAULT 0,
   is_announcer  INTEGER NOT NULL DEFAULT 0,
   is_writer     INTEGER NOT NULL DEFAULT 0,
+  is_sender     INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL,
   last_login    INTEGER NOT NULL
 );
@@ -204,3 +218,57 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_progress_user_id ON progress(user_id);
 CREATE INDEX IF NOT EXISTS idx_rank_history_user_ordinal ON rank_history(user_id, rank_ordinal);
 CREATE INDEX IF NOT EXISTS idx_user_achievement_badges_user_id ON user_achievement_badges(user_id);
+
+-- Send-as-RSG: which members may send mail from the organisation's address.
+-- users.is_sender is the authority for "may this user send" (checked on every
+-- request); this table is the record of how they came to be allowed. Granting
+-- inserts a row; revoking stamps revoked_by/revoked_at on the newest unrevoked
+-- row, so a granted -> revoked -> granted user has a readable three-row history.
+CREATE TABLE IF NOT EXISTS sender_grants (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  team        TEXT,
+  granted_by  TEXT NOT NULL REFERENCES users(id),
+  granted_at  INTEGER NOT NULL,
+  revoked_by  TEXT REFERENCES users(id),
+  revoked_at  INTEGER
+);
+
+-- One row per RECIPIENT, not per composed message: a compose addressed to
+-- three people writes three rows, because each recipient genuinely receives
+-- its own Gmail message. This is what makes the per-user rate limit and
+-- "has anyone written to this professor?" a plain COUNT(*).
+-- body_snapshot is deliberately a copy, not a reference -- the log has to stay
+-- true after everything else changes.
+CREATE TABLE IF NOT EXISTS sent_emails (
+  id                TEXT PRIMARY KEY,
+  sender_user_id    TEXT NOT NULL REFERENCES users(id),
+  recipient_email   TEXT NOT NULL,
+  recipient_name    TEXT,
+  subject           TEXT NOT NULL,
+  body_snapshot     TEXT NOT NULL,
+  attachment_ids    TEXT NOT NULL DEFAULT '[]',
+  gmail_message_id  TEXT,
+  status            TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
+  error_message     TEXT,
+  sent_at           INTEGER NOT NULL
+);
+
+-- Admin-curated attachment library (sponsorship pack, invitation letter).
+-- Members pick from this list; members never upload. Bytes live in the
+-- non-public R2 bucket bound as MAIL_ATTACHMENTS and are read server-side
+-- into the MIME message -- no URL is ever exposed.
+CREATE TABLE IF NOT EXISTS mail_attachments (
+  id            TEXT PRIMARY KEY,
+  filename      TEXT NOT NULL,
+  r2_key        TEXT NOT NULL,
+  content_type  TEXT NOT NULL,
+  size_bytes    INTEGER NOT NULL,
+  uploaded_by   TEXT NOT NULL REFERENCES users(id),
+  uploaded_at   INTEGER NOT NULL,
+  is_active     INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_sent_emails_sender_sent_at ON sent_emails(sender_user_id, sent_at);
+CREATE INDEX IF NOT EXISTS idx_sent_emails_sent_at ON sent_emails(sent_at);
+CREATE INDEX IF NOT EXISTS idx_sender_grants_user_id ON sender_grants(user_id);

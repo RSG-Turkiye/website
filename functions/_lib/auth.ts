@@ -7,6 +7,9 @@ export interface Env {
   GITHUB_NOTIFY_USERNAME: string;
   BLOG_IMAGES: R2Bucket;
   PUBLIC_BLOG_IMAGES_URL: string;
+  GMAIL_REFRESH_TOKEN: string;
+  RSG_MAIL_FROM: string;
+  MAIL_ATTACHMENTS: R2Bucket;
 }
 
 export interface User {
@@ -17,6 +20,7 @@ export interface User {
   is_admin: number;
   is_announcer: number;
   is_writer: number;
+  is_sender: number;
   created_at: number;
   last_login: number;
 }
