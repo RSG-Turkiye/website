@@ -12,9 +12,18 @@ database_id = "ff7b1d7b-7bcc-4dc6-88d3-ade479ee2d08"
 binding = "BLOG_IMAGES"
 bucket_name = "rsg-blog-images"
 
+[[r2_buckets]]
+binding = "MAIL_ATTACHMENTS"
+bucket_name = "rsg-mail-attachments"
+
 [vars]
 GOOGLE_CLIENT_ID = "273051123979-t52aq69ueh1mji460qie6ip2j68c3agc.apps.googleusercontent.com"
 PUBLIC_BLOG_IMAGES_URL = "https://pub-5c845f6be1514cfeb871010a8014ce1e.r2.dev"
+# The address members' mail is sent from. Gmail accepts any address verified
+# as a "send mail as" alias on the sending account, so switching to
+# rsg-turkey@iscbsc.org once that alias works is a change to this line only --
+# no code change. See README, "Sending mail as RSG".
+RSG_MAIL_FROM = "turkey.rsg@gmail.com"
 # GitHub username to notify (via a GitHub issue assigned to them) the
 # moment a member submits a blog post -- must be a real person's account,
 # never the same account GITHUB_PAT belongs to (GitHub never notifies an
