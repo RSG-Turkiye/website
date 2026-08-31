@@ -123,6 +123,84 @@ The member blog submission feature (members write a post on `/account`, an admin
 2. **An R2 bucket**, `rsg-blog-images`, with public access enabled (`wrangler r2 bucket create rsg-blog-images` then `wrangler r2 bucket dev-url enable rsg-blog-images`) — its public URL goes in `wrangler.toml`'s `PUBLIC_BLOG_IMAGES_URL`.
 3. **`GITHUB_NOTIFY_USERNAME`** in `wrangler.toml`'s `[vars]` — the GitHub username of whoever should be notified the moment a member submits a post (before any admin approves it, so nothing sits unnoticed). This **must be a different account than whoever `GITHUB_PAT` belongs to** — GitHub never sends a notification to an account for actions that account itself performed, so the PAT's own account can never be notified this way. **Update this whenever the person responsible for reviewing submissions changes** (e.g. a new committee president) — it's a plain config value, no code change needed.
 
+#### Sending mail as RSG — required setup
+
+Authorised members compose mail on `/account/mail` and it goes out from RSG's
+address without any of them holding the mailbox password. Four things have to
+be configured that are not part of a normal deploy.
+
+**Why there is no service account here.** The obvious way to send as an
+organisation is a Google Cloud service account with domain-wide delegation.
+That requires a Google Workspace tenant, and RSG does not have one —
+`turkey.rsg@gmail.com` is a consumer Gmail account (the paid subscription on it
+is Google One, which is storage and AI, not a managed Google service).
+`admin.google.com` will bounce it straight back to the account chooser. The
+refresh-token flow below is the supported path for a consumer account. If RSG
+ever buys a real Workspace, only `getAccessToken` in `functions/_lib/gmail.ts`
+has to change.
+
+1. **Publish the OAuth app.** In [Google Cloud Console → APIs & Services →
+   OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent),
+   the app must be in **Production**, not *Testing*. Refresh tokens issued by an
+   app in Testing **expire after seven days**, after which sending stops working
+   with no visible cause. Add the scope
+   `https://www.googleapis.com/auth/gmail.send` — nothing broader. Because
+   `gmail.send` is a sensitive scope, a published-but-unverified app shows an
+   "unverified app" interstitial; only the one person doing step 2 ever sees it.
+
+2. **Get a refresh token for the sending account.** Signed in as
+   `turkey.rsg@gmail.com`, visit this URL (substituting the client ID from
+   `wrangler.toml`), approve the consent screen, and copy the `code` parameter
+   from the redirect:
+
+   ```
+   https://accounts.google.com/o/oauth2/v2/auth?client_id=<GOOGLE_CLIENT_ID>&redirect_uri=https://rsg-turkiye.iscbsc.org/auth/callback&response_type=code&scope=https://www.googleapis.com/auth/gmail.send&access_type=offline&prompt=consent
+   ```
+
+   `access_type=offline&prompt=consent` is what makes Google return a refresh
+   token; without both, you get an access token that dies in an hour. Exchange
+   the code:
+
+   ```bash
+   curl -s -X POST https://oauth2.googleapis.com/token \
+     -d client_id=<GOOGLE_CLIENT_ID> \
+     -d client_secret=<GOOGLE_CLIENT_SECRET> \
+     -d code=<the code> \
+     -d grant_type=authorization_code \
+     -d redirect_uri=https://rsg-turkiye.iscbsc.org/auth/callback
+   ```
+
+   Keep the `refresh_token` from the response.
+
+3. **Set the secret and create the bucket:**
+
+   ```
+   wrangler pages secret put GMAIL_REFRESH_TOKEN --project-name website
+   wrangler r2 bucket create rsg-mail-attachments
+   ```
+
+   Do **not** enable public access on `rsg-mail-attachments`. Attachment bytes
+   are read server-side into the MIME message; no URL is ever exposed, and a
+   public bucket would leak the sponsorship documents.
+
+4. **Run the migrations** listed as items 4a and 4b at the top of
+   `db/schema.sql`, before deploying. Skipping 4a breaks the existing admin
+   user list.
+
+**Changing the from address.** `RSG_MAIL_FROM` in `wrangler.toml`'s `[vars]`
+holds the address mail is sent from. Gmail accepts any address verified as a
+"send mail as" alias on the sending account, so once `rsg-turkey@iscbsc.org`
+works in the Gmail UI, switching to it is an edit to that one line. It does not
+work today: it fails with `535 5.7.8 BadCredentials`, most likely because it is
+a Google Group or alias rather than a mailbox with a password — a group cannot
+authenticate over SMTP.
+
+**Limits.** Consumer Gmail caps sending at roughly 500 recipients per day, and
+Google One does not raise it. The app's own limits (20/hour and 100/day per
+member, 300/day across everyone, in `functions/_lib/mail.ts`) sit under that so
+members hit a clean error rather than Gmail starting to reject mail. Raise them
+only if the ceiling itself rises.
+
 ---
 
 ## Content Types
