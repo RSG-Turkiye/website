@@ -26,12 +26,38 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!user) return jsonResponse({ error: 'Not authenticated', code: 'not_authenticated' }, 401);
   if (user.is_sender !== 1) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
 
-  const input = await request.json<ComposeBody>();
+  let parsed: unknown;
+  try {
+    parsed = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+  if (parsed === null || typeof parsed !== 'object') {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+
+  const input = parsed as ComposeBody;
+
+  // request.json<T>()'s generic is compile-time only -- it does not check
+  // that the caller actually sent strings. Reject the wrong shape here, with
+  // a coded 400, before any of it reaches validateCompose/parseRecipients,
+  // which assume strings and throw (uncaught) on anything else.
+  if (
+    typeof input.to !== 'string' ||
+    typeof input.subject !== 'string' ||
+    typeof input.body !== 'string' ||
+    (input.recipient_name !== undefined && typeof input.recipient_name !== 'string') ||
+    (input.attachment_ids !== undefined &&
+      (!Array.isArray(input.attachment_ids) ||
+        !input.attachment_ids.every((id) => typeof id === 'string')))
+  ) {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
 
   const validation = validateCompose({
-    to: input.to ?? '',
-    subject: input.subject ?? '',
-    body: input.body ?? '',
+    to: input.to,
+    subject: input.subject,
+    body: input.body,
   });
   if (!validation.ok) return jsonResponse({ error: 'Invalid compose', code: validation.code }, 400);
   const recipients = validation.recipients;
