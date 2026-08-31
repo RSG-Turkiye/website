@@ -16,9 +16,18 @@ export async function grantSender(
   const now = Math.floor(Date.now() / 1000);
   await env.DB.batch([
     env.DB.prepare('UPDATE users SET is_sender = 1 WHERE id = ?').bind(userId),
+    // Idempotent: if this user already has a live (unrevoked) grant row, skip
+    // the insert. Without this, re-granting an already-active sender (e.g. a
+    // duplicate address in a bulk paste) creates a second live row that
+    // revokeSender's "newest unrevoked" subquery can never reach, leaving it
+    // dangling as a permanently "live" grant under a revoked user.
     env.DB.prepare(
-      'INSERT INTO sender_grants (id, user_id, team, granted_by, granted_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind(generateId(), userId, team, grantedBy, now),
+      `INSERT INTO sender_grants (id, user_id, team, granted_by, granted_at)
+       SELECT ?, ?, ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM sender_grants WHERE user_id = ? AND revoked_at IS NULL
+       )`
+    ).bind(generateId(), userId, team, grantedBy, now, userId),
   ]);
 }
 
@@ -65,8 +74,30 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   if (!user.is_admin) return jsonResponse({ error: 'Forbidden' }, 403);
 
-  const body = await request.json<{ emails: string; team?: string }>();
-  const emails = parseRecipients(body.emails ?? '');
+  let parsed: unknown;
+  try {
+    parsed = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+  if (parsed === null || typeof parsed !== 'object') {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+
+  const body = parsed as { emails: unknown; team?: unknown };
+
+  // request.json<T>()'s generic is compile-time only -- it does not check
+  // that the caller actually sent strings. Reject the wrong shape here, with
+  // a coded 400, before parseRecipients/body.team?.trim() run on non-strings
+  // and throw (uncaught).
+  if (
+    typeof body.emails !== 'string' ||
+    (body.team !== undefined && typeof body.team !== 'string')
+  ) {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+
+  const emails = parseRecipients(body.emails);
   if (emails.length === 0) return jsonResponse({ error: 'No emails given', code: 'no_emails' }, 400);
   if (emails.length > 200) return jsonResponse({ error: 'Too many emails', code: 'too_many_emails' }, 400);
 
@@ -97,8 +128,18 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   if (!user.is_admin) return jsonResponse({ error: 'Forbidden' }, 403);
 
-  const body = await request.json<{ user_id: string; action: 'revoke' }>();
-  if (!body.user_id || body.action !== 'revoke') {
+  let parsed: unknown;
+  try {
+    parsed = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+  if (parsed === null || typeof parsed !== 'object') {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+
+  const body = parsed as { user_id?: unknown; action?: unknown };
+  if (typeof body.user_id !== 'string' || !body.user_id || body.action !== 'revoke') {
     return jsonResponse({ error: 'Unknown action' }, 400);
   }
 
