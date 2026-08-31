@@ -20,7 +20,14 @@ export class GmailError extends Error {
 export interface MimeAttachment {
   filename: string;
   contentType: string;
-  bytes: Uint8Array;
+  /**
+   * Already base64-encoded and 76-column wrapped. Encoded once per compose
+   * by the caller (send.ts, when it reads the bytes from R2) and reused for
+   * every recipient in the loop -- encoding raw bytes here, inside
+   * buildMime, would re-run the (memory-heavy) base64/wrap pass once per
+   * recipient for identical output.
+   */
+  base64Body: string;
 }
 
 export interface MimeMessage {
@@ -53,6 +60,15 @@ function wrap76(s: string): string {
 }
 
 /**
+ * Base64-encode and 76-column wrap attachment bytes for a MIME part. Exposed
+ * so send.ts can do this once per compose (reading from R2) instead of
+ * buildMime doing it once per recipient inside the send loop.
+ */
+export function encodeAttachmentBody(bytes: Uint8Array): string {
+  return wrap76(base64(bytes));
+}
+
+/**
  * RFC 2047 encoded-word. Applied to display names and subjects only -- never
  * to an email address, which must stay literal for Gmail to parse it.
  */
@@ -67,12 +83,39 @@ function headerSafe(value: string): string {
   return value.replace(/[\r\n]+/g, ' ').trim();
 }
 
+/**
+ * Safe `display-name` token for a `From: display-name <addr>` header.
+ *
+ * A display name is free text a member controls (`profiles.display_name`,
+ * 1-60 chars, no character restrictions beyond length). It must never be
+ * interpolated into the header unescaped: something like
+ * `Foo" <evil@example.com>, Bar` would otherwise inject a second address.
+ *
+ * RFC 2047 encoded-words and RFC 5322 quoted-strings are the two ways to
+ * make it safe, and they are mutually exclusive -- an encoded-word cannot
+ * appear inside a quoted string, so exactly one of these applies:
+ *   - non-ASCII: RFC 2047 encoded-word. It is atomic (base64 of the whole
+ *     string), so there is no `"`, `<`, `>` or `,` for a parser to see.
+ *   - pure ASCII: a quoted-string, with `\` and `"` backslash-escaped so
+ *     they cannot terminate the quote early.
+ *
+ * This must live here, not at the call site, so it applies no matter what a
+ * caller passes -- a display name is safe by construction, not by whichever
+ * string happens to be non-ASCII today (see gmail.test.ts's injection case).
+ */
+function safeDisplayName(value: string): string {
+  const clean = headerSafe(value);
+  // eslint-disable-next-line no-control-regex
+  if (!/^[\x20-\x7E]*$/.test(clean)) return encodeHeader(clean);
+  return `"${clean.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 export function buildMime(msg: MimeMessage): string {
   const encoder = new TextEncoder();
   const bodyB64 = wrap76(base64(encoder.encode(msg.body)));
 
   const headers = [
-    `From: ${encodeHeader(headerSafe(msg.fromName))} <${msg.fromAddress}>`,
+    `From: ${safeDisplayName(msg.fromName)} <${msg.fromAddress}>`,
     `To: ${headerSafe(msg.to)}`,
     `Reply-To: ${headerSafe(msg.replyTo)}`,
     `Subject: ${encodeHeader(headerSafe(msg.subject))}`,
@@ -106,7 +149,7 @@ export function buildMime(msg: MimeMessage): string {
         'Content-Transfer-Encoding: base64',
         `Content-Disposition: attachment; filename="${headerSafe(a.filename).replace(/"/g, '')}"`,
         '',
-        wrap76(base64(a.bytes)),
+        a.base64Body,
       );
     }
     parts.push(`--${boundary}--`, '');
@@ -156,10 +199,8 @@ export async function getAccessToken(env: Env): Promise<string> {
   return data.access_token;
 }
 
-export async function sendMail(env: Env, raw: string): Promise<string> {
-  const token = await getAccessToken(env);
-
-  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+async function postSend(token: string, raw: string): Promise<Response> {
+  return fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -167,6 +208,22 @@ export async function sendMail(env: Env, raw: string): Promise<string> {
     },
     body: JSON.stringify({ raw }),
   });
+}
+
+export async function sendMail(env: Env, raw: string): Promise<string> {
+  const token = await getAccessToken(env);
+  let res = await postSend(token, raw);
+
+  // A revoked/expired token can still pass the isolate's own expiry check
+  // (Google may invalidate it early) and come back 401 from Gmail itself.
+  // Without clearing the cache here, every send for up to an hour of this
+  // isolate's life reuses the same bad token and fails the same way. Clear
+  // it and retry once with a freshly fetched token before giving up.
+  if (res.status === 401) {
+    cachedToken = null;
+    const freshToken = await getAccessToken(env);
+    res = await postSend(freshToken, raw);
+  }
 
   if (!res.ok) {
     const detail = (await res.text()).slice(0, 300);
