@@ -1,6 +1,6 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
-import { buildMime, sendMail, GmailError, type MimeAttachment } from '../../_lib/gmail';
+import { buildMime, sendMail, GmailError, encodeAttachmentBody, type MimeAttachment } from '../../_lib/gmail';
 import { validateCompose, checkRateLimit, MAX_ATTACHMENT_BYTES } from '../../_lib/mail';
 
 interface ComposeBody {
@@ -96,10 +96,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     for (const row of rows.results) {
       const object = await env.MAIL_ATTACHMENTS.get(row.r2_key);
       if (!object) return jsonResponse({ error: 'Attachment missing', code: 'unknown_attachment' }, 400);
+      // Encode once here, not inside buildMime: buildMime runs once per
+      // recipient below, and re-encoding the same bytes for every recipient
+      // is both wasted work and, at the attachment size ceiling, a real risk
+      // of exhausting the Worker isolate's memory mid-loop.
       attachments.push({
         filename: row.filename,
         contentType: row.content_type,
-        bytes: new Uint8Array(await object.arrayBuffer()),
+        base64Body: encodeAttachmentBody(new Uint8Array(await object.arrayBuffer())),
       });
     }
   }

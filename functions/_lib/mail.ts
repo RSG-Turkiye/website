@@ -5,7 +5,15 @@
  */
 
 export const MAX_RECIPIENTS = 10;
-export const MAX_ATTACHMENT_BYTES = 18 * 1024 * 1024; // Gmail allows 25MB; base64 inflates by a third
+// Gmail's message ceiling is 25MB after base64 inflation, but that reasoning
+// assumes a single encode. gmail.ts now encodes each attachment once per
+// compose (not once per recipient), so the peak cost is one attachment's
+// encode -- still capped well under the Worker isolate's ~128MB, since an
+// 18MB source buffer would itself blow past that during encoding. 5MB
+// comfortably fits a sponsorship PDF and has not been verified against a
+// real Gmail account end to end (no GMAIL_REFRESH_TOKEN configured yet), so
+// stay conservative rather than find the real ceiling by OOMing in production.
+export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 export const MAX_SUBJECT_LENGTH = 200;
 export const MAX_BODY_LENGTH = 20000;
 
