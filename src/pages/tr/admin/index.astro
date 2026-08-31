@@ -579,7 +579,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           await loadAdminAttachments();
         } else {
           const data = await res.json().catch(() => null) as { code?: string } | null;
-          showToast(ATTACHMENT_ERRORS[data?.code ?? ''] ?? 'Yükleme başarısız.', true);
+          showToast(ATTACHMENT_ERRORS[data?.code ?? ''] ?? 'Ek güncellenemedi.', true);
           btn.disabled = false;
         }
       });
