@@ -53,16 +53,45 @@ test('validateCompose rejects more than MAX_RECIPIENTS addresses', () => {
   assert.deepEqual(validateCompose({ ...good, to }), { ok: false, code: 'too_many_recipients' });
 });
 
-/** Minimal stand-in for D1: returns queued counts in call order. */
+test('validateCompose accepts at-limit subject, body, and recipient count', () => {
+  // 200-character subject should pass
+  const result1 = validateCompose({ ...good, subject: 'x'.repeat(200) });
+  assert.strictEqual(result1.ok, true, '200-char subject should succeed');
+  if (result1.ok) {
+    assert.strictEqual(result1.recipients[0], 'hoca@uni.edu.tr');
+  }
+
+  // 20000-character body should pass
+  const result2 = validateCompose({ ...good, body: 'x'.repeat(20000) });
+  assert.strictEqual(result2.ok, true, '20000-char body should succeed');
+  if (result2.ok) {
+    assert.strictEqual(result2.recipients[0], 'hoca@uni.edu.tr');
+  }
+
+  // Exactly MAX_RECIPIENTS addresses should pass
+  const to = Array.from({ length: MAX_RECIPIENTS }, (_, i) => `p${i}@uni.edu.tr`).join(',');
+  const result3 = validateCompose({ ...good, to });
+  assert.strictEqual(result3.ok, true, `exactly ${MAX_RECIPIENTS} recipients should succeed`);
+  if (result3.ok) {
+    assert.strictEqual(result3.recipients.length, MAX_RECIPIENTS, `should have exactly ${MAX_RECIPIENTS} recipients`);
+  }
+});
+
+/** Stand-in for D1: returns queued counts in call order and records bind arguments. */
 function fakeDb(counts: number[]) {
   const queue = [...counts];
   const queries: string[] = [];
+  const bindings: Array<{ query: string; args: unknown[] }> = [];
   return {
     queries,
+    bindings,
     prepare(query: string) {
       queries.push(query);
       return {
-        bind: () => ({ first: async () => ({ n: queue.shift() ?? 0 }) }),
+        bind: (...args: unknown[]) => {
+          bindings.push({ query, args });
+          return { first: async () => ({ n: queue.shift() ?? 0 }) };
+        },
       };
     },
   };
@@ -100,4 +129,42 @@ test('checkRateLimit only counts successful sends', async () => {
   for (const q of db.queries) {
     assert.match(q, /status = 'sent'/, 'rate limit must not count failed attempts');
   }
+});
+
+test('checkRateLimit binds hourly window with userId and hourly cutoff', async () => {
+  const db = fakeDb([0, 0, 0]);
+  const userId = 'test-user-123';
+  await checkRateLimit(db, userId, 1, NOW);
+
+  // First binding should be the hourly window query with (userId, NOW - 3600)
+  const hourlyBinding = db.bindings[0];
+  assert.ok(hourlyBinding, 'should have at least one binding');
+  assert.match(hourlyBinding.query, /sender_user_id/, 'hourly query must filter by sender_user_id');
+  assert.strictEqual(hourlyBinding.args[0], userId, 'hourly query first arg should be userId');
+  assert.strictEqual(hourlyBinding.args[1], NOW - 3600, 'hourly query second arg should be NOW - 3600');
+});
+
+test('checkRateLimit binds daily per-user window with userId and daily cutoff', async () => {
+  const db = fakeDb([0, 0, 0]);
+  const userId = 'test-user-456';
+  await checkRateLimit(db, userId, 1, NOW);
+
+  // Second binding should be the daily per-user window query with (userId, NOW - 86400)
+  const dailyBinding = db.bindings[1];
+  assert.ok(dailyBinding, 'should have at least two bindings');
+  assert.match(dailyBinding.query, /sender_user_id/, 'daily query must filter by sender_user_id');
+  assert.strictEqual(dailyBinding.args[0], userId, 'daily query first arg should be userId');
+  assert.strictEqual(dailyBinding.args[1], NOW - 86400, 'daily query second arg should be NOW - 86400');
+});
+
+test('checkRateLimit binds global daily window with only daily cutoff', async () => {
+  const db = fakeDb([0, 0, 0]);
+  await checkRateLimit(db, 'u1', 1, NOW);
+
+  // Third binding should be the global daily window query with (NOW - 86400)
+  const globalBinding = db.bindings[2];
+  assert.ok(globalBinding, 'should have at least three bindings');
+  assert.doesNotMatch(globalBinding.query, /sender_user_id/, 'global query must not filter by sender_user_id');
+  assert.strictEqual(globalBinding.args.length, 1, 'global query should have exactly one bind argument');
+  assert.strictEqual(globalBinding.args[0], NOW - 86400, 'global query arg should be NOW - 86400');
 });
