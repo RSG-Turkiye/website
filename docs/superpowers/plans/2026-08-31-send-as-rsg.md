@@ -292,7 +292,7 @@ const base = {
   fromName: 'RSG Türkiye (Emre Çevik)',
   to: 'hoca@uni.edu.tr',
   replyTo: 'emre@example.com',
-  subject: 'Sempozyum daveti',
+  subject: 'RSG Türkiye sempozyum daveti',
   body: 'Sayın Hocam,\n\nSizi davet etmek isteriz.\n',
   attachments: [],
 };
@@ -312,7 +312,7 @@ test('RFC 2047 encodes non-ASCII display name and subject, never the address', (
 
   const subjectLine = mime.split(/\r\n/).find(l => l.startsWith('Subject: '))!;
   const encoded = subjectLine.slice('Subject: =?UTF-8?B?'.length, -'?='.length);
-  assert.equal(Buffer.from(encoded, 'base64').toString('utf8'), 'Sempozyum daveti');
+  assert.equal(Buffer.from(encoded, 'base64').toString('utf8'), 'RSG Türkiye sempozyum daveti');
 });
 
 test('leaves a pure-ASCII subject unencoded', () => {
