@@ -12,9 +12,9 @@ const ALLOWED_TYPES: Record<string, string> = {
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
-  if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
+  if (!user) return jsonResponse({ error: 'Not authenticated', code: 'not_authenticated' }, 401);
   // Senders need the list to pick from; only admins see deactivated entries.
-  if (!user.is_admin && user.is_sender !== 1) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!user.is_admin && user.is_sender !== 1) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
 
   const query = user.is_admin
     ? `SELECT id, filename, content_type, size_bytes, uploaded_at, is_active
@@ -27,10 +27,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
   const user = await getSessionUser(request, env);
-  if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
-  if (!user.is_admin) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!user) return jsonResponse({ error: 'Not authenticated', code: 'not_authenticated' }, 401);
+  if (!user.is_admin) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
 
   const contentType = (request.headers.get('Content-Type') ?? '').split(';')[0].trim();
   if (!ALLOWED_TYPES[contentType]) {
@@ -39,9 +39,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   // Header-borne filenames are attacker-adjacent input even from an admin
   // form: strip path separators, quotes and CR/LF before it reaches a
-  // Content-Disposition header.
+  // Content-Disposition header. decodeURIComponent throws SyntaxError on a
+  // malformed percent-encoding (e.g. a trailing "%"), so it needs the same
+  // coded-400 treatment as the JSON parsing below rather than a raw 500.
   const rawName = request.headers.get('X-Filename') ?? '';
-  const filename = decodeURIComponent(rawName).replace(/[\r\n"\\/]+/g, '_').trim().slice(0, 120);
+  let decodedName: string;
+  try {
+    decodedName = decodeURIComponent(rawName);
+  } catch {
+    return jsonResponse({ error: 'Invalid filename', code: 'invalid_filename' }, 400);
+  }
+  const filename = decodedName.replace(/[\r\n"\\/]+/g, '_').trim().slice(0, 120);
   if (!filename) return jsonResponse({ error: 'Missing filename', code: 'missing_filename' }, 400);
 
   const bytes = await request.arrayBuffer();
@@ -64,14 +72,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
-  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
   const user = await getSessionUser(request, env);
-  if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
-  if (!user.is_admin) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!user) return jsonResponse({ error: 'Not authenticated', code: 'not_authenticated' }, 401);
+  if (!user.is_admin) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
 
-  const body = await request.json<{ id: string; is_active: boolean }>();
-  if (!body.id || typeof body.is_active !== 'boolean') {
-    return jsonResponse({ error: 'Missing id or is_active' }, 400);
+  let parsed: unknown;
+  try {
+    parsed = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+  if (parsed === null || typeof parsed !== 'object') {
+    return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
+  }
+
+  const body = parsed as { id?: unknown; is_active?: unknown };
+  if (typeof body.id !== 'string' || !body.id || typeof body.is_active !== 'boolean') {
+    return jsonResponse({ error: 'Missing id or is_active', code: 'missing_fields' }, 400);
   }
 
   // Deactivate rather than delete: sent_emails rows reference these ids, and
