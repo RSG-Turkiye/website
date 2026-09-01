@@ -7,13 +7,26 @@ function decode(raw: string): string {
   return Buffer.from(b64, 'base64').toString('utf8');
 }
 
+/** Pull one part's base64 payload out of a multipart message by its Content-Type. */
+function partByType(mime: string, contentType: string): string {
+  const marker = 'Content-Type: ' + contentType + '; charset="UTF-8"';
+  const start = mime.indexOf(marker);
+  assert.notEqual(start, -1, 'no ' + contentType + ' part found');
+  const afterHeaders = mime.indexOf('\r\n\r\n', start) + 4;
+  const end = mime.indexOf('\r\n--', afterHeaders);
+  return mime.slice(afterHeaders, end === -1 ? undefined : end).trim();
+}
+
 const base = {
   fromAddress: 'turkey.rsg@gmail.com',
   fromName: 'RSG Türkiye (Emre Çevik)',
   to: 'hoca@uni.edu.tr',
   replyTo: 'emre@example.com',
   subject: 'RSG Türkiye sempozyum daveti',
-  body: 'Sayın Hocam,\n\nSizi davet etmek isteriz.\n',
+  body: {
+    text: 'Sayın Hocam,\n\nSizi davet etmek isteriz.\n',
+    html: '<html><body><p>Sayın Hocam,</p><p>Sizi davet etmek isteriz.</p></body></html>',
+  },
   attachments: [],
 };
 
@@ -42,16 +55,18 @@ test('leaves a pure-ASCII subject unencoded', () => {
 
 test('round-trips a UTF-8 body through base64 without corruption', () => {
   const mime = decode(buildMime(base));
-  assert.match(mime, /^Content-Transfer-Encoding: base64$/m);
-  const payload = mime.split('\r\n\r\n').slice(1).join('\r\n\r\n').trim();
-  assert.equal(Buffer.from(payload, 'base64').toString('utf8'), base.body);
+  const part = partByType(mime, 'text/plain');
+  assert.equal(Buffer.from(part, 'base64').toString('utf8'), base.body.text);
 });
 
 test('wraps base64 payload lines at 76 characters', () => {
-  const mime = decode(buildMime({ ...base, body: 'x'.repeat(5000) }));
-  const payload = mime.split('\r\n\r\n').slice(1).join('\r\n\r\n').trim();
-  for (const line of payload.split('\r\n')) {
-    assert.ok(line.length <= 76, `line of ${line.length} chars exceeds 76`);
+  const long = {
+    ...base,
+    body: { text: 'x'.repeat(5000), html: '<html><body><p>x</p></body></html>' },
+  };
+  const mime = decode(buildMime(long));
+  for (const line of partByType(mime, 'text/plain').split('\r\n')) {
+    assert.ok(line.length <= 76, 'line of ' + line.length + ' chars exceeds 76');
   }
 });
 
@@ -139,4 +154,45 @@ test('From header: a non-ASCII display name is emitted as an atomic RFC 2047 enc
 
 test('produces base64url output with no padding or unsafe characters', () => {
   assert.doesNotMatch(buildMime(base), /[+\/=]/);
+});
+
+test('a message with no attachments is multipart/alternative, html last', () => {
+  const mime = decode(buildMime(base));
+  const boundary = mime.match(/multipart\/alternative; boundary="([^"]+)"/)![1];
+  assert.match(mime, /^Content-Type: multipart\/alternative; boundary="/m);
+
+  const plainAt = mime.indexOf('Content-Type: text/plain');
+  const htmlAt = mime.indexOf('Content-Type: text/html');
+  assert.ok(plainAt !== -1 && htmlAt !== -1, 'both parts must be present');
+  assert.ok(htmlAt > plainAt, 'text/html must come after text/plain');
+
+  assert.ok(mime.includes('--' + boundary + '--'), 'missing closing boundary');
+  assert.equal(mime.split('--' + boundary).length - 1, 3, 'expected two parts plus the close');
+
+  assert.equal(
+    Buffer.from(partByType(mime, 'text/html'), 'base64').toString('utf8'),
+    base.body.html,
+  );
+});
+
+test('with an attachment the alternative nests inside mixed, with distinct boundaries', () => {
+  const mime = decode(buildMime({
+    ...base,
+    attachments: [{
+      filename: 'sponsorluk.pdf',
+      contentType: 'application/pdf',
+      base64Body: encodeAttachmentBody(new Uint8Array([1, 2, 3, 4])),
+    }],
+  }));
+
+  const mixed = mime.match(/multipart\/mixed; boundary="([^"]+)"/)![1];
+  const alt = mime.match(/multipart\/alternative; boundary="([^"]+)"/)![1];
+  assert.notEqual(mixed, alt, 'nested boundaries must differ');
+
+  assert.ok(mime.includes('--' + mixed + '--'), 'mixed not closed');
+  assert.ok(mime.includes('--' + alt + '--'), 'alternative not closed');
+  assert.equal(mime.split('--' + mixed).length - 1, 3, 'mixed: alternative + attachment + close');
+  assert.equal(mime.split('--' + alt).length - 1, 3, 'alternative: plain + html + close');
+
+  assert.match(mime, /^Content-Disposition: attachment; filename="sponsorluk\.pdf"$/m);
 });
