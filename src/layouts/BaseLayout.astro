@@ -3,6 +3,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import { isNoindexPath } from '../lib/noindex-routes';
 
 interface Props {
   pageTitle: string;
@@ -16,6 +17,7 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://rsgturkey.com');
 const ogImage = image || '/logo/rsgturkey_logo.png';
+const noindex = isNoindexPath(Astro.url.pathname);
 ---
 <html lang={lang} data-lang={lang}>
   <head>
@@ -26,6 +28,10 @@ const ogImage = image || '/logo/rsgturkey_logo.png';
     <title>{pageTitle} | RSG Turkiye</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL.href} />
+    {/* Leaving these out of the sitemap only stops us advertising them; this is
+        what keeps them out of the index when Google finds them another way.
+        "follow" so the ordinary navigation links on the page are still crawled. */}
+    {noindex && <meta name="robots" content="noindex, follow" />}
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
