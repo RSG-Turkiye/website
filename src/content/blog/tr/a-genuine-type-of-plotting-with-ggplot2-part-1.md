@@ -164,4 +164,4 @@ For more of these useful ggplot2 plots:
 
 -   http://r-statistics.co/Complete-Ggplot2-Tutorial-Part2-Customizing-Theme-With-R-Code.html
 
-Wanna learn more about the very basics of ggplot2 first, but don’t know where to start? Fret not! Go and check our github page for [ggplot workshop (previously given by Melike Dönertaş)](https://github.com/rsgturkey/Workshop2020/tree/master/03-ggplot:course_material) .
+Wanna learn more about the very basics of ggplot2 first, but don’t know where to start? Fret not! Go and check our github page for [ggplot workshop (previously given by Melike Dönertaş)](https://github.com/RSG-Turkiye/Workshop2020/tree/master/03-ggplot:course_material) .
