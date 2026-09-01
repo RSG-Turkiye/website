@@ -47,6 +47,13 @@
 --       wrangler d1 execute rsg-members --remote --file=db/schema.sql
 --     Without this, every /api/mail/* and /api/admin/senders request 500s
 --     with "no such table: sent_emails".
+--
+-- 5.  This file's `scheduled_emails` table below is NOT applied by any deploy
+--     step -- run it by hand before deploying (`IF NOT EXISTS` makes it safe
+--     to re-run):
+--       wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--     Without this, /api/mail/scheduled and /api/mail/dispatch 500 with
+--     "no such table: scheduled_emails".
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -272,3 +279,30 @@ CREATE TABLE IF NOT EXISTS mail_attachments (
 CREATE INDEX IF NOT EXISTS idx_sent_emails_sender_sent_at ON sent_emails(sender_user_id, sent_at);
 CREATE INDEX IF NOT EXISTS idx_sent_emails_sent_at ON sent_emails(sent_at);
 CREATE INDEX IF NOT EXISTS idx_sender_grants_user_id ON sender_grants(user_id);
+
+-- Mail composed now and sent later. Deliberately NOT a new status on
+-- sent_emails: SQLite cannot alter that table's CHECK constraint, and a queued
+-- message is a different thing anyway -- one row holding a recipient list, no
+-- sent_at, no gmail_message_id, and cancellable. It fans out into one
+-- sent_emails row per recipient only when it actually goes.
+--
+-- Cancelling deletes the row. The queue is transient; sent_emails is the
+-- permanent record, and a message cancelled before sending was never sent.
+CREATE TABLE IF NOT EXISTS scheduled_emails (
+  id              TEXT PRIMARY KEY,
+  sender_user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipients      TEXT NOT NULL,
+  recipient_name  TEXT,
+  subject         TEXT NOT NULL,
+  body            TEXT NOT NULL,
+  attachment_ids  TEXT NOT NULL DEFAULT '[]',
+  scheduled_at    INTEGER NOT NULL,
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  first_tried_at  INTEGER,
+  last_error      TEXT,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due ON scheduled_emails(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_scheduled_emails_sender ON scheduled_emails(sender_user_id);
