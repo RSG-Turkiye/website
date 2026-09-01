@@ -1,7 +1,8 @@
 import type { Env } from '../../_lib/auth';
-import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
+import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
 import { validateCompose, checkRateLimit } from '../../_lib/mail';
 import { resolveAttachments, sendAndLog, type ComposeInput } from '../../_lib/compose';
+import { validateScheduledAt } from '../../_lib/schedule';
 
 interface ComposeBody {
   to: string;
@@ -9,6 +10,7 @@ interface ComposeBody {
   subject: string;
   body: string;
   attachment_ids?: string[];
+  scheduled_at?: number;
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -53,6 +55,40 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   });
   if (!validation.ok) return jsonResponse({ error: 'Invalid compose', code: validation.code }, 400);
   const recipients = validation.recipients;
+
+  // Queue instead of sending. The rate limit is deliberately NOT consumed
+  // here: it is checked when the message actually goes out, so one member
+  // cannot queue a hundred messages and lock the shared quota in advance.
+  if (input.scheduled_at !== undefined) {
+    const when = validateScheduledAt(input.scheduled_at, Math.floor(Date.now() / 1000));
+    if (!when.ok) return jsonResponse({ error: 'Invalid schedule time', code: when.code }, 400);
+
+    const attachmentIds = Array.isArray(input.attachment_ids)
+      ? [...new Set(input.attachment_ids)]
+      : [];
+    const nowSec = Math.floor(Date.now() / 1000);
+    const id = generateId();
+
+    await env.DB.prepare(
+      `INSERT INTO scheduled_emails
+        (id, sender_user_id, recipients, recipient_name, subject, body,
+         attachment_ids, scheduled_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      id,
+      user.id,
+      JSON.stringify(recipients),
+      input.recipient_name?.trim() || null,
+      input.subject.trim(),
+      input.body.trim(),
+      JSON.stringify(attachmentIds),
+      when.scheduledAt,
+      nowSec,
+      nowSec,
+    ).run();
+
+    return jsonResponse({ ok: true, scheduled: true, id }, 201);
+  }
 
   const now = Math.floor(Date.now() / 1000);
 
