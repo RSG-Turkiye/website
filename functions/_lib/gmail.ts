@@ -36,7 +36,8 @@ export interface MimeMessage {
   to: string;
   replyTo: string;
   subject: string;
-  body: string;
+  /** Both halves of the message; see functions/_lib/markdown.ts. */
+  body: { text: string; html: string };
   attachments: MimeAttachment[];
 }
 
@@ -112,7 +113,8 @@ function safeDisplayName(value: string): string {
 
 export function buildMime(msg: MimeMessage): string {
   const encoder = new TextEncoder();
-  const bodyB64 = wrap76(base64(encoder.encode(msg.body)));
+  const textB64 = wrap76(base64(encoder.encode(msg.body.text)));
+  const htmlB64 = wrap76(base64(encoder.encode(msg.body.html)));
 
   const headers = [
     `From: ${safeDisplayName(msg.fromName)} <${msg.fromAddress}>`,
@@ -122,29 +124,45 @@ export function buildMime(msg: MimeMessage): string {
     'MIME-Version: 1.0',
   ];
 
+  // Distinct prefixes guarantee the nested boundaries differ; one boundary
+  // reused at both levels makes the message unparseable.
+  const altBoundary = `rsg_alt_${crypto.randomUUID()}`;
+  const altBody = [
+    `--${altBoundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    textB64,
+    `--${altBoundary}`,
+    // Last wins: clients render the last part they understand.
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    htmlB64,
+    `--${altBoundary}--`,
+  ];
+
   let mime: string;
 
   if (msg.attachments.length === 0) {
     mime = [
       ...headers,
-      'Content-Type: text/plain; charset="UTF-8"',
-      'Content-Transfer-Encoding: base64',
+      `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
       '',
-      bodyB64,
+      ...altBody,
       '',
     ].join('\r\n');
   } else {
-    const boundary = `rsg_${crypto.randomUUID()}`;
+    const mixedBoundary = `rsg_mix_${crypto.randomUUID()}`;
     const parts = [
-      `--${boundary}`,
-      'Content-Type: text/plain; charset="UTF-8"',
-      'Content-Transfer-Encoding: base64',
+      `--${mixedBoundary}`,
+      `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
       '',
-      bodyB64,
+      ...altBody,
     ];
     for (const a of msg.attachments) {
       parts.push(
-        `--${boundary}`,
+        `--${mixedBoundary}`,
         `Content-Type: ${headerSafe(a.contentType)}`,
         'Content-Transfer-Encoding: base64',
         `Content-Disposition: attachment; filename="${headerSafe(a.filename).replace(/"/g, '')}"`,
@@ -152,11 +170,11 @@ export function buildMime(msg: MimeMessage): string {
         a.base64Body,
       );
     }
-    parts.push(`--${boundary}--`, '');
+    parts.push(`--${mixedBoundary}--`, '');
 
     mime = [
       ...headers,
-      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
       '',
       ...parts,
     ].join('\r\n');
