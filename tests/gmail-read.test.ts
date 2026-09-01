@@ -27,6 +27,12 @@ test('decodeBase64Url restores UTF-8 text and tolerates missing padding', () => 
   assert.equal(decodeBase64Url(b64url('abc')), 'abc');
 });
 
+test('decodeBase64Url returns empty rather than throwing on malformed input', () => {
+  assert.equal(decodeBase64Url('!!!not-base64!!!'), '');
+  assert.equal(decodeBase64Url('abcde'), '');
+  assert.equal(decodeBase64Url(''), '');
+});
+
 test('decodeEncodedWords decodes base64 and quoted-printable encoded-words', () => {
   const b = '=?UTF-8?B?' + Buffer.from('Emre Çevik', 'utf8').toString('base64') + '?=';
   assert.equal(decodeEncodedWords(b), 'Emre Çevik');
@@ -53,6 +59,22 @@ test('parseFrom splits a display name from an address and lowercases the address
   assert.deepEqual(parseFrom(null), { email: '', name: null });
 });
 
+test('parseFrom survives trailing text after the address', () => {
+  assert.deepEqual(parseFrom('"John Doe" <john@example.com> (via mailing list)'), {
+    email: 'john@example.com',
+    name: 'John Doe',
+  });
+});
+
+test('parseFrom takes the first address when a relay header carries two', () => {
+  // Deliberate: either choice is a guess, but the first is deterministic and
+  // is always a valid address, where the old regex produced garbage.
+  assert.deepEqual(parseFrom('"Relay" <relay@x.com> on behalf of "Real" <real@y.com>'), {
+    email: 'relay@x.com',
+    name: 'Relay',
+  });
+});
+
 test('htmlToText drops scripts and tags, keeps line structure, unescapes once', () => {
   const text = htmlToText('<style>a{}</style><p>Hi<br>there</p><script>x()</script><p>&amp;lt; ok</p>');
   assert.ok(!text.includes('a{}'));
@@ -61,6 +83,12 @@ test('htmlToText drops scripts and tags, keeps line structure, unescapes once', 
   assert.ok(text.includes('Hi\nthere'));
   // &amp;lt; must become "&lt;", not "<" -- entities are unescaped exactly once.
   assert.ok(text.includes('&lt; ok'));
+});
+
+test('htmlToText keeps a literal less-than that is not a tag', () => {
+  const text = htmlToText('<p>balance < 100 and quota > 50 before Friday</p>');
+  assert.ok(text.includes('quota > 50'), 'got: ' + text);
+  assert.ok(text.includes('before Friday'), 'got: ' + text);
 });
 
 test('extractPlainText prefers the text/plain part', () => {
@@ -160,6 +188,18 @@ test('parseMessage treats an unlabelled message from the RSG address as outgoing
   }, RSG);
 
   assert.equal(parsed.direction, 'out');
+});
+
+test('parseMessage does not trust a forged From on a labelled inbound message', () => {
+  const parsed = parseMessage({
+    id: 'm4',
+    threadId: 't1',
+    labelIds: ['INBOX'],
+    internalDate: '1756000300000',
+    payload: { headers: [{ name: 'From', value: 'RSG <turkey.rsg@gmail.com>' }] },
+  }, RSG);
+
+  assert.equal(parsed.direction, 'in');
 });
 
 test('parseThread returns every message in ascending time order', () => {

@@ -63,9 +63,15 @@ export interface ParsedMessage {
 export function decodeBase64Url(data: string): string {
   const normalised = data.replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalised + '='.repeat((4 - (normalised.length % 4)) % 4);
-  const binary = atob(padded);
-  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
+  try {
+    const binary = atob(padded);
+    return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+  } catch {
+    // One unparseable part must not abort the thread: parseThread maps over
+    // every message, so a throw here would discard every well-formed message
+    // beside it. An empty body is recoverable; a lost conversation is not.
+    return '';
+  }
 }
 
 /**
@@ -106,10 +112,20 @@ export function pickHeader(headers: GmailHeader[], name: string): string | null 
 
 export function parseFrom(value: string | null): { email: string; name: string | null } {
   if (!value) return { email: '', name: null };
-  const angle = value.match(/^(.*)<([^>]+)>\s*$/);
-  if (!angle) return { email: value.trim().toLowerCase(), name: null };
-  const name = angle[1].trim().replace(/^"(.*)"$/, '$1').trim();
-  return { email: angle[2].trim().toLowerCase(), name: name || null };
+
+  // The FIRST bracketed address, not the last, and no end anchor. Relay
+  // headers append trailing text ("<a@b> (via list)") or a second pair
+  // ("on behalf of"); an end-anchored greedy match either fails outright --
+  // dumping the entire header into the address field -- or picks the relay
+  // instead of the sender.
+  const angle = value.match(/<\s*([^<>\s]+@[^<>\s]+?)\s*>/);
+  if (angle) {
+    const name = value.slice(0, angle.index).trim().replace(/^"(.*)"$/, '$1').trim();
+    return { email: angle[1].toLowerCase(), name: name || null };
+  }
+
+  const bare = value.match(/[^\s<>,;]+@[^\s<>,;]+/);
+  return { email: bare ? bare[0].toLowerCase() : value.trim().toLowerCase(), name: null };
 }
 
 /**
@@ -123,7 +139,8 @@ export function htmlToText(html: string): string {
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|tr|li|h[1-6])\s*>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\/?[a-zA-Z][^>]*>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
@@ -174,10 +191,15 @@ export function parseMessage(msg: GmailMessage, rsgAddress: string): ParsedMessa
   const from = parseFrom(rawFrom === null ? null : decodeEncodedWords(rawFrom));
   const rawSubject = pickHeader(headers, 'Subject');
 
-  // Gmail's SENT label is the reliable signal. The address comparison is the
-  // fallback for a payload that arrives without labels.
+  const labels = msg.labelIds ?? [];
+  // Gmail's SENT label is the only trustworthy signal here; the From header
+  // is written by whoever sent the mail, so a stranger can put the RSG
+  // address in it. The address is consulted only when the payload carries no
+  // labels at all -- the partial-payload case this fallback exists for --
+  // because a real inbound message always arrives with at least INBOX.
   const isOutgoing =
-    (msg.labelIds ?? []).includes('SENT') || from.email === rsgAddress.trim().toLowerCase();
+    labels.includes('SENT') ||
+    (labels.length === 0 && from.email === rsgAddress.trim().toLowerCase());
 
   return {
     id: msg.id,
