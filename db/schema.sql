@@ -1,6 +1,6 @@
 -- RSG Turkey Member Platform Schema
 -- Apply with: wrangler d1 execute rsg-members --file=db/schema.sql
--- REQUIRED: run ALL THREE of the following against production BEFORE
+-- REQUIRED: run ALL of the numbered migrations below against production BEFORE
 -- deploying this branch:
 --
 -- 1. functions/api/admin/users.ts unconditionally SELECTs is_announcer;
@@ -54,6 +54,21 @@
 --       wrangler d1 execute rsg-members --remote --file=db/schema.sql
 --     Without this, /api/mail/scheduled and /api/mail/dispatch 500 with
 --     "no such table: scheduled_emails".
+--
+-- 6a. functions/_lib/compose.ts now writes sent_emails.gmail_thread_id on
+--     every send. Deploying that without this column first makes EVERY send
+--     fail with D1 "no such column: gmail_thread_id" -- the mail goes out and
+--     the log row is lost. ALTER TABLE ADD COLUMN is NOT idempotent -- do not
+--     re-run this one:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE sent_emails ADD COLUMN gmail_thread_id TEXT"
+--
+-- 6b. This file's mail_threads / mail_messages / mail_sync_state tables below
+--     are NOT applied by any deploy step -- run them by hand (`IF NOT EXISTS`
+--     and `INSERT OR IGNORE` make this safe to re-run):
+--       wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--     Without this, /api/mail/sync and /api/mail/conversations 500 with
+--     "no such table: mail_threads", and every send fails when compose.ts
+--     tries to register its thread.
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -256,6 +271,7 @@ CREATE TABLE IF NOT EXISTS sent_emails (
   body_snapshot     TEXT NOT NULL,
   attachment_ids    TEXT NOT NULL DEFAULT '[]',
   gmail_message_id  TEXT,
+  gmail_thread_id   TEXT,
   status            TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
   error_message     TEXT,
   sent_at           INTEGER NOT NULL
@@ -306,3 +322,61 @@ CREATE TABLE IF NOT EXISTS scheduled_emails (
 
 CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due ON scheduled_emails(scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_scheduled_emails_sender ON scheduled_emails(sender_user_id);
+
+-- Conversations: the threads the site started, and their messages.
+--
+-- These two tables are a rebuildable cache of Gmail, not a record. Dropping
+-- and resyncing them loses nothing: sent_emails remains the audit log of what
+-- the site sent, including the failures Gmail never saw.
+--
+-- A row appears in mail_threads only when the site sends a message. That set
+-- is the complete list of threads the system is permitted to read; nothing
+-- else can add to it.
+CREATE TABLE IF NOT EXISTS mail_threads (
+  id                TEXT PRIMARY KEY,
+  sender_user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipient_email   TEXT NOT NULL,
+  recipient_name    TEXT,
+  subject           TEXT NOT NULL,
+  last_message_at   INTEGER NOT NULL,
+  last_direction    TEXT NOT NULL CHECK (last_direction IN ('out', 'in')),
+  unread            INTEGER NOT NULL DEFAULT 0,
+  last_notified_at  INTEGER,
+  created_at        INTEGER NOT NULL,
+  updated_at        INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mail_threads_sender
+  ON mail_threads(sender_user_id, last_message_at DESC);
+
+-- The primary key is Gmail's own message id, which is what makes ingest
+-- idempotent: re-syncing a thread re-inserts the same ids and INSERT OR
+-- IGNORE discards them. Idempotency is a schema guarantee here, not something
+-- the sync code has to get right.
+CREATE TABLE IF NOT EXISTS mail_messages (
+  id                 TEXT PRIMARY KEY,
+  thread_id          TEXT NOT NULL REFERENCES mail_threads(id) ON DELETE CASCADE,
+  direction          TEXT NOT NULL CHECK (direction IN ('out', 'in')),
+  rfc822_message_id  TEXT,
+  from_email         TEXT NOT NULL,
+  from_name          TEXT,
+  subject            TEXT,
+  body_text          TEXT NOT NULL,
+  attachment_count   INTEGER NOT NULL DEFAULT 0,
+  sent_at            INTEGER NOT NULL,
+  created_at         INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mail_messages_thread
+  ON mail_messages(thread_id, sent_at);
+
+-- Single-row store for the Gmail history cursor.
+CREATE TABLE IF NOT EXISTS mail_sync_state (
+  id              INTEGER PRIMARY KEY CHECK (id = 1),
+  history_id      TEXT,
+  last_synced_at  INTEGER,
+  backfill_cursor TEXT
+);
+
+INSERT OR IGNORE INTO mail_sync_state (id, history_id, last_synced_at, backfill_cursor)
+VALUES (1, NULL, NULL, NULL);
