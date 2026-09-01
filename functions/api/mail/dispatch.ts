@@ -2,7 +2,13 @@ import type { Env } from '../../_lib/auth';
 import { jsonResponse } from '../../_lib/auth';
 import { checkRateLimit } from '../../_lib/mail';
 import { shouldGiveUp } from '../../_lib/schedule';
-import { resolveAttachments, sendAndLog, logFailure, type ComposeInput } from '../../_lib/compose';
+import {
+  resolveAttachments,
+  sendAndLog,
+  logFailure,
+  type ComposeInput,
+  type RecipientResult,
+} from '../../_lib/compose';
 
 interface ScheduledRow {
   id: string;
@@ -130,19 +136,44 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         continue;
       }
 
-      const results = await sendAndLog(env, input, resolved.attachments);
-      await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+      let results: RecipientResult[];
+      try {
+        results = await sendAndLog(env, input, resolved.attachments);
+      } finally {
+        // Mail has now been attempted -- possibly delivered to some or all
+        // recipients via the per-recipient try/catch inside sendAndLog, or
+        // (rarely) failed to log via insertLog's own throw, which propagates
+        // out of sendAndLog uncaught. Either way, retaining this row would
+        // resend to every recipient, including ones already mailed, on the
+        // next tick. The row leaves the queue unconditionally once a send has
+        // been attempted, regardless of what else throws.
+        await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+      }
       if (results.some(r => r.status === 'sent')) sent++; else failed++;
     } catch (err) {
-      // Unlike malformed JSON, a throw here (a D1 hiccup, a transient R2
-      // read failure inside resolveAttachments) is not proof the message can
-      // never send. Record it and leave the row queued for the next tick --
-      // converting a momentary blip into a dropped, unlogged message would be
-      // worse than trying again in fifteen minutes.
+      // Unlike malformed JSON, a throw here (a D1 hiccup, a transient R2 read
+      // failure inside resolveAttachments, or sendAndLog's own throw after
+      // the finally above has already dequeued the row) is not proof the
+      // message can never send. Retry it -- but bounded, the same as the rate
+      // limit branch above: once the retry window has elapsed since the first
+      // attempt, keep trying forever is worse than a recorded failure, because
+      // a retained row re-executes a send that may have already gone out.
       const message = err instanceof Error ? err.message : String(err);
-      await env.DB.prepare(
-        `UPDATE scheduled_emails SET last_error = ?, updated_at = ? WHERE id = ?`
-      ).bind('Unexpected error, will retry: ' + message, now, row.id).run();
+      if (shouldGiveUp(row.first_tried_at, now)) {
+        await logFailure(env, input, 'Unexpected error, giving up after retry window: ' + message);
+        await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+        failed++;
+      } else {
+        await env.DB.prepare(
+          `UPDATE scheduled_emails
+           SET attempts = attempts + 1,
+               first_tried_at = COALESCE(first_tried_at, ?),
+               last_error = ?,
+               updated_at = ?
+           WHERE id = ?`
+        ).bind(now, 'Unexpected error, will retry: ' + message, now, row.id).run();
+        retried++;
+      }
     }
   }
 
