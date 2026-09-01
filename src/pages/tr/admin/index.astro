@@ -206,7 +206,17 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
   }
 
   function formatDate(ts: number) {
-    return new Date(ts * 1000).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
+    // İstanbul'a sabitlendi, sitenin diğer yönetici/üye tarihleri gibi -- aynı
+    // ekranda iki farklı saat dilimi, ikisinden birinden daha kötü. Yalnızca
+    // tarih olduğu için bu sadece gece yarısına yakın önemli, ama bu satır bu
+    // sayfadaki duyuru ve blog gönderisi tarihlerini de etkiliyor, sadece
+    // zamanlanmış gönderim özelliğini değil.
+    return new Date(ts * 1000).toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Europe/Istanbul',
+    });
   }
 
   function escapeHtml(s: unknown): string {

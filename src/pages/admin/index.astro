@@ -216,7 +216,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   }
 
   function formatDate(ts: number) {
-    return new Date(ts * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Pinned to Istanbul, like the rest of the site's admin- and
+    // member-facing dates -- two timezones on one screen is worse than
+    // either. Date-only, so this only matters right around midnight, but
+    // it also governs the announcement and blog-submission dates rendered
+    // further down this page, not just anything from the scheduled-send
+    // feature.
+    return new Date(ts * 1000).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Europe/Istanbul',
+    });
   }
 
   function escapeHtml(s: unknown): string {
