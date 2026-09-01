@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildMime, encodeAttachmentBody } from '../functions/_lib/gmail';
+import { buildMime, encodeAttachmentBody, sendMail } from '../functions/_lib/gmail';
 
 function decode(raw: string): string {
   const b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
@@ -195,4 +195,101 @@ test('with an attachment the alternative nests inside mixed, with distinct bound
   assert.equal(mime.split('--' + alt).length - 1, 3, 'alternative: plain + html + close');
 
   assert.match(mime, /^Content-Disposition: attachment; filename="sponsorluk\.pdf"$/m);
+});
+
+function fakeEnv() {
+  return {
+    GOOGLE_CLIENT_ID: 'cid',
+    GOOGLE_CLIENT_SECRET: 'secret',
+    GMAIL_REFRESH_TOKEN: 'refresh',
+  } as never;
+}
+
+test('buildMime omits threading headers when none are given', () => {
+  const raw = decode(buildMime({
+    fromAddress: 'turkey.rsg@gmail.com',
+    fromName: 'RSG Türkiye',
+    to: 'someone@example.com',
+    replyTo: 'turkey.rsg@gmail.com',
+    subject: 'Hello',
+    body: { text: 'hi', html: '<p>hi</p>' },
+    attachments: [],
+  }));
+  assert.ok(!raw.includes('In-Reply-To:'));
+  assert.ok(!raw.includes('References:'));
+});
+
+test('buildMime writes In-Reply-To and a space-joined References chain', () => {
+  const raw = decode(buildMime({
+    fromAddress: 'turkey.rsg@gmail.com',
+    fromName: 'RSG Türkiye',
+    to: 'someone@example.com',
+    replyTo: 'turkey.rsg@gmail.com',
+    subject: 'Re: Hello',
+    body: { text: 'hi', html: '<p>hi</p>' },
+    attachments: [],
+    inReplyTo: '<b@mail.example>',
+    references: ['<a@mail.example>', '<b@mail.example>'],
+  }));
+  assert.ok(raw.includes('In-Reply-To: <b@mail.example>\r\n'));
+  assert.ok(raw.includes('References: <a@mail.example> <b@mail.example>\r\n'));
+});
+
+test('buildMime strips CR/LF from a crafted In-Reply-To', () => {
+  const raw = decode(buildMime({
+    fromAddress: 'turkey.rsg@gmail.com',
+    fromName: 'RSG Türkiye',
+    to: 'someone@example.com',
+    replyTo: 'turkey.rsg@gmail.com',
+    subject: 'Re: Hello',
+    body: { text: 'hi', html: '<p>hi</p>' },
+    attachments: [],
+    inReplyTo: '<a@x>\r\nBcc: victim@example.com',
+  }));
+  // headerSafe neutralizes the CRLF by folding it into a space, the same way
+  // an existing header value is sanitized elsewhere in this file (see the
+  // Cc/Bcc check above) -- the injected text stays inside the In-Reply-To
+  // value instead of starting a header line of its own.
+  assert.ok(!/^Bcc:/m.test(raw));
+});
+
+test('sendMail returns both the message id and the thread id', async () => {
+  const calls: Array<{ url: string; body: unknown }> = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    // Check the oauth2 endpoint first: its body is URL-encoded form data, not
+    // JSON, so parsing it as JSON here (as the token endpoint is hit before
+    // the send endpoint on every call in this suite) would throw.
+    if (String(url).includes('oauth2')) {
+      return new Response(JSON.stringify({ access_token: 't', expires_in: 3600 }), { status: 200 });
+    }
+    calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
+    return new Response(JSON.stringify({ id: 'm1', threadId: 'th1' }), { status: 200 });
+  }) as unknown as typeof fetch;
+
+  try {
+    const result = await sendMail(fakeEnv(), 'cmF3');
+    assert.deepEqual(result, { id: 'm1', threadId: 'th1' });
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('sendMail passes threadId to Gmail when replying', async () => {
+  let sendBody: Record<string, unknown> = {};
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    if (String(url).includes('oauth2')) {
+      return new Response(JSON.stringify({ access_token: 't', expires_in: 3600 }), { status: 200 });
+    }
+    sendBody = JSON.parse(String(init.body));
+    return new Response(JSON.stringify({ id: 'm2', threadId: 'th1' }), { status: 200 });
+  }) as unknown as typeof fetch;
+
+  try {
+    await sendMail(fakeEnv(), 'cmF3', 'th1');
+    assert.deepEqual(sendBody, { raw: 'cmF3', threadId: 'th1' });
+  } finally {
+    globalThis.fetch = original;
+  }
 });

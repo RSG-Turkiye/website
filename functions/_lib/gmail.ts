@@ -39,6 +39,14 @@ export interface MimeMessage {
   /** Both halves of the message; see functions/_lib/markdown.ts. */
   body: { text: string; html: string };
   attachments: MimeAttachment[];
+  /**
+   * Threading, set only when this message is a reply. Gmail groups by its own
+   * threadId, but the recipient's mail client groups by these headers -- set
+   * only one of the two and the reply looks like a new subject to whichever
+   * side was left out.
+   */
+  inReplyTo?: string;
+  references?: string[];
 }
 
 function base64(bytes: Uint8Array): string {
@@ -123,6 +131,16 @@ export function buildMime(msg: MimeMessage): string {
     `Subject: ${encodeHeader(headerSafe(msg.subject))}`,
     'MIME-Version: 1.0',
   ];
+
+  // headerSafe on each id, not on the joined string: a crafted id carrying a
+  // newline would otherwise inject a header of the attacker's choosing. These
+  // ids come from inbound mail, so they are attacker-controlled by definition.
+  if (msg.inReplyTo) {
+    headers.push(`In-Reply-To: ${headerSafe(msg.inReplyTo)}`);
+  }
+  if (msg.references && msg.references.length > 0) {
+    headers.push(`References: ${msg.references.map(headerSafe).join(' ')}`);
+  }
 
   // Distinct prefixes guarantee the nested boundaries differ; one boundary
   // reused at both levels makes the message unparseable.
@@ -217,20 +235,30 @@ export async function getAccessToken(env: Env): Promise<string> {
   return data.access_token;
 }
 
-async function postSend(token: string, raw: string): Promise<Response> {
+async function postSend(token: string, raw: string, threadId?: string): Promise<Response> {
   return fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ raw }),
+    body: JSON.stringify(threadId ? { raw, threadId } : { raw }),
   });
 }
 
-export async function sendMail(env: Env, raw: string): Promise<string> {
+export interface SentMessage {
+  id: string;
+  /**
+   * Gmail assigns every message a thread, so this is always present -- for a
+   * new conversation it is a thread of one. It is what registers the
+   * conversation the sync is later allowed to read.
+   */
+  threadId: string;
+}
+
+export async function sendMail(env: Env, raw: string, threadId?: string): Promise<SentMessage> {
   const token = await getAccessToken(env);
-  let res = await postSend(token, raw);
+  let res = await postSend(token, raw, threadId);
 
   // A revoked/expired token can still pass the isolate's own expiry check
   // (Google may invalidate it early) and come back 401 from Gmail itself.
@@ -240,7 +268,7 @@ export async function sendMail(env: Env, raw: string): Promise<string> {
   if (res.status === 401) {
     cachedToken = null;
     const freshToken = await getAccessToken(env);
-    res = await postSend(freshToken, raw);
+    res = await postSend(freshToken, raw, threadId);
   }
 
   if (!res.ok) {
@@ -248,6 +276,6 @@ export async function sendMail(env: Env, raw: string): Promise<string> {
     throw new GmailError(`Gmail send failed (${res.status}): ${detail}`);
   }
 
-  const data = await res.json<{ id: string }>();
-  return data.id;
+  const data = await res.json<{ id: string; threadId: string }>();
+  return { id: data.id, threadId: data.threadId };
 }
