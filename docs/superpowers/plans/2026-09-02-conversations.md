@@ -137,6 +137,14 @@ INSERT OR IGNORE INTO mail_sync_state (id, history_id, last_synced_at, backfill_
 VALUES (1, NULL, NULL, NULL);
 ```
 
+- [ ] **Step 1b: Add the column to the `sent_emails` table body**
+
+The `ALTER TABLE` in step 2's note 6a repairs the *existing* production database. It does nothing for a database built fresh from this file, so the column must also appear in the table definition — which is what the three earlier ALTER migrations in this file did (`is_announcer`, `is_writer`, `is_sender` are each in both places). Add to `CREATE TABLE IF NOT EXISTS sent_emails`, immediately after `gmail_message_id  TEXT,`:
+
+```sql
+  gmail_thread_id   TEXT,
+```
+
 - [ ] **Step 2: Add the migration notes to the `db/schema.sql` header**
 
 Append inside the header comment block, after note 5:
