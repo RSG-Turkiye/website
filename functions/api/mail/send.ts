@@ -129,7 +129,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         // them, and sent_emails records who sent what regardless.
         fromName: 'RSG Türkiye',
         to: recipient,
-        replyTo: user.email,
+        // Replies go to the RSG mailbox, not the individual, so the whole
+        // team's correspondence stays in one place. Until the inbox view
+        // exists, someone has to actually watch that mailbox.
+        replyTo: env.RSG_MAIL_FROM,
         subject,
         body,
         attachments,
