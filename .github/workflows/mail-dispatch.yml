@@ -15,14 +15,26 @@ on:
     - cron: '2,17,32,47 * * * *'
   workflow_dispatch:
 
+# Two runs against the same due rows send every message in the batch twice --
+# dispatch.ts selects due rows and only deletes them after the send, so it
+# holds no claim on a row while a request is in flight. cancel-in-progress is
+# deliberately false: cancelling a run mid-send is exactly the failure mode
+# this guards against (it would leave rows sent but not yet deleted, so the
+# still-queued next run resends them). This still leaves the queue mail's own
+# retry/give-up logic to do its job rather than papering over duplicate runs.
+concurrency:
+  group: mail-dispatch
+  cancel-in-progress: false
+
 jobs:
   dispatch:
     name: Send due mail
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Call the dispatch endpoint
         run: |
-          code=$(curl -s -o /tmp/out.json -w '%{http_code}' \
+          code=$(curl -s -o /tmp/out.json -w '%{http_code}' --max-time 300 \
             -X POST https://rsg-turkiye.iscbsc.org/api/mail/dispatch \
             -H "X-Dispatch-Secret: ${{ secrets.MAIL_SYNC_SECRET }}")
           cat /tmp/out.json
