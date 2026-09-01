@@ -9,6 +9,7 @@ export interface Env {
   PUBLIC_BLOG_IMAGES_URL: string;
   GMAIL_REFRESH_TOKEN: string;
   RSG_MAIL_FROM: string;
+  MAIL_SYNC_SECRET: string;
   MAIL_ATTACHMENTS: R2Bucket;
 }
 

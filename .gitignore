@@ -16,6 +16,7 @@ pnpm-debug.log*
 # environment variables
 .env
 .env.production
+.dev.vars
 
 # macOS-specific files
 .DS_Store
@@ -34,3 +35,6 @@ committee-photos/
 
 .superpowers/
 .wrangler/
+
+# local agent tooling state
+.claude/

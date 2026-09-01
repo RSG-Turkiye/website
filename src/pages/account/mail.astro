@@ -55,6 +55,19 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <div id="attachmentsList" class="flex flex-col gap-1"></div>
           </div>
 
+          <div class="border-t border-border pt-3">
+            <label id="mailScheduleLabel" for="mailSchedule" class="text-xs font-semibold text-navy block mb-1">
+              Send at (Istanbul time, leave empty to send now)
+            </label>
+            <input id="mailSchedule" type="datetime-local"
+              class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+          </div>
+
+          <div id="editingBanner" class="hidden text-xs bg-amber-50 text-amber-800 rounded-xl px-3 py-2">
+            Editing a queued message.
+            <button type="button" id="cancelEditBtn" class="underline ml-1">Cancel editing</button>
+          </div>
+
           <div class="flex items-center gap-3 pt-1">
             <button type="submit" id="sendBtn"
               class="px-5 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors disabled:opacity-50">
@@ -63,6 +76,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <span id="sendStatus" class="text-xs text-gray-400"></span>
           </div>
         </form>
+
+        <div id="queuedCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
+          <h2 class="text-sm font-semibold text-navy mb-3">Queued</h2>
+          <div id="queuedList" class="flex flex-col gap-2"></div>
+        </div>
 
         <div class="bg-white rounded-2xl border border-border shadow-sm p-6">
           <h2 class="text-sm font-semibold text-navy mb-3">My sent mail</h2>
@@ -75,6 +93,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <script>
+  import { epochToIstanbulInput, istanbulInputToEpoch, formatIstanbul } from '../../lib/istanbul-time';
+
   const ERRORS: Record<string, string> = {
     no_recipients: 'Add at least one recipient.',
     too_many_recipients: 'At most 10 recipients per message.',
@@ -91,6 +111,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     forbidden: 'You are not authorised to send mail as RSG.',
     not_authenticated: 'Your session expired. Please sign in again.',
     malformed_request: 'Your request could not be understood. Please try again.',
+    invalid_schedule_time: 'That send time is not valid.',
+    schedule_in_past: 'That send time is in the past.',
+    schedule_too_far: 'You can only schedule up to 60 days ahead.',
+    not_found: 'That queued message no longer exists.',
   };
 
   function showToast(message: string, isError = false) {
@@ -108,7 +132,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   }
 
   function formatDate(ts: number) {
-    return new Date(ts * 1000).toLocaleString('en-GB');
+    return formatIstanbul(ts, 'en-GB');
   }
 
   async function loadHistory() {
@@ -156,6 +180,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const btn = document.getElementById('sendBtn') as HTMLButtonElement;
     const status = document.getElementById('sendStatus')!;
 
+    document.getElementById('cancelEditBtn')!.addEventListener('click', () => {
+      form.reset();
+      setEditing(null);
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       btn.disabled = true;
@@ -165,20 +194,29 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         document.querySelectorAll<HTMLInputElement>('.attachment-box:checked')
       ).map(b => b.value);
 
-      const res = await fetch('/api/mail/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: (document.getElementById('mailTo') as HTMLInputElement).value,
-          recipient_name: (document.getElementById('mailRecipientName') as HTMLInputElement).value,
-          subject: (document.getElementById('mailSubject') as HTMLInputElement).value,
-          body: (document.getElementById('mailBody') as HTMLTextAreaElement).value,
-          attachment_ids,
-        }),
-      });
+      const scheduledAt = istanbulInputToEpoch((document.getElementById('mailSchedule') as HTMLInputElement).value);
 
-      // A non-JSON body means the Worker threw; say so rather than crashing
-      // the handler and leaving the button stuck on "Sending…".
+      const payload = {
+        to: (document.getElementById('mailTo') as HTMLInputElement).value,
+        recipient_name: (document.getElementById('mailRecipientName') as HTMLInputElement).value,
+        subject: (document.getElementById('mailSubject') as HTMLInputElement).value,
+        body: (document.getElementById('mailBody') as HTMLTextAreaElement).value,
+        attachment_ids,
+        ...(scheduledAt !== undefined ? { scheduled_at: scheduledAt } : {}),
+      };
+
+      const res = editingId
+        ? await fetch('/api/mail/scheduled', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, id: editingId }),
+          })
+        : await fetch('/api/mail/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
       const data: any = await res.json().catch(() => null);
       btn.disabled = false;
       status.textContent = '';
@@ -189,7 +227,23 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       }
       if (!res.ok && data.code) {
         showToast(ERRORS[data.code] ?? 'Send failed.', true);
-        if (data.results) await loadHistory();
+        if (data.code === 'not_found') {
+          setEditing(null);
+          await loadQueued();
+        }
+        return;
+      }
+      if (editingId) {
+        showToast('Queued message updated.');
+        setEditing(null);
+        form.reset();
+        await loadQueued();
+        return;
+      }
+      if (data.scheduled) {
+        showToast('Queued.');
+        form.reset();
+        await loadQueued();
         return;
       }
 
@@ -202,6 +256,89 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         showToast(`Sent to ${sent}, failed for: ${failed.map((r: any) => r.recipient).join(', ')}`, true);
       }
       await loadHistory();
+    });
+  }
+
+  let editingId: string | null = null;
+
+  function setEditing(id: string | null) {
+    editingId = id;
+    document.getElementById('editingBanner')!.classList.toggle('hidden', id === null);
+    (document.getElementById('sendBtn') as HTMLButtonElement).textContent = id ? 'Update' : 'Send';
+    // PATCH /api/mail/scheduled requires scheduled_at, so "leave empty to send
+    // now" would be a lie while editing a queued message -- clearing the
+    // field yields invalid_schedule_time, not an immediate send. The
+    // timezone reminder stays in both modes: a bare "09:00" tells a member
+    // nothing about which clock it means.
+    document.getElementById('mailScheduleLabel')!.textContent = id
+      ? 'Send at (Istanbul time)'
+      : 'Send at (Istanbul time, leave empty to send now)';
+  }
+
+  async function loadQueued() {
+    const res = await fetch('/api/mail/scheduled');
+    if (!res.ok) return;
+    const data: any = await res.json();
+    const card = document.getElementById('queuedCard')!;
+    const list = document.getElementById('queuedList')!;
+    if (!data.scheduled.length) {
+      card.classList.add('hidden');
+      list.innerHTML = '';
+      return;
+    }
+    card.classList.remove('hidden');
+    list.innerHTML = data.scheduled.map((s: any) => {
+      const attachmentCount = JSON.parse(s.attachment_ids ?? '[]').length;
+      return `
+      <div class="flex items-start justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
+        <div class="min-w-0">
+          <div class="text-navy truncate">${escapeHtml(s.subject)}</div>
+          <div class="text-xs text-gray-400">
+            ${escapeHtml(JSON.parse(s.recipients).join(', '))} · ${formatDate(s.scheduled_at)}${attachmentCount > 0 ? ` · ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}` : ''}${s.sender_email ? ` · ${escapeHtml(s.sender_email)}` : ''}
+          </div>
+        </div>
+        <div class="shrink-0 flex gap-2">
+          <button data-id="${escapeHtml(s.id)}" class="edit-queued-btn text-xs px-3 py-1.5 rounded-lg border border-border text-navy hover:bg-gray-50">Edit</button>
+          <button data-id="${escapeHtml(s.id)}" class="cancel-queued-btn text-xs px-3 py-1.5 rounded-lg border border-border text-red-500 hover:bg-red-50">Cancel</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    list.querySelectorAll<HTMLButtonElement>('.edit-queued-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = data.scheduled.find((x: any) => x.id === btn.dataset.id);
+        if (!s) return;
+        (document.getElementById('mailTo') as HTMLInputElement).value = JSON.parse(s.recipients).join(', ');
+        (document.getElementById('mailRecipientName') as HTMLInputElement).value = s.recipient_name ?? '';
+        (document.getElementById('mailSubject') as HTMLInputElement).value = s.subject;
+        (document.getElementById('mailBody') as HTMLTextAreaElement).value = s.body;
+        (document.getElementById('mailSchedule') as HTMLInputElement).value = epochToIstanbulInput(s.scheduled_at);
+        const attachmentIds: string[] = JSON.parse(s.attachment_ids ?? '[]');
+        document.querySelectorAll<HTMLInputElement>('.attachment-box').forEach(box => {
+          box.checked = attachmentIds.includes(box.value);
+        });
+        setEditing(s.id);
+        document.getElementById('composeForm')!.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    list.querySelectorAll<HTMLButtonElement>('.cancel-queued-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const res = await fetch('/api/mail/scheduled', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: btn.dataset.id }),
+        });
+        if (res.ok) {
+          showToast('Cancelled');
+          if (editingId === btn.dataset.id) setEditing(null);
+          await loadQueued();
+        } else {
+          btn.disabled = false;
+          showToast('Could not cancel', true);
+        }
+      });
     });
   }
 
@@ -222,7 +359,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     document.getElementById('composeContent')!.classList.remove('hidden');
     document.getElementById('fromAddress')!.textContent = 'the RSG Turkiye address';
     setupForm();
-    await Promise.all([loadHistory(), loadAttachments()]);
+    await Promise.all([loadHistory(), loadAttachments(), loadQueued()]);
   }
 
   init();

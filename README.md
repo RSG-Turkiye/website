@@ -205,6 +205,38 @@ member, 300/day across everyone, in `functions/_lib/mail.ts`) sit under that so
 members hit a clean error rather than Gmail starting to reject mail. Raise them
 only if the ceiling itself rises.
 
+**Scheduled sending.** A member can pick a send time; a GitHub Actions workflow
+(`.github/workflows/mail-dispatch.yml`) calls `/api/mail/dispatch` every 15
+minutes to send what is due. It needs a shared secret in two places, the same
+value in both:
+
+```
+wrangler pages secret put MAIL_SYNC_SECRET --project-name website
+```
+
+and as a repository secret named `MAIL_SYNC_SECRET` under Settings → Secrets and
+variables → Actions.
+
+**Order matters.** The `scheduled_emails` table (migration item 5 at the top of
+`db/schema.sql`) must exist before this deploys, and the cron starts firing the
+moment `mail-dispatch.yml` is on the default branch — not when you get around
+to finishing setup. Run the migration and set both copies of the secret before
+that happens; every run in between fails, since `/api/mail/scheduled` and
+`/api/mail/dispatch` both 500 without the table, and dispatch 403s without the
+secret.
+
+Two things silently stop the queue, and neither produces an error anyone sees:
+
+- **GitHub runs a scheduled workflow as whoever last committed its cron.** Commit
+  changes to that file from RSG's shared bot account. If a personal account owns
+  the schedule and that person later leaves the organisation, it stops.
+- **On a public repository, scheduled workflows are disabled after 60 days of
+  repository inactivity.** GitHub emails the owner and someone must re-enable
+  them. A quiet stretch after a symposium is exactly when this happens.
+
+If mail stops going out at its scheduled time, check the workflow's run history
+first — a disabled schedule shows as no runs at all.
+
 ---
 
 ## Content Types
@@ -275,9 +307,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for a full guide on writing blog posts, t
 
 ## CI / GitHub Actions
 
-Two workflows run automatically on every pull request:
+Three workflows run in this repository. Two run automatically on every pull request; the third runs on a schedule, not on PRs.
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | **Build Check** | All PRs to `main` | Runs `astro check` (type checking) then `npm run build`. The PR cannot be merged if either fails. |
 | **Translation Check** | PRs that touch `src/content/` | Detects newly added content files that don't have a matching translation in the other language, and posts a reminder comment. Not a blocker — just a nudge for the Translation Committee. |
+| **Dispatch scheduled mail** | Every 15 minutes (`schedule`), plus manual `workflow_dispatch` | Calls `/api/mail/dispatch` to send queued mail that is due. See [Scheduled sending](#sending-mail-as-rsg--required-setup) above. |
