@@ -6,20 +6,25 @@ export async function getStaticPaths() {
   const allPosts = await getCollection('blog', ({ id, data }) => id.startsWith('en/') && !data.draft && data.type !== 'webinar');
   const uniqueTags = [...new Set(allPosts.flatMap((post) => post.data.tags))];
 
+  // A tag only used by English posts has no /tr/tags page, so hreflang must
+  // not claim one -- pointing it at a URL that 404s is worse than nothing.
+  const trPosts = await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft && data.type !== 'webinar');
+  const trTags = new Set(trPosts.flatMap((post) => post.data.tags));
+
   return uniqueTags.map((tag) => {
     const filteredPosts = allPosts.filter((post) => post.data.tags.includes(tag));
     return {
       params: { tag },
-      props: { posts: filteredPosts },
+      props: { posts: filteredPosts, hasTrTranslation: trTags.has(tag) },
     };
   });
 }
 
 const { tag } = Astro.params;
-const { posts } = Astro.props;
+const { posts, hasTrTranslation } = Astro.props;
 ---
 
-<BaseLayout pageTitle={`Tag: ${tag}`}>
+<BaseLayout pageTitle={`Tag: ${tag}`} translationExists={hasTrTranslation}>
 
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">

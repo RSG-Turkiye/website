@@ -8,13 +8,15 @@ import LevelSwitcher from '../../components/learning-paths/LevelSwitcher.astro';
 export async function getStaticPaths() {
   const allDomains = await getCollection('lpDomains');
   const domains = allDomains.filter(d => d.id.startsWith('en/'));
+  // A domain without a tr/ entry has no Turkish page to pair with.
+  const trSlugs = new Set(allDomains.filter(d => d.id.startsWith('tr/')).map(d => d.id.slice(3)));
   return domains.map(domain => ({
     params: { domain: domain.id.slice(3) }, // 'en/genomics' → 'genomics'
-    props: { domain, domainSlug: domain.id.slice(3) },
+    props: { domain, domainSlug: domain.id.slice(3), hasTrTranslation: trSlugs.has(domain.id.slice(3)) },
   }));
 }
 
-const { domain, domainSlug } = Astro.props;
+const { domain, domainSlug, hasTrTranslation } = Astro.props;
 const { name, emoji, tagline, goDeeper } = domain.data;
 
 // Load all level content for this domain (EN only)
@@ -75,7 +77,8 @@ const levelsForScript = levels.map((level, li) => ({
 
 <BaseLayout
   pageTitle={`${name} — Learning Path — RSG Turkiye`}
-  description={tagline}>
+  description={tagline}
+  translationExists={hasTrTranslation}>
 
   <!-- ── Hero ── -->
   <div class="bg-navy py-14 text-center relative overflow-hidden">

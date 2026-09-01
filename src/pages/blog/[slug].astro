@@ -39,7 +39,7 @@ const articleJsonLd = {
 };
 ---
 
-<BaseLayout pageTitle={title} description={description} translationUrl={hasTrTranslation ? `/tr/blog/${slug}` : '/tr/blog'}>
+<BaseLayout pageTitle={title} description={description} translationUrl={hasTrTranslation ? `/tr/blog/${slug}` : '/tr/blog'} translationExists={hasTrTranslation}>
   <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} slot="head" />
 
   <article class="py-10 pb-16">

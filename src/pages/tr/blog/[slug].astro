@@ -21,7 +21,7 @@ const { title, pubDate, description, author, tags, image, category } = post.data
 const slug = post.id.slice(3);
 ---
 
-<BaseLayout pageTitle={title} translationUrl={hasEnTranslation ? `/blog/${slug}` : '/blog'}>
+<BaseLayout pageTitle={title} translationUrl={hasEnTranslation ? `/blog/${slug}` : '/blog'} translationExists={hasEnTranslation}>
   <article class="py-10 pb-16">
     <div class="max-w-7xl mx-auto px-6">
 

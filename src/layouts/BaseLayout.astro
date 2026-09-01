@@ -4,20 +4,36 @@ import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { isNoindexPath } from '../lib/noindex-routes';
+import { alternatesFor } from '../lib/hreflang';
 
 interface Props {
   pageTitle: string;
   description?: string;
   image?: string;
   translationUrl?: string; // exact URL for the other-language version of this page
+  /**
+   * Whether this page really has a counterpart in the other language. Only
+   * dynamic routes need to say -- a blog post is translated or it isn't --
+   * and passing false suppresses the hreflang tags. Static pages leave it
+   * unset and are paired by the /tr mirror rule.
+   *
+   * Deliberately separate from translationUrl above, which falls back to the
+   * listing page for an untranslated post. That is right for the language
+   * switcher and wrong here: claiming /tr/blog as one post's Turkish version
+   * is a pairing Google would not see claimed back.
+   */
+  translationExists?: boolean;
 }
 
-const { pageTitle, description = 'RSG Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkiye.', image = '', translationUrl } = Astro.props;
+const { pageTitle, description = 'RSG Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkiye.', image = '', translationUrl, translationExists } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://rsgturkey.com');
 const ogImage = image || '/logo/rsgturkey_logo.png';
 const noindex = isNoindexPath(Astro.url.pathname);
+const site = Astro.site || 'https://rsgturkey.com';
+const alternates = translationExists === false ? null : alternatesFor(Astro.url.pathname);
+const alternateHref = (path: string) => new URL(path, site).href;
 ---
 <html lang={lang} data-lang={lang}>
   <head>
@@ -32,6 +48,18 @@ const noindex = isNoindexPath(Astro.url.pathname);
         what keeps them out of the index when Google finds them another way.
         "follow" so the ordinary navigation links on the page are still crawled. */}
     {noindex && <meta name="robots" content="noindex, follow" />}
+
+    {/* Tells Google these two URLs are the same page in two languages, so it
+        serves the right one and treats them as one piece of content rather
+        than two. Each page lists itself as well as its counterpart -- that is
+        per spec. x-default is the fallback for languages we don't cover. */}
+    {alternates && (
+      <>
+        <link rel="alternate" hreflang="en" href={alternateHref(alternates.en)} />
+        <link rel="alternate" hreflang="tr" href={alternateHref(alternates.tr)} />
+        <link rel="alternate" hreflang="x-default" href={alternateHref(alternates.en)} />
+      </>
+    )}
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
