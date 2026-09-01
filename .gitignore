@@ -35,3 +35,6 @@ committee-photos/
 
 .superpowers/
 .wrangler/
+
+# local agent tooling state
+.claude/

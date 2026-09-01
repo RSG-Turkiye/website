@@ -138,10 +138,20 @@ takes today — the same MIME assembly, the same per-recipient fan-out, the same
 
 ## 4. Time
 
-The member picks a time in **their browser's local timezone**; the page converts
-to a UTC unix timestamp before sending it. The queue list renders it back in
-local time. Nobody does arithmetic in their head, and a member travelling abroad
-sees their own clock.
+All times are **Europe/Istanbul**, everywhere. The member picks a wall-clock
+time, the page converts it to a UTC unix timestamp before sending, and the queue
+list renders it back in Istanbul time. The field's label names the timezone, so
+a bare `09:00` is never ambiguous.
+
+> **Revised during implementation.** This section originally said the member
+> picks a time in *their browser's* local timezone, on the reasoning that a
+> member travelling abroad should see their own clock. That was wrong for this
+> organisation: the team, the recipients and the events are all in Turkey, so a
+> member on a machine set to another zone would have scheduled mail for the
+> wrong hour with nothing on screen to reveal it. The offset is derived from
+> `Intl` in `src/lib/istanbul-time.ts` rather than hardcoded — Turkey has had no
+> DST since 2016, but a constant buried in a page is what nobody finds if that
+> changes.
 
 Maximum **60 days** ahead. Unbounded scheduling means a forgotten message
 surfacing months later, addressed to a professor about an event that has passed.
