@@ -201,7 +201,7 @@ Append to `tests/gmail.test.ts`:
 
 ```ts
 test('buildMime omits threading headers when none are given', () => {
-  const raw = decodeMime(buildMime({
+  const raw = decode(buildMime({
     fromAddress: 'turkey.rsg@gmail.com',
     fromName: 'RSG Türkiye',
     to: 'someone@example.com',
@@ -215,7 +215,7 @@ test('buildMime omits threading headers when none are given', () => {
 });
 
 test('buildMime writes In-Reply-To and a space-joined References chain', () => {
-  const raw = decodeMime(buildMime({
+  const raw = decode(buildMime({
     fromAddress: 'turkey.rsg@gmail.com',
     fromName: 'RSG Türkiye',
     to: 'someone@example.com',
@@ -231,7 +231,7 @@ test('buildMime writes In-Reply-To and a space-joined References chain', () => {
 });
 
 test('buildMime strips CR/LF from a crafted In-Reply-To', () => {
-  const raw = decodeMime(buildMime({
+  const raw = decode(buildMime({
     fromAddress: 'turkey.rsg@gmail.com',
     fromName: 'RSG Türkiye',
     to: 'someone@example.com',
@@ -283,14 +283,15 @@ test('sendMail passes threadId to Gmail when replying', async () => {
 });
 ```
 
-Add these helpers near the top of `tests/gmail.test.ts` if the file does not already have equivalents:
+`tests/gmail.test.ts` already has a `decode(raw)` helper that base64url-decodes
+a built MIME message and a `base` fixture holding a valid `MimeMessage`. Use
+both — do not add a second decoder. The new tests above spell their message out
+in full only for readability; `{ ...base, inReplyTo: '<b@mail.example>' }` is
+equally acceptable and shorter.
+
+Add only this helper, which has no equivalent in the file:
 
 ```ts
-function decodeMime(base64url: string): string {
-  const padded = base64url.replace(/-/g, '+').replace(/_/g, '/');
-  return Buffer.from(padded, 'base64').toString('utf8');
-}
-
 function fakeEnv() {
   return {
     GOOGLE_CLIENT_ID: 'cid',
@@ -400,12 +401,14 @@ export async function sendMail(env: Env, raw: string, threadId?: string): Promis
 In `functions/_lib/compose.ts:145`, replace `gmailId = await sendMail(env, raw);` with:
 
 ```ts
-      const sent = await sendMail(env, raw, input.threadId);
-      gmailId = sent.id;
-      gmailThreadId = sent.threadId;
+      gmailId = (await sendMail(env, raw, input.threadId)).id;
 ```
 
-and declare `let gmailThreadId: string | null = null;` beside `let gmailId` at line 128. Add `threadId?: string;` to `ComposeInput`. Task 6 uses `gmailThreadId`; leaving it unused here for now is expected and TypeScript will not complain about an assigned-but-unread local.
+and add `threadId?: string;` to `ComposeInput`.
+
+Do **not** introduce a `gmailThreadId` local here. Task 6 is what stores the
+thread id, and a variable assigned a task before anything reads it is dead code
+at the moment it is committed.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -1673,7 +1676,21 @@ Update the call in `logFailure` to pass `null` for the new argument:
 
 - [ ] **Step 3: Register the thread inside the send loop**
 
-In `sendAndLog`, after the existing `insertLog` try/catch block and before `results.push(...)`, add:
+Capture the thread id first. In `sendAndLog`, add beside `let gmailId: string | null = null;`:
+
+```ts
+    let gmailThreadId: string | null = null;
+```
+
+and change the send line Task 2 left as `gmailId = (await sendMail(env, raw, input.threadId)).id;` to:
+
+```ts
+      const sent = await sendMail(env, raw, input.threadId);
+      gmailId = sent.id;
+      gmailThreadId = sent.threadId;
+```
+
+Then, after the existing `insertLog` try/catch block and before `results.push(...)`, add:
 
 ```ts
     // Registering gets its own try/catch for the same reason insertLog does:
@@ -3065,7 +3082,7 @@ git commit -m "feat: the conversations page in both languages"
 - Modify: `src/pages/account/index.astro:86-93`, `src/pages/tr/account/index.astro` (the matching block)
 - Modify: `src/pages/account/mail.astro`, `src/pages/tr/account/mail.astro`
 - Modify: `README.md`
-- Modify: `tests/noindex-routes.test.ts` (if Task 12 step 5 has not already done so)
+- (Task 12 owns the `tests/noindex-routes.test.ts` change. Do not repeat it here.)
 
 **Interfaces:**
 - Consumes: `GET /api/mail/conversations?only=count` from Task 8.
@@ -3182,7 +3199,7 @@ Expected: all tests pass; 0 type errors; the build succeeds and emits `/account/
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/pages/account src/pages/tr/account README.md tests/noindex-routes.test.ts
+git add src/pages/account src/pages/tr/account README.md
 git commit -m "feat: link conversations from the account and mail pages, document the setup"
 ```
 
