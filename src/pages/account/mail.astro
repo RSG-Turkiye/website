@@ -179,6 +179,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const status = document.getElementById('sendStatus')!;
 
     document.getElementById('cancelEditBtn')!.addEventListener('click', () => {
+      form.reset();
       setEditing(null);
     });
 
