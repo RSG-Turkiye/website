@@ -1,0 +1,33 @@
+name: Dispatch scheduled mail
+
+# Every 15 minutes. The odd minute is deliberate: everyone schedules on the
+# hour, and GitHub's scheduler is most delayed there.
+#
+# TWO THINGS KEEP THIS ALIVE, and both are easy to break by accident:
+#   1. GitHub runs a scheduled workflow as whoever last committed its cron.
+#      This must be RSG's shared bot account -- if a personal account owns it
+#      and later leaves the organisation, the schedule stops silently.
+#   2. On a public repository, scheduled workflows are disabled after 60 days
+#      with no repository activity. GitHub emails the owner; someone has to
+#      re-enable it. A quiet stretch after the symposium is when this bites.
+on:
+  schedule:
+    - cron: '2,17,32,47 * * * *'
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    name: Send due mail
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the dispatch endpoint
+        run: |
+          code=$(curl -s -o /tmp/out.json -w '%{http_code}' \
+            -X POST https://rsg-turkiye.iscbsc.org/api/mail/dispatch \
+            -H "X-Dispatch-Secret: ${{ secrets.MAIL_SYNC_SECRET }}")
+          cat /tmp/out.json
+          echo
+          if [ "$code" != "200" ]; then
+            echo "dispatch returned HTTP $code"
+            exit 1
+          fi

@@ -205,6 +205,30 @@ member, 300/day across everyone, in `functions/_lib/mail.ts`) sit under that so
 members hit a clean error rather than Gmail starting to reject mail. Raise them
 only if the ceiling itself rises.
 
+**Scheduled sending.** A member can pick a send time; a GitHub Actions workflow
+(`.github/workflows/mail-dispatch.yml`) calls `/api/mail/dispatch` every 15
+minutes to send what is due. It needs a shared secret in two places, the same
+value in both:
+
+```
+wrangler pages secret put MAIL_SYNC_SECRET --project-name website
+```
+
+and as a repository secret named `MAIL_SYNC_SECRET` under Settings → Secrets and
+variables → Actions.
+
+Two things silently stop the queue, and neither produces an error anyone sees:
+
+- **GitHub runs a scheduled workflow as whoever last committed its cron.** Commit
+  changes to that file from RSG's shared bot account. If a personal account owns
+  the schedule and that person later leaves the organisation, it stops.
+- **On a public repository, scheduled workflows are disabled after 60 days of
+  repository inactivity.** GitHub emails the owner and someone must re-enable
+  them. A quiet stretch after a symposium is exactly when this happens.
+
+If mail stops going out at its scheduled time, check the workflow's run history
+first — a disabled schedule shows as no runs at all.
+
 ---
 
 ## Content Types
