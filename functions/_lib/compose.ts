@@ -21,6 +21,7 @@ export interface ComposeInput {
   /** Markdown source, exactly as the member wrote it. */
   body: string;
   attachmentIds: string[];
+  threadId?: string;
 }
 
 export interface RecipientResult {
@@ -142,7 +143,7 @@ export async function sendAndLog(
         body: renderBody(input.body),
         attachments,
       });
-      gmailId = await sendMail(env, raw);
+      gmailId = (await sendMail(env, raw, input.threadId)).id;
     } catch (err) {
       errorMessage = err instanceof GmailError ? err.message : String(err);
     }
