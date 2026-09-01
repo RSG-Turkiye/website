@@ -10,9 +10,18 @@ name: Dispatch scheduled mail
 #   2. On a public repository, scheduled workflows are disabled after 60 days
 #      with no repository activity. GitHub emails the owner; someone has to
 #      re-enable it. A quiet stretch after the symposium is when this bites.
+# The schedule lives in a Cloudflare Worker (workers/mail-cron/), not here.
+# GitHub's scheduler never fired for this repo: four consecutive slots passed
+# in silence while every manual run succeeded, with the workflow active, the
+# file valid, Actions enabled and GitHub reporting no incident. Its scheduler
+# is best-effort and deprioritises frequent crons on public repositories
+# without saying so. Cloudflare runs its own cron triggers as part of the
+# Worker's execution guarantee.
+#
+# This workflow stays as a manual "run now" button. Do NOT add `schedule:`
+# back while the Worker exists — two schedulers against the same queue can
+# each pick up the same due rows and send every message twice.
 on:
-  schedule:
-    - cron: '3,18,33,48 * * * *'
   workflow_dispatch:
 
 # Two runs against the same due rows send every message in the batch twice --

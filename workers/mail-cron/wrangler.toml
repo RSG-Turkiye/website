@@ -1,0 +1,21 @@
+# A Worker whose only job is to poke the site's dispatch endpoint on a schedule.
+#
+# It exists because Cloudflare Pages Functions have no cron trigger and
+# GitHub Actions' scheduler proved unreliable for this repo -- four consecutive
+# slots passed without firing while manual runs succeeded every time. Cloudflare
+# runs this itself rather than queueing it behind everyone else's jobs.
+#
+# The dispatch logic stays in the site (functions/api/mail/dispatch.ts), which
+# owns the D1 and R2 bindings. This Worker holds no business logic at all: if
+# the schedule ever moves somewhere else, only this directory is thrown away.
+name = "rsg-mail-cron"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# Every 5 minutes. Cloudflare's scheduler is reliable enough to make this
+# meaningful, so "send at 09:00" lands within five minutes rather than fifteen.
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+DISPATCH_URL = "https://rsg-turkiye.iscbsc.org/api/mail/dispatch"
