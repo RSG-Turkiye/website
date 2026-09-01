@@ -60,7 +60,7 @@ Bu gruplar arasında keskin bir çizgi yoktur ve çoğu insan zamanla aralarınd
 
 Biyoinformatiğin öğrenme eğrisi yüksektir. Gerçek projeler üzerinde çalışmak — özellikle bir mentorla — sadece eğitimleri takip etmekten çok daha hızlı ilerleme sağlar.
 
-Bir topluluğun parçası olmak motivasyona yardımcı olur. RSG Türkiye, ücretsiz eğitim etkinlikleri düzenler ve Türkiye genelinde biyoinformatik ve hesaplamalı biyoloji ile ilgilenen öğrencileri birbirine bağlar. Yaklaşan etkinlikler ve geçmiş materyaller için [GitHub](https://github.com/rsgturkey) sayfamıza göz atın.
+Bir topluluğun parçası olmak motivasyona yardımcı olur. RSG Türkiye, ücretsiz eğitim etkinlikleri düzenler ve Türkiye genelinde biyoinformatik ve hesaplamalı biyoloji ile ilgilenen öğrencileri birbirine bağlar. Yaklaşan etkinlikler ve geçmiş materyaller için [GitHub](https://github.com/RSG-Turkiye) sayfamıza göz atın.
 
 Sorularınız ve sorun giderme için [Biostars](https://www.biostars.org/) ve Stack Overflow en güvenilir topluluk kaynakları olmaya devam ediyor. Yapay zeka asistanları (örneğin ChatGPT) da hızlı açıklamalar ve hata ayıklama için faydalı olabilir — ancak özellikle özel araçlar için çıktılarını doğrulayın.
 
