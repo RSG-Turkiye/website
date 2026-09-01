@@ -56,7 +56,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           </div>
 
           <div class="border-t border-border pt-3">
-            <label for="mailSchedule" class="text-xs font-semibold text-navy block mb-1">
+            <label id="mailScheduleLabel" for="mailSchedule" class="text-xs font-semibold text-navy block mb-1">
               Gönderim zamanı (boş bırakırsanız hemen gider)
             </label>
             <input id="mailSchedule" type="datetime-local"
@@ -276,6 +276,12 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     editingId = id;
     document.getElementById('editingBanner')!.classList.toggle('hidden', id === null);
     (document.getElementById('sendBtn') as HTMLButtonElement).textContent = id ? 'Güncelle' : 'Gönder';
+    // PATCH /api/mail/scheduled scheduled_at ister, bu yüzden "boş bırakırsanız
+    // hemen gider" bekleyen bir mesajı düzenlerken doğru değil -- alanı boş
+    // bırakmak invalid_schedule_time hatası verir, hemen gönderim değil.
+    document.getElementById('mailScheduleLabel')!.textContent = id
+      ? 'Gönderim zamanı'
+      : 'Gönderim zamanı (boş bırakırsanız hemen gider)';
   }
 
   async function loadQueued() {
