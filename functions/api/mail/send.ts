@@ -108,10 +108,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  const profile = await env.DB.prepare(
-    'SELECT display_name FROM profiles WHERE user_id = ?'
-  ).bind(user.id).first<{ display_name: string }>();
-  const senderName = profile?.display_name ?? user.email;
   const attachmentIdsJson = JSON.stringify(attachmentIds);
   const subject = input.subject.trim();
   const body = input.body.trim();
@@ -128,7 +124,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     try {
       const raw = buildMime({
         fromAddress: env.RSG_MAIL_FROM,
-        fromName: `RSG Türkiye (${senderName})`,
+        // The recipient sees the organisation, not the individual. The member
+        // identifies themselves in the body; Reply-To still routes replies to
+        // them, and sent_emails records who sent what regardless.
+        fromName: 'RSG Türkiye',
         to: recipient,
         replyTo: user.email,
         subject,
