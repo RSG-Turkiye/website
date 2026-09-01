@@ -2,6 +2,7 @@ import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
 import { buildMime, sendMail, GmailError, encodeAttachmentBody, type MimeAttachment } from '../../_lib/gmail';
 import { validateCompose, checkRateLimit, MAX_ATTACHMENT_BYTES } from '../../_lib/mail';
+import { renderBody } from '../../_lib/markdown';
 
 interface ComposeBody {
   to: string;
@@ -134,7 +135,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         // exists, someone has to actually watch that mailbox.
         replyTo: env.RSG_MAIL_FROM,
         subject,
-        body,
+        body: renderBody(body),
         attachments,
       });
       gmailId = await sendMail(env, raw);
