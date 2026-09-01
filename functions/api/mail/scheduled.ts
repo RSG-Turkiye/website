@@ -10,22 +10,32 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
   }
 
-  // An admin sees every member's queue, matching how the send log already works.
-  const result = user.is_admin === 1
-    ? await env.DB.prepare(
-        `SELECT s.id, s.recipients, s.recipient_name, s.subject, s.body,
-                s.attachment_ids, s.scheduled_at, u.email AS sender_email
-         FROM scheduled_emails s
-         JOIN users u ON u.id = s.sender_user_id
-         ORDER BY s.scheduled_at ASC LIMIT 200`
-      ).all()
-    : await env.DB.prepare(
-        `SELECT id, recipients, recipient_name, subject, body,
-                attachment_ids, scheduled_at
-         FROM scheduled_emails
-         WHERE sender_user_id = ?
-         ORDER BY scheduled_at ASC LIMIT 200`
-      ).bind(user.id).all();
+  const url = new URL(request.url);
+  const wantsAll = url.searchParams.get('scope') === 'all';
+
+  // Only an admin may widen the scope, and only when they explicitly ask for
+  // it -- matching how the send log already works (history.ts). Widening this
+  // implicitly for every admin would make their own queue rows (Edit/Cancel,
+  // which are ownership-scoped) silently actionable against other members'
+  // drafts.
+  if (wantsAll && user.is_admin === 1) {
+    const result = await env.DB.prepare(
+      `SELECT s.id, s.recipients, s.recipient_name, s.subject, s.body,
+              s.attachment_ids, s.scheduled_at, u.email AS sender_email
+       FROM scheduled_emails s
+       JOIN users u ON u.id = s.sender_user_id
+       ORDER BY s.scheduled_at ASC LIMIT 200`
+    ).all();
+    return jsonResponse({ scheduled: result.results });
+  }
+
+  const result = await env.DB.prepare(
+    `SELECT id, recipients, recipient_name, subject, body,
+            attachment_ids, scheduled_at
+     FROM scheduled_emails
+     WHERE sender_user_id = ?
+     ORDER BY scheduled_at ASC LIMIT 200`
+  ).bind(user.id).all();
 
   return jsonResponse({ scheduled: result.results });
 };
