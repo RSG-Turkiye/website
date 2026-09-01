@@ -98,6 +98,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       failed++;
     };
 
+    // Set the instant the finally block's own DELETE below resolves. It has
+    // to live out here, not inside the try, so the catch at the bottom of
+    // this iteration -- which runs in a separate block scope -- can still see
+    // it and tell "the row is definitely gone" apart from "something failed
+    // before we know whether it's gone".
+    let dequeued = false;
+
     try {
       // Revoking someone's permission has to stop mail they queued before it was
       // revoked, or revocation means nothing. Terminal: it will not resolve.
@@ -136,30 +143,60 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         continue;
       }
 
-      let results: RecipientResult[];
+      let results: RecipientResult[] = [];
+      // Holds whichever of "sendAndLog threw" or "the DELETE below threw" was
+      // the FIRST of the two, so it survives to the outer catch. Plain
+      // try/finally would lose this: if the try's body throws and the
+      // finally's own body then also throws, JS discards the try's exception
+      // and propagates the finally's instead -- here that would mean
+      // last_error recording a D1 delete hiccup instead of the real send
+      // failure that caused it. sendAndLog is written to never throw for a
+      // per-recipient reason (see its own comment), so in practice this path
+      // is only reachable by a genuine bug in sendAndLog itself, but the fix
+      // is a few lines and costs nothing to keep.
+      let firstFailure: unknown;
       try {
         results = await sendAndLog(env, input, resolved.attachments);
+      } catch (err) {
+        firstFailure = err;
       } finally {
         // Mail has now been attempted -- possibly delivered to some or all
-        // recipients via the per-recipient try/catch inside sendAndLog, or
-        // (rarely) failed to log via insertLog's own throw, which propagates
-        // out of sendAndLog uncaught. Either way, retaining this row would
-        // resend to every recipient, including ones already mailed, on the
-        // next tick. The row leaves the queue unconditionally once a send has
-        // been attempted, regardless of what else throws.
-        await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+        // recipients via the per-recipient try/catch inside sendAndLog.
+        // Retaining this row would resend to every recipient, including ones
+        // already mailed, on the next tick. The row leaves the queue
+        // unconditionally once a send has been attempted, regardless of what
+        // else throws.
+        try {
+          await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+          dequeued = true;
+        } catch (deleteErr) {
+          if (firstFailure === undefined) firstFailure = deleteErr;
+        }
       }
+      if (firstFailure !== undefined) throw firstFailure;
       if (results.some(r => r.status === 'sent')) sent++; else failed++;
     } catch (err) {
       // Unlike malformed JSON, a throw here (a D1 hiccup, a transient R2 read
-      // failure inside resolveAttachments, or sendAndLog's own throw after
-      // the finally above has already dequeued the row) is not proof the
-      // message can never send. Retry it -- but bounded, the same as the rate
-      // limit branch above: once the retry window has elapsed since the first
-      // attempt, keep trying forever is worse than a recorded failure, because
-      // a retained row re-executes a send that may have already gone out.
+      // failure inside resolveAttachments, or the DELETE above failing) is not
+      // automatically proof the message can never send -- UNLESS the row has
+      // already been dequeued. sendAndLog does not throw for a per-recipient
+      // reason (a Gmail failure or a log-write failure both turn into a
+      // 'failed' RecipientResult, not an exception), so by the time `dequeued`
+      // is true, sendAndLog has already run to completion and written
+      // whatever sent_emails rows it could for every recipient. There is
+      // nothing left to retry -- recipients that never got attempted do not
+      // exist in this scenario -- and calling logFailure here would write a
+      // 'failed' row for recipients that may well have sent successfully,
+      // contradicting the log sendAndLog already wrote. So: nothing to retry,
+      // nothing to re-log, just count it and move on.
+      //
+      // When the row is still queued, the pre-existing behaviour is correct:
+      // stamp attempts/first_tried_at and retry, unless the retry window has
+      // elapsed, in which case give up and record the failure for real.
       const message = err instanceof Error ? err.message : String(err);
-      if (shouldGiveUp(row.first_tried_at, now)) {
+      if (dequeued) {
+        failed++;
+      } else if (shouldGiveUp(row.first_tried_at, now)) {
         await logFailure(env, input, 'Unexpected error, giving up after retry window: ' + message);
         await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
         failed++;

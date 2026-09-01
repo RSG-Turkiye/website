@@ -27,6 +27,13 @@ export interface RecipientResult {
   recipient: string;
   status: 'sent' | 'failed';
   error?: string;
+  /**
+   * True when the send outcome above (whichever it was) could not be written
+   * to `sent_emails`. The caller still learns the true status, but the audit
+   * trail is missing a row for this recipient -- worth surfacing rather than
+   * silently dropping.
+   */
+  logFailed?: boolean;
 }
 
 interface AttachmentRow {
@@ -140,12 +147,32 @@ export async function sendAndLog(
       errorMessage = err instanceof GmailError ? err.message : String(err);
     }
 
-    await insertLog(env, input, recipient, gmailId, errorMessage);
+    // insertLog gets its own try/catch, deliberately separate from the one
+    // above: a D1 write failure for this recipient's log row is not a reason
+    // to abort the recipients still waiting in this loop. Before this fix,
+    // insertLog sat outside any try, so a single logging failure on, say,
+    // recipient 3 of 5 threw out of sendAndLog entirely -- recipients 4 and 5
+    // were then never attempted, and the caller (the immediate-send endpoint,
+    // or the dispatcher's per-row try/finally) saw an exception instead of a
+    // result list, with no way to tell which recipients had already been
+    // mailed. sendAndLog must not throw for a per-recipient reason; a failure
+    // belongs in this recipient's own result instead.
+    let logFailed = false;
+    try {
+      await insertLog(env, input, recipient, gmailId, errorMessage);
+    } catch {
+      logFailed = true;
+    }
 
     results.push(
       gmailId
-        ? { recipient, status: 'sent' }
-        : { recipient, status: 'failed', error: errorMessage ?? 'unknown error' },
+        ? { recipient, status: 'sent', ...(logFailed ? { logFailed: true } : {}) }
+        : {
+            recipient,
+            status: 'failed',
+            error: errorMessage ?? 'unknown error',
+            ...(logFailed ? { logFailed: true } : {}),
+          },
     );
   }
 
