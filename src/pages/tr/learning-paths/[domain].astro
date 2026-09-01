@@ -8,13 +8,15 @@ import LevelSwitcher from '../../../components/learning-paths/LevelSwitcher.astr
 export async function getStaticPaths() {
   const allDomains = await getCollection('lpDomains');
   const domains = allDomains.filter(d => d.id.startsWith('tr/'));
+  // Mirror of the check in the English page: no en/ entry, no pairing.
+  const enSlugs = new Set(allDomains.filter(d => d.id.startsWith('en/')).map(d => d.id.slice(3)));
   return domains.map(domain => ({
     params: { domain: domain.id.slice(3) }, // 'tr/genomics' → 'genomics'
-    props: { domain, domainSlug: domain.id.slice(3) },
+    props: { domain, domainSlug: domain.id.slice(3), hasEnTranslation: enSlugs.has(domain.id.slice(3)) },
   }));
 }
 
-const { domain, domainSlug } = Astro.props;
+const { domain, domainSlug, hasEnTranslation } = Astro.props;
 const { name, emoji, tagline, goDeeper } = domain.data;
 
 // Load all level content for this domain (TR only)
@@ -69,7 +71,8 @@ const levelsForScript = levels.map((level, li) => ({
 
 <BaseLayout
   pageTitle={`${name} — Öğrenme Yolu — RSG Türkiye`}
-  description={tagline}>
+  description={tagline}
+  translationExists={hasEnTranslation}>
 
   <!-- ── Hero ── -->
   <div class="bg-navy py-14 text-center relative overflow-hidden">
