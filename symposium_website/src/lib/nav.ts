@@ -1,4 +1,4 @@
-import type { Lang } from "../i18n/ui";
+import type { Lang, UIKey } from "../i18n/ui";
 
 export interface NavState {
   hasSchedule: boolean;
@@ -8,7 +8,7 @@ export interface NavState {
 
 export interface NavItem {
   href: string;
-  labelKey: string;
+  labelKey: UIKey;
 }
 
 /**
