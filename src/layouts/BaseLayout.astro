@@ -28,7 +28,7 @@ interface Props {
 const { pageTitle, description = 'RSG Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkiye.', image = '', translationUrl, translationExists } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://rsgturkey.com');
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImage = image || '/logo/rsgturkey_logo.png';
 const noindex = isNoindexPath(Astro.url.pathname);
 const site = Astro.site || 'https://rsgturkey.com';

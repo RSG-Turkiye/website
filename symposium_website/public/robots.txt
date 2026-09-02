@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://symposium.rsg-turkiye.iscbsc.org/sitemap-index.xml

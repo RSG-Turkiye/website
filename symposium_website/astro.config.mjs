@@ -3,7 +3,7 @@ import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  site: 'https://symposium.rsgturkey.com',
+  site: 'https://symposium.rsg-turkiye.iscbsc.org',
   output: 'static',
   integrations: [
     sitemap(),
