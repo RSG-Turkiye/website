@@ -12,6 +12,9 @@
  * mail_threads first.
  */
 
+import type { Env } from './auth';
+import { getAccessToken, resetAccessToken, GmailError } from './gmail';
+
 export interface GmailHeader {
   name: string;
   value: string;
@@ -234,4 +237,106 @@ export function threadIdsFromHistory(payload: HistoryPayload): string[] {
     }
   }
   return [...ids];
+}
+
+/**
+ * The stored history cursor is older than Gmail's retention (roughly a week).
+ * The caller's answer is a bounded, resumable backfill -- not a retry.
+ */
+export class GmailHistoryExpired extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GmailHistoryExpired';
+  }
+}
+
+/** Gmail ids are opaque, but they are always plain hex-ish tokens. */
+function assertGmailId(id: string): void {
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+    throw new GmailError(`Invalid thread id: ${id.slice(0, 40)}`);
+  }
+}
+
+async function gmailGet(env: Env, path: string): Promise<Response> {
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/${path}`;
+  const token = await getAccessToken(env);
+  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+
+  if (res.status === 401) {
+    resetAccessToken();
+    const fresh = await getAccessToken(env);
+    res = await fetch(url, { headers: { Authorization: `Bearer ${fresh}` } });
+  }
+
+  return res;
+}
+
+export async function getProfileHistoryId(env: Env): Promise<string> {
+  const res = await gmailGet(env, 'profile');
+  if (!res.ok) {
+    throw new GmailError(`Gmail profile failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+  }
+  const data = await res.json<{ historyId: string }>();
+  return String(data.historyId);
+}
+
+/**
+ * At most this many history pages per sync. Hitting the cap means the mailbox
+ * has moved further than one tick can reasonably walk, which is the same
+ * situation as an expired cursor: hand it to the backfill, which is bounded
+ * and resumable, instead of looping here.
+ */
+const MAX_HISTORY_PAGES = 10;
+
+export async function listHistory(
+  env: Env,
+  startHistoryId: string,
+): Promise<{ threadIds: string[]; historyId: string }> {
+  const ids = new Set<string>();
+  let pageToken: string | undefined;
+  let historyId = startHistoryId;
+
+  for (let page = 0; page < MAX_HISTORY_PAGES; page += 1) {
+    const query = new URLSearchParams({
+      startHistoryId,
+      historyTypes: 'messageAdded',
+      maxResults: '500',
+    });
+    if (pageToken) query.set('pageToken', pageToken);
+
+    const res = await gmailGet(env, `history?${query.toString()}`);
+
+    // 404 is Gmail's specific answer for "that cursor is older than I keep".
+    if (res.status === 404) {
+      throw new GmailHistoryExpired(`History cursor ${startHistoryId} is no longer valid`);
+    }
+    if (!res.ok) {
+      throw new GmailError(`Gmail history failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+    }
+
+    const data = await res.json<HistoryPayload>();
+    for (const id of threadIdsFromHistory(data)) ids.add(id);
+    if (data.historyId) historyId = String(data.historyId);
+
+    if (!data.nextPageToken) return { threadIds: [...ids], historyId };
+    pageToken = data.nextPageToken;
+  }
+
+  throw new GmailHistoryExpired(`History from ${startHistoryId} exceeded ${MAX_HISTORY_PAGES} pages`);
+}
+
+/**
+ * Fetch one thread in full.
+ *
+ * Call this only through `ingestThread` in conversations.ts, which checks the
+ * id against `mail_threads` first. Reading a thread the site did not start
+ * would break the guarantee this whole feature is built on.
+ */
+export async function fetchThread(env: Env, threadId: string): Promise<GmailThread> {
+  assertGmailId(threadId);
+  const res = await gmailGet(env, `threads/${threadId}?format=full`);
+  if (!res.ok) {
+    throw new GmailError(`Gmail thread fetch failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+  }
+  return res.json<GmailThread>();
 }

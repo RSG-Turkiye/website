@@ -205,6 +205,16 @@ export function buildMime(msg: MimeMessage): string {
 // recipients does not perform ten token refreshes.
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+/**
+ * Drop the cached access token. Exported for gmail-read.ts, which has to
+ * recover from the same early-invalidation case sendMail handles inline: a
+ * token Google revoked before its stated expiry passes the isolate's own
+ * check and then comes back 401 from Gmail.
+ */
+export function resetAccessToken(): void {
+  cachedToken = null;
+}
+
 export async function getAccessToken(env: Env): Promise<string> {
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now + 60_000) return cachedToken.token;
