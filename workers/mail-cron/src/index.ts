@@ -17,7 +17,10 @@ export default {
    */
   async fetch(_request: Request, env: Env): Promise<Response> {
     const body = await tick(env);
-    return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(
+      JSON.stringify({ dispatch: parseIfJson(body.dispatch), sync: parseIfJson(body.sync) }, null, 2),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
   },
 };
 
@@ -36,6 +39,20 @@ async function tick(env: Env): Promise<{ dispatch: string; sync: string }> {
   }
 
   return { dispatch, sync };
+}
+
+/**
+ * The two endpoints answer with JSON, but `call` deals in text so it can also
+ * carry an ERROR string. Parse back where possible so the manual `fetch`
+ * check reads as one document instead of JSON nested inside JSON -- being
+ * readable by hand is the entire reason that handler exists.
+ */
+function parseIfJson(body: string): unknown {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
 }
 
 async function call(env: Env, label: string, url: string): Promise<string> {

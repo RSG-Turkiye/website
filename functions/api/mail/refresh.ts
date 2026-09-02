@@ -32,5 +32,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ ok: true, skipped: true, retryAfter: MIN_REFRESH_SECONDS - (now - last) });
   }
 
+  // Stamp the attempt before delegating, not after. runSync writes this column
+  // on every path it completes, but a sync that throws early -- a revoked
+  // scope, a mailbox that is not reachable -- would leave it NULL forever, and
+  // every page load would then hit Gmail unthrottled. The throttle guards a
+  // shared quota, so it has to count attempts, not successes.
+  await env.DB.prepare(
+    'UPDATE mail_sync_state SET last_synced_at = ? WHERE id = 1'
+  ).bind(now).run();
+
   return runSync(env, new URL(request.url).origin);
 };
