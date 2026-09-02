@@ -10,6 +10,9 @@ export async function getUpcomingEdition(now = new Date()): Promise<EditionEntry
 }
 
 export async function getPastEditions(now = new Date()): Promise<EditionEntry[]> {
+  // Returns only the archive: editions that have finished, and undated editions.
+  // Future editions not yet announced stay hidden — the site should not render
+  // draft markdown ahead of announcement time.
   const entries = await getCollection("editions");
   const { past } = splitEditions(entries.map((e) => e.data), now);
   return past.map((d) => entries.find((e) => e.data.year === d.year)!);

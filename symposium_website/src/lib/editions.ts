@@ -39,7 +39,7 @@ function endOfEvent(e: EditionLike): number {
 }
 
 /**
- * Splits editions into the one we are currently announcing and the archive.
+ * Splits editions into the one we are currently announcing, future editions not yet announced, and the archive.
  *
  * Pure and `now`-injected so the transition can be tested without touching
  * the system clock. An edition with no `startDate` is always archive: only
@@ -48,16 +48,18 @@ function endOfEvent(e: EditionLike): number {
 export function splitEditions(
   all: EditionLike[],
   now: Date
-): { upcoming: EditionLike | null; past: EditionLike[] } {
+): { upcoming: EditionLike | null; future: EditionLike[]; past: EditionLike[] } {
   const current = all
     .filter((e) => e.startDate && endOfEvent(e) > now.getTime())
     .sort((a, b) => a.startDate!.getTime() - b.startDate!.getTime());
 
   const upcoming = current[0] ?? null;
 
+  const future = current.slice(1);
+
   const past = all
-    .filter((e) => e !== upcoming)
+    .filter((e) => e !== upcoming && !future.includes(e))
     .sort((a, b) => b.year - a.year);
 
-  return { upcoming, past };
+  return { upcoming, future, past };
 }
