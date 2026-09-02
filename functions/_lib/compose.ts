@@ -30,12 +30,17 @@ export interface RecipientResult {
   status: 'sent' | 'failed';
   error?: string;
   /**
-   * True when the send outcome above (whichever it was) could not be written
-   * to `sent_emails`. The caller still learns the true status, but the audit
-   * trail is missing a row for this recipient -- worth surfacing rather than
-   * silently dropping.
+   * The send outcome above -- whichever it was -- could not be written to
+   * `sent_emails`. The caller still learns the true status, but the audit
+   * trail is missing a row for this recipient.
    */
-  logFailed?: boolean;
+  auditFailed?: boolean;
+  /**
+   * The message went out, but its Gmail thread could not be recorded in
+   * `mail_threads`. The mail is sent and logged; the conversation it started
+   * will simply never appear on the site, and nothing backfills it.
+   */
+  registrationFailed?: boolean;
 }
 
 interface AttachmentRow {
@@ -164,17 +169,18 @@ export async function sendAndLog(
     // result list, with no way to tell which recipients had already been
     // mailed. sendAndLog must not throw for a per-recipient reason; a failure
     // belongs in this recipient's own result instead.
-    let logFailed = false;
+    let auditFailed = false;
     try {
       await insertLog(env, input, recipient, gmailId, gmailThreadId, errorMessage);
     } catch {
-      logFailed = true;
+      auditFailed = true;
     }
 
     // Registering gets its own try/catch for the same reason insertLog does:
     // a D1 failure here must not abort the recipients still waiting in this
     // loop. The cost of losing it is that this conversation never appears on
     // the site -- bad, but not as bad as silently skipping recipients.
+    let registrationFailed = false;
     if (gmailId && gmailThreadId) {
       try {
         await registerThread(env, {
@@ -186,18 +192,24 @@ export async function sendAndLog(
           sentAt: Math.floor(Date.now() / 1000),
         });
       } catch {
-        logFailed = true;
+        registrationFailed = true;
       }
     }
 
     results.push(
       gmailId
-        ? { recipient, status: 'sent', ...(logFailed ? { logFailed: true } : {}) }
+        ? {
+            recipient,
+            status: 'sent',
+            ...(auditFailed ? { auditFailed: true } : {}),
+            ...(registrationFailed ? { registrationFailed: true } : {}),
+          }
         : {
             recipient,
             status: 'failed',
             error: errorMessage ?? 'unknown error',
-            ...(logFailed ? { logFailed: true } : {}),
+            ...(auditFailed ? { auditFailed: true } : {}),
+            ...(registrationFailed ? { registrationFailed: true } : {}),
           },
     );
   }
