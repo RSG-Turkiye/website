@@ -81,5 +81,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     // they toggled a filter.
     unreadCount: unread?.n ?? 0,
     scope: wantsAll ? 'all' : 'own',
+    isAdmin: user.is_admin === 1,
   });
 };
