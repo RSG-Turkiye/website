@@ -10,7 +10,7 @@ lang: "en"
 draft: false
 ---
 
-We have started to compile a list of resources to learn or improve computational biology skills: [Resources for Computational Biology & Bioinformatics](http://rsgturkey.com/resources/)
+We have started to compile a list of resources to learn or improve computational biology skills: [Resources for Computational Biology & Bioinformatics](/resources)
 
 You can add new resources to relevant sheets or just check the list to find your new favourite book/course!
 

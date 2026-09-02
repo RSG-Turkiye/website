@@ -10,11 +10,11 @@ lang: "tr"
 draft: false
 ---
 
-##### [Follow here for English!](https://iscbrsgturkey.wordpress.com/webinars/presentation-calls/)
+##### [Follow here for English!](/blog/call-for-abstracts-student-webinars)
 
 ### Ogrenci Webinarlari
 
-Bilginizi ve deneyiminizi paylasmak mi istiyorsunuz? Artik projenizi, tezlerinizi ve belirli bir alandaki uzman bilgi birikiminizi webinarlarimiz araciligi ile paylasabilirsiniz! Formu doldurun ve ozet gonderiminiz bilimsel komitemiz tarafindan incelendikten sonra sizinle iletisime gecip gerekli ayarlamalari yapalim! [Ozet Cagrisi – Ogrenci Sunumlari](https://iscbrsgturkey.wordpress.com/2015/01/31/call-for-student-presentations/)
+Bilginizi ve deneyiminizi paylasmak mi istiyorsunuz? Artik projenizi, tezlerinizi ve belirli bir alandaki uzman bilgi birikiminizi webinarlarimiz araciligi ile paylasabilirsiniz! Formu doldurun ve ozet gonderiminiz bilimsel komitemiz tarafindan incelendikten sonra sizinle iletisime gecip gerekli ayarlamalari yapalim! [Ozet Cagrisi – Ogrenci Sunumlari](/blog/call-for-student-presentations)
 
 * * *
 
