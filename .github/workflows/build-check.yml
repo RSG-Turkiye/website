@@ -28,3 +28,32 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  symposium-build:
+    name: Symposium Build & Type Check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: symposium_website
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: symposium_website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx astro check
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
