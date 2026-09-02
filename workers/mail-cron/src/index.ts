@@ -7,38 +7,60 @@ export interface Env {
 
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(tick(env));
+    ctx.waitUntil(
+      tick(env).then((result) => {
+        // A scheduled Worker's only failure signal is its invocation status.
+        // `tick` has already run both calls by the time it resolves, so
+        // reporting here still lets a failing dispatch and a failing sync both
+        // be logged before either is raised.
+        if (failed(result)) throw new Error(summarise(result));
+      }),
+    );
   },
 
   /**
-   * A plain GET returns the same call's result, so the schedule can be tested
-   * by hand without waiting for a tick. It carries no secret of its own -- it
-   * simply forwards the one this Worker holds, exactly as the cron does.
+   * A plain GET returns the same call's result, so the schedule can be checked
+   * by hand. Not reachable from the internet: workers_dev is off and no route
+   * is bound, so this answers only under `wrangler dev`.
+   *
+   * Unlike `scheduled` it reports failure as a 502 with the body rather than
+   * throwing -- the two callers want different things. The scheduler needs a
+   * failed invocation; a human needs to read what went wrong, and a stack
+   * trace tells them less than the endpoints' own responses do.
    */
   async fetch(_request: Request, env: Env): Promise<Response> {
     const body = await tick(env);
     return new Response(
       JSON.stringify({ dispatch: parseIfJson(body.dispatch), sync: parseIfJson(body.sync) }, null, 2),
-      { headers: { 'Content-Type': 'application/json' } },
+      {
+        status: failed(body) ? 502 : 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
     );
   },
 };
 
-async function tick(env: Env): Promise<{ dispatch: string; sync: string }> {
+async function tick(env: Env): Promise<Tick> {
   // Dispatch first: a message queued for this minute should go out before the
   // sync spends the tick's budget reading replies. Sequential rather than
   // raced, so one failing does not cancel the other's logging.
   const dispatch = await call(env, 'dispatch', env.DISPATCH_URL);
   const sync = await call(env, 'sync', env.SYNC_URL);
 
-  // Throw only after both have run: a scheduled Worker's single failure signal
-  // is the invocation status, and throwing earlier would have skipped the
-  // second call entirely.
-  if (dispatch.startsWith('ERROR') || sync.startsWith('ERROR')) {
-    throw new Error(`tick failed -- dispatch: ${dispatch.slice(0, 120)} sync: ${sync.slice(0, 120)}`);
-  }
-
+  // Both results are returned rather than raised here: one failing must not
+  // stop the other being reported, and the two callers differ on what to do
+  // about it -- see `scheduled` and `fetch`.
   return { dispatch, sync };
+}
+
+type Tick = { dispatch: string; sync: string };
+
+function failed(t: Tick): boolean {
+  return t.dispatch.startsWith('ERROR') || t.sync.startsWith('ERROR');
+}
+
+function summarise(t: Tick): string {
+  return `tick failed -- dispatch: ${t.dispatch.slice(0, 120)} sync: ${t.sync.slice(0, 120)}`;
 }
 
 /**
