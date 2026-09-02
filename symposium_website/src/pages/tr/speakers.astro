@@ -4,6 +4,7 @@ import SpeakerCard from "../../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSpeakersByEdition } from "../../data/speakers";
 import { getUpcomingEdition } from "../../lib/editions-content";
+import { titleFor } from "../../lib/editions";
 import { getCollection } from "astro:content";
 
 const lang = getLangFromUrl(Astro.url);
@@ -36,7 +37,7 @@ const hasUpcomingSpeakers = upcoming
         <div>
           <div class="flex items-center gap-4 mb-6">
             <h2 class="text-xl font-bold text-navy">{year}</h2>
-            {edition && <span class="text-sm text-gray-500">{edition.data.title}</span>}
+            {edition && <span class="text-sm text-gray-500">{titleFor(edition.data, lang)}</span>}
             <div class="flex-1 h-px bg-border" />
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

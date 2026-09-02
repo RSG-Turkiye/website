@@ -6,7 +6,7 @@ import EventJsonLd from "../../components/EventJsonLd.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSponsorsByEdition } from "../../data/sponsors";
 import { getUpcomingEdition, getPastEditions } from "../../lib/editions-content";
-import { locationFor } from "../../lib/editions";
+import { locationFor, titleFor, subtitleFor } from "../../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -15,12 +15,8 @@ const latestSponsors = getSponsorsByEdition(2024);
 const recentEditions = (await getPastEditions()).slice(0, 3);
 
 const upcoming = await getUpcomingEdition();
-const heading = upcoming
-  ? (lang === "tr" && upcoming.data.titleTr) || upcoming.data.title
-  : "";
-const theme = upcoming
-  ? (lang === "tr" && upcoming.data.subtitleTr) || upcoming.data.subtitle
-  : "";
+const heading = upcoming ? titleFor(upcoming.data, lang) : "";
+const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
 const place = upcoming ? locationFor(upcoming.data) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
@@ -104,12 +100,12 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
           <a href={`/tr/editions/${edition.data.year}`} class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
             {edition.data.posterImage && (
               <div class="aspect-video overflow-hidden bg-navy-light">
-                <img src={edition.data.posterImage} alt={edition.data.title} class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                <img src={edition.data.posterImage} alt={titleFor(edition.data, lang)} class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" loading="lazy" />
               </div>
             )}
             <div class="p-4 flex flex-col gap-1.5 flex-1">
               <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded w-fit">{edition.data.year}</span>
-              <h3 class="font-semibold text-navy text-sm leading-snug">{edition.data.title}</h3>
+              <h3 class="font-semibold text-navy text-sm leading-snug">{titleFor(edition.data, lang)}</h3>
               {(() => {
                 const loc = locationFor(edition.data);
                 return (

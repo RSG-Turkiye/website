@@ -1,5 +1,5 @@
 ---
-import { locationFor, ctasFor, type EditionLike } from "../lib/editions";
+import { locationFor, ctasFor, titleFor, subtitleFor, type EditionLike } from "../lib/editions";
 import type { Lang } from "../i18n/ui";
 
 interface Props { edition: EditionLike; url: string; lang: Lang }
@@ -7,8 +7,8 @@ const { edition, url, lang } = Astro.props;
 
 // The Turkish page must not publish English structured data, so name and
 // description follow the same titleTr/subtitleTr preference the hero uses.
-const name = (lang === "tr" && edition.titleTr) || edition.title;
-const description = (lang === "tr" && edition.subtitleTr) || edition.subtitle;
+const name = titleFor(edition, lang);
+const description = subtitleFor(edition, lang);
 
 const place = locationFor(edition);
 const registration = ctasFor(edition).find((c) => c.kind === "registration");

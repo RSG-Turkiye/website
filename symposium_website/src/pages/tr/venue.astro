@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getUpcomingEdition } from "../../lib/editions-content";
-import { locationFor } from "../../lib/editions";
+import { locationFor, titleFor } from "../../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -22,7 +22,7 @@ const edition = await getUpcomingEdition();
         <Fragment>
           <div class="bg-white rounded-xl border border-border overflow-hidden mb-8">
             <div class="bg-navy-light px-6 py-4 border-b border-border">
-              <h2 class="font-semibold text-navy text-lg">{edition.data.title}</h2>
+              <h2 class="font-semibold text-navy text-lg">{titleFor(edition.data, lang)}</h2>
             </div>
             <div class="p-6 grid sm:grid-cols-2 gap-6">
               <div class="space-y-4">

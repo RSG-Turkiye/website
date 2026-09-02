@@ -1,14 +1,16 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
-import { getPastEditions } from "../../lib/editions-content";
-import { locationFor } from "../../lib/editions";
+import { getUpcomingEdition, getPastEditions } from "../../lib/editions-content";
+import { locationFor, titleFor, subtitleFor } from "../../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const prefix = lang === "tr" ? "/tr" : "";
 
+const upcoming = await getUpcomingEdition();
 const pastEditions = await getPastEditions();
+const allEditions = upcoming ? [upcoming, ...pastEditions] : pastEditions;
 ---
 
 <BaseLayout
@@ -29,7 +31,7 @@ const pastEditions = await getPastEditions();
   <div class="max-w-7xl mx-auto px-6 py-12">
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {
-        pastEditions.map((edition) => (
+        allEditions.map((edition) => (
           <a
             href={`${prefix}/editions/${edition.data.year}`}
             class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow"
@@ -38,7 +40,7 @@ const pastEditions = await getPastEditions();
               <div class="aspect-video overflow-hidden bg-navy-light">
                 <img
                   src={edition.data.posterImage}
-                  alt={edition.data.title}
+                  alt={titleFor(edition.data, lang)}
                   class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
                 />
@@ -49,10 +51,15 @@ const pastEditions = await getPastEditions();
                 <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded">
                   {edition.data.year}
                 </span>
+                {upcoming && edition.data.year === upcoming.data.year && (
+                  <span class="bg-red text-white text-xs font-semibold px-2 py-0.5 rounded">
+                    {lang === "tr" ? "Son" : "Latest"}
+                  </span>
+                )}
               </div>
-              <h2 class="font-semibold text-navy">{edition.data.title}</h2>
-              {edition.data.subtitle && (
-                <p class="text-sm text-gray-500">{edition.data.subtitle}</p>
+              <h2 class="font-semibold text-navy">{titleFor(edition.data, lang)}</h2>
+              {subtitleFor(edition.data, lang) && (
+                <p class="text-sm text-gray-500">{subtitleFor(edition.data, lang)}</p>
               )}
               {(() => {
                 const loc = locationFor(edition.data);

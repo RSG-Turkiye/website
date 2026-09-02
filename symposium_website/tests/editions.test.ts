@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, type EditionLike, locationFor, ctasFor } from '../src/lib/editions';
+import { splitEditions, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
 
 function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
@@ -157,4 +157,52 @@ test('a deadline rides along with its CTA', () => {
 
 test('whitespace is not a URL', () => {
   assert.deepEqual(ctasFor({ registrationUrl: '   ', abstractUrl: '' } as EditionLike), []);
+});
+
+test('titleFor: english language always gets the english title', () => {
+  const e = { title: 'English Title', titleTr: 'Türkçe Başlık' } as EditionLike;
+  assert.equal(titleFor(e, 'en'), 'English Title');
+});
+
+test('titleFor: turkish language gets the turkish title when present', () => {
+  const e = { title: 'English Title', titleTr: 'Türkçe Başlık' } as EditionLike;
+  assert.equal(titleFor(e, 'tr'), 'Türkçe Başlık');
+});
+
+test('titleFor: turkish language falls back to english when titleTr is empty', () => {
+  // Most archived editions have no titleTr at all -- this is the common
+  // path, not the edge case.
+  const e = { title: 'English Title', titleTr: '' } as EditionLike;
+  assert.equal(titleFor(e, 'tr'), 'English Title');
+});
+
+test('titleFor: turkish language falls back to english when titleTr is absent', () => {
+  const e = { title: 'English Title' } as EditionLike;
+  assert.equal(titleFor(e, 'tr'), 'English Title');
+});
+
+test('subtitleFor: english language always gets the english subtitle', () => {
+  const e = { subtitle: 'English Subtitle', subtitleTr: 'Türkçe Alt Başlık' } as EditionLike;
+  assert.equal(subtitleFor(e, 'en'), 'English Subtitle');
+});
+
+test('subtitleFor: turkish language gets the turkish subtitle when present', () => {
+  const e = { subtitle: 'English Subtitle', subtitleTr: 'Türkçe Alt Başlık' } as EditionLike;
+  assert.equal(subtitleFor(e, 'tr'), 'Türkçe Alt Başlık');
+});
+
+test('subtitleFor: turkish language falls back to english when subtitleTr is empty', () => {
+  const e = { subtitle: 'English Subtitle', subtitleTr: '' } as EditionLike;
+  assert.equal(subtitleFor(e, 'tr'), 'English Subtitle');
+});
+
+test('subtitleFor: turkish language falls back to english when subtitleTr is absent', () => {
+  const e = { subtitle: 'English Subtitle' } as EditionLike;
+  assert.equal(subtitleFor(e, 'tr'), 'English Subtitle');
+});
+
+test('subtitleFor: no subtitle at all is undefined, not a crash', () => {
+  const e = {} as EditionLike;
+  assert.equal(subtitleFor(e, 'tr'), undefined);
+  assert.equal(subtitleFor(e, 'en'), undefined);
 });
