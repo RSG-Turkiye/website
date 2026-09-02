@@ -1,0 +1,18 @@
+# A Worker whose only job is to trigger a rebuild of the symposium site on a schedule.
+#
+# The symposium site is static: which edition is "upcoming" is derived from the clock
+# at build time. Without a scheduled rebuild, a symposium would stay "upcoming" even
+# after it passed, until somebody happened to push a commit. This Worker ensures the
+# site data stays current with the clock, not just the git log.
+#
+# The deploy hook is a secret (SYMPOSIUM_DEPLOY_HOOK) created in the rsg-symposium
+# Cloudflare Pages project's Build settings. This Worker holds nothing else.
+
+name = "rsg-symposium-cron"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# 01:17 UTC is 04:17 in Türkiye -- after midnight local, so the day flips before
+# the first visitor arrives. Off the hour to avoid Cloudflare's busiest cron minute.
+[triggers]
+crons = ["17 1 * * *"]
