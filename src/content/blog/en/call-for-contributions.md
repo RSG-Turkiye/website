@@ -14,6 +14,6 @@ Thanks to our community members and colleagues from ISCB RSG Turkiye, BioInfoNet
 
 At this stage, we felt that we are ready to make calls for presentations for both professionals and students.
 
-We are proud to have the set up to invite you to organise your dream webinar with us. If you like the idea, please fill the appropriate form at [presentation calls page](http://rsgturkey.com/en/call-for-student-presentations/).
+We are proud to have the set up to invite you to organise your dream webinar with us. If you like the idea, please fill the appropriate form at [presentation calls page](/blog/call-for-student-presentations).
 
 We are looking forward to your contributions. Thank you!

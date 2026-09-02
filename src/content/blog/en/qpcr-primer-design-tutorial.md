@@ -454,7 +454,7 @@ I would like to thank my master thesis supervisor Dr. Ozlen Konu, and my dear fr
 
 ## References
 
-- Turkish version of this post: https://rsgturkey.com/tr/primer-dizayna-giris-tutorial-101/ (by Fatma Betül Dinçaslan)
+- Turkish version of this post: /tr/blog/orneklerle-primer-dizayni (by Fatma Betül Dinçaslan)
 - A Nobel winning method: PCR: : https://www.nobelprize.org/prizes/chemistry/1993/mullis/lecture/
 - PCR and COVID: https://my.clevelandclinic.org/health/diagnostics/21462-covid-19-and-pcr-testing
 - NCBI website: https://www.ncbi.nlm.nih.gov/

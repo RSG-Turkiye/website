@@ -10,7 +10,7 @@ lang: "en"
 draft: false
 ---
 
-We continue with the tutorial posts regarding data visualization. The first post was about [Volcano Plot and how to interpret (in Turkish)](https://rsgturkey.com/tr/plot-plot-veri-gorsellestirme-volkan-plot/). Today, I will share the modified version of one example([original codes are here](http://www.sthda.com/english/wiki/ggplot2-texts-add-text-annotations-to-a-graph-in-r-software)) I've used recently while I was writing a literature review for my research proposal.
+We continue with the tutorial posts regarding data visualization. The first post was about [Volcano Plot and how to interpret (in Turkish)](/tr/blog/plot-plot-veri-gorsellestirme-volkan-plot). Today, I will share the modified version of one example([original codes are here](http://www.sthda.com/english/wiki/ggplot2-texts-add-text-annotations-to-a-graph-in-r-software)) I've used recently while I was writing a literature review for my research proposal.
 
 mtcars is a very well known dataset used to give example visualizations and analysis in R, however I prefer to use specific hypothetical sample dataset to generate the graph given below. Hopefully it helps you as well. Enjoy with the cool plots!
 
