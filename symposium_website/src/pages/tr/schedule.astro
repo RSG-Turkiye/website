@@ -4,7 +4,7 @@ import SessionRow from "../../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSessionsByEdition } from "../../data/sessions";
 import { getUpcomingEdition } from "../../lib/editions-content";
-import { locationFor } from "../../lib/editions";
+import { locationFor, titleFor } from "../../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -26,7 +26,7 @@ const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
           <div class="bg-white rounded-xl border border-border overflow-hidden">
             <div class="bg-navy-light px-6 py-4 border-b border-border">
               <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-navy">{edition.data.title}</h2>
+                <h2 class="font-semibold text-navy">{titleFor(edition.data, lang)}</h2>
                 <span class="text-sm text-gray-500">{edition.data.date}</span>
               </div>
               {(() => {

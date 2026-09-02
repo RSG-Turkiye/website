@@ -102,6 +102,27 @@ export function locationFor(e: EditionLike): LocationDisplay {
   return { kind: "hidden" };
 }
 
+/**
+ * The title to render for a given language.
+ *
+ * Falls back to the English title whenever the Turkish one is absent or
+ * empty -- which is the common case: most archived editions have no
+ * `titleTr` at all, so this is the well-trodden path, not an edge case.
+ */
+export function titleFor(e: EditionLike, lang: "en" | "tr"): string {
+  if (lang === "tr" && e.titleTr) return e.titleTr;
+  return e.title;
+}
+
+/**
+ * The subtitle to render for a given language, with the same English
+ * fallback as {@link titleFor}.
+ */
+export function subtitleFor(e: EditionLike, lang: "en" | "tr"): string | undefined {
+  if (lang === "tr" && e.subtitleTr) return e.subtitleTr;
+  return e.subtitle;
+}
+
 export interface Cta {
   kind: "registration" | "abstract";
   url: string;

@@ -4,7 +4,7 @@ import SpeakerCard from "../../../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
 import { getCollection, render } from "astro:content";
 import { getSpeakerBySlug } from "../../../data/speakers";
-import { locationFor } from "../../../lib/editions";
+import { locationFor, titleFor, subtitleFor } from "../../../lib/editions";
 
 export async function getStaticPaths() {
   const editions = await getCollection("editions");
@@ -20,10 +20,12 @@ const t = useTranslations(lang);
 
 const { Content } = await render(edition);
 const editionSpeakers = edition.data.speakers.map(getSpeakerBySlug).filter(Boolean);
+const title = titleFor(edition.data, lang);
+const subtitle = subtitleFor(edition.data, lang);
 ---
 
 <BaseLayout
-  pageTitle={edition.data.title}
+  pageTitle={title}
   image={edition.data.posterImage}
   translationUrl={`/editions/${edition.data.year}`}
 >
@@ -32,8 +34,8 @@ const editionSpeakers = edition.data.speakers.map(getSpeakerBySlug).filter(Boole
       <div class="flex items-center gap-3 mb-3">
         <a href="/tr/editions" class="text-white/50 hover:text-white text-sm transition-colors">← {t("nav.editions")}</a>
       </div>
-      <h1 class="text-3xl sm:text-4xl font-bold mb-2">{edition.data.title}</h1>
-      {edition.data.subtitle && <p class="text-white/70 text-lg">{edition.data.subtitle}</p>}
+      <h1 class="text-3xl sm:text-4xl font-bold mb-2">{title}</h1>
+      {subtitle && <p class="text-white/70 text-lg">{subtitle}</p>}
       <div class="flex flex-wrap gap-4 mt-4 text-sm text-white/60">
         {edition.data.date && <span>📅 {edition.data.date}</span>}
         {(() => {
@@ -59,7 +61,7 @@ const editionSpeakers = edition.data.speakers.map(getSpeakerBySlug).filter(Boole
   <div class="max-w-4xl mx-auto px-6 py-12 space-y-12">
     {edition.data.posterImage && (
       <div class="rounded-xl overflow-hidden border border-border max-h-96 flex items-center justify-center bg-navy-light">
-        <img src={edition.data.posterImage} alt={edition.data.title} class="max-h-96 w-auto object-contain" />
+        <img src={edition.data.posterImage} alt={title} class="max-h-96 w-auto object-contain" />
       </div>
     )}
     {editionSpeakers.length > 0 && (
