@@ -22,7 +22,10 @@ export interface ComposeInput {
   /** Markdown source, exactly as the member wrote it. */
   body: string;
   attachmentIds: string[];
+  /** Set only for a reply; see functions/_lib/conversations.ts. */
   threadId?: string;
+  inReplyTo?: string;
+  references?: string[];
 }
 
 export interface RecipientResult {
@@ -151,6 +154,8 @@ export async function sendAndLog(
         subject: input.subject,
         body: renderBody(input.body),
         attachments,
+        inReplyTo: input.inReplyTo,
+        references: input.references,
       });
       const sent = await sendMail(env, raw, input.threadId);
       gmailId = sent.id;
