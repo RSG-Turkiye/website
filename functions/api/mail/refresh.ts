@@ -41,5 +41,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     'UPDATE mail_sync_state SET last_synced_at = ? WHERE id = 1'
   ).bind(now).run();
 
-  return runSync(env, new URL(request.url).origin);
+  const result = await runSync(env, new URL(request.url).origin);
+  // Deliberately not returning runSync's body. It carries operator
+  // diagnostics -- `seen` counts every thread Gmail reported changed,
+  // including the unrelated mailbox activity this sync discards -- and this
+  // endpoint, unlike /api/mail/sync, is reachable by any authorised member.
+  // The page reads only the status.
+  return jsonResponse({ ok: result.ok }, result.status);
 };
