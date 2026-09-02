@@ -1,15 +1,13 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
-import { getCollection } from "astro:content";
-import { getUpcomingEdition } from "../../lib/editions-content";
+import { getUpcomingEdition, getPastEditions } from "../../lib/editions-content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-const sortedEditions = (await getCollection("editions")).sort(
-  (a, b) => b.data.year - a.data.year
-);
 const upcoming = await getUpcomingEdition();
+const past = await getPastEditions();
+const sortedEditions = upcoming ? [upcoming, ...past] : past;
 ---
 
 <BaseLayout pageTitle={t("about.title")} translationUrl="/about">
