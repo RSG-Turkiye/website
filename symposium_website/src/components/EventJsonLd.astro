@@ -43,4 +43,13 @@ const jsonLd = {
 };
 ---
 
-<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<!--
+  JSON.stringify escapes `"` but not `<`. If any field ever contains the
+  substring "</script", it would close this tag early and break the page --
+  so escape `<` in the serialised string before injecting it. `<` is valid
+  inside a JSON string and round-trips through JSON.parse unchanged; only the
+  HTML-level script-closing risk is closed. Do this once at the injection
+  point -- sanitising individual fields gets forgotten the next time someone
+  adds a property.
+-->
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, "\\u003c")} />
