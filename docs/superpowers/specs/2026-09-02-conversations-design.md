@@ -103,9 +103,8 @@ CREATE TABLE IF NOT EXISTS mail_sync_state (
   id            INTEGER PRIMARY KEY CHECK (id = 1),
   history_id    TEXT,
   last_synced_at INTEGER,
-  backfill_cursor TEXT      -- last_message_at of the last thread processed by a
-                            -- running backfill, as text; NULL when no backfill
-                            -- is in progress
+  backfill_cursor TEXT      -- id of the last thread processed by a running
+                            -- backfill; NULL when no backfill is in progress
 );
 ```
 
@@ -155,7 +154,7 @@ try:
     changes = listHistory(state.history_id)
 except HistoryTooOld (HTTP 404):
     # Gmail keeps roughly a week of history
-    state.backfill_cursor = '99999999999'   # sentinel: start from the newest thread
+    state.backfill_cursor = ''              # sentinel: sorts before every thread id
     return { ok: true, backfillStarted: true }
 
 ids = { threadId of every messageAdded in changes }
@@ -179,13 +178,17 @@ invocation runs one batch:
 
 ```sql
 SELECT id FROM mail_threads
- WHERE last_message_at < CAST(:backfill_cursor AS INTEGER)
- ORDER BY last_message_at DESC
+ WHERE id > :backfill_cursor
+ ORDER BY id ASC
  LIMIT 15
 ```
 
-It ingests those threads, sets `backfill_cursor` to the `last_message_at` of
-the last one, and returns. When a batch comes back empty the backfill is
+Walking by primary key rather than by timestamp is deliberate: epoch-second
+timestamps tie whenever one compose registers several threads, and a
+timestamp cursor silently skips every thread sharing the batch's last second.
+
+It ingests those threads, sets `backfill_cursor` to the id of the last one,
+and returns. When a batch comes back empty the backfill is
 exhausted: take a fresh `historyId` from `getProfile`, clear the cursor, and
 resume normal history syncing. Batching keeps each invocation inside the
 Workers subrequest budget, and the cursor makes the walk resumable across
