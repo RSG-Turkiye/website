@@ -28,7 +28,7 @@ const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
   <!-- Schedule -->
   <div class="max-w-3xl mx-auto px-6 py-12">
     {
-      edition ? (
+      edition && sessions.length > 0 ? (
         <Fragment>
           <div class="bg-white rounded-xl border border-border overflow-hidden">
             <!-- Header -->

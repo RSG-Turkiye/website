@@ -1,24 +1,20 @@
 ---
 import { useTranslations, type Lang } from "../i18n/ui";
+import { navItemsFor, type NavState } from "../lib/nav";
 
 interface Props {
   lang: Lang;
   translationUrl?: string;
+  navState: NavState;
 }
 
-const { lang, translationUrl } = Astro.props;
+const { lang, translationUrl, navState } = Astro.props;
 const t = useTranslations(lang);
 const prefix = lang === "tr" ? "/tr" : "";
 const altLang = lang === "tr" ? "en" : "tr";
 const altPrefix = altLang === "tr" ? "/tr" : "";
 
-// Nav: anchor-based items scroll on homepage, link to homepage anchor from other pages
-const navLinks = [
-  { href: `${prefix}/`, label: t("nav.home"), anchor: false },
-  { href: `${prefix}/editions`, label: t("nav.editions"), anchor: false },
-  { href: `${prefix}/venue`, label: t("nav.venue"), anchor: false },
-  { href: `${prefix}/sponsors`, label: t("nav.sponsors"), anchor: false },
-];
+const navLinks = navItemsFor(navState, lang);
 
 const currentPath = Astro.url.pathname;
 const isHome = currentPath === `${prefix}/` || currentPath === `${prefix}`;
@@ -41,11 +37,10 @@ const isHome = currentPath === `${prefix}/` || currentPath === `${prefix}`;
     <!-- Desktop nav -->
     <nav class="hidden lg:flex items-center gap-1">
       {
-        navLinks.map(({ href, label, anchor }) => {
-          const isActive = !anchor && (
+        navLinks.map(({ href, labelKey }) => {
+          const isActive =
             currentPath === href ||
-            (href !== `${prefix}/` && currentPath.startsWith(href))
-          );
+            (href !== `${prefix}/` && currentPath.startsWith(href));
           return (
             <a
               href={href}
@@ -56,7 +51,7 @@ const isHome = currentPath === `${prefix}/` || currentPath === `${prefix}`;
                   : "text-white/80 hover:bg-white/10 hover:text-white",
               ]}
             >
-              {label}
+              {t(labelKey)}
             </a>
           );
         })
@@ -82,9 +77,9 @@ const isHome = currentPath === `${prefix}/` || currentPath === `${prefix}`;
   <!-- Mobile menu -->
   <div id="mobile-menu" class="hidden lg:hidden absolute top-16 left-0 right-0 bg-navy border-t border-white/10 px-4 py-2">
     {
-      navLinks.map(({ href, label }) => (
+      navLinks.map(({ href, labelKey }) => (
         <a href={href} class="block py-2.5 text-white/90 border-b border-white/10 last:border-0 hover:text-white text-sm">
-          {label}
+          {t(labelKey)}
         </a>
       ))
     }

@@ -14,6 +14,7 @@ export const ui = {
     "nav.about": "About",
     "nav.sponsors": "Sponsors",
     "nav.editions": "Past Editions",
+    "nav.committee": "Committee",
 
     "hero.tagline": "ISCB SC RSG-Türkiye Student Symposium",
     "hero.subtitle":
@@ -36,6 +37,7 @@ export const ui = {
     "speakers.title": "Speakers",
     "speakers.subtitle": "Meet the researchers and scientists at our symposium.",
     "speakers.filter.all": "All Editions",
+    "speakers.none": "Speakers will be announced soon.",
 
     "schedule.title": "Program",
     "schedule.subtitle": "Programme",
@@ -84,6 +86,7 @@ export const ui = {
     "nav.about": "Hakkında",
     "nav.sponsors": "Sponsorlar",
     "nav.editions": "Geçmiş Edisyonlar",
+    "nav.committee": "Komite",
 
     "hero.tagline": "ISCB SC RSG-Türkiye Öğrenci Sempozyumu",
     "hero.subtitle":
@@ -106,6 +109,7 @@ export const ui = {
     "speakers.title": "Konuşmacılar",
     "speakers.subtitle": "Sempozyumumuzdaki araştırmacı ve bilim insanlarıyla tanışın.",
     "speakers.filter.all": "Tüm Edisyonlar",
+    "speakers.none": "Konuşmacılar yakında duyurulacak.",
 
     "schedule.title": "Program",
     "schedule.subtitle": "Program",
