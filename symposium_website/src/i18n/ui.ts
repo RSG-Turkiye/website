@@ -33,12 +33,14 @@ export const ui = {
     "speakers.filter.all": "All Editions",
 
     "schedule.title": "Program",
-    "schedule.subtitle": "2024 Symposium Schedule",
+    "schedule.subtitle": "Programme",
+    "schedule.none": "Schedule will be announced soon.",
 
     "venue.title": "Venue",
     "venue.subtitle": "Where to find us",
     "venue.location": "Location",
     "venue.date": "Date",
+    "venue.none": "Venue details will be announced soon.",
 
     "about.title": "About RSG-Türkiye",
     "about.mission.title": "Our Mission",
@@ -91,12 +93,14 @@ export const ui = {
     "speakers.filter.all": "Tüm Edisyonlar",
 
     "schedule.title": "Program",
-    "schedule.subtitle": "2024 Sempozyum Programı",
+    "schedule.subtitle": "Program",
+    "schedule.none": "Program yakında duyurulacak.",
 
     "venue.title": "Mekan",
     "venue.subtitle": "Nerede bulabilirsiniz",
     "venue.location": "Konum",
     "venue.date": "Tarih",
+    "venue.none": "Mekan bilgileri yakında duyurulacak.",
 
     "about.title": "RSG-Türkiye Hakkında",
     "about.mission.title": "Misyonumuz",

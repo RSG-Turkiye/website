@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import SponsorLogo from "../components/SponsorLogo.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getSponsorsByEdition } from "../data/sponsors";
-import { getCollection } from "astro:content";
+import { getPastEditions } from "../lib/editions-content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -13,10 +13,7 @@ const prefix = lang === "tr" ? "/tr" : "";
 const latestSponsors = getSponsorsByEdition(2024);
 
 // Recent editions for the teaser strip
-const allEditions = (await getCollection("editions")).sort(
-  (a, b) => b.data.year - a.data.year
-);
-const recentEditions = allEditions.slice(0, 3);
+const recentEditions = (await getPastEditions()).slice(0, 3);
 
 const BANNER =
   "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";

@@ -3,11 +3,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import SessionRow from "../../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSessionsByEdition } from "../../data/sessions";
-import { latestEdition } from "../../data/editions";
+import { getUpcomingEdition } from "../../lib/editions-content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-const sessions = getSessionsByEdition(latestEdition.year);
+const edition = await getUpcomingEdition();
+const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
 ---
 
 <BaseLayout pageTitle={t("schedule.title")} translationUrl="/schedule">
@@ -18,18 +19,26 @@ const sessions = getSessionsByEdition(latestEdition.year);
     </div>
   </section>
   <div class="max-w-3xl mx-auto px-6 py-12">
-    <div class="bg-white rounded-xl border border-border overflow-hidden">
-      <div class="bg-navy-light px-6 py-4 border-b border-border">
-        <div class="flex items-center justify-between">
-          <h2 class="font-semibold text-navy">{latestEdition.title}</h2>
-          <span class="text-sm text-gray-500">{latestEdition.date}</span>
-        </div>
-        <p class="text-sm text-gray-500 mt-1">📍 {latestEdition.venue}, {latestEdition.venueCity}</p>
-      </div>
-      <div class="p-4 space-y-2">
-        {sessions.map((session) => <SessionRow session={session} />)}
-      </div>
-    </div>
-    <p class="text-xs text-gray-400 text-center mt-4">Program değişikliğe tabidir. Güncel bilgi için bizi takip edin.</p>
+    {
+      edition ? (
+        <Fragment>
+          <div class="bg-white rounded-xl border border-border overflow-hidden">
+            <div class="bg-navy-light px-6 py-4 border-b border-border">
+              <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-navy">{edition.data.title}</h2>
+                <span class="text-sm text-gray-500">{edition.data.date}</span>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">📍 {edition.data.venue}, {edition.data.venueCity}</p>
+            </div>
+            <div class="p-4 space-y-2">
+              {sessions.map((session) => <SessionRow session={session} />)}
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 text-center mt-4">Program değişikliğe tabidir. Güncel bilgi için bizi takip edin.</p>
+        </Fragment>
+      ) : (
+        <p class="text-gray-500 text-center py-12">{t("schedule.none")}</p>
+      )
+    }
   </div>
 </BaseLayout>

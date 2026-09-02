@@ -1,14 +1,12 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
-import { getCollection } from "astro:content";
+import { getPastEditions } from "../../../lib/editions-content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const editions = (await getCollection("editions")).sort(
-  (a, b) => b.data.year - a.data.year
-);
+const pastEditions = await getPastEditions();
 ---
 
 <BaseLayout pageTitle={t("nav.editions")} translationUrl="/editions">
@@ -20,7 +18,7 @@ const editions = (await getCollection("editions")).sort(
   </section>
   <div class="max-w-7xl mx-auto px-6 py-12">
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {editions.map((edition) => (
+      {pastEditions.map((edition) => (
         <a href={`/tr/editions/${edition.data.year}`} class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
           {edition.data.posterImage && (
             <div class="aspect-video overflow-hidden bg-navy-light">

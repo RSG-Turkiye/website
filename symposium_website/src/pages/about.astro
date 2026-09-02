@@ -1,12 +1,16 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { editions } from "../data/editions";
+import { getCollection } from "astro:content";
+import { getUpcomingEdition } from "../lib/editions-content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const sortedEditions = [...editions].sort((a, b) => b.year - a.year);
+const sortedEditions = (await getCollection("editions")).sort(
+  (a, b) => b.data.year - a.data.year
+);
+const upcoming = await getUpcomingEdition();
 ---
 
 <BaseLayout
@@ -50,11 +54,11 @@ const sortedEditions = [...editions].sort((a, b) => b.year - a.year);
         {
           sortedEditions.map((edition) => (
             <div class="bg-white rounded-xl border border-border overflow-hidden flex flex-col">
-              {edition.posterImage && (
+              {edition.data.posterImage && (
                 <div class="aspect-video overflow-hidden bg-navy-light">
                   <img
-                    src={edition.posterImage}
-                    alt={`${edition.year} symposium`}
+                    src={edition.data.posterImage}
+                    alt={`${edition.data.year} symposium`}
                     class="w-full h-full object-cover object-top"
                     loading="lazy"
                   />
@@ -63,22 +67,17 @@ const sortedEditions = [...editions].sort((a, b) => b.year - a.year);
               <div class="p-4 flex flex-col gap-2 flex-1">
                 <div class="flex items-center gap-2">
                   <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded">
-                    {edition.year}
+                    {edition.data.year}
                   </span>
-                  {edition.isLatest && (
+                  {upcoming && edition.data.year === upcoming.data.year && (
                     <span class="bg-red text-white text-xs font-semibold px-2 py-0.5 rounded">
                       {lang === "tr" ? "Son" : "Latest"}
                     </span>
                   )}
                 </div>
-                <h3 class="font-semibold text-navy text-sm">{edition.title}</h3>
-                {edition.venueCity && (
-                  <p class="text-xs text-gray-400">📍 {edition.venueCity}</p>
-                )}
-                {edition.description && (
-                  <p class="text-sm text-gray-600 leading-relaxed line-clamp-3">
-                    {edition.description}
-                  </p>
+                <h3 class="font-semibold text-navy text-sm">{edition.data.title}</h3>
+                {edition.data.venueCity && (
+                  <p class="text-xs text-gray-400">📍 {edition.data.venueCity}</p>
                 )}
               </div>
             </div>
