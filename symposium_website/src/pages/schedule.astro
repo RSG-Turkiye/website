@@ -4,6 +4,7 @@ import SessionRow from "../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getSessionsByEdition } from "../data/sessions";
 import { getUpcomingEdition } from "../lib/editions-content";
+import { locationFor } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -36,9 +37,23 @@ const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
                 <h2 class="font-semibold text-navy">{edition.data.title}</h2>
                 <span class="text-sm text-gray-500">{edition.data.date}</span>
               </div>
-              <p class="text-sm text-gray-500 mt-1">
-                📍 {edition.data.venue}, {edition.data.venueCity}
-              </p>
+              {(() => {
+                const loc = locationFor(edition.data);
+                return (
+                  <>
+                    {loc.kind === "full" && (
+                      <p class="text-sm text-gray-500 mt-1">
+                        📍 {loc.venue}, {loc.city}
+                      </p>
+                    )}
+                    {loc.kind === "city-only" && (
+                      <p class="text-sm text-gray-500 mt-1">
+                        📍 {t("venue.tba")}, {loc.city}
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <!-- Sessions list -->

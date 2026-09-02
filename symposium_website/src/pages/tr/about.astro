@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getUpcomingEdition, getPastEditions } from "../../lib/editions-content";
+import { locationFor } from "../../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -51,7 +52,14 @@ const sortedEditions = upcoming ? [upcoming, ...past] : past;
                 {upcoming && edition.data.year === upcoming.data.year && <span class="bg-red text-white text-xs font-semibold px-2 py-0.5 rounded">Son</span>}
               </div>
               <h3 class="font-semibold text-navy text-sm">{edition.data.title}</h3>
-              {edition.data.venueCity && <p class="text-xs text-gray-400">📍 {edition.data.venueCity}</p>}
+              {(() => {
+                const loc = locationFor(edition.data);
+                return (
+                  loc.kind !== "hidden" && (
+                    <p class="text-xs text-gray-400">📍 {loc.city}</p>
+                  )
+                );
+              })()}
             </div>
           </div>
         ))}

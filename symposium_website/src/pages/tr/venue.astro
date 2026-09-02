@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getUpcomingEdition } from "../../lib/editions-content";
+import { locationFor } from "../../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -29,11 +30,27 @@ const edition = await getUpcomingEdition();
                   <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t("venue.date")}</p>
                   <p class="text-navy font-medium text-lg">{edition.data.date}</p>
                 </div>
-                <div>
-                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t("venue.location")}</p>
-                  <p class="text-navy font-medium">{edition.data.venue}</p>
-                  <p class="text-gray-500 text-sm">{edition.data.venueCity}</p>
-                </div>
+                {(() => {
+                  const loc = locationFor(edition.data);
+                  return (
+                    <div>
+                      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t("venue.location")}</p>
+                      {loc.kind === "full" && (
+                        <>
+                          <p class="text-navy font-medium">{loc.venue}</p>
+                          <p class="text-gray-500 text-sm">{loc.city}</p>
+                        </>
+                      )}
+                      {loc.kind === "city-only" && (
+                        <>
+                          <p class="text-navy font-medium">{t("venue.tba")}</p>
+                          <p class="text-gray-500 text-sm">{loc.city}</p>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">İletişim</p>
                   <a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy transition-colors text-sm">turkey.rsg@gmail.com</a>

@@ -40,6 +40,7 @@ export const ui = {
     "venue.subtitle": "Where to find us",
     "venue.location": "Location",
     "venue.date": "Date",
+    "venue.tba": "Venue to be announced",
     "venue.none": "Venue details will be announced soon.",
 
     "about.title": "About RSG-Türkiye",
@@ -100,6 +101,7 @@ export const ui = {
     "venue.subtitle": "Nerede bulabilirsiniz",
     "venue.location": "Konum",
     "venue.date": "Tarih",
+    "venue.tba": "Yer yakında açıklanacak",
     "venue.none": "Mekan bilgileri yakında duyurulacak.",
 
     "about.title": "RSG-Türkiye Hakkında",
