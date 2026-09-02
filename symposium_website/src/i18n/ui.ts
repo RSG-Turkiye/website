@@ -66,6 +66,10 @@ export const ui = {
     "404.title": "Page Not Found",
     "404.body": "The page you are looking for does not exist.",
     "404.home": "Back to Home",
+
+    "committee.title": "Organising Committee",
+    "committee.subtitle": "The team behind the symposium.",
+    "committee.tba": "The organising committee will be announced soon.",
   },
 
   tr: {
@@ -132,6 +136,10 @@ export const ui = {
     "404.title": "Sayfa Bulunamadı",
     "404.body": "Aradığınız sayfa mevcut değil.",
     "404.home": "Ana Sayfaya Dön",
+
+    "committee.title": "Düzenleme Kurulu",
+    "committee.subtitle": "Sempozyumun arkasındaki ekip.",
+    "committee.tba": "Düzenleme kurulu yakında duyurulacak.",
   },
 } as const;
 
