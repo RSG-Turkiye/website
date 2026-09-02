@@ -235,3 +235,119 @@ test('threadIdsFromHistory on an empty history returns an empty array', () => {
   assert.deepEqual(threadIdsFromHistory({}), []);
   assert.deepEqual(threadIdsFromHistory({ history: [] }), []);
 });
+
+import { getProfileHistoryId, listHistory, fetchThread, GmailHistoryExpired } from '../functions/_lib/gmail-read';
+
+function stubFetch(handler: (url: string) => Response): () => void {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    if (String(url).includes('oauth2')) {
+      return new Response(JSON.stringify({ access_token: 't', expires_in: 3600 }), { status: 200 });
+    }
+    return handler(String(url));
+  }) as unknown as typeof fetch;
+  return () => { globalThis.fetch = original; };
+}
+
+const READ_ENV = {
+  GOOGLE_CLIENT_ID: 'cid',
+  GOOGLE_CLIENT_SECRET: 'secret',
+  GMAIL_REFRESH_TOKEN: 'refresh',
+} as never;
+
+test('getProfileHistoryId returns the cursor from the profile', async () => {
+  const restore = stubFetch(() => new Response(JSON.stringify({ historyId: '4242' }), { status: 200 }));
+  try {
+    assert.equal(await getProfileHistoryId(READ_ENV), '4242');
+  } finally {
+    restore();
+  }
+});
+
+test('listHistory returns thread ids and the new cursor', async () => {
+  const restore = stubFetch(() => new Response(JSON.stringify({
+    history: [{ messagesAdded: [{ message: { id: 'm1', threadId: 't1' } }] }],
+    historyId: '5000',
+  }), { status: 200 }));
+  try {
+    assert.deepEqual(await listHistory(READ_ENV, '4242'), { threadIds: ['t1'], historyId: '5000' });
+  } finally {
+    restore();
+  }
+});
+
+test('listHistory follows pages and merges their thread ids', async () => {
+  let call = 0;
+  const restore = stubFetch(() => {
+    call += 1;
+    if (call === 1) {
+      return new Response(JSON.stringify({
+        history: [{ messagesAdded: [{ message: { threadId: 't1' } }] }],
+        historyId: '5000',
+        nextPageToken: 'p2',
+      }), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      history: [{ messagesAdded: [{ message: { threadId: 't2' } }] }],
+      historyId: '5001',
+    }), { status: 200 });
+  });
+  try {
+    const result = await listHistory(READ_ENV, '4242');
+    assert.deepEqual(result.threadIds.sort(), ['t1', 't2']);
+    assert.equal(result.historyId, '5001');
+  } finally {
+    restore();
+  }
+});
+
+test('listHistory throws GmailHistoryExpired on a 404', async () => {
+  const restore = stubFetch(() => new Response('{"error":{"code":404}}', { status: 404 }));
+  try {
+    await assert.rejects(() => listHistory(READ_ENV, '1'), GmailHistoryExpired);
+  } finally {
+    restore();
+  }
+});
+
+test('listHistory throws GmailHistoryExpired rather than paging forever', async () => {
+  const restore = stubFetch(() => new Response(JSON.stringify({
+    history: [{ messagesAdded: [{ message: { threadId: 't1' } }] }],
+    historyId: '5000',
+    nextPageToken: 'always-another',
+  }), { status: 200 }));
+  try {
+    await assert.rejects(() => listHistory(READ_ENV, '1'), GmailHistoryExpired);
+  } finally {
+    restore();
+  }
+});
+
+test('listHistory surfaces any other Gmail failure as an error', async () => {
+  const restore = stubFetch(() => new Response('boom', { status: 500 }));
+  try {
+    await assert.rejects(() => listHistory(READ_ENV, '1'), /Gmail history failed \(500\)/);
+  } finally {
+    restore();
+  }
+});
+
+test('fetchThread asks for the full format and returns the thread', async () => {
+  let seen = '';
+  const restore = stubFetch((url) => {
+    seen = url;
+    return new Response(JSON.stringify({ id: 't1', messages: [] }), { status: 200 });
+  });
+  try {
+    const thread = await fetchThread(READ_ENV, 't1');
+    assert.equal(thread.id, 't1');
+    assert.ok(seen.includes('/threads/t1'));
+    assert.ok(seen.includes('format=full'));
+  } finally {
+    restore();
+  }
+});
+
+test('fetchThread rejects a thread id that is not a plain Gmail id', async () => {
+  await assert.rejects(() => fetchThread(READ_ENV, '../messages/secret'), /invalid thread id/i);
+});
