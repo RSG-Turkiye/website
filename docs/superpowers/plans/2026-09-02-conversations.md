@@ -2004,7 +2004,7 @@ git commit -m "feat: sync endpoint pulling replies for registered threads only"
 - Consumes: `snippet` from Task 5; `getSessionUser`, `jsonResponse` from `functions/_lib/auth.ts`.
 - Produces: the two JSON shapes Task 11's page renders:
   - list: `{ threads: Array<{ id, recipient_email, recipient_name, subject, last_message_at, last_direction, unread, snippet, sender_email?, sender_name? }>, unreadCount: number, scope: 'own' | 'all', isAdmin: boolean }` — `isAdmin` is added in Task 12 step 1, which is where the page that needs it is written.
-  - thread: `{ thread: { id, recipient_email, recipient_name, subject, sender_email }, messages: Array<{ id, direction, from_email, from_name, subject, body_text, attachment_count, sent_at }> }`
+  - thread: `{ thread: { id, recipient_email, recipient_name, subject, sender_email, can_reply }, messages: Array<{ id, direction, from_email, from_name, subject, body_text, attachment_count, sent_at }> }` — `can_reply` is true only for the member who started the thread; an admin reading it gets false.
 
 - [ ] **Step 1: Write the list endpoint**
 
