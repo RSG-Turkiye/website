@@ -13,7 +13,17 @@ export const MAX_RECIPIENTS = 10;
 // comfortably fits a sponsorship PDF and has not been verified against a
 // real Gmail account end to end (no GMAIL_REFRESH_TOKEN configured yet), so
 // stay conservative rather than find the real ceiling by OOMing in production.
-export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+/**
+ * Ceiling for one compose's attachments, combined.
+ *
+ * Gmail itself stops at 25MB, and the bytes are base64-encoded before they
+ * reach it, which inflates them by a third -- so 15MB of source is about 20MB
+ * on the wire, comfortably under. Raising it further would start risking the
+ * Worker's memory during that encode, and would in any case produce mail that
+ * receiving servers reject: plenty of them cut off well below Gmail's own
+ * limit. Anything larger belongs behind a link in the body, not attached.
+ */
+export const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 export const MAX_SUBJECT_LENGTH = 200;
 export const MAX_BODY_LENGTH = 20000;
 

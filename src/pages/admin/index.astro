@@ -154,9 +154,21 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
           <div class="bg-white rounded-2xl border border-border shadow-sm p-6 mb-4">
             <h3 class="text-sm font-semibold text-navy mb-3">Attachment library</h3>
+
             <input id="attachmentFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.pptx"
-              class="text-sm text-gray-500 mb-3 block" />
-            <div id="attachmentAdminList" class="flex flex-col gap-2"></div>
+              class="text-sm text-gray-500 block" />
+            <p class="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOCX or PPTX. At most 15MB per file.</p>
+
+            <div id="attachmentChosen" class="hidden mt-3 text-sm text-navy bg-[#F7F7F6] rounded-xl px-3 py-2"></div>
+            <p id="attachmentError" class="hidden mt-2 text-sm text-red-600"></p>
+
+            <button type="button" id="attachmentUploadBtn" disabled
+              class="mt-3 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              Upload
+            </button>
+
+            <div id="attachmentAdminList" class="flex flex-col gap-2 mt-4"></div>
+            <p id="attachmentsEmpty" class="hidden text-sm text-gray-400 mt-2">No attachments yet.</p>
           </div>
 
           <div class="bg-white rounded-2xl border border-border shadow-sm p-6">
@@ -200,7 +212,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     missing_filename: 'Missing filename.',
     invalid_filename: 'Invalid filename.',
     empty_file: 'The file is empty.',
-    attachments_too_large: 'File too large (max 5MB).',
+    attachments_too_large: 'File too large (max 15MB).',
     missing_fields: 'Missing id or status.',
     malformed_request: 'Malformed request.',
     forbidden: 'You are not authorised to do that.',
@@ -619,6 +631,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     if (!res.ok) return;
     const data = await res.json() as { attachments: any[] };
     const list = document.getElementById('attachmentAdminList')!;
+    const empty = document.getElementById('attachmentsEmpty')!;
+    empty.classList.toggle('hidden', data.attachments.length > 0);
     list.innerHTML = data.attachments.map((a: any) => `
       <div class="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
         <div>
@@ -650,26 +664,111 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     });
   }
 
+  /**
+   * Uploading is a two-step action on purpose: pick, then confirm.
+   *
+   * It used to fire on the input's change event, so choosing a file started an
+   * upload with no button to press and no lasting sign of the result -- a
+   * rejection appeared in a toast that cleared itself after six seconds. An
+   * admin who looked away saw a file selected and nothing else, and a
+   * too-large PDF was indistinguishable from a broken page. Errors now stay on
+   * screen until the next attempt and name the size or type that was refused,
+   * because that is the part the person actually has to act on.
+   */
+  const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+  const ALLOWED_UPLOAD_TYPES: Record<string, string> = {
+    'application/pdf': 'PDF',
+    'image/jpeg': 'JPG',
+    'image/png': 'PNG',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+  };
+
+  function formatBytes(n: number): string {
+    return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+  }
+
   function setupAttachmentUpload() {
     const input = document.getElementById('attachmentFile') as HTMLInputElement;
-    input.addEventListener('change', async () => {
+    const chosen = document.getElementById('attachmentChosen')!;
+    const error = document.getElementById('attachmentError')!;
+    const button = document.getElementById('attachmentUploadBtn') as HTMLButtonElement;
+
+    function showError(message: string) {
+      error.textContent = message;
+      error.classList.remove('hidden');
+    }
+
+    function clearError() {
+      error.textContent = '';
+      error.classList.add('hidden');
+    }
+
+    input.addEventListener('change', () => {
+      clearError();
+      const file = input.files?.[0];
+
+      if (!file) {
+        chosen.classList.add('hidden');
+        button.disabled = true;
+        return;
+      }
+
+      const kind = ALLOWED_UPLOAD_TYPES[file.type];
+      chosen.textContent = file.name + ' — ' + formatBytes(file.size) + (kind ? ' · ' + kind : '');
+      chosen.classList.remove('hidden');
+
+      // Both checks are repeated on the server, which is what actually
+      // enforces them. Doing them here as well means the person is told why
+      // before a large file travels the wire only to be refused.
+      if (!kind) {
+        showError('This file type cannot be attached. Allowed: PDF, JPG, PNG, DOCX, PPTX. This file is: ' + (file.type || 'unrecognised'));
+        button.disabled = true;
+        return;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        showError('This file is ' + formatBytes(file.size) + ', over the 15MB limit. Compress it, or put it behind a link in the message body instead.');
+        button.disabled = true;
+        return;
+      }
+
+      button.disabled = false;
+    });
+
+    button.addEventListener('click', async () => {
       const file = input.files?.[0];
       if (!file) return;
-      const res = await fetch('/api/admin/mail-attachments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': file.type,
-          'X-Filename': encodeURIComponent(file.name),
-        },
-        body: file,
-      });
-      const data = await res.json().catch(() => null) as { ok?: boolean; code?: string } | null;
-      input.value = '';
-      if (res.ok && data?.ok) {
-        showToast('Attachment uploaded');
-        await loadAdminAttachments();
-      } else {
-        showToast(ATTACHMENT_ERRORS[data?.code ?? ''] ?? 'Upload failed.', true);
+
+      clearError();
+      button.disabled = true;
+      button.textContent = 'Uploading…';
+
+      try {
+        const res = await fetch('/api/admin/mail-attachments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': file.type,
+            'X-Filename': encodeURIComponent(file.name),
+          },
+          body: file,
+        });
+        const data = await res.json().catch(() => null) as { ok?: boolean; code?: string } | null;
+
+        if (res.ok && data?.ok) {
+          // Clear the picker only once the file is definitely stored.
+          input.value = '';
+          chosen.classList.add('hidden');
+          showToast('Attachment uploaded');
+          await loadAdminAttachments();
+        } else {
+          showError(ATTACHMENT_ERRORS[data?.code ?? ''] ?? 'Upload failed.');
+          button.disabled = false;
+        }
+      } catch {
+        showError('Upload failed.');
+        button.disabled = false;
+      } finally {
+        button.textContent = 'Upload';
       }
     });
   }
