@@ -3,12 +3,13 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import SpeakerCard from "../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { speakers, getSpeakersByEdition } from "../data/speakers";
-import { editions } from "../data/editions";
+import { getCollection } from "astro:content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const editionYears = [...new Set(editions.map((e) => e.year))].sort((a, b) => b - a);
+const editions = await getCollection("editions");
+const editionYears = [...new Set(editions.map((e) => e.data.year))].sort((a, b) => b - a);
 ---
 
 <BaseLayout
@@ -29,13 +30,13 @@ const editionYears = [...new Set(editions.map((e) => e.year))].sort((a, b) => b 
       editionYears.map((year) => {
         const editionSpeakers = getSpeakersByEdition(year);
         if (editionSpeakers.length === 0) return null;
-        const edition = editions.find((e) => e.year === year);
+        const edition = editions.find((e) => e.data.year === year);
         return (
           <div>
             <div class="flex items-center gap-4 mb-6">
               <h2 class="text-xl font-bold text-navy">{year}</h2>
               {edition && (
-                <span class="text-sm text-gray-500">{edition.title}</span>
+                <span class="text-sm text-gray-500">{edition.data.title}</span>
               )}
               <div class="flex-1 h-px bg-border" />
             </div>
