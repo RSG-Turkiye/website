@@ -38,9 +38,14 @@ const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
                         📍 {loc.venue}, {loc.city}
                       </p>
                     )}
-                    {loc.kind === "city-only" && (
+                    {loc.kind === "withheld" && (
                       <p class="text-sm text-gray-500 mt-1">
                         📍 {t("venue.tba")}, {loc.city}
+                      </p>
+                    )}
+                    {loc.kind === "city-only" && (
+                      <p class="text-sm text-gray-500 mt-1">
+                        📍 {loc.city}
                       </p>
                     )}
                   </>
