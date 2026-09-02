@@ -62,7 +62,8 @@ startDate: z.coerce.date().optional(),         // 2026-10-10
 endDate: z.coerce.date().optional(),           // second workshop day, if it happens
 titleTr: z.string().default(""),               // falls back to `title` when empty
 subtitleTr: z.string().default(""),            // falls back to `subtitle` when empty
-venuePublic: z.boolean().default(true),        // venue is known but not yet announced
+venuePublic: z.boolean().default(true),        // the hall — known but not yet announced
+cityPublic: z.boolean().default(true),         // the city — announced independently
 registrationUrl: z.string().default(""),
 abstractUrl: z.string().default(""),
 registrationDeadline: z.coerce.date().optional(),
@@ -114,12 +115,19 @@ date: "10 October 2026"
 venue: "METU U3 Amphitheatre"
 venueCity: "Ankara"
 venuePublic: false
+cityPublic: true
 posterImage: ""
 ```
 
-The venue is recorded but `venuePublic: false`, so no page renders `venue` or
-`venueCity` until the flag flips. This keeps the real value in version control
-instead of in someone's memory, and announcing it is a one-word change.
+The hall is recorded but `venuePublic: false`, so no page renders `venue` until the
+flag flips. `cityPublic: true` lets "Ankara" through in the meantime, which is what
+people need to start planning travel. This keeps the real value in version control
+instead of in someone's memory, and announcing the hall is a one-word change.
+
+The two flags are independent because they answer different questions. Where a page
+would normally print the location it prints, in order: hall and city when both are
+public; city alone plus "venue to be announced" when only the city is; nothing at
+all when neither is.
 
 `registrationUrl` and `abstractUrl` are left empty: the forms do not exist yet.
 
@@ -150,7 +158,7 @@ explicit "announced closer to the date" state, never a bare empty container.
 | Page | Change |
 |---|---|
 | `index.astro`, `tr/index.astro` | Hero stops showing the hardcoded "2026 · To be announced" badge and renders the upcoming edition: number, theme (`subtitle`), date, countdown, CTA block per A3. Adds a **venue block** (issue #43/1) that reads "to be announced" while `venuePublic` is false. |
-| `venue.astro`, `tr/venue.astro` | Read `getUpcomingEdition()` instead of `latestEdition`. Respect `venuePublic`. Replace the placeholder pin SVG and the one-line "email us" travel section with real content once the venue is public. |
+| `venue.astro`, `tr/venue.astro` | Read `getUpcomingEdition()` instead of `latestEdition`. Respect `venuePublic` and `cityPublic`. Replace the placeholder pin SVG and the one-line "email us" travel section with a map and directions once the hall is public. |
 | `schedule.astro`, `tr/schedule.astro` | Read `getUpcomingEdition()`. Empty state while no sessions exist. `"schedule.subtitle"` in `i18n/ui.ts` is currently the hardcoded string `"2024 Symposium Schedule"` — it becomes derived from the edition. |
 | `speakers.astro`, `tr/speakers.astro` | Same treatment. |
 | `committee.astro`, `tr/committee.astro` | **New** (issue #43/2), backed by a new `src/data/committee.ts`. Ships with an empty roster — the list is not available yet — so the page and its nav item stay hidden until it is filled. |
@@ -191,10 +199,12 @@ candidates to be read as duplicates. Replace it with proper
 this on the `feat/hreflang-alternates` branch; reuse that approach.
 
 **B4. `Event` structured data.** Add schema.org `Event` JSON-LD to the symposium
-homepage, driven by the same edition data: name, `startDate`, `eventStatus`, and —
-once `venuePublic` is true — `location`, plus `offers` pointing at the registration
-URL once it exists. This is what produces the date/place/registration rich result
-for an event query, and it costs one component.
+homepage, driven by the same edition data: `name`, `startDate`, `eventStatus`, and
+`offers` pointing at the registration URL once it exists. `location` follows the two
+visibility flags: a `Place` with `address.addressLocality` while only the city is
+public, gaining `name` and a full address once the hall is announced. So Google can
+show "Ankara" from day one without us leaking the hall. This is what produces the
+date/place/registration rich result for an event query, and it costs one component.
 
 **B5. Default `og:image`.** `BaseLayout.astro` line 19 falls back to the **2023**
 poster. There is no 2026 poster yet, so the fallback becomes the neutral symposium
@@ -239,15 +249,9 @@ back to markdown and clears D1. A ships today without waiting for either.
 
 ## Open questions
 
-1. **May the city be shown while the venue is not?** Decided for now: `venuePublic:
-   false` hides `venue` and `venueCity` together, so no page says anything about
-   location. This is the conservative reading of "we are not announcing the venue
-   yet". Showing "Ankara" alone would help people plan travel without revealing the
-   hall — if that is wanted, split the flag into `venuePublic` / `cityPublic`. One
-   word to confirm either way.
-2. **Second day.** A workshop day after the 10th is possible but unconfirmed, so
+1. **Second day.** A workshop day after the 10th is possible but unconfirmed, so
    `endDate` is left unset. Setting it later is a one-line change.
-3. **Deadlines** for registration and abstracts are not yet decided.
+2. **Deadlines** for registration and abstracts are not yet decided.
 
 ## Acceptance
 
@@ -257,6 +261,8 @@ back to markdown and clears D1. A ships today without waiting for either.
 - [ ] With the system clock set past 2026-10-10, a build moves 2026 into the archive
       and removes the CTAs, with no file edited
 - [ ] No CTA button renders while its URL is empty
+- [ ] With `venuePublic: false` and `cityPublic: true`, no page and no JSON-LD
+      anywhere in `dist/` contains the string "U3"; "Ankara" appears in both
 - [ ] No nav item links to a page with no content
 - [ ] Built `sitemap-index.xml` contains only `symposium.rsg-turkiye.iscbsc.org` URLs
 - [ ] Every page emits a canonical and reciprocal `hreflang` alternates
