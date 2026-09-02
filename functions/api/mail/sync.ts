@@ -17,8 +17,8 @@ const BACKFILL_BATCH = 15;
 /** Sorts before every Gmail id, so a fresh backfill starts at the first row. */
 const BACKFILL_START = '';
 
-/** SQLite caps bound parameters per statement; chunk the id lookup well under it. */
-const ID_CHUNK = 100;
+/** D1 caps a statement at 100 bound parameters; half that leaves headroom. */
+const ID_CHUNK = 50;
 
 interface SyncState {
   history_id: string | null;
@@ -93,17 +93,23 @@ async function runBackfillBatch(
   ).bind(cursor, BACKFILL_BATCH).all<{ id: string }>();
 
   if (rows.results.length === 0) {
-    const historyId = await getProfileHistoryId(env);
+    // history_id was already snapshotted when the backfill began; adopting a
+    // fresh one here would skip everything that arrived while it ran.
     await env.DB.prepare(
-      'UPDATE mail_sync_state SET history_id = ?, backfill_cursor = NULL, last_synced_at = ? WHERE id = 1'
-    ).bind(historyId, now).run();
-    return jsonResponse({ ok: true, backfillComplete: true, historyId });
+      'UPDATE mail_sync_state SET backfill_cursor = NULL, last_synced_at = ? WHERE id = 1'
+    ).bind(now).run();
+    return jsonResponse({ ok: true, backfillComplete: true });
   }
 
   const ids = rows.results.map((row) => row.id);
   const summary = await ingestAll(env, ids, siteOrigin, now);
   const nextCursor = ids[ids.length - 1];
 
+  // Unlike the history walk above, the backfill cursor advances even when a
+  // thread failed. A held backfill cursor has nothing to eventually rescue it
+  // -- it would retry the same batch forever and never reach the end of the
+  // walk. A thread missed here is repaired by the next backfill or by its own
+  // next message; a stalled backfill repairs nothing.
   await env.DB.prepare(
     'UPDATE mail_sync_state SET backfill_cursor = ?, last_synced_at = ? WHERE id = 1'
   ).bind(nextCursor, now).run();
@@ -149,10 +155,16 @@ export async function runSync(env: Env, siteOrigin: string): Promise<Response> {
     historyId = result.historyId;
   } catch (err) {
     if (err instanceof GmailHistoryExpired) {
+      // Snapshot the cursor at the START of the backfill, not at its end. The
+      // walk can take hours; anything arriving during it must still be
+      // reported by the first history walk afterwards. Re-ingesting a thread
+      // the backfill already covered is free -- mail_messages' primary key is
+      // Gmail's own message id -- so overlap is the safe direction to err.
+      const historyId = await getProfileHistoryId(env);
       await env.DB.prepare(
-        'UPDATE mail_sync_state SET backfill_cursor = ?, last_synced_at = ? WHERE id = 1'
-      ).bind(BACKFILL_START, now).run();
-      return jsonResponse({ ok: true, backfillStarted: true, reason: err.message });
+        'UPDATE mail_sync_state SET history_id = ?, backfill_cursor = ?, last_synced_at = ? WHERE id = 1'
+      ).bind(historyId, BACKFILL_START, now).run();
+      return jsonResponse({ ok: true, backfillStarted: true, historyId, reason: err.message });
     }
     throw err;
   }
@@ -162,11 +174,30 @@ export async function runSync(env: Env, siteOrigin: string): Promise<Response> {
   const known = await knownThreadIds(env, threadIds);
   const summary = await ingestAll(env, known, siteOrigin, now);
 
-  await env.DB.prepare(
-    'UPDATE mail_sync_state SET history_id = ?, last_synced_at = ? WHERE id = 1'
-  ).bind(historyId, now).run();
+  // Hold the cursor when anything failed, so the next tick sees the same
+  // history entries again -- re-ingesting is idempotent, so a retry costs
+  // nothing but a fetch. This cannot stall forever: a cursor left in place
+  // long enough eventually ages out of Gmail's retention, and the resulting
+  // GmailHistoryExpired routes into a backfill that visits every registered
+  // thread and repairs whatever was missed.
+  if (summary.failed === 0) {
+    await env.DB.prepare(
+      'UPDATE mail_sync_state SET history_id = ?, last_synced_at = ? WHERE id = 1'
+    ).bind(historyId, now).run();
+  } else {
+    await env.DB.prepare(
+      'UPDATE mail_sync_state SET last_synced_at = ? WHERE id = 1'
+    ).bind(now).run();
+  }
 
-  return jsonResponse({ ok: true, seen: threadIds.length, known: known.length, ...summary, historyId });
+  return jsonResponse({
+    ok: true,
+    seen: threadIds.length,
+    known: known.length,
+    ...summary,
+    historyId,
+    cursorHeld: summary.failed > 0,
+  });
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
