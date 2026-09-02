@@ -292,9 +292,9 @@ visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
    npx wrangler deploy
    ```
 
-After deploy, you can trigger the rebuild manually from the Cloudflare
-dashboard to test — it should start a build in the `rsg-symposium` project
-immediately.
+To test it without waiting for 01:17 UTC, invoke the scheduled handler
+locally (see *Triggering either Worker by hand* below) — it should start a
+build in the `rsg-symposium` project immediately.
 
 #### How both cron Workers report failure
 
@@ -309,10 +309,30 @@ failure.
 
 **Neither is reachable from the internet.** Both set `workers_dev = false` and
 bind no route, so the `fetch` handler — which performs the real action, sending
-mail or starting a build — answers only under `wrangler dev`. Trigger either by
-hand from the Cloudflare dashboard's scheduled-event control. If a remote
+mail or starting a build — answers only under `wrangler dev`. If a remote
 trigger is ever needed, give the handler a shared-secret header first; do not
 simply re-enable the subdomain.
+
+##### Triggering either Worker by hand
+
+Run the Worker locally with its scheduled handler exposed, then call it:
+
+```
+cd workers/symposium-cron   # or workers/mail-cron
+npx wrangler dev --test-scheduled
+curl "http://localhost:8787/cdn-cgi/handler/scheduled"
+```
+
+`wrangler dev` does not have the deployed Worker's secrets, so put the ones it
+needs in a local `.dev.vars` file in that Worker's directory
+(`SYMPOSIUM_DEPLOY_HOOK=…`, or `MAIL_SYNC_SECRET=…`). That file is
+gitignored — keep it that way. Note this fires the **real** action against the
+real deploy hook or mailbox; there is no dry-run mode.
+
+The Cloudflare dashboard may also offer a way to fire a Cron Trigger on
+demand. If it does, it invokes the same `scheduled` handler as the schedule
+does and is unaffected by `workers_dev` — but the local route above is the one
+documented by Cloudflare, so prefer it unless you have checked.
 
 ---
 
