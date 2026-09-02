@@ -21,7 +21,7 @@ const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
   </section>
   <div class="max-w-3xl mx-auto px-6 py-12">
     {
-      edition ? (
+      edition && sessions.length > 0 ? (
         <Fragment>
           <div class="bg-white rounded-xl border border-border overflow-hidden">
             <div class="bg-navy-light px-6 py-4 border-b border-border">

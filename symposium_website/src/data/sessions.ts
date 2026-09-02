@@ -20,16 +20,19 @@ export interface Session {
   edition: number;
   /** Display order within the day */
   order: number;
+  /** Clock time, e.g. "09:30". Empty on archived editions where it was never recorded. */
+  time: string;
+  endTime?: string;
 }
 
 export const sessions: Session[] = [
   // ── 2024 Edition Schedule ─────────────────────────────────────
-  { slug: "opening", title: "Opening Remarks", type: "opening", speakerSlugs: [], description: "", edition: 2024, order: 1 },
-  { slug: "keynote-i-2024", title: "Keynote I", type: "keynote", speakerSlugs: ["prof-dr-gokhan-kacar"], description: "Molecular Dynamics Simulations of Nanoscale Drug Carrier Systems", edition: 2024, order: 2 },
-  { slug: "coffee-break-1", title: "Coffee Break", type: "break", speakerSlugs: [], description: "", edition: 2024, order: 3 },
-  { slug: "keynote-ii-2024", title: "Keynote II", type: "keynote", speakerSlugs: ["mehmet-baysan"], description: "Data Science and Clinical Bioinformatics", edition: 2024, order: 4 },
-  { slug: "student-talk-2024", title: "Student Talk", type: "talk", speakerSlugs: [], description: "", edition: 2024, order: 5 },
-  { slug: "lunch-2024", title: "Lunch", type: "break", speakerSlugs: [], description: "", edition: 2024, order: 6 },
+  { slug: "opening", title: "Opening Remarks", type: "opening", speakerSlugs: [], description: "", edition: 2024, order: 1, time: "" },
+  { slug: "keynote-i-2024", title: "Keynote I", type: "keynote", speakerSlugs: ["prof-dr-gokhan-kacar"], description: "Molecular Dynamics Simulations of Nanoscale Drug Carrier Systems", edition: 2024, order: 2, time: "" },
+  { slug: "coffee-break-1", title: "Coffee Break", type: "break", speakerSlugs: [], description: "", edition: 2024, order: 3, time: "" },
+  { slug: "keynote-ii-2024", title: "Keynote II", type: "keynote", speakerSlugs: ["mehmet-baysan"], description: "Data Science and Clinical Bioinformatics", edition: 2024, order: 4, time: "" },
+  { slug: "student-talk-2024", title: "Student Talk", type: "talk", speakerSlugs: [], description: "", edition: 2024, order: 5, time: "" },
+  { slug: "lunch-2024", title: "Lunch", type: "break", speakerSlugs: [], description: "", edition: 2024, order: 6, time: "" },
   {
     slug: "panel-discussion-2024",
     title: "Panel Discussion: Clinical Bioinformatics Startups — From Idea to Market",
@@ -38,11 +41,12 @@ export const sessions: Session[] = [
     description: "A panel exploring the journey from research idea to market-ready bioinformatics product.",
     edition: 2024,
     order: 7,
+    time: "",
   },
-  { slug: "company-presentation-i", title: "Company Presentation I", type: "company", speakerSlugs: [], description: "", edition: 2024, order: 8 },
-  { slug: "career-session-2024", title: "Round Table Meetings — Career Session", type: "networking", speakerSlugs: [], description: "", edition: 2024, order: 9 },
-  { slug: "poster-session-2024", title: "Poster Session & Networking", type: "poster", speakerSlugs: [], description: "", edition: 2024, order: 10 },
-  { slug: "closing-day1", title: "Closing Remarks for Day 1", type: "closing", speakerSlugs: [], description: "", edition: 2024, order: 11 },
+  { slug: "company-presentation-i", title: "Company Presentation I", type: "company", speakerSlugs: [], description: "", edition: 2024, order: 8, time: "" },
+  { slug: "career-session-2024", title: "Round Table Meetings — Career Session", type: "networking", speakerSlugs: [], description: "", edition: 2024, order: 9, time: "" },
+  { slug: "poster-session-2024", title: "Poster Session & Networking", type: "poster", speakerSlugs: [], description: "", edition: 2024, order: 10, time: "" },
+  { slug: "closing-day1", title: "Closing Remarks for Day 1", type: "closing", speakerSlugs: [], description: "", edition: 2024, order: 11, time: "" },
   {
     slug: "workshop-kubra-narci",
     title: "Workshop: Nextflow and nf-core",
@@ -51,11 +55,12 @@ export const sessions: Session[] = [
     description: "Hands-on workshop on building reproducible bioinformatics pipelines with Nextflow and nf-core.",
     edition: 2024,
     order: 12,
+    time: "",
   },
-  { slug: "company-presentation-ii", title: "Company Presentation II", type: "company", speakerSlugs: [], description: "", edition: 2024, order: 13 },
-  { slug: "company-presentation-iii", title: "Company Presentation III", type: "company", speakerSlugs: [], description: "", edition: 2024, order: 14 },
-  { slug: "student-talks-2024", title: "Student Talks (×3)", type: "talk", speakerSlugs: [], description: "", edition: 2024, order: 15 },
-  { slug: "closing-2024", title: "Closing", type: "closing", speakerSlugs: [], description: "", edition: 2024, order: 16 },
+  { slug: "company-presentation-ii", title: "Company Presentation II", type: "company", speakerSlugs: [], description: "", edition: 2024, order: 13, time: "" },
+  { slug: "company-presentation-iii", title: "Company Presentation III", type: "company", speakerSlugs: [], description: "", edition: 2024, order: 14, time: "" },
+  { slug: "student-talks-2024", title: "Student Talks (×3)", type: "talk", speakerSlugs: [], description: "", edition: 2024, order: 15, time: "" },
+  { slug: "closing-2024", title: "Closing", type: "closing", speakerSlugs: [], description: "", edition: 2024, order: 16, time: "" },
 ];
 
 export const sessionTypeColors: Record<SessionType, string> = {

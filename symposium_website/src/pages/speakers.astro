@@ -3,6 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import SpeakerCard from "../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { speakers, getSpeakersByEdition } from "../data/speakers";
+import { getUpcomingEdition } from "../lib/editions-content";
 import { getCollection } from "astro:content";
 
 const lang = getLangFromUrl(Astro.url);
@@ -10,6 +11,11 @@ const t = useTranslations(lang);
 
 const editions = await getCollection("editions");
 const editionYears = [...new Set(editions.map((e) => e.data.year))].sort((a, b) => b - a);
+
+const upcoming = await getUpcomingEdition();
+const hasUpcomingSpeakers = upcoming
+  ? getSpeakersByEdition(upcoming.data.year).length > 0
+  : false;
 ---
 
 <BaseLayout
@@ -26,6 +32,11 @@ const editionYears = [...new Set(editions.map((e) => e.data.year))].sort((a, b) 
 
   <!-- Speakers by edition -->
   <div class="max-w-7xl mx-auto px-6 py-12 space-y-16">
+    {
+      !hasUpcomingSpeakers && (
+        <p class="text-gray-500 text-center py-16">{t("speakers.none")}</p>
+      )
+    }
     {
       editionYears.map((year) => {
         const editionSpeakers = getSpeakersByEdition(year);

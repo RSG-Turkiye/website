@@ -3,6 +3,11 @@ import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import { getLangFromUrl, useTranslations } from "../i18n/ui";
+import { getUpcomingEdition } from "../lib/editions-content";
+import { getSessionsByEdition } from "../data/sessions";
+import { getSpeakersByEdition } from "../data/speakers";
+import { getCommitteeByEdition } from "../data/committee";
+import type { NavState } from "../lib/nav";
 
 interface Props {
   pageTitle: string;
@@ -14,6 +19,14 @@ interface Props {
 const { pageTitle, description, image, translationUrl } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+
+const upcoming = await getUpcomingEdition();
+const year = upcoming?.data.year ?? 0;
+const navState: NavState = {
+  hasSchedule: getSessionsByEdition(year).length > 0,
+  hasSpeakers: getSpeakersByEdition(year).length > 0,
+  hasCommittee: getCommitteeByEdition(year).length > 0,
+};
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImage = image || "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606591/rsgturkey/symposium/2023/08/symposium2023.jpg";
@@ -48,10 +61,10 @@ const metaDesc = description || t("site.description");
     <link rel="icon" type="image/png" href="/logo/rsgturkey_logo.png" />
   </head>
   <body>
-    <Header lang={lang} translationUrl={translationUrl} />
+    <Header lang={lang} translationUrl={translationUrl} navState={navState} />
     <main class="pt-16">
       <slot />
     </main>
-    <Footer lang={lang} />
+    <Footer lang={lang} navState={navState} />
   </body>
 </html>

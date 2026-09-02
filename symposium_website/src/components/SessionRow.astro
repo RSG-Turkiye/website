@@ -33,9 +33,19 @@ const isBreak = session.type === "break";
 
   <!-- Content -->
   <div class="flex-1 min-w-0">
-    <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-500" : "text-navy"]}>
-      {session.title}
-    </p>
+    <div class="flex items-baseline gap-2">
+      {
+        session.time && (
+          <span class="text-xs font-medium text-gray-400 shrink-0">
+            {session.time}
+            {session.endTime && `–${session.endTime}`}
+          </span>
+        )
+      }
+      <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-500" : "text-navy"]}>
+        {session.title}
+      </p>
+    </div>
 
     {
       session.description && (
