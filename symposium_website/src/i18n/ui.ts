@@ -19,7 +19,12 @@ export const ui = {
     "hero.subtitle":
       "Bringing together students and researchers in computational biology and bioinformatics.",
     "hero.cta.about": "Learn More",
-    "hero.cta.register": "Register",
+
+    "cta.register": "Register",
+    "cta.abstract": "Submit an Abstract",
+    "cta.soon": "Registration and the call for abstracts open soon.",
+    "cta.deadline": "Deadline: {date}",
+    "hero.countdown.days": "days to go",
 
     "home.about.title": "About the Symposium",
     "home.about.body":
@@ -80,7 +85,12 @@ export const ui = {
     "hero.subtitle":
       "Hesaplamalı biyoloji ve biyoinformatik alanındaki öğrencileri ve araştırmacıları bir araya getiriyoruz.",
     "hero.cta.about": "Daha Fazla",
-    "hero.cta.register": "Kayıt Ol",
+
+    "cta.register": "Kayıt Ol",
+    "cta.abstract": "Bildiri Gönder",
+    "cta.soon": "Kayıt ve bildiri çağrısı yakında açılacak.",
+    "cta.deadline": "Son tarih: {date}",
+    "hero.countdown.days": "gün kaldı",
 
     "home.about.title": "Sempozyum Hakkında",
     "home.about.body":

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, type EditionLike, locationFor } from '../src/lib/editions';
+import { splitEditions, type EditionLike, locationFor, ctasFor } from '../src/lib/editions';
 
 function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
@@ -123,4 +123,38 @@ test('venue recorded, hall withheld, city not public: hidden', () => {
 test('the hall never leaks through the withheld branch either', () => {
   const shown = locationFor(withVenue(false, true));
   assert.ok(!JSON.stringify(shown).includes('U3'), 'the hall must not appear in withheld state');
+});
+
+test('no CTA is offered while no form exists', () => {
+  // A greyed-out "Register (soon)" button sitting there for five weeks
+  // reads as broken, so the button is absent until the URL is real.
+  assert.deepEqual(ctasFor({ registrationUrl: '', abstractUrl: '' } as EditionLike), []);
+});
+
+test('each CTA appears independently as its URL is filled in', () => {
+  const only = ctasFor({ registrationUrl: '', abstractUrl: 'https://forms.gle/abs' } as EditionLike);
+  assert.equal(only.length, 1);
+  assert.equal(only[0].kind, 'abstract');
+  assert.equal(only[0].url, 'https://forms.gle/abs');
+});
+
+test('registration is listed before abstracts when both are open', () => {
+  const both = ctasFor({
+    registrationUrl: 'https://forms.gle/reg',
+    abstractUrl: 'https://forms.gle/abs',
+  } as EditionLike);
+  assert.deepEqual(both.map(c => c.kind), ['registration', 'abstract']);
+});
+
+test('a deadline rides along with its CTA', () => {
+  const [cta] = ctasFor({
+    registrationUrl: 'https://forms.gle/reg',
+    registrationDeadline: new Date('2026-10-01'),
+    abstractUrl: '',
+  } as EditionLike);
+  assert.equal(cta.deadline?.toISOString().slice(0, 10), '2026-10-01');
+});
+
+test('whitespace is not a URL', () => {
+  assert.deepEqual(ctasFor({ registrationUrl: '   ', abstractUrl: '' } as EditionLike), []);
 });
