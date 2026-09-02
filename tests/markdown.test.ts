@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderBody } from '../functions/_lib/markdown';
+import { renderBody, renderPlainWithLinks } from '../functions/_lib/markdown';
 
 test('a labelled link becomes an anchor in html and "text (url)" in plain text', () => {
   const r = renderBody('See the [programme](https://rsg-turkiye.iscbsc.org/events) for details.');
@@ -77,4 +77,57 @@ test('the html half is wrapped in an html document', () => {
   const r = renderBody('hello');
   assert.match(r.html, /^<html><body>/);
   assert.match(r.html, /<\/body><\/html>$/);
+});
+
+test('renderPlainWithLinks escapes markup a correspondent sent', () => {
+  const html = renderPlainWithLinks('<script>alert(1)</script> & "quoted"');
+  assert.ok(!html.includes('<script>'));
+  assert.ok(html.includes('&lt;script&gt;'));
+  assert.ok(html.includes('&amp;'));
+  assert.ok(html.includes('&quot;quoted&quot;'));
+});
+
+test('renderPlainWithLinks turns a bare URL into a link', () => {
+  const html = renderPlainWithLinks('See https://rsg-turkiye.iscbsc.org for details');
+  assert.ok(html.includes('<a href="https://rsg-turkiye.iscbsc.org"'));
+  assert.ok(html.includes('rel="noopener noreferrer"'));
+  assert.ok(html.includes('target="_blank"'));
+});
+
+test('renderPlainWithLinks does not linkify a non-http scheme', () => {
+  const html = renderPlainWithLinks('javascript:alert(1) and file:///etc/passwd');
+  assert.ok(!html.includes('<a '));
+});
+
+test('renderPlainWithLinks leaves Markdown syntax literal', () => {
+  const html = renderPlainWithLinks('**not bold** and [not a link](https://x.example)');
+  assert.ok(!html.includes('<strong>'));
+  assert.ok(html.includes('**not bold**'));
+  // The bare URL inside the parentheses still becomes a link, but the label
+  // syntax around it stays visible exactly as the correspondent typed it.
+  assert.ok(html.includes('[not a link]('));
+});
+
+test('renderPlainWithLinks does not turn dashes into a list', () => {
+  const html = renderPlainWithLinks('- one\n- two');
+  assert.ok(!html.includes('<ul>'));
+  assert.ok(html.includes('- one<br>- two'));
+});
+
+test('renderPlainWithLinks keeps paragraphs and line breaks', () => {
+  assert.equal(renderPlainWithLinks('a\nb\n\nc'), '<p>a<br>b</p><p>c</p>');
+});
+
+test('renderPlainWithLinks on empty input returns an empty string', () => {
+  assert.equal(renderPlainWithLinks(''), '');
+  assert.equal(renderPlainWithLinks('   \n\n  '), '');
+});
+
+test('renderPlainWithLinks strips a forged anchor placeholder', () => {
+  // A correspondent who knows how this renderer works cannot borrow its
+  // internal marker: control characters are stripped before anything runs.
+  const forged = 'x \u00000\u0000 https://a.example';
+  const html = renderPlainWithLinks(forged);
+  assert.ok(!html.includes('\u0000'));
+  assert.ok(html.includes('<a href="https://a.example"'));
 });

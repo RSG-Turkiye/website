@@ -99,3 +99,33 @@ function blocksToHtml(s: string): string {
 
   return out.join('');
 }
+
+/**
+ * Inbound mail, rendered for the conversations page.
+ *
+ * Not renderBody: that one applies Markdown semantics, and a correspondent did
+ * not write Markdown. Their literal asterisks would silently become emphasis
+ * and their leading dashes a bullet list -- a quiet misquotation of someone
+ * else's words.
+ *
+ * Same safety argument as the rest of this module: escape every character
+ * first, then insert only the tags this function produced, with hrefs that had
+ * to match the https?:// allowlist to get there.
+ */
+export function renderPlainWithLinks(text: string): string {
+  let s = escapeHtml(stripControls(text));
+
+  const anchors: string[] = [];
+  const park = (html: string) => {
+    anchors.push(html);
+    return '\u0000' + (anchors.length - 1) + '\u0000';
+  };
+
+  s = s.replace(BARE_URL, (_m, lead: string, url: string) =>
+    lead + park('<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>'));
+
+  const blocks = s.split(/\n{2,}/).filter(block => block.trim() !== '');
+  s = blocks.map(block => '<p>' + block.split('\n').join('<br>') + '</p>').join('');
+
+  return s.replace(PLACEHOLDER, (_m, i: string) => anchors[Number(i)]);
+}
