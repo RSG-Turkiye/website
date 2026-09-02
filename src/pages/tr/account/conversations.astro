@@ -165,7 +165,13 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
   }
 
   async function loadThreads(): Promise<boolean> {
-    const res = await fetch(scopeAll ? '/api/mail/conversations?scope=all' : '/api/mail/conversations');
+    let res: Response;
+    try {
+      res = await fetch(scopeAll ? '/api/mail/conversations?scope=all' : '/api/mail/conversations');
+    } catch {
+      showToast('Yazışmalar yüklenemedi.', true);
+      return false;
+    }
 
     if (res.status === 401) {
       window.location.href = '/tr/account';
@@ -180,7 +186,13 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       return false;
     }
 
-    const data: any = await res.json();
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      showToast('Yazışmalar yüklenemedi.', true);
+      return false;
+    }
     document.getElementById('content')!.classList.remove('hidden');
     document.getElementById('scopeWrap')!.classList.toggle('hidden', data.isAdmin !== true);
     if (data.isAdmin === true) document.getElementById('scopeWrap')!.classList.add('flex');
@@ -223,13 +235,25 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 
   async function openThread(id: string): Promise<void> {
     const path = `/api/mail/conversations/${encodeURIComponent(id)}`;
-    const res = await fetch(scopeAll ? `${path}?scope=all` : path);
+    let res: Response;
+    try {
+      res = await fetch(scopeAll ? `${path}?scope=all` : path);
+    } catch {
+      showToast('Yazışma açılamadı.', true);
+      return;
+    }
     if (!res.ok) {
       showToast('Yazışma açılamadı.', true);
       return;
     }
 
-    const data: any = await res.json();
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      showToast('Yazışma açılamadı.', true);
+      return;
+    }
     currentThreadId = id;
     renderThread(data.thread, data.messages as Message[]);
 
@@ -333,8 +357,15 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     // Render the cache first so the page is useful immediately, then go to
     // Gmail and render again. Refreshing before the first paint would make
     // every visit wait on a network round trip to Google.
-    const allowed = await loadThreads();
-    document.getElementById('loadingState')!.classList.add('hidden');
+    let allowed = false;
+    try {
+      allowed = await loadThreads();
+    } finally {
+      // The spinner comes down on every path, including a throw nothing here
+      // anticipated. Leaving it up strands the member on a page that looks
+      // like it is still working and offers nothing to click.
+      document.getElementById('loadingState')!.classList.add('hidden');
+    }
     if (!allowed) return;
 
     await refresh();
