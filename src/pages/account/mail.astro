@@ -35,8 +35,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <form id="composeForm" class="bg-white rounded-2xl border border-border shadow-sm p-6 flex flex-col gap-3">
           <input id="mailTo" type="text" required placeholder="To (comma separated, max 10)"
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
-          <input id="mailRecipientName" type="text" placeholder="Recipient name (optional, single recipient only)"
-            class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
           <input id="mailSubject" type="text" required maxlength="200" placeholder="Subject"
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
           <textarea id="mailBody" required rows="14" maxlength="20000" placeholder="Write your message"
@@ -199,7 +197,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       const payload = {
         to: (document.getElementById('mailTo') as HTMLInputElement).value,
-        recipient_name: (document.getElementById('mailRecipientName') as HTMLInputElement).value,
         subject: (document.getElementById('mailSubject') as HTMLInputElement).value,
         body: (document.getElementById('mailBody') as HTMLTextAreaElement).value,
         attachment_ids,
@@ -310,7 +307,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const s = data.scheduled.find((x: any) => x.id === btn.dataset.id);
         if (!s) return;
         (document.getElementById('mailTo') as HTMLInputElement).value = JSON.parse(s.recipients).join(', ');
-        (document.getElementById('mailRecipientName') as HTMLInputElement).value = s.recipient_name ?? '';
         (document.getElementById('mailSubject') as HTMLInputElement).value = s.subject;
         (document.getElementById('mailBody') as HTMLTextAreaElement).value = s.body;
         (document.getElementById('mailSchedule') as HTMLInputElement).value = epochToIstanbulInput(s.scheduled_at);

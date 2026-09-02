@@ -14,7 +14,6 @@ interface ScheduledRow {
   id: string;
   sender_user_id: string;
   recipients: string;
-  recipient_name: string | null;
   subject: string;
   body: string;
   attachment_ids: string;
@@ -35,7 +34,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const now = Math.floor(Date.now() / 1000);
 
   const due = await env.DB.prepare(
-    `SELECT id, sender_user_id, recipients, recipient_name, subject, body,
+    `SELECT id, sender_user_id, recipients, subject, body,
             attachment_ids, first_tried_at
      FROM scheduled_emails
      WHERE scheduled_at <= ?
@@ -71,7 +70,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         {
           senderUserId: row.sender_user_id,
           recipients: [`corrupt-row:${row.id}`],
-          recipientName: row.recipient_name,
           subject: row.subject,
           body: row.body,
           attachmentIds: [],
@@ -86,7 +84,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const input: ComposeInput = {
       senderUserId: row.sender_user_id,
       recipients,
-      recipientName: row.recipient_name,
       subject: row.subject,
       body: row.body,
       attachmentIds,
