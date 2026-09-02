@@ -1,5 +1,6 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse } from '../../../_lib/auth';
+import { renderPlainWithLinks } from '../../../_lib/markdown';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
   const user = await getSessionUser(request, env);
@@ -39,7 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
      FROM mail_messages
      WHERE thread_id = ?
      ORDER BY sent_at ASC, id ASC`
-  ).bind(id).all();
+  ).bind(id).all<MessageRow>();
 
   // Only the owner opening their own thread clears the flag. An admin reading
   // it must not mark it read for the member who has not seen it yet.
@@ -48,6 +49,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       'UPDATE mail_threads SET unread = 0, updated_at = ? WHERE id = ? AND sender_user_id = ?'
     ).bind(Math.floor(Date.now() / 1000), id, user.id).run();
   }
+
+  const rendered = messages.results.map(({ body_text, ...rest }) => ({
+    ...rest,
+    body_html: renderPlainWithLinks(body_text),
+  }));
 
   return jsonResponse({
     thread: {
@@ -58,7 +64,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       sender_email: thread.sender_email,
       can_reply: thread.sender_user_id === user.id,
     },
-    messages: messages.results,
+    messages: rendered,
   });
 };
 
@@ -69,4 +75,15 @@ interface ThreadRecord {
   recipient_name: string | null;
   subject: string;
   sender_email: string;
+}
+
+interface MessageRow {
+  id: string;
+  direction: string;
+  from_email: string;
+  from_name: string | null;
+  subject: string | null;
+  body_text: string;
+  attachment_count: number;
+  sent_at: number;
 }
