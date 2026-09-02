@@ -3,6 +3,7 @@ import { generateId } from './auth';
 import { buildMime, sendMail, GmailError, encodeAttachmentBody, type MimeAttachment } from './gmail';
 import { MAX_ATTACHMENT_BYTES } from './mail';
 import { renderBody } from './markdown';
+import { registerThread } from './conversations';
 
 /**
  * The send path, shared by the compose endpoint and the scheduled dispatcher.
@@ -94,13 +95,14 @@ async function insertLog(
   input: ComposeInput,
   recipient: string,
   gmailId: string | null,
+  gmailThreadId: string | null,
   errorMessage: string | null,
 ): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO sent_emails
       (id, sender_user_id, recipient_email, recipient_name, subject, body_snapshot,
-       attachment_ids, gmail_message_id, status, error_message, sent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       attachment_ids, gmail_message_id, gmail_thread_id, status, error_message, sent_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     generateId(),
     input.senderUserId,
@@ -110,6 +112,7 @@ async function insertLog(
     input.body,
     JSON.stringify(input.attachmentIds),
     gmailId,
+    gmailThreadId,
     gmailId ? 'sent' : 'failed',
     errorMessage,
     Math.floor(Date.now() / 1000),
@@ -127,6 +130,7 @@ export async function sendAndLog(
   // would show each of them the entire outreach list.
   for (const recipient of input.recipients) {
     let gmailId: string | null = null;
+    let gmailThreadId: string | null = null;
     let errorMessage: string | null = null;
 
     try {
@@ -143,7 +147,9 @@ export async function sendAndLog(
         body: renderBody(input.body),
         attachments,
       });
-      gmailId = (await sendMail(env, raw, input.threadId)).id;
+      const sent = await sendMail(env, raw, input.threadId);
+      gmailId = sent.id;
+      gmailThreadId = sent.threadId;
     } catch (err) {
       errorMessage = err instanceof GmailError ? err.message : String(err);
     }
@@ -160,9 +166,28 @@ export async function sendAndLog(
     // belongs in this recipient's own result instead.
     let logFailed = false;
     try {
-      await insertLog(env, input, recipient, gmailId, errorMessage);
+      await insertLog(env, input, recipient, gmailId, gmailThreadId, errorMessage);
     } catch {
       logFailed = true;
+    }
+
+    // Registering gets its own try/catch for the same reason insertLog does:
+    // a D1 failure here must not abort the recipients still waiting in this
+    // loop. The cost of losing it is that this conversation never appears on
+    // the site -- bad, but not as bad as silently skipping recipients.
+    if (gmailId && gmailThreadId) {
+      try {
+        await registerThread(env, {
+          threadId: gmailThreadId,
+          senderUserId: input.senderUserId,
+          recipientEmail: recipient,
+          recipientName: input.recipients.length === 1 ? input.recipientName : null,
+          subject: input.subject,
+          sentAt: Math.floor(Date.now() / 1000),
+        });
+      } catch {
+        logFailed = true;
+      }
     }
 
     results.push(
@@ -187,6 +212,6 @@ export async function sendAndLog(
  */
 export async function logFailure(env: Env, input: ComposeInput, reason: string): Promise<void> {
   for (const recipient of input.recipients) {
-    await insertLog(env, input, recipient, null, reason);
+    await insertLog(env, input, recipient, null, null, reason);
   }
 }
