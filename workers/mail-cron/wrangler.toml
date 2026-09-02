@@ -11,6 +11,12 @@
 name = "rsg-mail-cron"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
+# Not published to a workers.dev subdomain. The `fetch` handler triggers the
+# real action, so leaving it on the public internet would let anyone who found
+# the URL fire it at will. Manual checks go through the Cloudflare dashboard's
+# scheduled-event trigger, or `wrangler dev` locally.
+workers_dev = false
+
 
 # Every 5 minutes. Cloudflare's scheduler is reliable enough to make this
 # meaningful, so "send at 09:00" lands within five minutes rather than fifteen.

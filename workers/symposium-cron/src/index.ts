@@ -12,19 +12,35 @@ export interface Env {
  */
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(rebuild(env));
+    ctx.waitUntil(
+      rebuild(env).then((result) => {
+        // A scheduled Worker's only failure signal is its invocation status.
+        // Returning quietly would leave a dead deploy hook looking healthy in
+        // the dashboard, so the one mechanism keeping the site's derived
+        // lifecycle honest could stop working with nothing to say so.
+        if (result.startsWith('ERROR')) throw new Error(result);
+      }),
+    );
   },
 
   /**
    * A plain GET triggers the rebuild and returns its result, so the schedule
-   * can be tested by hand without waiting for a tick. No secret needed here --
-   * the deploy hook URL itself is the auth token.
+   * can be checked by hand. Not reachable from the internet: workers_dev is
+   * off and no route is bound, so this answers only under `wrangler dev`.
+   *
+   * Unlike `scheduled` it reports failure as a 502 with the body rather than
+   * throwing -- the two callers want different things. The scheduler needs a
+   * failed invocation; a human needs to read what went wrong, and a stack
+   * trace tells them less than the hook's own response does.
    */
   async fetch(_request: Request, env: Env): Promise<Response> {
     const body = await rebuild(env);
     return new Response(
       JSON.stringify({ rebuild: body }, null, 2),
-      { headers: { 'Content-Type': 'application/json' } },
+      {
+        status: body.startsWith('ERROR') ? 502 : 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
     );
   },
 };

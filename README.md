@@ -296,6 +296,24 @@ After deploy, you can trigger the rebuild manually from the Cloudflare
 dashboard to test — it should start a build in the `rsg-symposium` project
 immediately.
 
+#### How both cron Workers report failure
+
+`workers/mail-cron/` and `workers/symposium-cron/` follow the same two rules,
+and both exist because a scheduler that fails quietly is worse than none.
+
+**A failed call fails the invocation.** Each Worker logs every attempt, then
+raises, so a bad secret or an expired deploy hook shows up as a *failed*
+invocation in the Cloudflare dashboard rather than a successful one with a log
+nobody is tailing. Check `wrangler tail` for the response body behind a
+failure.
+
+**Neither is reachable from the internet.** Both set `workers_dev = false` and
+bind no route, so the `fetch` handler — which performs the real action, sending
+mail or starting a build — answers only under `wrangler dev`. Trigger either by
+hand from the Cloudflare dashboard's scheduled-event control. If a remote
+trigger is ever needed, give the handler a shared-secret header first; do not
+simply re-enable the subdomain.
+
 ---
 
 ## Content Types
