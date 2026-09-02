@@ -447,7 +447,7 @@ git commit -m "feat: return the thread id from a send and support reply headers"
 - Consumes: nothing (pure functions only; the network calls arrive in Task 4).
 - Produces:
   - `interface GmailPart { mimeType?: string; filename?: string; headers?: GmailHeader[]; body?: { data?: string; size?: number; attachmentId?: string }; parts?: GmailPart[] }`
-  - `interface GmailMessage { id: string; threadId: string; labelIds?: string[]; internalDate?: string; payload?: GmailPart }`
+  - `interface GmailMessage { id: string; threadId?: string; labelIds?: string[]; internalDate?: string; payload?: GmailPart }` — `threadId` is optional because this file never reads it; the caller always knows the thread id already.
   - `interface GmailThread { id: string; messages?: GmailMessage[] }`
   - `interface ParsedMessage { id: string; direction: 'out' | 'in'; rfc822MessageId: string | null; fromEmail: string; fromName: string | null; subject: string | null; bodyText: string; attachmentCount: number; sentAt: number }`
   - `decodeBase64Url(data: string): string`
