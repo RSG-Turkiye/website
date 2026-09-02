@@ -29,7 +29,14 @@ interface SyncState {
 interface IngestSummary {
   ingested: number;
   notified: number;
-  failed: number;
+  /** Threads whose ingest threw. Holding the cursor lets these be retried. */
+  ingestFailed: number;
+  /**
+   * Threads that ingested cleanly but whose notification mail failed. Holding
+   * the cursor cannot help these: the retry sees newInbound === 0 and never
+   * notifies again. Counted and reported, but never a reason to stall.
+   */
+  notifyFailed: number;
   firstError: string | null;
 }
 
@@ -52,7 +59,13 @@ async function ingestAll(
   siteOrigin: string,
   now: number,
 ): Promise<IngestSummary> {
-  const summary: IngestSummary = { ingested: 0, notified: 0, failed: 0, firstError: null };
+  const summary: IngestSummary = {
+    ingested: 0,
+    notified: 0,
+    ingestFailed: 0,
+    notifyFailed: 0,
+    firstError: null,
+  };
 
   for (const threadId of threadIds) {
     try {
@@ -66,7 +79,7 @@ async function ingestAll(
         try {
           if (await notifyThreadOwner(env, threadId, siteOrigin, now)) summary.notified += 1;
         } catch (err) {
-          summary.failed += 1;
+          summary.notifyFailed += 1;
           summary.firstError ??= `notify ${threadId}: ${String(err).slice(0, 200)}`;
         }
       }
@@ -74,7 +87,7 @@ async function ingestAll(
       // One unreadable thread must not stop the rest of the batch. Counted and
       // reported rather than swallowed, so a systematic failure is visible in
       // the Worker log instead of looking like a quiet no-op.
-      summary.failed += 1;
+      summary.ingestFailed += 1;
       summary.firstError ??= `ingest ${threadId}: ${String(err).slice(0, 200)}`;
     }
   }
@@ -174,13 +187,16 @@ export async function runSync(env: Env, siteOrigin: string): Promise<Response> {
   const known = await knownThreadIds(env, threadIds);
   const summary = await ingestAll(env, known, siteOrigin, now);
 
-  // Hold the cursor when anything failed, so the next tick sees the same
+  // Hold the cursor when an ingest failed, so the next tick sees the same
   // history entries again -- re-ingesting is idempotent, so a retry costs
   // nothing but a fetch. This cannot stall forever: a cursor left in place
   // long enough eventually ages out of Gmail's retention, and the resulting
   // GmailHistoryExpired routes into a backfill that visits every registered
-  // thread and repairs whatever was missed.
-  if (summary.failed === 0) {
+  // thread and repairs whatever was missed. A notify-only failure does not
+  // hold the cursor: the ingest it rode in on already succeeded, and a retry
+  // would see newInbound === 0 and never notify again anyway -- holding the
+  // cursor would only cost a wasted history walk, not rescue anything.
+  if (summary.ingestFailed === 0) {
     await env.DB.prepare(
       'UPDATE mail_sync_state SET history_id = ?, last_synced_at = ? WHERE id = 1'
     ).bind(historyId, now).run();
@@ -196,7 +212,7 @@ export async function runSync(env: Env, siteOrigin: string): Promise<Response> {
     known: known.length,
     ...summary,
     historyId,
-    cursorHeld: summary.failed > 0,
+    cursorHeld: summary.ingestFailed > 0,
   });
 }
 

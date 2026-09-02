@@ -177,8 +177,9 @@ export async function sendAndLog(
     let auditFailed = false;
     try {
       await insertLog(env, input, recipient, gmailId, gmailThreadId, errorMessage);
-    } catch {
+    } catch (err) {
       auditFailed = true;
+      console.error('sendAndLog: audit write failed for', recipient, err);
     }
 
     // Registering gets its own try/catch for the same reason insertLog does:
@@ -196,8 +197,9 @@ export async function sendAndLog(
           subject: input.subject,
           sentAt: Math.floor(Date.now() / 1000),
         });
-      } catch {
+      } catch (err) {
         registrationFailed = true;
+        console.error('sendAndLog: thread registration failed for', recipient, err);
       }
     }
 

@@ -56,10 +56,12 @@
 --     "no such table: scheduled_emails".
 --
 -- 6a. functions/_lib/compose.ts now writes sent_emails.gmail_thread_id on
---     every send. Deploying that without this column first makes EVERY send
---     fail with D1 "no such column: gmail_thread_id" -- the mail goes out and
---     the log row is lost. ALTER TABLE ADD COLUMN is NOT idempotent -- do not
---     re-run this one:
+--     every send. Deploying that without this column first does NOT fail the
+--     send: sendAndLog catches the D1 "no such column: gmail_thread_id" error
+--     from insertLog on its own, so the mail still goes out -- but the catch
+--     is silent, so the sent_emails row for that recipient is simply never
+--     written, with no error surfaced anywhere. ALTER TABLE ADD COLUMN is NOT
+--     idempotent -- do not re-run this one:
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE sent_emails ADD COLUMN gmail_thread_id TEXT"
 --
 -- 6b. This file's mail_threads / mail_messages / mail_sync_state tables below
@@ -67,8 +69,10 @@
 --     and `INSERT OR IGNORE` make this safe to re-run):
 --       wrangler d1 execute rsg-members --remote --file=db/schema.sql
 --     Without this, /api/mail/sync and /api/mail/conversations 500 with
---     "no such table: mail_threads", and every send fails when compose.ts
---     tries to register its thread.
+--     "no such table: mail_threads". Sending mail still succeeds, though:
+--     compose.ts's attempt to register the thread hits the same missing
+--     table, but that catch is silent too, so the conversation is simply
+--     never registered with no error surfaced anywhere.
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
