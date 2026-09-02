@@ -1,0 +1,345 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  pageTitle="Yazışmalar — RSG Türkiye"
+  description="RSG Türkiye adresinden gönderilen e-postalara gelen cevaplar."
+  translationUrl="/account/conversations"
+>
+  <div class="min-h-screen bg-[#F7F7F6] py-12 px-4">
+    <div class="max-w-5xl mx-auto">
+
+      <div id="loadingState" class="flex items-center justify-center py-24">
+        <div class="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <div id="notAllowed" class="hidden text-center py-24">
+        <p class="text-gray-500 mb-4">RSG yazışmalarını görme yetkiniz yok.</p>
+        <a href="/tr/account" class="text-navy-mid hover:underline text-sm">Profilime dön</a>
+      </div>
+
+      <div id="content" class="hidden flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 class="text-xl font-bold text-navy">Yazışmalar</h1>
+            <p class="text-sm text-gray-500 mt-1">
+              RSG adına gönderdiğiniz e-postalara gelen cevaplar. Burada yalnızca bu siteden başlatılan yazışmalar görünür.
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <label id="scopeWrap" class="hidden items-center gap-2 text-xs text-gray-500">
+              <input id="scopeAll" type="checkbox" class="rounded border-border" />
+              Tüm üyeler
+            </label>
+            <button type="button" id="refreshBtn"
+              class="px-4 py-2 rounded-xl border border-border bg-white text-navy text-sm font-medium hover:border-navy-mid transition-colors">
+              Yenile
+            </button>
+            <a href="/tr/account/mail" class="text-sm text-navy-mid hover:underline">Yeni e-posta</a>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-[320px_1fr] gap-4 items-start">
+          <div class="bg-white rounded-2xl border border-border shadow-sm p-3">
+            <div id="threadList" class="flex flex-col gap-1"></div>
+            <p id="threadsEmpty" class="hidden text-sm text-gray-400 px-2 py-4">
+              Henüz cevap yok.
+            </p>
+          </div>
+
+          <div class="bg-[#F0F0EE] rounded-2xl border border-border p-4 min-h-[420px]">
+            <p id="threadEmpty" class="text-sm text-gray-400 text-center py-24">
+              Okumak için bir yazışma seçin.
+            </p>
+
+            <div id="threadView" class="hidden flex flex-col gap-4">
+              <div class="border-b border-border pb-3">
+                <h2 id="threadSubject" class="text-sm font-semibold text-navy"></h2>
+                <p id="threadWith" class="text-xs text-gray-500 mt-0.5"></p>
+              </div>
+
+              <div id="messageList" class="flex flex-col gap-3"></div>
+
+              <p id="replyBlocked" class="hidden text-xs text-gray-500 border-t border-border pt-3">
+                Bunu yönetici olarak görüyorsunuz. Yalnızca yazışmayı başlatan üye cevap yazabilir.
+              </p>
+
+              <form id="replyForm" class="hidden border-t border-border pt-3 flex flex-col gap-2">
+                <textarea id="replyBody" rows="5" required maxlength="20000"
+                  placeholder="Cevabınızı yazın"
+                  class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus:border-navy-mid"></textarea>
+                <p class="text-xs text-gray-400 -mt-1">
+                  RSG adresinden gönderilir. Alıcının kimin cevapladığını bilmesi için sonuna adınızı yazın.
+                </p>
+                <div class="flex items-center gap-3">
+                  <button type="submit" id="replyBtn"
+                    class="px-5 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors disabled:opacity-50">
+                    Cevapla
+                  </button>
+                  <span id="replyStatus" class="text-xs text-gray-400"></span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style is:global>
+  /* Message bodies are injected as HTML, so scoped styles would not reach them. */
+  .mail-body a { text-decoration: underline; }
+  .mail-body p { margin: 0 0 0.5rem; }
+  .mail-body p:last-child { margin-bottom: 0; }
+</style>
+
+<script>
+  import { formatIstanbul } from '../../../lib/istanbul-time';
+
+  interface ThreadSummary {
+    id: string;
+    recipient_email: string;
+    recipient_name: string | null;
+    subject: string;
+    last_message_at: number;
+    last_direction: string;
+    unread: number;
+    snippet: string;
+    sender_email?: string;
+    sender_name?: string | null;
+  }
+
+  interface Message {
+    id: string;
+    direction: string;
+    from_email: string;
+    from_name: string | null;
+    body_html: string;
+    attachment_count: number;
+    sent_at: number;
+  }
+
+  const ERRORS: Record<string, string> = {
+    empty_body: 'Göndermeden önce bir şeyler yazın.',
+    body_too_long: 'Cevap çok uzun (en fazla 20000 karakter).',
+    not_found: 'Bu yazışma artık mevcut değil.',
+    rate_limit_hour: 'Saatlik gönderim sınırına ulaştınız (20). Daha sonra tekrar deneyin.',
+    rate_limit_day: 'Günlük gönderim sınırına ulaştınız (100).',
+    rate_limit_global: 'RSG günlük gönderim sınırına ulaştı (300). Yarın tekrar deneyin.',
+    forbidden: 'Buna izniniz yok.',
+  };
+
+  let scopeAll = false;
+  let currentThreadId: string | null = null;
+
+  function escapeHtml(s: unknown): string {
+    return String(s ?? '').replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+  }
+
+  function formatDate(ts: number) {
+    return formatIstanbul(ts, 'tr-TR');
+  }
+
+  function showToast(message: string, isError = false) {
+    const toast = document.getElementById('toast')!;
+    toast.textContent = message;
+    toast.className = `fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50 ${
+      isError ? 'bg-red-500' : 'bg-navy'
+    }`;
+    setTimeout(() => toast.classList.add('hidden'), 6000);
+  }
+
+  /** Ask the server to look for new mail. Best-effort: the cron does this too. */
+  async function refresh(): Promise<void> {
+    try {
+      await fetch('/api/mail/refresh', { method: 'POST' });
+    } catch {
+      // Not worth a message. The list below still renders what is cached, and
+      // the cron Worker keeps that cache moving regardless of this page.
+    }
+  }
+
+  async function loadThreads(): Promise<boolean> {
+    const res = await fetch(scopeAll ? '/api/mail/conversations?scope=all' : '/api/mail/conversations');
+
+    if (res.status === 401) {
+      window.location.href = '/tr/account';
+      return false;
+    }
+    if (res.status === 403) {
+      document.getElementById('notAllowed')!.classList.remove('hidden');
+      return false;
+    }
+    if (!res.ok) {
+      showToast('Yazışmalar yüklenemedi.', true);
+      return false;
+    }
+
+    const data: any = await res.json();
+    document.getElementById('content')!.classList.remove('hidden');
+    document.getElementById('scopeWrap')!.classList.toggle('hidden', data.isAdmin !== true);
+    if (data.isAdmin === true) document.getElementById('scopeWrap')!.classList.add('flex');
+
+    renderThreads(data.threads as ThreadSummary[]);
+    return true;
+  }
+
+  function renderThreads(threads: ThreadSummary[]) {
+    const list = document.getElementById('threadList')!;
+    const empty = document.getElementById('threadsEmpty')!;
+
+    if (threads.length === 0) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    list.innerHTML = threads.map(t => `
+      <button type="button" data-thread="${escapeHtml(t.id)}"
+        class="thread-item w-full text-left px-3 py-2 rounded-xl border transition-colors ${
+          t.id === currentThreadId ? 'border-navy bg-[#F7F7F6]' : 'border-transparent hover:bg-[#F7F7F6]'
+        }">
+        <div class="flex items-baseline justify-between gap-2">
+          <span class="text-sm truncate ${t.unread ? 'font-bold text-navy' : 'text-navy'}">${
+            escapeHtml(t.recipient_name || t.recipient_email)
+          }</span>
+          <span class="text-[11px] text-gray-400 shrink-0">${formatDate(t.last_message_at)}</span>
+        </div>
+        <div class="text-xs truncate ${t.unread ? 'font-semibold text-navy' : 'text-gray-500'}">${escapeHtml(t.subject)}</div>
+        <div class="text-xs text-gray-400 truncate">${t.last_direction === 'out' ? '&uarr; ' : '&darr; '}${escapeHtml(t.snippet)}</div>
+        ${t.sender_email ? `<div class="text-[11px] text-gray-400 mt-1">${escapeHtml(t.sender_name || t.sender_email)}</div>` : ''}
+      </button>`).join('');
+
+    list.querySelectorAll<HTMLElement>('.thread-item').forEach(el => {
+      el.addEventListener('click', () => { void openThread(el.dataset.thread!); });
+    });
+  }
+
+  async function openThread(id: string): Promise<void> {
+    const path = `/api/mail/conversations/${encodeURIComponent(id)}`;
+    const res = await fetch(scopeAll ? `${path}?scope=all` : path);
+    if (!res.ok) {
+      showToast('Yazışma açılamadı.', true);
+      return;
+    }
+
+    const data: any = await res.json();
+    currentThreadId = id;
+    renderThread(data.thread, data.messages as Message[]);
+
+    // Opening cleared the unread flag server-side; reload so the list stops
+    // showing this thread in bold.
+    await loadThreads();
+  }
+
+  function renderThread(thread: any, messages: Message[]) {
+    document.getElementById('threadEmpty')!.classList.add('hidden');
+    document.getElementById('threadView')!.classList.remove('hidden');
+
+    document.getElementById('threadSubject')!.textContent = thread.subject;
+    document.getElementById('threadWith')!.textContent = thread.recipient_name
+      ? `${thread.recipient_name} <${thread.recipient_email}>`
+      : thread.recipient_email;
+
+    document.getElementById('messageList')!.innerHTML = messages.map(m => `
+      <div class="flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}">
+        <div class="max-w-[85%] rounded-2xl px-4 py-3 ${
+          m.direction === 'out' ? 'bg-navy text-white' : 'bg-white border border-border text-navy'
+        }">
+          <div class="text-[11px] mb-1 ${m.direction === 'out' ? 'text-white/70' : 'text-gray-400'}">
+            ${escapeHtml(m.direction === 'out' ? 'RSG Türkiye' : (m.from_name || m.from_email))}
+            &middot; ${formatDate(m.sent_at)}
+          </div>
+          <!-- body_html is produced by renderPlainWithLinks on the server: the
+               correspondent's text is escaped there and only tags that
+               function emitted survive. It is the one field on this page that
+               must not be escaped again, and the only one inserted as HTML. -->
+          <div class="mail-body text-sm leading-relaxed">${m.body_html}</div>
+          ${m.attachment_count > 0 ? `<div class="text-[11px] mt-2 ${
+            m.direction === 'out' ? 'text-white/70' : 'text-gray-400'
+          }">${m.attachment_count} ek var &mdash; indirmek için RSG posta kutusunu Gmail'den açın.</div>` : ''}
+        </div>
+      </div>`).join('');
+
+    const canReply = thread.can_reply === true;
+    document.getElementById('replyForm')!.classList.toggle('hidden', !canReply);
+    document.getElementById('replyBlocked')!.classList.toggle('hidden', canReply);
+    (document.getElementById('replyBody') as HTMLTextAreaElement).value = '';
+  }
+
+  async function submitReply(event: Event): Promise<void> {
+    event.preventDefault();
+    if (!currentThreadId) return;
+
+    const textarea = document.getElementById('replyBody') as HTMLTextAreaElement;
+    const button = document.getElementById('replyBtn') as HTMLButtonElement;
+    const status = document.getElementById('replyStatus')!;
+    const body = textarea.value.trim();
+    if (body === '') return;
+
+    button.disabled = true;
+    status.textContent = 'Gönderiliyor…';
+
+    try {
+      const res = await fetch(`/api/mail/conversations/${encodeURIComponent(currentThreadId)}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      const data: any = await res.json().catch(() => null);
+
+      if (!res.ok || data?.ok !== true) {
+        showToast(ERRORS[data?.code] ?? 'Cevap gönderilemedi.', true);
+        return;
+      }
+
+      // Clear the box only once the reply has definitely gone. The member's
+      // words exist nowhere else, so emptying it on a failed send would
+      // destroy the only copy.
+      textarea.value = '';
+      showToast('Cevap gönderildi.');
+      await openThread(currentThreadId);
+    } catch {
+      showToast('Cevap gönderilemedi.', true);
+    } finally {
+      button.disabled = false;
+      status.textContent = '';
+    }
+  }
+
+  async function init(): Promise<void> {
+    document.getElementById('replyForm')!.addEventListener('submit', e => { void submitReply(e); });
+
+    document.getElementById('refreshBtn')!.addEventListener('click', async () => {
+      await refresh();
+      await loadThreads();
+      if (currentThreadId) await openThread(currentThreadId);
+    });
+
+    document.getElementById('scopeAll')!.addEventListener('change', async event => {
+      scopeAll = (event.target as HTMLInputElement).checked;
+      currentThreadId = null;
+      document.getElementById('threadView')!.classList.add('hidden');
+      document.getElementById('threadEmpty')!.classList.remove('hidden');
+      await loadThreads();
+    });
+
+    // Render the cache first so the page is useful immediately, then go to
+    // Gmail and render again. Refreshing before the first paint would make
+    // every visit wait on a network round trip to Google.
+    const allowed = await loadThreads();
+    document.getElementById('loadingState')!.classList.add('hidden');
+    if (!allowed) return;
+
+    await refresh();
+    await loadThreads();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => { void init(); });
+</script>
