@@ -10,6 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-02-symposium-2026-and-seo-design.md`
 
+## Execution order
+
+Tasks run **1, 2, 3, 4, 5, 7, 6, 8, 9, 10, 11**. Task 6's `BaseLayout` imports
+`getCommitteeByEdition`, which Task 7 creates, so Task 7 goes first and Task 6
+needs no stub. Task 7 does not depend on Task 6: its verification greps for a nav
+link the pre-Task-6 header never emitted anyway.
+
 ## Global Constraints
 
 - **Two projects, one repo.** The main site is the repo root (`rsg-website` Pages project, `https://rsg-turkiye.iscbsc.org`). The symposium site is `symposium_website/` (`rsg-symposium` Pages project, `https://symposium.rsg-turkiye.iscbsc.org`). Paths in this plan are relative to the repo root; `cd symposium_website` where a command targets that project.
@@ -64,9 +71,15 @@ The urgent, self-contained SEO fix. `symposium_website` has no test script; this
 - Consumes: nothing.
 - Produces: a working `npm test` inside `symposium_website`, used by every later task.
 
-- [ ] **Step 1: Add the test script**
+- [ ] **Step 1: Install dependencies and add the test script**
 
-In `symposium_website/package.json`, add to `scripts` (`tsx` is already in `devDependencies`):
+`symposium_website/node_modules` does not exist — nothing in that project has been run locally. Install first, or every later command in this plan fails:
+
+```bash
+cd symposium_website && npm install
+```
+
+Then add to its `package.json` `scripts` (`tsx` is already in `devDependencies`):
 
 ```json
 "test": "node --import tsx --test tests/*.test.ts",
@@ -79,20 +92,24 @@ Create `symposium_website/tests/seo.test.ts`:
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import config from '../astro.config.mjs';
+import { readFileSync } from 'node:fs';
 
 const HOST = 'https://symposium.rsg-turkiye.iscbsc.org';
+
+// Read as text, not imported. Importing astro.config.mjs under node:test pulls
+// in Astro's config machinery and dies with ERR_PACKAGE_PATH_NOT_EXPORTED from
+// a transitive dependency.
+const config = readFileSync('astro.config.mjs', 'utf8');
 
 test('the canonical host is the live symposium domain', () => {
   // Astro derives every canonical tag, og:url and sitemap entry from `site`.
   // Pointing it at the parked rsgturkey.com would hand Google a sitemap of
   // dead URLs.
-  assert.equal(config.site, HOST);
+  assert.ok(config.includes(`site: '${HOST}'`), 'site must be the live host');
 });
 
 test('no dead domain survives in the config', () => {
-  const text = JSON.stringify(config);
-  assert.ok(!text.includes('rsgturkey.com'), 'rsgturkey.com is parked');
+  assert.ok(!config.includes('rsgturkey.com'), 'rsgturkey.com is parked');
 });
 ```
 
@@ -188,16 +205,21 @@ The heart of the design. Pure functions first, no page touched yet.
 
 **Files:**
 - Modify: `symposium_website/src/content.config.ts`
-- Create: `symposium_website/src/lib/editions.ts`
+- Create: `symposium_website/src/lib/editions.ts` (pure — no astro imports)
+- Create: `symposium_website/src/lib/editions-content.ts` (the `astro:content` wrappers)
 - Create: `symposium_website/tests/editions.test.ts`
+
+**Why two modules:** `astro:content` is a virtual module that exists only inside an Astro build. A test importing anything that *calls* `getCollection` dies with `Cannot find module 'astro:content'`. So every rule worth testing lives in `editions.ts` with no astro import, and the thin collection wrappers live beside it in `editions-content.ts`. The main site's `src/lib/hreflang.ts` is pure for the same reason.
 
 **Interfaces:**
 - Consumes: Task 1's test script.
-- Produces:
-  - `type EditionData` — the shape of a parsed edition's frontmatter.
-  - `splitEditions(all: EditionData[], now: Date): { upcoming: EditionData | null; past: EditionData[] }`
-  - `getUpcomingEdition(): Promise<CollectionEntry<'editions'> | null>`
-  - `getPastEditions(): Promise<CollectionEntry<'editions'>[]>`
+- Produces, from `src/lib/editions.ts` (pure):
+  - `interface EditionLike` — the structural shape the logic needs; the collection's `data` satisfies it.
+  - `splitEditions(all: EditionLike[], now: Date): { upcoming: EditionLike | null; past: EditionLike[] }`
+- Produces, from `src/lib/editions-content.ts`:
+  - `getUpcomingEdition(now?: Date): Promise<CollectionEntry<'editions'> | null>`
+  - `getPastEditions(now?: Date): Promise<CollectionEntry<'editions'>[]>`
+  - `getEditionByYear(year: number): Promise<CollectionEntry<'editions'> | undefined>`
 
 - [ ] **Step 1: Extend the collection schema**
 
@@ -225,15 +247,15 @@ Create `symposium_website/tests/editions.test.ts`:
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, type EditionData } from '../src/lib/editions';
+import { splitEditions, type EditionLike } from '../src/lib/editions';
 
-function edition(year: number, startDate?: string, endDate?: string): EditionData {
+function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
     year,
     title: `${year} symposium`,
     startDate: startDate ? new Date(startDate) : undefined,
     endDate: endDate ? new Date(endDate) : undefined,
-  } as EditionData;
+  } as EditionLike;
 }
 
 const ALL = [
@@ -300,13 +322,34 @@ Expected: FAIL — `Cannot find module '../src/lib/editions'`.
 
 - [ ] **Step 4: Implement the lifecycle**
 
-Create `symposium_website/src/lib/editions.ts`:
+Create `symposium_website/src/lib/editions.ts` — pure, no astro imports:
 
 ```ts
-import { getCollection, type CollectionEntry } from "astro:content";
-
-export type EditionEntry = CollectionEntry<"editions">;
-export type EditionData = EditionEntry["data"];
+/**
+ * The shape the edition rules need.
+ *
+ * Declared structurally rather than as CollectionEntry<"editions">["data"] so
+ * this module stays importable from a plain node:test run: anything that
+ * reaches astro:content cannot be unit tested, because that module only
+ * exists inside an Astro build.
+ */
+export interface EditionLike {
+  year: number;
+  title: string;
+  titleTr?: string;
+  subtitle?: string;
+  subtitleTr?: string;
+  startDate?: Date;
+  endDate?: Date;
+  venue?: string;
+  venueCity?: string;
+  venuePublic?: boolean;
+  cityPublic?: boolean;
+  registrationUrl?: string;
+  abstractUrl?: string;
+  registrationDeadline?: Date;
+  abstractDeadline?: Date;
+}
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -317,7 +360,7 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
  * symposium at one minute past midnight on the morning it happens, so the
  * site would advertise it as over while people were still in the room.
  */
-function endOfEvent(e: EditionData): number {
+function endOfEvent(e: EditionLike): number {
   const last = e.endDate ?? e.startDate!;
   return last.getTime() + ONE_DAY_MS;
 }
@@ -330,9 +373,9 @@ function endOfEvent(e: EditionData): number {
  * the year is recorded for 2018-2023.
  */
 export function splitEditions(
-  all: EditionData[],
+  all: EditionLike[],
   now: Date
-): { upcoming: EditionData | null; past: EditionData[] } {
+): { upcoming: EditionLike | null; past: EditionLike[] } {
   const current = all
     .filter((e) => e.startDate && endOfEvent(e) > now.getTime())
     .sort((a, b) => a.startDate!.getTime() - b.startDate!.getTime());
@@ -345,6 +388,16 @@ export function splitEditions(
 
   return { upcoming, past };
 }
+
+```
+
+Then create `symposium_website/src/lib/editions-content.ts` — the only file that touches the collection:
+
+```ts
+import { getCollection, type CollectionEntry } from "astro:content";
+import { splitEditions } from "./editions";
+
+export type EditionEntry = CollectionEntry<"editions">;
 
 export async function getUpcomingEdition(now = new Date()): Promise<EditionEntry | null> {
   const entries = await getCollection("editions");
@@ -364,6 +417,8 @@ export async function getEditionByYear(year: number): Promise<EditionEntry | und
 }
 ```
 
+Pages import the pure rules from `./editions` and the collection wrappers from `./editions-content`.
+
 - [ ] **Step 5: Run the tests**
 
 ```bash
@@ -376,7 +431,7 @@ Expected: PASS, 9 tests.
 
 ```bash
 git add symposium_website/src/content.config.ts symposium_website/src/lib/editions.ts \
-        symposium_website/tests/editions.test.ts
+        symposium_website/src/lib/editions-content.ts symposium_website/tests/editions.test.ts
 git commit -m "feat: derive the current edition from a date, not a flag
 
 /venue and /schedule froze on 2024 because they read a hand-set
@@ -420,7 +475,7 @@ Replace the import and the data source. Frontmatter becomes:
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getUpcomingEdition } from "../lib/editions";
+import { getUpcomingEdition } from "../lib/editions-content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -525,7 +580,7 @@ source. Also removes the hardcoded '2024 Symposium Schedule' subtitle."
 
 **Interfaces:**
 - Consumes: the Task 2 schema.
-- Produces: `locationFor(data: EditionData): LocationDisplay`, where
+- Produces: `locationFor(data: EditionLike): LocationDisplay`, where
 
 ```ts
 type LocationDisplay =
@@ -542,7 +597,7 @@ Append to `symposium_website/tests/editions.test.ts`:
 import { locationFor } from '../src/lib/editions';
 
 const withVenue = (venuePublic: boolean, cityPublic: boolean) =>
-  ({ venue: 'METU U3 Amphitheatre', venueCity: 'Ankara', venuePublic, cityPublic }) as EditionData;
+  ({ venue: 'METU U3 Amphitheatre', venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
 
 test('both public: hall and city are shown', () => {
   assert.deepEqual(locationFor(withVenue(true, true)),
@@ -564,7 +619,7 @@ test('the hall never leaks through the city-only branch', () => {
 });
 
 test('an edition with no venue recorded is hidden even when public', () => {
-  assert.deepEqual(locationFor({ venue: '', venueCity: '', venuePublic: true, cityPublic: true } as EditionData),
+  assert.deepEqual(locationFor({ venue: '', venueCity: '', venuePublic: true, cityPublic: true } as EditionLike),
     { kind: 'hidden' });
 });
 ```
@@ -595,7 +650,7 @@ export type LocationDisplay =
  * unannounced. Every page and the JSON-LD go through this one function, so
  * there is a single place the hall can leak from -- and one place to test.
  */
-export function locationFor(e: EditionData): LocationDisplay {
+export function locationFor(e: EditionLike): LocationDisplay {
   const venue = e.venue?.trim() ?? "";
   const city = e.venueCity?.trim() ?? "";
 
@@ -699,7 +754,7 @@ and inventing days to satisfy a schema would put fiction in the repo."
 
 **Interfaces:**
 - Consumes: `getUpcomingEdition`, `locationFor`.
-- Produces: `ctasFor(e: EditionData): Array<{ kind: 'registration' | 'abstract'; url: string; deadline?: Date }>`
+- Produces: `ctasFor(e: EditionLike): Array<{ kind: 'registration' | 'abstract'; url: string; deadline?: Date }>`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -711,11 +766,11 @@ import { ctasFor } from '../src/lib/editions';
 test('no CTA is offered while no form exists', () => {
   // A greyed-out "Register (soon)" button sitting there for five weeks
   // reads as broken, so the button is absent until the URL is real.
-  assert.deepEqual(ctasFor({ registrationUrl: '', abstractUrl: '' } as EditionData), []);
+  assert.deepEqual(ctasFor({ registrationUrl: '', abstractUrl: '' } as EditionLike), []);
 });
 
 test('each CTA appears independently as its URL is filled in', () => {
-  const only = ctasFor({ registrationUrl: '', abstractUrl: 'https://forms.gle/abs' } as EditionData);
+  const only = ctasFor({ registrationUrl: '', abstractUrl: 'https://forms.gle/abs' } as EditionLike);
   assert.equal(only.length, 1);
   assert.equal(only[0].kind, 'abstract');
   assert.equal(only[0].url, 'https://forms.gle/abs');
@@ -725,7 +780,7 @@ test('registration is listed before abstracts when both are open', () => {
   const both = ctasFor({
     registrationUrl: 'https://forms.gle/reg',
     abstractUrl: 'https://forms.gle/abs',
-  } as EditionData);
+  } as EditionLike);
   assert.deepEqual(both.map(c => c.kind), ['registration', 'abstract']);
 });
 
@@ -734,12 +789,12 @@ test('a deadline rides along with its CTA', () => {
     registrationUrl: 'https://forms.gle/reg',
     registrationDeadline: new Date('2026-10-01'),
     abstractUrl: '',
-  } as EditionData);
+  } as EditionLike);
   assert.equal(cta.deadline?.toISOString().slice(0, 10), '2026-10-01');
 });
 
 test('whitespace is not a URL', () => {
-  assert.deepEqual(ctasFor({ registrationUrl: '   ', abstractUrl: '' } as EditionData), []);
+  assert.deepEqual(ctasFor({ registrationUrl: '   ', abstractUrl: '' } as EditionLike), []);
 });
 ```
 
@@ -770,7 +825,7 @@ export interface Cta {
  * soon" line instead of disabled buttons -- and the day the URL lands, the
  * button appears with no template change.
  */
-export function ctasFor(e: EditionData): Cta[] {
+export function ctasFor(e: EditionLike): Cta[] {
   const ctas: Cta[] = [];
   const reg = e.registrationUrl?.trim();
   const abs = e.abstractUrl?.trim();
@@ -820,10 +875,10 @@ Create `symposium_website/src/components/EditionCta.astro`:
 
 ```astro
 ---
-import { ctasFor, type EditionData } from "../lib/editions";
+import { ctasFor, type EditionLike } from "../lib/editions";
 import { useTranslations, type Lang } from "../i18n/ui";
 
-interface Props { edition: EditionData; lang: Lang }
+interface Props { edition: EditionLike; lang: Lang }
 const { edition, lang } = Astro.props;
 const t = useTranslations(lang);
 const ctas = ctasFor(edition);
@@ -864,7 +919,8 @@ Add to `index.astro`'s frontmatter:
 
 ```astro
 import EditionCta from "../components/EditionCta.astro";
-import { getUpcomingEdition, getPastEditions, locationFor } from "../lib/editions";
+import { getUpcomingEdition, getPastEditions } from "../lib/editions-content";
+import { locationFor } from "../lib/editions";
 
 const upcoming = await getUpcomingEdition();
 const heading = upcoming
@@ -1083,7 +1139,7 @@ Expected: PASS.
 `BaseLayout.astro` computes the state once and passes it down. In its frontmatter:
 
 ```astro
-import { getUpcomingEdition } from "../lib/editions";
+import { getUpcomingEdition } from "../lib/editions-content";
 import { getSessionsByEdition } from "../data/sessions";
 import { getSpeakersByEdition } from "../data/speakers";
 import { getCommitteeByEdition } from "../data/committee";
@@ -1117,7 +1173,7 @@ const navLinks = navItemsFor(navState, lang);
 
 Both the desktop nav and the mobile menu then map over `navLinks` using `t(link.labelKey)` for the label and `link.href` for the target, dropping the `anchor` field — nothing uses it. Add `"nav.committee": "Committee"` / `"Komite"` to `ui.ts`.
 
-`getCommitteeByEdition` arrives in Task 7; until then this task can stub `hasCommittee: false`. Note the ordering: if you do Task 7 first, no stub is needed.
+`getCommitteeByEdition` comes from Task 7, which runs before this task — import it directly. Do not stub `hasCommittee`: a stub here would ship, because nothing later in the plan removes it.
 
 - [ ] **Step 6: Give sessions a time**
 
@@ -1214,7 +1270,7 @@ Create `symposium_website/src/pages/committee.astro`:
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getUpcomingEdition } from "../lib/editions";
+import { getUpcomingEdition } from "../lib/editions-content";
 import { getCommitteeByEdition } from "../data/committee";
 
 const lang = getLangFromUrl(Astro.url);
@@ -1431,10 +1487,16 @@ Create `symposium_website/src/components/EventJsonLd.astro`:
 
 ```astro
 ---
-import { locationFor, ctasFor, type EditionData } from "../lib/editions";
+import { locationFor, ctasFor, type EditionLike } from "../lib/editions";
+import type { Lang } from "../i18n/ui";
 
-interface Props { edition: EditionData; url: string }
-const { edition, url } = Astro.props;
+interface Props { edition: EditionLike; url: string; lang: Lang }
+const { edition, url, lang } = Astro.props;
+
+// The Turkish page must not publish English structured data, so name and
+// description follow the same titleTr/subtitleTr preference the hero uses.
+const name = (lang === "tr" && edition.titleTr) || edition.title;
+const description = (lang === "tr" && edition.subtitleTr) || edition.subtitle;
 
 const place = locationFor(edition);
 const registration = ctasFor(edition).find((c) => c.kind === "registration");
@@ -1449,8 +1511,9 @@ const location =
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Event",
-  name: edition.title,
-  description: edition.subtitle,
+  name,
+  ...(description && { description }),
+  inLanguage: lang,
   startDate: edition.startDate?.toISOString().slice(0, 10),
   ...(edition.endDate && { endDate: edition.endDate.toISOString().slice(0, 10) }),
   eventStatus: "https://schema.org/EventScheduled",
@@ -1467,7 +1530,11 @@ const jsonLd = {
 
 `location` goes through `locationFor`, so the hall cannot leak into structured data either — while `venuePublic` is false Google gets `addressLocality: "Ankara"` and no `name`.
 
-Render it from `index.astro` and `tr/index.astro` when an upcoming edition exists.
+Render it from `index.astro` and `tr/index.astro` when an upcoming edition exists, passing `lang`:
+
+```astro
+{upcoming && <EventJsonLd edition={upcoming.data} url={canonical} lang={lang} />}
+```
 
 - [ ] **Step 8: Verify**
 
@@ -1479,7 +1546,13 @@ grep -ri "U3" dist/ && echo "FAIL: hall leaked into structured data" || echo "ha
 grep -o "Ankara" dist/index.html | head -1
 ```
 
-Expected: `en`, `tr`, `x-default`; one `Event`; no `U3`; `Ankara` present. Paste `dist/index.html`'s JSON-LD into Google's Rich Results Test and confirm it validates as an Event.
+Also confirm the Turkish page publishes Turkish structured data:
+
+```bash
+grep -o '"name":"[^"]*"' dist/tr/index.html | head -1
+```
+
+Expected: `en`, `tr`, `x-default`; one `Event`; no `U3`; `Ankara` present; the TR page's JSON-LD `name` is the Turkish title. Paste `dist/index.html`'s JSON-LD into Google's Rich Results Test and confirm it validates as an Event.
 
 - [ ] **Step 9: Commit**
 
