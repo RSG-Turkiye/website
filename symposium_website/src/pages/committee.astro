@@ -1,0 +1,47 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { useTranslations, getLangFromUrl } from "../i18n/ui";
+import { getUpcomingEdition } from "../lib/editions-content";
+import { getCommitteeByEdition } from "../data/committee";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+const edition = await getUpcomingEdition();
+const members = getCommitteeByEdition(edition?.data.year ?? 0);
+---
+
+<BaseLayout
+  pageTitle={t("committee.title")}
+  translationUrl={lang === "en" ? "/tr/committee" : "/committee"}
+>
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("committee.title")}</h1>
+      <p class="text-white/70 text-lg">{t("committee.subtitle")}</p>
+    </div>
+  </section>
+
+  <div class="max-w-5xl mx-auto px-6 py-16">
+    {members.length === 0 ? (
+      <p class="text-gray-500 text-center py-16">{t("committee.tba")}</p>
+    ) : (
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {members.map((m) => (
+          <div class="bg-white rounded-xl border border-border p-5 text-center">
+            {m.photo && (
+              <img src={m.photo} alt={m.name} loading="lazy"
+                   class="w-24 h-24 rounded-full object-cover mx-auto mb-3" />
+            )}
+            <h3 class="font-semibold text-navy">{m.name}</h3>
+            <p class="text-sm text-navy-mid">{(lang === "tr" && m.roleTr) || m.role}</p>
+            {m.affiliation && <p class="text-xs text-gray-500 mt-1">{m.affiliation}</p>}
+            {m.linkedin && (
+              <a href={m.linkedin} target="_blank" rel="noopener noreferrer"
+                 class="text-xs text-navy-mid hover:text-navy mt-2 inline-block">LinkedIn</a>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</BaseLayout>
