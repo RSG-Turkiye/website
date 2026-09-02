@@ -1,15 +1,15 @@
 # RSG Turkey Website
 
-Official website of [RSG Turkey](https://rsgturkey.com) — the ISCB Regional Student Group for computational biology and bioinformatics in Turkey.
+Official website of [RSG-Türkiye](https://rsg-turkiye.iscbsc.org) — the ISCB Regional Student Group for computational biology and bioinformatics in Turkey.
 
 Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcss.com). Deployed automatically via Cloudflare Pages on every push.
 
 | | |
 |---|---|
-| **Production** | [rsgturkey.com](https://rsgturkey.com) |
+| **Production** | [rsg-turkiye.iscbsc.org](https://rsg-turkiye.iscbsc.org) |
 | **Stable (Cloudflare)** | [website-dkh.pages.dev](https://website-dkh.pages.dev) |
 | **Dev branch** | [website-dev-vi6.pages.dev](https://website-dev-vi6.pages.dev) |
-| **Symposium** | [symposium-website.pages.dev](https://symposium-website.pages.dev) |
+| **Symposium** | [symposium.rsg-turkiye.iscbsc.org](https://symposium.rsg-turkiye.iscbsc.org) |
 
 ---
 
@@ -271,8 +271,10 @@ discards them without fetching or storing anything.
 
 #### Symposium site — nightly rebuild
 
-The symposium website is a static Astro build deployed to the `rsg-symposium`
-Cloudflare Pages project. Which edition is marked "upcoming" is derived from
+The symposium website is a static Astro build deployed to the `symposium-website`
+Cloudflare Pages project (the main site's is plain `website` — neither matches
+the `name` in its own `wrangler.toml`, so use these when reaching for a project
+by name). Which edition is marked "upcoming" is derived from
 the clock *at build time*, so the site does not automatically notice when a
 date passes. Without a nightly rebuild, a symposium would stay "upcoming" for
 weeks or months after it ended, until someone happened to push a commit.
@@ -281,7 +283,7 @@ A Cloudflare Worker (`workers/symposium-cron/`) runs at 01:17 UTC every day
 (04:17 in Türkiye — after midnight local, so the day flips before the first
 visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
 
-1. Create a deploy hook in the `rsg-symposium` Cloudflare Pages project's
+1. Create a deploy hook in the `symposium-website` Cloudflare Pages project's
    **Settings → Build, deployments, environment** → **Build settings → Deploy hooks**.
 2. Set the hook URL as a secret in the Worker:
    ```
@@ -294,7 +296,7 @@ visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
 
 To test it without waiting for 01:17 UTC, invoke the scheduled handler
 locally (see *Triggering either Worker by hand* below) — it should start a
-build in the `rsg-symposium` project immediately.
+build in the `symposium-website` project immediately.
 
 #### How both cron Workers report failure
 

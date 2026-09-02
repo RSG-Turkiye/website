@@ -483,7 +483,7 @@ def hello():
 Use a full URL to an image already hosted online:
 
 ```markdown
-![Speaker photo](https://rsgturkey.com/wp-content/uploads/2024/12/speaker.png)
+![Speaker photo](https://pub-5c845f6be1514cfeb871010a8014ce1e.r2.dev/speaker.png)
 ```
 
 Or add an image to `public/images/` and reference it as:
