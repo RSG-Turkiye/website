@@ -4,6 +4,7 @@ import SponsorLogo from "../components/SponsorLogo.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getSponsorsByEdition } from "../data/sponsors";
 import { getPastEditions } from "../lib/editions-content";
+import { locationFor } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -124,9 +125,14 @@ const BANNER =
                   {edition.data.year}
                 </span>
                 <h3 class="font-semibold text-navy text-sm leading-snug">{edition.data.title}</h3>
-                {edition.data.venueCity && (
-                  <p class="text-xs text-gray-400">📍 {edition.data.venueCity}</p>
-                )}
+                {(() => {
+                  const loc = locationFor(edition.data);
+                  return (
+                    loc.kind !== "hidden" && (
+                      <p class="text-xs text-gray-400">📍 {loc.city}</p>
+                    )
+                  );
+                })()}
               </div>
             </a>
           ))
