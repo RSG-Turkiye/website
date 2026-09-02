@@ -269,6 +269,33 @@ of `turkey.rsg@gmail.com` never reaches the website — for admins either.
 Gmail's history feed does name the ids of unrelated messages; the sync
 discards them without fetching or storing anything.
 
+#### Symposium site — nightly rebuild
+
+The symposium website is a static Astro build deployed to the `rsg-symposium`
+Cloudflare Pages project. Which edition is marked "upcoming" is derived from
+the clock *at build time*, so the site does not automatically notice when a
+date passes. Without a nightly rebuild, a symposium would stay "upcoming" for
+weeks or months after it ended, until someone happened to push a commit.
+
+A Cloudflare Worker (`workers/symposium-cron/`) runs at 01:17 UTC every day
+(04:17 in Türkiye — after midnight local, so the day flips before the first
+visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
+
+1. Create a deploy hook in the `rsg-symposium` Cloudflare Pages project's
+   **Settings → Build, deployments, environment** → **Build settings → Deploy hooks**.
+2. Set the hook URL as a secret in the Worker:
+   ```
+   cd workers/symposium-cron && npx wrangler secret put SYMPOSIUM_DEPLOY_HOOK
+   ```
+3. Deploy the Worker:
+   ```
+   npx wrangler deploy
+   ```
+
+After deploy, you can trigger the rebuild manually from the Cloudflare
+dashboard to test — it should start a build in the `rsg-symposium` project
+immediately.
+
 ---
 
 ## Content Types
