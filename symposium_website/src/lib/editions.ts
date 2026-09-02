@@ -101,3 +101,26 @@ export function locationFor(e: EditionLike): LocationDisplay {
   }
   return { kind: "hidden" };
 }
+
+export interface Cta {
+  kind: "registration" | "abstract";
+  url: string;
+  deadline?: Date;
+}
+
+/**
+ * The calls to action an edition can currently offer.
+ *
+ * A CTA exists only when its URL does. For the weeks between announcing
+ * the symposium and opening the forms, the hero shows a single "opens
+ * soon" line instead of disabled buttons -- and the day the URL lands, the
+ * button appears with no template change.
+ */
+export function ctasFor(e: EditionLike): Cta[] {
+  const ctas: Cta[] = [];
+  const reg = e.registrationUrl?.trim();
+  const abs = e.abstractUrl?.trim();
+  if (reg) ctas.push({ kind: "registration", url: reg, deadline: e.registrationDeadline });
+  if (abs) ctas.push({ kind: "abstract", url: abs, deadline: e.abstractDeadline });
+  return ctas;
+}

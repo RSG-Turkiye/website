@@ -1,0 +1,37 @@
+---
+import { ctasFor, type EditionLike } from "../lib/editions";
+import { useTranslations, type Lang } from "../i18n/ui";
+
+interface Props { edition: EditionLike; lang: Lang }
+const { edition, lang } = Astro.props;
+const t = useTranslations(lang);
+const ctas = ctasFor(edition);
+const locale = lang === "tr" ? "tr-TR" : "en-GB";
+---
+
+{ctas.length === 0 ? (
+  <p class="text-white/70 text-sm mt-2">{t("cta.soon")}</p>
+) : (
+  <div class="flex flex-wrap justify-center gap-4 mt-2">
+    {ctas.map((cta) => (
+      <a
+        href={cta.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        class:list={[
+          "px-6 py-3 rounded-lg font-semibold text-sm transition-colors",
+          cta.kind === "registration"
+            ? "bg-red text-white hover:bg-red/90"
+            : "bg-white text-navy hover:bg-navy-light",
+        ]}
+      >
+        {t(cta.kind === "registration" ? "cta.register" : "cta.abstract")}
+        {cta.deadline && (
+          <span class="block text-xs font-normal opacity-80">
+            {t("cta.deadline").replace("{date}", cta.deadline.toLocaleDateString(locale))}
+          </span>
+        )}
+      </a>
+    ))}
+  </div>
+)}

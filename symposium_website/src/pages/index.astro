@@ -1,9 +1,10 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SponsorLogo from "../components/SponsorLogo.astro";
+import EditionCta from "../components/EditionCta.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getSponsorsByEdition } from "../data/sponsors";
-import { getPastEditions } from "../lib/editions-content";
+import { getUpcomingEdition, getPastEditions } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
@@ -15,6 +16,16 @@ const latestSponsors = getSponsorsByEdition(2024);
 
 // Recent editions for the teaser strip
 const recentEditions = (await getPastEditions()).slice(0, 3);
+
+const upcoming = await getUpcomingEdition();
+const heading = upcoming
+  ? (lang === "tr" && upcoming.data.titleTr) || upcoming.data.title
+  : "";
+const theme = upcoming
+  ? (lang === "tr" && upcoming.data.subtitleTr) || upcoming.data.subtitle
+  : "";
+const place = upcoming ? locationFor(upcoming.data) : { kind: "hidden" as const };
+const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
 const BANNER =
   "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
@@ -39,20 +50,32 @@ const BANNER =
         {t("hero.subtitle")}
       </p>
 
-      <!-- 2026 TBA badge -->
-      <div class="flex flex-col items-center gap-2 mt-2">
-        <span class="text-white/50 text-xs uppercase tracking-widest">
-          {lang === "tr" ? "Sonraki Edisyon" : "Next Edition"}
-        </span>
-        <div class="inline-flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl px-6 py-3 text-white">
-          <span class="text-2xl font-bold">2026</span>
-          <span class="text-white/60">·</span>
-          <span class="text-sm text-white/70">
-            {lang === "tr" ? "Yakında duyurulacak" : "To be announced"}
+      {upcoming && (
+        <div class="flex flex-col items-center gap-3 mt-2">
+          <span class="text-white/50 text-xs uppercase tracking-widest">
+            {lang === "tr" ? "Sonraki Edisyon" : "Next Edition"}
           </span>
-          <span class="w-2 h-2 bg-red rounded-full animate-pulse ml-1"></span>
+          <h2 class="text-2xl sm:text-3xl font-bold">{heading}</h2>
+          {theme && <p class="text-white/80 text-lg max-w-2xl">{theme}</p>}
+          <p class="text-white/90 font-medium">
+            {upcoming.data.startDate?.toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
+              day: "numeric", month: "long", year: "numeric",
+            })}
+          </p>
+          <p class="text-white/70 text-sm">
+            {place.kind === "full" && `${place.venue}, ${place.city}`}
+            {place.kind === "withheld" && `${place.city} · ${t("venue.tba")}`}
+            {place.kind === "city-only" && place.city}
+          </p>
+          <p
+            id="countdown"
+            class="text-white/60 text-sm tabular-nums"
+            data-starts-at={startsAt}
+            data-days-label={t("hero.countdown.days")}
+          ></p>
+          <EditionCta edition={upcoming.data} lang={lang} />
         </div>
-      </div>
+      )}
 
       <div class="flex flex-wrap justify-center gap-4 mt-2">
         <a href="#about" class="px-6 py-3 rounded-lg bg-white text-navy font-semibold hover:bg-navy-light transition-colors text-sm">
@@ -154,3 +177,18 @@ const BANNER =
     </div>
   </section>
 </BaseLayout>
+
+<script>
+  const el = document.getElementById("countdown");
+  const startsAt = el?.dataset.startsAt;
+  const daysLabel = el?.dataset.daysLabel ?? "";
+  if (el && startsAt) {
+    const target = new Date(startsAt).getTime();
+    const tick = () => {
+      const days = Math.ceil((target - Date.now()) / 86_400_000);
+      el.textContent = days > 0 ? `${days} ${daysLabel}` : "";
+    };
+    tick();
+    setInterval(tick, 60_000);
+  }
+</script>
