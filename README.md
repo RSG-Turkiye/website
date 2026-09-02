@@ -237,6 +237,38 @@ Two things silently stop the queue, and neither produces an error anyone sees:
 If mail stops going out at its scheduled time, check the workflow's run history
 first — a disabled schedule shows as no runs at all.
 
+### Reading replies (Conversations)
+
+Reading replies needs one more OAuth scope than sending does, and Google
+treats it as *restricted* rather than merely sensitive.
+
+1. In Google Cloud → **Google Auth Platform → Data access**, add
+   `https://www.googleapis.com/auth/gmail.readonly` alongside the existing
+   `gmail.send` scope and save.
+2. Re-run the refresh-token grant for `turkey.rsg@gmail.com`. An existing
+   refresh token does **not** gain a scope that was added after it was
+   issued — the old token keeps working for sending and fails for reading,
+   which looks like a broken sync rather than a missing grant.
+   The consent screen warns more sternly than it did for `gmail.send`;
+   a single account granting access to its own mailbox proceeds through
+   **Advanced → Go to RSG Turkiye (unsafe)**.
+3. Replace the secret with the new token:
+   ```
+   npx wrangler pages secret put GMAIL_REFRESH_TOKEN
+   ```
+4. Apply the migrations from notes 6a and 6b in `db/schema.sql`.
+5. Redeploy the cron Worker so it picks up `SYNC_URL`:
+   ```
+   cd workers/mail-cron && npx wrangler deploy
+   ```
+
+**What the site can and cannot see.** The sync only ever fetches threads
+recorded in `mail_threads`, and a row lands there only when the site itself
+sends a message. No page, endpoint or helper lists the mailbox, so the rest
+of `turkey.rsg@gmail.com` never reaches the website — for admins either.
+Gmail's history feed does name the ids of unrelated messages; the sync
+discards them without fetching or storing anything.
+
 ---
 
 ## Content Types

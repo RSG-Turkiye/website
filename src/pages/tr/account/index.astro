@@ -92,6 +92,18 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <a href="/tr/account/mail" class="shrink-0 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">Aç</a>
         </div>
 
+        <!-- Conversations (only for authorised senders) -->
+        <div id="conversationsCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-semibold text-navy mb-1">
+              Yazışmalar
+              <span id="conversationsBadge" class="hidden ml-1 px-2 py-0.5 rounded-full bg-navy text-white text-[11px] align-middle"></span>
+            </h2>
+            <p class="text-sm text-gray-500">RSG adına gönderdiğiniz e-postalara gelen cevaplar.</p>
+          </div>
+          <a href="/tr/account/conversations" class="shrink-0 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">Aç</a>
+        </div>
+
         <!-- Write a post (writers only) -->
         <div id="writerCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
           <h2 class="text-sm font-semibold text-navy mb-4">Blog Yazısı Yaz</h2>
@@ -260,6 +272,23 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 
       if (data.user.is_sender) {
         document.getElementById('senderCard')!.classList.remove('hidden');
+        document.getElementById('conversationsCard')!.classList.remove('hidden');
+
+        // Best-effort: a profile page that fails to load a badge is still a
+        // working profile page, so this never blocks or reports.
+        try {
+          const res = await fetch('/api/mail/conversations?only=count');
+          if (res.ok) {
+            const counts: any = await res.json();
+            if (counts.unreadCount > 0) {
+              const badge = document.getElementById('conversationsBadge')!;
+              badge.textContent = String(counts.unreadCount);
+              badge.classList.remove('hidden');
+            }
+          }
+        } catch {
+          // Ignored on purpose -- see above.
+        }
       }
 
       // Writer: blog submissions
