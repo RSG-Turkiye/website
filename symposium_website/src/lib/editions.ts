@@ -63,3 +63,29 @@ export function splitEditions(
 
   return { upcoming, future, past };
 }
+
+export type LocationDisplay =
+  | { kind: "full"; venue: string; city: string }
+  | { kind: "city-only"; city: string }
+  | { kind: "hidden" };
+
+/**
+ * What a page may say about where the symposium is.
+ *
+ * Two independent flags because they answer different questions: the city
+ * can be announced so people can plan travel while the hall is still
+ * unannounced. Every page and the JSON-LD go through this one function, so
+ * there is a single place the hall can leak from -- and one place to test.
+ */
+export function locationFor(e: EditionLike): LocationDisplay {
+  const venue = e.venue?.trim() ?? "";
+  const city = e.venueCity?.trim() ?? "";
+
+  if (e.venuePublic && venue) {
+    return { kind: "full", venue, city };
+  }
+  if (e.cityPublic && city) {
+    return { kind: "city-only", city };
+  }
+  return { kind: "hidden" };
+}

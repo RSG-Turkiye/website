@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, type EditionLike } from '../src/lib/editions';
+import { splitEditions, type EditionLike, locationFor } from '../src/lib/editions';
 
 function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
@@ -81,4 +81,31 @@ test('future editions not yet current are held separately from archive', () => {
   assert.equal(upcoming?.year, 2026, 'nearest future edition is upcoming');
   assert.deepEqual(future.map(e => e.year), [2027], 'further future edition is in future list');
   assert.deepEqual(past.map(e => e.year), [2024, 2023], 'undated editions are in past');
+});
+
+const withVenue = (venuePublic: boolean, cityPublic: boolean) =>
+  ({ venue: 'METU U3 Amphitheatre', venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
+
+test('both public: hall and city are shown', () => {
+  assert.deepEqual(locationFor(withVenue(true, true)),
+    { kind: 'full', venue: 'METU U3 Amphitheatre', city: 'Ankara' });
+});
+
+test('city announced, hall withheld: the city goes out alone', () => {
+  // People need "Ankara" to book travel weeks before we name the hall.
+  assert.deepEqual(locationFor(withVenue(false, true)), { kind: 'city-only', city: 'Ankara' });
+});
+
+test('neither announced: nothing at all', () => {
+  assert.deepEqual(locationFor(withVenue(false, false)), { kind: 'hidden' });
+});
+
+test('the hall never leaks through the city-only branch', () => {
+  const shown = locationFor(withVenue(false, true));
+  assert.ok(!JSON.stringify(shown).includes('U3'), 'the hall must not appear');
+});
+
+test('an edition with no venue recorded is hidden even when public', () => {
+  assert.deepEqual(locationFor({ venue: '', venueCity: '', venuePublic: true, cityPublic: true } as EditionLike),
+    { kind: 'hidden' });
 });
