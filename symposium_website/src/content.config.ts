@@ -13,6 +13,16 @@ const editions = defineCollection({
     posterImage: z.string().default(""),
     galleryImages: z.array(z.string()).default([]),
     speakers: z.array(z.string()).default([]),  // speaker slugs
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
+    titleTr: z.string().default(""),
+    subtitleTr: z.string().default(""),
+    venuePublic: z.boolean().default(true),
+    cityPublic: z.boolean().default(true),
+    registrationUrl: z.string().default(""),
+    abstractUrl: z.string().default(""),
+    registrationDeadline: z.coerce.date().optional(),
+    abstractDeadline: z.coerce.date().optional(),
   }),
 });
 
