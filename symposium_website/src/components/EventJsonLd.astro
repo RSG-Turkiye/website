@@ -1,0 +1,46 @@
+---
+import { locationFor, ctasFor, type EditionLike } from "../lib/editions";
+import type { Lang } from "../i18n/ui";
+
+interface Props { edition: EditionLike; url: string; lang: Lang }
+const { edition, url, lang } = Astro.props;
+
+// The Turkish page must not publish English structured data, so name and
+// description follow the same titleTr/subtitleTr preference the hero uses.
+const name = (lang === "tr" && edition.titleTr) || edition.title;
+const description = (lang === "tr" && edition.subtitleTr) || edition.subtitle;
+
+const place = locationFor(edition);
+const registration = ctasFor(edition).find((c) => c.kind === "registration");
+
+// locationFor has four kinds. "full" names the hall; "withheld" and
+// "city-only" both publish only the city -- to a search engine there is no
+// difference between a hall we are withholding and a hall we never
+// recorded, both mean "we can say the city, not the room". "hidden" gets
+// no location key at all, so an Event with nothing announced yet does not
+// claim a place it cannot back up.
+const location =
+  place.kind === "full"
+    ? { "@type": "Place", name: place.venue, address: { "@type": "PostalAddress", addressLocality: place.city, addressCountry: "TR" } }
+    : place.kind === "withheld" || place.kind === "city-only"
+      ? { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: place.city, addressCountry: "TR" } }
+      : undefined;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Event",
+  name,
+  ...(description && { description }),
+  inLanguage: lang,
+  startDate: edition.startDate?.toISOString().slice(0, 10),
+  ...(edition.endDate && { endDate: edition.endDate.toISOString().slice(0, 10) }),
+  eventStatus: "https://schema.org/EventScheduled",
+  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+  organizer: { "@type": "Organization", name: "ISCB SC RSG-Türkiye", url: "https://rsg-turkiye.iscbsc.org" },
+  url,
+  ...(location && { location }),
+  ...(registration && { offers: { "@type": "Offer", url: registration.url, availability: "https://schema.org/InStock" } }),
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

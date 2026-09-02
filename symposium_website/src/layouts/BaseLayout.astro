@@ -8,6 +8,7 @@ import { getSessionsByEdition } from "../data/sessions";
 import { getSpeakersByEdition } from "../data/speakers";
 import { getCommitteeByEdition } from "../data/committee";
 import type { NavState } from "../lib/nav";
+import { alternatesFor } from "../lib/hreflang";
 
 interface Props {
   pageTitle: string;
@@ -29,8 +30,9 @@ const navState: NavState = {
 };
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const ogImage = image || "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606591/rsgturkey/symposium/2023/08/symposium2023.jpg";
+const ogImage = image || "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
 const metaDesc = description || t("site.description");
+const alternates = alternatesFor(Astro.url.pathname);
 ---
 
 <!doctype html>
@@ -56,7 +58,13 @@ const metaDesc = description || t("site.description");
     <meta name="twitter:description" content={metaDesc} />
     <meta name="twitter:image" content={ogImage} />
 
-    {translationUrl && <meta name="translation-url" content={translationUrl} />}
+    {alternates && (
+      <>
+        <link rel="alternate" hreflang="en" href={new URL(alternates.en, Astro.site).href} />
+        <link rel="alternate" hreflang="tr" href={new URL(alternates.tr, Astro.site).href} />
+        <link rel="alternate" hreflang="x-default" href={new URL(alternates.en, Astro.site).href} />
+      </>
+    )}
 
     <link rel="icon" type="image/png" href="/logo/rsgturkey_logo.png" />
   </head>

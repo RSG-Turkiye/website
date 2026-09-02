@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SponsorLogo from "../../components/SponsorLogo.astro";
 import EditionCta from "../../components/EditionCta.astro";
+import EventJsonLd from "../../components/EventJsonLd.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSponsorsByEdition } from "../../data/sponsors";
 import { getUpcomingEdition, getPastEditions } from "../../lib/editions-content";
@@ -24,9 +25,12 @@ const place = upcoming ? locationFor(upcoming.data) : { kind: "hidden" as const 
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
 const BANNER = "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
+
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
 ---
 
 <BaseLayout pageTitle={t("nav.home")} image={BANNER} translationUrl="/">
+  {upcoming && <EventJsonLd edition={upcoming.data} url={canonical} lang={lang} />}
   <section class="relative bg-navy text-white overflow-hidden min-h-[90vh] flex items-center">
     <div class="absolute inset-0 bg-cover bg-center" style={`background-image: url('${BANNER}')`}></div>
     <div class="absolute inset-0 bg-navy/75"></div>
