@@ -20,7 +20,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   // drafts.
   if (wantsAll && user.is_admin === 1) {
     const result = await env.DB.prepare(
-      `SELECT s.id, s.recipients, s.recipient_name, s.subject, s.body,
+      `SELECT s.id, s.recipients, s.subject, s.body,
               s.attachment_ids, s.scheduled_at, u.email AS sender_email
        FROM scheduled_emails s
        JOIN users u ON u.id = s.sender_user_id
@@ -30,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const result = await env.DB.prepare(
-    `SELECT id, recipients, recipient_name, subject, body,
+    `SELECT id, recipients, subject, body,
             attachment_ids, scheduled_at
      FROM scheduled_emails
      WHERE sender_user_id = ?
@@ -66,8 +66,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   const body = parsed as Record<string, unknown>;
 
   if (typeof body.id !== 'string' || typeof body.to !== 'string'
-      || typeof body.subject !== 'string' || typeof body.body !== 'string'
-      || (body.recipient_name !== undefined && typeof body.recipient_name !== 'string')) {
+      || typeof body.subject !== 'string' || typeof body.body !== 'string') {
     return jsonResponse({ error: 'Malformed body', code: 'malformed_request' }, 400);
   }
 
@@ -87,12 +86,11 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
 
   await env.DB.prepare(
     `UPDATE scheduled_emails
-     SET recipients = ?, recipient_name = ?, subject = ?, body = ?,
+     SET recipients = ?, subject = ?, body = ?,
          attachment_ids = ?, scheduled_at = ?, updated_at = ?
      WHERE id = ? AND sender_user_id = ?`
   ).bind(
     JSON.stringify(validation.recipients),
-    (body.recipient_name as string | undefined)?.trim() || null,
     body.subject.trim(),
     body.body.trim(),
     JSON.stringify(attachmentIds),

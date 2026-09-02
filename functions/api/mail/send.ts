@@ -6,7 +6,6 @@ import { validateScheduledAt } from '../../_lib/schedule';
 
 interface ComposeBody {
   to: string;
-  recipient_name?: string;
   subject: string;
   body: string;
   attachment_ids?: string[];
@@ -40,7 +39,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     typeof input.to !== 'string' ||
     typeof input.subject !== 'string' ||
     typeof input.body !== 'string' ||
-    (input.recipient_name !== undefined && typeof input.recipient_name !== 'string') ||
     (input.attachment_ids !== undefined &&
       (!Array.isArray(input.attachment_ids) ||
         !input.attachment_ids.every((id) => typeof id === 'string')))
@@ -71,14 +69,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
     await env.DB.prepare(
       `INSERT INTO scheduled_emails
-        (id, sender_user_id, recipients, recipient_name, subject, body,
+        (id, sender_user_id, recipients, subject, body,
          attachment_ids, scheduled_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       user.id,
       JSON.stringify(recipients),
-      input.recipient_name?.trim() || null,
       input.subject.trim(),
       input.body.trim(),
       JSON.stringify(attachmentIds),
@@ -109,7 +106,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const composeInput: ComposeInput = {
     senderUserId: user.id,
     recipients,
-    recipientName: input.recipient_name?.trim() || null,
     subject: input.subject.trim(),
     body: input.body.trim(),
     attachmentIds,

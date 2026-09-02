@@ -270,6 +270,9 @@ CREATE TABLE IF NOT EXISTS sent_emails (
   id                TEXT PRIMARY KEY,
   sender_user_id    TEXT NOT NULL REFERENCES users(id),
   recipient_email   TEXT NOT NULL,
+  -- Historical only. The compose form used to ask for the recipient's name;
+  -- it no longer does, so nothing writes this and new rows leave it NULL.
+  -- Kept so the send log still shows the names captured before the change.
   recipient_name    TEXT,
   subject           TEXT NOT NULL,
   body_snapshot     TEXT NOT NULL,
@@ -312,6 +315,8 @@ CREATE TABLE IF NOT EXISTS scheduled_emails (
   id              TEXT PRIMARY KEY,
   sender_user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   recipients      TEXT NOT NULL,
+  -- Unused; see sent_emails.recipient_name. The queue is transient, so every
+  -- row still carrying a value drains within days and none replace them.
   recipient_name  TEXT,
   subject         TEXT NOT NULL,
   body            TEXT NOT NULL,
@@ -340,6 +345,8 @@ CREATE TABLE IF NOT EXISTS mail_threads (
   id                TEXT PRIMARY KEY,
   sender_user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   recipient_email   TEXT NOT NULL,
+  -- Historical only; see sent_emails.recipient_name. The conversations page
+  -- falls back to recipient_email, which is what every new thread shows.
   recipient_name    TEXT,
   subject           TEXT NOT NULL,
   last_message_at   INTEGER NOT NULL,

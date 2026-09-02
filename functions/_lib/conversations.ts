@@ -76,7 +76,6 @@ export interface RegisterThreadParams {
   threadId: string;
   senderUserId: string;
   recipientEmail: string;
-  recipientName: string | null;
   subject: string;
   sentAt: number;
 }
@@ -94,14 +93,13 @@ export interface RegisterThreadParams {
 export async function registerThread(env: Env, params: RegisterThreadParams): Promise<void> {
   await env.DB.prepare(
     `INSERT OR IGNORE INTO mail_threads
-      (id, sender_user_id, recipient_email, recipient_name, subject,
+      (id, sender_user_id, recipient_email, subject,
        last_message_at, last_direction, unread, last_notified_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'out', 0, NULL, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, 'out', 0, NULL, ?, ?)`
   ).bind(
     params.threadId,
     params.senderUserId,
     params.recipientEmail,
-    params.recipientName,
     params.subject,
     params.sentAt,
     params.sentAt,

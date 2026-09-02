@@ -17,7 +17,6 @@ import { registerThread } from './conversations';
 export interface ComposeInput {
   senderUserId: string;
   recipients: string[];
-  recipientName: string | null;
   subject: string;
   /** Markdown source, exactly as the member wrote it. */
   body: string;
@@ -108,14 +107,13 @@ async function insertLog(
 ): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO sent_emails
-      (id, sender_user_id, recipient_email, recipient_name, subject, body_snapshot,
+      (id, sender_user_id, recipient_email, subject, body_snapshot,
        attachment_ids, gmail_message_id, gmail_thread_id, status, error_message, sent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     generateId(),
     input.senderUserId,
     recipient,
-    input.recipients.length === 1 ? input.recipientName : null,
     input.subject,
     input.body,
     JSON.stringify(input.attachmentIds),
@@ -193,7 +191,6 @@ export async function sendAndLog(
           threadId: gmailThreadId,
           senderUserId: input.senderUserId,
           recipientEmail: recipient,
-          recipientName: input.recipients.length === 1 ? input.recipientName : null,
           subject: input.subject,
           sentAt: Math.floor(Date.now() / 1000),
         });

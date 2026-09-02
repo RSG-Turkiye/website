@@ -7,7 +7,6 @@ import { replySubject, buildReferences, ingestThread } from '../../../../_lib/co
 interface ThreadRecord {
   id: string;
   recipient_email: string;
-  recipient_name: string | null;
   subject: string;
 }
 
@@ -47,7 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   // read every thread, but writing as someone else's correspondent would make
   // the audit log say something untrue about who spoke.
   const thread = await env.DB.prepare(
-    `SELECT id, recipient_email, recipient_name, subject
+    `SELECT id, recipient_email, subject
      FROM mail_threads WHERE id = ? AND sender_user_id = ?`
   ).bind(id, user.id).first<ThreadRecord>();
 
@@ -71,7 +70,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const composeInput: ComposeInput = {
     senderUserId: user.id,
     recipients: [thread.recipient_email],
-    recipientName: thread.recipient_name,
     subject: replySubject(thread.subject),
     body,
     attachmentIds: [],
