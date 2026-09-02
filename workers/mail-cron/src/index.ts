@@ -2,11 +2,12 @@ export interface Env {
   /** Same value as the Pages project's MAIL_SYNC_SECRET. */
   MAIL_SYNC_SECRET: string;
   DISPATCH_URL: string;
+  SYNC_URL: string;
 }
 
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(dispatch(env));
+    ctx.waitUntil(tick(env));
   },
 
   /**
@@ -15,22 +16,42 @@ export default {
    * simply forwards the one this Worker holds, exactly as the cron does.
    */
   async fetch(_request: Request, env: Env): Promise<Response> {
-    const body = await dispatch(env);
-    return new Response(body, { headers: { 'Content-Type': 'application/json' } });
+    const body = await tick(env);
+    return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
   },
 };
 
-async function dispatch(env: Env): Promise<string> {
-  const res = await fetch(env.DISPATCH_URL, {
-    method: 'POST',
-    headers: { 'X-Dispatch-Secret': env.MAIL_SYNC_SECRET },
-  });
-  const body = await res.text();
+async function tick(env: Env): Promise<{ dispatch: string; sync: string }> {
+  // Dispatch first: a message queued for this minute should go out before the
+  // sync spends the tick's budget reading replies. Sequential rather than
+  // raced, so one failing does not cancel the other's logging.
+  const dispatch = await call(env, 'dispatch', env.DISPATCH_URL);
+  const sync = await call(env, 'sync', env.SYNC_URL);
 
-  // Log both ways: a silent scheduler is the failure mode this Worker exists
-  // to end, so a bad secret or a 500 must be visible in `wrangler tail`.
-  console.log(`dispatch ${res.status}: ${body.slice(0, 300)}`);
-  if (!res.ok) throw new Error(`dispatch returned HTTP ${res.status}`);
+  // Throw only after both have run: a scheduled Worker's single failure signal
+  // is the invocation status, and throwing earlier would have skipped the
+  // second call entirely.
+  if (dispatch.startsWith('ERROR') || sync.startsWith('ERROR')) {
+    throw new Error(`tick failed -- dispatch: ${dispatch.slice(0, 120)} sync: ${sync.slice(0, 120)}`);
+  }
 
-  return body;
+  return { dispatch, sync };
+}
+
+async function call(env: Env, label: string, url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'X-Dispatch-Secret': env.MAIL_SYNC_SECRET },
+    });
+    const body = await res.text();
+
+    // Log both ways: a silent scheduler is the failure mode this Worker exists
+    // to end, so a bad secret or a 500 must be visible in `wrangler tail`.
+    console.log(`${label} ${res.status}: ${body.slice(0, 300)}`);
+    return res.ok ? body : `ERROR ${res.status}: ${body.slice(0, 200)}`;
+  } catch (err) {
+    console.log(`${label} threw: ${String(err).slice(0, 300)}`);
+    return `ERROR: ${String(err).slice(0, 200)}`;
+  }
 }
