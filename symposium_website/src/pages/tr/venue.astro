@@ -33,21 +33,26 @@ const edition = await getUpcomingEdition();
                 {(() => {
                   const loc = locationFor(edition.data);
                   return (
-                    <div>
-                      <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t("venue.location")}</p>
-                      {loc.kind === "full" && (
-                        <>
-                          <p class="text-navy font-medium">{loc.venue}</p>
+                    loc.kind !== "hidden" && (
+                      <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t("venue.location")}</p>
+                        {loc.kind === "full" && (
+                          <>
+                            <p class="text-navy font-medium">{loc.venue}</p>
+                            <p class="text-gray-500 text-sm">{loc.city}</p>
+                          </>
+                        )}
+                        {loc.kind === "withheld" && (
+                          <>
+                            <p class="text-navy font-medium">{t("venue.tba")}</p>
+                            <p class="text-gray-500 text-sm">{loc.city}</p>
+                          </>
+                        )}
+                        {loc.kind === "city-only" && (
                           <p class="text-gray-500 text-sm">{loc.city}</p>
-                        </>
-                      )}
-                      {loc.kind === "city-only" && (
-                        <>
-                          <p class="text-navy font-medium">{t("venue.tba")}</p>
-                          <p class="text-gray-500 text-sm">{loc.city}</p>
-                        </>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )
                   );
                 })()}
 

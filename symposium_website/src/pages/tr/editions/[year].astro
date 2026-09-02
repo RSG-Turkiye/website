@@ -43,8 +43,11 @@ const editionSpeakers = edition.data.speakers.map(getSpeakerBySlug).filter(Boole
               {loc.kind === "full" && (
                 <span>📍 {loc.venue}, {loc.city}</span>
               )}
-              {loc.kind === "city-only" && (
+              {loc.kind === "withheld" && (
                 <span>📍 {t("venue.tba")}, {loc.city}</span>
+              )}
+              {loc.kind === "city-only" && (
+                <span>📍 {loc.city}</span>
               )}
             </>
           );

@@ -66,11 +66,19 @@ export function splitEditions(
 
 export type LocationDisplay =
   | { kind: "full"; venue: string; city: string }
+  | { kind: "withheld"; city: string }
   | { kind: "city-only"; city: string }
   | { kind: "hidden" };
 
 /**
  * What a page may say about where the symposium is.
+ *
+ * Four kinds distinguish venue recorded-but-withheld from never-recorded:
+ * - full: hall is public; city rides along regardless of cityPublic
+ *         (naming the hall discloses the city anyway)
+ * - withheld: hall recorded but not announced; city must be public
+ * - city-only: no hall on record; city is public
+ * - hidden: nothing may be said
  *
  * Two independent flags because they answer different questions: the city
  * can be announced so people can plan travel while the hall is still
@@ -80,11 +88,15 @@ export type LocationDisplay =
 export function locationFor(e: EditionLike): LocationDisplay {
   const venue = e.venue?.trim() ?? "";
   const city = e.venueCity?.trim() ?? "";
+  const cityPublishable = e.cityPublic && city;
 
   if (e.venuePublic && venue) {
     return { kind: "full", venue, city };
   }
-  if (e.cityPublic && city) {
+  if (venue && cityPublishable) {
+    return { kind: "withheld", city };
+  }
+  if (cityPublishable) {
     return { kind: "city-only", city };
   }
   return { kind: "hidden" };

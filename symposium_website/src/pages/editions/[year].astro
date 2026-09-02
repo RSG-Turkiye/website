@@ -53,8 +53,11 @@ const editionSpeakers = edition.data.speakers
               {loc.kind === "full" && (
                 <span>📍 {loc.venue}, {loc.city}</span>
               )}
-              {loc.kind === "city-only" && (
+              {loc.kind === "withheld" && (
                 <span>📍 {t("venue.tba")}, {loc.city}</span>
+              )}
+              {loc.kind === "city-only" && (
+                <span>📍 {loc.city}</span>
               )}
             </>
           );
