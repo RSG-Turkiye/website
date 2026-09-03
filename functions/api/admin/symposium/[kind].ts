@@ -9,7 +9,17 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, canManageSymposium } from '../../../_lib/auth';
 import { KIND_TABLES, rowFromInput, rowToInput, triggerRebuild } from '../../../_lib/symposium';
-import type { SymposiumKind, SpeakerRow, SessionRow, CommitteeRow, SymposiumInput, SymposiumRowInput } from '../../../_lib/symposium';
+import type {
+  SymposiumKind,
+  SpeakerRow,
+  SessionRow,
+  CommitteeRow,
+  SpeakerInput,
+  SessionInput,
+  CommitteeInput,
+  SymposiumInput,
+  SymposiumRowInput,
+} from '../../../_lib/symposium';
 
 function isKnownKind(value: string): value is SymposiumKind {
   return Object.prototype.hasOwnProperty.call(KIND_TABLES, value);
@@ -31,6 +41,27 @@ const LIST_COLUMNS: Record<SymposiumKind, string> = {
   sessions: 'id, slug, year, title, type, time, end_time, description, speaker_slugs, sort',
   committee: 'id, year, name, role, role_tr, affiliation, photo, linkedin, sort',
 };
+
+// Sessions link to speakers *by slug*, so two rows sharing one slug within
+// the same year would make that link resolve to whichever row happens to
+// sort first -- silently, with no error the editor would ever see. Callers
+// have already checked `kind === 'speakers' || 'sessions'`; committee has no
+// slug column and never reaches this. Returns the conflicting slug (so the
+// caller can name it in the error) or null if the slug is free.
+async function conflictingSlug(
+  env: Env,
+  table: string,
+  year: number,
+  slug: string,
+  excludeId?: string,
+): Promise<string | null> {
+  const sql = excludeId
+    ? `SELECT id FROM ${table} WHERE year = ? AND slug = ? AND id != ?`
+    : `SELECT id FROM ${table} WHERE year = ? AND slug = ?`;
+  const stmt = excludeId ? env.DB.prepare(sql).bind(year, slug, excludeId) : env.DB.prepare(sql).bind(year, slug);
+  const existing = await stmt.first<{ id: string }>();
+  return existing ? slug : null;
+}
 
 function insertStatement(
   kind: SymposiumKind,
@@ -81,8 +112,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   ).bind(year).all<SpeakerRow | SessionRow | CommitteeRow>();
 
   // Exactly the shape POST/PUT accept back, plus id and sort -- a form can
-  // load a row from this list, change nothing, and save it as a no-op.
-  const items = result.results.map((row) => rowToInput(kind as never, row as never));
+  // load a row from this list, change nothing, and save it as a no-op. Each
+  // row came from the query above, which already scoped it to this kind's
+  // own table, so casting it to that kind's row shape here just names what
+  // the SQL already guarantees.
+  const items = result.results.map((row) => {
+    switch (kind) {
+      case 'speakers': return rowToInput('speakers', row as SpeakerRow);
+      case 'sessions': return rowToInput('sessions', row as SessionRow);
+      case 'committee': return rowToInput('committee', row as CommitteeRow);
+    }
+  });
   return jsonResponse({ year, items });
 };
 
@@ -98,14 +138,40 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const body = await request.json<SymposiumInput>();
   const year = await resolveYear(env);
 
-  let row;
+  // Dispatched per kind rather than through the catch-all overload: `kind`
+  // narrows to its literal in each branch, so `rowFromInput` is called with
+  // exactly the input type it validates -- no bypass of the overload's own
+  // checking.
+  let row: SymposiumRowInput;
   try {
-    row = rowFromInput(kind as never, body as never, year);
+    switch (kind) {
+      case 'speakers':
+        row = rowFromInput(kind, body as SpeakerInput, year);
+        break;
+      case 'sessions':
+        row = rowFromInput(kind, body as SessionInput, year);
+        break;
+      case 'committee':
+        row = rowFromInput(kind, body as CommitteeInput, year);
+        break;
+    }
   } catch (err) {
     return jsonResponse({ error: String(err instanceof Error ? err.message : err) }, 400);
   }
 
   const table = KIND_TABLES[kind];
+
+  if (kind === 'speakers' || kind === 'sessions') {
+    // Safe: the branch above only ever builds this row shape for these two
+    // kinds, both of which have a `slug` column.
+    const slug = (row as { slug: string }).slug;
+    const conflict = await conflictingSlug(env, table, year, slug);
+    if (conflict) {
+      const noun = kind === 'speakers' ? 'speaker' : 'session';
+      return jsonResponse({ error: `slug "${conflict}" is already used by another ${noun} this year` }, 409);
+    }
+  }
+
   const maxSort = await env.DB.prepare(
     `SELECT MAX(sort) AS m FROM ${table} WHERE year = ?`
   ).bind(year).first<{ m: number | null }>();

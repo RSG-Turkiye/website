@@ -183,21 +183,51 @@ test('a non-http photo or LinkedIn URL is rejected rather than stored', () => {
   );
 });
 
-test('what GET returns for a speaker is what POST/PUT accept', () => {
-  const row = { id: 'x1', slug: 'ada-lovelace', year: 2026, name: 'Ada Lovelace', position: 'Mathematician', company: '', bio: '', photo: '', linkedin: 'https://linkedin.com/in/ada', sort: 3 };
+test('every speaker field round trips to itself, not to its neighbour', () => {
+  // Every field below holds a distinct, non-default value, so a swapped pair
+  // in rowToInput (position reading company, say) cannot read back correct
+  // by coincidence -- see the edition test of the same name above.
+  const row = {
+    id: 'sp1', slug: 'jane-doe', year: 2026, name: 'Jane Doe', position: 'Chief Technology Officer',
+    company: 'Acme Robotics', bio: 'Builds things that fly.', photo: 'https://example.org/jane.jpg',
+    linkedin: 'https://linkedin.com/in/janedoe', sort: 4,
+  };
   const input = rowToInput('speakers', row);
-  assert.equal(input.id, 'x1');
-  assert.equal(input.sort, 3);
-  const roundTripped = rowFromInput('speakers', input, row.year);
-  assert.equal(roundTripped.slug, row.slug);
-  assert.equal(roundTripped.name, row.name);
-  assert.equal(roundTripped.linkedin, row.linkedin);
+  assert.deepEqual(input, {
+    id: row.id, sort: row.sort, slug: row.slug, name: row.name, position: row.position,
+    company: row.company, bio: row.bio, photo: row.photo, linkedin: row.linkedin,
+  });
+  const { id, sort, ...expectedRow } = row;
+  assert.deepEqual(rowFromInput('speakers', input, row.year), expectedRow);
 });
 
-test('what GET returns for a session decodes speaker_slugs back into an array', () => {
-  const row = { id: 'x2', slug: 'keynote', year: 2026, title: 'Keynote', type: 'keynote', time: '09:00', end_time: '10:00', description: '', speaker_slugs: '["ada-lovelace"]', sort: 0 };
+test('every session field round trips to itself, not to its neighbour', () => {
+  const row = {
+    id: 'se1', slug: 'opening-keynote', year: 2026, title: 'Opening Keynote', type: 'keynote',
+    time: '09:00', end_time: '10:00', description: 'Welcome remarks from the organizers.',
+    speaker_slugs: '["jane-doe","john-roe"]', sort: 1,
+  };
   const input = rowToInput('sessions', row);
-  assert.deepEqual(input.speakerSlugs, ['ada-lovelace']);
-  const roundTripped = rowFromInput('sessions', input, row.year);
-  assert.equal(roundTripped.speaker_slugs, row.speaker_slugs);
+  assert.deepEqual(input, {
+    id: row.id, sort: row.sort, slug: row.slug, title: row.title, type: row.type,
+    time: row.time, endTime: row.end_time, description: row.description,
+    speakerSlugs: ['jane-doe', 'john-roe'],
+  });
+  const { id, sort, ...expectedRow } = row;
+  assert.deepEqual(rowFromInput('sessions', input, row.year), expectedRow);
+});
+
+test('every committee field round trips to itself, not to its neighbour', () => {
+  const row = {
+    id: 'co1', year: 2026, name: 'Ali Veli', role: 'Chair', role_tr: 'Başkan',
+    affiliation: 'Gebze Technical University', photo: 'https://example.org/ali.jpg',
+    linkedin: 'https://linkedin.com/in/aliveli', sort: 2,
+  };
+  const input = rowToInput('committee', row);
+  assert.deepEqual(input, {
+    id: row.id, sort: row.sort, name: row.name, role: row.role, roleTr: row.role_tr,
+    affiliation: row.affiliation, photo: row.photo, linkedin: row.linkedin,
+  });
+  const { id, sort, ...expectedRow } = row;
+  assert.deepEqual(rowFromInput('committee', input, row.year), expectedRow);
 });

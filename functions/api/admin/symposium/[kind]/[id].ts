@@ -8,7 +8,17 @@
 import type { Env } from '../../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../../../_lib/auth';
 import { KIND_TABLES, rowFromInput, triggerRebuild } from '../../../../_lib/symposium';
-import type { SymposiumKind, SpeakerRow, SessionRow, CommitteeRow, SymposiumInput, SymposiumRowInput } from '../../../../_lib/symposium';
+import type {
+  SymposiumKind,
+  SpeakerRow,
+  SessionRow,
+  CommitteeRow,
+  SpeakerInput,
+  SessionInput,
+  CommitteeInput,
+  SymposiumInput,
+  SymposiumRowInput,
+} from '../../../../_lib/symposium';
 
 function isKnownKind(value: string): value is SymposiumKind {
   return Object.prototype.hasOwnProperty.call(KIND_TABLES, value);
@@ -30,6 +40,25 @@ async function findRow(
     `SELECT ${ROW_COLUMNS[kind]} FROM ${table} WHERE id = ?`
   ).bind(id).first<SpeakerRow | SessionRow | CommitteeRow>();
   return row ?? null;
+}
+
+// Sessions link to speakers *by slug*, so renaming one row's slug to match
+// another's within the same year would silently repoint that link. Callers
+// have already checked `kind === 'speakers' || 'sessions'`; committee has no
+// slug column and never reaches this. `excludeId` is the row being edited --
+// a row keeping its own slug is not a conflict with itself. Returns the
+// conflicting slug (so the caller can name it in the error) or null if free.
+async function conflictingSlug(
+  env: Env,
+  table: string,
+  year: number,
+  slug: string,
+  excludeId: string,
+): Promise<string | null> {
+  const existing = await env.DB.prepare(
+    `SELECT id FROM ${table} WHERE year = ? AND slug = ? AND id != ?`
+  ).bind(year, slug, excludeId).first<{ id: string }>();
+  return existing ? slug : null;
 }
 
 function updateStatement(
@@ -86,11 +115,37 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
 
   const body = await request.json<SymposiumInput>();
 
-  let row;
+  // Dispatched per kind rather than through the catch-all overload: `kind`
+  // narrows to its literal in each branch, so `rowFromInput` is called with
+  // exactly the input type it validates -- no bypass of the overload's own
+  // checking.
+  let row: SymposiumRowInput;
   try {
-    row = rowFromInput(kind as never, body as never, existing.year);
+    switch (kind) {
+      case 'speakers':
+        row = rowFromInput(kind, body as SpeakerInput, existing.year);
+        break;
+      case 'sessions':
+        row = rowFromInput(kind, body as SessionInput, existing.year);
+        break;
+      case 'committee':
+        row = rowFromInput(kind, body as CommitteeInput, existing.year);
+        break;
+    }
   } catch (err) {
     return jsonResponse({ error: String(err instanceof Error ? err.message : err) }, 400);
+  }
+
+  if (kind === 'speakers' || kind === 'sessions') {
+    // Safe: the branch above only ever builds this row shape for these two
+    // kinds, both of which have a `slug` column.
+    const slug = (row as { slug: string }).slug;
+    const table = KIND_TABLES[kind];
+    const conflict = await conflictingSlug(env, table, existing.year, slug, id);
+    if (conflict) {
+      const noun = kind === 'speakers' ? 'speaker' : 'session';
+      return jsonResponse({ error: `slug "${conflict}" is already used by another ${noun} this year` }, 409);
+    }
   }
 
   const { sql, values } = updateStatement(kind, row, id);
