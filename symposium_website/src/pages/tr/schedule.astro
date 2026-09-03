@@ -10,7 +10,9 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const { state, entry: edition } = await getCurrentEdition();
 const content = await getCurrentContent();
-const finished = state === "finished";
+// Two different things to say: the week after it happened, and afterwards.
+const justHeld = state === "just-held";
+const finished = state === "finished" || justHeld;
 const effectiveEdition = edition ? withOverlayContent(edition.data, content) : null;
 const sessions = content?.sessions ?? [];
 const scheduleSpeakers = content?.speakers ?? [];
@@ -34,7 +36,7 @@ const scheduleSpeakers = content?.speakers ?? [];
                   {titleFor(edition.data, lang)}
                   {finished && (
                     <span class="ml-2 align-middle bg-navy-light text-navy text-xs font-semibold px-2 py-0.5 rounded">
-                      {t("edition.finished.badge")}
+                      {justHeld ? t("edition.justheld.badge") : t("edition.finished.badge")}
                     </span>
                   )}
                 </h2>

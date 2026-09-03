@@ -53,7 +53,13 @@ const pastEditions = await getPastEditions();
         <h2 class="text-xl font-bold text-navy mb-5">{t("editions.past.heading")}</h2>
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {pastEditions.map((edition) => (
-            <EditionCard edition={edition.data} lang={lang} />
+            <EditionCard
+              edition={edition.data}
+              lang={lang}
+              badge={state === "just-held" && edition.data.year === current?.data.year
+                ? t("edition.justheld.badge")
+                : undefined}
+            />
           ))}
         </div>
       </section>

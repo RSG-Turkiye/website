@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, currentEditionOf, ordinalOf, symposiumsHeld, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
+import { splitEditions, currentEditionOf, ordinalOf, symposiumsHeld, nextEditionHint, seasonOf, ordinalLabel, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
 
 function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
@@ -218,11 +218,12 @@ test('while an edition is still ahead, it is the current one and it is upcoming'
   assert.equal(c.edition?.year, 2026);
 });
 
-test('the morning after, the same edition is current but finished', () => {
+test('the morning after, the same edition is still the current one', () => {
   // 2026 starts 10 Oct and has no endDate, so it is over at midnight on the
-  // 11th -- the exact boundary the nightly rebuild crosses.
+  // 11th -- the exact boundary the nightly rebuild crosses. It stops being
+  // upcoming there, but stays the edition the pages present.
   const c = currentEditionOf(ALL, new Date('2026-10-11T06:00:00Z'));
-  assert.equal(c.state, 'finished');
+  assert.notEqual(c.state, 'upcoming');
   assert.equal(c.edition?.year, 2026);
 });
 
@@ -299,4 +300,76 @@ test('the count never falls below the editions actually on file', () => {
     { year: 2026, title: 'Symposium' },
   ];
   assert.equal(symposiumsHeld(all, new Date('2026-09-03')), 3);
+});
+
+// --- the week after ---------------------------------------------------------
+// Demoting the symposium to an archive entry the morning after throws away the
+// only week anyone was going to read it: that is when people look for the
+// talks. It stays the headline for a week, then becomes archive.
+
+test('the morning after, it is just-held rather than finished', () => {
+  const c = currentEditionOf(ALL, new Date('2026-10-11T06:00:00Z'));
+  assert.equal(c.state, 'just-held');
+  assert.equal(c.edition?.year, 2026);
+});
+
+test('six days later it is still the headline', () => {
+  assert.equal(currentEditionOf(ALL, new Date('2026-10-17T00:00:00Z')).state, 'just-held');
+});
+
+test('after the week it becomes archive', () => {
+  assert.equal(currentEditionOf(ALL, new Date('2026-10-19T00:00:00Z')).state, 'finished');
+});
+
+test('the cooldown runs from the end of the event, not its start', () => {
+  // 2025 ran 30 Oct to 2 Nov, so the week starts on the 3rd and not the 31st.
+  const only2025 = [edition(2025, '2025-10-30', '2025-11-02')];
+  assert.equal(currentEditionOf(only2025, new Date('2025-11-06')).state, 'just-held');
+  assert.equal(currentEditionOf(only2025, new Date('2025-11-11')).state, 'finished');
+});
+
+// --- what to say about the edition nobody has announced ---------------------
+
+test('nothing is claimed while an edition is still ahead', () => {
+  assert.equal(nextEditionHint(ALL, new Date('2026-09-03')), null);
+});
+
+test('the next edition is derived, never written down', () => {
+  const h = nextEditionHint(ALL, new Date('2026-10-19'));
+  assert.deepEqual(h, { ordinal: null, year: 2027, season: 'autumn', expired: false });
+});
+
+test('the number comes from the last one, when the title carries it', () => {
+  const numbered = [{ year: 2026, title: '13th Symposium', startDate: new Date('2026-10-10') }];
+  assert.equal(nextEditionHint(numbered, new Date('2026-10-19'))?.ordinal, 14);
+});
+
+test('the season follows the symposium, so moving it moves the sentence', () => {
+  const spring = [{ year: 2026, title: '13th Symposium', startDate: new Date('2026-04-18') }];
+  assert.equal(nextEditionHint(spring, new Date('2026-06-01'))?.season, 'spring');
+  assert.equal(seasonOf(new Date('2026-01-15')), 'winter');
+  assert.equal(seasonOf(new Date('2026-07-01')), 'summer');
+});
+
+test('English ordinals, including the exceptions a translation string cannot hold', () => {
+  assert.equal(ordinalLabel(14, 'en'), '14th');
+  assert.equal(ordinalLabel(21, 'en'), '21st');
+  assert.equal(ordinalLabel(22, 'en'), '22nd');
+  assert.equal(ordinalLabel(23, 'en'), '23rd');
+  assert.equal(ordinalLabel(11, 'en'), '11th');   // not 11st
+  assert.equal(ordinalLabel(13, 'en'), '13th');   // not 13rd
+  assert.equal(ordinalLabel(14, 'tr'), '14.');
+});
+
+test('a prediction that has already gone by stops claiming a date', () => {
+  // If nobody adds the next edition's file, the derived year eventually falls
+  // behind us and the sentence would be advertising a date in the past.
+  const all = [{ year: 2026, title: '13th Symposium', startDate: new Date('2026-10-10') }];
+  const fresh = nextEditionHint(all, new Date('2026-10-20'));
+  assert.equal(fresh?.expired, false);
+  assert.equal(fresh?.year, 2027);
+
+  const stale = nextEditionHint(all, new Date('2028-06-01'));
+  assert.equal(stale?.expired, true);
+  assert.equal(stale?.ordinal, 14, 'the number is still known, only the date is not');
 });

@@ -35,6 +35,7 @@ export interface EditionLike {
   /** Presentation-only, never used by the date logic: the poster image and the
    * human-written date string an edition card renders. */
   posterImage?: string;
+  recordingsUrl?: string;
   date?: string;
   dateTr?: string;
 }
@@ -175,8 +176,18 @@ export function ctasFor(e: EditionLike): Cta[] {
  */
 export type CurrentEdition =
   | { state: "upcoming"; edition: EditionLike }
+  | { state: "just-held"; edition: EditionLike }
   | { state: "finished"; edition: EditionLike }
   | { state: "none"; edition: null };
+
+/**
+ * How long a finished edition stays the headline before becoming archive.
+ *
+ * The week after is when people come looking for the talks, so demoting the
+ * symposium to an archive entry the morning after throws away the only week
+ * anyone was going to read it.
+ */
+export const COOLDOWN_DAYS = 7;
 
 export function currentEditionOf(all: EditionLike[], now: Date): CurrentEdition {
   const { upcoming, past } = splitEditions(all, now);
@@ -185,7 +196,10 @@ export function currentEditionOf(all: EditionLike[], now: Date): CurrentEdition 
   // `past` is already newest-first; the first dated entry is the one that
   // just finished.
   const lastFinished = past.find((e) => e.startDate);
-  if (lastFinished) return { state: "finished", edition: lastFinished };
+  if (lastFinished) {
+    const cooling = now.getTime() < endOfEvent(lastFinished) + COOLDOWN_DAYS * ONE_DAY_MS;
+    return { state: cooling ? "just-held" : "finished", edition: lastFinished };
+  }
 
   return { state: "none", edition: null };
 }
@@ -226,4 +240,66 @@ export function symposiumsHeld(all: EditionLike[], now: Date): number {
  * when no translation exists -- the same shape as titleFor and subtitleFor. */
 export function dateFor(edition: EditionLike, lang: "en" | "tr"): string {
   return (lang === "tr" && edition.dateTr) || edition.date || "";
+}
+
+
+export type Season = "winter" | "spring" | "summer" | "autumn";
+
+/** The season a date falls in, by month. Used to say when the next edition is
+ * likely to be, from when the last one actually was. */
+export function seasonOf(date: Date): Season {
+  const m = date.getUTCMonth();
+  if (m <= 1 || m === 11) return "winter";
+  if (m <= 4) return "spring";
+  if (m <= 7) return "summer";
+  return "autumn";
+}
+
+/**
+ * What to say about the edition that has not been announced yet, once the
+ * finished one has stopped being news.
+ *
+ * Everything here is derived from the last edition: its number plus one, its
+ * year plus one, and the season it was actually held in. Nothing is
+ * hand-maintained, so nobody has to remember to update it -- and if the
+ * symposium ever moves to spring, the sentence moves with it.
+ *
+ * Deliberately not a countdown. A counter to a date nobody has set would be
+ * telling visitors something untrue, and it would make the real countdown
+ * mean less when there is one.
+ *
+ * Null while an edition is still ahead of us, or when there is nothing to
+ * count from.
+ */
+export function nextEditionHint(
+  all: EditionLike[],
+  now: Date
+): { ordinal: number | null; year: number; season: Season; expired: boolean } | null {
+  const current = currentEditionOf(all, now);
+  if (current.state === "upcoming" || current.state === "none") return null;
+  const last = current.edition;
+  if (!last.startDate) return null;
+  const ordinal = ordinalOf(last);
+  const year = last.year + 1;
+  return {
+    ordinal: ordinal === null ? null : ordinal + 1,
+    year,
+    season: seasonOf(last.startDate),
+    // The prediction assumes the next edition happens a year later. If that
+    // year has itself gone by -- nobody added the file, the symposium paused
+    // -- the sentence would be advertising a date in the past, so the caller
+    // drops the date and keeps the number.
+    expired: year < now.getUTCFullYear(),
+  };
+}
+
+
+/** "14" -> "14th" in English, "14." in Turkish. Written out rather than kept
+ * as a translation string, because it is a rule: 1st, 2nd, 3rd and the teens
+ * are all exceptions and a string cannot express them. */
+export function ordinalLabel(n: number, lang: "en" | "tr"): string {
+  if (lang === "tr") return `${n}.`;
+  const teen = n % 100;
+  if (teen >= 11 && teen <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 }

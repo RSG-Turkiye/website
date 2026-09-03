@@ -54,6 +54,22 @@ export const ui = {
     "committee.past.none": "No committee was recorded for this edition.",
     "edition.finished.badge": "Completed",
     "edition.finished.thanks": "Thank you to everyone who joined us.",
+    "edition.justheld.badge": "Just held",
+    "edition.recordings": "Watch the talks",
+    // No countdown to a date nobody has set: a counter to an invented day
+    // would be telling visitors something untrue, and would make the real
+    // countdown mean less when there is one. The ordinal, year and season are
+    // all derived from the edition that just ended.
+    "edition.next.known": "The {ordinal} symposium is expected in {season} {year}.",
+    "edition.next.unknown": "The next symposium is expected in {season} {year}.",
+    // When the predicted year has itself gone by, the number is still known
+    // and the date is not, so the sentence stops claiming one.
+    "edition.next.tba": "The {ordinal} symposium will be announced here.",
+    "edition.next.tba.unknown": "The next symposium will be announced here.",
+    "season.winter": "winter",
+    "season.spring": "spring",
+    "season.summer": "summer",
+    "season.autumn": "autumn",
 
     "venue.title": "Venue",
     "venue.subtitle": "Where to find us",
@@ -135,6 +151,16 @@ export const ui = {
     "committee.past.none": "Bu edisyon için kurul kaydı yok.",
     "edition.finished.badge": "Tamamlandı",
     "edition.finished.thanks": "Katılan herkese teşekkür ederiz.",
+    "edition.justheld.badge": "Yeni yapıldı",
+    "edition.recordings": "Sunumları izle",
+    "edition.next.known": "{ordinal} sempozyumun {year} {season} yapılması bekleniyor.",
+    "edition.next.unknown": "Bir sonraki sempozyumun {year} {season} yapılması bekleniyor.",
+    "edition.next.tba": "{ordinal} sempozyum burada duyurulacak.",
+    "edition.next.tba.unknown": "Bir sonraki sempozyum burada duyurulacak.",
+    "season.winter": "kışında",
+    "season.spring": "ilkbaharında",
+    "season.summer": "yazında",
+    "season.autumn": "sonbaharında",
 
     "venue.title": "Mekan",
     "venue.subtitle": "Nerede bulabilirsiniz",
@@ -179,5 +205,21 @@ export function getLangFromUrl(url: URL): Lang {
 export function useTranslations(lang: Lang) {
   return function t(key: UIKey): string {
     return ui[lang][key] ?? ui["en"][key] ?? key;
+  };
+}
+
+/**
+ * A translation with values substituted into its {placeholders}.
+ *
+ * Sentences that mix a number and a translated word cannot be assembled by
+ * concatenation: English wants "autumn 2027" and Turkish wants "2027
+ * sonbaharında", so the order belongs to the sentence, not to the code.
+ */
+export function useFormat(lang: Lang) {
+  const t = useTranslations(lang);
+  return function tf(key: UIKey, values: Record<string, string | number>): string {
+    return t(key).replace(/\{(\w+)\}/g, (whole, name) =>
+      name in values ? String(values[name]) : whole
+    );
   };
 }
