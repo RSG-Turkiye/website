@@ -1,4 +1,4 @@
-name = "rsg-website"
+name = "website"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
