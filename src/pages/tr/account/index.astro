@@ -192,6 +192,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <script>
+  import { uploadImage } from "../../../scripts/image-upload";
   import { rankBadgeSvg, achievementBadgeSvg, achievementLabel } from '../../../lib/badges.ts';
 
   // define:vars forces a script to run as a classic (non-module) script, which
@@ -452,25 +453,19 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     document.getElementById('translationFields')!.classList.toggle('hidden', !(e.target as HTMLInputElement).checked);
   });
 
-  async function uploadImage(file: File): Promise<string | null> {
-    const uploadRes = await fetch('/api/blog-submissions/upload-image', {
-      method: 'POST',
-      headers: { 'Content-Type': file.type },
-      body: file,
-    });
-    if (!uploadRes.ok) return null;
-    const uploadData = await uploadRes.json() as { url: string };
-    return uploadData.url;
-  }
 
   document.getElementById('subBodyImage')?.addEventListener('change', async (e) => {
     const input = e.currentTarget as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
-    const url = await uploadImage(file);
     input.value = '';
-    if (!url) {
-      alert('Görsel yükleme başarısız oldu');
+    let url: string;
+    try {
+      url = await uploadImage(file);
+    } catch (err) {
+      // The server says what is wrong and what to do about it -- a bare
+      // "upload failed" hid that, so nobody learned their photo was too big.
+      alert(err instanceof Error ? err.message : 'Görsel yükleme başarısız oldu');
       return;
     }
 
@@ -504,12 +499,12 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     let imageUrl = '';
     const fileInput = document.getElementById('subImage') as HTMLInputElement;
     if (fileInput.files && fileInput.files.length > 0) {
-      const url = await uploadImage(fileInput.files[0]);
-      if (!url) {
-        alert('Görsel yükleme başarısız oldu');
+      try {
+        imageUrl = await uploadImage(fileInput.files[0]);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Görsel yükleme başarısız oldu');
         return;
       }
-      imageUrl = url;
     }
 
     const addTranslation = (document.getElementById('subAddTranslation') as HTMLInputElement).checked;

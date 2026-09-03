@@ -37,7 +37,7 @@ const navState: NavState = {
 };
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const ogImage = image || "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
+const ogImage = image || "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
 const metaDesc = description || t("site.description");
 const alternates = alternatesFor(Astro.url.pathname);
 const toggleUrl = translationUrl ?? (alternates ? (lang === "en" ? alternates.tr : alternates.en) : "/");

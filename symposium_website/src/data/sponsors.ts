@@ -11,7 +11,7 @@ export const sponsors: Sponsor[] = [
   {
     name: "PhiTech",
     url: "https://phitech.bio/",
-    logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606578/rsgturkey/symposium/2023/08/logov2retina.png",
+    logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606578/rsgturkey/symposium/2023/08/logov2retina.png",
     description: "More Omics into Clinics",
     tier: "gold",
     editions: [2023, 2024],
@@ -19,7 +19,7 @@ export const sponsors: Sponsor[] = [
   {
     name: "Genomize",
     url: "https://genomize.com/",
-    logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606578/rsgturkey/symposium/2023/08/image.png",
+    logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606578/rsgturkey/symposium/2023/08/image.png",
     description: "Turning Genomic Data Into Actionable Insights",
     tier: "gold",
     editions: [2023, 2024],
@@ -27,7 +27,7 @@ export const sponsors: Sponsor[] = [
   {
     name: "ERES Biyoteknoloji",
     url: "https://tr.eresbiotech.com/",
-    logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606579/rsgturkey/symposium/2023/08/10878861_739905599412429_1738250842_o.jpg",
+    logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606579/rsgturkey/symposium/2023/08/10878861_739905599412429_1738250842_o.jpg",
     description: "Bioteknoloji çözümleri",
     tier: "silver",
     editions: [2023, 2024],

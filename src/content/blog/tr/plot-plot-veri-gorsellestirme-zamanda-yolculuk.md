@@ -167,7 +167,7 @@ timeline_plot
 #figure 1
 ```
 
-![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196863/rsgturkey/04/Plot1.jpg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774196863/rsgturkey/04/Plot1.jpg)
 
 Figure 2
 
@@ -196,7 +196,7 @@ timeline_plot
 #figure 2
 ```
 
-![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196848/rsgturkey/04/Plot2-1024x265.jpg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774196848/rsgturkey/04/Plot2-1024x265.jpg)
 
 Figure 2
 
@@ -215,7 +215,7 @@ print(timeline_plot)
 #figure 2
 ```
 
-![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196853/rsgturkey/04/Plot3-1024x265.jpg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774196853/rsgturkey/04/Plot3-1024x265.jpg)
 
 Figure 3
 
@@ -372,7 +372,7 @@ print(timeline_plot)
 #Reference for the original code: https://www.themillerlab.io/post/timelines_in_r/
 ```
 
-![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196852/rsgturkey/04/Plot5-1024x287.jpg)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774196852/rsgturkey/04/Plot5-1024x287.jpg)
 
 Figure 4
 
