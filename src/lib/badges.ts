@@ -8,7 +8,7 @@
 export type Rank = 'seed' | 'sprout' | 'sapling' | 'legacy_tree';
 export type AchievementCode = 'variant_analysis' | 'read_qc' | 'read_alignment' | 'genome_assembly';
 
-const RANK_LABELS: Record<Rank, { tr: string; en: string }> = {
+export const RANK_LABELS: Record<Rank, { tr: string; en: string }> = {
   seed: { tr: 'TOHUM', en: 'SEED' },
   sprout: { tr: 'FİLİZ', en: 'SPROUT' },
   sapling: { tr: 'FİDAN', en: 'SAPLING' },

@@ -10,17 +10,9 @@
 // refactor and are reproduced here exactly rather than resolved one way or
 // the other:
 //
-//   - Rank & badge management (the extra "Rank" / "Badges" table columns,
-//     the rank <select>, and the badge-chip toggles) only ever existed on
-//     the English admin page. The Turkish page never had it. There is no
-//     Turkish copy to move for it, so it stays as plain English constants
-//     gated behind `showRankAndBadges`.
-//   - The "more actions" dropdown is a few pixels wider on the Turkish page
-//     (180px vs 160px) because the translated action labels are longer.
-//
-// Both are preserved as discovered, not as a decision made in this pass.
 
 import { useTranslations } from '../i18n/ui';
+import { RANK_LABELS, type Rank } from '../lib/badges';
 
 type Lang = 'en' | 'tr';
 
@@ -35,10 +27,8 @@ function tf(key: Parameters<typeof t>[0], vars: Record<string, string | number>)
   return result;
 }
 
-// See the module comment above: this pairing (rank/badges + menu width)
-// reproduces a pre-existing English/Turkish behavioural gap, not a new flag.
-const showRankAndBadges = lang === 'en';
-const moreMenuWidthClass = lang === 'en' ? 'min-w-[160px]' : 'min-w-[180px]';
+// One width for both languages: the Turkish labels are the longer ones.
+const moreMenuWidthClass = 'min-w-[180px]';
 const dateLocale = lang === 'en' ? 'en-GB' : 'tr-TR';
 
 let currentFilter = 'all';
@@ -48,12 +38,15 @@ let canManageAnnouncements = false;
 
 // English-only: the Turkish admin page never rendered rank management, so
 // there is no Turkish wording to move here (see module comment above).
-const RANKS = [
-  { value: 'seed', label: '🌱 Seed' },
-  { value: 'sprout', label: '🌿 Sprout' },
-  { value: 'sapling', label: '🌳 Sapling' },
-  { value: 'legacy_tree', label: '🌲 Legacy Tree' },
-];
+// Ranks come from lib/badges.ts, which is what renders a member's actual
+// badge -- so the dropdown cannot drift from what the member sees.
+const RANK_EMOJI: Record<Rank, string> = {
+  seed: '🌱', sprout: '🌿', sapling: '🌳', legacy_tree: '🌲',
+};
+const RANKS = (Object.keys(RANK_LABELS) as Rank[]).map((value) => ({
+  value,
+  label: `${RANK_EMOJI[value]} ${RANK_LABELS[value][lang]}`,
+}));
 
 const ATTACHMENT_ERRORS: Record<string, string> = {
   unsupported_type: t('admin.errors.unsupportedType'),
@@ -261,12 +254,12 @@ function renderUsers(users: any[]) {
       ? `<button data-id="${u.id}" data-action="unverify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">${t('admin.action.unverify')}</button>`
       : `<button data-id="${u.id}" data-action="verify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition-colors">${t('admin.action.verify')}</button>`;
 
-    const rankSelect = showRankAndBadges ? `
+    const rankSelect = `
       <select data-id="${u.id}" class="rank-select text-xs px-2 py-1.5 rounded-lg border border-border text-navy bg-white focus:outline-none focus:border-navy-mid">
         ${RANKS.map(r => `<option value="${r.value}" ${u.current_rank === r.value ? 'selected' : ''}>${r.label}</option>`).join('')}
-      </select>` : '';
+      </select>`;
 
-    const badgeChips = showRankAndBadges ? (() => {
+    const badgeChips = (() => {
       const earnedCodes = new Set((u.badge_codes || '').split(',').filter(Boolean));
       return badgeCatalog.map(b => `
         <button
@@ -278,9 +271,9 @@ function renderUsers(users: any[]) {
               ? 'bg-navy text-white border-navy'
               : 'bg-white text-gray-400 border-border hover:border-navy-mid'
           }"
-          title="${b.name_en}"
-        >${b.name_tr}</button>`).join(' ');
-    })() : '';
+          title="${lang === 'tr' ? b.name_en : b.name_tr}"
+        >${lang === 'tr' ? b.name_tr : b.name_en}</button>`).join(' ');
+    })();
 
     const moreActions = `
       <div class="relative inline-block">
@@ -316,8 +309,8 @@ function renderUsers(users: any[]) {
         </td>
         <td class="px-5 py-4 text-gray-500">${u.email}</td>
         <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${writerBadge}${senderBadge}${privateBadge}</td>
-        ${showRankAndBadges ? `<td class="px-5 py-4">${rankSelect}</td>` : ''}
-        ${showRankAndBadges ? `<td class="px-5 py-4"><div class="flex flex-wrap gap-1 max-w-[220px]">${badgeChips}</div></td>` : ''}
+        <td class="px-5 py-4">${rankSelect}</td>
+        <td class="px-5 py-4"><div class="flex flex-wrap gap-1 max-w-[220px]">${badgeChips}</div></td>
         <td class="px-5 py-4 text-gray-400">${formatDate(u.created_at)}</td>
         <td class="px-5 py-4 text-right">
           <div class="flex items-center justify-end gap-2">
@@ -336,7 +329,7 @@ function renderUsers(users: any[]) {
     });
   });
 
-  if (showRankAndBadges) {
+  {
     // Rank select
     tbody.querySelectorAll('.rank-select').forEach(sel => {
       sel.addEventListener('change', (e) => {
@@ -382,7 +375,7 @@ async function loadUsers() {
   const res = await fetch(`/api/admin/users?${params}`);
   if (!res.ok) return;
   const data = await res.json() as { users: any[]; badge_catalog?: typeof badgeCatalog };
-  if (showRankAndBadges) badgeCatalog = data.badge_catalog ?? [];
+  badgeCatalog = data.badge_catalog ?? [];
   renderUsers(data.users);
 
   // Update stats
