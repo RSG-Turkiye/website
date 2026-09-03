@@ -88,6 +88,16 @@ export function parseOverlay(data: unknown): Overlay | null {
  *
  * Never reads `venue` or `venueCity` from the overlay, even if a payload
  * carried them: those come from the edition markdown only.
+ *
+ * `registrationUrl`/`abstractUrl` are treated as "absent means no opinion"
+ * on an empty string, not just on `null`/`undefined`. The D1 columns behind
+ * them are `TEXT NOT NULL DEFAULT ''` -- the server can never send `null`
+ * for these two, only `''` -- so a row that exists purely to carry, say, a
+ * `venuePublic` flip would otherwise have its two empty strings overwrite
+ * whatever real links the repo markdown holds, deleting a published link
+ * with no admin intent behind it. The two deadlines stay on a strict
+ * `!= null` check: those columns are genuinely nullable, so `null` there is
+ * a real, intentional signal.
  */
 export function mergeOverlay(repo: RepoContent, overlay: Overlay | null): RepoContent {
   if (!overlay) return repo;
@@ -95,8 +105,8 @@ export function mergeOverlay(repo: RepoContent, overlay: Overlay | null): RepoCo
   const merged: RepoContent = { ...repo };
   const edition = overlay.edition ?? ({} as Partial<Overlay['edition']>);
 
-  if (edition.registrationUrl != null) merged.registrationUrl = edition.registrationUrl;
-  if (edition.abstractUrl != null) merged.abstractUrl = edition.abstractUrl;
+  if (edition.registrationUrl) merged.registrationUrl = edition.registrationUrl;
+  if (edition.abstractUrl) merged.abstractUrl = edition.abstractUrl;
   if (edition.registrationDeadline != null) merged.registrationDeadline = new Date(edition.registrationDeadline * 1000);
   if (edition.abstractDeadline != null) merged.abstractDeadline = new Date(edition.abstractDeadline * 1000);
   if (edition.venuePublic != null) merged.venuePublic = edition.venuePublic;

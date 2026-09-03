@@ -63,3 +63,21 @@ test('a payload with an extra field is accepted', () => {
   });
   assert.equal(ok?.speakers[0].slug, 'a');
 });
+
+test('an empty url from the overlay does not erase the repo one', () => {
+  // The column is NOT NULL DEFAULT '', so a row that exists only to carry a flag
+  // arrives with '' here. That must read as "no opinion", not "delete it".
+  const out = mergeOverlay(
+    { ...(repo as Record<string, unknown>), registrationUrl: 'https://forms.gle/real' } as never,
+    { edition: { registrationUrl: '', abstractUrl: '' } } as never,
+  );
+  assert.equal(out.registrationUrl, 'https://forms.gle/real');
+});
+
+test('a real url from the overlay does replace the repo one', () => {
+  const out = mergeOverlay(
+    { ...(repo as Record<string, unknown>), registrationUrl: 'https://old' } as never,
+    { edition: { registrationUrl: 'https://forms.gle/new' } } as never,
+  );
+  assert.equal(out.registrationUrl, 'https://forms.gle/new');
+});
