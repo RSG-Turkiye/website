@@ -62,6 +62,10 @@ export const ui = {
     // all derived from the edition that just ended.
     "edition.next.known": "The {ordinal} symposium is expected in {season} {year}.",
     "edition.next.unknown": "The next symposium is expected in {season} {year}.",
+    // When the predicted year has itself gone by, the number is still known
+    // and the date is not, so the sentence stops claiming one.
+    "edition.next.tba": "The {ordinal} symposium will be announced here.",
+    "edition.next.tba.unknown": "The next symposium will be announced here.",
     "season.winter": "winter",
     "season.spring": "spring",
     "season.summer": "summer",
@@ -151,6 +155,8 @@ export const ui = {
     "edition.recordings": "Sunumları izle",
     "edition.next.known": "{ordinal} sempozyumun {year} {season} yapılması bekleniyor.",
     "edition.next.unknown": "Bir sonraki sempozyumun {year} {season} yapılması bekleniyor.",
+    "edition.next.tba": "{ordinal} sempozyum burada duyurulacak.",
+    "edition.next.tba.unknown": "Bir sonraki sempozyum burada duyurulacak.",
     "season.winter": "kışında",
     "season.spring": "ilkbaharında",
     "season.summer": "yazında",

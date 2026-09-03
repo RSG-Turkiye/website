@@ -274,16 +274,22 @@ export function seasonOf(date: Date): Season {
 export function nextEditionHint(
   all: EditionLike[],
   now: Date
-): { ordinal: number | null; year: number; season: Season } | null {
+): { ordinal: number | null; year: number; season: Season; expired: boolean } | null {
   const current = currentEditionOf(all, now);
   if (current.state === "upcoming" || current.state === "none") return null;
   const last = current.edition;
   if (!last.startDate) return null;
   const ordinal = ordinalOf(last);
+  const year = last.year + 1;
   return {
     ordinal: ordinal === null ? null : ordinal + 1,
-    year: last.year + 1,
+    year,
     season: seasonOf(last.startDate),
+    // The prediction assumes the next edition happens a year later. If that
+    // year has itself gone by -- nobody added the file, the symposium paused
+    // -- the sentence would be advertising a date in the past, so the caller
+    // drops the date and keeps the number.
+    expired: year < now.getUTCFullYear(),
   };
 }
 

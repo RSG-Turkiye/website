@@ -84,16 +84,20 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
               )}
               {!justHeld && nextUp && (
                 <p class="text-white/70 text-sm">
-                  {nextUp.ordinal
-                    ? tf("edition.next.known", {
-                        ordinal: ordinalLabel(nextUp.ordinal, lang),
-                        year: nextUp.year,
-                        season: t(`season.${nextUp.season}`),
-                      })
-                    : tf("edition.next.unknown", {
-                        year: nextUp.year,
-                        season: t(`season.${nextUp.season}`),
-                      })}
+                  {nextUp.expired
+                    ? nextUp.ordinal
+                      ? tf("edition.next.tba", { ordinal: ordinalLabel(nextUp.ordinal, lang) })
+                      : t("edition.next.tba.unknown")
+                    : nextUp.ordinal
+                      ? tf("edition.next.known", {
+                          ordinal: ordinalLabel(nextUp.ordinal, lang),
+                          year: nextUp.year,
+                          season: t(`season.${nextUp.season}`),
+                        })
+                      : tf("edition.next.unknown", {
+                          year: nextUp.year,
+                          season: t(`season.${nextUp.season}`),
+                        })}
                 </p>
               )}
             </Fragment>

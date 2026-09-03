@@ -336,7 +336,7 @@ test('nothing is claimed while an edition is still ahead', () => {
 
 test('the next edition is derived, never written down', () => {
   const h = nextEditionHint(ALL, new Date('2026-10-19'));
-  assert.deepEqual(h, { ordinal: null, year: 2027, season: 'autumn' });
+  assert.deepEqual(h, { ordinal: null, year: 2027, season: 'autumn', expired: false });
 });
 
 test('the number comes from the last one, when the title carries it', () => {
@@ -359,4 +359,17 @@ test('English ordinals, including the exceptions a translation string cannot hol
   assert.equal(ordinalLabel(11, 'en'), '11th');   // not 11st
   assert.equal(ordinalLabel(13, 'en'), '13th');   // not 13rd
   assert.equal(ordinalLabel(14, 'tr'), '14.');
+});
+
+test('a prediction that has already gone by stops claiming a date', () => {
+  // If nobody adds the next edition's file, the derived year eventually falls
+  // behind us and the sentence would be advertising a date in the past.
+  const all = [{ year: 2026, title: '13th Symposium', startDate: new Date('2026-10-10') }];
+  const fresh = nextEditionHint(all, new Date('2026-10-20'));
+  assert.equal(fresh?.expired, false);
+  assert.equal(fresh?.year, 2027);
+
+  const stale = nextEditionHint(all, new Date('2028-06-01'));
+  assert.equal(stale?.expired, true);
+  assert.equal(stale?.ordinal, 14, 'the number is still known, only the date is not');
 });
