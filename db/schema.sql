@@ -75,33 +75,31 @@
 --     never registered with no error surfaced anywhere.
 --
 -- 7a. functions/api/admin/symposium routes unconditionally SELECT is_symposium;
---     deploying without this first breaks every symposium route with D1 "no
---     such column: is_symposium". ALTER TABLE ADD COLUMN is NOT idempotent --
+--     deploying without this first does NOT throw -- getSessionUser does
+--     SELECT * FROM users, so the column is simply absent and
+--     canManageSymposium reads false for every non-admin. The symptom is a
+--     pane that never appears for the person you granted the role to, which
+--     is far harder to diagnose than a 500. ALTER TABLE ADD COLUMN is NOT idempotent --
 --     do not re-run this one:
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_symposium INTEGER NOT NULL DEFAULT 0"
 --
--- 7b. The announcements table needs a site column to let the CMS target
---     announcements to specific edition websites. Do not run this against
---     production if it's already running 2026-09-03 or later -- it would
---     error on duplicate column. ALTER TABLE ADD COLUMN is NOT idempotent:
+-- 7b. The announcements table needs a site column. This is NOT optional and
+--     NOT only a CMS nicety: functions/api/announcements.ts -- the public
+--     main-site endpoint every visitor hits -- now filters
+--     `WHERE expires_at > ? AND site = 'main'`. Skip this and announcements
+--     break for everyone, not just for editors.
+--     Run it if the announcements table already exists and has no site
+--     column; skip it only on a database where announcements was created
+--     fresh from this file (which declares the column). ALTER TABLE ADD
+--     COLUMN is NOT idempotent, so it errors rather than no-ops on a rerun:
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE announcements ADD COLUMN site TEXT NOT NULL DEFAULT 'main'"
 --
 -- 7c. This file's four symposium tables below are NOT applied by any deploy
 --     step -- run them by hand (`IF NOT EXISTS` makes these safe to re-run):
 --       wrangler d1 execute rsg-members --remote --file=db/schema.sql
---     Without 7a/7b/7c, every /api/admin/symposium route 500s with a raw
---     "Worker threw exception" page rather than JSON, which surfaces in the
---     panel as a Save button that does nothing.
---
--- 7d. symposium_sessions needs a slug column: the symposium site's session
---     content schema requires one, and functions/api/symposium.ts (Task 3)
---     unconditionally SELECTs it. Deploying that route before this column
---     exists breaks the public overlay endpoint with D1 "no such column:
---     slug". The table has never been written to, so there is no data to
---     migrate -- ALTER TABLE ADD COLUMN is NOT idempotent, so this
---     intentionally lives here as a note rather than as a statement in this
---     file:
---       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_sessions ADD COLUMN slug TEXT NOT NULL DEFAULT ''"
+--     Without 7c, every /api/admin/symposium route 500s with a raw "Worker
+--     threw exception" page rather than JSON, which surfaces in the panel as
+--     a Save button that does nothing. (7a fails differently -- see above.)
 --
 -- 7e. The two symposium slug indexes below are UNIQUE and created with
 --     IF NOT EXISTS, so unlike 7d they are ordinary statements in this file
@@ -109,6 +107,13 @@
 --     to yet, so there are no duplicates to clean up first. If that ever
 --     stops being true, the CREATE fails loudly rather than silently
 --     dropping a row -- deduplicate by hand, then re-run.
+--
+-- 7f. Granting is_symposium has no UI: functions/api/admin/users.ts knows
+--     about is_announcer, is_writer and is_sender only, so the admin user
+--     list can neither show nor set this role. Until that is added, the
+--     symposium pane is reachable by is_admin accounts and by nobody else
+--     unless you grant it by hand:
+--       wrangler d1 execute rsg-members --remote --command="UPDATE users SET is_symposium = 1 WHERE email = 'someone@example.com'"
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,

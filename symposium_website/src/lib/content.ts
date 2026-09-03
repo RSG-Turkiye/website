@@ -51,7 +51,19 @@ export async function getSpeakerBySlug(year: number, slug: string): Promise<Spea
  * A failed or mismatched overlay fetch is not an error here: `fetchOverlay`
  * already logged it, and `mergeOverlay` falls back to the repo's own data.
  */
-export async function getUpcomingContent(): Promise<RepoContent | null> {
+let upcomingContentPromise: Promise<RepoContent | null> | null = null;
+
+/** One overlay fetch per build, not one per page. Every page's layout asks for
+ * this to decide which nav items exist, and six routes ask again for their own
+ * content; without memoising, a build makes dozens of identical requests, each
+ * carrying its own 5s timeout against a host that might be hanging rather than
+ * refusing. */
+export function getUpcomingContent(): Promise<RepoContent | null> {
+  upcomingContentPromise ??= loadUpcomingContent();
+  return upcomingContentPromise;
+}
+
+async function loadUpcomingContent(): Promise<RepoContent | null> {
   const edition = await getUpcomingEdition();
   if (!edition) return null;
 

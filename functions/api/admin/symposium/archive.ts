@@ -16,7 +16,7 @@ import type {
   CommitteeRow,
 } from '../../../_lib/symposium';
 import { renderArchive, endOfEventFromMarkdown, editionMarkdownPath } from '../../../_lib/archive';
-import { openContentPR, getFileOnBaseBranch } from '../../../_lib/github';
+import { openContentPR, getFileOnBaseBranch, notifyNewSubmission } from '../../../_lib/github';
 
 // What the SELECT below reads: EditionRow's own columns, plus archived_pr_url
 // itself -- every other query in this codebase filters that column out of
@@ -145,8 +145,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         files,
         title: `Archive the ${edition.year} symposium`,
         prBody: `The ${edition.year} symposium has ended. This folds its CMS overlay ` +
-          `into the content collection permanently -- merging it changes nothing a ` +
-          `visitor already sees, since it matches what the live overlay has been serving.`,
+          `into the content collection permanently.\n\n` +
+          `**Merge this promptly.** The site decides an edition is over from its dates ` +
+          `alone, so ${edition.year} stopped being the upcoming edition the moment it ` +
+          `ended, and the pages that render its programme have gone back to reading the ` +
+          `repo -- which does not have this content until you merge. Until then ` +
+          `/schedule, /speakers and /committee are empty for ${edition.year}.\n\n` +
+          `Also worth doing in the same pass: editions/${edition.year}.md still has an ` +
+          `empty \`speakers:\` list, so that edition's own page shows no speaker grid.`,
       },
       env
     );
@@ -164,6 +170,21 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       results.push({ year: edition.year, status: 'error', error: pr.error });
       continue;
     }
+
+    // Tell a human, the way the blog flow does. Nothing else surfaces this
+    // PR: archived_pr_url is stored but displayed nowhere, and the admin pane
+    // has no archive section -- so without this the branch's one required
+    // manual step is one nobody is told about, while the programme is missing
+    // from the live site. Never throws, and deliberately awaited after the
+    // PR exists but before the UPDATE, so a notification failure cannot cost
+    // us the URL.
+    await notifyNewSubmission(
+      `Merge the ${edition.year} symposium archive`,
+      `${pr.prUrl}\n\nThe ${edition.year} symposium has ended and its CMS content is ` +
+        `not in the repo yet. Until this merges, /schedule, /speakers and /committee ` +
+        `show nothing for ${edition.year}.`,
+      env
+    );
 
     // Written in the same statement that the next invocation's read of
     // archived_pr_url guards on, so a Worker that runs this endpoint twice
