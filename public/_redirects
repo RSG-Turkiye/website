@@ -1,17 +1,14 @@
 /members/:username  /members/profile  200
 
-# Three duplicate posts removed in #74. The pages are built as /blog/<slug>/,
-# and the slashed form is what search engines have indexed, but a rule written
-# with the trailing slash never matched. Trying two syntaxes at once rather
-# than guessing a third time -- these URLs 404 today, so nothing here can be
-# worse than what it replaces.
-
-# candidate A: splat after the slash
+# Three duplicate posts removed in #74, redirected because they were live for
+# years and the dead slug may be the indexed one.
+#
+# One rule each, written without a trailing slash: that covers the slashed
+# request too. Proven on the live site, not assumed -- an earlier attempt
+# added a second slashed rule for each, and a splat variant after that,
+# because the slashed form appeared to 404. It did not; the deployment had
+# simply not propagated yet when it was measured. If you add a rule here,
+# wait a minute or two after the build goes Active before believing a 404.
 /blog/comprehensive-a-review-on-rna-sequencing-and-its-applications  /blog/a-short-review-of-rna-sequencing-and-its-applications/  301
-/blog/comprehensive-a-review-on-rna-sequencing-and-its-applications/*  /blog/a-short-review-of-rna-sequencing-and-its-applications/  301
-
-# candidate B: splat straight after the slug
-/blog/mapping-pipeline-of-the-next-generation-sequencing-data*  /blog/the-mapping-pipeline-of-the-next-generation-sequencing-data/  301
-
-# control: the bare rule that already works without a slash
+/blog/mapping-pipeline-of-the-next-generation-sequencing-data  /blog/the-mapping-pipeline-of-the-next-generation-sequencing-data/  301
 /blog/welcome-to-iscb-sc-rsg-turkeys-official-website  /blog/welcome-to-iscb-sc-rsg-turkey-s-official-website/  301
