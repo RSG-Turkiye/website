@@ -1,0 +1,70 @@
+---
+/**
+ * The admin panel's section switcher.
+ *
+ * The panel used to stack every section down one page: four top-level blocks,
+ * one of which ("Send as RSG") held four more. Finding anything meant
+ * scrolling past everything else, and a fifth section is on the way.
+ *
+ * Each entry names a pane in AdminShell via `data-target`. Which entries a
+ * given admin may use is decided at runtime in admin-panel.ts, from the same
+ * role flags that used to hide whole sections -- see `applyRoleVisibility`.
+ */
+import { useTranslations } from '../../i18n/ui';
+
+interface Props { lang: 'en' | 'tr' }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const items = [
+  { pane: 'members',       label: t('admin.members.heading') },
+  { pane: 'announcements', label: t('admin.announcements.heading') },
+  { pane: 'blog',          label: t('admin.blog.heading') },
+  {
+    label: t('admin.mail.heading'),
+    children: [
+      { pane: 'mail-grant',   label: t('admin.mail.bulkGrant.heading') },
+      { pane: 'mail-senders', label: t('admin.mail.senders.heading') },
+      { pane: 'mail-files',   label: t('admin.mail.attachments.heading') },
+      { pane: 'mail-sent',    label: t('admin.mail.allSends.heading') },
+    ],
+  },
+];
+---
+
+<nav
+  id="adminNav"
+  aria-label={t('admin.members.heading')}
+  class="w-full lg:w-56 shrink-0 bg-white rounded-2xl border border-border shadow-sm p-2"
+>
+  {items.map((item) => (
+    <div data-nav-group={item.children ? 'mail' : item.pane}>
+      {item.children ? (
+        <Fragment>
+          <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {item.label}
+          </p>
+          <div class="pl-1">
+            {item.children.map((c) => (
+              <button
+                type="button"
+                data-target={c.pane}
+                class="admin-nav-item w-full text-left px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-[#F7F7F6] hover:text-navy transition-colors"
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </Fragment>
+      ) : (
+        <button
+          type="button"
+          data-target={item.pane}
+          class="admin-nav-item w-full text-left px-3 py-2 rounded-xl text-sm font-medium text-navy hover:bg-[#F7F7F6] transition-colors"
+        >
+          {item.label}
+        </button>
+      )}
+    </div>
+  ))}
+</nav>

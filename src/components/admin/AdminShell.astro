@@ -1,0 +1,229 @@
+---
+// Shared markup for the admin panel, rendered by both /admin (English) and
+// /tr/admin (Turkish). The two pages used to be near-clones of this file
+// with every string hand-translated in place; the copy now lives in
+// src/i18n/ui.ts under the `admin.*` keys, and the client-side logic lives
+// in src/scripts/admin-panel.ts (shared the same way).
+//
+// One pre-existing, non-copy difference between the two languages is
+// reproduced here rather than resolved: the Turkish admin page never had
+// rank/badge management (the "Rank" and "Badges" table columns), so those
+// two columns render only when `showRankAndBadges` is true. There is no
+// Turkish wording to move for them since the feature never existed there.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AdminNav from './AdminNav.astro';
+import { useTranslations } from '../../i18n/ui';
+
+interface Props {
+  lang: 'en' | 'tr';
+  pageTitle: string;
+  description: string;
+  homeUrl: string;
+}
+
+const { lang, pageTitle, description, homeUrl } = Astro.props;
+const t = useTranslations(lang);
+const showRankAndBadges = lang === 'en';
+---
+
+<BaseLayout pageTitle={pageTitle} description={description}>
+  <div class="min-h-screen bg-[#F7F7F6] py-10 px-4">
+    <div class="max-w-5xl mx-auto">
+
+      <!-- Not authorized -->
+      <div id="notAuth" class="hidden text-center py-24">
+        <p class="text-gray-500" set:html={t('admin.notAuth.message')} />
+        <a href={homeUrl} class="mt-4 inline-block text-sm text-navy hover:underline">{t('admin.notAuth.goHome')}</a>
+      </div>
+
+      <!-- Loading -->
+      <div id="loadingState" class="flex items-center justify-center py-24">
+        <div class="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <!-- Admin content -->
+      <div id="adminContent" class="hidden">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h1 class="text-2xl font-bold text-navy">{t('admin.header.title')}</h1>
+            <p class="text-sm text-gray-500 mt-1">{t('admin.header.subtitle')}</p>
+          </div>
+          <div id="statsRow" class="flex gap-4"></div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
+
+        <div class="flex flex-col lg:flex-row gap-6 items-start">
+          <AdminNav lang={lang} />
+
+          <div class="flex-1 min-w-0 w-full">
+
+        <div id="userManagementSection" data-pane="members">
+        <!-- Filters -->
+        <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6 flex flex-wrap items-center gap-3">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder={t('admin.search.placeholder')}
+            class="flex-1 min-w-48 px-4 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid transition-colors"
+          />
+          <div class="flex gap-2">
+            <button data-filter="all" class="filter-btn active-filter px-4 py-2 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.all')}</button>
+            <button data-filter="members" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.members')}</button>
+            <button data-filter="pending" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.pending')}</button>
+          </div>
+        </div>
+
+        <!-- User table -->
+        <div class="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border bg-[#F7F7F6]">
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.user')}</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.email')}</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.status')}</th>
+                {showRankAndBadges && (
+                  <>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Rank</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Badges</th>
+                  </>
+                )}
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.joined')}</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.actions')}</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody">
+            </tbody>
+          </table>
+          <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-400">{t('admin.table.noUsersFound')}</div>
+        </div>
+        </div>
+
+        <!-- Announcements section -->
+        <div id="announcementsSection" data-pane="announcements">
+
+          <div class="bg-white rounded-2xl border border-border shadow-sm p-4 mb-6">
+            <form id="announcementForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input type="hidden" id="announcementEditId" value="" />
+              <input id="annTitle" type="text" placeholder={t('admin.announcements.form.titlePlaceholder')} required maxlength="80"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2" />
+              <textarea id="annDescription" placeholder={t('admin.announcements.form.descriptionPlaceholder')} required rows="2" maxlength="200"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid sm:col-span-2"></textarea>
+              <input id="annButtonText" type="text" placeholder={t('admin.announcements.form.buttonTextPlaceholder')} required maxlength="30"
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <input id="annButtonUrl" type="url" placeholder={t('admin.announcements.form.buttonUrlPlaceholder')} required
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
+              <label class="flex items-center gap-2 text-sm text-gray-600">
+                {t('admin.announcements.form.expiresOn')}
+                <input id="annExpiresAt" type="date" required
+                  class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+              </label>
+              <label class="flex items-center gap-2 text-sm text-gray-600">
+                <input id="annShowAsPopup" type="checkbox" class="rounded border-border" />
+                {t('admin.announcements.form.showAsPopup')}
+              </label>
+              <div class="sm:col-span-2 flex items-center gap-2">
+                <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+                  {t('admin.announcements.form.save')}
+                </button>
+                <button type="button" id="cancelEditBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+                  {t('admin.announcements.form.cancelEdit')}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-[#F7F7F6]">
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.announcements.table.title')}</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.announcements.table.expires')}</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.announcements.table.popup')}</th>
+                  <th class="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.actions')}</th>
+                </tr>
+              </thead>
+              <tbody id="announcementsTableBody"></tbody>
+            </table>
+            <div id="announcementsEmptyState" class="hidden text-center py-12 text-sm text-gray-400">{t('admin.announcements.table.noneYet')}</div>
+          </div>
+        </div>
+
+        <!-- Blog submissions section -->
+        <div id="blogSubmissionsSection" data-pane="blog">
+          <div id="blogSubmissionsList" class="flex flex-col gap-4"></div>
+          <p id="blogSubmissionsEmpty" class="hidden text-sm text-gray-400">{t('admin.blog.empty')}</p>
+        </div>
+
+        <!-- Send as RSG -->
+        <div id="rsgMailSection">
+
+          <div data-pane="mail-grant"><div class="bg-white rounded-2xl border border-border shadow-sm p-6 mb-4">
+            <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.mail.bulkGrant.heading')}</h3>
+            <form id="bulkGrantForm" class="flex flex-col gap-3">
+              <textarea id="bulkEmails" rows="4" required
+                placeholder={t('admin.mail.bulkGrant.emailsPlaceholder')}
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid"></textarea>
+              <div class="flex items-center gap-3">
+                <input id="bulkTeam" type="text" placeholder={t('admin.mail.bulkGrant.teamPlaceholder')}
+                  class="flex-1 px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
+                <button type="submit" class="px-5 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">{t('admin.mail.bulkGrant.submit')}</button>
+              </div>
+              <p id="bulkResult" class="hidden text-xs"></p>
+            </form>
+          </div></div>
+
+          <div data-pane="mail-senders"><div class="bg-white rounded-2xl border border-border shadow-sm p-6 mb-4">
+            <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.mail.senders.heading')}</h3>
+            <div id="sendersList" class="flex flex-col gap-2"></div>
+            <p id="sendersEmpty" class="hidden text-sm text-gray-400">{t('admin.mail.senders.empty')}</p>
+          </div></div>
+
+          <div data-pane="mail-files"><div class="bg-white rounded-2xl border border-border shadow-sm p-6 mb-4">
+            <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.mail.attachments.heading')}</h3>
+
+            <input id="attachmentFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.pptx"
+              class="text-sm text-gray-500 block" />
+            <p class="text-xs text-gray-400 mt-1">{t('admin.mail.attachments.typesNote')}</p>
+
+            <div id="attachmentChosen" class="hidden mt-3 text-sm text-navy bg-[#F7F7F6] rounded-xl px-3 py-2"></div>
+            <p id="attachmentError" class="hidden mt-2 text-sm text-red-600"></p>
+
+            <button type="button" id="attachmentUploadBtn" disabled
+              class="mt-3 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              {t('admin.mail.attachments.uploadBtn')}
+            </button>
+
+            <div id="attachmentAdminList" class="flex flex-col gap-2 mt-4"></div>
+            <p id="attachmentsEmpty" class="hidden text-sm text-gray-400 mt-2">{t('admin.mail.attachments.empty')}</p>
+          </div></div>
+
+          <div data-pane="mail-sent"><div class="bg-white rounded-2xl border border-border shadow-sm p-6">
+            <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.mail.allSends.heading')}</h3>
+            <div id="allSendsList" class="flex flex-col gap-2"></div>
+            <p id="allSendsEmpty" class="hidden text-sm text-gray-400">{t('admin.mail.allSends.empty')}</p>
+          </div>
+        </div></div></div></div>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  @reference "../../styles/global.css";
+
+  .filter-btn {
+    @apply bg-[#F7F7F6] text-gray-500 hover:bg-navy-light hover:text-navy;
+  }
+  .active-filter {
+    @apply bg-navy text-white hover:bg-navy;
+  }
+</style>
+
+<script>
+  import '../../scripts/admin-panel';
+</script>
