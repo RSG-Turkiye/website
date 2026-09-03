@@ -22,6 +22,10 @@ export interface EditionLike {
   abstractUrl?: string;
   registrationDeadline?: Date;
   abstractDeadline?: Date;
+  /** Presentation-only, never used by the date logic: the poster image and the
+   * human-written date string an edition card renders. */
+  posterImage?: string;
+  date?: string;
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -144,4 +148,33 @@ export function ctasFor(e: EditionLike): Cta[] {
   if (reg) ctas.push({ kind: "registration", url: reg, deadline: e.registrationDeadline });
   if (abs) ctas.push({ kind: "abstract", url: abs, deadline: e.abstractDeadline });
   return ctas;
+}
+
+/**
+ * Which edition the programme pages should present, and how.
+ *
+ * "upcoming" and "past" were only ever given one presentation each, so the
+ * morning after a symposium every programme surface fell back to "will be
+ * announced soon" about an event that had already happened. A finished
+ * edition needs its own state: the same content, kept as a record, with the
+ * calls to action gone.
+ *
+ * `finished` is the most recently finished *dated* edition. An undated entry
+ * is archive material with no programme to present, so it is never current.
+ */
+export type CurrentEdition =
+  | { state: "upcoming"; edition: EditionLike }
+  | { state: "finished"; edition: EditionLike }
+  | { state: "none"; edition: null };
+
+export function currentEditionOf(all: EditionLike[], now: Date): CurrentEdition {
+  const { upcoming, past } = splitEditions(all, now);
+  if (upcoming) return { state: "upcoming", edition: upcoming };
+
+  // `past` is already newest-first; the first dated entry is the one that
+  // just finished.
+  const lastFinished = past.find((e) => e.startDate);
+  if (lastFinished) return { state: "finished", edition: lastFinished };
+
+  return { state: "none", edition: null };
 }

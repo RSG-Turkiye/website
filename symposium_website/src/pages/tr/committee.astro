@@ -1,13 +1,14 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
-import { getUpcomingEdition } from "../../lib/editions-content";
-import { getUpcomingContent } from "../../lib/content";
+import { getCurrentEdition } from "../../lib/editions-content";
+import { getCurrentContent } from "../../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-const edition = await getUpcomingEdition();
-const content = edition ? await getUpcomingContent() : null;
+const { state, entry: edition } = await getCurrentEdition();
+const content = await getCurrentContent();
+const finished = state === "finished";
 const members = content?.committee ?? [];
 ---
 
@@ -24,7 +25,7 @@ const members = content?.committee ?? [];
 
   <div class="max-w-5xl mx-auto px-6 py-16">
     {members.length === 0 ? (
-      <p class="text-gray-500 text-center py-16">{t("committee.tba")}</p>
+      <p class="text-gray-500 text-center py-16">{finished ? t("committee.past.none") : t("committee.tba")}</p>
     ) : (
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {members.map((m) => (

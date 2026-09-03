@@ -1,0 +1,53 @@
+---
+// One edition's card, shared by the English and Turkish /editions pages so the
+// two cannot drift -- they were byte-identical apart from import depths.
+import { locationFor, titleFor, subtitleFor, type EditionLike } from "../lib/editions";
+import type { Lang } from "../i18n/ui";
+
+interface Props {
+  edition: EditionLike;
+  lang: Lang;
+  /** Set on the upcoming card only: the merged overlay flags, so this card
+   * never disagrees with the homepage and /venue about whether the hall is
+   * public. Archive cards have no overlay and read the collection directly. */
+  effective?: EditionLike | null;
+  badge?: string;
+}
+
+const { edition, lang, effective = null, badge } = Astro.props;
+const prefix = lang === "tr" ? "/tr" : "";
+const loc = locationFor(effective ?? edition);
+const subtitle = subtitleFor(edition, lang);
+---
+
+<a
+  href={`${prefix}/editions/${edition.year}`}
+  class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"
+>
+  {edition.posterImage && (
+    <div class="aspect-video overflow-hidden bg-navy-light">
+      <img
+        src={edition.posterImage}
+        alt={titleFor(edition, lang)}
+        class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+        loading="lazy"
+      />
+    </div>
+  )}
+  <div class="p-5 flex flex-col gap-2 flex-1">
+    <div class="flex items-center gap-2">
+      <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded">{edition.year}</span>
+      {badge && (
+        <span class="bg-red text-white text-xs font-semibold px-2 py-0.5 rounded">{badge}</span>
+      )}
+    </div>
+    <h2 class="font-semibold text-navy">{titleFor(edition, lang)}</h2>
+    {subtitle && <p class="text-sm text-gray-500">{subtitle}</p>}
+    {loc.kind !== "hidden" && (
+      <p class="text-xs text-gray-500 mt-auto pt-2">
+        📍 {loc.city}
+        {edition.date && ` · ${edition.date}`}
+      </p>
+    )}
+  </div>
+</a>

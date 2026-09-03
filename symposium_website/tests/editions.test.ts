@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
+import { splitEditions, currentEditionOf, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
 
 function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
@@ -205,4 +205,52 @@ test('subtitleFor: no subtitle at all is undefined, not a crash', () => {
   const e = {} as EditionLike;
   assert.equal(subtitleFor(e, 'tr'), undefined);
   assert.equal(subtitleFor(e, 'en'), undefined);
+});
+
+// --- the third state: an edition that has finished -------------------------
+// The morning after the symposium, the pages that render its programme must
+// keep rendering it as a record. Before this, they fell back to "will be
+// announced soon" about an event that had already happened.
+
+test('while an edition is still ahead, it is the current one and it is upcoming', () => {
+  const c = currentEditionOf(ALL, new Date('2026-09-03'));
+  assert.equal(c.state, 'upcoming');
+  assert.equal(c.edition?.year, 2026);
+});
+
+test('the morning after, the same edition is current but finished', () => {
+  // 2026 starts 10 Oct and has no endDate, so it is over at midnight on the
+  // 11th -- the exact boundary the nightly rebuild crosses.
+  const c = currentEditionOf(ALL, new Date('2026-10-11T06:00:00Z'));
+  assert.equal(c.state, 'finished');
+  assert.equal(c.edition?.year, 2026);
+});
+
+test('a finished edition gives way to the next one once that is announced', () => {
+  const withNext = [...ALL, edition(2027, '2027-10-09')];
+  const c = currentEditionOf(withNext, new Date('2026-10-11T06:00:00Z'));
+  assert.equal(c.state, 'upcoming');
+  assert.equal(c.edition?.year, 2027);
+});
+
+test('the most recently finished edition wins, not the oldest', () => {
+  const c = currentEditionOf(ALL, new Date('2026-10-11T06:00:00Z'));
+  assert.equal(c.edition?.year, 2026);
+  const earlier = currentEditionOf(ALL, new Date('2026-01-01'));
+  assert.equal(earlier.state, 'upcoming');
+  assert.equal(earlier.edition?.year, 2026);
+});
+
+test('an undated archive entry is never the current edition', () => {
+  // 2023 and 2024 have no dates; with nothing dated at all there is no
+  // current edition to present, rather than an arbitrary one.
+  const c = currentEditionOf([edition(2024), edition(2023)], new Date('2026-10-11'));
+  assert.equal(c.state, 'none');
+  assert.equal(c.edition, null);
+});
+
+test('no editions at all is the none state, not a crash', () => {
+  const c = currentEditionOf([], new Date('2026-10-11'));
+  assert.equal(c.state, 'none');
+  assert.equal(c.edition, null);
 });

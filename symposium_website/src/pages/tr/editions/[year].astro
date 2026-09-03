@@ -3,7 +3,8 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import SpeakerCard from "../../../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
 import { getCollection, render } from "astro:content";
-import { getSpeakerBySlug } from "../../../lib/content";
+import { getSpeakerBySlug, getCurrentContent } from "../../../lib/content";
+import { getCurrentEdition } from "../../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor } from "../../../lib/editions";
 
 export async function getStaticPaths() {
@@ -24,6 +25,19 @@ const editionSpeakers = (
     edition.data.speakers.map((slug) => getSpeakerBySlug(edition.data.year, slug))
   )
 ).filter(Boolean);
+
+// The frontmatter `speakers:` list is hand-maintained and empty for an edition
+// whose speakers were entered through the CMS. Rather than show an empty grid
+// until someone remembers to write that list, the current edition -- the one
+// still ahead, or the one that just finished -- falls back to the same merged
+// content /speakers renders from.
+const { entry: currentEntry } = await getCurrentEdition();
+const speakers =
+  editionSpeakers.length > 0
+    ? editionSpeakers
+    : currentEntry?.data.year === edition.data.year
+      ? (await getCurrentContent())?.speakers ?? []
+      : [];
 const title = titleFor(edition.data, lang);
 const subtitle = subtitleFor(edition.data, lang);
 ---
@@ -68,11 +82,11 @@ const subtitle = subtitleFor(edition.data, lang);
         <img src={edition.data.posterImage} alt={title} class="max-h-96 w-auto object-contain" />
       </div>
     )}
-    {editionSpeakers.length > 0 && (
+    {speakers.length > 0 && (
       <div>
         <h2 class="text-xl font-bold text-navy mb-5">{t("nav.speakers")}</h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {editionSpeakers.map((sp) => sp && <SpeakerCard speaker={sp} />)}
+          {speakers.map((sp) => sp && <SpeakerCard speaker={sp} />)}
         </div>
       </div>
     )}

@@ -5,9 +5,9 @@ import EditionCta from "../../components/EditionCta.astro";
 import EventJsonLd from "../../components/EventJsonLd.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSponsorsByEdition } from "../../data/sponsors";
-import { getUpcomingEdition, getPastEditions } from "../../lib/editions-content";
+import { getCurrentEdition, getPastEditions } from "../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor } from "../../lib/editions";
-import { getUpcomingContent, withOverlayContent } from "../../lib/content";
+import { getCurrentContent, withOverlayContent } from "../../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -15,8 +15,9 @@ const t = useTranslations(lang);
 const latestSponsors = getSponsorsByEdition(2024);
 const recentEditions = (await getPastEditions()).slice(0, 3);
 
-const upcoming = await getUpcomingEdition();
-const upcomingContent = upcoming ? await getUpcomingContent() : null;
+const { state, entry: upcoming } = await getCurrentEdition();
+const upcomingContent = await getCurrentContent();
+const finished = state === "finished";
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
@@ -29,7 +30,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
 ---
 
 <BaseLayout pageTitle={t("nav.home")} image={BANNER} translationUrl="/">
-  {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} />}
+  {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} finished={finished} />}
   <section class="relative bg-navy text-white overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style={`background-image: url('${BANNER}')`}></div>
     <div class="absolute inset-0 bg-navy/75"></div>
@@ -49,13 +50,19 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
             {place.kind === "withheld" && ` · ${place.city} · ${t("venue.tba")}`}
             {place.kind === "city-only" && ` · ${place.city}`}
           </p>
-          <p
-            id="countdown"
-            class="text-white/60 text-sm tabular-nums"
-            data-starts-at={startsAt}
-            data-days-label={t("hero.countdown.days")}
-          ></p>
-          <EditionCta edition={effectiveEdition!} lang={lang} />
+          {!finished && (
+            <p
+              id="countdown"
+              class="text-white/60 text-sm tabular-nums"
+              data-starts-at={startsAt}
+              data-days-label={t("hero.countdown.days")}
+            ></p>
+          )}
+          {finished ? (
+            <p class="text-white/80 text-sm">{t("edition.finished.thanks")}</p>
+          ) : (
+            <EditionCta edition={effectiveEdition!} lang={lang} />
+          )}
         </Fragment>
       ) : (
         <Fragment>

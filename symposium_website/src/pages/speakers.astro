@@ -2,8 +2,8 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SpeakerCard from "../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getSpeakers, getUpcomingContent } from "../lib/content";
-import { getUpcomingEdition } from "../lib/editions-content";
+import { getSpeakers, getCurrentContent } from "../lib/content";
+import { getCurrentEdition } from "../lib/editions-content";
 import { getCollection } from "astro:content";
 
 const lang = getLangFromUrl(Astro.url);
@@ -12,8 +12,9 @@ const t = useTranslations(lang);
 const editions = await getCollection("editions");
 const editionYears = [...new Set(editions.map((e) => e.data.year))].sort((a, b) => b - a);
 
-const upcoming = await getUpcomingEdition();
-const upcomingContent = upcoming ? await getUpcomingContent() : null;
+const { state, entry: upcoming } = await getCurrentEdition();
+const upcomingContent = await getCurrentContent();
+const finished = state === "finished";
 const hasUpcomingSpeakers = upcomingContent ? upcomingContent.speakers.length > 0 : false;
 
 // The upcoming edition's speakers come from the merged overlay content, not
@@ -47,7 +48,7 @@ const speakersByYear = new Map(
   <div class="max-w-7xl mx-auto px-6 py-12 space-y-16">
     {
       !hasUpcomingSpeakers && (
-        <p class="text-gray-500 text-center py-16">{t("speakers.none")}</p>
+        <p class="text-gray-500 text-center py-16">{finished ? t("speakers.past.none") : t("speakers.none")}</p>
       )
     }
     {
