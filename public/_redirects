@@ -1,1 +1,9 @@
 /members/:username  /members/profile  200
+
+# Three duplicate posts, removed in #74: the same article under two slugs, so
+# both built to a live page and Google saw duplicate content. The surviving
+# copy is named on the right. Redirected rather than simply deleted -- these
+# were live for years and the dead slug may be the one that is indexed.
+/blog/comprehensive-a-review-on-rna-sequencing-and-its-applications  /blog/a-short-review-of-rna-sequencing-and-its-applications  301
+/blog/mapping-pipeline-of-the-next-generation-sequencing-data  /blog/the-mapping-pipeline-of-the-next-generation-sequencing-data  301
+/blog/welcome-to-iscb-sc-rsg-turkeys-official-website  /blog/welcome-to-iscb-sc-rsg-turkey-s-official-website  301
