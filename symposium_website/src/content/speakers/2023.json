@@ -1,0 +1,45 @@
+{
+  "year": 2023,
+  "people": [
+    {
+      "slug": "dr-ramazan-terzi",
+      "name": "Dr. Ramazan Terzi",
+      "position": "Associate Professor, Computer Engineering",
+      "company": "Erciyes University",
+      "photo": "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606572/rsgturkey/symposium/2023/06/ramazan_terzi.jpg",
+      "bio": "Dr. Ramazan Terzi completed his undergraduate and master's degree studies in Computer Engineering at Erciyes University. He holds a PhD degree in Computer Engineering from Gazi University. He is currently working as an Associate Professor in the Computer Engineering Department at Erciyes University. His research interests focus on data mining, machine learning, and big data analytics in biomedical applications."
+    },
+    {
+      "slug": "prof-dr-tolga-cukur",
+      "name": "Prof. Dr. Tolga Çukur",
+      "position": "Professor, Electrical and Electronics Engineering",
+      "company": "Bilkent University",
+      "photo": "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606579/rsgturkey/symposium/2023/08/tolgacukur.jpg",
+      "bio": "After receiving his bachelor's degree from Bilkent University in 2003 and his PhD from Stanford University in 2009, he continued his postdoctoral studies at the University of California, Berkeley. He is currently a Professor in the Electrical and Electronics Engineering Department at Bilkent University. His research focuses on computational imaging and machine learning in the context of MRI and neuroscience."
+    },
+    {
+      "slug": "prof-dr-kaan-orhan",
+      "name": "Prof. Dr. Kaan Orhan",
+      "position": "Professor, Dentomaxillofacial Radiology",
+      "company": "Ankara University",
+      "photo": "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606579/rsgturkey/symposium/2023/08/kaan_orhan.jpg",
+      "bio": ""
+    },
+    {
+      "slug": "dr-burcak-otlu",
+      "name": "Dr. Burçak Otlu",
+      "position": "Postdoctoral Researcher",
+      "company": "UC San Diego",
+      "photo": "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606579/rsgturkey/symposium/2023/08/BurcakOtlu_UCSD_PostDoc_Photo_Small.jpg",
+      "bio": ""
+    },
+    {
+      "slug": "dr-ahmet-gorkem-er",
+      "name": "Dr. Ahmet Gökçen Er",
+      "position": "Researcher",
+      "company": "",
+      "photo": "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606578/rsgturkey/symposium/2023/08/ahmet-er_profilephoto.jpg",
+      "bio": ""
+    }
+  ]
+}

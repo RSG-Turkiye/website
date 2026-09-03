@@ -2,7 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SessionRow from "../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getSessionsByEdition } from "../data/sessions";
+import { getSessions, getSpeakers } from "../lib/content";
 import { getUpcomingEdition } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
 
@@ -10,7 +10,8 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
 const edition = await getUpcomingEdition();
-const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
+const sessions = edition ? await getSessions(edition.data.year) : [];
+const scheduleSpeakers = edition ? await getSpeakers(edition.data.year) : [];
 ---
 
 <BaseLayout
@@ -63,7 +64,7 @@ const sessions = edition ? getSessionsByEdition(edition.data.year) : [];
 
             <!-- Sessions list -->
             <div class="p-4 space-y-2">
-              {sessions.map((session) => <SessionRow session={session} />)}
+              {sessions.map((session) => <SessionRow session={session} speakers={scheduleSpeakers} />)}
             </div>
           </div>
 

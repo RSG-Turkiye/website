@@ -4,9 +4,7 @@ import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import { getLangFromUrl, useTranslations } from "../i18n/ui";
 import { getUpcomingEdition } from "../lib/editions-content";
-import { getSessionsByEdition } from "../data/sessions";
-import { getSpeakersByEdition } from "../data/speakers";
-import { getCommitteeByEdition } from "../data/committee";
+import { getSessions, getSpeakers, getCommittee } from "../lib/content";
 import type { NavState } from "../lib/nav";
 import { alternatesFor } from "../lib/hreflang";
 
@@ -24,9 +22,9 @@ const t = useTranslations(lang);
 const upcoming = await getUpcomingEdition();
 const year = upcoming?.data.year ?? 0;
 const navState: NavState = {
-  hasSchedule: getSessionsByEdition(year).length > 0,
-  hasSpeakers: getSpeakersByEdition(year).length > 0,
-  hasCommittee: getCommitteeByEdition(year).length > 0,
+  hasSchedule: (await getSessions(year)).length > 0,
+  hasSpeakers: (await getSpeakers(year)).length > 0,
+  hasCommittee: (await getCommittee(year)).length > 0,
 };
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);

@@ -1,13 +1,25 @@
 ---
-import type { Session } from "../data/sessions";
-import { sessionTypeColors } from "../data/sessions";
-import { speakers as allSpeakers } from "../data/speakers";
+import type { Session, SessionType, Speaker } from "../lib/content";
+
+const sessionTypeColors: Record<SessionType, string> = {
+  opening: "bg-navy text-white",
+  keynote: "bg-red text-white",
+  workshop: "bg-[#0E7490] text-white",
+  panel: "bg-[#7C3AED] text-white",
+  talk: "bg-navy-mid text-white",
+  company: "bg-[#92400E] text-white",
+  poster: "bg-[#065F46] text-white",
+  networking: "bg-[#1D4ED8] text-white",
+  break: "bg-border text-navy",
+  closing: "bg-navy text-white",
+};
 
 interface Props {
   session: Session;
+  speakers: Speaker[];
 }
 
-const { session } = Astro.props;
+const { session, speakers: allSpeakers } = Astro.props;
 const sessionSpeakers = allSpeakers.filter((s) =>
   session.speakerSlugs.includes(s.slug)
 );

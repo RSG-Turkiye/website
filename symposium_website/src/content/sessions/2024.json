@@ -1,0 +1,155 @@
+{
+  "year": 2024,
+  "items": [
+    {
+      "slug": "opening",
+      "title": "Opening Remarks",
+      "type": "opening",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 1,
+      "time": ""
+    },
+    {
+      "slug": "keynote-i-2024",
+      "title": "Keynote I",
+      "type": "keynote",
+      "speakerSlugs": [
+        "prof-dr-gokhan-kacar"
+      ],
+      "description": "Molecular Dynamics Simulations of Nanoscale Drug Carrier Systems",
+      "order": 2,
+      "time": ""
+    },
+    {
+      "slug": "coffee-break-1",
+      "title": "Coffee Break",
+      "type": "break",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 3,
+      "time": ""
+    },
+    {
+      "slug": "keynote-ii-2024",
+      "title": "Keynote II",
+      "type": "keynote",
+      "speakerSlugs": [
+        "mehmet-baysan"
+      ],
+      "description": "Data Science and Clinical Bioinformatics",
+      "order": 4,
+      "time": ""
+    },
+    {
+      "slug": "student-talk-2024",
+      "title": "Student Talk",
+      "type": "talk",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 5,
+      "time": ""
+    },
+    {
+      "slug": "lunch-2024",
+      "title": "Lunch",
+      "type": "break",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 6,
+      "time": ""
+    },
+    {
+      "slug": "panel-discussion-2024",
+      "title": "Panel Discussion: Clinical Bioinformatics Startups — From Idea to Market",
+      "type": "panel",
+      "speakerSlugs": [],
+      "description": "A panel exploring the journey from research idea to market-ready bioinformatics product.",
+      "order": 7,
+      "time": ""
+    },
+    {
+      "slug": "company-presentation-i",
+      "title": "Company Presentation I",
+      "type": "company",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 8,
+      "time": ""
+    },
+    {
+      "slug": "career-session-2024",
+      "title": "Round Table Meetings — Career Session",
+      "type": "networking",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 9,
+      "time": ""
+    },
+    {
+      "slug": "poster-session-2024",
+      "title": "Poster Session & Networking",
+      "type": "poster",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 10,
+      "time": ""
+    },
+    {
+      "slug": "closing-day1",
+      "title": "Closing Remarks for Day 1",
+      "type": "closing",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 11,
+      "time": ""
+    },
+    {
+      "slug": "workshop-kubra-narci",
+      "title": "Workshop: Nextflow and nf-core",
+      "type": "workshop",
+      "speakerSlugs": [
+        "kubra-narci"
+      ],
+      "description": "Hands-on workshop on building reproducible bioinformatics pipelines with Nextflow and nf-core.",
+      "order": 12,
+      "time": ""
+    },
+    {
+      "slug": "company-presentation-ii",
+      "title": "Company Presentation II",
+      "type": "company",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 13,
+      "time": ""
+    },
+    {
+      "slug": "company-presentation-iii",
+      "title": "Company Presentation III",
+      "type": "company",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 14,
+      "time": ""
+    },
+    {
+      "slug": "student-talks-2024",
+      "title": "Student Talks (×3)",
+      "type": "talk",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 15,
+      "time": ""
+    },
+    {
+      "slug": "closing-2024",
+      "title": "Closing",
+      "type": "closing",
+      "speakerSlugs": [],
+      "description": "",
+      "order": 16,
+      "time": ""
+    }
+  ]
+}
