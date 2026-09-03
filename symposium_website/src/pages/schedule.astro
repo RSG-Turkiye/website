@@ -2,7 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SessionRow from "../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getSessions, getSpeakers } from "../lib/content";
+import { getUpcomingContent, withOverlayContent } from "../lib/content";
 import { getUpcomingEdition } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
 
@@ -10,8 +10,10 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
 const edition = await getUpcomingEdition();
-const sessions = edition ? await getSessions(edition.data.year) : [];
-const scheduleSpeakers = edition ? await getSpeakers(edition.data.year) : [];
+const content = edition ? await getUpcomingContent() : null;
+const effectiveEdition = edition ? withOverlayContent(edition.data, content) : null;
+const sessions = content?.sessions ?? [];
+const scheduleSpeakers = content?.speakers ?? [];
 ---
 
 <BaseLayout
@@ -39,7 +41,7 @@ const scheduleSpeakers = edition ? await getSpeakers(edition.data.year) : [];
                 <span class="text-sm text-gray-500">{edition.data.date}</span>
               </div>
               {(() => {
-                const loc = locationFor(edition.data);
+                const loc = locationFor(effectiveEdition!);
                 return (
                   <>
                     {loc.kind === "full" && (

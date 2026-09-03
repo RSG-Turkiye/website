@@ -2,12 +2,13 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getUpcomingEdition } from "../../lib/editions-content";
-import { getCommittee } from "../../lib/content";
+import { getUpcomingContent } from "../../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const edition = await getUpcomingEdition();
-const members = await getCommittee(edition?.data.year ?? 0);
+const content = edition ? await getUpcomingContent() : null;
+const members = content?.committee ?? [];
 ---
 
 <BaseLayout

@@ -1,4 +1,7 @@
 import { getCollection } from "astro:content";
+import { getUpcomingEdition } from "./editions-content";
+import { fetchOverlay, mergeOverlay, type RepoContent } from "./overlay";
+import type { EditionLike } from "./editions";
 
 export type SessionType =
   | "opening" | "keynote" | "workshop" | "panel" | "talk"
@@ -36,4 +39,65 @@ export async function getSessions(year: number): Promise<Session[]> {
 
 export async function getSpeakerBySlug(year: number, slug: string): Promise<Speaker | undefined> {
   return (await getSpeakers(year)).find((s) => s.slug === slug);
+}
+
+/**
+ * The repo's content for the upcoming edition, merged with whatever the CMS
+ * overlay currently has to say. Returns null when there is no upcoming
+ * edition at all -- archive pages never call this, since an archived
+ * edition has no overlay and asking for one would be a pointless request
+ * per page.
+ *
+ * A failed or mismatched overlay fetch is not an error here: `fetchOverlay`
+ * already logged it, and `mergeOverlay` falls back to the repo's own data.
+ */
+export async function getUpcomingContent(): Promise<RepoContent | null> {
+  const edition = await getUpcomingEdition();
+  if (!edition) return null;
+
+  const year = edition.data.year;
+  const [speakers, sessions, committee] = await Promise.all([
+    getSpeakers(year),
+    getSessions(year),
+    getCommittee(year),
+  ]);
+
+  const repo: RepoContent = {
+    registrationUrl: edition.data.registrationUrl,
+    abstractUrl: edition.data.abstractUrl,
+    registrationDeadline: edition.data.registrationDeadline,
+    abstractDeadline: edition.data.abstractDeadline,
+    venuePublic: edition.data.venuePublic,
+    cityPublic: edition.data.cityPublic,
+    speakers,
+    sessions,
+    committee,
+  };
+
+  const apiBase = import.meta.env.PUBLIC_API_BASE ?? "https://rsg-turkiye.iscbsc.org";
+  const overlay = await fetchOverlay(year, apiBase);
+  return mergeOverlay(repo, overlay);
+}
+
+/**
+ * The edition-shaped object to hand to `locationFor`/`ctasFor`/`EventJsonLd`:
+ * the markdown edition's own `venue`/`venueCity` untouched, with the six
+ * overlay-eligible fields (the registration/abstract links and deadlines,
+ * and the two publicity flags) layered on from the merged content.
+ *
+ * `content` is `null` when there is no upcoming edition, in which case the
+ * edition is returned as-is -- `venue`/`venueCity` are never assigned here,
+ * so the overlay has no path to introduce them.
+ */
+export function withOverlayContent<T extends EditionLike>(edition: T, content: RepoContent | null): T {
+  if (!content) return edition;
+  return {
+    ...edition,
+    registrationUrl: content.registrationUrl,
+    abstractUrl: content.abstractUrl,
+    registrationDeadline: content.registrationDeadline,
+    abstractDeadline: content.abstractDeadline,
+    venuePublic: content.venuePublic,
+    cityPublic: content.cityPublic,
+  };
 }

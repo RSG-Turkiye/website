@@ -7,6 +7,7 @@ import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getSponsorsByEdition } from "../data/sponsors";
 import { getUpcomingEdition, getPastEditions } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
+import { getUpcomingContent, withOverlayContent } from "../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -19,13 +20,15 @@ const latestSponsors = getSponsorsByEdition(2024);
 const recentEditions = (await getPastEditions()).slice(0, 3);
 
 const upcoming = await getUpcomingEdition();
+const upcomingContent = upcoming ? await getUpcomingContent() : null;
+const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming
   ? (lang === "tr" && upcoming.data.titleTr) || upcoming.data.title
   : "";
 const theme = upcoming
   ? (lang === "tr" && upcoming.data.subtitleTr) || upcoming.data.subtitle
   : "";
-const place = upcoming ? locationFor(upcoming.data) : { kind: "hidden" as const };
+const place = effectiveEdition ? locationFor(effectiveEdition) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
 const BANNER =
@@ -39,7 +42,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
   image={BANNER}
   translationUrl={lang === "en" ? "/tr/" : "/"}
 >
-  {upcoming && <EventJsonLd edition={upcoming.data} url={canonical} lang={lang} />}
+  {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} />}
   <!-- ── Hero ──────────────────────────────────────────────────── -->
   <section class="relative bg-navy text-white overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style={`background-image: url('${BANNER}')`}></div>
@@ -66,7 +69,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
             data-starts-at={startsAt}
             data-days-label={t("hero.countdown.days")}
           ></p>
-          <EditionCta edition={upcoming.data} lang={lang} />
+          <EditionCta edition={effectiveEdition!} lang={lang} />
         </Fragment>
       ) : (
         <Fragment>
