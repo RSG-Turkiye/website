@@ -11,6 +11,11 @@ interface Props {
   pageTitle: string;
   description?: string;
   image?: string;
+  /** Optional override. Left off, the language toggle is derived from the
+   * current path by the same `alternatesFor` that builds the hreflang tags,
+   * so the two can never disagree -- and a new page cannot ship with a
+   * toggle that silently falls back to the homepage because someone forgot
+   * to pass this. */
   translationUrl?: string;
 }
 
@@ -35,6 +40,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImage = image || "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
 const metaDesc = description || t("site.description");
 const alternates = alternatesFor(Astro.url.pathname);
+const toggleUrl = translationUrl ?? (alternates ? (lang === "en" ? alternates.tr : alternates.en) : "/");
 ---
 
 <!doctype html>
@@ -71,7 +77,7 @@ const alternates = alternatesFor(Astro.url.pathname);
     <link rel="icon" type="image/png" href="/logo/rsgturkey_logo.png" />
   </head>
   <body>
-    <Header lang={lang} translationUrl={translationUrl} navState={navState} />
+    <Header lang={lang} translationUrl={toggleUrl} navState={navState} />
     <main class="pt-16">
       <slot />
     </main>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, currentEditionOf, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
+import { splitEditions, currentEditionOf, ordinalOf, symposiumsHeld, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
 
 function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
@@ -253,4 +253,50 @@ test('no editions at all is the none state, not a crash', () => {
   const c = currentEditionOf([], new Date('2026-10-11'));
   assert.equal(c.state, 'none');
   assert.equal(c.edition, null);
+});
+
+// --- how many symposiums have been held ------------------------------------
+// The homepage said 12+ and /about said 11+, and the collection holds nine
+// files -- three numbers for one fact. The titles carry the real one: they
+// are numbered 5th through 13th, so editions 1-4 happened without getting a
+// markdown entry, and counting files would publish a smaller, wrong number.
+
+test('an edition knows its own number from its title', () => {
+  assert.equal(ordinalOf({ year: 2026, title: '13th RSG-Türkiye Student Symposium' }), 13);
+  assert.equal(ordinalOf({ year: 2019, title: '1st RSG-Türkiye Student Symposium' }), 1);
+  assert.equal(ordinalOf({ year: 2019, title: '2nd Symposium' }), 2);
+  assert.equal(ordinalOf({ year: 2019, title: '3rd Symposium' }), 3);
+});
+
+test('a title with no number in front yields nothing rather than a guess', () => {
+  assert.equal(ordinalOf({ year: 2019, title: 'RSG-Türkiye Student Symposium' }), null);
+  assert.equal(ordinalOf({ year: 2019, title: 'Symposium 12' }), null);
+});
+
+test('the count is the highest number, minus the one that has not happened yet', () => {
+  // 2026 is the 13th and is still ahead, so twelve have been held.
+  const all = [
+    { year: 2025, title: '12th Symposium', startDate: new Date('2025-10-30') },
+    { year: 2026, title: '13th Symposium', startDate: new Date('2026-10-10') },
+  ];
+  assert.equal(symposiumsHeld(all, new Date('2026-09-03')), 12);
+});
+
+test('the morning after, the count includes it', () => {
+  const all = [
+    { year: 2025, title: '12th Symposium', startDate: new Date('2025-10-30') },
+    { year: 2026, title: '13th Symposium', startDate: new Date('2026-10-10') },
+  ];
+  assert.equal(symposiumsHeld(all, new Date('2026-10-11T06:00:00Z')), 13);
+});
+
+test('the count never falls below the editions actually on file', () => {
+  // Guards the failure the old hardcoded numbers had: a value that drifts
+  // below reality and nothing notices.
+  const all = [
+    { year: 2024, title: 'Symposium' },
+    { year: 2025, title: 'Symposium' },
+    { year: 2026, title: 'Symposium' },
+  ];
+  assert.equal(symposiumsHeld(all, new Date('2026-09-03')), 3);
 });
