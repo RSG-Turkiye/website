@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rowsToOverlay, editionRowFromInput } from '../functions/_lib/symposium';
+import { rowsToOverlay, editionRowFromInput, rowToEditionInput } from '../functions/_lib/symposium';
 
 const editionRow = {
   year: 2026, registration_url: 'https://forms.gle/reg', registration_deadline: 1790000000,
@@ -55,27 +55,50 @@ test('the hall never appears in the payload', () => {
 });
 
 test('a blank deadline is stored as null, not as zero', () => {
-  const row = editionRowFromInput({ registrationUrl: 'https://x', registrationDeadline: '' });
+  const row = editionRowFromInput({ registrationUrl: 'https://x', registrationDeadline: '' }, 2026);
   assert.equal(row.registration_deadline, null);
 });
 
 test('a date arrives as a day and is stored as a timestamp', () => {
-  const row = editionRowFromInput({ registrationDeadline: '2026-10-01' });
+  const row = editionRowFromInput({ registrationDeadline: '2026-10-01' }, 2026);
   assert.equal(row.registration_deadline, Date.UTC(2026, 9, 1) / 1000);
 });
 
 test('an untouched visibility flag stays null', () => {
-  const row = editionRowFromInput({});
+  const row = editionRowFromInput({}, 2026);
   assert.equal(row.venue_public, null);
 });
 
 test('an explicit false is stored as 0, not dropped as falsy', () => {
   // The difference between "hide it" and "no opinion" is the whole point of
   // the column being nullable.
-  const row = editionRowFromInput({ venuePublic: false });
+  const row = editionRowFromInput({ venuePublic: false }, 2026);
   assert.equal(row.venue_public, 0);
 });
 
 test('a url is rejected rather than stored when it is not http', () => {
-  assert.throws(() => editionRowFromInput({ registrationUrl: 'javascript:alert(1)' }), /http/);
+  assert.throws(() => editionRowFromInput({ registrationUrl: 'javascript:alert(1)' }, 2026), /http/);
+});
+
+test('what GET returns is what PUT accepts', () => {
+  // The form loads a value, the user changes nothing, the form saves. That must
+  // be a no-op, not a corruption -- so the two shapes have to be the same shape.
+  const row = editionRowFromInput({ registrationDeadline: '2026-10-01', venuePublic: false }, 2026);
+  const backOut = rowToEditionInput(row);
+  assert.equal(backOut.registrationDeadline, '2026-10-01');
+  assert.equal(backOut.venuePublic, false);
+  assert.deepEqual(editionRowFromInput(backOut, 2026), row);
+});
+
+test('a null deadline survives the round trip as null, not as 1970', () => {
+  const row = editionRowFromInput({ registrationDeadline: '' }, 2026);
+  assert.equal(row.registration_deadline, null);
+  assert.equal(rowToEditionInput(row).registrationDeadline, null);
+});
+
+test('no opinion survives the round trip as no opinion', () => {
+  // The third state is the one a round trip is most likely to flatten.
+  const row = editionRowFromInput({}, 2026);
+  assert.equal(row.venue_public, null);
+  assert.equal(rowToEditionInput(row).venuePublic, null);
 });

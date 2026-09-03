@@ -99,9 +99,12 @@ export function rowsToOverlay(
   };
 }
 
-// What the admin edit form submits. registrationDeadline/abstractDeadline are
-// plain YYYY-MM-DD strings from an <input type="date">; an empty string (or
-// an absent field) means "no deadline". venuePublic/cityPublic are the same
+// What the admin edit form both submits and is loaded with -- GET and PUT on
+// functions/api/admin/symposium/edition.ts speak this exact shape, so a form
+// that loads a value, changes nothing, and saves is a no-op rather than a
+// corruption. registrationDeadline/abstractDeadline are plain YYYY-MM-DD
+// strings from an <input type="date">, or null; an empty string, null, or an
+// absent field all mean "no deadline". venuePublic/cityPublic are the same
 // tri-state as the column they land in: absent or null means "no opinion,
 // use the repo's flag" and is left untouched by the editor -- only an
 // explicit true/false (including false) overrides it. A tri-state <select>
@@ -109,9 +112,9 @@ export function rowsToOverlay(
 // the form express all three states; a checkbox can only ever send true/false.
 export interface EditionInput {
   registrationUrl?: string;
-  registrationDeadline?: string;
+  registrationDeadline?: string | null;
   abstractUrl?: string;
-  abstractDeadline?: string;
+  abstractDeadline?: string | null;
   venuePublic?: boolean | null;
   cityPublic?: boolean | null;
 }
@@ -127,9 +130,9 @@ function parseHttpUrl(value: string | undefined, field: string): string {
   return value;
 }
 
-// Empty/absent -> null (no deadline), never 0 -- epoch 0 is 1970, a real
-// timestamp, not "unset".
-function parseDeadline(value: string | undefined, field: string): number | null {
+// Empty/null/absent -> null (no deadline), never 0 -- epoch 0 is 1970, a
+// real timestamp, not "unset".
+function parseDeadline(value: string | null | undefined, field: string): number | null {
   if (!value) return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) throw new Error(`${field} must be an ISO date (YYYY-MM-DD), got: ${value}`);
@@ -144,21 +147,49 @@ function parseTriState(value: boolean | null | undefined): number | null {
   return value ? 1 : 0;
 }
 
+// The inverse of parseDeadline: an epoch timestamp becomes the YYYY-MM-DD an
+// <input type="date"> expects; null stays null, never "1970-01-01".
+function deadlineToDateString(value: number | null): string | null {
+  if (value === null) return null;
+  const d = new Date(value * 1000);
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /**
- * Validates and shapes an admin edit into the columns `symposium_edition`
- * stores (everything but `year`, which the route upserts by). Throws on a
- * non-http(s) URL or a malformed date rather than silently coercing them.
+ * Validates and shapes an admin edit into the row `symposium_edition`
+ * stores. Throws on a non-http(s) URL or a malformed date rather than
+ * silently coercing them. `year` is threaded through separately -- it names
+ * which row is being edited, not a field of the edit itself.
  */
-export function editionRowFromInput(
-  input: EditionInput,
-): Omit<EditionRow, 'year'> {
+export function editionRowFromInput(input: EditionInput, year: number): EditionRow {
   return {
+    year,
     registration_url: parseHttpUrl(input.registrationUrl, 'registration URL'),
     registration_deadline: parseDeadline(input.registrationDeadline, 'registration deadline'),
     abstract_url: parseHttpUrl(input.abstractUrl, 'abstract URL'),
     abstract_deadline: parseDeadline(input.abstractDeadline, 'abstract deadline'),
     venue_public: parseTriState(input.venuePublic),
     city_public: parseTriState(input.cityPublic),
+  };
+}
+
+/**
+ * The other direction: what GET hands the form, in exactly the shape PUT
+ * accepts back. Reuses toTriBoolean -- the same null/0/1 -> null/false/true
+ * rule the public overlay applies -- so there is one definition of that rule,
+ * not two that can drift apart.
+ */
+export function rowToEditionInput(row: EditionRow): EditionInput {
+  return {
+    registrationUrl: row.registration_url,
+    registrationDeadline: deadlineToDateString(row.registration_deadline),
+    abstractUrl: row.abstract_url,
+    abstractDeadline: deadlineToDateString(row.abstract_deadline),
+    venuePublic: toTriBoolean(row.venue_public),
+    cityPublic: toTriBoolean(row.city_public),
   };
 }
 

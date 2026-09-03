@@ -4,7 +4,7 @@
 // an edition (speakers, sessions, committee) is future tasks' territory.
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../../_lib/auth';
-import { editionRowFromInput, triggerRebuild } from '../../../_lib/symposium';
+import { editionRowFromInput, rowToEditionInput, triggerRebuild } from '../../../_lib/symposium';
 import type { EditionRow, EditionInput } from '../../../_lib/symposium';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -23,11 +23,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
      LIMIT 1`
   ).first<EditionRow>();
 
-  if (edition) return jsonResponse(edition);
-
   // No row yet: hand back defaults for the current year rather than a 404,
   // so the form has something sane to start from.
-  return jsonResponse({
+  const row: EditionRow = edition ?? {
     year: new Date().getFullYear(),
     registration_url: '',
     registration_deadline: null,
@@ -35,7 +33,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     abstract_deadline: null,
     venue_public: null,
     city_public: null,
-  } satisfies EditionRow);
+  };
+
+  // Exactly the shape PUT accepts back, plus the year that names the row --
+  // a client can GET, edit one field, and PUT the whole object untouched.
+  return jsonResponse({ year: row.year, ...rowToEditionInput(row) });
 };
 
 export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
@@ -50,9 +52,9 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ error: 'A valid year is required' }, 400);
   }
 
-  let row: Omit<EditionRow, 'year'>;
+  let row: EditionRow;
   try {
-    row = editionRowFromInput(body);
+    row = editionRowFromInput(body, body.year);
   } catch (err) {
     return jsonResponse({ error: String(err instanceof Error ? err.message : err) }, 400);
   }
@@ -73,7 +75,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
        updated_by = excluded.updated_by,
        updated_at = excluded.updated_at`
   ).bind(
-    body.year,
+    row.year,
     row.registration_url,
     row.registration_deadline,
     row.abstract_url,
