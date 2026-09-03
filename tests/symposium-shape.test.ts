@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rowsToOverlay, editionRowFromInput, rowToEditionInput } from '../functions/_lib/symposium';
+import { rowsToOverlay, editionRowFromInput, rowToEditionInput, rowFromInput, rowToInput, KIND_TABLES } from '../functions/_lib/symposium';
 
 const editionRow = {
   year: 2026, registration_url: 'https://forms.gle/reg', registration_deadline: 1790000000,
@@ -119,4 +119,85 @@ test('every field round trips to itself, not to its neighbour', () => {
   const row = editionRowFromInput(input, 2026);
   assert.deepEqual(rowToEditionInput(row), input);
   assert.deepEqual(editionRowFromInput(rowToEditionInput(row), 2026), row);
+});
+
+// --- speakers, sessions, committee (Task 6) ---------------------------------
+
+test('only the three known kinds map to a table', () => {
+  assert.deepEqual(Object.keys(KIND_TABLES).sort(), ['committee', 'sessions', 'speakers']);
+  assert.equal(KIND_TABLES.speakers, 'symposium_speakers');
+});
+
+test('a speaker gets a slug derived from the name when none is given', () => {
+  const row = rowFromInput('speakers', { name: 'Ada Lovelace' }, 2026);
+  assert.equal(row.slug, 'ada-lovelace');
+});
+
+test('Turkish letters survive slugging without becoming mojibake', () => {
+  const row = rowFromInput('speakers', { name: 'Ayşe Yılmaz Öztürk' }, 2026);
+  assert.equal(row.slug, 'ayse-yilmaz-ozturk');
+});
+
+test('a session stores its speaker links as slugs', () => {
+  const row = rowFromInput('sessions', { title: 'Keynote', type: 'keynote', speakerSlugs: ['ada-lovelace'] }, 2026);
+  assert.equal(row.speaker_slugs, '["ada-lovelace"]');
+});
+
+test('an unknown session type is rejected rather than stored', () => {
+  assert.throws(() => rowFromInput('sessions', { title: 'X', type: 'lightning' }, 2026), /type/);
+});
+
+test('an unknown kind is rejected', () => {
+  assert.throws(() => rowFromInput('sponsors' as never, {}, 2026), /kind/);
+});
+
+test('the dotted capital I does not turn into i plus a combining dot', () => {
+  // 'İ'.toLowerCase() in plain JS is 'i' + U+0307 (combining dot above),
+  // which would silently fail to match a speakerSlugs entry typed as "i".
+  const row = rowFromInput('speakers', { name: 'İlayda Şahin' }, 2026);
+  assert.equal(row.slug, 'ilayda-sahin');
+  assert.equal(row.slug.normalize('NFC'), row.slug, 'must be plain ASCII, no combining marks');
+});
+
+test('more Turkish names slug to plain ASCII', () => {
+  assert.equal(rowFromInput('speakers', { name: 'Oğuz Çetin' }, 2026).slug, 'oguz-cetin');
+  assert.equal(rowFromInput('speakers', { name: 'Gülşah Öztürk' }, 2026).slug, 'gulsah-ozturk');
+});
+
+test('slugging is idempotent: twice or already-slugged gives the same answer', () => {
+  const once = rowFromInput('speakers', { name: 'Gülşah Öztürk' }, 2026).slug;
+  const twice = rowFromInput('speakers', { name: once }, 2026).slug;
+  assert.equal(twice, once);
+  const explicit = rowFromInput('speakers', { name: 'Someone Else', slug: once }, 2026).slug;
+  assert.equal(explicit, once);
+});
+
+test('a committee member requires a name', () => {
+  assert.throws(() => rowFromInput('committee', {} as never, 2026), /name/);
+});
+
+test('a non-http photo or LinkedIn URL is rejected rather than stored', () => {
+  assert.throws(
+    () => rowFromInput('speakers', { name: 'Ada Lovelace', linkedin: 'javascript:alert(1)' }, 2026),
+    /http/,
+  );
+});
+
+test('what GET returns for a speaker is what POST/PUT accept', () => {
+  const row = { id: 'x1', slug: 'ada-lovelace', year: 2026, name: 'Ada Lovelace', position: 'Mathematician', company: '', bio: '', photo: '', linkedin: 'https://linkedin.com/in/ada', sort: 3 };
+  const input = rowToInput('speakers', row);
+  assert.equal(input.id, 'x1');
+  assert.equal(input.sort, 3);
+  const roundTripped = rowFromInput('speakers', input, row.year);
+  assert.equal(roundTripped.slug, row.slug);
+  assert.equal(roundTripped.name, row.name);
+  assert.equal(roundTripped.linkedin, row.linkedin);
+});
+
+test('what GET returns for a session decodes speaker_slugs back into an array', () => {
+  const row = { id: 'x2', slug: 'keynote', year: 2026, title: 'Keynote', type: 'keynote', time: '09:00', end_time: '10:00', description: '', speaker_slugs: '["ada-lovelace"]', sort: 0 };
+  const input = rowToInput('sessions', row);
+  assert.deepEqual(input.speakerSlugs, ['ada-lovelace']);
+  const roundTripped = rowFromInput('sessions', input, row.year);
+  assert.equal(roundTripped.speaker_slugs, row.speaker_slugs);
 });

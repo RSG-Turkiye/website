@@ -34,8 +34,11 @@ function toTriBoolean(value: number | null | undefined): boolean | null {
   return value !== 0;
 }
 
-// One bad row's speaker_slugs must not fail the whole build.
-function parseSpeakerSlugs(raw: string): string[] {
+// One bad row's speaker_slugs must not fail the whole build. Exported so the
+// admin routes can reuse the exact same parsing when they hand a session
+// back to its edit form -- one definition of "how speaker_slugs decodes",
+// not a second one that can drift.
+export function parseSpeakerSlugs(raw: string): string[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -211,5 +214,218 @@ export async function triggerRebuild(env: Env): Promise<{ triggered: boolean; de
   } catch (err) {
     console.error(`rebuild hook threw: ${String(err).slice(0, 200)}`);
     return { triggered: false, detail: 'hook unreachable' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin CRUD for the three list-shaped overlay tables: speakers, sessions,
+// and committee. The edition's single settings row above is Task 5's
+// territory; this part of the file is Task 6's.
+
+export type SymposiumKind = 'speakers' | 'sessions' | 'committee';
+
+/** The only place a symposium kind names its D1 table. */
+export const KIND_TABLES: Record<SymposiumKind, string> = {
+  speakers: 'symposium_speakers',
+  sessions: 'symposium_sessions',
+  committee: 'symposium_committee',
+};
+
+// The session types the symposium site's content schema accepts (see
+// symposium_website's sessions collection schema). An unknown type must be
+// rejected before it reaches D1 -- the build would otherwise either choke on
+// it or silently drop the session, neither of which is what "save" means.
+const SESSION_TYPES = new Set([
+  'opening', 'keynote', 'workshop', 'panel', 'talk', 'company', 'poster',
+  'networking', 'break', 'closing',
+]);
+
+// Turkish letters a plain toLowerCase()/normalize() gets wrong. 'İ' (U+0130,
+// dotted capital I) lowercases under the Unicode default (non-Turkish) rules
+// to 'i' plus a combining dot above (U+0307), not plain 'i' -- so a session's
+// speakerSlugs would silently stop matching a slug generated this way. Each
+// of these is mapped to its ASCII equivalent explicitly, before any case
+// folding runs, so toLowerCase() never sees the character that trips it up.
+const TURKISH_TRANSLITERATION: Record<string, string> = {
+  'İ': 'i', 'I': 'i', 'ı': 'i',
+  'Ğ': 'g', 'ğ': 'g',
+  'Ü': 'u', 'ü': 'u',
+  'Ş': 's', 'ş': 's',
+  'Ö': 'o', 'ö': 'o',
+  'Ç': 'c', 'ç': 'c',
+};
+
+/**
+ * A stable, URL-safe slug. Idempotent: slugifying an already-slugged string,
+ * or the same name twice, always returns the same value -- so a hand-typed
+ * slug that gets re-saved untouched never drifts, and re-slugging a
+ * speakerSlugs entry to match is always a no-op.
+ */
+function slugify(value: string): string {
+  let transliterated = '';
+  for (const ch of value) {
+    transliterated += TURKISH_TRANSLITERATION[ch] ?? ch;
+  }
+  return transliterated
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '') // any other language's accents NFKD split out
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// What the admin edit form for each kind submits and is loaded with -- see
+// EditionInput's doc comment above for the shape rule this follows: GET
+// returns exactly what POST/PUT accept, so a form that loads a row, changes
+// nothing, and saves is a no-op. `slug` is optional on input: omitted, it is
+// derived from the name/title; given, it is still run through slugify so a
+// hand-typed slug can't sneak in a character that breaks a speakerSlugs
+// match or a URL.
+export interface SpeakerInput {
+  slug?: string;
+  name: string;
+  position?: string;
+  company?: string;
+  bio?: string;
+  photo?: string;
+  linkedin?: string;
+}
+
+export interface SessionInput {
+  slug?: string;
+  title: string;
+  type: string;
+  time?: string;
+  endTime?: string;
+  description?: string;
+  speakerSlugs?: string[];
+}
+
+export interface CommitteeInput {
+  name: string;
+  role?: string;
+  roleTr?: string;
+  affiliation?: string;
+  photo?: string;
+  linkedin?: string;
+}
+
+export type SymposiumInput = SpeakerInput | SessionInput | CommitteeInput;
+export type SymposiumRow = SpeakerRow | SessionRow | CommitteeRow;
+
+// The union rowFromInput actually returns, named so a route's own per-kind
+// switch (building its INSERT/UPDATE) can type its `row` parameter as this
+// instead of `ReturnType<typeof rowFromInput>` -- which collapses to just
+// the first overload's return type and makes every other kind's branch a
+// type error.
+export type SymposiumRowInput =
+  | Omit<SpeakerRow, 'id' | 'sort'>
+  | Omit<SessionRow, 'id' | 'sort'>
+  | Omit<CommitteeRow, 'id' | 'sort'>;
+
+/**
+ * Validates and shapes an admin edit into the row its table stores. Throws
+ * on an unknown kind, a missing required field, an unrecognised session
+ * type, or a non-http(s) photo/LinkedIn URL, rather than storing any of
+ * them. `id` and `sort` are not this function's concern: `id` is assigned
+ * once at creation and never changes, and `sort` is managed by the route
+ * (default on create, preserved on edit) rather than by the editor.
+ */
+export function rowFromInput(kind: 'speakers', input: SpeakerInput, year: number): Omit<SpeakerRow, 'id' | 'sort'>;
+export function rowFromInput(kind: 'sessions', input: SessionInput, year: number): Omit<SessionRow, 'id' | 'sort'>;
+export function rowFromInput(kind: 'committee', input: CommitteeInput, year: number): Omit<CommitteeRow, 'id' | 'sort'>;
+export function rowFromInput(
+  kind: SymposiumKind,
+  input: SymposiumInput,
+  year: number,
+): Omit<SpeakerRow, 'id' | 'sort'> | Omit<SessionRow, 'id' | 'sort'> | Omit<CommitteeRow, 'id' | 'sort'> {
+  switch (kind) {
+    case 'speakers': {
+      const speaker = input as SpeakerInput;
+      if (!speaker.name) throw new Error('speaker name is required');
+      return {
+        slug: slugify(speaker.slug || speaker.name),
+        year,
+        name: speaker.name,
+        position: speaker.position ?? '',
+        company: speaker.company ?? '',
+        bio: speaker.bio ?? '',
+        photo: parseHttpUrl(speaker.photo, 'speaker photo URL'),
+        linkedin: parseHttpUrl(speaker.linkedin, 'speaker LinkedIn URL'),
+      };
+    }
+    case 'sessions': {
+      const session = input as SessionInput;
+      if (!session.title) throw new Error('session title is required');
+      if (!SESSION_TYPES.has(session.type)) {
+        throw new Error(`session type must be one of ${[...SESSION_TYPES].join(', ')}, got: ${session.type}`);
+      }
+      return {
+        slug: slugify(session.slug || session.title),
+        year,
+        title: session.title,
+        type: session.type,
+        time: session.time ?? '',
+        end_time: session.endTime ?? '',
+        description: session.description ?? '',
+        speaker_slugs: JSON.stringify((session.speakerSlugs ?? []).map((s) => slugify(s))),
+      };
+    }
+    case 'committee': {
+      const committee = input as CommitteeInput;
+      if (!committee.name) throw new Error('committee member name is required');
+      return {
+        year,
+        name: committee.name,
+        role: committee.role ?? '',
+        role_tr: committee.roleTr ?? '',
+        affiliation: committee.affiliation ?? '',
+        photo: parseHttpUrl(committee.photo, 'committee member photo URL'),
+        linkedin: parseHttpUrl(committee.linkedin, 'committee member LinkedIn URL'),
+      };
+    }
+    default:
+      throw new Error(`Unknown symposium kind: ${kind}`);
+  }
+}
+
+/**
+ * The other direction: what GET hands the list's edit forms, in exactly the
+ * shape POST/PUT accept back, plus the `id` and `sort` a form needs to know
+ * which row it is editing and where it sits. Reuses parseSpeakerSlugs so a
+ * session's speaker_slugs JSON decodes exactly one way everywhere.
+ */
+export function rowToInput(kind: 'speakers', row: SpeakerRow): SpeakerInput & { id: string; sort: number };
+export function rowToInput(kind: 'sessions', row: SessionRow): SessionInput & { id: string; sort: number };
+export function rowToInput(kind: 'committee', row: CommitteeRow): CommitteeInput & { id: string; sort: number };
+export function rowToInput(
+  kind: SymposiumKind,
+  row: SymposiumRow,
+): (SymposiumInput) & { id: string; sort: number } {
+  switch (kind) {
+    case 'speakers': {
+      const r = row as SpeakerRow;
+      return {
+        id: r.id, sort: r.sort, slug: r.slug, name: r.name, position: r.position,
+        company: r.company, bio: r.bio, photo: r.photo, linkedin: r.linkedin,
+      };
+    }
+    case 'sessions': {
+      const r = row as SessionRow;
+      return {
+        id: r.id, sort: r.sort, slug: r.slug, title: r.title, type: r.type,
+        time: r.time, endTime: r.end_time, description: r.description,
+        speakerSlugs: parseSpeakerSlugs(r.speaker_slugs),
+      };
+    }
+    case 'committee': {
+      const r = row as CommitteeRow;
+      return {
+        id: r.id, sort: r.sort, name: r.name, role: r.role, roleTr: r.role_tr,
+        affiliation: r.affiliation, photo: r.photo, linkedin: r.linkedin,
+      };
+    }
+    default:
+      throw new Error(`Unknown symposium kind: ${kind}`);
   }
 }
