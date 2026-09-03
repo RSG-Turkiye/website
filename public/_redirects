@@ -4,6 +4,13 @@
 # both built to a live page and Google saw duplicate content. The surviving
 # copy is named on the right. Redirected rather than simply deleted -- these
 # were live for years and the dead slug may be the one that is indexed.
-/blog/comprehensive-a-review-on-rna-sequencing-and-its-applications  /blog/a-short-review-of-rna-sequencing-and-its-applications  301
-/blog/mapping-pipeline-of-the-next-generation-sequencing-data  /blog/the-mapping-pipeline-of-the-next-generation-sequencing-data  301
-/blog/welcome-to-iscb-sc-rsg-turkeys-official-website  /blog/welcome-to-iscb-sc-rsg-turkey-s-official-website  301
+# Both forms on purpose: the pages are built as /blog/<slug>/, so a request
+# without the trailing slash and a request with it are two different paths as
+# far as the matcher is concerned, and the slash-less rule alone matched
+# neither. Verified against the live site before and after.
+/blog/comprehensive-a-review-on-rna-sequencing-and-its-applications  /blog/a-short-review-of-rna-sequencing-and-its-applications/  301
+/blog/comprehensive-a-review-on-rna-sequencing-and-its-applications/  /blog/a-short-review-of-rna-sequencing-and-its-applications/  301
+/blog/mapping-pipeline-of-the-next-generation-sequencing-data  /blog/the-mapping-pipeline-of-the-next-generation-sequencing-data/  301
+/blog/mapping-pipeline-of-the-next-generation-sequencing-data/  /blog/the-mapping-pipeline-of-the-next-generation-sequencing-data/  301
+/blog/welcome-to-iscb-sc-rsg-turkeys-official-website  /blog/welcome-to-iscb-sc-rsg-turkey-s-official-website/  301
+/blog/welcome-to-iscb-sc-rsg-turkeys-official-website/  /blog/welcome-to-iscb-sc-rsg-turkey-s-official-website/  301
