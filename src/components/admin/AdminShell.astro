@@ -8,8 +8,6 @@
 // One pre-existing, non-copy difference between the two languages is
 // reproduced here rather than resolved: the Turkish admin page never had
 // rank/badge management (the "Rank" and "Badges" table columns), so those
-// two columns render only when `showRankAndBadges` is true. There is no
-// Turkish wording to move for them since the feature never existed there.
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminNav from './AdminNav.astro';
 import { useTranslations } from '../../i18n/ui';
@@ -23,7 +21,6 @@ interface Props {
 
 const { lang, pageTitle, description, homeUrl } = Astro.props;
 const t = useTranslations(lang);
-const showRankAndBadges = lang === 'en';
 ---
 
 <BaseLayout pageTitle={pageTitle} description={description}>
@@ -85,12 +82,8 @@ const showRankAndBadges = lang === 'en';
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.user')}</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.email')}</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.status')}</th>
-                {showRankAndBadges && (
-                  <>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Rank</th>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Badges</th>
-                  </>
-                )}
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.rank')}</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.badges')}</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.joined')}</th>
                 <th class="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('admin.table.actions')}</th>
               </tr>
