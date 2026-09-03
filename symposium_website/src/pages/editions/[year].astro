@@ -5,7 +5,7 @@ import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getCollection, render } from "astro:content";
 import { getSpeakerBySlug, getCurrentContent } from "../../lib/content";
 import { getCurrentEdition } from "../../lib/editions-content";
-import { locationFor } from "../../lib/editions";
+import { locationFor, dateFor } from "../../lib/editions";
 
 export async function getStaticPaths() {
   const editions = await getCollection("editions");
@@ -58,7 +58,7 @@ const speakers =
         <p class="text-white/70 text-lg">{edition.data.subtitle}</p>
       )}
       <div class="flex flex-wrap gap-4 mt-4 text-sm text-white/60">
-        {edition.data.date && <span>📅 {edition.data.date}</span>}
+        {edition.data.date && <span>📅 {dateFor(edition.data, lang)}</span>}
         {(() => {
           const loc = locationFor(edition.data);
           return (

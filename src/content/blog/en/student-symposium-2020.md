@@ -12,4 +12,4 @@ draft: false
 
 [**GO TO THE PAGE OF THE STUDENT SYMPOSIUM 2020**](https://symposium.rsg-turkiye.iscbsc.org/editions/2020)
 
-![](https://res.cloudinary.com/dyuf14ra5/image/upload/v1774196894/rsgturkey/03/2020poster-1024x829.png)
+![](https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774196894/rsgturkey/03/2020poster-1024x829.png)

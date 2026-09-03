@@ -4,7 +4,7 @@ import SessionRow from "../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 import { getCurrentEdition } from "../lib/editions-content";
-import { locationFor, titleFor } from "../lib/editions";
+import { locationFor, titleFor, dateFor } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -45,7 +45,7 @@ const scheduleSpeakers = content?.speakers ?? [];
                     </span>
                   )}
                 </h2>
-                <span class="text-sm text-gray-500">{edition.data.date}</span>
+                <span class="text-sm text-gray-500">{dateFor(edition.data, lang)}</span>
               </div>
               {(() => {
                 const loc = locationFor(effectiveEdition!);

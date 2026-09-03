@@ -6,6 +6,16 @@
  * reaches astro:content cannot be unit tested, because that module only
  * exists inside an Astro build.
  */
+/**
+ * The shape the date, location and CTA rules work against.
+ *
+ * Deliberately a hand-written mirror of the editions schema in
+ * `src/content.config.ts`, not derived from it: keeping it separate is what
+ * lets these rules be unit-tested outside Astro, since `astro:content` cannot
+ * be imported from a plain node:test run. The cost is that the two can drift
+ * -- add a field to the schema and forget it here and the rules simply cannot
+ * see it. If you change one, check the other.
+ */
 export interface EditionLike {
   year: number;
   title: string;
@@ -26,6 +36,7 @@ export interface EditionLike {
    * human-written date string an edition card renders. */
   posterImage?: string;
   date?: string;
+  dateTr?: string;
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -208,4 +219,11 @@ export function symposiumsHeld(all: EditionLike[], now: Date): number {
   const upcomingOrdinal = upcoming ? ordinalOf(upcoming) : null;
   const held = upcomingOrdinal === highest && highest > 0 ? highest - 1 : highest;
   return Math.max(held, all.length);
+}
+
+
+/** The human-written date string in `lang`, falling back to the English one
+ * when no translation exists -- the same shape as titleFor and subtitleFor. */
+export function dateFor(edition: EditionLike, lang: "en" | "tr"): string {
+  return (lang === "tr" && edition.dateTr) || edition.date || "";
 }
