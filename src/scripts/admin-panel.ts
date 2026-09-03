@@ -65,7 +65,8 @@ function showToast(message: string, isError = false) {
   toast.textContent = message;
   toast.style.background = isError ? '#dc2626' : '#0f2045';
   toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 3000);
+  // Errors linger; a confirmed success only needs long enough to be seen.
+  setTimeout(() => toast.classList.add('hidden'), isError ? 5000 : 1600);
 }
 
 function formatDate(ts: number) {
@@ -103,8 +104,8 @@ function renderAnnouncements(items: any[]) {
   tbody.innerHTML = items.map(a => `
     <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
       <td class="px-5 py-4 text-navy font-medium">${escapeHtml(a.title)}</td>
-      <td class="px-5 py-4 text-gray-400">${formatDate(a.expires_at)}</td>
-      <td class="px-5 py-4 text-gray-400">${a.show_as_popup ? t('admin.announcements.popupYes') : t('admin.announcements.popupNo')}</td>
+      <td class="px-5 py-4 text-gray-500 tabular-nums">${formatDate(a.expires_at)}</td>
+      <td class="px-5 py-4 text-gray-500">${a.show_as_popup ? t('admin.announcements.popupYes') : t('admin.announcements.popupNo')}</td>
       <td class="px-5 py-4 text-right">
         <button data-id="${a.id}" class="edit-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2">${t('admin.announcements.edit')}</button>
         <button data-id="${a.id}" class="delete-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">${t('admin.announcements.delete')}</button>
@@ -230,7 +231,7 @@ function renderUsers(users: any[]) {
   tbody.innerHTML = users.map(u => {
     const name = u.display_name || '—';
     const username = u.username ? `@${u.username}` : `<span class="text-gray-300">${t('admin.user.noProfile')}</span>`;
-    const institution = u.institution ? `<span class="text-xs text-gray-400">${u.institution}</span>` : '';
+    const institution = u.institution ? `<span class="text-xs text-gray-500">${u.institution}</span>` : '';
     const memberBadge = u.is_member
       ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">${t('admin.badge.member')}</span>`
       : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">${t('admin.badge.pendingStatus')}</span>`;
@@ -251,11 +252,11 @@ function renderUsers(users: any[]) {
       : '';
 
     const verifyBtn = u.is_member
-      ? `<button data-id="${u.id}" data-action="unverify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">${t('admin.action.unverify')}</button>`
-      : `<button data-id="${u.id}" data-action="verify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition-colors">${t('admin.action.verify')}</button>`;
+      ? `<button data-id="${u.id}" data-action="unverify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.unverify')}</button>`
+      : `<button data-id="${u.id}" data-action="verify" class="action-btn text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.verify')}</button>`;
 
     const rankSelect = `
-      <select data-id="${u.id}" class="rank-select text-xs px-2 py-1.5 rounded-lg border border-border text-navy bg-white focus:outline-none focus:border-navy-mid">
+      <select data-id="${u.id}" class="rank-select text-xs px-2 py-1.5 rounded-lg border border-border text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
         ${RANKS.map(r => `<option value="${r.value}" ${u.current_rank === r.value ? 'selected' : ''}>${r.label}</option>`).join('')}
       </select>`;
 
@@ -269,34 +270,34 @@ function renderUsers(users: any[]) {
           class="badge-chip text-xs px-2 py-1 rounded-full border transition-colors ${
             earnedCodes.has(b.code)
               ? 'bg-navy text-white border-navy'
-              : 'bg-white text-gray-400 border-border hover:border-navy-mid'
-          }"
+              : 'bg-white text-gray-500 border-border hover:border-navy-mid'
+          } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"
           title="${lang === 'tr' ? b.name_en : b.name_tr}"
         >${lang === 'tr' ? b.name_tr : b.name_en}</button>`).join(' ');
     })();
 
     const moreActions = `
       <div class="relative inline-block">
-        <button data-menu="${u.id}" class="more-btn text-xs px-2 py-1.5 rounded-lg border border-border text-gray-400 hover:text-navy hover:border-navy-mid transition-colors">⋯</button>
+        <button data-menu="${u.id}" class="more-btn text-xs px-2 py-1.5 rounded-lg border border-border text-gray-500 hover:text-navy hover:border-navy-mid transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">⋯</button>
         <div id="menu-${u.id}" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-border py-1 z-10 ${moreMenuWidthClass}">
           ${u.is_admin
-            ? `<button data-id="${u.id}" data-action="remove_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.removeAdmin')}</button>`
-            : `<button data-id="${u.id}" data-action="make_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.makeAdmin')}</button>`
+            ? `<button data-id="${u.id}" data-action="remove_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeAdmin')}</button>`
+            : `<button data-id="${u.id}" data-action="make_admin" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeAdmin')}</button>`
           }
           ${u.is_announcer
-            ? `<button data-id="${u.id}" data-action="remove_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.removeAnnouncer')}</button>`
-            : `<button data-id="${u.id}" data-action="make_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.makeAnnouncer')}</button>`
+            ? `<button data-id="${u.id}" data-action="remove_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeAnnouncer')}</button>`
+            : `<button data-id="${u.id}" data-action="make_announcer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeAnnouncer')}</button>`
           }
           ${u.is_writer
-            ? `<button data-id="${u.id}" data-action="remove_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.removeWriter')}</button>`
-            : `<button data-id="${u.id}" data-action="make_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.makeWriter')}</button>`
+            ? `<button data-id="${u.id}" data-action="remove_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeWriter')}</button>`
+            : `<button data-id="${u.id}" data-action="make_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeWriter')}</button>`
           }
           ${u.is_sender
-            ? `<button data-id="${u.id}" data-action="remove_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.removeSender')}</button>`
-            : `<button data-id="${u.id}" data-action="make_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.makeSender')}</button>`
+            ? `<button data-id="${u.id}" data-action="remove_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeSender')}</button>`
+            : `<button data-id="${u.id}" data-action="make_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeSender')}</button>`
           }
-          <button data-id="${u.id}" data-action="make_private" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">${t('admin.action.makePrivate')}</button>
-          <button data-id="${u.id}" data-action="clear_bio" class="action-btn block w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50">${t('admin.action.clearBio')}</button>
+          <button data-id="${u.id}" data-action="make_private" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makePrivate')}</button>
+          <button data-id="${u.id}" data-action="clear_bio" class="action-btn block w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.clearBio')}</button>
         </div>
       </div>`;
 
@@ -304,14 +305,14 @@ function renderUsers(users: any[]) {
       <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
         <td class="px-5 py-4">
           <div class="font-medium text-navy">${name}</div>
-          <div class="text-xs text-gray-400 mt-0.5">${username}</div>
+          <div class="text-xs text-gray-500 mt-0.5">${username}</div>
           ${institution}
         </td>
-        <td class="px-5 py-4 text-gray-500">${u.email}</td>
+        <td class="px-5 py-4 text-gray-500"><span class="block max-w-[28ch] truncate" title="${escapeHtml(u.email)}">${escapeHtml(u.email)}</span></td>
         <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${writerBadge}${senderBadge}${privateBadge}</td>
         <td class="px-5 py-4">${rankSelect}</td>
         <td class="px-5 py-4"><div class="flex flex-wrap gap-1 max-w-[220px]">${badgeChips}</div></td>
-        <td class="px-5 py-4 text-gray-400">${formatDate(u.created_at)}</td>
+        <td class="px-5 py-4 text-gray-500 tabular-nums">${formatDate(u.created_at)}</td>
         <td class="px-5 py-4 text-right">
           <div class="flex items-center justify-end gap-2">
             ${verifyBtn}
@@ -384,15 +385,15 @@ async function loadUsers() {
   document.getElementById('statsRow')!.innerHTML = `
     <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
       <div class="text-lg font-bold text-navy">${total}</div>
-      <div class="text-xs text-gray-400">${t('admin.stats.shown')}</div>
+      <div class="text-xs text-gray-500">${t('admin.stats.shown')}</div>
     </div>
     <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
       <div class="text-lg font-bold text-green-600">${members}</div>
-      <div class="text-xs text-gray-400">${t('admin.stats.members')}</div>
+      <div class="text-xs text-gray-500">${t('admin.stats.members')}</div>
     </div>
     <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
-      <div class="text-lg font-bold text-gray-400">${total - members}</div>
-      <div class="text-xs text-gray-400">${t('admin.stats.pending')}</div>
+      <div class="text-lg font-bold text-gray-500">${total - members}</div>
+      <div class="text-xs text-gray-500">${t('admin.stats.pending')}</div>
     </div>`;
 }
 
@@ -412,7 +413,7 @@ async function loadSenders() {
     <div class="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
       <div>
         <div class="text-navy">${escapeHtml(s.display_name ?? s.email)}</div>
-        <div class="text-xs text-gray-400">
+        <div class="text-xs text-gray-500">
           ${escapeHtml(s.email)}${s.team ? ` · ${escapeHtml(s.team)}` : ''}
           ${s.granted_at ? tf('admin.mail.senders.grantedAtFragment', { date: formatDate(s.granted_at) }) : ''}
           ${s.granted_by_email ? tf('admin.mail.senders.grantedByFragment', { email: escapeHtml(s.granted_by_email) }) : ''}
@@ -481,8 +482,8 @@ async function loadAdminAttachments() {
   list.innerHTML = data.attachments.map((a: any) => `
     <div class="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
       <div>
-        <div class="text-navy ${a.is_active ? '' : 'line-through text-gray-400'}">${escapeHtml(a.filename)}</div>
-        <div class="text-xs text-gray-400">${Math.round(a.size_bytes / 1024)} KB · ${formatDate(a.uploaded_at)}</div>
+        <div class="text-navy ${a.is_active ? '' : 'line-through text-gray-500'}">${escapeHtml(a.filename)}</div>
+        <div class="text-xs text-gray-500">${Math.round(a.size_bytes / 1024)} KB · ${formatDate(a.uploaded_at)}</div>
       </div>
       <button data-id="${escapeHtml(a.id)}" data-active="${a.is_active}"
         class="toggle-attachment-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-600 hover:bg-gray-50">
@@ -634,7 +635,7 @@ async function loadAllSends() {
     <div class="flex items-start justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
       <div class="min-w-0">
         <div class="text-navy truncate">${escapeHtml(s.subject)}</div>
-        <div class="text-xs text-gray-400">
+        <div class="text-xs text-gray-500">
           ${escapeHtml(s.sender_name ?? s.sender_email)} → ${escapeHtml(s.recipient_email)} · ${formatDate(s.sent_at)}
         </div>
         ${s.status === 'failed' ? `<div class="text-xs text-red-600 mt-0.5">${escapeHtml(s.error_message)}</div>` : ''}
@@ -780,12 +781,12 @@ function blogSubmissionCardHtml(primary: BlogSubmission, paired: BlogSubmission 
     </div>`;
 
   return `
-    <div class="bg-white rounded-2xl border border-border shadow-sm p-5" data-id="${primary.id}">
+    <div class="bg-white rounded-2xl border border-border p-5" data-id="${primary.id}">
       <div class="flex items-center justify-between">
         <div class="text-sm font-semibold text-navy">${escapeHtmlForBlogReview(primary.title)}</div>
-        <span class="text-xs text-gray-400">${escapeHtmlForBlogReview(primary.submitter_email)}</span>
+        <span class="text-xs text-gray-500">${escapeHtmlForBlogReview(primary.submitter_email)}</span>
       </div>
-      <div class="text-xs text-gray-400 mt-1">${t('admin.blog.categoryLabel')} ${escapeHtmlForBlogReview(primary.category)} · ${t('admin.blog.slugLabel')} <input class="blog-slug-input text-xs border border-border rounded px-1" value="${escapeHtmlForBlogReview(primary.slug)}" /></div>
+      <div class="text-xs text-gray-500 mt-1">${t('admin.blog.categoryLabel')} ${escapeHtmlForBlogReview(primary.category)} · ${t('admin.blog.slugLabel')} <input class="blog-slug-input text-xs border border-border rounded px-1" value="${escapeHtmlForBlogReview(primary.slug)}" /></div>
       ${bodyPreview(primary)}
       ${paired ? bodyPreview(paired) : ''}
       <div class="mt-3 flex items-center gap-2">

@@ -35,13 +35,13 @@ const items = [
 <nav
   id="adminNav"
   aria-label={t('admin.members.heading')}
-  class="w-full lg:w-56 shrink-0 bg-white rounded-2xl border border-border shadow-sm p-2"
+  class="w-full lg:w-56 shrink-0 bg-white rounded-2xl border border-border p-2"
 >
   {items.map((item) => (
     <div data-nav-group={item.children ? 'mail' : item.pane}>
       {item.children ? (
         <Fragment>
-          <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
             {item.label}
           </p>
           <div class="pl-1">
@@ -49,7 +49,7 @@ const items = [
               <button
                 type="button"
                 data-target={c.pane}
-                class="admin-nav-item w-full text-left px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-[#F7F7F6] hover:text-navy transition-colors"
+                class="admin-nav-item w-full text-left px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-[#F7F7F6] hover:text-navy transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"
               >
                 {c.label}
               </button>
@@ -60,7 +60,7 @@ const items = [
         <button
           type="button"
           data-target={item.pane}
-          class="admin-nav-item w-full text-left px-3 py-2 rounded-xl text-sm font-medium text-navy hover:bg-[#F7F7F6] transition-colors"
+          class="admin-nav-item w-full text-left px-3 py-2 rounded-xl text-sm font-medium text-navy hover:bg-[#F7F7F6] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"
         >
           {item.label}
         </button>
