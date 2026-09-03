@@ -178,3 +178,34 @@ export function currentEditionOf(all: EditionLike[], now: Date): CurrentEdition 
 
   return { state: "none", edition: null };
 }
+
+/**
+ * The edition's own number, read from the front of its title ("13th RSG-Türkiye
+ * Student Symposium" -> 13). Null when the title does not start with one, so a
+ * caller can fall back rather than publish a guess.
+ */
+export function ordinalOf(edition: EditionLike): number | null {
+  const m = /^(\d+)(st|nd|rd|th)\b/.exec(edition.title.trim());
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * How many symposiums have been held, for the counters on the homepage and
+ * /about -- which said 12+ and 11+ respectively, disagreeing with each other.
+ *
+ * Not the number of files: the collection documents editions 5 through 13, so
+ * counting entries would publish 9 and quietly deny that the first four
+ * happened. The titles carry the real count, and the highest of them is the
+ * edition currently in play -- so subtract it while it is still ahead of us.
+ *
+ * Falls back to the number of entries when no title is numbered, and never
+ * returns less than that, so the figure cannot drift below what the site
+ * itself lists.
+ */
+export function symposiumsHeld(all: EditionLike[], now: Date): number {
+  const highest = all.reduce((max, e) => Math.max(max, ordinalOf(e) ?? 0), 0);
+  const { upcoming } = splitEditions(all, now);
+  const upcomingOrdinal = upcoming ? ordinalOf(upcoming) : null;
+  const held = upcomingOrdinal === highest && highest > 0 ? highest - 1 : highest;
+  return Math.max(held, all.length);
+}

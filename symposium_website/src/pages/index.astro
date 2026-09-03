@@ -1,20 +1,21 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SponsorLogo from "../components/SponsorLogo.astro";
 import EditionCta from "../components/EditionCta.astro";
 import EventJsonLd from "../components/EventJsonLd.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getSponsorsByEdition } from "../data/sponsors";
+import { getSponsorsForOrLatest } from "../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
+import { symposiumsHeld } from "../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+const held = symposiumsHeld((await getCollection("editions")).map((e) => e.data), new Date());
 const prefix = lang === "tr" ? "/tr" : "";
 
-// Show latest known sponsors (2024/2025)
-const latestSponsors = getSponsorsByEdition(2024);
 
 // Recent editions for the teaser strip
 const recentEditions = (await getPastEditions()).slice(0, 3);
@@ -22,6 +23,9 @@ const recentEditions = (await getPastEditions()).slice(0, 3);
 const { state, entry: upcoming } = await getCurrentEdition();
 const upcomingContent = await getCurrentContent();
 const finished = state === "finished";
+
+// Whichever edition is in play, falling back to the last one that had any.
+const latestSponsors = getSponsorsForOrLatest(upcoming?.data.year ?? new Date().getFullYear());
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming
   ? (lang === "tr" && upcoming.data.titleTr) || upcoming.data.title
@@ -41,7 +45,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
 <BaseLayout
   pageTitle={t("nav.home")}
   image={BANNER}
-  translationUrl={lang === "en" ? "/tr/" : "/"}
 >
   {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} finished={finished} />}
   <!-- ── Hero ──────────────────────────────────────────────────── -->
@@ -100,7 +103,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
         {
           [
             { label: lang === "tr" ? "Kuruluş Yılı" : "Since", value: "2012" },
-            { label: lang === "tr" ? "Edisyon" : "Editions", value: "12+" },
+            { label: lang === "tr" ? "Edisyon" : "Editions", value: String(held) },
             { label: lang === "tr" ? "Üye Ağı" : "Network", value: "ISCB SC" },
           ].map(({ label, value }) => (
             <div class="bg-navy-light rounded-xl p-5 text-center">

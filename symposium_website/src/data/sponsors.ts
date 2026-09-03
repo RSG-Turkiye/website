@@ -45,3 +45,21 @@ export const sponsors: Sponsor[] = [
 export function getSponsorsByEdition(year: number): Sponsor[] {
   return sponsors.filter((s) => s.editions.includes(year));
 }
+
+/**
+ * The sponsors to show for `year`, falling back to the most recent edition
+ * that has any.
+ *
+ * The homepage asked for 2024 by hand -- correct while no later edition had
+ * sponsors, and silently wrong the moment one did, in the very file whose
+ * point was to stop hardcoding the current edition. Asking for the current
+ * year and falling back keeps it right in both directions: nothing to change
+ * when 2026's sponsors arrive, and nothing missing until they do.
+ */
+export function getSponsorsForOrLatest(year: number): Sponsor[] {
+  const own = getSponsorsByEdition(year);
+  if (own.length > 0) return own;
+  const years = [...new Set(sponsors.flatMap((s) => s.editions))].sort((a, b) => b - a);
+  const fallback = years.find((y) => y < year) ?? years[0];
+  return fallback === undefined ? [] : getSponsorsByEdition(fallback);
+}
