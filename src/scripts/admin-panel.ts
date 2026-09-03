@@ -935,7 +935,7 @@ function tristateSelectValue(id: string): boolean | null {
 
 async function loadEdition(): Promise<void> {
   const res = await fetch('/api/admin/symposium/edition');
-  if (!res.ok) return;
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
   const data = await res.json() as EditionData;
   symposiumYear = data.year;
 
@@ -1053,7 +1053,7 @@ function renderSpeakers(items: SpeakerItem[]): void {
 
 async function loadSpeakers(): Promise<void> {
   const res = await fetch('/api/admin/symposium/speakers');
-  if (!res.ok) return;
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
   const data = await res.json() as { year: number; items: SpeakerItem[] };
   symposiumSpeakers = data.items;
   renderSpeakers(data.items);
@@ -1170,7 +1170,7 @@ function renderSessions(items: SessionItem[]): void {
 
 async function loadSessions(): Promise<void> {
   const res = await fetch('/api/admin/symposium/sessions');
-  if (!res.ok) return;
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
   const data = await res.json() as { year: number; items: SessionItem[] };
   renderSessions(data.items);
 }
@@ -1278,7 +1278,7 @@ function renderCommittee(items: CommitteeItem[]): void {
 
 async function loadCommittee(): Promise<void> {
   const res = await fetch('/api/admin/symposium/committee');
-  if (!res.ok) return;
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
   const data = await res.json() as { year: number; items: CommitteeItem[] };
   renderCommittee(data.items);
 }
