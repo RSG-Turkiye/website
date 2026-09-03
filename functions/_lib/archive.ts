@@ -8,6 +8,60 @@ import type { Overlay, OverlaySpeaker, OverlaySession, OverlayCommittee } from '
 
 const CONTENT_ROOT = 'symposium_website/src/content';
 
+/** Where a given year's edition markdown lives in the repo -- the one file
+ * this module reads rather than writes (see `endOfEventFromMarkdown`). */
+export function editionMarkdownPath(year: number): string {
+  return `${CONTENT_ROOT}/editions/${year}.md`;
+}
+
+const ONE_DAY_SECONDS = 24 * 60 * 60;
+
+/** The YAML frontmatter between a markdown file's opening `---` fences, or
+ * `null` if it has none. */
+function extractFrontmatter(markdown: string): string | null {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(markdown);
+  return match ? match[1] : null;
+}
+
+/** A `key: YYYY-MM-DD` (optionally quoted) line's value, as epoch seconds at
+ * UTC midnight, or `null` if the frontmatter has no such line. Matches how
+ * `content.config.ts`'s `z.coerce.date()` reads the same field: a plain
+ * ISO date, not a full YAML value parser -- editions/<year>.md has never
+ * needed one for these two fields. */
+function extractDateField(frontmatter: string, key: string): number | null {
+  const match = new RegExp(`^${key}:\\s*"?(\\d{4})-(\\d{2})-(\\d{2})"?\\s*$`, 'm').exec(frontmatter);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  return Date.UTC(Number(y), Number(m) - 1, Number(d)) / 1000;
+}
+
+/**
+ * The epoch-second moment an edition's own event is over, read straight out
+ * of its `editions/<year>.md` frontmatter. Applies exactly the rule
+ * `symposium_website/src/lib/editions.ts`'s own `endOfEvent()` applies (an
+ * unrelated function of the same name, not a dependency of this one): the
+ * midnight after the last day, `endDate` if the frontmatter carries one,
+ * `startDate` otherwise. Matching that rule exactly is the point -- this
+ * endpoint and the live site must never be able to disagree about whether
+ * an edition has finished, since the repo's markdown is the one place either
+ * of them reads the date from.
+ *
+ * Returns `null` when the frontmatter has neither field: an edition with no
+ * announced dates at all, most commonly a brand-new one still being set up.
+ * `null` must never be read as "the event is over" -- the caller
+ * distinguishes "undated" from "date is in the future" from "date has
+ * passed", and only the last of those means archive.
+ */
+export function endOfEventFromMarkdown(markdown: string): number | null {
+  const frontmatter = extractFrontmatter(markdown);
+  if (!frontmatter) return null;
+  const start = extractDateField(frontmatter, 'startDate');
+  const end = extractDateField(frontmatter, 'endDate');
+  const last = end ?? start;
+  if (last == null) return null;
+  return last + ONE_DAY_SECONDS;
+}
+
 /**
  * `JSON.stringify` drops a key entirely when its value is `undefined` -- so
  * turning an empty optional field into `undefined` here is what keeps an

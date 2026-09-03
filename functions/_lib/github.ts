@@ -78,6 +78,29 @@ async function createBranch(branchName: string, baseSha: string, env: Env): Prom
   }
 }
 
+/**
+ * The current sha of `filePath` on `branchName`, or `undefined` if the path
+ * doesn't exist there yet. GitHub's contents API requires the existing
+ * file's sha on a PUT that overwrites a file, and rejects a PUT with no sha
+ * for a path that already exists -- so this is what lets `commitFile`
+ * converge instead of colliding when a retry finds a file a previous,
+ * crashed attempt already wrote.
+ */
+async function getFileSha(branchName: string, filePath: string, env: Env): Promise<string | undefined> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}?ref=${branchName}`,
+    { method: 'GET' },
+    env
+  );
+  if (res.status === 404) return undefined;
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to read ${filePath} on ${branchName} (${res.status}): ${body}`);
+  }
+  const data = await res.json<{ sha: string }>();
+  return data.sha;
+}
+
 async function commitFile(
   branchName: string,
   filePath: string,
@@ -85,6 +108,13 @@ async function commitFile(
   message: string,
   env: Env
 ): Promise<void> {
+  // A PUT that omits `sha` for a path GitHub already has on this branch is
+  // rejected outright -- exactly what happens on a retry after a crash
+  // between a first successful commit and the archived_pr_url write that
+  // was supposed to record it. Looking the sha up first, and including it
+  // when the file exists, makes this call idempotent: create when the path
+  // is new, update-in-place (same content, same result) when it isn't.
+  const sha = await getFileSha(branchName, filePath, env);
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`,
     {
@@ -93,6 +123,7 @@ async function commitFile(
         message,
         content: toBase64Utf8(content),
         branch: branchName,
+        ...(sha ? { sha } : {}),
       }),
     },
     env
@@ -101,6 +132,25 @@ async function commitFile(
     const body = await res.text();
     throw new Error(`Failed to commit ${filePath} (${res.status}): ${body}`);
   }
+}
+
+/**
+ * The URL of the open PR already proposing `branchName` into the base
+ * branch, if one exists. Used when opening a PR 422s because one already
+ * does -- the retry case this exists for.
+ */
+async function findExistingPr(branchName: string, env: Env): Promise<string | null> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls?head=${GITHUB_OWNER}:${encodeURIComponent(branchName)}&state=open`,
+    { method: 'GET' },
+    env
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to look up an existing PR for ${branchName} (${res.status}): ${body}`);
+  }
+  const data = await res.json<Array<{ html_url: string }>>();
+  return data[0]?.html_url ?? null;
 }
 
 async function createPullRequest(
@@ -122,6 +172,16 @@ async function createPullRequest(
     },
     env
   );
+  if (res.status === 422) {
+    // GitHub's own reason for a 422 here is almost always "A pull request
+    // already exists for <owner>:<branch>" -- the retry case this exists
+    // for, where a previous attempt opened the PR but crashed before its
+    // URL was recorded. Recover that PR's URL rather than failing; if this
+    // 422 is for some other reason (no existing PR is found), fall through
+    // to the same error handling every other failure gets.
+    const existing = await findExistingPr(branchName, env);
+    if (existing) return existing;
+  }
   if (!res.ok) {
     const errBody = await res.text();
     throw new Error(`Failed to open PR (${res.status}): ${errBody}`);
@@ -147,6 +207,39 @@ export async function fileExistsOnBaseBranch(filePath: string, env: Env): Promis
 }
 
 /**
+ * Reads `filePath` off the base branch and returns its decoded text, or
+ * `null` if no such file exists there. Used by the symposium archive to
+ * read an edition's own `editions/<year>.md` out of the repo -- the repo is
+ * the source of truth for that file's dates, and this is the only way this
+ * server ever sees repo content it didn't itself just write.
+ *
+ * Throws (rather than returning null) on anything other than a clean 404,
+ * so a transient GitHub failure is never mistaken for "this file doesn't
+ * exist" -- those two must stay distinguishable to the caller.
+ */
+export async function getFileOnBaseBranch(filePath: string, env: Env): Promise<string | null> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}?ref=${GITHUB_BASE_BRANCH}`,
+    { method: 'GET' },
+    env
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to read ${filePath} (${res.status}): ${body}`);
+  }
+  const data = await res.json<{ content: string; encoding: string }>();
+  if (data.encoding !== 'base64') {
+    throw new Error(`Unexpected encoding for ${filePath}: ${data.encoding}`);
+  }
+  // The inverse of toBase64Utf8 -- GitHub returns file content base64-encoded
+  // regardless of the bytes underneath, so this must decode as UTF-8
+  // explicitly or Turkish characters in a title/subtitle would come back
+  // mojibake'd the same way an encode with plain btoa() would corrupt them.
+  return Buffer.from(data.content, 'base64').toString('utf-8');
+}
+
+/**
  * Creates a branch, commits one or more files to it, and opens a PR against
  * main. Returns { success: false, error } on any failure without throwing
  * -- callers (the blog-submission approve endpoint, the symposium archive
@@ -160,6 +253,16 @@ export async function fileExistsOnBaseBranch(filePath: string, env: Env): Promis
  * supplied by each caller so a second flow (the symposium archive) can open
  * PRs under its own `symposium-archive/` branch namespace without a second
  * copy of this function.
+ *
+ * Safely retryable end to end: `createBranch` reuses a branch that already
+ * exists, `commitFile` looks up each file's current sha on that branch and
+ * updates in place rather than colliding on one that's already there, and
+ * `createPullRequest` recovers the URL of a PR that already exists for this
+ * branch instead of failing on GitHub's 422. A caller whose process dies
+ * after this resolves but before it records the URL can simply call this
+ * again with the same arguments -- it converges on the same branch, the
+ * same file contents, and the same PR, rather than needing a human to
+ * reconcile a half-done attempt by hand.
  */
 export async function openContentPR(params: OpenPrParams, env: Env): Promise<OpenPrResult> {
   const branchName = `${params.branchPrefix}/${params.branchSlug}`;
