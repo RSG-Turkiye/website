@@ -3,7 +3,7 @@ import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
-import { locationFor } from "../lib/editions";
+import EditionCard from "../components/EditionCard.astro";
 import { symposiumsHeld } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
@@ -12,7 +12,6 @@ const held = symposiumsHeld((await getCollection("editions")).map((e) => e.data)
 
 const { entry: upcoming } = await getCurrentEdition();
 const past = await getPastEditions();
-const sortedEditions = upcoming ? [upcoming, ...past] : past;
 ---
 
 <BaseLayout
@@ -51,44 +50,19 @@ const sortedEditions = upcoming ? [upcoming, ...past] : past;
     <div class="max-w-7xl mx-auto px-6">
       <h2 class="text-2xl font-bold text-navy mb-8 text-center">{t("about.history.title")}</h2>
 
+      {upcoming && (
+        <div class="mb-10">
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-4">
+            {t("editions.upcoming.heading")}
+          </h3>
+          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <EditionCard edition={upcoming.data} lang={lang} badge={t("editions.badge.upcoming")} />
+          </div>
+        </div>
+      )}
+
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {
-          sortedEditions.map((edition) => (
-            <div class="bg-white rounded-xl border border-border overflow-hidden flex flex-col">
-              {edition.data.posterImage && (
-                <div class="aspect-video overflow-hidden bg-navy-light">
-                  <img
-                    src={edition.data.posterImage}
-                    alt={`${edition.data.year} symposium`}
-                    class="w-full h-full object-cover object-top"
-                    loading="lazy"
-                  />
-                </div>
-              )}
-              <div class="p-4 flex flex-col gap-2 flex-1">
-                <div class="flex items-center gap-2">
-                  <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded">
-                    {edition.data.year}
-                  </span>
-                  {upcoming && edition.data.year === upcoming.data.year && (
-                    <span class="bg-red text-white text-xs font-semibold px-2 py-0.5 rounded">
-                      {lang === "tr" ? "Son" : "Latest"}
-                    </span>
-                  )}
-                </div>
-                <h3 class="font-semibold text-navy text-sm">{edition.data.title}</h3>
-                {(() => {
-                  const loc = locationFor(edition.data);
-                  return (
-                    loc.kind !== "hidden" && (
-                      <p class="text-xs text-gray-400">📍 {loc.city}</p>
-                    )
-                  );
-                })()}
-              </div>
-            </div>
-          ))
-        }
+        {past.map((edition) => <EditionCard edition={edition.data} lang={lang} />)}
       </div>
     </div>
   </section>

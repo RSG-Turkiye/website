@@ -7,8 +7,7 @@ import EventJsonLd from "../components/EventJsonLd.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getSponsorsForOrLatest } from "../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
-import { locationFor } from "../lib/editions";
-import { symposiumsHeld } from "../lib/editions";
+import { locationFor, titleFor, subtitleFor, symposiumsHeld } from "../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
@@ -27,12 +26,8 @@ const finished = state === "finished";
 // Whichever edition is in play, falling back to the last one that had any.
 const latestSponsors = getSponsorsForOrLatest(upcoming?.data.year ?? new Date().getFullYear());
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
-const heading = upcoming
-  ? (lang === "tr" && upcoming.data.titleTr) || upcoming.data.title
-  : "";
-const theme = upcoming
-  ? (lang === "tr" && upcoming.data.subtitleTr) || upcoming.data.subtitle
-  : "";
+const heading = upcoming ? titleFor(upcoming.data, lang) : "";
+const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
 const place = effectiveEdition ? locationFor(effectiveEdition) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 

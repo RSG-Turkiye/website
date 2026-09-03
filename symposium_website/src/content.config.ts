@@ -1,6 +1,11 @@
 import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
 
+// The editions schema below is mirrored by hand as `EditionLike` in
+// src/lib/editions.ts, which is where the date, location and CTA rules live
+// so they can be tested without Astro. Add a field here that those rules
+// should see and add it there too -- nothing enforces the pairing.
+
 const editions = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/editions" }),
   schema: z.object({

@@ -6,6 +6,16 @@
  * reaches astro:content cannot be unit tested, because that module only
  * exists inside an Astro build.
  */
+/**
+ * The shape the date, location and CTA rules work against.
+ *
+ * Deliberately a hand-written mirror of the editions schema in
+ * `src/content.config.ts`, not derived from it: keeping it separate is what
+ * lets these rules be unit-tested outside Astro, since `astro:content` cannot
+ * be imported from a plain node:test run. The cost is that the two can drift
+ * -- add a field to the schema and forget it here and the rules simply cannot
+ * see it. If you change one, check the other.
+ */
 export interface EditionLike {
   year: number;
   title: string;
