@@ -2,15 +2,16 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SessionRow from "../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getUpcomingContent, withOverlayContent } from "../lib/content";
-import { getUpcomingEdition } from "../lib/editions-content";
-import { locationFor } from "../lib/editions";
+import { getCurrentContent, withOverlayContent } from "../lib/content";
+import { getCurrentEdition } from "../lib/editions-content";
+import { locationFor, titleFor } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const edition = await getUpcomingEdition();
-const content = edition ? await getUpcomingContent() : null;
+const { state, entry: edition } = await getCurrentEdition();
+const content = await getCurrentContent();
+const finished = state === "finished";
 const effectiveEdition = edition ? withOverlayContent(edition.data, content) : null;
 const sessions = content?.sessions ?? [];
 const scheduleSpeakers = content?.speakers ?? [];
@@ -37,7 +38,14 @@ const scheduleSpeakers = content?.speakers ?? [];
             <!-- Header -->
             <div class="bg-navy-light px-6 py-4 border-b border-border">
               <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-navy">{edition.data.title}</h2>
+                <h2 class="font-semibold text-navy">
+                  {titleFor(edition.data, lang)}
+                  {finished && (
+                    <span class="ml-2 align-middle bg-navy-light text-navy text-xs font-semibold px-2 py-0.5 rounded">
+                      {t("edition.finished.badge")}
+                    </span>
+                  )}
+                </h2>
                 <span class="text-sm text-gray-500">{edition.data.date}</span>
               </div>
               {(() => {
@@ -70,14 +78,18 @@ const scheduleSpeakers = content?.speakers ?? [];
             </div>
           </div>
 
-          <p class="text-xs text-gray-400 text-center mt-4">
-            {lang === "tr"
-              ? "Program değişikliğe tabidir. Güncel bilgi için bizi takip edin."
-              : "Schedule is subject to change. Follow us for updates."}
+          <p class="text-xs text-gray-500 text-center mt-4">
+            {finished
+              ? t("schedule.past.note")
+              : lang === "tr"
+                ? "Program değişikliğe tabidir. Güncel bilgi için bizi takip edin."
+                : "Schedule is subject to change. Follow us for updates."}
           </p>
         </Fragment>
       ) : (
-        <p class="text-gray-500 text-center py-12">{t("schedule.none")}</p>
+        <p class="text-gray-500 text-center py-12">
+          {finished ? t("schedule.past.none") : t("schedule.none")}
+        </p>
       )
     }
   </div>

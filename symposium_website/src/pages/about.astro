@@ -1,13 +1,13 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getUpcomingEdition, getPastEditions } from "../lib/editions-content";
+import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const upcoming = await getUpcomingEdition();
+const { entry: upcoming } = await getCurrentEdition();
 const past = await getPastEditions();
 const sortedEditions = upcoming ? [upcoming, ...past] : past;
 ---

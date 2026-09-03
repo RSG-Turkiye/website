@@ -1,5 +1,5 @@
 import { getCollection } from "astro:content";
-import { getUpcomingEdition } from "./editions-content";
+import { getCurrentEdition } from "./editions-content";
 import { fetchOverlay, mergeOverlay, type RepoContent } from "./overlay";
 import type { EditionLike } from "./editions";
 
@@ -42,30 +42,33 @@ export async function getSpeakerBySlug(year: number, slug: string): Promise<Spea
 }
 
 /**
- * The repo's content for the upcoming edition, merged with whatever the CMS
- * overlay currently has to say. Returns null when there is no upcoming
- * edition at all -- archive pages never call this, since an archived
- * edition has no overlay and asking for one would be a pointless request
- * per page.
+ * The repo's content for the current edition -- the one still ahead, or the
+ * one that just finished -- merged with whatever the CMS overlay has to say.
+ * Null only when no dated edition exists at all.
+ *
+ * A finished edition is still asked for: its overlay keeps serving until the
+ * archive run folds it into the repo, and `fetchOverlay` refuses a payload
+ * for a different year, so the fallback is always the repo's own content.
  *
  * A failed or mismatched overlay fetch is not an error here: `fetchOverlay`
  * already logged it, and `mergeOverlay` falls back to the repo's own data.
  */
-let upcomingContentPromise: Promise<RepoContent | null> | null = null;
+let currentContentPromise: Promise<RepoContent | null> | null = null;
 
 /** One overlay fetch per build, not one per page. Every page's layout asks for
  * this to decide which nav items exist, and six routes ask again for their own
  * content; without memoising, a build makes dozens of identical requests, each
  * carrying its own 5s timeout against a host that might be hanging rather than
  * refusing. */
-export function getUpcomingContent(): Promise<RepoContent | null> {
-  upcomingContentPromise ??= loadUpcomingContent();
-  return upcomingContentPromise;
+export function getCurrentContent(): Promise<RepoContent | null> {
+  currentContentPromise ??= loadCurrentContent();
+  return currentContentPromise;
 }
 
-async function loadUpcomingContent(): Promise<RepoContent | null> {
-  const edition = await getUpcomingEdition();
-  if (!edition) return null;
+async function loadCurrentContent(): Promise<RepoContent | null> {
+  const { entry } = await getCurrentEdition();
+  if (!entry) return null;
+  const edition = entry;
 
   const year = edition.data.year;
   const [speakers, sessions, committee] = await Promise.all([

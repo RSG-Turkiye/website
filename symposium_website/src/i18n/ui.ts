@@ -14,6 +14,9 @@ export const ui = {
     "nav.about": "About",
     "nav.sponsors": "Sponsors",
     "nav.editions": "Past Editions",
+    "editions.upcoming.heading": "Next symposium",
+    "editions.past.heading": "Past symposiums",
+    "editions.badge.upcoming": "Upcoming",
     "nav.committee": "Committee",
 
     "hero.tagline": "ISCB SC RSG-Türkiye Student Symposium",
@@ -42,6 +45,15 @@ export const ui = {
     "schedule.title": "Program",
     "schedule.subtitle": "Programme",
     "schedule.none": "Schedule will be announced soon.",
+    // The finished state: after an edition ends, its programme stays up as a
+    // record rather than reverting to "will be announced soon" about an event
+    // that already happened.
+    "schedule.past.note": "This is the programme as it was held.",
+    "schedule.past.none": "No programme was recorded for this edition.",
+    "speakers.past.none": "No speakers were recorded for this edition.",
+    "committee.past.none": "No committee was recorded for this edition.",
+    "edition.finished.badge": "Completed",
+    "edition.finished.thanks": "Thank you to everyone who joined us.",
 
     "venue.title": "Venue",
     "venue.subtitle": "Where to find us",
@@ -86,6 +98,9 @@ export const ui = {
     "nav.about": "Hakkında",
     "nav.sponsors": "Sponsorlar",
     "nav.editions": "Geçmiş Edisyonlar",
+    "editions.upcoming.heading": "Sıradaki sempozyum",
+    "editions.past.heading": "Geçmiş sempozyumlar",
+    "editions.badge.upcoming": "Yaklaşan",
     "nav.committee": "Komite",
 
     "hero.tagline": "ISCB SC RSG-Türkiye Öğrenci Sempozyumu",
@@ -114,6 +129,12 @@ export const ui = {
     "schedule.title": "Program",
     "schedule.subtitle": "Program",
     "schedule.none": "Program yakında duyurulacak.",
+    "schedule.past.note": "Sempozyumun gerçekleşen programı.",
+    "schedule.past.none": "Bu edisyon için program kaydı yok.",
+    "speakers.past.none": "Bu edisyon için konuşmacı kaydı yok.",
+    "committee.past.none": "Bu edisyon için kurul kaydı yok.",
+    "edition.finished.badge": "Tamamlandı",
+    "edition.finished.thanks": "Katılan herkese teşekkür ederiz.",
 
     "venue.title": "Mekan",
     "venue.subtitle": "Nerede bulabilirsiniz",

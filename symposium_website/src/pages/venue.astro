@@ -1,14 +1,15 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
-import { getUpcomingEdition } from "../lib/editions-content";
+import { getCurrentEdition } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
-import { getUpcomingContent, withOverlayContent } from "../lib/content";
+import { getCurrentContent, withOverlayContent } from "../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
-const edition = await getUpcomingEdition();
-const content = edition ? await getUpcomingContent() : null;
+const { state, entry: edition } = await getCurrentEdition();
+const content = await getCurrentContent();
+const finished = state === "finished";
 const effectiveEdition = edition ? withOverlayContent(edition.data, content) : null;
 ---
 
