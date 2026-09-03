@@ -19,7 +19,11 @@ const { edition } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const { Content } = await render(edition);
+// The Turkish body when there is one, the English body when there is not --
+// a missing translation shows what this page showed before rather than
+// nothing at all.
+const trBody = (await getCollection("editionsTr")).find((e) => e.data.year === edition.data.year);
+const { Content } = await render(trBody ?? edition);
 const editionSpeakers = (
   await Promise.all(
     edition.data.speakers.map((slug) => getSpeakerBySlug(edition.data.year, slug))

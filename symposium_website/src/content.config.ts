@@ -81,4 +81,22 @@ const committee = defineCollection({
   }),
 });
 
-export const collections = { editions, speakers, sessions, committee };
+/**
+ * Turkish bodies for the edition pages, keyed by year.
+ *
+ * Deliberately a second collection rather than a `tr/` folder inside
+ * `editions`: that glob is `**\/*.md`, so a translation living under it would
+ * load as a second edition for the same year and every date rule -- which
+ * edition is upcoming, which have finished -- would start seeing two of them.
+ * Here the translation carries prose and nothing else; the dates, venue and
+ * flags stay in one place.
+ *
+ * A year with no file here falls back to the English body, so a missing
+ * translation degrades to what the page showed before rather than to nothing.
+ */
+const editionsTr = defineCollection({
+  loader: glob({ pattern: "*.md", base: "./src/content/editions-tr" }),
+  schema: z.object({ year: z.number() }),
+});
+
+export const collections = { editions, speakers, sessions, committee, editionsTr };
