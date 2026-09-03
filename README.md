@@ -335,6 +335,15 @@ cd workers/symposium-cron && npx wrangler secret put SYMPOSIUM_ARCHIVE_SECRET
 wrangler pages secret put SYMPOSIUM_ARCHIVE_SECRET --project-name website
 ```
 
+**A new Pages secret does not reach the already-running deployment, and
+"Retry deployment" does not fix that** -- a retry replays the previous build
+along with the environment it was built with. Until a genuinely new build
+runs, `env.SYMPOSIUM_ARCHIVE_SECRET` reads empty inside the Function, the
+archive endpoint fail-closes to 403, and the nightly tick reports
+`archive: ERROR 403` while the rebuild half still succeeds. Push a commit
+after setting the secret. Cost us two retries and an hour to work out on
+2026-09-03; the same applies to any secret added after a deploy.
+
 #### How both cron Workers report failure
 
 `workers/mail-cron/` and `workers/symposium-cron/` follow the same two rules,
