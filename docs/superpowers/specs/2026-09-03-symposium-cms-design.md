@@ -112,6 +112,9 @@ CREATE TABLE IF NOT EXISTS symposium_edition (
 
 CREATE TABLE IF NOT EXISTS symposium_speakers (
   id       TEXT PRIMARY KEY,
+  -- The stable identifier sessions point at, and what the archived JSON keeps.
+  -- Sessions reference speakers by slug today; the CMS must not break that link.
+  slug     TEXT NOT NULL,
   year     INTEGER NOT NULL,
   name     TEXT NOT NULL,
   position TEXT NOT NULL DEFAULT '',
@@ -130,7 +133,8 @@ CREATE TABLE IF NOT EXISTS symposium_sessions (
   time        TEXT NOT NULL DEFAULT '',
   end_time    TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL DEFAULT '',
-  speaker_ids TEXT NOT NULL DEFAULT '[]',
+  -- JSON array of speaker *slugs*, matching src/data/sessions.ts's speakerSlugs.
+  speaker_slugs TEXT NOT NULL DEFAULT '[]',
   sort        INTEGER NOT NULL DEFAULT 0
 );
 
