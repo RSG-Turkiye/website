@@ -11,6 +11,7 @@ export interface Env {
   RSG_MAIL_FROM: string;
   MAIL_SYNC_SECRET: string;
   MAIL_ATTACHMENTS: R2Bucket;
+  SYMPOSIUM_DEPLOY_HOOK: string;
 }
 
 export interface User {

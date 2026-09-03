@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rowsToOverlay } from '../functions/_lib/symposium';
+import { rowsToOverlay, editionRowFromInput } from '../functions/_lib/symposium';
 
 const editionRow = {
   year: 2026, registration_url: 'https://forms.gle/reg', registration_deadline: 1790000000,
@@ -52,4 +52,30 @@ test('the hall never appears in the payload', () => {
   assert.ok(!json.includes('Amphitheatre'), 'nor any part of it');
   assert.ok(!('venue' in o.edition), 'no venue string field');
   assert.ok(!('venueCity' in o.edition), 'no city string field either');
+});
+
+test('a blank deadline is stored as null, not as zero', () => {
+  const row = editionRowFromInput({ registrationUrl: 'https://x', registrationDeadline: '' });
+  assert.equal(row.registration_deadline, null);
+});
+
+test('a date arrives as a day and is stored as a timestamp', () => {
+  const row = editionRowFromInput({ registrationDeadline: '2026-10-01' });
+  assert.equal(row.registration_deadline, Date.UTC(2026, 9, 1) / 1000);
+});
+
+test('an untouched visibility flag stays null', () => {
+  const row = editionRowFromInput({});
+  assert.equal(row.venue_public, null);
+});
+
+test('an explicit false is stored as 0, not dropped as falsy', () => {
+  // The difference between "hide it" and "no opinion" is the whole point of
+  // the column being nullable.
+  const row = editionRowFromInput({ venuePublic: false });
+  assert.equal(row.venue_public, 0);
+});
+
+test('a url is rejected rather than stored when it is not http', () => {
+  assert.throws(() => editionRowFromInput({ registrationUrl: 'javascript:alert(1)' }), /http/);
 });

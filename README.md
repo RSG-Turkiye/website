@@ -294,6 +294,17 @@ visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
    npx wrangler deploy
    ```
 
+The main site's admin panel (`functions/api/admin/symposium/edition.ts`) fires
+this same deploy hook after every save, so the same URL must also be set as a
+secret on the **main** (`website`) Pages project:
+```
+wrangler pages secret put SYMPOSIUM_DEPLOY_HOOK --project-name website
+```
+A save never fails because of this hook -- if it's missing or the endpoint is
+down, the edit is still stored and the nightly rebuild above picks it up
+regardless. The response just says whether the rebuild started, so a hook
+that has quietly stopped working is visible in the panel rather than silent.
+
 To test it without waiting for 01:17 UTC, invoke the scheduled handler
 locally (see *Triggering either Worker by hand* below) — it should start a
 build in the `symposium-website` project immediately.
