@@ -92,6 +92,16 @@
 --     Without 7a/7b/7c, every /api/admin/symposium route 500s with a raw
 --     "Worker threw exception" page rather than JSON, which surfaces in the
 --     panel as a Save button that does nothing.
+--
+-- 7d. symposium_sessions needs a slug column: the symposium site's session
+--     content schema requires one, and functions/api/symposium.ts (Task 3)
+--     unconditionally SELECTs it. Deploying that route before this column
+--     exists breaks the public overlay endpoint with D1 "no such column:
+--     slug". The table has never been written to, so there is no data to
+--     migrate -- ALTER TABLE ADD COLUMN is NOT idempotent, so this
+--     intentionally lives here as a note rather than as a statement in this
+--     file:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_sessions ADD COLUMN slug TEXT NOT NULL DEFAULT ''"
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -445,16 +455,20 @@ CREATE TABLE IF NOT EXISTS symposium_speakers (
 );
 
 CREATE TABLE IF NOT EXISTS symposium_sessions (
-  id          TEXT PRIMARY KEY,
-  year        INTEGER NOT NULL,
-  title       TEXT NOT NULL,
-  type        TEXT NOT NULL,
-  time        TEXT NOT NULL DEFAULT '',
-  end_time    TEXT NOT NULL DEFAULT '',
-  description TEXT NOT NULL DEFAULT '',
+  id            TEXT PRIMARY KEY,
+  -- The stable identifier the symposium site's session content schema
+  -- requires and what the archived JSON keeps. Distinct from speaker_slugs
+  -- below, which points at speakers, not at this session itself.
+  slug          TEXT NOT NULL,
+  year          INTEGER NOT NULL,
+  title         TEXT NOT NULL,
+  type          TEXT NOT NULL,
+  time          TEXT NOT NULL DEFAULT '',
+  end_time      TEXT NOT NULL DEFAULT '',
+  description   TEXT NOT NULL DEFAULT '',
   -- JSON array of speaker *slugs*, matching src/data/sessions.ts's speakerSlugs.
   speaker_slugs TEXT NOT NULL DEFAULT '[]',
-  sort        INTEGER NOT NULL DEFAULT 0
+  sort          INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS symposium_committee (

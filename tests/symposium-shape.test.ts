@@ -45,5 +45,11 @@ test('rows come out in sort order, not insertion order', () => {
 
 test('the hall never appears in the payload', () => {
   const o = rowsToOverlay(editionRow, [], [], [], []);
-  assert.ok(!JSON.stringify(o).includes('venue'), 'no venue string may travel over the public API');
+  const json = JSON.stringify(o);
+  // The hall's name lives in the symposium repo's edition markdown and reaches
+  // the page through locationFor. Only its visibility flag travels over this API.
+  assert.ok(!json.includes('U3'), 'the hall name must not travel');
+  assert.ok(!json.includes('Amphitheatre'), 'nor any part of it');
+  assert.ok(!('venue' in o.edition), 'no venue string field');
+  assert.ok(!('venueCity' in o.edition), 'no city string field either');
 });

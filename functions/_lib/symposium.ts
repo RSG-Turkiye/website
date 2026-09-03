@@ -4,7 +4,7 @@
 
 // The D1 row shapes, mirroring Task 2's CREATE TABLE statements exactly.
 export interface SpeakerRow { id: string; slug: string; year: number; name: string; position: string; company: string; bio: string; photo: string; linkedin: string; sort: number }
-export interface SessionRow { id: string; year: number; title: string; type: string; time: string; end_time: string; description: string; speaker_slugs: string; sort: number }
+export interface SessionRow { id: string; slug: string; year: number; title: string; type: string; time: string; end_time: string; description: string; speaker_slugs: string; sort: number }
 export interface CommitteeRow { id: string; year: number; name: string; role: string; role_tr: string; affiliation: string; photo: string; linkedin: string; sort: number }
 export interface AnnouncementRow { id: string; title: string; description: string; button_text: string; button_url: string; show_as_popup: number; expires_at: number }
 export interface EditionRow { year: number; registration_url: string; registration_deadline: number | null; abstract_url: string; abstract_deadline: number | null; venue_public: number | null; city_public: number | null }
@@ -30,23 +30,6 @@ function toTriBoolean(value: number | null | undefined): boolean | null {
   return value !== 0;
 }
 
-// venuePublic/cityPublic follow the same "no opinion" rule schema.sql
-// documents for the three lists: NULL means "say nothing, let the repo's own
-// flag stand." So when the CMS operator hasn't made an explicit call, the key
-// is left off the wire instead of sent as an explicit null -- ordinary
-// property access still reads back `null` (the field is defined, just not
-// enumerable), but JSON.stringify and object spread, which only walk
-// enumerable keys, both skip it. A consumer treats "absent" and "null" as
-// the same "no opinion" signal either way.
-function defineNullableFlag(target: object, key: 'venuePublic' | 'cityPublic', value: boolean | null): void {
-  Object.defineProperty(target, key, {
-    value,
-    enumerable: value !== null,
-    configurable: true,
-    writable: false,
-  });
-}
-
 // One bad row's speaker_slugs must not fail the whole build.
 function parseSpeakerSlugs(raw: string): string[] {
   try {
@@ -69,14 +52,14 @@ export function rowsToOverlay(
   committee: CommitteeRow[],
   announcements: AnnouncementRow[],
 ): Overlay {
-  const editionOverlay = {
+  const editionOverlay: EditionOverlay = {
     registrationUrl: edition.registration_url,
     registrationDeadline: edition.registration_deadline,
     abstractUrl: edition.abstract_url,
     abstractDeadline: edition.abstract_deadline,
-  } as EditionOverlay;
-  defineNullableFlag(editionOverlay, 'venuePublic', toTriBoolean(edition.venue_public));
-  defineNullableFlag(editionOverlay, 'cityPublic', toTriBoolean(edition.city_public));
+    venuePublic: toTriBoolean(edition.venue_public),
+    cityPublic: toTriBoolean(edition.city_public),
+  };
 
   return {
     year: edition.year,
@@ -91,7 +74,7 @@ export function rowsToOverlay(
       linkedin: s.linkedin,
     })),
     sessions: bySortThenId(sessions).map((s) => ({
-      slug: s.id,
+      slug: s.slug,
       title: s.title,
       type: s.type,
       speakerSlugs: parseSpeakerSlugs(s.speaker_slugs),
