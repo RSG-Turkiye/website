@@ -102,6 +102,13 @@
 --     intentionally lives here as a note rather than as a statement in this
 --     file:
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_sessions ADD COLUMN slug TEXT NOT NULL DEFAULT ''"
+--
+-- 7e. The two symposium slug indexes below are UNIQUE and created with
+--     IF NOT EXISTS, so unlike 7d they are ordinary statements in this file
+--     and re-running the schema applies them. Neither table has been written
+--     to yet, so there are no duplicates to clean up first. If that ever
+--     stops being true, the CREATE fails loudly rather than silently
+--     dropping a row -- deduplicate by hand, then re-run.
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -272,6 +279,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
 CREATE INDEX IF NOT EXISTS idx_progress_user_id ON progress(user_id);
 CREATE INDEX IF NOT EXISTS idx_rank_history_user_ordinal ON rank_history(user_id, rank_ordinal);
 CREATE INDEX IF NOT EXISTS idx_user_achievement_badges_user_id ON user_achievement_badges(user_id);
@@ -482,3 +490,13 @@ CREATE TABLE IF NOT EXISTS symposium_committee (
   linkedin    TEXT NOT NULL DEFAULT '',
   sort        INTEGER NOT NULL DEFAULT 0
 );
+
+-- Sessions point at speakers by slug, so a duplicate slug within one year
+-- makes that link resolve to whichever row sorts first -- silently, with no
+-- error the editor ever sees. The admin routes reject a duplicate before
+-- writing and name the offender; these indexes are what make it impossible
+-- rather than merely unlikely, closing the gap between the check and the
+-- write. Scoped per year: the same speaker recurring in a later edition is
+-- a different row and keeps its slug.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_speakers_year_slug ON symposium_speakers(year, slug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_sessions_year_slug ON symposium_sessions(year, slug);
