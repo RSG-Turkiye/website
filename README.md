@@ -335,14 +335,21 @@ cd workers/symposium-cron && npx wrangler secret put SYMPOSIUM_ARCHIVE_SECRET
 wrangler pages secret put SYMPOSIUM_ARCHIVE_SECRET --project-name website
 ```
 
-**A new Pages secret does not reach the already-running deployment, and
-"Retry deployment" does not fix that** -- a retry replays the previous build
-along with the environment it was built with. Until a genuinely new build
-runs, `env.SYMPOSIUM_ARCHIVE_SECRET` reads empty inside the Function, the
-archive endpoint fail-closes to 403, and the nightly tick reports
-`archive: ERROR 403` while the rebuild half still succeeds. Push a commit
-after setting the secret. Cost us two retries and an hour to work out on
-2026-09-03; the same applies to any secret added after a deploy.
+Two things will make you think this is broken when it is not, and we lost an
+hour to both on 2026-09-03:
+
+1. **`wrangler dev --test-scheduled` reads the Worker's secrets from the local
+   `.dev.vars`, not from the deployed Worker.** A stale value there makes every
+   local tick report `archive: ERROR 403` while the deployed Worker is fine.
+   Sync `.dev.vars` whenever you rotate the secret, or you are testing nothing.
+2. **A newly set Pages secret takes a minute or two to reach the edge after the
+   build goes Active.** Calling the endpoint the moment the deployment flips
+   returns 403; the same call a minute later returns 200. Measured: 403 at
+   +25s, 403 at +50s, 200 at +75s. Wait before concluding anything.
+
+To check the whole path end to end, call the endpoint directly with the value
+you just set -- an empty or mismatched secret both fail closed to 403, so a
+403 alone never tells you which one you have.
 
 #### How both cron Workers report failure
 
