@@ -6,6 +6,11 @@ const GITHUB_BASE_BRANCH = 'main';
 const GITHUB_API_BASE = 'https://api.github.com';
 
 type OpenPrParams = {
+  /** The `<branchPrefix>/` this branch lives under -- e.g. `blog-submission`
+   * or `symposium-archive`. Keeps unrelated automated branches from
+   * colliding on name alone, and lets a human tell at a glance which flow
+   * opened a given branch. */
+  branchPrefix: string;
   branchSlug: string;
   files: Array<{ path: string; content: string }>;
   title: string;
@@ -142,13 +147,22 @@ export async function fileExistsOnBaseBranch(filePath: string, env: Env): Promis
 }
 
 /**
- * Creates a branch, commits one or two files to it, and opens a PR
- * against main. Returns { success: false, error } on any failure without
- * throwing -- callers (the admin approve endpoint) must not update a
- * submission's status unless this returns { success: true }.
+ * Creates a branch, commits one or more files to it, and opens a PR against
+ * main. Returns { success: false, error } on any failure without throwing
+ * -- callers (the blog-submission approve endpoint, the symposium archive
+ * endpoint) must not update their own row's status unless this returns
+ * { success: true }, and must never surface `error` to an untrusted caller
+ * -- it can echo back the GitHub API response body, which is not secret
+ * itself but is diagnostic detail with no business leaving this server.
+ *
+ * Generalised from the blog approval flow's own `openBlogPostPR`:
+ * `branchPrefix` is what used to be the hardcoded `blog-submission/`, now
+ * supplied by each caller so a second flow (the symposium archive) can open
+ * PRs under its own `symposium-archive/` branch namespace without a second
+ * copy of this function.
  */
-export async function openBlogPostPR(params: OpenPrParams, env: Env): Promise<OpenPrResult> {
-  const branchName = `blog-submission/${params.branchSlug}`;
+export async function openContentPR(params: OpenPrParams, env: Env): Promise<OpenPrResult> {
+  const branchName = `${params.branchPrefix}/${params.branchSlug}`;
   try {
     const baseSha = await getBaseBranchSha(env);
     await createBranch(branchName, baseSha, env);

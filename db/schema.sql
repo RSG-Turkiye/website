@@ -109,6 +109,23 @@
 --     to yet, so there are no duplicates to clean up first. If that ever
 --     stops being true, the CREATE fails loudly rather than silently
 --     dropping a row -- deduplicate by hand, then re-run.
+--
+-- 8a. symposium_edition needs an end_of_event column: the archive endpoint
+--     (functions/api/admin/symposium/archive.ts, Task 8) SELECTs it to find
+--     the edition whose event has finished, and D1 has never otherwise
+--     recorded the symposium's own date -- that lives only in the repo's
+--     editions/<year>.md, which the archive endpoint has no access to before
+--     the PR that would add it exists. ALTER TABLE ADD COLUMN is NOT
+--     idempotent, so this intentionally lives here as a note rather than as
+--     a statement in this file:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_edition ADD COLUMN end_of_event INTEGER"
+--     Nothing writes this column yet -- no admin form exposes it in this
+--     task -- so until a later task adds one, set it by hand per edition
+--     once its dates are known, mirroring editions.ts's own rule (the
+--     midnight after the last day, in epoch seconds):
+--       wrangler d1 execute rsg-members --remote --command="UPDATE symposium_edition SET end_of_event = strftime('%s', '2026-10-11') WHERE year = 2026"
+--     Until it is set, that edition's row has end_of_event NULL and the
+--     archive endpoint leaves it alone rather than guessing a date.
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -442,6 +459,10 @@ CREATE TABLE IF NOT EXISTS symposium_edition (
   -- rule the three lists follow. Only an explicit 0 or 1 overrides 2026.md.
   venue_public          INTEGER,
   city_public           INTEGER,
+  -- When the event itself is over (epoch seconds), so the archive endpoint
+  -- knows when to fold this edition into the repo. Nullable and unset by
+  -- default: see migration note 8a for how it gets a value today.
+  end_of_event          INTEGER,
   archived_pr_url       TEXT,
   updated_by            TEXT NOT NULL REFERENCES users(id),
   updated_at            INTEGER NOT NULL

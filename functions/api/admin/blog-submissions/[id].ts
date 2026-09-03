@@ -1,6 +1,6 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../../_lib/auth';
-import { openBlogPostPR, fileExistsOnBaseBranch } from '../../../_lib/github';
+import { openContentPR, fileExistsOnBaseBranch } from '../../../_lib/github';
 
 type SubmissionRow = {
   id: string;
@@ -113,8 +113,9 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
       ]
     : [{ path: `src/content/blog/${row.lang}/${slug}.md`, content: buildFrontmatter({ ...row, slug }, now) }];
 
-  const result = await openBlogPostPR(
+  const result = await openContentPR(
     {
+      branchPrefix: 'blog-submission',
       branchSlug: slug,
       files,
       title: `New blog post: ${row.title}`,

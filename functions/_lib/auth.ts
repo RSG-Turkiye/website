@@ -12,6 +12,10 @@ export interface Env {
   MAIL_SYNC_SECRET: string;
   MAIL_ATTACHMENTS: R2Bucket;
   SYMPOSIUM_DEPLOY_HOOK: string;
+  /** Shared with the symposium-cron Worker's own copy of the same value --
+   * see functions/api/admin/symposium/archive.ts, gated the same way
+   * MAIL_SYNC_SECRET gates /api/mail/dispatch. */
+  SYMPOSIUM_ARCHIVE_SECRET: string;
 }
 
 export interface User {

@@ -309,6 +309,26 @@ To test it without waiting for 01:17 UTC, invoke the scheduled handler
 locally (see *Triggering either Worker by hand* below) — it should start a
 build in the `symposium-website` project immediately.
 
+**Archiving a finished edition.** Before the rebuild, the same Worker calls
+`POST /api/admin/symposium/archive` on the **main** site. That endpoint finds
+any edition whose event has finished (`end_of_event` has passed, see
+`db/schema.sql` migration note 8a) and whose CMS overlay has not yet been
+folded into the repo, renders its D1 rows to the content collection's JSON
+shape, and opens a pull request against this repo — the same `GITHUB_PAT`
+used for blog submissions, so no separate GitHub credential is needed. A
+human still reviews and merges that PR; nothing here writes to `main`
+directly. Once the PR's URL is recorded (`archived_pr_url`), that edition is
+never re-submitted — the endpoint is safe to call every night, or twice in
+one night, without opening a second PR for the same edition.
+
+Like `/api/mail/dispatch`, this is a server-to-server call authenticated by a
+shared secret rather than a session, so it needs that secret in both places,
+the same value in each:
+```
+cd workers/symposium-cron && npx wrangler secret put SYMPOSIUM_ARCHIVE_SECRET
+wrangler pages secret put SYMPOSIUM_ARCHIVE_SECRET --project-name website
+```
+
 #### How both cron Workers report failure
 
 `workers/mail-cron/` and `workers/symposium-cron/` follow the same two rules,
