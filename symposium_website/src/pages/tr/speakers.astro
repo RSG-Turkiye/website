@@ -2,7 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SpeakerCard from "../../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
-import { getSpeakersByEdition } from "../../data/speakers";
+import { getSpeakers, getUpcomingContent } from "../../lib/content";
 import { getUpcomingEdition } from "../../lib/editions-content";
 import { titleFor } from "../../lib/editions";
 import { getCollection } from "astro:content";
@@ -13,9 +13,22 @@ const editions = await getCollection("editions");
 const editionYears = [...new Set(editions.map((e) => e.data.year))].sort((a, b) => b - a);
 
 const upcoming = await getUpcomingEdition();
-const hasUpcomingSpeakers = upcoming
-  ? getSpeakersByEdition(upcoming.data.year).length > 0
-  : false;
+const upcomingContent = upcoming ? await getUpcomingContent() : null;
+const hasUpcomingSpeakers = upcomingContent ? upcomingContent.speakers.length > 0 : false;
+
+// The upcoming edition's speakers come from the merged overlay content, not
+// a fresh repo-only read -- everything else in the archive reads straight
+// from the collection.
+const speakersByYear = new Map(
+  await Promise.all(
+    editionYears.map(async (year) => {
+      if (upcoming && year === upcoming.data.year && upcomingContent) {
+        return [year, upcomingContent.speakers] as const;
+      }
+      return [year, await getSpeakers(year)] as const;
+    })
+  )
+);
 ---
 
 <BaseLayout pageTitle={t("speakers.title")} translationUrl="/speakers">
@@ -30,7 +43,7 @@ const hasUpcomingSpeakers = upcoming
       <p class="text-gray-500 text-center py-16">{t("speakers.none")}</p>
     )}
     {editionYears.map((year) => {
-      const editionSpeakers = getSpeakersByEdition(year);
+      const editionSpeakers = speakersByYear.get(year) ?? [];
       if (editionSpeakers.length === 0) return null;
       const edition = editions.find((e) => e.data.year === year);
       return (

@@ -3,10 +3,13 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getUpcomingEdition } from "../lib/editions-content";
 import { locationFor } from "../lib/editions";
+import { getUpcomingContent, withOverlayContent } from "../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const edition = await getUpcomingEdition();
+const content = edition ? await getUpcomingContent() : null;
+const effectiveEdition = edition ? withOverlayContent(edition.data, content) : null;
 ---
 
 <BaseLayout
@@ -39,7 +42,7 @@ const edition = await getUpcomingEdition();
                   <p class="text-navy font-medium text-lg">{edition.data.date}</p>
                 </div>
                 {(() => {
-                  const loc = locationFor(edition.data);
+                  const loc = locationFor(effectiveEdition!);
                   return (
                     loc.kind !== "hidden" && (
                       <div>

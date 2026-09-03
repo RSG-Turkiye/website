@@ -73,6 +73,47 @@
 --     compose.ts's attempt to register the thread hits the same missing
 --     table, but that catch is silent too, so the conversation is simply
 --     never registered with no error surfaced anywhere.
+--
+-- 7a. functions/api/admin/symposium routes unconditionally SELECT is_symposium;
+--     deploying without this first does NOT throw -- getSessionUser does
+--     SELECT * FROM users, so the column is simply absent and
+--     canManageSymposium reads false for every non-admin. The symptom is a
+--     pane that never appears for the person you granted the role to, which
+--     is far harder to diagnose than a 500. ALTER TABLE ADD COLUMN is NOT idempotent --
+--     do not re-run this one:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_symposium INTEGER NOT NULL DEFAULT 0"
+--
+-- 7b. The announcements table needs a site column. This is NOT optional and
+--     NOT only a CMS nicety: functions/api/announcements.ts -- the public
+--     main-site endpoint every visitor hits -- now filters
+--     `WHERE expires_at > ? AND site = 'main'`. Skip this and announcements
+--     break for everyone, not just for editors.
+--     Run it if the announcements table already exists and has no site
+--     column; skip it only on a database where announcements was created
+--     fresh from this file (which declares the column). ALTER TABLE ADD
+--     COLUMN is NOT idempotent, so it errors rather than no-ops on a rerun:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE announcements ADD COLUMN site TEXT NOT NULL DEFAULT 'main'"
+--
+-- 7c. This file's four symposium tables below are NOT applied by any deploy
+--     step -- run them by hand (`IF NOT EXISTS` makes these safe to re-run):
+--       wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--     Without 7c, every /api/admin/symposium route 500s with a raw "Worker
+--     threw exception" page rather than JSON, which surfaces in the panel as
+--     a Save button that does nothing. (7a fails differently -- see above.)
+--
+-- 7e. The two symposium slug indexes below are UNIQUE and created with
+--     IF NOT EXISTS, so unlike 7d they are ordinary statements in this file
+--     and re-running the schema applies them. Neither table has been written
+--     to yet, so there are no duplicates to clean up first. If that ever
+--     stops being true, the CREATE fails loudly rather than silently
+--     dropping a row -- deduplicate by hand, then re-run.
+--
+-- 7f. Granting is_symposium has no UI: functions/api/admin/users.ts knows
+--     about is_announcer, is_writer and is_sender only, so the admin user
+--     list can neither show nor set this role. Until that is added, the
+--     symposium pane is reachable by is_admin accounts and by nobody else
+--     unless you grant it by hand:
+--       wrangler d1 execute rsg-members --remote --command="UPDATE users SET is_symposium = 1 WHERE email = 'someone@example.com'"
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -83,6 +124,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_announcer  INTEGER NOT NULL DEFAULT 0,
   is_writer     INTEGER NOT NULL DEFAULT 0,
   is_sender     INTEGER NOT NULL DEFAULT 0,
+  is_symposium  INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL,
   last_login    INTEGER NOT NULL
 );
@@ -204,7 +246,8 @@ CREATE TABLE IF NOT EXISTS announcements (
   show_as_popup INTEGER NOT NULL DEFAULT 0,
   expires_at    INTEGER NOT NULL,
   created_by    TEXT NOT NULL REFERENCES users(id),
-  created_at    INTEGER NOT NULL
+  created_at    INTEGER NOT NULL,
+  site          TEXT NOT NULL DEFAULT 'main'
 );
 
 -- Member blog submissions: a member with is_writer submits through the
@@ -241,6 +284,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
 CREATE INDEX IF NOT EXISTS idx_progress_user_id ON progress(user_id);
 CREATE INDEX IF NOT EXISTS idx_rank_history_user_ordinal ON rank_history(user_id, rank_ordinal);
 CREATE INDEX IF NOT EXISTS idx_user_achievement_badges_user_id ON user_achievement_badges(user_id);
@@ -391,3 +435,73 @@ CREATE TABLE IF NOT EXISTS mail_sync_state (
 
 INSERT OR IGNORE INTO mail_sync_state (id, history_id, last_synced_at, backfill_cursor)
 VALUES (1, NULL, NULL, NULL);
+
+-- The edition's volatile settings. At most one row: the upcoming edition.
+CREATE TABLE IF NOT EXISTS symposium_edition (
+  year                  INTEGER PRIMARY KEY,
+  registration_url      TEXT NOT NULL DEFAULT '',
+  registration_deadline INTEGER,
+  abstract_url          TEXT NOT NULL DEFAULT '',
+  abstract_deadline     INTEGER,
+  -- Nullable on purpose: NULL means "no opinion, use the repo's flag", the same
+  -- rule the three lists follow. Only an explicit 0 or 1 overrides 2026.md.
+  venue_public          INTEGER,
+  city_public           INTEGER,
+  archived_pr_url       TEXT,
+  updated_by            TEXT NOT NULL REFERENCES users(id),
+  updated_at            INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS symposium_speakers (
+  id       TEXT PRIMARY KEY,
+  -- The stable identifier sessions point at, and what the archived JSON keeps.
+  -- Sessions reference speakers by slug today; the CMS must not break that link.
+  slug     TEXT NOT NULL,
+  year     INTEGER NOT NULL,
+  name     TEXT NOT NULL,
+  position TEXT NOT NULL DEFAULT '',
+  company  TEXT NOT NULL DEFAULT '',
+  bio      TEXT NOT NULL DEFAULT '',
+  photo    TEXT NOT NULL DEFAULT '',
+  linkedin TEXT NOT NULL DEFAULT '',
+  sort     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS symposium_sessions (
+  id            TEXT PRIMARY KEY,
+  -- The stable identifier the symposium site's session content schema
+  -- requires and what the archived JSON keeps. Distinct from speaker_slugs
+  -- below, which points at speakers, not at this session itself.
+  slug          TEXT NOT NULL,
+  year          INTEGER NOT NULL,
+  title         TEXT NOT NULL,
+  type          TEXT NOT NULL,
+  time          TEXT NOT NULL DEFAULT '',
+  end_time      TEXT NOT NULL DEFAULT '',
+  description   TEXT NOT NULL DEFAULT '',
+  -- JSON array of speaker *slugs*, matching src/data/sessions.ts's speakerSlugs.
+  speaker_slugs TEXT NOT NULL DEFAULT '[]',
+  sort          INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS symposium_committee (
+  id          TEXT PRIMARY KEY,
+  year        INTEGER NOT NULL,
+  name        TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT '',
+  role_tr     TEXT NOT NULL DEFAULT '',
+  affiliation TEXT NOT NULL DEFAULT '',
+  photo       TEXT NOT NULL DEFAULT '',
+  linkedin    TEXT NOT NULL DEFAULT '',
+  sort        INTEGER NOT NULL DEFAULT 0
+);
+
+-- Sessions point at speakers by slug, so a duplicate slug within one year
+-- makes that link resolve to whichever row sorts first -- silently, with no
+-- error the editor ever sees. The admin routes reject a duplicate before
+-- writing and name the offender; these indexes are what make it impossible
+-- rather than merely unlikely, closing the gap between the check and the
+-- write. Scoped per year: the same speaker recurring in a later edition is
+-- a different row and keeps its slug.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_speakers_year_slug ON symposium_speakers(year, slug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_sessions_year_slug ON symposium_sessions(year, slug);

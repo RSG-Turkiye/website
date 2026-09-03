@@ -11,6 +11,11 @@ export interface Env {
   RSG_MAIL_FROM: string;
   MAIL_SYNC_SECRET: string;
   MAIL_ATTACHMENTS: R2Bucket;
+  SYMPOSIUM_DEPLOY_HOOK: string;
+  /** Shared with the symposium-cron Worker's own copy of the same value --
+   * see functions/api/admin/symposium/archive.ts, gated the same way
+   * MAIL_SYNC_SECRET gates /api/mail/dispatch. */
+  SYMPOSIUM_ARCHIVE_SECRET: string;
 }
 
 export interface User {
@@ -22,6 +27,7 @@ export interface User {
   is_announcer: number;
   is_writer: number;
   is_sender: number;
+  is_symposium: number;
   created_at: number;
   last_login: number;
 }
@@ -112,6 +118,15 @@ export function getSessionDuration() {
 
 export function canManageAnnouncements(user: Pick<User, 'is_admin' | 'is_announcer'>): boolean {
   return user.is_admin === 1 || user.is_announcer === 1;
+}
+
+/**
+ * The only place `is_symposium` is read. Everything that gates symposium
+ * editing calls this, so when the role model is reworked -- which is
+ * expected -- this function is the whole of the change.
+ */
+export function canManageSymposium(user: Pick<User, 'is_admin' | 'is_symposium'>): boolean {
+  return user.is_admin === 1 || user.is_symposium === 1;
 }
 
 const ALLOWED_ORIGINS = new Set([

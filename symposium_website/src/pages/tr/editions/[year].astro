@@ -3,7 +3,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import SpeakerCard from "../../../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
 import { getCollection, render } from "astro:content";
-import { getSpeakerBySlug } from "../../../data/speakers";
+import { getSpeakerBySlug } from "../../../lib/content";
 import { locationFor, titleFor, subtitleFor } from "../../../lib/editions";
 
 export async function getStaticPaths() {
@@ -19,7 +19,11 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
 const { Content } = await render(edition);
-const editionSpeakers = edition.data.speakers.map(getSpeakerBySlug).filter(Boolean);
+const editionSpeakers = (
+  await Promise.all(
+    edition.data.speakers.map((slug) => getSpeakerBySlug(edition.data.year, slug))
+  )
+).filter(Boolean);
 const title = titleFor(edition.data, lang);
 const subtitle = subtitleFor(edition.data, lang);
 ---

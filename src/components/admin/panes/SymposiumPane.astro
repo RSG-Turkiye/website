@@ -1,0 +1,255 @@
+---
+/**
+ * The symposium pane: one nav entry, four sections underneath it (edition
+ * settings, speakers, sessions, committee). All four write to the D1
+ * overlay that the symposium site merges over its own git content at build
+ * time -- see functions/api/admin/symposium/*.ts for the routes this
+ * markup drives, and src/scripts/admin-panel.ts for the client logic.
+ *
+ * Shape follows the announcements pane on purpose: a form above a table,
+ * the table's row actions load the form for editing rather than opening a
+ * second view. Speakers, sessions and committee repeat that shape three
+ * times rather than inventing a second one.
+ *
+ * Tri-state selects (not checkboxes) back venuePublic/cityPublic -- see
+ * EditionInput's doc comment in functions/_lib/symposium.ts. A checkbox can
+ * only ever send true/false, and flattening "no opinion" (null) to false
+ * would silently override whatever the symposium repo itself decides.
+ */
+import { useTranslations } from '../../../i18n/ui';
+
+interface Props { lang: 'en' | 'tr' }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const SESSION_TYPE_VALUES = [
+  'opening', 'keynote', 'workshop', 'panel', 'talk', 'company', 'poster',
+  'networking', 'break', 'closing',
+] as const;
+
+const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = {
+  opening: t('admin.symposium.sessions.type.opening'),
+  keynote: t('admin.symposium.sessions.type.keynote'),
+  workshop: t('admin.symposium.sessions.type.workshop'),
+  panel: t('admin.symposium.sessions.type.panel'),
+  talk: t('admin.symposium.sessions.type.talk'),
+  company: t('admin.symposium.sessions.type.company'),
+  poster: t('admin.symposium.sessions.type.poster'),
+  networking: t('admin.symposium.sessions.type.networking'),
+  break: t('admin.symposium.sessions.type.break'),
+  closing: t('admin.symposium.sessions.type.closing'),
+};
+---
+
+<div id="symposiumSection" data-pane="symposium">
+  <h2 class="text-lg font-semibold text-navy mb-4">
+    {t('admin.symposium.heading')}<span id="symYearLabel" class="text-gray-500 font-normal"></span>
+  </h2>
+
+  <!-- Edition settings -->
+  <section class="mb-8">
+    <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.edition.heading')}</h3>
+    <div class="bg-white rounded-2xl border border-border p-4">
+      <form id="symEditionForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.edition.registrationUrl')}
+          <input id="symEditionRegUrl" type="url"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.edition.registrationDeadline')}
+          <input id="symEditionRegDeadline" type="date"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.edition.abstractUrl')}
+          <input id="symEditionAbsUrl" type="url"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.edition.abstractDeadline')}
+          <input id="symEditionAbsDeadline" type="date"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.edition.venuePublic')}
+          <select id="symEditionVenuePublic"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
+            <option value="">{t('admin.symposium.edition.optionNoOpinion')}</option>
+            <option value="true">{t('admin.symposium.edition.optionShow')}</option>
+            <option value="false">{t('admin.symposium.edition.optionHide')}</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.edition.cityPublic')}
+          <select id="symEditionCityPublic"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
+            <option value="">{t('admin.symposium.edition.optionNoOpinion')}</option>
+            <option value="true">{t('admin.symposium.edition.optionShow')}</option>
+            <option value="false">{t('admin.symposium.edition.optionHide')}</option>
+          </select>
+        </label>
+        <div class="sm:col-span-2 flex items-center gap-3">
+          <button type="submit" id="symEditionSaveBtn" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+            {t('admin.symposium.edition.save')}
+          </button>
+          <p id="symEditionStatus" class="hidden text-xs text-gray-500"></p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Speakers -->
+  <section class="mb-8">
+    <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.speakers.heading')}</h3>
+    <div class="bg-white rounded-2xl border border-border p-4 mb-4">
+      <form id="symSpeakerForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input type="hidden" id="symSpeakerEditId" value="" />
+        <input id="symSpeakerName" type="text" required placeholder={t('admin.symposium.speakers.form.namePlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symSpeakerSlug" type="text" placeholder={t('admin.symposium.speakers.form.slugPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symSpeakerPosition" type="text" placeholder={t('admin.symposium.speakers.form.positionPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symSpeakerCompany" type="text" placeholder={t('admin.symposium.speakers.form.companyPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <textarea id="symSpeakerBio" rows="2" placeholder={t('admin.symposium.speakers.form.bioPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2"></textarea>
+        <input id="symSpeakerPhoto" type="url" placeholder={t('admin.symposium.speakers.form.photoPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symSpeakerLinkedin" type="url" placeholder={t('admin.symposium.speakers.form.linkedinPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <div class="sm:col-span-2 flex items-center gap-3">
+          <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+            {t('admin.symposium.speakers.form.save')}
+          </button>
+          <button type="button" id="symSpeakerCancelBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+            {t('admin.symposium.speakers.form.cancelEdit')}
+          </button>
+          <p id="symSpeakerStatus" class="hidden text-xs text-gray-500"></p>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-[#F7F7F6]">
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.speakers.table.name')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.speakers.table.position')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.speakers.table.slug')}</th>
+            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
+          </tr>
+        </thead>
+        <tbody id="symSpeakersTableBody"></tbody>
+      </table>
+      <div id="symSpeakersEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.speakers.table.noneYet')}</div>
+    </div>
+  </section>
+
+  <!-- Sessions -->
+  <section class="mb-8">
+    <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.sessions.heading')}</h3>
+    <div class="bg-white rounded-2xl border border-border p-4 mb-4">
+      <form id="symSessionForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input type="hidden" id="symSessionEditId" value="" />
+        <input id="symSessionTitle" type="text" required placeholder={t('admin.symposium.sessions.form.titlePlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symSessionSlug" type="text" placeholder={t('admin.symposium.sessions.form.slugPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.sessions.form.typeLabel')}
+          <select id="symSessionType" required
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
+            {SESSION_TYPE_VALUES.map((type) => (
+              <option value={type}>{sessionTypeLabels[type]}</option>
+            ))}
+          </select>
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <input id="symSessionTime" type="text" placeholder={t('admin.symposium.sessions.form.timePlaceholder')}
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 tabular-nums focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+          <input id="symSessionEndTime" type="text" placeholder={t('admin.symposium.sessions.form.endTimePlaceholder')}
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 tabular-nums focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </div>
+        <textarea id="symSessionDescription" rows="2" placeholder={t('admin.symposium.sessions.form.descriptionPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2"></textarea>
+        <label class="flex flex-col gap-1 text-sm text-gray-600 sm:col-span-2">
+          {t('admin.symposium.sessions.form.speakersLabel')}
+          <select id="symSessionSpeakers" multiple size="4"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid"></select>
+        </label>
+        <div class="sm:col-span-2 flex items-center gap-3">
+          <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+            {t('admin.symposium.sessions.form.save')}
+          </button>
+          <button type="button" id="symSessionCancelBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+            {t('admin.symposium.sessions.form.cancelEdit')}
+          </button>
+          <p id="symSessionStatus" class="hidden text-xs text-gray-500"></p>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-[#F7F7F6]">
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.title')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.type')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.time')}</th>
+            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
+          </tr>
+        </thead>
+        <tbody id="symSessionsTableBody"></tbody>
+      </table>
+      <div id="symSessionsEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.sessions.table.noneYet')}</div>
+    </div>
+  </section>
+
+  <!-- Committee -->
+  <section>
+    <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.committee.heading')}</h3>
+    <div class="bg-white rounded-2xl border border-border p-4 mb-4">
+      <form id="symCommitteeForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input type="hidden" id="symCommitteeEditId" value="" />
+        <input id="symCommitteeName" type="text" required placeholder={t('admin.symposium.committee.form.namePlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symCommitteeAffiliation" type="text" placeholder={t('admin.symposium.committee.form.affiliationPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symCommitteeRole" type="text" placeholder={t('admin.symposium.committee.form.rolePlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symCommitteeRoleTr" type="text" placeholder={t('admin.symposium.committee.form.roleTrPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symCommitteePhoto" type="url" placeholder={t('admin.symposium.committee.form.photoPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symCommitteeLinkedin" type="url" placeholder={t('admin.symposium.committee.form.linkedinPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <div class="sm:col-span-2 flex items-center gap-3">
+          <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+            {t('admin.symposium.committee.form.save')}
+          </button>
+          <button type="button" id="symCommitteeCancelBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+            {t('admin.symposium.committee.form.cancelEdit')}
+          </button>
+          <p id="symCommitteeStatus" class="hidden text-xs text-gray-500"></p>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-[#F7F7F6]">
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.name')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.role')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.affiliation')}</th>
+            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
+          </tr>
+        </thead>
+        <tbody id="symCommitteeTableBody"></tbody>
+      </table>
+      <div id="symCommitteeEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.committee.table.noneYet')}</div>
+    </div>
+  </section>
+</div>

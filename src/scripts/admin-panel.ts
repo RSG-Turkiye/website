@@ -36,6 +36,12 @@ let searchTimer: ReturnType<typeof setTimeout>;
 let badgeCatalog: Array<{ code: string; name_en: string; name_tr: string }> = [];
 let canManageAnnouncements = false;
 
+// The edition being edited (the highest year not yet archived, per
+// edition.ts) and the current speaker list, cached so the sessions form's
+// speaker picker can be rebuilt without a round trip every time.
+let symposiumYear: number | null = null;
+let symposiumSpeakers: Array<{ id: string; slug: string; name: string }> = [];
+
 // English-only: the Turkish admin page never rendered rank management, so
 // there is no Turkish wording to move here (see module comment above).
 // Ranks come from lib/badges.ts, which is what renders a member's actual
@@ -654,15 +660,21 @@ async function loadAllSends() {
  * This replaces three `classList.toggle('hidden', !isFullAdmin)` calls on
  * whole sections. The sections are panes now, so a role decides which nav
  * entries exist rather than which blocks are stacked on the page -- but the
- * rule itself is unchanged: an announcer gets announcements and nothing else.
+ * rule itself is unchanged: an announcer gets announcements and nothing
+ * else, and (now) a symposium-only user gets the symposium pane and
+ * nothing else. Each flag comes straight from what /api/me returned, not
+ * from a boolean this module re-derives.
  *
  * The nav is hidden entirely when only one pane is available, since a
  * switcher with one option is furniture.
  */
-function applyRoleVisibility(isFullAdmin: boolean): void {
-  const allowed = isFullAdmin
-    ? ['members', 'announcements', 'blog', 'mail-grant', 'mail-senders', 'mail-files', 'mail-sent']
-    : ['announcements'];
+function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean; isSymposium: boolean }): void {
+  const allowed = roles.isFullAdmin
+    ? ['members', 'announcements', 'blog', 'symposium', 'mail-grant', 'mail-senders', 'mail-files', 'mail-sent']
+    : [
+        ...(roles.isAnnouncer ? ['announcements'] : []),
+        ...(roles.isSymposium ? ['symposium'] : []),
+      ];
 
   document.querySelectorAll<HTMLElement>('[data-pane]').forEach((pane) => {
     if (!allowed.includes(pane.dataset.pane!)) pane.remove();
@@ -709,23 +721,38 @@ function setupPaneSwitching(initial: string): void {
 
   document.getElementById('loadingState')!.classList.add('hidden');
 
-  if (!data.user || (!data.user.is_admin && !data.user.is_announcer)) {
+  if (!data.user || (!data.user.is_admin && !data.user.is_announcer && !data.user.is_symposium)) {
     document.getElementById('notAuth')!.classList.remove('hidden');
     return;
   }
 
   document.getElementById('adminContent')!.classList.remove('hidden');
   const isFullAdmin = data.user.is_admin === true;
-  canManageAnnouncements = data.user.is_admin === true || data.user.is_announcer === true;
-  applyRoleVisibility(isFullAdmin);
-  await loadAnnouncements();
-  setupAnnouncementForm();
+  const isAnnouncer = data.user.is_announcer === true;
+  const isSymposium = data.user.is_symposium === true;
+  canManageAnnouncements = isFullAdmin || isAnnouncer;
+  const canEditSymposium = isFullAdmin || isSymposium;
+  applyRoleVisibility({ isFullAdmin, isAnnouncer, isSymposium });
+  if (canManageAnnouncements) {
+    await loadAnnouncements();
+    setupAnnouncementForm();
+  }
   if (isFullAdmin) await loadUsers();
   if (isFullAdmin) await loadBlogSubmissions();
   if (isFullAdmin) {
     setupBulkGrant();
     setupAttachmentUpload();
     await Promise.all([loadSenders(), loadAdminAttachments(), loadAllSends()]);
+  }
+  if (canEditSymposium) {
+    setupEditionForm();
+    setupSpeakerForm();
+    setupSessionForm();
+    setupCommitteeForm();
+    await loadEdition();
+    await loadSpeakers();
+    await loadSessions();
+    await loadCommittee();
   }
 
   // Filter buttons
@@ -866,5 +893,434 @@ async function loadBlogSubmissions() {
         alert(err.error || t('admin.blog.rejectFailedAlert'));
       }
     });
+  });
+}
+
+// Symposium pane
+//
+// One D1-editable "overlay" that the symposium site merges over its own git
+// content at build time. Four sections, all sharing the shape rule that
+// backs every route in functions/api/admin/symposium/*.ts: GET returns
+// exactly what PUT/POST accept, so a form that loads a row, changes
+// nothing, and saves is a no-op. Nothing here reshapes a date or a flag on
+// its way to the wire -- that shaping already happened once, server-side,
+// in functions/_lib/symposium.ts.
+
+/** Beside a save button: what happened to the write, and to the rebuild it triggered. */
+function showRebuildStatus(elId: string, rebuild: { triggered: boolean; detail: string }): void {
+  const el = document.getElementById(elId)!;
+  el.textContent = rebuild.triggered
+    ? t('admin.symposium.rebuild.started')
+    : tf('admin.symposium.rebuild.pending', { detail: rebuild.detail });
+  el.classList.remove('hidden');
+}
+
+// --- Edition settings -------------------------------------------------
+
+interface EditionData {
+  year: number;
+  registrationUrl: string;
+  registrationDeadline: string | null;
+  abstractUrl: string;
+  abstractDeadline: string | null;
+  venuePublic: boolean | null;
+  cityPublic: boolean | null;
+}
+
+/** A tri-state <select>'s value ('' / 'true' / 'false') back to boolean | null. */
+function tristateSelectValue(id: string): boolean | null {
+  const value = (document.getElementById(id) as unknown as HTMLSelectElement).value;
+  return value === '' ? null : value === 'true';
+}
+
+async function loadEdition(): Promise<void> {
+  const res = await fetch('/api/admin/symposium/edition');
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
+  const data = await res.json() as EditionData;
+  symposiumYear = data.year;
+
+  document.getElementById('symYearLabel')!.textContent = tf('admin.symposium.yearFragment', { year: data.year });
+  (document.getElementById('symEditionRegUrl') as HTMLInputElement).value = data.registrationUrl;
+  (document.getElementById('symEditionRegDeadline') as HTMLInputElement).value = data.registrationDeadline ?? '';
+  (document.getElementById('symEditionAbsUrl') as HTMLInputElement).value = data.abstractUrl;
+  (document.getElementById('symEditionAbsDeadline') as HTMLInputElement).value = data.abstractDeadline ?? '';
+  // No opinion (null) maps to the empty option, never to "hide" -- see
+  // tristateSelectValue's inverse and EditionInput's doc comment.
+  (document.getElementById('symEditionVenuePublic') as unknown as HTMLSelectElement).value =
+    data.venuePublic === null ? '' : String(data.venuePublic);
+  (document.getElementById('symEditionCityPublic') as unknown as HTMLSelectElement).value =
+    data.cityPublic === null ? '' : String(data.cityPublic);
+}
+
+function setupEditionForm(): void {
+  const form = document.getElementById('symEditionForm') as HTMLFormElement;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (symposiumYear === null) return;
+
+    const body = {
+      year: symposiumYear,
+      registrationUrl: (document.getElementById('symEditionRegUrl') as HTMLInputElement).value,
+      registrationDeadline: (document.getElementById('symEditionRegDeadline') as HTMLInputElement).value || null,
+      abstractUrl: (document.getElementById('symEditionAbsUrl') as HTMLInputElement).value,
+      abstractDeadline: (document.getElementById('symEditionAbsDeadline') as HTMLInputElement).value || null,
+      venuePublic: tristateSelectValue('symEditionVenuePublic'),
+      cityPublic: tristateSelectValue('symEditionCityPublic'),
+    };
+
+    const res = await fetch('/api/admin/symposium/edition', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json() as { ok: true; rebuild: { triggered: boolean; detail: string } };
+      showRebuildStatus('symEditionStatus', data.rebuild);
+    } else {
+      const err = await res.json() as { error: string };
+      showToast(err.error || t('admin.toast.error'), true);
+    }
+  });
+}
+
+// --- Speakers -----------------------------------------------------------
+
+interface SpeakerItem {
+  id: string; sort: number; slug: string; name: string; position: string;
+  company: string; bio: string; photo: string; linkedin: string;
+}
+
+/** Keeps the sessions form's speaker picker in sync with the speaker list, preserving its current selection. */
+function populateSessionSpeakerOptions(): void {
+  const select = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
+  const selected = new Set(Array.from(select.selectedOptions).map((o) => o.value));
+  select.innerHTML = symposiumSpeakers.map((s) =>
+    `<option value="${escapeHtml(s.slug)}">${escapeHtml(s.name)} (${escapeHtml(s.slug)})</option>`
+  ).join('');
+  Array.from(select.options).forEach((o) => { o.selected = selected.has(o.value); });
+}
+
+function renderSpeakers(items: SpeakerItem[]): void {
+  const tbody = document.getElementById('symSpeakersTableBody')!;
+  const empty = document.getElementById('symSpeakersEmptyState')!;
+
+  if (items.length === 0) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = items.map((s) => `
+    <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
+      <td class="px-5 py-4 text-navy font-medium">${escapeHtml(s.name)}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml(s.position)}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml(s.slug)}</td>
+      <td class="px-5 py-4 text-right">
+        <button data-id="${s.id}" class="edit-speaker-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.speakers.edit')}</button>
+        <button data-id="${s.id}" class="delete-speaker-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.speakers.delete')}</button>
+      </td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('.edit-speaker-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
+      const item = items.find((s) => s.id === id);
+      if (!item) return;
+      (document.getElementById('symSpeakerEditId') as HTMLInputElement).value = item.id;
+      (document.getElementById('symSpeakerName') as HTMLInputElement).value = item.name;
+      (document.getElementById('symSpeakerSlug') as HTMLInputElement).value = item.slug;
+      (document.getElementById('symSpeakerPosition') as HTMLInputElement).value = item.position;
+      (document.getElementById('symSpeakerCompany') as HTMLInputElement).value = item.company;
+      (document.getElementById('symSpeakerBio') as HTMLTextAreaElement).value = item.bio;
+      (document.getElementById('symSpeakerPhoto') as HTMLInputElement).value = item.photo;
+      (document.getElementById('symSpeakerLinkedin') as HTMLInputElement).value = item.linkedin;
+      document.getElementById('symSpeakerCancelBtn')!.classList.remove('hidden');
+    });
+  });
+
+  tbody.querySelectorAll('.delete-speaker-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const b = e.currentTarget as HTMLButtonElement;
+      b.disabled = true;
+      const res = await fetch(`/api/admin/symposium/speakers/${b.dataset.id}`, { method: 'DELETE' });
+      if (res.ok) { showToast(t('admin.toast.deleted')); await loadSpeakers(); }
+      else { showToast(t('admin.toast.error'), true); b.disabled = false; }
+    });
+  });
+}
+
+async function loadSpeakers(): Promise<void> {
+  const res = await fetch('/api/admin/symposium/speakers');
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
+  const data = await res.json() as { year: number; items: SpeakerItem[] };
+  symposiumSpeakers = data.items;
+  renderSpeakers(data.items);
+  populateSessionSpeakerOptions();
+}
+
+/** One-time wiring, mirroring setupAnnouncementForm's own reasoning about why this runs once. */
+function setupSpeakerForm(): void {
+  const form = document.getElementById('symSpeakerForm') as HTMLFormElement;
+  const cancelBtn = document.getElementById('symSpeakerCancelBtn')!;
+
+  function resetForm() {
+    form.reset();
+    (document.getElementById('symSpeakerEditId') as HTMLInputElement).value = '';
+    cancelBtn.classList.add('hidden');
+  }
+  cancelBtn.addEventListener('click', resetForm);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = (document.getElementById('symSpeakerEditId') as HTMLInputElement).value;
+    const body = {
+      slug: (document.getElementById('symSpeakerSlug') as HTMLInputElement).value,
+      name: (document.getElementById('symSpeakerName') as HTMLInputElement).value,
+      position: (document.getElementById('symSpeakerPosition') as HTMLInputElement).value,
+      company: (document.getElementById('symSpeakerCompany') as HTMLInputElement).value,
+      bio: (document.getElementById('symSpeakerBio') as HTMLTextAreaElement).value,
+      photo: (document.getElementById('symSpeakerPhoto') as HTMLInputElement).value,
+      linkedin: (document.getElementById('symSpeakerLinkedin') as HTMLInputElement).value,
+    };
+
+    const url = editId ? `/api/admin/symposium/speakers/${editId}` : '/api/admin/symposium/speakers';
+    const res = await fetch(url, {
+      method: editId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json() as { rebuild: { triggered: boolean; detail: string } };
+      resetForm();
+      await loadSpeakers();
+      showRebuildStatus('symSpeakerStatus', data.rebuild);
+    } else {
+      // A duplicate slug arrives here as a 409 naming the conflicting slug --
+      // shown as-is, since it names exactly what the editor needs to rename.
+      const err = await res.json() as { error: string };
+      showToast(err.error || t('admin.toast.error'), true);
+    }
+  });
+}
+
+// --- Sessions -------------------------------------------------------------
+
+interface SessionItem {
+  id: string; sort: number; slug: string; title: string; type: string;
+  time: string; endTime: string; description: string; speakerSlugs: string[];
+}
+
+function sessionTypeLabel(type: string): string {
+  return t(`admin.symposium.sessions.type.${type}` as Parameters<typeof t>[0]) || type;
+}
+
+function renderSessions(items: SessionItem[]): void {
+  const tbody = document.getElementById('symSessionsTableBody')!;
+  const empty = document.getElementById('symSessionsEmptyState')!;
+
+  if (items.length === 0) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = items.map((s) => `
+    <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
+      <td class="px-5 py-4 text-navy font-medium">${escapeHtml(s.title)}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml(sessionTypeLabel(s.type))}</td>
+      <td class="px-5 py-4 text-gray-500 tabular-nums">${escapeHtml(s.time)}${s.endTime ? '–' + escapeHtml(s.endTime) : ''}</td>
+      <td class="px-5 py-4 text-right">
+        <button data-id="${s.id}" class="edit-session-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.sessions.edit')}</button>
+        <button data-id="${s.id}" class="delete-session-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.sessions.delete')}</button>
+      </td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('.edit-session-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
+      const item = items.find((s) => s.id === id);
+      if (!item) return;
+      (document.getElementById('symSessionEditId') as HTMLInputElement).value = item.id;
+      (document.getElementById('symSessionTitle') as HTMLInputElement).value = item.title;
+      (document.getElementById('symSessionSlug') as HTMLInputElement).value = item.slug;
+      (document.getElementById('symSessionType') as unknown as HTMLSelectElement).value = item.type;
+      (document.getElementById('symSessionTime') as HTMLInputElement).value = item.time;
+      (document.getElementById('symSessionEndTime') as HTMLInputElement).value = item.endTime;
+      (document.getElementById('symSessionDescription') as HTMLTextAreaElement).value = item.description;
+      const select = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
+      Array.from(select.options).forEach((o) => { o.selected = item.speakerSlugs.includes(o.value); });
+      document.getElementById('symSessionCancelBtn')!.classList.remove('hidden');
+    });
+  });
+
+  tbody.querySelectorAll('.delete-session-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const b = e.currentTarget as HTMLButtonElement;
+      b.disabled = true;
+      const res = await fetch(`/api/admin/symposium/sessions/${b.dataset.id}`, { method: 'DELETE' });
+      if (res.ok) { showToast(t('admin.toast.deleted')); await loadSessions(); }
+      else { showToast(t('admin.toast.error'), true); b.disabled = false; }
+    });
+  });
+}
+
+async function loadSessions(): Promise<void> {
+  const res = await fetch('/api/admin/symposium/sessions');
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
+  const data = await res.json() as { year: number; items: SessionItem[] };
+  renderSessions(data.items);
+}
+
+function setupSessionForm(): void {
+  const form = document.getElementById('symSessionForm') as HTMLFormElement;
+  const cancelBtn = document.getElementById('symSessionCancelBtn')!;
+  const speakersSelect = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
+
+  function resetForm() {
+    form.reset();
+    (document.getElementById('symSessionEditId') as HTMLInputElement).value = '';
+    Array.from(speakersSelect.options).forEach((o) => { o.selected = false; });
+    cancelBtn.classList.add('hidden');
+  }
+  cancelBtn.addEventListener('click', resetForm);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = (document.getElementById('symSessionEditId') as HTMLInputElement).value;
+    const body = {
+      slug: (document.getElementById('symSessionSlug') as HTMLInputElement).value,
+      title: (document.getElementById('symSessionTitle') as HTMLInputElement).value,
+      type: (document.getElementById('symSessionType') as unknown as HTMLSelectElement).value,
+      time: (document.getElementById('symSessionTime') as HTMLInputElement).value,
+      endTime: (document.getElementById('symSessionEndTime') as HTMLInputElement).value,
+      description: (document.getElementById('symSessionDescription') as HTMLTextAreaElement).value,
+      speakerSlugs: Array.from(speakersSelect.selectedOptions).map((o) => o.value),
+    };
+
+    const url = editId ? `/api/admin/symposium/sessions/${editId}` : '/api/admin/symposium/sessions';
+    const res = await fetch(url, {
+      method: editId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json() as { rebuild: { triggered: boolean; detail: string } };
+      resetForm();
+      await loadSessions();
+      showRebuildStatus('symSessionStatus', data.rebuild);
+    } else {
+      const err = await res.json() as { error: string };
+      showToast(err.error || t('admin.toast.error'), true);
+    }
+  });
+}
+
+// --- Committee --------------------------------------------------------
+
+interface CommitteeItem {
+  id: string; sort: number; name: string; role: string; roleTr: string;
+  affiliation: string; photo: string; linkedin: string;
+}
+
+function renderCommittee(items: CommitteeItem[]): void {
+  const tbody = document.getElementById('symCommitteeTableBody')!;
+  const empty = document.getElementById('symCommitteeEmptyState')!;
+
+  if (items.length === 0) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = items.map((c) => `
+    <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
+      <td class="px-5 py-4 text-navy font-medium">${escapeHtml(c.name)}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml(lang === 'tr' ? (c.roleTr || c.role) : c.role)}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml(c.affiliation)}</td>
+      <td class="px-5 py-4 text-right">
+        <button data-id="${c.id}" class="edit-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.edit')}</button>
+        <button data-id="${c.id}" class="delete-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.delete')}</button>
+      </td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('.edit-committee-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
+      const item = items.find((c) => c.id === id);
+      if (!item) return;
+      (document.getElementById('symCommitteeEditId') as HTMLInputElement).value = item.id;
+      (document.getElementById('symCommitteeName') as HTMLInputElement).value = item.name;
+      (document.getElementById('symCommitteeRole') as HTMLInputElement).value = item.role;
+      (document.getElementById('symCommitteeRoleTr') as HTMLInputElement).value = item.roleTr;
+      (document.getElementById('symCommitteeAffiliation') as HTMLInputElement).value = item.affiliation;
+      (document.getElementById('symCommitteePhoto') as HTMLInputElement).value = item.photo;
+      (document.getElementById('symCommitteeLinkedin') as HTMLInputElement).value = item.linkedin;
+      document.getElementById('symCommitteeCancelBtn')!.classList.remove('hidden');
+    });
+  });
+
+  tbody.querySelectorAll('.delete-committee-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const b = e.currentTarget as HTMLButtonElement;
+      b.disabled = true;
+      const res = await fetch(`/api/admin/symposium/committee/${b.dataset.id}`, { method: 'DELETE' });
+      if (res.ok) { showToast(t('admin.toast.deleted')); await loadCommittee(); }
+      else { showToast(t('admin.toast.error'), true); b.disabled = false; }
+    });
+  });
+}
+
+async function loadCommittee(): Promise<void> {
+  const res = await fetch('/api/admin/symposium/committee');
+  if (!res.ok) { showToast(t('admin.symposium.loadFailed'), true); return; }
+  const data = await res.json() as { year: number; items: CommitteeItem[] };
+  renderCommittee(data.items);
+}
+
+function setupCommitteeForm(): void {
+  const form = document.getElementById('symCommitteeForm') as HTMLFormElement;
+  const cancelBtn = document.getElementById('symCommitteeCancelBtn')!;
+
+  function resetForm() {
+    form.reset();
+    (document.getElementById('symCommitteeEditId') as HTMLInputElement).value = '';
+    cancelBtn.classList.add('hidden');
+  }
+  cancelBtn.addEventListener('click', resetForm);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = (document.getElementById('symCommitteeEditId') as HTMLInputElement).value;
+    const body = {
+      name: (document.getElementById('symCommitteeName') as HTMLInputElement).value,
+      role: (document.getElementById('symCommitteeRole') as HTMLInputElement).value,
+      roleTr: (document.getElementById('symCommitteeRoleTr') as HTMLInputElement).value,
+      affiliation: (document.getElementById('symCommitteeAffiliation') as HTMLInputElement).value,
+      photo: (document.getElementById('symCommitteePhoto') as HTMLInputElement).value,
+      linkedin: (document.getElementById('symCommitteeLinkedin') as HTMLInputElement).value,
+    };
+
+    const url = editId ? `/api/admin/symposium/committee/${editId}` : '/api/admin/symposium/committee';
+    const res = await fetch(url, {
+      method: editId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json() as { rebuild: { triggered: boolean; detail: string } };
+      resetForm();
+      await loadCommittee();
+      showRebuildStatus('symCommitteeStatus', data.rebuild);
+    } else {
+      const err = await res.json() as { error: string };
+      showToast(err.error || t('admin.toast.error'), true);
+    }
   });
 }

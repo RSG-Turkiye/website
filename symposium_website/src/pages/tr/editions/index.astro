@@ -3,11 +3,14 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
 import { getUpcomingEdition, getPastEditions } from "../../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor } from "../../../lib/editions";
+import { getUpcomingContent, withOverlayContent } from "../../../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
 const upcoming = await getUpcomingEdition();
+const upcomingContent = upcoming ? await getUpcomingContent() : null;
+const effectiveUpcoming = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const pastEditions = await getPastEditions();
 const allEditions = upcoming ? [upcoming, ...pastEditions] : pastEditions;
 ---
@@ -38,7 +41,13 @@ const allEditions = upcoming ? [upcoming, ...pastEditions] : pastEditions;
             <h2 class="font-semibold text-navy">{titleFor(edition.data, lang)}</h2>
             {subtitleFor(edition.data, lang) && <p class="text-sm text-gray-500">{subtitleFor(edition.data, lang)}</p>}
             {(() => {
-              const loc = locationFor(edition.data);
+              // The upcoming card reads the merged overlay flags -- the same
+              // ones the homepage and /venue use -- so this card never
+              // disagrees with them about whether the hall is public.
+              // Archive cards have no overlay and read the collection data
+              // directly.
+              const isUpcoming = upcoming && edition.data.year === upcoming.data.year;
+              const loc = locationFor(isUpcoming && effectiveUpcoming ? effectiveUpcoming : edition.data);
               return (
                 loc.kind !== "hidden" && (
                   <p class="text-xs text-gray-400 mt-auto pt-2">📍 {loc.city}{edition.data.date && ` · ${edition.data.date}`}</p>

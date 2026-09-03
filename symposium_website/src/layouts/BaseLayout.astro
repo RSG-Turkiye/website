@@ -3,10 +3,7 @@ import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import { getLangFromUrl, useTranslations } from "../i18n/ui";
-import { getUpcomingEdition } from "../lib/editions-content";
-import { getSessionsByEdition } from "../data/sessions";
-import { getSpeakersByEdition } from "../data/speakers";
-import { getCommitteeByEdition } from "../data/committee";
+import { getUpcomingContent } from "../lib/content";
 import type { NavState } from "../lib/nav";
 import { alternatesFor } from "../lib/hreflang";
 
@@ -21,12 +18,17 @@ const { pageTitle, description, image, translationUrl } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const upcoming = await getUpcomingEdition();
-const year = upcoming?.data.year ?? 0;
+// Merged content, not the repo's alone: /schedule, /speakers and /committee
+// each render from the overlay too, so a nav built from repo reads would hide
+// pages that exist. An edition entered entirely through the CMS -- the case
+// this whole overlay exists for -- would render every page correctly and link
+// to none of them. getUpcomingContent() is memoised, so this costs one fetch
+// per build rather than one per page.
+const content = await getUpcomingContent();
 const navState: NavState = {
-  hasSchedule: getSessionsByEdition(year).length > 0,
-  hasSpeakers: getSpeakersByEdition(year).length > 0,
-  hasCommittee: getCommitteeByEdition(year).length > 0,
+  hasSchedule: (content?.sessions.length ?? 0) > 0,
+  hasSpeakers: (content?.speakers.length ?? 0) > 0,
+  hasCommittee: (content?.committee.length ?? 0) > 0,
 };
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);

@@ -294,9 +294,46 @@ visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
    npx wrangler deploy
    ```
 
+The main site's admin panel (`functions/api/admin/symposium/edition.ts`) fires
+this same deploy hook after every save, so the same URL must also be set as a
+secret on the **main** (`website`) Pages project:
+```
+wrangler pages secret put SYMPOSIUM_DEPLOY_HOOK --project-name website
+```
+A save never fails because of this hook -- if it's missing or the endpoint is
+down, the edit is still stored and the nightly rebuild above picks it up
+regardless. The response just says whether the rebuild started, so a hook
+that has quietly stopped working is visible in the panel rather than silent.
+
 To test it without waiting for 01:17 UTC, invoke the scheduled handler
 locally (see *Triggering either Worker by hand* below) — it should start a
 build in the `symposium-website` project immediately.
+
+**Archiving a finished edition.** Before the rebuild, the same Worker calls
+`POST /api/admin/symposium/archive` on the **main** site. That endpoint reads
+every edition that has a row in D1 at all (there only ever is one once an
+organizer has edited it through the CMS), reads its `editions/<year>.md` off
+the **repo** — the one place the symposium's own dates live — to work out
+whether the event is over yet (the same rule the symposium site itself uses
+to decide an edition is no longer upcoming: midnight after `endDate`, or
+`startDate` if there's no `endDate`), and for any that have finished and
+whose CMS overlay has not yet been folded in, renders its D1 rows to the
+content collection's JSON shape and opens a pull request against this repo —
+the same `GITHUB_PAT` used for blog submissions, so no separate GitHub
+credential is needed. A human still reviews and merges that PR; nothing here
+writes to `main` directly. Once the PR's URL is recorded (`archived_pr_url`),
+that edition is reported as already archived rather than re-submitted — the
+endpoint is safe to call every night, or twice in one night, without opening
+a second PR for the same edition, and safe to retry after a crash mid-attempt
+without a human reconciling anything by hand.
+
+Like `/api/mail/dispatch`, this is a server-to-server call authenticated by a
+shared secret rather than a session, so it needs that secret in both places,
+the same value in each:
+```
+cd workers/symposium-cron && npx wrangler secret put SYMPOSIUM_ARCHIVE_SECRET
+wrangler pages secret put SYMPOSIUM_ARCHIVE_SECRET --project-name website
+```
 
 #### How both cron Workers report failure
 

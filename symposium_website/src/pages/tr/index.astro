@@ -7,6 +7,7 @@ import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSponsorsByEdition } from "../../data/sponsors";
 import { getUpcomingEdition, getPastEditions } from "../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor } from "../../lib/editions";
+import { getUpcomingContent, withOverlayContent } from "../../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -15,9 +16,11 @@ const latestSponsors = getSponsorsByEdition(2024);
 const recentEditions = (await getPastEditions()).slice(0, 3);
 
 const upcoming = await getUpcomingEdition();
+const upcomingContent = upcoming ? await getUpcomingContent() : null;
+const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
-const place = upcoming ? locationFor(upcoming.data) : { kind: "hidden" as const };
+const place = effectiveEdition ? locationFor(effectiveEdition) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
 const BANNER = "https://res.cloudinary.com/dyuf14ra5/image/upload/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
@@ -26,7 +29,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
 ---
 
 <BaseLayout pageTitle={t("nav.home")} image={BANNER} translationUrl="/">
-  {upcoming && <EventJsonLd edition={upcoming.data} url={canonical} lang={lang} />}
+  {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} />}
   <section class="relative bg-navy text-white overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style={`background-image: url('${BANNER}')`}></div>
     <div class="absolute inset-0 bg-navy/75"></div>
@@ -52,7 +55,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
             data-starts-at={startsAt}
             data-days-label={t("hero.countdown.days")}
           ></p>
-          <EditionCta edition={upcoming.data} lang={lang} />
+          <EditionCta edition={effectiveEdition!} lang={lang} />
         </Fragment>
       ) : (
         <Fragment>

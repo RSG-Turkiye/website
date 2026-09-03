@@ -25,6 +25,7 @@
 // rank/badge management (the "Rank" and "Badges" table columns), so those
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminNav from './AdminNav.astro';
+import SymposiumPane from './panes/SymposiumPane.astro';
 import { useTranslations } from '../../i18n/ui';
 
 interface Props {
@@ -168,6 +169,8 @@ const t = useTranslations(lang);
           <div id="blogSubmissionsList" class="flex flex-col gap-4"></div>
           <p id="blogSubmissionsEmpty" class="hidden text-sm text-gray-500">{t('admin.blog.empty')}</p>
         </div>
+
+        <SymposiumPane lang={lang} />
 
         <!-- Send as RSG -->
         <div id="rsgMailSection">

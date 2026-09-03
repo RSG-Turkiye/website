@@ -7,7 +7,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   const result = await env.DB.prepare(
     `SELECT id, title, description, button_text, button_url, show_as_popup
      FROM announcements
-     WHERE expires_at > ?
+     WHERE expires_at > ? AND site = 'main'
      ORDER BY created_at DESC`
   ).bind(now).all<{
     id: string;
