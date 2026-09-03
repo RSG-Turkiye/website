@@ -14,9 +14,9 @@ test('nobody else may', () => {
   assert.equal(canManageSymposium({ is_admin: 0, is_symposium: 0 }), false);
 });
 
-test('the check is on the integer D1 stores, not a boolean', () => {
-  // canManageAnnouncements compares === 1 while admin-panel.ts compares === true
-  // against the API's JSON. Server-side helpers follow the server-side shape.
-  assert.equal(canManageSymposium({ is_admin: 1 as unknown as number, is_symposium: 0 }), true);
-  assert.equal(canManageSymposium({ is_admin: 0, is_symposium: 0 }), false);
+test('a truthy value that is not 1 does not grant access', () => {
+  // D1 stores 0 or 1. Anything else is corrupt data, and a truthy check would
+  // wave it through -- `=== 1` is what makes that a denial rather than a grant.
+  assert.equal(canManageSymposium({ is_admin: 2, is_symposium: 0 }), false);
+  assert.equal(canManageSymposium({ is_admin: 0, is_symposium: -1 }), false);
 });

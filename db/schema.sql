@@ -74,13 +74,24 @@
 --     table, but that catch is silent too, so the conversation is simply
 --     never registered with no error surfaced anywhere.
 --
--- 7. The symposium CMS needs one new role column, four new tables and one
---    new column on announcements. Without them every /api/admin/symposium
---    route 500s with a raw "Worker threw exception" page rather than JSON,
---    which surfaces in the panel as a Save button that does nothing:
---      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_symposium INTEGER NOT NULL DEFAULT 0"
---      wrangler d1 execute rsg-members --remote --command="ALTER TABLE announcements ADD COLUMN site TEXT NOT NULL DEFAULT 'main'"
---      (then the four CREATE TABLE statements below, which are safe to re-run)
+-- 7a. functions/api/admin/symposium routes unconditionally SELECT is_symposium;
+--     deploying without this first breaks every symposium route with D1 "no
+--     such column: is_symposium". ALTER TABLE ADD COLUMN is NOT idempotent --
+--     do not re-run this one:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_symposium INTEGER NOT NULL DEFAULT 0"
+--
+-- 7b. The announcements table needs a site column to let the CMS target
+--     announcements to specific edition websites. Do not run this against
+--     production if it's already running 2026-09-03 or later -- it would
+--     error on duplicate column. ALTER TABLE ADD COLUMN is NOT idempotent:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE announcements ADD COLUMN site TEXT NOT NULL DEFAULT 'main'"
+--
+-- 7c. This file's four symposium tables below are NOT applied by any deploy
+--     step -- run them by hand (`IF NOT EXISTS` makes these safe to re-run):
+--       wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--     Without 7a/7b/7c, every /api/admin/symposium route 500s with a raw
+--     "Worker threw exception" page rather than JSON, which surfaces in the
+--     panel as a Save button that does nothing.
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -91,6 +102,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_announcer  INTEGER NOT NULL DEFAULT 0,
   is_writer     INTEGER NOT NULL DEFAULT 0,
   is_sender     INTEGER NOT NULL DEFAULT 0,
+  is_symposium  INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL,
   last_login    INTEGER NOT NULL
 );
@@ -212,7 +224,8 @@ CREATE TABLE IF NOT EXISTS announcements (
   show_as_popup INTEGER NOT NULL DEFAULT 0,
   expires_at    INTEGER NOT NULL,
   created_by    TEXT NOT NULL REFERENCES users(id),
-  created_at    INTEGER NOT NULL
+  created_at    INTEGER NOT NULL,
+  site          TEXT NOT NULL DEFAULT 'main'
 );
 
 -- Member blog submissions: a member with is_writer submits through the
