@@ -102,3 +102,21 @@ test('no opinion survives the round trip as no opinion', () => {
   assert.equal(row.venue_public, null);
   assert.equal(rowToEditionInput(row).venuePublic, null);
 });
+
+test('every field round trips to itself, not to its neighbour', () => {
+  // The narrow round-trip test above leaves four fields at their defaults, so a
+  // swapped pair (cityPublic reading venue_public, abstract reading registration)
+  // would read back correct by coincidence. Here every field differs from every
+  // other, so a swap has nowhere to hide.
+  const input = {
+    registrationUrl: 'https://example.org/register',
+    registrationDeadline: '2026-09-15',
+    abstractUrl: 'https://example.org/abstract',
+    abstractDeadline: '2026-08-20',
+    venuePublic: false,
+    cityPublic: true,
+  };
+  const row = editionRowFromInput(input, 2026);
+  assert.deepEqual(rowToEditionInput(row), input);
+  assert.deepEqual(editionRowFromInput(rowToEditionInput(row), 2026), row);
+});
