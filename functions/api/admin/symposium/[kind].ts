@@ -8,7 +8,7 @@
 // is a 404, not a 500 from a query against a table name we made up.
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, canManageSymposium } from '../../../_lib/auth';
-import { KIND_TABLES, rowFromInput, rowToInput, triggerRebuild } from '../../../_lib/symposium';
+import { KIND_TABLES, rowFromInput, rowToInput, triggerRebuild, conflictingSlug } from '../../../_lib/symposium';
 import type {
   SymposiumKind,
   SpeakerRow,
@@ -41,27 +41,6 @@ const LIST_COLUMNS: Record<SymposiumKind, string> = {
   sessions: 'id, slug, year, title, type, time, end_time, description, speaker_slugs, sort',
   committee: 'id, year, name, role, role_tr, affiliation, photo, linkedin, sort',
 };
-
-// Sessions link to speakers *by slug*, so two rows sharing one slug within
-// the same year would make that link resolve to whichever row happens to
-// sort first -- silently, with no error the editor would ever see. Callers
-// have already checked `kind === 'speakers' || 'sessions'`; committee has no
-// slug column and never reaches this. Returns the conflicting slug (so the
-// caller can name it in the error) or null if the slug is free.
-async function conflictingSlug(
-  env: Env,
-  table: string,
-  year: number,
-  slug: string,
-  excludeId?: string,
-): Promise<string | null> {
-  const sql = excludeId
-    ? `SELECT id FROM ${table} WHERE year = ? AND slug = ? AND id != ?`
-    : `SELECT id FROM ${table} WHERE year = ? AND slug = ?`;
-  const stmt = excludeId ? env.DB.prepare(sql).bind(year, slug, excludeId) : env.DB.prepare(sql).bind(year, slug);
-  const existing = await stmt.first<{ id: string }>();
-  return existing ? slug : null;
-}
 
 function insertStatement(
   kind: SymposiumKind,

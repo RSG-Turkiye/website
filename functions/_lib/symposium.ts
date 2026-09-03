@@ -429,3 +429,32 @@ export function rowToInput(
       throw new Error(`Unknown symposium kind: ${kind}`);
   }
 }
+
+/**
+ * Whether a slug is already taken by another row of the same kind in the same
+ * year. Sessions link to speakers *by slug*, so two rows sharing one would make
+ * that link resolve to whichever happens to sort first -- silently, with no
+ * error the editor would ever see.
+ *
+ * `excludeId` is the row being edited: a row keeping its own slug is not in
+ * conflict with itself. Omitted on insert, where there is no self to exclude.
+ *
+ * Scoped to the overlay table alone, never to the repo's own content-collection
+ * slugs -- an overlay row shadowing a repo speaker is the feature.
+ *
+ * `table` comes from KIND_TABLES after the kind has been validated, so it is
+ * one of a fixed set of names rather than anything a caller supplies.
+ * Committee has no slug column and never reaches here.
+ */
+export async function conflictingSlug(
+  env: Env,
+  table: string,
+  year: number,
+  slug: string,
+  excludeId?: string,
+): Promise<string | null> {
+  const stmt = excludeId
+    ? env.DB.prepare(`SELECT id FROM ${table} WHERE year = ? AND slug = ? AND id != ?`).bind(year, slug, excludeId)
+    : env.DB.prepare(`SELECT id FROM ${table} WHERE year = ? AND slug = ?`).bind(year, slug);
+  return (await stmt.first<{ id: string }>()) ? slug : null;
+}

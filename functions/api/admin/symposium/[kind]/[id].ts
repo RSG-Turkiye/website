@@ -7,7 +7,7 @@
 // 500 from a query against a table name we made up.
 import type { Env } from '../../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../../../_lib/auth';
-import { KIND_TABLES, rowFromInput, triggerRebuild } from '../../../../_lib/symposium';
+import { KIND_TABLES, rowFromInput, triggerRebuild, conflictingSlug } from '../../../../_lib/symposium';
 import type {
   SymposiumKind,
   SpeakerRow,
@@ -40,25 +40,6 @@ async function findRow(
     `SELECT ${ROW_COLUMNS[kind]} FROM ${table} WHERE id = ?`
   ).bind(id).first<SpeakerRow | SessionRow | CommitteeRow>();
   return row ?? null;
-}
-
-// Sessions link to speakers *by slug*, so renaming one row's slug to match
-// another's within the same year would silently repoint that link. Callers
-// have already checked `kind === 'speakers' || 'sessions'`; committee has no
-// slug column and never reaches this. `excludeId` is the row being edited --
-// a row keeping its own slug is not a conflict with itself. Returns the
-// conflicting slug (so the caller can name it in the error) or null if free.
-async function conflictingSlug(
-  env: Env,
-  table: string,
-  year: number,
-  slug: string,
-  excludeId: string,
-): Promise<string | null> {
-  const existing = await env.DB.prepare(
-    `SELECT id FROM ${table} WHERE year = ? AND slug = ? AND id != ?`
-  ).bind(year, slug, excludeId).first<{ id: string }>();
-  return existing ? slug : null;
 }
 
 function updateStatement(
