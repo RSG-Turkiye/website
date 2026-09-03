@@ -525,9 +525,61 @@ export function mergeOverlay(repo: RepoContent, overlay: Overlay | null): RepoCo
 export async function fetchOverlay(year: number, apiBase: string): Promise<Overlay | null>;
 ```
 
-`Overlay` and its members are imported from the main site's shape by copying the
-type declarations into this file — the two projects do not share a module, and a
-build-time HTTP boundary is not worth a package to cross it.
+`Overlay` and its members are declared again in this file — the two projects share
+no module, and an HTTP boundary is not worth a package to cross.
+
+**But the copy is documentation, not enforcement.** A renamed field on the server
+would not fail a build; it would arrive as `undefined` and quietly empty a speaker
+list. So `fetchOverlay` validates the parsed payload against a Zod schema mirroring
+the interface, and returns `null` when it does not match, logging the failing path:
+
+```ts
+import { z } from 'astro:schema';   // Zod, already a dependency via content collections
+
+const OverlaySchema = z.object({
+  year: z.number().nullable(),
+  edition: z.object({
+    registrationUrl: z.string(),
+    registrationDeadline: z.number().nullable(),
+    abstractUrl: z.string(),
+    abstractDeadline: z.number().nullable(),
+    venuePublic: z.boolean().nullable(),
+    cityPublic: z.boolean().nullable(),
+  }),
+  speakers: z.array(z.object({ slug: z.string(), name: z.string() }).passthrough()),
+  sessions: z.array(z.object({ slug: z.string(), title: z.string(), order: z.number() }).passthrough()),
+  committee: z.array(z.object({ name: z.string() }).passthrough()),
+  announcements: z.array(z.unknown()),
+});
+```
+
+`.passthrough()` on the list members keeps the schema from breaking when the server
+*adds* a field — only a rename or a type change is a mismatch. Drift then behaves
+exactly like an unreachable API: loud in the build log, and the site falls back to
+repo data.
+
+Add a test for it:
+
+```ts
+test('a payload whose shape drifted is refused, not half-used', () => {
+  // A renamed server field must not arrive as undefined and empty a list.
+  assert.equal(parseOverlay({ year: 2026, edition: {}, speakers: [] }), null);
+});
+
+test('a payload with an extra field is accepted', () => {
+  // Adding to the API must not break a site that has not been redeployed.
+  const ok = parseOverlay({
+    year: 2026,
+    edition: { registrationUrl: '', registrationDeadline: null, abstractUrl: '', abstractDeadline: null, venuePublic: null, cityPublic: null },
+    speakers: [{ slug: 'a', name: 'A', somethingNew: true }],
+    sessions: [], committee: [], announcements: [],
+  });
+  assert.equal(ok?.speakers[0].slug, 'a');
+});
+```
+
+`parseOverlay(data: unknown): Overlay | null` is exported beside `fetchOverlay` so
+the check is testable without a network.
 
 - [ ] **Step 1: Write the failing test**
 
