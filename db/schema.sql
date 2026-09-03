@@ -73,6 +73,14 @@
 --     compose.ts's attempt to register the thread hits the same missing
 --     table, but that catch is silent too, so the conversation is simply
 --     never registered with no error surfaced anywhere.
+--
+-- 7. The symposium CMS needs one new role column, four new tables and one
+--    new column on announcements. Without them every /api/admin/symposium
+--    route 500s with a raw "Worker threw exception" page rather than JSON,
+--    which surfaces in the panel as a Save button that does nothing:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_symposium INTEGER NOT NULL DEFAULT 0"
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE announcements ADD COLUMN site TEXT NOT NULL DEFAULT 'main'"
+--      (then the four CREATE TABLE statements below, which are safe to re-run)
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -391,3 +399,59 @@ CREATE TABLE IF NOT EXISTS mail_sync_state (
 
 INSERT OR IGNORE INTO mail_sync_state (id, history_id, last_synced_at, backfill_cursor)
 VALUES (1, NULL, NULL, NULL);
+
+-- The edition's volatile settings. At most one row: the upcoming edition.
+CREATE TABLE IF NOT EXISTS symposium_edition (
+  year                  INTEGER PRIMARY KEY,
+  registration_url      TEXT NOT NULL DEFAULT '',
+  registration_deadline INTEGER,
+  abstract_url          TEXT NOT NULL DEFAULT '',
+  abstract_deadline     INTEGER,
+  -- Nullable on purpose: NULL means "no opinion, use the repo's flag", the same
+  -- rule the three lists follow. Only an explicit 0 or 1 overrides 2026.md.
+  venue_public          INTEGER,
+  city_public           INTEGER,
+  archived_pr_url       TEXT,
+  updated_by            TEXT NOT NULL REFERENCES users(id),
+  updated_at            INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS symposium_speakers (
+  id       TEXT PRIMARY KEY,
+  -- The stable identifier sessions point at, and what the archived JSON keeps.
+  -- Sessions reference speakers by slug today; the CMS must not break that link.
+  slug     TEXT NOT NULL,
+  year     INTEGER NOT NULL,
+  name     TEXT NOT NULL,
+  position TEXT NOT NULL DEFAULT '',
+  company  TEXT NOT NULL DEFAULT '',
+  bio      TEXT NOT NULL DEFAULT '',
+  photo    TEXT NOT NULL DEFAULT '',
+  linkedin TEXT NOT NULL DEFAULT '',
+  sort     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS symposium_sessions (
+  id          TEXT PRIMARY KEY,
+  year        INTEGER NOT NULL,
+  title       TEXT NOT NULL,
+  type        TEXT NOT NULL,
+  time        TEXT NOT NULL DEFAULT '',
+  end_time    TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  -- JSON array of speaker *slugs*, matching src/data/sessions.ts's speakerSlugs.
+  speaker_slugs TEXT NOT NULL DEFAULT '[]',
+  sort        INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS symposium_committee (
+  id          TEXT PRIMARY KEY,
+  year        INTEGER NOT NULL,
+  name        TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT '',
+  role_tr     TEXT NOT NULL DEFAULT '',
+  affiliation TEXT NOT NULL DEFAULT '',
+  photo       TEXT NOT NULL DEFAULT '',
+  linkedin    TEXT NOT NULL DEFAULT '',
+  sort        INTEGER NOT NULL DEFAULT 0
+);
