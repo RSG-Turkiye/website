@@ -15,6 +15,10 @@ const editions = defineCollection({
     date: z.string(),
     venue: z.string().default(""),
     venueCity: z.string().default(""),
+    /** The Turkish rendering of `date`. Without it the Turkish pages print
+     * the English string -- "October 30 - November 2, 2025" under a Turkish
+     * heading. Optional: falls back to `date`. */
+    dateTr: z.string().optional(),
     posterImage: z.string().default(""),
     galleryImages: z.array(z.string()).default([]),
     speakers: z.array(z.string()).default([]),  // speaker slugs

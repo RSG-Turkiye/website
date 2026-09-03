@@ -2,7 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getCurrentEdition } from "../lib/editions-content";
-import { locationFor } from "../lib/editions";
+import { locationFor, dateFor } from "../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
@@ -38,7 +38,7 @@ const effectiveEdition = edition ? withOverlayContent(edition.data, content) : n
                   <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
                     {t("venue.date")}
                   </p>
-                  <p class="text-navy font-medium text-lg">{edition.data.date}</p>
+                  <p class="text-navy font-medium text-lg">{dateFor(edition.data, lang)}</p>
                 </div>
                 {(() => {
                   const loc = locationFor(effectiveEdition!);

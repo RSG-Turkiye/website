@@ -36,6 +36,7 @@ export interface EditionLike {
    * human-written date string an edition card renders. */
   posterImage?: string;
   date?: string;
+  dateTr?: string;
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -218,4 +219,11 @@ export function symposiumsHeld(all: EditionLike[], now: Date): number {
   const upcomingOrdinal = upcoming ? ordinalOf(upcoming) : null;
   const held = upcomingOrdinal === highest && highest > 0 ? highest - 1 : highest;
   return Math.max(held, all.length);
+}
+
+
+/** The human-written date string in `lang`, falling back to the English one
+ * when no translation exists -- the same shape as titleFor and subtitleFor. */
+export function dateFor(edition: EditionLike, lang: "en" | "tr"): string {
+  return (lang === "tr" && edition.dateTr) || edition.date || "";
 }

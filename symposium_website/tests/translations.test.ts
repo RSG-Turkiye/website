@@ -33,3 +33,15 @@ test('a Turkish body declares the year its filename claims', () => {
   }
   assert.deepEqual(offenders, []);
 });
+
+test('every edition with a date has a Turkish one', () => {
+  // The date is a hand-written string, so it needs its own translation the
+  // way the title and subtitle do. Without one the Turkish page prints
+  // "October 30 - November 2, 2025" under a Turkish heading.
+  const offenders: string[] = [];
+  for (const f of readdirSync('src/content/editions').filter((n) => n.endsWith('.md'))) {
+    const text = readFileSync(`src/content/editions/${f}`, 'utf8');
+    if (/^date:\s*\S/m.test(text) && !/^dateTr:\s*\S/m.test(text)) offenders.push(f);
+  }
+  assert.deepEqual(offenders, []);
+});

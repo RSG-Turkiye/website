@@ -1,7 +1,7 @@
 ---
 // One edition's card, shared by the English and Turkish /editions pages so the
 // two cannot drift -- they were byte-identical apart from import depths.
-import { locationFor, titleFor, subtitleFor, type EditionLike } from "../lib/editions";
+import { locationFor, titleFor, subtitleFor, dateFor, type EditionLike } from "../lib/editions";
 import type { Lang } from "../i18n/ui";
 
 interface Props {
@@ -46,7 +46,7 @@ const subtitle = subtitleFor(edition, lang);
     {loc.kind !== "hidden" && (
       <p class="text-xs text-gray-500 mt-auto pt-2">
         📍 {loc.city}
-        {edition.date && ` · ${edition.date}`}
+        {edition.date && ` · ${dateFor(edition, lang)}`}
       </p>
     )}
   </div>
