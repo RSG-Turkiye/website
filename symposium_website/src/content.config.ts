@@ -19,6 +19,9 @@ const editions = defineCollection({
      * the English string -- "October 30 - November 2, 2025" under a Turkish
      * heading. Optional: falls back to `date`. */
     dateTr: z.string().optional(),
+    /** Where the talks ended up. Shown from the moment the symposium ends --
+     * the week after is when people come looking for them. */
+    recordingsUrl: z.string().optional(),
     posterImage: z.string().default(""),
     galleryImages: z.array(z.string()).default([]),
     speakers: z.array(z.string()).default([]),  // speaker slugs

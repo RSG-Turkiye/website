@@ -4,22 +4,30 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import SponsorLogo from "../../components/SponsorLogo.astro";
 import EditionCta from "../../components/EditionCta.astro";
 import EventJsonLd from "../../components/EventJsonLd.astro";
-import { useTranslations, getLangFromUrl } from "../../i18n/ui";
+import { useTranslations, useFormat, getLangFromUrl } from "../../i18n/ui";
 import { getSponsorsForOrLatest } from "../../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../../lib/editions-content";
-import { locationFor, titleFor, subtitleFor } from "../../lib/editions";
+import { locationFor, titleFor, subtitleFor , nextEditionHint, ordinalLabel } from "../../lib/editions";
 import { symposiumsHeld } from "../../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../../lib/content";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+const tf = useFormat(lang);
 const held = symposiumsHeld((await getCollection("editions")).map((e) => e.data), new Date());
 
 const recentEditions = (await getPastEditions()).slice(0, 3);
 
 const { state, entry: upcoming } = await getCurrentEdition();
 const upcomingContent = await getCurrentContent();
-const finished = state === "finished";
+// "over" for the parts that must not survive the event -- the countdown, the
+// calls to action, the registration offer in the structured data.
+const over = state === "finished" || state === "just-held";
+const finished = over;
+// The week after is when people look for the talks, so the edition stays the
+// headline rather than becoming an archive entry overnight.
+const justHeld = state === "just-held";
+const nextUp = nextEditionHint((await getCollection("editions")).map((e) => e.data), new Date());
 
 // Whichever edition is in play, falling back to the last one that had any.
 const latestSponsors = getSponsorsForOrLatest(upcoming?.data.year ?? new Date().getFullYear());
@@ -55,7 +63,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
             {place.kind === "withheld" && ` · ${place.city} · ${t("venue.tba")}`}
             {place.kind === "city-only" && ` · ${place.city}`}
           </p>
-          {!finished && (
+          {!over && (
             <p
               id="countdown"
               class="text-white/60 text-sm tabular-nums"
@@ -63,8 +71,32 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
               data-days-label={t("hero.countdown.days")}
             ></p>
           )}
-          {finished ? (
-            <p class="text-white/80 text-sm">{t("edition.finished.thanks")}</p>
+          {over ? (
+            <Fragment>
+              <p class="text-white/80 text-sm">{t("edition.finished.thanks")}</p>
+              {effectiveEdition?.recordingsUrl && (
+                <a
+                  href={effectiveEdition.recordingsUrl}
+                  class="mt-1 px-6 py-3 rounded-lg bg-white text-navy font-semibold text-sm hover:bg-white/90 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                  {t("edition.recordings")}
+                </a>
+              )}
+              {!justHeld && nextUp && (
+                <p class="text-white/70 text-sm">
+                  {nextUp.ordinal
+                    ? tf("edition.next.known", {
+                        ordinal: ordinalLabel(nextUp.ordinal, lang),
+                        year: nextUp.year,
+                        season: t(`season.${nextUp.season}`),
+                      })
+                    : tf("edition.next.unknown", {
+                        year: nextUp.year,
+                        season: t(`season.${nextUp.season}`),
+                      })}
+                </p>
+              )}
+            </Fragment>
           ) : (
             <EditionCta edition={effectiveEdition!} lang={lang} />
           )}
