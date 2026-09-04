@@ -22,10 +22,18 @@ workers_dev = false
 preview_urls = false
 
 
-# Every 5 minutes. Cloudflare's scheduler is reliable enough to make this
-# meaningful, so "send at 09:00" lands within five minutes rather than fifteen.
+# Every minute, which is Cloudflare's floor.
+#
+# It was five, and that was fine while a tick sent twenty. It is not fine now
+# that the tick is budgeted in bytes: a mail carrying a 9 MB attachment is one
+# per tick, so five minutes meant twelve an hour and a forty-mail sponsorship
+# round took most of a day. At a minute the same round is under an hour.
+#
+# Deliberately not raised until after 2026-09-04's crash was fixed and a tick
+# was observed returning 200. Speeding up a dispatcher that dies mid-send only
+# multiplies what it leaves behind -- on that day, a duplicate delivery.
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["* * * * *"]
 
 [vars]
 DISPATCH_URL = "https://rsg-turkiye.iscbsc.org/api/mail/dispatch"
