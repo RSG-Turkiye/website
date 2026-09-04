@@ -8,6 +8,7 @@ import {
   logFailure,
   type ComposeInput,
   type RecipientResult,
+  type AttachmentCache,
 } from '../../_lib/compose';
 
 interface ScheduledRow {
@@ -21,7 +22,17 @@ interface ScheduledRow {
 }
 
 /** At most this many queued messages per call, so one tick cannot run long. */
-const BATCH = 20;
+/**
+ * Deliberately small. Each message carries the full attachment inline, so a
+ * mail-out with a 9 MB PDF builds a ~12.5 MB MIME body per recipient; twenty
+ * of those in one invocation is what the 128 MB isolate could not survive.
+ * With the attachment encoded once per dispatch, the remaining cost is one
+ * body at a time, and a small batch keeps the peak flat.
+ *
+ * Five a minute drains a hundred-recipient mail-out in twenty minutes, which
+ * is the shape these actually take.
+ */
+const BATCH = 5;
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Without this, anyone could drain the queue early or burn the Gmail quota
@@ -32,6 +43,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const now = Math.floor(Date.now() / 1000);
+  // Shared across every row in this batch: a mail-out sends one file to
+  // everyone, so it is fetched from R2 and encoded once rather than once per
+  // recipient.
+  const attachmentCache: AttachmentCache = new Map();
 
   const due = await env.DB.prepare(
     `SELECT id, sender_user_id, recipients, subject, body,
@@ -114,7 +129,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
       // An admin who retires an attachment should not have the old version go
       // out later. Also terminal.
-      const resolved = await resolveAttachments(env, attachmentIds);
+      const resolved = await resolveAttachments(env, attachmentIds, attachmentCache);
       if (!resolved.ok) {
         await drop('Attachment unavailable when the scheduled time arrived: ' + resolved.code);
         continue;

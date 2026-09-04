@@ -57,11 +57,33 @@ export type AttachmentResolution =
   | { ok: true; attachments: MimeAttachment[] }
   | { ok: false; code: string };
 
+/**
+ * Encoded attachments already resolved in this invocation, keyed by
+ * attachment id.
+ *
+ * A mail-out sends the same file to everyone: one sponsorship round put a
+ * 9.36 MB PDF on 32 scheduled emails. Resolving per email meant fetching that
+ * PDF from R2 and base64-encoding it once per recipient -- roughly 190 MB of
+ * encoding and 250 MB of resulting strings in a single dispatch, against a
+ * 128 MB isolate. The invocation was killed with Cloudflare's 1102 before
+ * most of the batch went out, and the queue crawled at about three mails per
+ * five-minute tick.
+ *
+ * Pass one of these per dispatch and the file is fetched and encoded once.
+ */
+export type AttachmentCache = Map<string, MimeAttachment>;
+
 export async function resolveAttachments(
   env: Env,
   attachmentIds: string[],
+  cache?: AttachmentCache,
 ): Promise<AttachmentResolution> {
   if (attachmentIds.length === 0) return { ok: true, attachments: [] };
+
+  const cached = cache && attachmentIds.every((id) => cache.has(id));
+  if (cached) {
+    return { ok: true, attachments: attachmentIds.map((id) => cache!.get(id)!) };
+  }
 
   const placeholders = attachmentIds.map(() => '?').join(',');
   const rows = await env.DB.prepare(
@@ -87,11 +109,13 @@ export async function resolveAttachments(
     // recipient below, and re-encoding the same bytes for every recipient is
     // both wasted work and, at the attachment size ceiling, a real risk of
     // exhausting the Worker isolate's memory mid-loop.
-    attachments.push({
+    const attachment: MimeAttachment = {
       filename: row.filename,
       contentType: row.content_type,
       base64Body: encodeAttachmentBody(new Uint8Array(await object.arrayBuffer())),
-    });
+    };
+    cache?.set(row.id, attachment);
+    attachments.push(attachment);
   }
 
   return { ok: true, attachments };
