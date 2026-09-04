@@ -43,11 +43,20 @@ const BATCH = 20;
  * Attachment bytes one invocation may work with, after the cost multiplier.
  *
  * A recipient's message exists in memory several times over -- the base64
- * attachment, the MIME containing it, the base64url of that, the JSON body --
- * so the isolate's 128 MB goes quickly. Forty is well inside it and still
- * lets a dozen ordinary mails through in one tick.
+ * attachment, the MIME containing it, the base64url of that, the JSON body.
+ *
+ * This number is not derived, and pretending otherwise would be dishonest:
+ * the isolate is killed with a bare 1102 that says nothing about which limit
+ * was hit, and two attempts to reason it out from first principles were both
+ * wrong when measured. What is known is empirical. Mail with no attachment
+ * has never failed. Mail carrying the 7.08 MB and 9.36 MB sponsorship PDFs
+ * has failed on every attempt for six hours. Sixteen megabytes sits between
+ * those two facts: it lets ordinary mail through and defers both files rather
+ * than taking the tick down with them.
+ *
+ * Raise it when there is a measurement to raise it on, not before.
  */
-const BYTE_BUDGET = 40 * 1024 * 1024;
+const BYTE_BUDGET = 16 * 1024 * 1024;
 
 /**
  * How many of one tick's slots a single sender may take.
@@ -119,13 +128,30 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Attachment sizes decide how much of a tick each row costs, so they are
   // read once for the whole candidate window rather than per row.
   const sizes = await attachmentSizes(env, candidates.results);
+  const oversized: ScheduledRow[] = [];
   const due = {
     results: planTick(
       candidates.results,
       { batch: BATCH, perSender: PER_SENDER, byteBudget: BYTE_BUDGET },
-      (id) => sizes.get(id) ?? 0
+      (id) => sizes.get(id) ?? 0,
+      oversized
     ),
   };
+  // Recorded on the row rather than only logged, so the panel can eventually
+  // show the sender why their mail is not moving instead of it just sitting
+  // there. Not a failure and not a retry: nothing about waiting will make the
+  // file smaller, and attempting it takes the whole tick down with it.
+  for (const row of oversized) {
+    await env.DB.prepare(
+      `UPDATE scheduled_emails
+       SET last_error = ?, updated_at = ?
+       WHERE id = ? AND COALESCE(last_error,'') NOT LIKE 'Attachment too large%'`
+    ).bind(
+      'Attachment too large to send from one invocation. Link to the file instead of attaching it.',
+      now,
+      row.id
+    ).run();
+  }
 
   let sent = 0;
   let failed = 0;
@@ -322,5 +348,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  return jsonResponse({ ok: true, processed: due.results.length, sent, failed, retried, alreadySent });
+  return jsonResponse({
+    ok: true,
+    processed: due.results.length,
+    sent,
+    failed,
+    retried,
+    alreadySent,
+    oversized: oversized.length,
+  });
 };

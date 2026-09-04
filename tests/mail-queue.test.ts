@@ -54,9 +54,15 @@ test('a nine-megabyte attachment goes one at a time, not five', () => {
   assert.equal(planTick(due, { ...PLAN, perSender: 1 }, sizeOf).length, 1);
 });
 
-test('one oversized mail still goes rather than blocking the queue forever', () => {
-  const due = [row('a', ['big'])];
-  assert.equal(planTick(due, { ...PLAN, byteBudget: 1 }, sizeOf).length, 1);
+test('an oversized mail is never attempted, even when it is the only thing due', () => {
+  // The earlier version took it anyway so that it would "eventually" go. It
+  // never did: attempting it killed the invocation before anything was
+  // dequeued, so the same row was attempted again five minutes later, for
+  // hours. Nothing about retrying makes the file smaller.
+  const oversized: QueueRow[] = [];
+  const picked = planTick([row('a', ['big'])], { ...PLAN, byteBudget: 1 }, sizeOf, oversized);
+  assert.deepEqual(picked, []);
+  assert.equal(oversized.length, 1);
 });
 
 test('the budget is spent, not merely counted', () => {
@@ -88,4 +94,23 @@ test('an unknown attachment id counts as nothing rather than crashing', () => {
 test('nothing due, nothing planned', () => {
   assert.deepEqual(planTick([], PLAN, sizeOf), []);
   assert.deepEqual(planTick([row('a')], { ...PLAN, batch: 0 }, sizeOf), []);
+});
+
+test('a mail too big for one invocation is deferred, not attempted', () => {
+  // Attempting it killed the invocation before it dequeued anything, so one
+  // oversized file stopped every other recipient's mail for hours.
+  const due = [row('bulk', ['big']), row('ahsen')];
+  const oversized: QueueRow[] = [];
+  const picked = planTick(due, { ...PLAN, perSender: 1, byteBudget: 20 * MB }, sizeOf, oversized);
+  assert.deepEqual(picked.map((r) => r.sender_user_id), ['ahsen'], 'the light mail must still go');
+  assert.equal(oversized.length, 1, 'and the heavy one is reported, not retried');
+});
+
+test('what fits is still sent, oversized or not', () => {
+  const due = [row('a', ['small']), row('b', ['big'])];
+  const oversized: QueueRow[] = [];
+  const picked = planTick(due, { ...PLAN, perSender: 1, byteBudget: 20 * MB }, sizeOf, oversized);
+  assert.equal(picked.length, 1);
+  assert.equal(picked[0].sender_user_id, 'a');
+  assert.equal(oversized.length, 1);
 });

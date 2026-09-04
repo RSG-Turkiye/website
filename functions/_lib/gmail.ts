@@ -49,22 +49,82 @@ export interface MimeMessage {
   references?: string[];
 }
 
-function base64(bytes: Uint8Array): string {
-  // btoa takes a binary string; chunk it so a large attachment does not blow
-  // the argument limit of String.fromCharCode.
+/**
+ * Base64, encoded in place rather than through a whole-buffer intermediate.
+ *
+ * The previous version built a binary string one 32 KB chunk at a time and
+ * handed the finished 9 MB string to btoa. For a 9.36 MB attachment that is
+ * roughly nineteen megabytes of UTF-16 before btoa produces another twelve,
+ * and the line-wrapper then split that into a hundred and sixty thousand
+ * array entries. One recipient was enough to exhaust the isolate's 128 MB,
+ * and Cloudflare killed the invocation with 1102 before it reached a single
+ * send -- for hours, on 2026-09-04.
+ *
+ * Chunking at a multiple of three keeps each chunk's encoding independent, so
+ * the pieces can simply be concatenated: base64 pads only at the end of the
+ * input, and a 3-byte boundary never needs padding. 57 bytes is also exactly
+ * 76 base64 characters, which is the line length MIME wants, so wrapping
+ * falls out of the same loop instead of needing a second pass over the
+ * result.
+ */
+const BYTES_PER_LINE = 57;              // -> exactly 76 base64 characters
+const LINES_PER_CHUNK = 1024;           // ~78 KB appended at a time
+const CHUNK = BYTES_PER_LINE * LINES_PER_CHUNK;
+
+function btoaChunk(bytes: Uint8Array): string {
+  // Small enough for the spread: 32 KB stays well inside the argument limit.
   let binary = '';
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  const SLICE = 0x8000;
+  for (let i = 0; i < bytes.length; i += SLICE) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + SLICE));
   }
   return btoa(binary);
 }
 
+function base64(bytes: Uint8Array): string {
+  if (bytes.length <= CHUNK) return btoaChunk(bytes);
+  let out = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    out += btoaChunk(bytes.subarray(i, i + CHUNK));
+  }
+  return out;
+}
+
 function base64Url(bytes: Uint8Array): string {
-  return base64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  // Substituted per chunk rather than over the finished string: three
+  // replaces across a seventeen-megabyte value is three more copies of it.
+  let out = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    out += btoaChunk(bytes.subarray(i, i + CHUNK)).replace(/\+/g, '-').replace(/\//g, '_');
+  }
+  return out.replace(/=+$/, '');
+}
+
+/**
+ * Base64 already broken into 76-character lines, straight from the bytes.
+ *
+ * Equivalent to wrapping `base64(bytes)` afterwards, without ever holding the
+ * unwrapped copy or the array of lines that splitting it produced.
+ */
+function base64Lines(bytes: Uint8Array): string {
+  let out = '';
+  let pending = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    const encoded = btoaChunk(bytes.subarray(i, i + CHUNK));
+    // Every full chunk is a whole number of 76-character lines; only the last
+    // one can be short, so the join is a plain slice walk.
+    for (let j = 0; j < encoded.length; j += 76) {
+      pending += (pending ? '\r\n' : '') + encoded.slice(j, j + 76);
+    }
+    out += (out ? '\r\n' : '') + pending;
+    pending = '';
+  }
+  return out;
 }
 
 function wrap76(s: string): string {
+  // Kept for the small values -- subjects, short text parts -- where the
+  // whole-string form is clearer and the size is irrelevant.
   return (s.match(/.{1,76}/g) ?? []).join('\r\n');
 }
 
@@ -74,7 +134,10 @@ function wrap76(s: string): string {
  * buildMime doing it once per recipient inside the send loop.
  */
 export function encodeAttachmentBody(bytes: Uint8Array): string {
-  return wrap76(base64(bytes));
+  // Straight from the bytes: wrapping base64(bytes) afterwards meant holding
+  // the unwrapped copy and then the array of lines it split into, which for a
+  // 9 MB attachment is what exhausted the isolate.
+  return base64Lines(bytes);
 }
 
 /**

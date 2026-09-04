@@ -56,7 +56,10 @@ function attachmentBytes(row: QueueRow, sizeOf: (id: string) => number): number 
 export function planTick<T extends QueueRow>(
   due: T[],
   plan: TickPlan,
-  sizeOf: (id: string) => number
+  sizeOf: (id: string) => number,
+  /** Rows too large for any single invocation, collected for the caller to
+   * report rather than silently retry. */
+  oversized?: T[]
 ): T[] {
   if (plan.batch <= 0 || plan.perSender <= 0) return [];
 
@@ -79,12 +82,26 @@ export function planTick<T extends QueueRow>(
       if (!row) continue;
 
       const cost = attachmentBytes(row, sizeOf) * COST_MULTIPLIER;
-      // Skip what does not fit rather than stopping here. Stopping would put
-      // the budget back where the plain queue was: the first heavy sender
-      // would spend it all and everything behind them would wait again --
-      // which is the exact failure this function exists to prevent. A mail
-      // too big for a whole tick is still taken when nothing else has been,
-      // so heavy mail cannot starve either; it simply goes one at a time.
+
+      // A mail too big for an entire invocation is not attempted at all.
+      //
+      // It used to be taken anyway, on the reasoning that something too large
+      // must still eventually go out. That reasoning was wrong: taking it
+      // meant the invocation died, and because it died before dequeuing
+      // anything, it took the whole tick down with it -- every five minutes,
+      // for hours, while forty-nine recipients waited behind one file. A mail
+      // that cannot be sent should be reported, not retried forever at
+      // everyone else's expense.
+      if (cost > plan.byteBudget) {
+        oversized?.push(row);
+        continue;
+      }
+
+      // Skip what does not fit in what is left rather than stopping here.
+      // Stopping would put the budget back where the plain queue was: the
+      // first heavy sender would spend it all and everything behind them
+      // would wait again, which is the failure this function exists to
+      // prevent.
       if (picked.length > 0 && spent + cost > plan.byteBudget) continue;
 
       picked.push(row);
