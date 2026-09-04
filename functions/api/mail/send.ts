@@ -3,6 +3,7 @@ import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/
 import { validateCompose, checkRateLimit } from '../../_lib/mail';
 import { resolveAttachments, sendAndLog, type ComposeInput } from '../../_lib/compose';
 import { validateScheduledAt } from '../../_lib/schedule';
+import { costOf } from '../../_lib/mail-queue';
 
 interface ComposeBody {
   to: string;
@@ -10,6 +11,25 @@ interface ComposeBody {
   body: string;
   attachment_ids?: string[];
   scheduled_at?: number;
+}
+
+/**
+ * What one request may spend before the work is handed to the queue instead.
+ *
+ * Lower than the dispatcher's own budget on purpose: this runs while somebody
+ * is waiting for the response, and a request that dies here leaves a
+ * half-finished mail-out with no row to retry and no record of who was
+ * reached.
+ */
+const INLINE_BUDGET = 8 * 1024 * 1024;
+
+/** Sizes for the attachments named, so the cost can be worked out up front. */
+async function attachmentSizes(env: Env, ids: string[]): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map();
+  const rows = await env.DB.prepare(
+    `SELECT id, size_bytes FROM mail_attachments WHERE id IN (${ids.map(() => '?').join(',')})`
+  ).bind(...ids).all<{ id: string; size_bytes: number }>();
+  return new Map(rows.results.map((r) => [r.id, r.size_bytes]));
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -97,6 +117,39 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const attachmentIds = Array.isArray(input.attachment_ids)
     ? [...new Set(input.attachment_ids)]
     : [];
+
+  // What this send would cost in one request, before committing to doing it
+  // in one request. The queue learned this the hard way on 2026-09-04: a
+  // 9 MB attachment costs several times its size per recipient, and enough of
+  // them together get the invocation killed with no way to tell which
+  // recipients were reached. Here that would be worse than in the queue --
+  // there is no row to retry, so the sender gets an error and a half-finished
+  // mail-out they cannot safely repeat.
+  const sizes = await attachmentSizes(env, attachmentIds);
+  const cost = costOf(attachmentIds, recipients.length, (id) => sizes.get(id) ?? 0);
+  if (cost > INLINE_BUDGET) {
+    const id = generateId();
+    const nowSec = Math.floor(Date.now() / 1000);
+    await env.DB.prepare(
+      `INSERT INTO scheduled_emails
+        (id, sender_user_id, recipients, subject, body,
+         attachment_ids, scheduled_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      id,
+      user.id,
+      JSON.stringify(recipients),
+      input.subject.trim(),
+      input.body.trim(),
+      JSON.stringify(attachmentIds),
+      nowSec,
+      nowSec,
+      nowSec,
+    ).run();
+    // Due immediately, so the next cron tick starts on it. The sender is told
+    // it is going rather than told it failed.
+    return jsonResponse({ ok: true, queued: true, id, code: 'too_large_to_send_inline' }, 202);
+  }
 
   const resolved = await resolveAttachments(env, attachmentIds);
   if (!resolved.ok) {
