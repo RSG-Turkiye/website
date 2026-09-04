@@ -1,13 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planTick, COST_MULTIPLIER, type QueueRow } from '../functions/_lib/mail-queue';
+import { planTick, costOf, COST_MULTIPLIER, type QueueRow } from '../functions/_lib/mail-queue';
 
 const MB = 1024 * 1024;
 const PLAN = { batch: 20, perSender: 2, byteBudget: 40 * MB };
 
 let seq = 0;
-const row = (sender: string, attachments: string[] = []): QueueRow =>
-  ({ id: `r${seq++}`, sender_user_id: sender, attachment_ids: JSON.stringify(attachments) });
+const row = (sender: string, attachments: string[] = [], recipients = 1): QueueRow => ({
+  id: `r${seq++}`,
+  sender_user_id: sender,
+  attachment_ids: JSON.stringify(attachments),
+  recipients: JSON.stringify(Array.from({ length: recipients }, (_, i) => `p${i}@x.org`)),
+});
 
 const SIZES: Record<string, number> = { big: 9.36 * MB, small: 0.2 * MB };
 const sizeOf = (id: string) => SIZES[id] ?? 0;
@@ -88,4 +92,35 @@ test('an unknown attachment id counts as nothing rather than crashing', () => {
 test('nothing due, nothing planned', () => {
   assert.deepEqual(planTick([], PLAN, sizeOf), []);
   assert.deepEqual(planTick([row('a')], { ...PLAN, batch: 0 }, sizeOf), []);
+});
+
+
+// --- a row's cost is per recipient, not per row ----------------------------
+
+test('three recipients on one row cost three times one', () => {
+  // Each recipient gets their own message, so the attachment is paid for
+  // again every time. Budgeting on the attachment alone underestimated a
+  // three-recipient row by a factor of three.
+  const one = costOf(['big'], 1, sizeOf);
+  assert.equal(costOf(['big'], 3, sizeOf), one * 3);
+});
+
+test('a multi-recipient heavy row no longer shares a tick with another heavy one', () => {
+  // 40 recipients x 0.2 MB x 3.5 is 28 MB. The old formula saw only 0.7 MB --
+  // the attachment once -- and happily put several of these in one tick.
+  const due = [row('a', ['small'], 40), row('b', ['small'], 40)];
+  const picked = planTick(due, { ...PLAN, perSender: 1, byteBudget: 16 * MB }, sizeOf);
+  assert.equal(picked.length, 1, 'two of these together are what exhausted the isolate');
+});
+
+test('an attachment-free mail still rides along with a heavy one', () => {
+  // Exactly what happened for Ahsen: her invitations cost nothing, so they
+  // went out in the same tick as a 9 MB sponsorship mail.
+  const due = [row('bulk', ['big'], 3), row('ahsen')];
+  const picked = planTick(due, { ...PLAN, perSender: 1, byteBudget: 16 * MB }, sizeOf);
+  assert.deepEqual(picked.map((r) => r.sender_user_id).sort(), ['ahsen', 'bulk']);
+});
+
+test('no attachment costs nothing however many recipients', () => {
+  assert.equal(costOf([], 10, sizeOf), 0);
 });

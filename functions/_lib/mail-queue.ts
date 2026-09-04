@@ -25,6 +25,10 @@ export interface QueueRow {
   id: string;
   sender_user_id: string;
   attachment_ids: string;
+  /** JSON array. Each recipient gets their own message, so a row with three
+   * of them costs three times what one does -- putting them all on a single
+   * To: line would show every professor the whole outreach list. */
+  recipients: string;
 }
 
 export interface TickPlan {
@@ -43,14 +47,36 @@ export interface TickPlan {
  */
 export const COST_MULTIPLIER = 3.5;
 
-function attachmentBytes(row: QueueRow, sizeOf: (id: string) => number): number {
-  let ids: string[];
+function parseList(json: string): unknown[] {
   try {
-    ids = JSON.parse(row.attachment_ids);
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return 0; // a corrupt row is dropped downstream; do not let it skew the plan
+    return []; // a corrupt row is dropped downstream; do not let it skew the plan
   }
-  return Array.isArray(ids) ? ids.reduce((sum, id) => sum + sizeOf(id), 0) : 0;
+}
+
+/**
+ * What sending this row costs in transient memory.
+ *
+ * The attachment is fetched and encoded once, but everything after that is
+ * per recipient: sendAndLog builds a separate MIME for each, encodes it for
+ * the wire, and wraps it in JSON. So three recipients on one row cost three
+ * times what one does, and budgeting on the attachment alone -- which is what
+ * the first version of this did -- underestimates a multi-recipient row by
+ * exactly that factor.
+ */
+export function costOf(
+  attachmentIds: unknown[],
+  recipientCount: number,
+  sizeOf: (id: string) => number
+): number {
+  const bytes = attachmentIds.reduce<number>((sum, id) => sum + sizeOf(String(id)), 0);
+  return bytes * Math.max(1, recipientCount) * COST_MULTIPLIER;
+}
+
+function rowCost(row: QueueRow, sizeOf: (id: string) => number): number {
+  return costOf(parseList(row.attachment_ids), parseList(row.recipients).length, sizeOf);
 }
 
 export function planTick<T extends QueueRow>(
@@ -78,14 +104,18 @@ export function planTick<T extends QueueRow>(
       const row = queue[round];
       if (!row) continue;
 
-      const cost = attachmentBytes(row, sizeOf) * COST_MULTIPLIER;
+      const cost = rowCost(row, sizeOf);
       // Skip what does not fit rather than stopping here. Stopping would put
       // the budget back where the plain queue was: the first heavy sender
       // would spend it all and everything behind them would wait again --
       // which is the exact failure this function exists to prevent. A mail
       // too big for a whole tick is still taken when nothing else has been,
       // so heavy mail cannot starve either; it simply goes one at a time.
-      if (picked.length > 0 && spent + cost > plan.byteBudget) continue;
+      // A row that costs nothing always rides along: an attachment-free mail
+      // adds no memory worth budgeting, and holding it back because a heavy
+      // one already filled the tick is how the light mail got stranded in the
+      // first place.
+      if (cost > 0 && picked.length > 0 && spent + cost > plan.byteBudget) continue;
 
       picked.push(row);
       spent += cost;
