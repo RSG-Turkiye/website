@@ -25,6 +25,11 @@ export interface ComposeInput {
   threadId?: string;
   inReplyTo?: string;
   references?: string[];
+  /** The scheduled_emails row this came from, when it came from the queue.
+   * Written into every sent_emails row so a dispatch that crashed after
+   * sending can tell, on the retry, that the mail already went out. */
+  scheduledId?: string;
+
 }
 
 export interface RecipientResult {
@@ -132,8 +137,9 @@ async function insertLog(
   await env.DB.prepare(
     `INSERT INTO sent_emails
       (id, sender_user_id, recipient_email, subject, body_snapshot,
-       attachment_ids, gmail_message_id, gmail_thread_id, status, error_message, sent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       attachment_ids, gmail_message_id, gmail_thread_id, status, error_message, sent_at,
+       scheduled_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     generateId(),
     input.senderUserId,
@@ -146,6 +152,7 @@ async function insertLog(
     gmailId ? 'sent' : 'failed',
     errorMessage,
     Math.floor(Date.now() / 1000),
+    input.scheduledId ?? null,
   ).run();
 }
 
