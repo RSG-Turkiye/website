@@ -114,6 +114,14 @@
 --     symposium pane is reachable by is_admin accounts and by nobody else
 --     unless you grant it by hand:
 --       wrangler d1 execute rsg-members --remote --command="UPDATE users SET is_symposium = 1 WHERE email = 'someone@example.com'"
+--
+-- 7g. The mail queue's exactly-once columns. Both are nullable and additive,
+--     so existing rows keep working; a queue row with no claimed_at is simply
+--     unclaimed, and a sent_emails row with no scheduled_id predates this.
+--     ALTER TABLE ADD COLUMN is NOT idempotent -- do not re-run:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE scheduled_emails ADD COLUMN claimed_at INTEGER"
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE sent_emails ADD COLUMN scheduled_id TEXT"
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -368,6 +376,14 @@ CREATE TABLE IF NOT EXISTS scheduled_emails (
   scheduled_at    INTEGER NOT NULL,
   attempts        INTEGER NOT NULL DEFAULT 0,
   first_tried_at  INTEGER,
+  -- When a dispatch took this row to send it. Written and committed BEFORE
+  -- the send, so a row whose invocation was killed mid-send is visibly
+  -- in-flight rather than looking untouched. Rows claimed within the lease
+  -- are skipped; past it they are reconsidered, and the dispatcher then
+  -- checks sent_emails.scheduled_id before sending again. Without this a
+  -- crash between Gmail accepting the message and the row being deleted
+  -- delivered it twice, which happened on 2026-09-04.
+  claimed_at      INTEGER,
   last_error      TEXT,
   created_at      INTEGER NOT NULL,
   updated_at      INTEGER NOT NULL
