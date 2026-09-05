@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   startRun,
   finishRun,
+  markPhase,
   pruneRuns,
   isPruneTick,
   RUN_RETENTION_SECONDS,
@@ -89,18 +90,35 @@ test('a held tick is distinguishable from a tick that found nothing', async () =
   assert.equal(calls[0].values[7], 'outside 8:00-22:00 Europe/Istanbul');
 });
 
+// --- where a tick got to ----------------------------------------------------
+
+test('a phase is recorded against the run, with the row it concerns', async () => {
+  const { db, calls } = fakeDb();
+  await markPhase(db, 'run-1', 'resolved', 'row-9');
+  assert.match(calls[0].query, /UPDATE dispatch_runs SET phase/);
+  assert.deepEqual(calls[0].values, ['resolved:row-9', 'run-1']);
+});
+
+test('a phase with no detail is stored bare', async () => {
+  const { db, calls } = fakeDb();
+  await markPhase(db, 'run-1', 'planned');
+  assert.deepEqual(calls[0].values, ['planned', 'run-1']);
+});
+
 // --- logging never costs a send --------------------------------------------
 
 test('a missing table does not stop the tick', async () => {
   const { db } = fakeDb('throws');
   assert.equal(await startRun(db, 'run-1', 1000), null, 'start reports failure as null');
   await finishRun(db, 'run-1', 1042, { sent: 1 }); // must not throw
+  await markPhase(db, 'run-1', 'claimed', 'row-9'); // must not throw
   await pruneRuns(db, 1042); // must not throw
 });
 
-test('finishing a run that never started writes nothing', async () => {
+test('a run that never started is never written to', async () => {
   const { db, calls } = fakeDb();
   await finishRun(db, null, 1042, { sent: 1 });
+  await markPhase(db, null, 'sent', 'row-9');
   assert.equal(calls.length, 0);
 });
 

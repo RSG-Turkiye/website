@@ -281,6 +281,13 @@ Three answers, three different problems:
 | Rows with `candidates = 0` while mail is queued | The tick ran and found nothing due. The candidate query or the clock is wrong, not the sending. |
 | `held` set | The tick deliberately did nothing, outside the 08:00–22:00 sending window. |
 
+`phase` narrows a `done = 0` row down to where it stopped, in the order the
+work happens: `planned` (the queue was read), `resolved` (the attachment came
+out of R2 and was base64-encoded — the memory-hungry part), `claimed` (the row
+was marked in flight, before any Gmail call), `sent`. A tick stuck at
+`planned` and one stuck at `claimed` are dying in different places and need
+different fixes.
+
 This table exists because on 2026-09-05 the queue stalled for six and a half
 hours and none of those three could be told apart: `wrangler tail` is the only
 live window onto a Pages Function, and it would not connect.

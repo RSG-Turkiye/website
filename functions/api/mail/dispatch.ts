@@ -2,8 +2,8 @@ import type { Env } from '../../_lib/auth';
 import { jsonResponse } from '../../_lib/auth';
 import { checkRateLimit } from '../../_lib/mail';
 import { shouldGiveUp, withinSendingWindow, SEND_WINDOW } from '../../_lib/schedule';
-import { planTick } from '../../_lib/mail-queue';
-import { startRun, finishRun, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
+import { planTick, needsSplitting, splitRecipients } from '../../_lib/mail-queue';
+import { startRun, finishRun, markPhase, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
 import {
   resolveAttachments,
   sendAndLog,
@@ -26,18 +26,13 @@ interface ScheduledRow {
   claimed_at: number | null;
 }
 
-/** At most this many queued messages per call, so one tick cannot run long. */
 /**
- * Deliberately small. Each message carries the full attachment inline, so a
- * mail-out with a 9 MB PDF builds a ~12.5 MB MIME body per recipient; twenty
- * of those in one invocation is what the 128 MB isolate could not survive.
- * With the attachment encoded once per dispatch, the remaining cost is one
- * body at a time, and a small batch keeps the peak flat.
- *
- * Five a minute drains a hundred-recipient mail-out in twenty minutes, which
- * is the shape these actually take.
+ * A ceiling for light mail, and nothing more: the byte budget below is what
+ * governs anything carrying an attachment. Twenty attachment-free messages in
+ * one invocation is well within the isolate; twenty heavy ones is what killed
+ * it on 2026-09-04, and the budget, not this number, is what now prevents
+ * that.
  */
-/** A ceiling for light mail; the byte budget is what governs heavy mail. */
 const BATCH = 20;
 
 /**
@@ -47,21 +42,30 @@ const BATCH = 20;
  * attachment, the MIME containing it, the base64url of that, the JSON body --
  * so the isolate's 128 MB goes quickly.
  *
- * Raised from 40 MB on evidence rather than argument. Cloudflare does not
- * honour the one-minute cron here: the Worker runs in bursts of about three
- * consecutive minutes and then not at all for roughly twenty, and during the
- * gaps a tail sees no invocation whatsoever. That cadence is not ours to
- * change, so the only remaining lever is how much one invocation achieves.
+ * Back to 40 MB, and this time the number is measured rather than argued.
  *
- * Three heavy messages in a single invocation is known to work: before any
- * budget existed, this dispatcher repeatedly sent three -- and once four --
- * of these same 9 MB mails in one tick, and only died when it tried twenty.
- * A hundred megabytes admits three and keeps a wide margin under the twenty
- * that failed. It is not derived; 1102 says nothing about which limit was
- * hit, and two attempts to reason it out from first principles were both
- * wrong when measured. Move it on evidence, the way this move was made.
+ * It was raised to 100 on 2026-09-05 on the theory that Cloudflare fired the
+ * cron in bursts and one invocation should therefore do more. That theory was
+ * wrong -- dispatch_runs and mail_sync_state both show the cron firing every
+ * single minute -- and the raise made things worse in a way that only became
+ * visible once the tick logged itself: at 100 MB a tick takes two of these
+ * 9.36 MB rows, sends the first, and is killed on the second. Four ticks in a
+ * row, four started, none finished, one message each.
+ *
+ * The rule the evidence actually supports is simpler than a budget: one
+ * message of this size per invocation. Not one row -- one message. A row with
+ * two recipients is two messages and died the same way, which is what stalled
+ * the queue for six and a half hours earlier the same day. `needsSplitting`
+ * and `splitRows` below turn those back into one-recipient rows so that this
+ * budget means what it says.
+ *
+ * 32.8 MB is one such message after the cost multiplier. Forty admits one and
+ * refuses two, which is exactly the observed limit. It is not derived: 1102
+ * says nothing about which resource ran out, and three attempts to reason it
+ * out from first principles were all wrong when measured. Move it on evidence
+ * -- and now there is a table that supplies some.
  */
-const BYTE_BUDGET = 100 * 1024 * 1024;
+const BYTE_BUDGET = 40 * 1024 * 1024;
 
 /**
  * How many of one tick's slots a single sender may take.
@@ -85,6 +89,64 @@ const CLAIM_LEASE_SECONDS = 10 * 60;
 
 /** Wider than BATCH so there is something to be fair between. */
 const CANDIDATE_WINDOW = 60;
+
+/**
+ * Rewrites each given row as one row per recipient, in one atomic batch.
+ *
+ * New rows inherit the original's scheduled time, so a split changes when
+ * nothing about when the mail was meant to go -- only how many messages one
+ * invocation is asked to build at once. attempts and first_tried_at are not
+ * carried over: none of these recipients has been attempted, and inheriting a
+ * give-up clock from a row that never actually tried would retire mail that
+ * has not had its chance.
+ *
+ * Atomic matters here. Half of a split is either a lost recipient or a
+ * duplicated one, and D1's batch is the only thing standing between us and
+ * both. If it fails, nothing changes and the row is split again next tick.
+ *
+ * A row whose lease has expired is only split once our own log says nothing
+ * went out under it. Splitting one that had already reached Gmail would turn
+ * a row the dedupe check was about to retire into three fresh rows with new
+ * ids the check has never heard of -- and mail every recipient twice. That
+ * happened once, on 2026-09-04, by a different route; once was enough.
+ */
+async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<void> {
+  const statements: D1PreparedStatement[] = [];
+  for (const row of rows) {
+    const lists = splitRecipients(row);
+    if (lists.length < 2) continue;
+
+    if (row.claimed_at !== null && row.claimed_at !== undefined) {
+      const already = await env.DB.prepare(
+        'SELECT 1 AS hit FROM sent_emails WHERE scheduled_id = ? LIMIT 1'
+      ).bind(row.id).first<{ hit: number }>();
+      // Leave it whole. The tick's own loop finds the same log entry and
+      // dequeues the row, which is the right outcome and already tested.
+      if (already) continue;
+    }
+    // The original row keeps the first recipient rather than being deleted and
+    // reinserted: anything already holding its id -- a claim, a sent_emails
+    // row written by an invocation that died before its delete -- stays valid.
+    statements.push(
+      env.DB.prepare(
+        'UPDATE scheduled_emails SET recipients = ?, claimed_at = NULL, updated_at = ? WHERE id = ?'
+      ).bind(JSON.stringify(lists[0]), now, row.id)
+    );
+    for (const list of lists.slice(1)) {
+      statements.push(
+        env.DB.prepare(
+          `INSERT INTO scheduled_emails
+             (id, sender_user_id, recipients, subject, body, attachment_ids,
+              scheduled_at, attempts, created_at, updated_at)
+           SELECT ?, sender_user_id, ?, subject, body, attachment_ids,
+                  scheduled_at, 0, ?, ?
+           FROM scheduled_emails WHERE id = ?`
+        ).bind(crypto.randomUUID(), JSON.stringify(list), now, now, row.id)
+      );
+    }
+  }
+  if (statements.length > 0) await env.DB.batch(statements);
+}
 
 /** Every distinct attachment in the candidate window, by size on disk. */
 async function attachmentSizes(env: Env, rows: { attachment_ids: string }[]): Promise<Map<string, number>> {
@@ -171,13 +233,27 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   // Attachment sizes decide how much of a tick each row costs, so they are
   // read once for the whole candidate window rather than per row.
   const sizes = await attachmentSizes(env, candidates.results);
-  const due = {
-    results: planTick(
-      candidates.results,
-      { batch: BATCH, perSender: PER_SENDER, byteBudget: BYTE_BUDGET },
-      (id) => sizes.get(id) ?? 0
-    ),
-  };
+  const sizeOf = (id: string) => sizes.get(id) ?? 0;
+  const plan = { batch: BATCH, perSender: PER_SENDER, byteBudget: BYTE_BUDGET };
+
+  // A row carrying more recipients than one invocation can send is broken up
+  // before anything is planned, so the budget below is comparing like with
+  // like: after this, every candidate row is exactly one message. See
+  // needsSplitting -- these rows are what stalled the queue for six and a
+  // half hours on 2026-09-05.
+  //
+  // Split rows are not sent this tick. They re-enter the queue as ordinary
+  // one-recipient rows and are picked up a minute later, which keeps this
+  // step to a single atomic write and out of the sending path entirely.
+  const oversized = needsSplitting(candidates.results, plan, sizeOf);
+  if (oversized.length > 0) {
+    const split = new Set(oversized.map((row) => row.id));
+    await splitRows(env, oversized, now);
+    candidates.results = candidates.results.filter((row) => !split.has(row.id));
+  }
+
+  const due = { results: planTick(candidates.results, plan, sizeOf) };
+  await markPhase(env.DB, runId, 'planned', String(due.results.length));
 
   let sent = 0;
   let failed = 0;
@@ -258,6 +334,8 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
         await drop('Attachment unavailable when the scheduled time arrived: ' + resolved.code);
         continue;
       }
+      // Past the R2 read and the base64, which is where the memory goes.
+      await markPhase(env.DB, runId, 'resolved', row.id);
 
       // A full rate limit is transient — wait for the next tick, up to the
       // retry window.
@@ -295,13 +373,35 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
         }
       }
 
+      // A row that has been claimed since before the retry window opened, and
+      // that our log says never reached Gmail, is one nothing can send. It
+      // does not fail -- it kills the invocation outright, so no catch below
+      // ever runs and no error is ever recorded. Left alone it returns to the
+      // head of the queue every minute forever, taking the whole tick with it,
+      // which is exactly what two rows did for six and a half hours on
+      // 2026-09-05. Retire it here, where the code is still running.
+      if (shouldGiveUp(row.first_tried_at, now)) {
+        await drop('Killed the dispatcher on every attempt across the retry window');
+        continue;
+      }
+
       // Claimed before the send and committed on its own, so that an
       // invocation killed mid-send leaves a row that is visibly in flight
       // rather than one that looks untouched and gets sent again by the very
       // next tick.
+      //
+      // The attempt is counted here rather than in the catch below for the
+      // same reason: a row that kills the isolate never reaches a catch, so
+      // an attempts column only touched on handled errors stays at zero
+      // through hundreds of fatal tries and the give-up clock above never
+      // starts.
       await env.DB.prepare(
-        'UPDATE scheduled_emails SET claimed_at = ?, updated_at = ? WHERE id = ?'
-      ).bind(now, now, row.id).run();
+        `UPDATE scheduled_emails
+         SET claimed_at = ?, attempts = attempts + 1,
+             first_tried_at = COALESCE(first_tried_at, ?), updated_at = ?
+         WHERE id = ?`
+      ).bind(now, now, now, row.id).run();
+      await markPhase(env.DB, runId, 'claimed', row.id);
 
       let results: RecipientResult[] = [];
       // Holds whichever of "sendAndLog threw" or "the DELETE below threw" was
@@ -334,6 +434,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
         }
       }
       if (firstFailure !== undefined) throw firstFailure;
+      await markPhase(env.DB, runId, 'sent', row.id);
       if (results.some(r => r.status === 'sent')) sent++; else failed++;
     } catch (err) {
       // Unlike malformed JSON, a throw here (a D1 hiccup, a transient R2 read

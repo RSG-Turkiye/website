@@ -30,6 +30,21 @@ export interface RunLogDb {
 }
 
 /**
+ * How far a tick got. Written as it goes, so a tick that never returns still
+ * says where it stopped -- which is the whole difficulty with a killed
+ * isolate: the code that would have reported the failure is the code that
+ * did not run.
+ *
+ * The order is the order of the work. `resolved` means the attachment came
+ * out of R2 and was base64-encoded, which is the memory-hungry part; `claimed`
+ * means the row was marked in flight, which happens after that and before any
+ * Gmail call. A tick stuck at `planned` and one stuck at `claimed` are dying
+ * in different places and need different fixes -- on 2026-09-05 the queue did
+ * both within ten minutes and there was no way to tell.
+ */
+export type Phase = 'planned' | 'resolved' | 'claimed' | 'sent';
+
+/**
  * Every count is optional and stored as NULL when absent, because a tick that
  * threw before it read the queue genuinely does not know how many rows were
  * due -- and writing 0 there would read as "there was no mail", which is the
@@ -117,6 +132,28 @@ export async function finishRun(
   } catch {
     // A tick that sent mail and could not say so is still a tick that sent
     // mail. The sent_emails log, not this table, is the record that matters.
+  }
+}
+
+/**
+ * Records how far the tick has got. One small write per phase, on a schedule
+ * that plans at most a handful of messages per invocation. Never throws, for
+ * the same reason as the rest of this module.
+ */
+export async function markPhase(
+  db: RunLogDb,
+  id: string | null,
+  phase: Phase,
+  detail?: string,
+): Promise<void> {
+  if (id === null) return;
+  try {
+    await db
+      .prepare('UPDATE dispatch_runs SET phase = ? WHERE id = ?')
+      .bind(detail === undefined ? phase : `${phase}:${detail}`, id)
+      .run();
+  } catch {
+    // Diagnostics, and the tick has real work to do.
   }
 }
 

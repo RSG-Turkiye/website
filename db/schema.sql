@@ -129,7 +129,13 @@
 --     goes out, but the diagnostics the table exists for are silently absent:
 --       wrangler d1 execute rsg-members --remote --file=db/schema.sql
 --     or, to add just this table:
---       wrangler d1 execute rsg-members --remote --command="CREATE TABLE IF NOT EXISTS dispatch_runs (id TEXT PRIMARY KEY, started_at INTEGER NOT NULL, finished_at INTEGER, candidates INTEGER, planned INTEGER, sent INTEGER, failed INTEGER, retried INTEGER, already_sent INTEGER, held TEXT, error TEXT)"
+--       wrangler d1 execute rsg-members --remote --command="CREATE TABLE IF NOT EXISTS dispatch_runs (id TEXT PRIMARY KEY, started_at INTEGER NOT NULL, finished_at INTEGER, candidates INTEGER, planned INTEGER, sent INTEGER, failed INTEGER, retried INTEGER, already_sent INTEGER, held TEXT, error TEXT, phase TEXT)"
+--
+-- 7i. `phase` was added to dispatch_runs the same evening, once the table had
+--     shown that ticks were dying but not where. On a database that already
+--     has the table from 7h, ADD COLUMN is the migration -- and it is NOT
+--     idempotent, so do not re-run it:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE dispatch_runs ADD COLUMN phase TEXT"
 --
 
 CREATE TABLE IF NOT EXISTS users (
@@ -421,7 +427,8 @@ CREATE TABLE IF NOT EXISTS dispatch_runs (
   retried       INTEGER,
   already_sent  INTEGER,
   held          TEXT,
-  error         TEXT
+  error         TEXT,
+  phase         TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_dispatch_runs_started ON dispatch_runs(started_at);
 
