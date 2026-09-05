@@ -159,16 +159,26 @@ async function reconcileClaimed(env: Env, rows: ScheduledRow[], now: number): Pr
 /**
  * Rewrites each given row as one row per recipient, in one atomic batch.
  *
- * New rows inherit the original's scheduled time, so a split changes when
- * nothing about when the mail was meant to go -- only how many messages one
- * invocation is asked to build at once. attempts and first_tried_at are not
- * carried over: none of these recipients has been attempted, and inheriting a
- * give-up clock from a row that never actually tried would retire mail that
- * has not had its chance.
+ * New rows inherit the original's scheduled time, so a split changes nothing
+ * about when the mail was meant to go -- only how many messages one
+ * invocation is asked to build at once. None of the resulting rows carries an
+ * attempt or a give-up clock, the original included: a split resets what "this
+ * row" means, and letting the first recipient inherit a clock its siblings do
+ * not have would retire it hours before them.
  *
  * Atomic matters here. Half of a split is either a lost recipient or a
  * duplicated one, and D1's batch is the only thing standing between us and
  * both. If it fails, nothing changes and the row is split again next tick.
+ *
+ * Every statement is also conditional on the recipient list still being the
+ * one that was read, which is what makes a second, concurrent split a no-op
+ * rather than a disaster. Two invocations that both selected the same
+ * three-recipient row before either split it would otherwise each insert
+ * siblings, leaving two rows per recipient under ids nothing can connect --
+ * every address mailed twice, and no dedupe check able to see it, because the
+ * ids are new. With the guard the loser's statements match nothing. The
+ * inserts come before the update for the same reason: they read the column the
+ * update is about to change, and D1 runs a batch in order.
  *
  * Every row reaching here has been through `reconcileClaimed`, so its
  * recipient list is people who are actually still owed mail. Splitting a list
@@ -182,14 +192,11 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
     const lists = splitRecipients(row);
     if (lists.length < 2) continue;
 
-    // The original row keeps the first recipient rather than being deleted and
-    // reinserted: anything already holding its id -- a claim, a sent_emails
-    // row written by an invocation that died before its delete -- stays valid.
-    statements.push(
-      env.DB.prepare(
-        'UPDATE scheduled_emails SET recipients = ?, claimed_at = NULL, updated_at = ? WHERE id = ?'
-      ).bind(JSON.stringify(lists[0]), now, row.id)
-    );
+    const original = row.recipients;
+
+    // Siblings first: each reads the recipient column that the update below
+    // then changes, and every one of them is conditional on that column still
+    // holding what this tick read.
     for (const list of lists.slice(1)) {
       statements.push(
         env.DB.prepare(
@@ -198,10 +205,24 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
               scheduled_at, attempts, created_at, updated_at)
            SELECT ?, sender_user_id, ?, subject, body, attachment_ids,
                   scheduled_at, 0, ?, ?
-           FROM scheduled_emails WHERE id = ?`
-        ).bind(crypto.randomUUID(), JSON.stringify(list), now, now, row.id)
+           FROM scheduled_emails WHERE id = ? AND recipients = ?`
+        ).bind(crypto.randomUUID(), JSON.stringify(list), now, now, row.id, original)
       );
     }
+
+    // The original row keeps the first recipient rather than being deleted and
+    // reinserted: anything already holding its id -- a claim, a sent_emails
+    // row written by an invocation that died before its delete -- stays valid.
+    // Its attempt count and clock are cleared with the rest, so all the rows a
+    // split produces start level.
+    statements.push(
+      env.DB.prepare(
+        `UPDATE scheduled_emails
+         SET recipients = ?, claimed_at = NULL, attempts = 0,
+             first_tried_at = NULL, updated_at = ?
+         WHERE id = ? AND recipients = ?`
+      ).bind(JSON.stringify(lists[0]), now, row.id, original)
+    );
   }
   if (statements.length > 0) await env.DB.batch(statements);
 }
@@ -406,6 +427,32 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
         continue;
       }
 
+      // The attempt is recorded before it is made, and this is the only place
+      // that records one.
+      //
+      // Recording it after the fact cannot work: a row that kills the isolate
+      // reaches no catch, no finally and no later statement, so an attempts
+      // column touched only on handled errors stays at zero through hundreds
+      // of fatal tries -- and the give-up check immediately above, which reads
+      // the clock this starts, then never fires. Two rows sat at the head of
+      // the queue all afternoon on 2026-09-05 with attempts = 0 for exactly
+      // that reason. Stamping it at the claim, as the first version of this
+      // did, only moved the problem: the claim is also below the step that
+      // does the killing.
+      //
+      // The cost of stamping early is that a row whose tick dies for reasons
+      // of its own -- a D1 hiccup, a passing R2 failure -- spends an attempt
+      // it did not use. The retry window is six hours and a tick is a minute,
+      // so it can afford that; what it cannot afford is a row that is never
+      // retired at all.
+      await env.DB.prepare(
+        `UPDATE scheduled_emails
+         SET attempts = attempts + 1,
+             first_tried_at = COALESCE(first_tried_at, ?),
+             updated_at = ?
+         WHERE id = ?`
+      ).bind(now, now, row.id).run();
+
       // An admin who retires an attachment should not have the old version go
       // out later. Also terminal.
       const resolved = await resolveAttachments(env, attachmentIds, attachmentCache);
@@ -420,19 +467,16 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // retry window.
       const limit = await checkRateLimit(env.DB, row.sender_user_id, recipients.length, now);
       if (!limit.ok) {
-        if (shouldGiveUp(row.first_tried_at, now)) {
-          await drop('Rate limit still full after the retry window: ' + limit.code);
-        } else {
-          await env.DB.prepare(
-            `UPDATE scheduled_emails
-             SET attempts = attempts + 1,
-                 first_tried_at = COALESCE(first_tried_at, ?),
-                 last_error = ?,
-                 updated_at = ?
-             WHERE id = ?`
-          ).bind(now, limit.code, now, row.id).run();
-          retried++;
-        }
+        // Only the reason is recorded: the attempt was already counted above,
+        // and counting it twice would retire the row in half the window. The
+        // give-up check that used to live here has gone with it -- it ran on
+        // the same clock, in the same iteration, as the one above, so it could
+        // never be true, and the message it wrote when it supposedly fired
+        // said the dispatcher had been killed, which was not what happened.
+        await env.DB.prepare(
+          'UPDATE scheduled_emails SET last_error = ?, updated_at = ? WHERE id = ?'
+        ).bind(limit.code, now, row.id).run();
+        retried++;
         continue;
       }
 
@@ -441,17 +485,25 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // rather than one that looks untouched and gets sent again by the very
       // next tick.
       //
-      // The attempt is counted here rather than in the catch below for the
-      // same reason: a row that kills the isolate never reaches a catch, so
-      // an attempts column only touched on handled errors stays at zero
-      // through hundreds of fatal tries and the give-up clock above never
-      // starts.
-      await env.DB.prepare(
+      // Conditional, and the condition is the point: this is a lock, not a
+      // note. The WHERE clause repeats the one the candidate query used, so
+      // the row is claimed only if nobody has claimed it since -- and D1
+      // reports how many rows that changed. Without it two invocations that
+      // both ran the candidate query before either reached this line would
+      // both send the same mail, and nothing about a once-a-minute cron
+      // prevents overlap: `ctx.waitUntil` starts a tick every minute whether
+      // or not the last one finished, and the manual dispatch workflow can be
+      // pressed at any moment.
+      const claim = await env.DB.prepare(
         `UPDATE scheduled_emails
-         SET claimed_at = ?, attempts = attempts + 1,
-             first_tried_at = COALESCE(first_tried_at, ?), updated_at = ?
-         WHERE id = ?`
-      ).bind(now, now, now, row.id).run();
+         SET claimed_at = ?, updated_at = ?
+         WHERE id = ? AND (claimed_at IS NULL OR claimed_at <= ?)`
+      ).bind(now, now, row.id, now - CLAIM_LEASE_SECONDS).run();
+      if (claim.meta.changes !== 1) {
+        // Somebody else has it. Not an error and not a failure: leave it to
+        // them rather than send it twice.
+        continue;
+      }
       await markPhase(env.DB, runId, 'claimed', row.id);
 
       let results: RecipientResult[] = [];
