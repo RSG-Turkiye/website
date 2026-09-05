@@ -29,6 +29,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Deliberately not in the repository: a WordPress export carries the email
+// address of every author and commenter, and this one is public. Put the
+// export here yourself to re-run this; it is a migration input, not a source
+// file. The last one is recoverable from git history if you need it:
+//   git show 967bf77:symposium_website/WordPress.2026-03-27.xml > WordPress.2026-03-27.xml
 const XML_PATH = join(ROOT, "WordPress.2026-03-27.xml");
 const MAPPING_PATH = join(ROOT, "cloudinary-mapping.json");
 
@@ -93,7 +98,13 @@ async function uploadUrl(
 
 async function main() {
   console.log("Reading WordPress XML…");
-  const xml = readFileSync(XML_PATH, "utf-8");
+  let xml: string;
+try {
+  xml = readFileSync(XML_PATH, "utf-8");
+} catch {
+  console.error(`No WordPress export at ${XML_PATH}.\nIt is not committed on purpose -- see the comment above XML_PATH.`);
+  process.exit(1);
+}
   const urls = extractAttachmentUrls(xml);
   console.log(`Found ${urls.length} attachment URLs.`);
 
