@@ -44,10 +44,23 @@ const BATCH = 20;
  *
  * A recipient's message exists in memory several times over -- the base64
  * attachment, the MIME containing it, the base64url of that, the JSON body --
- * so the isolate's 128 MB goes quickly. Forty is well inside it and still
- * lets a dozen ordinary mails through in one tick.
+ * so the isolate's 128 MB goes quickly.
+ *
+ * Raised from 40 MB on evidence rather than argument. Cloudflare does not
+ * honour the one-minute cron here: the Worker runs in bursts of about three
+ * consecutive minutes and then not at all for roughly twenty, and during the
+ * gaps a tail sees no invocation whatsoever. That cadence is not ours to
+ * change, so the only remaining lever is how much one invocation achieves.
+ *
+ * Three heavy messages in a single invocation is known to work: before any
+ * budget existed, this dispatcher repeatedly sent three -- and once four --
+ * of these same 9 MB mails in one tick, and only died when it tried twenty.
+ * A hundred megabytes admits three and keeps a wide margin under the twenty
+ * that failed. It is not derived; 1102 says nothing about which limit was
+ * hit, and two attempts to reason it out from first principles were both
+ * wrong when measured. Move it on evidence, the way this move was made.
  */
-const BYTE_BUDGET = 40 * 1024 * 1024;
+const BYTE_BUDGET = 100 * 1024 * 1024;
 
 /**
  * How many of one tick's slots a single sender may take.
