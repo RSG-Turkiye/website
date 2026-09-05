@@ -1,5 +1,6 @@
 ---
 title: Dil Modelleri Proteinlerin Karmaşık Fonksiyonel Özelliklerini Öğrenebilir
+translationKey: "language-models-protein-properties"
 date: 2022-07-06
 speaker: Serbülent Ünsal
 speakerAffiliation: Antiverse / Orta Doğu Teknik Üniversitesi

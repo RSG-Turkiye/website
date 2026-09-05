@@ -1,5 +1,6 @@
 ---
 title: İlaç Tasarımı İçin Hastalık Mekanizmalarının Anlaşılması
+translationKey: "understanding-disease-mechanisms"
 date: 2022-08-31
 speaker: Dr. Ayesha Fatima
 speakerAffiliation: BILSAB / Khan'ın Büyük Veri ve Biyoinformatik Laboratuvarı

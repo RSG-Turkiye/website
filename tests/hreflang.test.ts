@@ -42,3 +42,38 @@ test('paths are handled with or without a trailing slash', () => {
 test('a path that merely starts with tr is not mistaken for the turkish prefix', () => {
   assert.deepEqual(alternatesFor('/translations/'), { en: '/translations/', tr: '/tr/translations/' });
 });
+
+// --- pages whose two slugs differ -------------------------------------------
+
+test('an exact counterpart overrides the derived path', () => {
+  // Six webinars have a Turkish slug that is not the English one. Deriving
+  // the pair would advertise /tr/webinars/molecular-simulations/, which does
+  // not exist -- worse than the missing tag it replaced, because it tells a
+  // search engine a 404 is the translation.
+  assert.deepEqual(
+    alternatesFor('/webinars/molecular-simulations', '/tr/webinars/molekuler-simulasyonlar'),
+    { en: '/webinars/molecular-simulations/', tr: '/tr/webinars/molekuler-simulasyonlar/' },
+  );
+});
+
+test('the override works from the Turkish side too', () => {
+  assert.deepEqual(
+    alternatesFor('/tr/webinars/molekuler-simulasyonlar', '/webinars/molecular-simulations'),
+    { en: '/webinars/molecular-simulations/', tr: '/tr/webinars/molekuler-simulasyonlar/' },
+  );
+});
+
+test('the counterpart is given the trailing slash the canonical uses', () => {
+  const pair = alternatesFor('/webinars/a', '/tr/webinars/b');
+  assert.equal(pair?.tr, '/tr/webinars/b/');
+  assert.equal(pair?.en, '/webinars/a/');
+});
+
+test('without a counterpart the derived pair is unchanged', () => {
+  assert.deepEqual(alternatesFor('/about'), { en: '/about/', tr: '/tr/about/' });
+  assert.deepEqual(alternatesFor('/tr/about'), { en: '/about/', tr: '/tr/about/' });
+});
+
+test('a noindex path stays unpaired even with a counterpart', () => {
+  assert.equal(alternatesFor('/account', '/tr/account'), null);
+});

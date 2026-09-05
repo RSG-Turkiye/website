@@ -1,5 +1,6 @@
 ---
 title: Bir In Silico Deneyi Olarak Moleküler Simülasyonlar
+translationKey: "molecular-simulations"
 date: 2020-03-05
 speaker: Seyit Kale
 speakerAffiliation: İzmir Biyotıp ve Genom Merkezi

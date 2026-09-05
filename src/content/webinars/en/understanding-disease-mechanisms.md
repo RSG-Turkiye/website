@@ -1,5 +1,6 @@
 ---
 title: Understanding Disease Mechanistic for Better Drug Design
+translationKey: "understanding-disease-mechanisms"
 date: 2022-08-31
 speaker: Dr. Ayesha Fatima
 speakerAffiliation: BILSAB / Khan's Big Data and Bioinformatics Lab

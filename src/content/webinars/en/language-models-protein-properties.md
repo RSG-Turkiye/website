@@ -1,5 +1,6 @@
 ---
 title: "Language Models Can Learn Complex Functional Properties of Proteins"
+translationKey: "language-models-protein-properties"
 date: 2022-07-06
 speaker: "Serbulent Unsal"
 speakerAffiliation: "Antiverse / Middle East Technical University"

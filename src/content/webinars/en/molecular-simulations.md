@@ -1,5 +1,6 @@
 ---
 title: Molecular Simulations as an in silico Experiment
+translationKey: "molecular-simulations"
 date: 2020-03-05
 speaker: Seyit Kale
 speakerAffiliation: Izmir Biomedicine and Genome Center

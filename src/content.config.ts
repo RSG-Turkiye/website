@@ -4,11 +4,16 @@ import { glob } from "astro/loaders";
 // Blog posts are organized by language:
 //   src/content/blog/en/<slug>.md  → /blog/<slug>
 //   src/content/blog/tr/<slug>.md  → /tr/blog/<slug>
-// To add a translation: create a file with the SAME filename in the other lang folder.
+// To add a translation: create a file with the SAME filename in the other lang
+// folder -- or, when the two want different slugs, give both files the same
+// `translationKey`. Six talks were unreachable in one language because the
+// Turkish file had a Turkish name and nothing tied the two together.
 const blog = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/blog" }),
   schema: z.object({
     title: z.string(),
+    /** Ties this entry to its other-language twin when the slugs differ. */
+    translationKey: z.string().default(""),
     pubDate: z.coerce.date(),
     description: z.string(),
     author: z.string().default(""),
@@ -31,11 +36,16 @@ const blog = defineCollection({
 // Webinars are organized by language:
 //   src/content/webinars/en/<slug>.md  → /webinars/<slug>
 //   src/content/webinars/tr/<slug>.md  → /tr/webinars/<slug>
-// To add a translation: create a file with the SAME filename in the other lang folder.
+// To add a translation: create a file with the SAME filename in the other lang
+// folder -- or, when the two want different slugs, give both files the same
+// `translationKey`. Six talks were unreachable in one language because the
+// Turkish file had a Turkish name and nothing tied the two together.
 const webinars = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/webinars" }),
   schema: z.object({
     title: z.string(),
+    /** Ties this entry to its other-language twin when the slugs differ. */
+    translationKey: z.string().default(""),
     date: z.coerce.date(),
     speaker: z.string(),
     speakerAffiliation: z.string().default(""),
