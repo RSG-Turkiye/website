@@ -17,20 +17,22 @@ export class GmailError extends Error {
   }
 }
 
-export interface MimeAttachment {
+/**
+ * What a message needs to know about an attachment to describe it: never its
+ * bytes. The streaming sender carries a richer type than this -- an R2 key and
+ * a size -- and the message format neither knows nor needs to.
+ */
+export interface MimeAttachmentRef {
   filename: string;
   contentType: string;
-  /**
-   * Already base64-encoded and 76-column wrapped. Encoded once per compose
-   * by the caller (send.ts, when it reads the bytes from R2) and reused for
-   * every recipient in the loop -- encoding raw bytes here, inside
-   * buildMime, would re-run the (memory-heavy) base64/wrap pass once per
-   * recipient for identical output.
-   */
+}
+
+/** An attachment whose bytes are already in hand, base64 and 76-column wrapped. */
+export interface MimeAttachment extends MimeAttachmentRef {
   base64Body: string;
 }
 
-export interface MimeMessage {
+export interface MimeMessage<A extends MimeAttachmentRef = MimeAttachmentRef> {
   fromAddress: string;
   fromName: string;
   to: string;
@@ -38,7 +40,7 @@ export interface MimeMessage {
   subject: string;
   /** Both halves of the message; see functions/_lib/markdown.ts. */
   body: { text: string; html: string };
-  attachments: MimeAttachment[];
+  attachments: A[];
   /**
    * Threading, set only when this message is a reply. Gmail groups by its own
    * threadId, but the recipient's mail client groups by these headers -- set
@@ -124,7 +126,7 @@ function safeDisplayName(value: string): string {
  *
  * Every rule about how an RSG message is shaped lives here and nowhere else.
  */
-export function mimeLines(msg: MimeMessage): MimeLine[] {
+export function mimeLines<A extends MimeAttachmentRef>(msg: MimeMessage<A>): MimeLine<A>[] {
   const encoder = new TextEncoder();
   const textB64 = wrap76(base64(encoder.encode(msg.body.text)));
   const htmlB64 = wrap76(base64(encoder.encode(msg.body.html)));
@@ -165,7 +167,7 @@ export function mimeLines(msg: MimeMessage): MimeLine[] {
     `--${altBoundary}--`,
   ];
 
-  const lines: MimeLine[] = [];
+  const lines: MimeLine<A>[] = [];
 
   if (msg.attachments.length === 0) {
     lines.push(
@@ -216,13 +218,9 @@ export function mimeLines(msg: MimeMessage): MimeLine[] {
  * functions that each know the message format -- is the pattern that has gone
  * wrong repeatedly in this repo: the same fact stored twice, drifting.
  */
-export type MimeLine = string | { attachment: MimeAttachmentRef };
-
-/** What a line needs to know about an attachment: never its bytes. */
-export interface MimeAttachmentRef {
-  filename: string;
-  contentType: string;
-}
+export type MimeLine<A extends MimeAttachmentRef = MimeAttachmentRef> =
+  | string
+  | { attachment: A };
 
 /**
  * The message as a single base64url string, ready for the JSON send endpoint.
@@ -234,13 +232,11 @@ export interface MimeAttachmentRef {
  * messages small enough not to care, and as the thing the streaming path is
  * tested against for byte-for-byte equality.
  */
-export function buildMime(msg: MimeMessage): string {
-  const encoder = new TextEncoder();
-  const bodies = new Map(msg.attachments.map((a) => [a, a.base64Body]));
+export function buildMime(msg: MimeMessage<MimeAttachment>): string {
   const mime = mimeLines(msg)
-    .map((line) => (typeof line === 'string' ? line : bodies.get(line.attachment as MimeAttachment) ?? ''))
+    .map((line) => (typeof line === 'string' ? line : line.attachment.base64Body))
     .join('\r\n');
-  return base64Url(encoder.encode(mime));
+  return base64Url(new TextEncoder().encode(mime));
 }
 
 /**
@@ -266,7 +262,10 @@ export function encodedLength(n: number): number {
  *
  * Lines are joined with CRLF, so the separators are one fewer than the lines.
  */
-export function mimeByteLength(lines: MimeLine[], sizeOf: (a: MimeAttachmentRef) => number): number {
+export function mimeByteLength<A extends MimeAttachmentRef>(
+  lines: MimeLine<A>[],
+  sizeOf: (a: A) => number,
+): number {
   const encoder = new TextEncoder();
   let total = lines.length > 0 ? 2 * (lines.length - 1) : 0;
   for (const line of lines) {
@@ -311,9 +310,9 @@ function base64Line(bytes: Uint8Array): string {
  * `open` is called at most once per attachment and only when the stream
  * reaches it, so nothing is read from R2 that the message does not need.
  */
-export async function* mimeChunks(
-  lines: MimeLine[],
-  open: (a: MimeAttachmentRef) => Promise<ReadableStream<Uint8Array>>,
+export async function* mimeChunks<A extends MimeAttachmentRef>(
+  lines: MimeLine<A>[],
+  open: (a: A) => Promise<ReadableStream<Uint8Array>>,
 ): AsyncGenerator<Uint8Array> {
   const encoder = new TextEncoder();
   let pending = '';
@@ -454,6 +453,70 @@ async function postSend(token: string, raw: string, threadId?: string): Promise<
   });
 }
 
+/**
+ * The upload endpoint, and why it is not the ordinary one.
+ *
+ * `messages/send` takes the whole message as base64url inside a JSON body,
+ * which means the message must exist as one string, twice over. For a 9.36 MB
+ * attachment that measured 123.1 MB of peak heap against a 128 MB isolate on
+ * 2026-09-05 -- one message fitting with five megabytes to spare, which is why
+ * a freshly deployed isolate managed three or four sends and then killed every
+ * tick after.
+ *
+ * The upload endpoint takes the raw RFC 822 message as the request body, so it
+ * can be streamed and never assembled. `uploadType=media` would be the simpler
+ * form but it carries no metadata, and Gmail requires `threadId` on the
+ * message resource to attach a reply to its thread -- headers alone are not
+ * documented as sufficient. So: `uploadType=multipart`, a JSON metadata part
+ * ahead of a `message/rfc822` part. The metadata is a fixed preamble, so the
+ * message half still streams.
+ *
+ * https://developers.google.com/workspace/gmail/api/guides/uploads
+ */
+const UPLOAD_URL =
+  'https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/send?uploadType=multipart';
+
+/**
+ * The `multipart/related` envelope around a message, and its exact size.
+ *
+ * Exact is the operative word. The body is streamed, so its length has to be
+ * declared before a byte of it is read, and Cloudflare's FixedLengthStream
+ * fails the request if the stream turns out to be even one byte longer or
+ * shorter than promised. A wrong prediction here is a failed send, not a slow
+ * one, which is why this is a pure function with its own tests rather than an
+ * expression inside the sender.
+ */
+export function uploadEnvelope<A extends MimeAttachmentRef>(
+  lines: MimeLine<A>[],
+  sizeOf: (a: A) => number,
+  threadId?: string,
+): { boundary: string; contentType: string; head: string; tail: string; length: number } {
+  const boundary = `rsg_up_${crypto.randomUUID()}`;
+  // Always sent, empty when there is no thread, so there is one code path
+  // rather than two and the length arithmetic has no special case.
+  const metadata = JSON.stringify(threadId ? { threadId } : {});
+  const head =
+    `--${boundary}\r\n` +
+    'Content-Type: application/json; charset=UTF-8\r\n' +
+    '\r\n' +
+    `${metadata}\r\n` +
+    `--${boundary}\r\n` +
+    'Content-Type: message/rfc822\r\n' +
+    '\r\n';
+  const tail = `\r\n--${boundary}--`;
+  const encoder = new TextEncoder();
+  return {
+    boundary,
+    contentType: `multipart/related; boundary=${boundary}`,
+    head,
+    tail,
+    length:
+      encoder.encode(head).length +
+      mimeByteLength(lines, sizeOf) +
+      encoder.encode(tail).length,
+  };
+}
+
 export interface SentMessage {
   id: string;
   /**
@@ -482,6 +545,81 @@ export async function sendMail(env: Env, raw: string, threadId?: string): Promis
   if (!res.ok) {
     const detail = (await res.text()).slice(0, 300);
     throw new GmailError(`Gmail send failed (${res.status}): ${detail}`);
+  }
+
+  const data = await res.json<{ id: string; threadId: string }>();
+  return { id: data.id, threadId: data.threadId };
+}
+
+/**
+ * Sends a message without ever holding it.
+ *
+ * The body is produced as it is uploaded: header lines, then the attachment
+ * base64 a chunk at a time straight from R2, then the closing boundaries.
+ * Peak heap is a chunk, not a message, and it does not grow with the
+ * attachment -- 10.2 MB measured against the 123.1 MB the assembled path
+ * needed for the same mail.
+ *
+ * `open` is called when the stream reaches each attachment, and again on a
+ * retry: a stream is consumed once, so the body cannot be re-posted the way a
+ * string could and has to be built afresh. That costs a second R2 read on the
+ * (rare) 401 path and keeps the retry that a prematurely invalidated token
+ * needs.
+ */
+export async function sendStreamedMail<A extends MimeAttachmentRef>(
+  env: Env,
+  msg: MimeMessage<A>,
+  open: (a: A) => Promise<ReadableStream<Uint8Array>>,
+  sizeOf: (a: A) => number,
+  threadId?: string,
+): Promise<SentMessage> {
+  // Built once: the boundaries must be the same on a retry as the length that
+  // was computed with them, and mimeLines would generate new ones per call.
+  const lines = mimeLines(msg);
+  const envelope = uploadEnvelope(lines, sizeOf, threadId);
+  const encoder = new TextEncoder();
+
+  const post = async (token: string): Promise<Response> => {
+    const { readable, writable } = new FixedLengthStream(envelope.length);
+
+    // Deliberately not awaited: the body has to be produced while the request
+    // is in flight, which is the entire point of streaming it. Awaiting it
+    // afterwards would be worse than useless -- if the fetch fails first, the
+    // pump is parked on a write that will never drain, and awaiting it hangs
+    // the send. It reports failure the only way that matters instead: by
+    // erroring the stream, which fails the fetch below. The catch is what
+    // keeps the rejection from being unhandled, so this promise never
+    // rejects and never needs to be waited on.
+    void (async () => {
+      const writer = writable.getWriter();
+      try {
+        await writer.write(encoder.encode(envelope.head));
+        for await (const chunk of mimeChunks(lines, open)) await writer.write(chunk);
+        await writer.write(encoder.encode(envelope.tail));
+        await writer.close();
+      } catch (err) {
+        // Also reached when the fetch itself failed and the reader went away,
+        // in which case aborting an already-errored stream is a no-op.
+        await writable.abort(err).catch(() => {});
+      }
+    })();
+
+    return fetch(UPLOAD_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': envelope.contentType },
+      body: readable,
+    });
+  };
+
+  let res = await post(await getAccessToken(env));
+  if (res.status === 401) {
+    cachedToken = null;
+    res = await post(await getAccessToken(env));
+  }
+
+  if (!res.ok) {
+    const detail = (await res.text()).slice(0, 300);
+    throw new GmailError(`Gmail upload failed (${res.status}): ${detail}`);
   }
 
   const data = await res.json<{ id: string; threadId: string }>();

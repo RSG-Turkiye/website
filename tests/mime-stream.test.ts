@@ -7,7 +7,9 @@ import {
   mimeByteLength,
   encodedLength,
   encodeAttachmentBody,
+  uploadEnvelope,
   type MimeMessage,
+  type MimeAttachment,
 } from '../functions/_lib/gmail';
 
 /**
@@ -17,7 +19,7 @@ import {
  * format lives in mimeLines and these tests prove both readers of it agree.
  */
 
-const base = (attachments: MimeMessage['attachments'] = []): MimeMessage => ({
+const base = (attachments: MimeAttachment[] = []): MimeMessage<MimeAttachment> => ({
   fromName: 'RSG-Türkiye',
   fromAddress: 'turkey.rsg@gmail.com',
   to: 'professor@example.org',
@@ -58,7 +60,7 @@ async function collect(
   return out;
 }
 
-const decodeMime = (msg: MimeMessage): Uint8Array =>
+const decodeMime = (msg: MimeMessage<MimeAttachment>): Uint8Array =>
   new Uint8Array(Buffer.from(buildMime(msg), 'base64url'));
 
 /**
@@ -188,4 +190,51 @@ test('a non-ASCII subject is counted in bytes, not characters', () => {
   const utf8 = Buffer.byteLength(lines.join('\r\n'), 'utf8');
   assert.ok(utf8 >= lines.join('\r\n').length, 'the message contains multi-byte characters');
   assert.equal(mimeByteLength(lines, () => 0), utf8);
+});
+
+// --- the upload envelope ----------------------------------------------------
+
+test('the declared length matches the bytes actually uploaded', async () => {
+  // FixedLengthStream fails the request if the body is one byte out, so this
+  // is the difference between a send and a failed send.
+  for (const n of [0, 1, 57, 100_003]) {
+    const raw = bytes(n);
+    const msg = base([{ filename: 'a.pdf', contentType: 'application/pdf', base64Body: encodeAttachmentBody(raw) }]);
+    const lines = mimeLines(msg);
+    const envelope = uploadEnvelope(lines, () => n);
+    const body = await collect(lines, raw, 4096);
+    const actual =
+      Buffer.byteLength(envelope.head, 'utf8') + body.length + Buffer.byteLength(envelope.tail, 'utf8');
+    assert.equal(envelope.length, actual, `n=${n}`);
+  }
+});
+
+test('a reply carries its threadId in the metadata part, and is longer for it', () => {
+  const lines = mimeLines(base());
+  const plain = uploadEnvelope(lines, () => 0);
+  const reply = uploadEnvelope(lines, () => 0, 'thread-abc');
+
+  assert.match(plain.head, /Content-Type: application\/json; charset=UTF-8\r\n\r\n\{\}\r\n/);
+  assert.match(reply.head, /\r\n\r\n\{"threadId":"thread-abc"\}\r\n/);
+  assert.equal(reply.length - plain.length, '{"threadId":"thread-abc"}'.length - '{}'.length);
+});
+
+test('both parts are announced and the message part is raw rfc822', () => {
+  const envelope = uploadEnvelope(mimeLines(base()), () => 0);
+  assert.match(envelope.contentType, /^multipart\/related; boundary=rsg_up_/);
+  assert.ok(envelope.head.includes('Content-Type: message/rfc822\r\n\r\n'));
+  assert.ok(envelope.head.startsWith(`--${envelope.boundary}\r\n`));
+  assert.equal(envelope.tail, `\r\n--${envelope.boundary}--`);
+});
+
+test('the boundary cannot occur inside a message it wraps', () => {
+  // A boundary that appeared in the body would end the part early. It is a
+  // UUID, so this is not luck, but the assertion is cheap and the failure
+  // mode is a silently truncated attachment.
+  const raw = bytes(50_000);
+  const msg = base([{ filename: 'a.pdf', contentType: 'application/pdf', base64Body: encodeAttachmentBody(raw) }]);
+  const lines = mimeLines(msg);
+  const envelope = uploadEnvelope(lines, () => raw.length);
+  const assembled = lines.map((l) => (typeof l === 'string' ? l : l.attachment.base64Body)).join('\r\n');
+  assert.ok(!assembled.includes(envelope.boundary));
 });
