@@ -2,7 +2,12 @@ import type { Env } from '../../_lib/auth';
 import { jsonResponse } from '../../_lib/auth';
 import { checkRateLimit } from '../../_lib/mail';
 import { shouldGiveUp, withinSendingWindow, SEND_WINDOW } from '../../_lib/schedule';
-import { planTick, needsSplitting, splitRecipients } from '../../_lib/mail-queue';
+import {
+  planTick,
+  needsSplitting,
+  splitRecipients,
+  remainingRecipients,
+} from '../../_lib/mail-queue';
 import { startRun, finishRun, markPhase, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
 import {
   resolveAttachments,
@@ -91,6 +96,60 @@ const CLAIM_LEASE_SECONDS = 10 * 60;
 const CANDIDATE_WINDOW = 60;
 
 /**
+ * Settles up with rows whose lease expired, before anything else looks at them.
+ *
+ * Such a row was taken by an invocation that never got to its delete, so some
+ * of its recipients may already have their mail and the rest are still owed
+ * theirs. Both wrong answers have happened here: resending the row whole
+ * mailed one recipient the same sponsorship letter twice on 2026-09-04, and
+ * dropping it as "already sent" would have quietly written off two of the
+ * three recipients on a row still sitting in the queue on 2026-09-05.
+ *
+ * So the row is narrowed to who is actually still owed. Emptied, it is
+ * dequeued; narrowed, it loses its claim and carries on as an ordinary row --
+ * which also lets `needsSplitting` below see its real size rather than the
+ * size it had before half of it was delivered.
+ *
+ * Returns how many rows were finished off this way, for the tick's own count.
+ * Mutates `rows` so the rest of the tick sees what it decided.
+ */
+async function reconcileClaimed(env: Env, rows: ScheduledRow[], now: number): Promise<number> {
+  let settled = 0;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i];
+    if (row.claimed_at === null || row.claimed_at === undefined) continue;
+
+    let recipients: string[];
+    try {
+      recipients = JSON.parse(row.recipients);
+      if (!Array.isArray(recipients)) continue; // the loop below logs and drops it
+    } catch {
+      continue;
+    }
+
+    const logged = await env.DB.prepare(
+      'SELECT recipient_email FROM sent_emails WHERE scheduled_id = ?'
+    ).bind(row.id).all<{ recipient_email: string }>();
+    if (logged.results.length === 0) continue;
+
+    const remaining = remainingRecipients(recipients, logged.results.map((r) => r.recipient_email));
+    if (remaining.length === 0) {
+      await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+      rows.splice(i, 1);
+      settled++;
+      continue;
+    }
+
+    await env.DB.prepare(
+      'UPDATE scheduled_emails SET recipients = ?, claimed_at = NULL, updated_at = ? WHERE id = ?'
+    ).bind(JSON.stringify(remaining), now, row.id).run();
+    row.recipients = JSON.stringify(remaining);
+    row.claimed_at = null;
+  }
+  return settled;
+}
+
+/**
  * Rewrites each given row as one row per recipient, in one atomic batch.
  *
  * New rows inherit the original's scheduled time, so a split changes when
@@ -104,11 +163,11 @@ const CANDIDATE_WINDOW = 60;
  * duplicated one, and D1's batch is the only thing standing between us and
  * both. If it fails, nothing changes and the row is split again next tick.
  *
- * A row whose lease has expired is only split once our own log says nothing
- * went out under it. Splitting one that had already reached Gmail would turn
- * a row the dedupe check was about to retire into three fresh rows with new
- * ids the check has never heard of -- and mail every recipient twice. That
- * happened once, on 2026-09-04, by a different route; once was enough.
+ * Every row reaching here has been through `reconcileClaimed`, so its
+ * recipient list is people who are actually still owed mail. Splitting a list
+ * that still contained delivered addresses would give them new row ids the
+ * dedupe check has never heard of, and mail them twice -- which happened once,
+ * on 2026-09-04, by a different route. Once was enough.
  */
 async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<void> {
   const statements: D1PreparedStatement[] = [];
@@ -116,14 +175,6 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
     const lists = splitRecipients(row);
     if (lists.length < 2) continue;
 
-    if (row.claimed_at !== null && row.claimed_at !== undefined) {
-      const already = await env.DB.prepare(
-        'SELECT 1 AS hit FROM sent_emails WHERE scheduled_id = ? LIMIT 1'
-      ).bind(row.id).first<{ hit: number }>();
-      // Leave it whole. The tick's own loop finds the same log entry and
-      // dequeues the row, which is the right outcome and already tested.
-      if (already) continue;
-    }
     // The original row keeps the first recipient rather than being deleted and
     // reinserted: anything already holding its id -- a claim, a sent_emails
     // row written by an invocation that died before its delete -- stays valid.
@@ -236,6 +287,12 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   const sizeOf = (id: string) => sizes.get(id) ?? 0;
   const plan = { batch: BATCH, perSender: PER_SENDER, byteBudget: BYTE_BUDGET };
 
+  // Rows whose lease expired are settled up with first: who has already had
+  // their mail is subtracted, and a row with nobody left is dequeued. This
+  // happens before the split below so that a half-delivered row is measured
+  // and broken up by what it still owes, not by what it originally carried.
+  const alreadySent = await reconcileClaimed(env, candidates.results, now);
+
   // A row carrying more recipients than one invocation can send is broken up
   // before anything is planned, so the budget below is comparing like with
   // like: after this, every candidate row is exactly one message. See
@@ -258,7 +315,6 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   let sent = 0;
   let failed = 0;
   let retried = 0;
-  let alreadySent = 0;
 
   for (const row of due.results) {
     // Malformed recipients/attachment_ids is terminal: it can never become
@@ -327,6 +383,20 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
         continue;
       }
 
+      // Retired here, before the attachment is touched, and that order is the
+      // whole point. A row that kills the invocation does it while reading and
+      // encoding the attachment below, so every check placed after that line
+      // is a check the row never reaches: it returns to the head of the queue
+      // a minute later, kills the next tick in the same place, and is never
+      // retired by anything. Two rows did precisely that for six and a half
+      // hours on 2026-09-05, and dispatch_runs recorded seven consecutive
+      // ticks stopping at `planned` to prove it. Everything terminal and cheap
+      // belongs above the expensive step.
+      if (shouldGiveUp(row.first_tried_at, now)) {
+        await drop('Killed the dispatcher on every attempt across the retry window');
+        continue;
+      }
+
       // An admin who retires an attachment should not have the old version go
       // out later. Also terminal.
       const resolved = await resolveAttachments(env, attachmentIds, attachmentCache);
@@ -354,34 +424,6 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
           ).bind(now, limit.code, now, row.id).run();
           retried++;
         }
-        continue;
-      }
-
-      // A row arriving with a claim already on it is one whose lease expired:
-      // some earlier invocation took it and never got to the delete. Whether
-      // it also got as far as Gmail is the only question that matters, and
-      // our own log answers it -- resending on a guess is how one recipient
-      // received the same sponsorship mail twice on 2026-09-04.
-      if (row.claimed_at !== null && row.claimed_at !== undefined) {
-        const already = await env.DB.prepare(
-          'SELECT 1 AS hit FROM sent_emails WHERE scheduled_id = ? LIMIT 1'
-        ).bind(row.id).first<{ hit: number }>();
-        if (already) {
-          await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
-          alreadySent++;
-          continue;
-        }
-      }
-
-      // A row that has been claimed since before the retry window opened, and
-      // that our log says never reached Gmail, is one nothing can send. It
-      // does not fail -- it kills the invocation outright, so no catch below
-      // ever runs and no error is ever recorded. Left alone it returns to the
-      // head of the queue every minute forever, taking the whole tick with it,
-      // which is exactly what two rows did for six and a half hours on
-      // 2026-09-05. Retire it here, where the code is still running.
-      if (shouldGiveUp(row.first_tried_at, now)) {
-        await drop('Killed the dispatcher on every attempt across the retry window');
         continue;
       }
 
