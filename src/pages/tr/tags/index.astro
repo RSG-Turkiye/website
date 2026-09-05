@@ -1,0 +1,46 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { tagged, tagCounts } from '../../../lib/tags';
+
+/**
+ * The Turkish tag index.
+ *
+ * Turkish tag pages have always been built -- /tr/tags/[tag] exists and every
+ * Turkish post links into it -- but there was no index to reach them from,
+ * while the English index linked Turkish tags as English URLs and 404'd.
+ * Mirror of /tags/index.astro, filtered to Turkish posts.
+ */
+const posts = await getCollection('blog', tagged('tr'));
+
+const tags = tagCounts(posts);
+---
+
+<BaseLayout pageTitle="Etiketler — RSG Türkiye" description="RSG Türkiye blogunda yazılan her konu.">
+
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <p class="text-white/60 text-sm mb-1">Konuya göre</p>
+      <h1 class="text-3xl font-bold text-white">Etiketler</h1>
+    </div>
+  </div>
+
+  <section class="bg-white py-10">
+    <div class="max-w-3xl mx-auto px-6">
+      {tags.length === 0 ? (
+        <p class="text-sm text-gray-500">Henüz etiketlenmiş yazı yok.</p>
+      ) : (
+        <div class="flex flex-wrap gap-2">
+          {tags.map(([tag, count]) => (
+            <a href={`/tr/tags/${tag}`}
+              class="inline-flex items-baseline gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-border text-navy hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
+              {tag}
+              <span class="text-xs text-gray-500">{count}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+
+</BaseLayout>

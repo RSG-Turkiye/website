@@ -1,45 +1,49 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
+import { tagged, tagCounts } from '../../lib/tags';
 
-const allPosts = await getCollection('blog', ({ data }) => !data.draft);
-const tags = [...new Set(allPosts.flatMap((post) => post.data.tags))].sort();
+/**
+ * The tag index.
+ *
+ * It used to collect tags from every post in both languages and link all of
+ * them as `/tags/<tag>`, while `/tags/[tag]` builds only from English,
+ * non-draft, non-webinar posts. Eighteen of the thirty-four links it offered
+ * therefore 404'd -- and the page is in the sitemap, so search engines were
+ * being invited to follow them. The filter below is the same one the route
+ * uses, deliberately spelled the same way, because that is the only thing
+ * keeping the two in step.
+ */
+const posts = await getCollection('blog', tagged('en'));
 
-const pageTitle = "Tag Index";
+const tags = tagCounts(posts);
 ---
-<BaseLayout pageTitle={pageTitle}>
-  <div class="container py-5">
-    <h1 class="display-5 fw-bold mb-4">Tags</h1>
-    <div class="tags">
-      {tags.map((tag) => (
-        <a href={`/tags/${tag}`} class="tag">{tag}</a>
-      ))}
+
+<BaseLayout pageTitle="Tags — RSG Turkiye" description="Every topic written about on the RSG Türkiye blog.">
+
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <p class="text-white/60 text-sm mb-1">Browse by</p>
+      <h1 class="text-3xl font-bold text-white">Tags</h1>
     </div>
   </div>
+
+  <section class="bg-white py-10">
+    <div class="max-w-3xl mx-auto px-6">
+      {tags.length === 0 ? (
+        <p class="text-sm text-gray-500">No tagged posts yet.</p>
+      ) : (
+        <div class="flex flex-wrap gap-2">
+          {tags.map(([tag, count]) => (
+            <a href={`/tags/${tag}`}
+              class="inline-flex items-baseline gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-border text-navy hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
+              {tag}
+              <span class="text-xs text-gray-500">{count}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+
 </BaseLayout>
-
-<style>
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .tag {
-    display: inline-block;
-    padding: 0.5em 1em;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5em;
-    font-size: 1rem;
-    color: var(--text-primary);
-    text-decoration: none;
-    background: var(--bg-elevated);
-    transition: all var(--transition-fast);
-  }
-
-  .tag:hover {
-    background: var(--primary-600);
-    color: white;
-    border-color: var(--primary-600);
-  }
-</style>
