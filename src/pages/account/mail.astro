@@ -77,8 +77,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         </form>
 
         <div id="queuedCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
-          <h2 class="text-sm font-semibold text-navy mb-3">Queued</h2>
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h2 class="text-sm font-semibold text-navy">Queued</h2>
+            <!-- Admins only, and off by default: the queue is normally your own
+                 mail, and quietly widening it for every admin would put other
+                 members' drafts in a list whose buttons act on your own. -->
+            <label id="queuedScopeLabel" class="hidden items-center gap-2 text-xs text-gray-500 cursor-pointer">
+              <input type="checkbox" id="queuedScopeAll" class="rounded border-border" />
+              Everyone's
+            </label>
+          </div>
           <div id="queuedList" class="flex flex-col gap-2"></div>
+          <p id="queuedEmpty" class="hidden text-sm text-gray-400">Nothing queued.</p>
         </div>
 
         <div class="bg-white rounded-2xl border border-border shadow-sm p-6">
@@ -274,19 +284,33 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   }
 
   async function loadQueued() {
-    const res = await fetch('/api/mail/scheduled');
+    // Only an admin gets the wider list, and only while the box is ticked.
+    // The endpoint enforces that too -- this just avoids asking for something
+    // it would refuse.
+    const wantsAll = me?.is_admin === true
+      && (document.getElementById('queuedScopeAll') as HTMLInputElement | null)?.checked === true;
+    const res = await fetch(wantsAll ? '/api/mail/scheduled?scope=all' : '/api/mail/scheduled');
     if (!res.ok) return;
     const data: any = await res.json();
     const card = document.getElementById('queuedCard')!;
     const list = document.getElementById('queuedList')!;
+    const empty = document.getElementById('queuedEmpty')!;
+    // The card stays up while the box is on, so an admin who ticks it and
+    // finds nothing sees that, rather than the card vanishing under them.
     if (!data.scheduled.length) {
-      card.classList.add('hidden');
+      card.classList.toggle('hidden', !wantsAll);
+      empty.classList.remove('hidden');
       list.innerHTML = '';
       return;
     }
     card.classList.remove('hidden');
+    empty.classList.add('hidden');
     list.innerHTML = data.scheduled.map((s: any) => {
       const attachmentCount = JSON.parse(s.attachment_ids ?? '[]').length;
+      // Edit and Cancel are ownership-scoped on the server, so on someone
+      // else's row they would fail rather than do anything. Better not to
+      // offer them: the row is shown, and shown to be theirs.
+      const mine = !s.sender_email || s.sender_email === me?.email;
       return `
       <div class="flex items-start justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
         <div class="min-w-0">
@@ -296,8 +320,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
         </div>
         <div class="shrink-0 flex gap-2">
+          ${mine ? `
           <button data-id="${escapeHtml(s.id)}" class="edit-queued-btn text-xs px-3 py-1.5 rounded-lg border border-border text-navy hover:bg-gray-50">Edit</button>
           <button data-id="${escapeHtml(s.id)}" class="cancel-queued-btn text-xs px-3 py-1.5 rounded-lg border border-border text-red-500 hover:bg-red-50">Cancel</button>
+          ` : '<span class="text-xs text-gray-400 px-1">theirs</span>'}
         </div>
       </div>`;
     }).join('');
@@ -339,6 +365,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     });
   }
 
+  let me: any = null;
+
   async function init() {
     const res = await fetch('/api/me');
     document.getElementById('loadingState')!.classList.add('hidden');
@@ -351,6 +379,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     if (!data.user?.is_sender) {
       document.getElementById('notAllowed')!.classList.remove('hidden');
       return;
+    }
+    me = data.user;
+
+    if (me?.is_admin) {
+      const label = document.getElementById('queuedScopeLabel')!;
+      label.classList.remove('hidden');
+      label.classList.add('flex');
+      document.getElementById('queuedScopeAll')!.addEventListener('change', () => { void loadQueued(); });
     }
 
     document.getElementById('composeContent')!.classList.remove('hidden');
