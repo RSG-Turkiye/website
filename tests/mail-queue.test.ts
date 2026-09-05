@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planTick, costOf, COST_MULTIPLIER, type QueueRow } from '../functions/_lib/mail-queue';
+import {
+  planTick,
+  costOf,
+  needsSplitting,
+  splitRecipients,
+  COST_MULTIPLIER,
+  type QueueRow,
+} from '../functions/_lib/mail-queue';
 
 const MB = 1024 * 1024;
 const PLAN = { batch: 20, perSender: 2, byteBudget: 40 * MB };
@@ -13,7 +20,8 @@ const row = (sender: string, attachments: string[] = [], recipients = 1): QueueR
   recipients: JSON.stringify(Array.from({ length: recipients }, (_, i) => `p${i}@x.org`)),
 });
 
-const SIZES: Record<string, number> = { big: 9.36 * MB, small: 0.2 * MB };
+// `huge` is over the whole tick's budget on its own: 15 MB x 3.5 is 52.5.
+const SIZES: Record<string, number> = { big: 9.36 * MB, small: 0.2 * MB, huge: 15 * MB };
 const sizeOf = (id: string) => SIZES[id] ?? 0;
 const senders = (picked: QueueRow[]) => picked.map((r) => r.sender_user_id).join(' ');
 
@@ -123,4 +131,62 @@ test('an attachment-free mail still rides along with a heavy one', () => {
 
 test('no attachment costs nothing however many recipients', () => {
   assert.equal(costOf([], 10, sizeOf), 0);
+});
+
+// --- one message per invocation ---------------------------------------------
+
+test('a row costing more than a whole tick is only oversized if it can be split', () => {
+  // 9.36 MB x 2 recipients x 3.5 is 65.5 MB, past a 40 MB tick.
+  assert.equal(needsSplitting([row('sude', ['big'], 2)], PLAN, sizeOf).length, 1);
+  // The same weight on one recipient is one message. Splitting it is not
+  // possible and refusing it would mean it never goes at all.
+  assert.equal(needsSplitting([row('sude', ['big'], 1)], PLAN, sizeOf).length, 0);
+});
+
+test('a single recipient is never reported as splittable, however heavy', () => {
+  // Over the budget on its own, and still nothing a split could do about it:
+  // one message is the smallest unit there is. planTick takes it alone, and
+  // whether the isolate survives is then a question about the attachment size
+  // limit, not about this rule.
+  const heavy = row('sude', ['huge'], 1);
+  assert.ok(costOf(['huge'], 1, sizeOf) > PLAN.byteBudget, 'the premise: it is over budget');
+  assert.deepEqual(needsSplitting([heavy], PLAN, sizeOf), []);
+  assert.equal(planTick([heavy], PLAN, sizeOf).length, 1, 'and it is still sent, alone');
+});
+
+test('several recipients are fine as long as they fit', () => {
+  // Light mail is the common case: nothing here should be broken up merely
+  // for having more than one recipient.
+  assert.deepEqual(needsSplitting([row('sude', ['small'], 5)], PLAN, sizeOf), []);
+  assert.deepEqual(needsSplitting([row('sude', [], 40)], PLAN, sizeOf), []);
+});
+
+test('splitting produces one list per recipient, in the order given', () => {
+  const r = { ...row('sude', ['big']), recipients: JSON.stringify(['a@x.org', 'b@x.org', 'c@x.org']) };
+  assert.deepEqual(splitRecipients(r), [['a@x.org'], ['b@x.org'], ['c@x.org']]);
+});
+
+test('the 2026-09-05 head: after splitting, a tick takes exactly one message', () => {
+  // Two two-recipient rows sat at the head of the queue. planTick takes such
+  // a row anyway rather than starve it, and building both messages killed the
+  // invocation every minute for six and a half hours.
+  const heads = [row('sude', ['big'], 2), row('sude', ['big'], 2)];
+  assert.equal(planTick(heads, PLAN, sizeOf).length, 1, 'the whole row is still taken alone');
+  assert.ok(costOf(['big'], 2, sizeOf) > PLAN.byteBudget, 'and it is over the budget when taken');
+
+  // Split, and the same mail becomes four ordinary rows of which a tick takes
+  // one -- which is the number the isolate is known to survive.
+  const split = heads.flatMap((r) => splitRecipients(r).map(() => row('sude', ['big'], 1)));
+  assert.equal(split.length, 4);
+  const picked = planTick(split, PLAN, sizeOf);
+  assert.equal(picked.length, 1);
+  assert.ok(costOf(['big'], 1, sizeOf) <= PLAN.byteBudget, 'and now it fits');
+});
+
+test('a hundred-megabyte budget is what took two heavy messages at once', () => {
+  // The regression this restores: at 100 MB the tick planned two of these,
+  // sent the first and was killed on the second -- four ticks, none finished.
+  const due = [row('sude', ['big'], 1), row('sude', ['big'], 1)];
+  assert.equal(planTick(due, { ...PLAN, byteBudget: 100 * MB }, sizeOf).length, 2);
+  assert.equal(planTick(due, PLAN, sizeOf).length, 1);
 });

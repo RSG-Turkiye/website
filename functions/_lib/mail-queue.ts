@@ -124,3 +124,40 @@ export function planTick<T extends QueueRow>(
   }
   return picked;
 }
+
+/**
+ * Rows that can never be sent as they stand.
+ *
+ * A row is one queue entry but not one message: each recipient gets their own
+ * MIME, built, encoded and posted separately, because putting them all on one
+ * To: line would show every professor the whole outreach list. So a row with
+ * three recipients is three messages, and with a 9.36 MB attachment that is
+ * three times the memory a single one costs -- past what the isolate survives,
+ * whatever the budget says.
+ *
+ * On 2026-09-05 that is precisely what stopped the queue: two two-recipient
+ * rows sat at the head, each one over the whole tick's budget. planTick takes
+ * such a row anyway rather than let it starve -- correctly, since refusing it
+ * would mean it never went at all -- and the invocation died on the second
+ * recipient every time, leaving no attempt recorded and the same row at the
+ * head a minute later. Six and a half hours, no mail, no trace.
+ *
+ * Splitting them into one row per recipient is what makes the byte budget
+ * honest: after this, every row is one message and the budget can refuse a
+ * second one.
+ */
+export function needsSplitting<T extends QueueRow>(
+  due: T[],
+  plan: TickPlan,
+  sizeOf: (id: string) => number
+): T[] {
+  return due.filter((row) => {
+    const recipients = parseList(row.recipients);
+    return recipients.length > 1 && rowCost(row, sizeOf) > plan.byteBudget;
+  });
+}
+
+/** The one-recipient lists a row splits into, in the order they were given. */
+export function splitRecipients(row: QueueRow): string[][] {
+  return parseList(row.recipients).map((r) => [String(r)]);
+}
