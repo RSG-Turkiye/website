@@ -112,7 +112,7 @@ subtitle: "Immunoinformatics and mRNA Therapeutics"
 subtitleTr: "İmmünoinformatik ve mRNA Terapötikleri"
 startDate: 2026-10-10
 date: "10 October 2026"
-venue: "METU U3 Amphitheatre"
+venue: "<the hall, withheld until announced>"
 venueCity: "Ankara"
 venuePublic: false
 cityPublic: true

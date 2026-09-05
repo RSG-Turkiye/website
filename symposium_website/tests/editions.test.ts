@@ -83,17 +83,33 @@ test('future editions not yet current are held separately from archive', () => {
   assert.deepEqual(past.map(e => e.year), [2024, 2023], 'undated editions are in past');
 });
 
+// A stand-in, deliberately not any real hall: a fixture is committed too.
+const HALL = 'Example Hall';
+
 const withVenue = (venuePublic: boolean, cityPublic: boolean) =>
-  ({ venue: 'METU U3 Amphitheatre', venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
+  ({ venue: HALL, venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
 
 test('both public: hall and city are shown', () => {
   assert.deepEqual(locationFor(withVenue(true, true)),
-    { kind: 'full', venue: 'METU U3 Amphitheatre', city: 'Ankara' });
+    { kind: 'full', venue: HALL, city: 'Ankara' });
 });
 
-test('venue recorded, hall withheld, city public: renders as withheld (2026 case)', () => {
+test('venue recorded, hall withheld, city public: renders as withheld', () => {
   // People need "Ankara" to book travel weeks before we name the hall.
   assert.deepEqual(locationFor(withVenue(false, true)), { kind: 'withheld', city: 'Ankara' });
+});
+
+test('the hall is withheld even when its name is not in the repo (the 2026 case)', () => {
+  // This is what 2026 looks like now: the flag says a hall exists and is not
+  // being announced, and the name is nowhere in these files. Before this, the
+  // only way to get "venue to be announced" was to commit the hall.
+  const noName = ({ venue: '', venueCity: 'Ankara', venuePublic: false, cityPublic: true }) as EditionLike;
+  assert.deepEqual(locationFor(noName), { kind: 'withheld', city: 'Ankara' });
+});
+
+test('an edition with no hall at all still shows just the city', () => {
+  const none = ({ venue: '', venueCity: 'Ankara', venuePublic: true, cityPublic: true }) as EditionLike;
+  assert.deepEqual(locationFor(none), { kind: 'city-only', city: 'Ankara' });
 });
 
 test('neither announced: nothing at all', () => {
