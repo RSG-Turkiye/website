@@ -597,11 +597,11 @@ Append to `symposium_website/tests/editions.test.ts`:
 import { locationFor } from '../src/lib/editions';
 
 const withVenue = (venuePublic: boolean, cityPublic: boolean) =>
-  ({ venue: 'METU U3 Amphitheatre', venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
+  ({ venue: '<the hall, withheld until announced>', venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
 
 test('both public: hall and city are shown', () => {
   assert.deepEqual(locationFor(withVenue(true, true)),
-    { kind: 'full', venue: 'METU U3 Amphitheatre', city: 'Ankara' });
+    { kind: 'full', venue: '<the hall, withheld until announced>', city: 'Ankara' });
 });
 
 test('city announced, hall withheld: the city goes out alone', () => {
@@ -685,7 +685,7 @@ subtitle: "Immunoinformatics and mRNA Therapeutics"
 subtitleTr: "İmmünoinformatik ve mRNA Terapötikleri"
 startDate: 2026-10-10
 date: "10 October 2026"
-venue: "METU U3 Amphitheatre"
+venue: "<the hall, withheld until announced>"
 venueCity: "Ankara"
 venuePublic: false
 cityPublic: true

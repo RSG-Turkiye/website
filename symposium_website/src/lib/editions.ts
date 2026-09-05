@@ -109,7 +109,16 @@ export function locationFor(e: EditionLike): LocationDisplay {
   if (e.venuePublic && venue) {
     return { kind: "full", venue, city };
   }
-  if (venue && cityPublishable) {
+  // "Withheld" is decided by the flag, not by whether the hall's name happens
+  // to be sitting in this repository.
+  //
+  // It used to require the name to be present, which meant the only way to
+  // render "the city, and the hall later" was to commit the hall -- into a
+  // public repository, where the whole point was that nobody should read it
+  // yet. Now `venuePublic: false` says on its own that there is a hall and it
+  // is not being announced, the name stays wherever the organisers keep it,
+  // and it is typed in beside the flag on the day it becomes public.
+  if (!e.venuePublic && cityPublishable) {
     return { kind: "withheld", city };
   }
   if (cityPublishable) {
