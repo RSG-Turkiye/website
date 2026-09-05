@@ -1,5 +1,6 @@
 import type { Env } from '../_lib/auth';
 import { getSessionUser, jsonResponse, generateId, checkCsrf } from '../_lib/auth';
+import { optionalText, avatarUrl, MAX_INSTITUTION, MAX_BIO } from '../_lib/profile';
 
 const VALID_INTERESTS = new Set([
   'Genomics', 'Transcriptomics', 'Single-cell Analysis', 'Spatial Transcriptomics',
@@ -71,20 +72,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     'SELECT user_id FROM profiles WHERE user_id = ?'
   ).bind(user.id).first();
 
-  // Validate avatar_url is a Cloudinary URL if provided
-  const avatarUrl = body.avatar_url?.startsWith('https://res.cloudinary.com/')
-    ? body.avatar_url
-    : null;
+  // Bounded, because both are rendered in the members directory and the admin
+  // user table and neither had any limit at all -- a profile could carry as
+  // much text as a request would hold.
+  const institution = optionalText(body.institution, MAX_INSTITUTION, 'Institution');
+  if (!institution.ok) return jsonResponse({ error: institution.error }, 400);
+  const bio = optionalText(body.bio, MAX_BIO, 'Bio');
+  if (!bio.ok) return jsonResponse({ error: bio.error }, 400);
+
+  // Parsed rather than prefix-matched; see avatarUrl.
+  const avatar = avatarUrl(body.avatar_url);
 
   if (existing) {
     await env.DB.prepare(
       `UPDATE profiles SET username=?, display_name=?, institution=?, bio=?, avatar_url=?, updated_at=? WHERE user_id=?`
-    ).bind(username, displayName, body.institution ?? null, body.bio ?? null, avatarUrl, now, user.id).run();
+    ).bind(username, displayName, institution.value, bio.value, avatar, now, user.id).run();
   } else {
     await env.DB.prepare(
       `INSERT INTO profiles (user_id, username, display_name, institution, bio, avatar_url, card_template, is_public, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 'default', 1, ?)`
-    ).bind(user.id, username, displayName, body.institution ?? null, body.bio ?? null, avatarUrl, now).run();
+    ).bind(user.id, username, displayName, institution.value, bio.value, avatar, now).run();
   }
 
   // Replace interests

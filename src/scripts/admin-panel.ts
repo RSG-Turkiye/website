@@ -13,6 +13,7 @@
 
 import { useTranslations } from '../i18n/ui';
 import { RANK_LABELS, type Rank } from '../lib/badges';
+import { escapeHtml } from './escape-html';
 
 type Lang = 'en' | 'tr';
 
@@ -90,11 +91,7 @@ function formatDate(ts: number) {
   });
 }
 
-function escapeHtml(s: unknown): string {
-  return String(s).replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c] as string));
-}
+
 
 function renderAnnouncements(items: any[]) {
   const tbody = document.getElementById('announcementsTableBody')!;
@@ -235,9 +232,14 @@ function renderUsers(users: any[]) {
   empty.classList.add('hidden');
 
   tbody.innerHTML = users.map(u => {
-    const name = u.display_name || '—';
-    const username = u.username ? `@${u.username}` : `<span class="text-gray-300">${t('admin.user.noProfile')}</span>`;
-    const institution = u.institution ? `<span class="text-xs text-gray-500">${u.institution}</span>` : '';
+    // Escaped, all three. The email column below has always been escaped;
+    // these two were not, and a member controls both. A payload in either one
+    // runs in the admin's browser, where a same-origin fetch to
+    // /api/admin/users can hand its sender is_admin -- and a new account sorts
+    // to the top of this very list.
+    const name = escapeHtml(u.display_name || '—');
+    const username = u.username ? `@${escapeHtml(u.username)}` : `<span class="text-gray-300">${t('admin.user.noProfile')}</span>`;
+    const institution = u.institution ? `<span class="text-xs text-gray-500">${escapeHtml(u.institution)}</span>` : '';
     const memberBadge = u.is_member
       ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">${t('admin.badge.member')}</span>`
       : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">${t('admin.badge.pendingStatus')}</span>`;

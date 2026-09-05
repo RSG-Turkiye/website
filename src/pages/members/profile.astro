@@ -56,6 +56,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <script>
+  import { escapeHtml, safeAvatarUrl } from '../../scripts/escape-html';
   import { rankBadgeSvg, achievementBadgeSvg, achievementLabel } from '../../lib/badges.ts';
 
   // define:vars forces a script to run as a classic (non-module) script, which
@@ -104,7 +105,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     // Avatar
     const avatarWrap = document.getElementById('avatarWrap')!;
     if (m.avatar_url) {
-      avatarWrap.innerHTML = `<img src="${m.avatar_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />`;
+      avatarWrap.innerHTML = `<img src="${escapeHtml(safeAvatarUrl(m.avatar_url))}" alt="" style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />`;
     } else {
       const initial = (m.display_name || '?').charAt(0).toUpperCase();
       avatarWrap.innerHTML = `<div style="width:80px;height:80px;border-radius:50%;background:#e8edf5;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#0f2045;">${initial}</div>`;
