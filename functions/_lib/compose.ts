@@ -1,6 +1,6 @@
 import type { Env } from './auth';
 import { generateId } from './auth';
-import { buildMime, sendMail, GmailError, encodeAttachmentBody, type MimeAttachment } from './gmail';
+import { sendStreamedMail, GmailError, type MimeAttachmentRef } from './gmail';
 import { MAX_ATTACHMENT_BYTES } from './mail';
 import { renderBody } from './markdown';
 import { registerThread } from './conversations';
@@ -58,25 +58,34 @@ interface AttachmentRow {
   size_bytes: number;
 }
 
+/**
+ * An attachment the message can describe and the sender can stream, without
+ * anybody holding its bytes.
+ *
+ * `size` comes from R2 rather than from `mail_attachments.size_bytes`: the
+ * streaming upload must declare an exact Content-Length before it reads a
+ * byte, and a D1 column that had drifted from the object would fail every
+ * send with a length mismatch rather than merely being wrong.
+ */
+export interface ResolvedAttachment extends MimeAttachmentRef {
+  r2Key: string;
+  size: number;
+}
+
 export type AttachmentResolution =
-  | { ok: true; attachments: MimeAttachment[] }
+  | { ok: true; attachments: ResolvedAttachment[] }
   | { ok: false; code: string };
 
 /**
- * Encoded attachments already resolved in this invocation, keyed by
- * attachment id.
+ * Attachments already looked up in this invocation, keyed by attachment id.
  *
- * A mail-out sends the same file to everyone: one sponsorship round put a
- * 9.36 MB PDF on 32 scheduled emails. Resolving per email meant fetching that
- * PDF from R2 and base64-encoding it once per recipient -- roughly 190 MB of
- * encoding and 250 MB of resulting strings in a single dispatch, against a
- * 128 MB isolate. The invocation was killed with Cloudflare's 1102 before
- * most of the batch went out, and the queue crawled at about three mails per
- * five-minute tick.
- *
- * Pass one of these per dispatch and the file is fetched and encoded once.
+ * It used to hold the encoded bytes, which is how a 9.36 MB PDF on thirty-two
+ * queued mails became roughly 250 MB of strings in one dispatch against a
+ * 128 MB isolate. Now it holds a filename, a content type, an R2 key and a
+ * size -- a few hundred bytes -- so what it saves is two lookups rather than
+ * an encoding pass, and it can no longer be the reason an invocation dies.
  */
-export type AttachmentCache = Map<string, MimeAttachment>;
+export type AttachmentCache = Map<string, ResolvedAttachment>;
 
 export async function resolveAttachments(
   env: Env,
@@ -101,26 +110,31 @@ export async function resolveAttachments(
     return { ok: false, code: 'unknown_attachment' };
   }
 
-  const total = rows.results.reduce((sum, r) => sum + r.size_bytes, 0);
-  if (total > MAX_ATTACHMENT_BYTES) {
-    return { ok: false, code: 'attachments_too_large' };
-  }
-
-  const attachments: MimeAttachment[] = [];
+  const attachments: ResolvedAttachment[] = [];
+  let total = 0;
   for (const row of rows.results) {
-    const object = await env.MAIL_ATTACHMENTS.get(row.r2_key);
+    // head(), not get(): this needs the object's size and its existence, and
+    // nothing here reads a byte of it. The bytes are pulled by the sender, as
+    // it uploads them.
+    const object = await env.MAIL_ATTACHMENTS.head(row.r2_key);
     if (!object) return { ok: false, code: 'unknown_attachment' };
-    // Encode once here, not inside buildMime: buildMime runs once per
-    // recipient below, and re-encoding the same bytes for every recipient is
-    // both wasted work and, at the attachment size ceiling, a real risk of
-    // exhausting the Worker isolate's memory mid-loop.
-    const attachment: MimeAttachment = {
+
+    const attachment: ResolvedAttachment = {
       filename: row.filename,
       contentType: row.content_type,
-      base64Body: encodeAttachmentBody(new Uint8Array(await object.arrayBuffer())),
+      r2Key: row.r2_key,
+      size: object.size,
     };
+    total += object.size;
     cache?.set(row.id, attachment);
     attachments.push(attachment);
+  }
+
+  // Checked against what R2 actually holds rather than against the D1 column,
+  // for the same reason the size is taken from R2: the ceiling should describe
+  // the file that will be uploaded.
+  if (total > MAX_ATTACHMENT_BYTES) {
+    return { ok: false, code: 'attachments_too_large' };
   }
 
   return { ok: true, attachments };
@@ -159,7 +173,7 @@ async function insertLog(
 export async function sendAndLog(
   env: Env,
   input: ComposeInput,
-  attachments: MimeAttachment[],
+  attachments: ResolvedAttachment[],
 ): Promise<RecipientResult[]> {
   const results: RecipientResult[] = [];
 
@@ -171,22 +185,34 @@ export async function sendAndLog(
     let errorMessage: string | null = null;
 
     try {
-      const raw = buildMime({
-        fromAddress: env.RSG_MAIL_FROM,
-        // The recipient sees the organisation, not the individual. The member
-        // identifies themselves in the body; sent_emails records who sent what.
-        fromName: 'RSG Türkiye',
-        to: recipient,
-        // Replies go to the RSG mailbox so the team's correspondence stays in
-        // one place.
-        replyTo: env.RSG_MAIL_FROM,
-        subject: input.subject,
-        body: renderBody(input.body),
-        attachments,
-        inReplyTo: input.inReplyTo,
-        references: input.references,
-      });
-      const sent = await sendMail(env, raw, input.threadId);
+      const sent = await sendStreamedMail(
+        env,
+        {
+          fromAddress: env.RSG_MAIL_FROM,
+          // The recipient sees the organisation, not the individual. The member
+          // identifies themselves in the body; sent_emails records who sent what.
+          fromName: 'RSG Türkiye',
+          to: recipient,
+          // Replies go to the RSG mailbox so the team's correspondence stays in
+          // one place.
+          replyTo: env.RSG_MAIL_FROM,
+          subject: input.subject,
+          body: renderBody(input.body),
+          attachments,
+          inReplyTo: input.inReplyTo,
+          references: input.references,
+        },
+        // Read as the upload consumes it, per recipient. The same file is
+        // fetched once per message rather than held encoded for the whole
+        // tick -- an R2 read is cheap and 12.8 MB of resident string is not.
+        async (a) => {
+          const object = await env.MAIL_ATTACHMENTS.get(a.r2Key);
+          if (!object) throw new GmailError(`Attachment ${a.filename} disappeared from R2 mid-send`);
+          return object.body;
+        },
+        (a) => a.size,
+        input.threadId,
+      );
       gmailId = sent.id;
       gmailThreadId = sent.threadId;
     } catch (err) {

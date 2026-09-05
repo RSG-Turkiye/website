@@ -69,6 +69,13 @@ const BATCH = 20;
  * says nothing about which resource ran out, and three attempts to reason it
  * out from first principles were all wrong when measured. Move it on evidence
  * -- and now there is a table that supplies some.
+ *
+ * Since the sender streams its uploads, one message no longer costs anything
+ * like this: the measured peak is about 10 MB whatever the attachment weighs,
+ * against 123 MB for the assembled path. That makes this budget, the splitter
+ * and the cost multiplier belt to the streaming braces. They stay until
+ * dispatch_runs has shown a few days of ticks finishing under the new sender,
+ * because the cheap thing to do with a safety net is leave it up.
  */
 const BYTE_BUDGET = 40 * 1024 * 1024;
 
@@ -266,8 +273,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
  */
 async function tick(env: Env, now: number, runId: string | null): Promise<Response> {
   // Shared across every row in this batch: a mail-out sends one file to
-  // everyone, so it is fetched from R2 and encoded once rather than once per
-  // recipient.
+  // everyone, so its row and its R2 metadata are looked up once. It holds no
+  // bytes -- the sender streams the object as it uploads it -- so this saves
+  // two lookups per row and cannot itself be the reason an invocation dies,
+  // which the version that cached 12.8 MB of encoded string could.
   const attachmentCache: AttachmentCache = new Map();
 
   const candidates = await env.DB.prepare(
