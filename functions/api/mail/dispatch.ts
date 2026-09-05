@@ -1,7 +1,7 @@
 import type { Env } from '../../_lib/auth';
 import { jsonResponse } from '../../_lib/auth';
 import { checkRateLimit } from '../../_lib/mail';
-import { shouldGiveUp } from '../../_lib/schedule';
+import { shouldGiveUp, withinSendingWindow, SEND_WINDOW } from '../../_lib/schedule';
 import { planTick } from '../../_lib/mail-queue';
 import {
   resolveAttachments,
@@ -110,6 +110,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const secret = request.headers.get('X-Dispatch-Secret');
   if (!env.MAIL_SYNC_SECRET || secret !== env.MAIL_SYNC_SECRET) {
     return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
+  }
+
+  // The queue delivers during waking hours only. Cloudflare invokes this
+  // Worker whenever it likes -- on 2026-09-05 that was 04:10 and 07:38 in the
+  // morning -- and nobody chose those hours for their mail. Rows simply wait:
+  // nothing is attempted, so no attempt is recorded and the give-up clock
+  // does not start ticking through the night.
+  if (!withinSendingWindow(new Date())) {
+    return jsonResponse({
+      ok: true,
+      processed: 0,
+      sent: 0,
+      failed: 0,
+      retried: 0,
+      alreadySent: 0,
+      held: `outside ${SEND_WINDOW.startHour}:00-${SEND_WINDOW.endHour}:00 Europe/Istanbul`,
+    });
   }
 
   const now = Math.floor(Date.now() / 1000);

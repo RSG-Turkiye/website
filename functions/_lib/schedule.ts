@@ -33,3 +33,36 @@ export function shouldGiveUp(firstTriedAt: number | null, now: number): boolean 
   if (firstTriedAt === null) return false;
   return now - firstTriedAt > RETRY_WINDOW_SECONDS;
 }
+
+
+/**
+ * The hours the queue is allowed to deliver in, in Türkiye time.
+ *
+ * The backlog does not care what time it is, and on 2026-09-05 it delivered
+ * sponsorship mail at 04:10 and 07:38 in the morning. Nobody chose that hour;
+ * it is simply when Cloudflare happened to invoke the Worker. A recipient
+ * woken by an outreach email remembers who sent it.
+ *
+ * The window is generous rather than office hours -- someone scheduling for
+ * 08:05 meant 08:05 -- and it closes at ten in the evening.
+ */
+export const SEND_WINDOW = { startHour: 8, endHour: 22 } as const;
+
+/**
+ * Türkiye has been on UTC+3 all year round since 2016, with no daylight
+ * saving, so the offset is a constant rather than something to look up. If
+ * that ever changes this is the one place that needs to know.
+ */
+const TR_OFFSET_HOURS = 3;
+
+/**
+ * Whether the queue may deliver at `now`.
+ *
+ * Applies to the queue only. Someone pressing send themselves has chosen the
+ * moment, and it is not this code's place to overrule them; what it governs
+ * is mail going out unattended while its sender is asleep.
+ */
+export function withinSendingWindow(now: Date): boolean {
+  const hour = (now.getUTCHours() + TR_OFFSET_HOURS) % 24;
+  return hour >= SEND_WINDOW.startHour && hour < SEND_WINDOW.endHour;
+}
