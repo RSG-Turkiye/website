@@ -1,5 +1,6 @@
 ---
 title: "2018'in İlk Webinarı: Biyomoleküler Komplekslerin Bütünleştirici Modellemesi"
+translationKey: "integrative-modeling-of-biomolecular-complexes"
 date: 2018-01-31
 speaker: Ezgi Karaca
 speakerAffiliation: İzmir Biyotıp ve Genom Enstitüsü

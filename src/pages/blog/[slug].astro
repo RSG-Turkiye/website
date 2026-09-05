@@ -1,21 +1,21 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
+import { counterpartSlug } from '../../lib/translations';
 
 export async function getStaticPaths() {
   const all = await getCollection('blog', ({ data }) => !data.draft);
   const enPosts = all.filter(p => p.id.startsWith('en/'));
-  const allIds = new Set(all.map(p => p.id));
   return enPosts.map((post) => {
     const slug = post.id.slice(3); // strip 'en/'
     return {
       params: { slug },
-      props: { post, hasTrTranslation: allIds.has(`tr/${slug}`) },
+      props: { post, twinSlug: counterpartSlug(all, post.id, 'tr') },
     };
   });
 }
 
-const { post, hasTrTranslation } = Astro.props;
+const { post, twinSlug } = Astro.props;
 const { Content } = await render(post);
 const { title, pubDate, description, author, tags, image, category } = post.data;
 const slug = post.id.slice(3);
@@ -39,7 +39,7 @@ const articleJsonLd = {
 };
 ---
 
-<BaseLayout pageTitle={title} description={description} translationUrl={hasTrTranslation ? `/tr/blog/${slug}` : '/tr/blog'} translationExists={hasTrTranslation}>
+<BaseLayout pageTitle={title} description={description} translationUrl={twinSlug ? `/tr/blog/${twinSlug}` : '/tr/blog'} translationExists={twinSlug !== null}>
   <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} slot="head" />
 
   <article class="py-10 pb-16">
@@ -62,8 +62,8 @@ const articleJsonLd = {
               {author}
             </span>
           )}
-          {hasTrTranslation && (
-            <a href={`/tr/blog/${slug}`}
+          {twinSlug && (
+            <a href={`/tr/blog/${twinSlug}`}
               class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
               🇹🇷 Türkçe oku
             </a>

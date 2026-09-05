@@ -33,7 +33,9 @@ const ogImage = image || '/logo/rsgturkey_logo.png';
 const noindex = isNoindexPath(Astro.url.pathname);
 const site = Astro.site;
 const resolvedImageURL = new URL(ogImage, site).href;
-const alternates = translationExists === false ? null : alternatesFor(Astro.url.pathname);
+// translationUrl is the exact counterpart when a page knows it; without it
+// the pair is derived from the path, which assumes the slugs match.
+const alternates = translationExists === false ? null : alternatesFor(Astro.url.pathname, translationUrl);
 const alternateHref = (path: string) => new URL(path, site).href;
 ---
 <html lang={lang} data-lang={lang}>

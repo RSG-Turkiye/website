@@ -1,5 +1,6 @@
 ---
 title: "Computational Challenges in Protein-RNA Interactions"
+translationKey: "computational-challenges-protein-rna"
 date: 2022-06-14
 speaker: "Yaron Orenstein"
 speakerAffiliation: "Ben-Gurion University of the Negev"

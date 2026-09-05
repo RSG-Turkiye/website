@@ -49,15 +49,34 @@ function withSlash(path: string): string {
   return path === '/' ? '/' : path + '/';
 }
 
-export function alternatesFor(pathname: string): Alternates | null {
+/**
+ * `counterpart` is the exact path of the other language's version, for the
+ * pages where it cannot be derived.
+ *
+ * Deriving it by prefixing `/tr` assumes the two slugs are the same, and for
+ * almost every page they are. Six webinar translations were unreachable
+ * precisely because they were not: the Turkish file had a Turkish name.
+ * Pairing them by an explicit key fixed the language toggle and, without this
+ * argument, would have made things worse in a quieter way -- hreflang would
+ * have started being emitted for those pages and pointed at a URL that 404s,
+ * telling search engines a missing page was the Turkish version.
+ */
+export function alternatesFor(pathname: string, counterpart?: string): Alternates | null {
   const path = bare(pathname);
   if (isNoindexPath(path)) return null;
 
   const en = path.replace(/^\/tr(?=\/|$)/, '') || '/';
   if (UNPAIRED_PATHS.includes(en)) return null;
 
-  return {
+  const derived: Alternates = {
     en: withSlash(en),
     tr: withSlash(en === '/' ? '/tr' : '/tr' + en),
   };
+  if (!counterpart) return derived;
+
+  // The caller knows one side exactly; the other is the page we are on.
+  const other = withSlash(bare(counterpart));
+  return other.startsWith('/tr/') || other === '/tr/'
+    ? { en: withSlash(path), tr: other }
+    : { en: other, tr: withSlash(path) };
 }

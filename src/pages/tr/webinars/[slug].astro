@@ -1,21 +1,21 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
+import { counterpartSlug } from '../../../lib/translations';
 
 export async function getStaticPaths() {
   const all = await getCollection('webinars', ({ data }) => !data.draft);
   const trWebinars = all.filter(w => w.id.startsWith('tr/'));
-  const allIds = new Set(all.map(w => w.id));
   return trWebinars.map((webinar) => {
     const slug = webinar.id.slice(3); // strip 'tr/'
     return {
       params: { slug },
-      props: { webinar, hasEnTranslation: allIds.has(`en/${slug}`) },
+      props: { webinar, twinSlug: counterpartSlug(all, webinar.id, 'en') },
     };
   });
 }
 
-const { webinar, hasEnTranslation } = Astro.props;
+const { webinar, twinSlug } = Astro.props;
 const { Content } = await render(webinar);
 const { title, date, description, image, speaker, speakerTitle, speakerAffiliation, topic, keyTakeaways, youtubeUrl, slidesUrl } = webinar.data;
 const slug = webinar.id.slice(3);
@@ -25,7 +25,7 @@ const videoId = youtubeUrl
   : null;
 ---
 
-<BaseLayout pageTitle={title} translationUrl={hasEnTranslation ? `/webinars/${slug}` : '/webinars'} translationExists={hasEnTranslation}>
+<BaseLayout pageTitle={title} translationUrl={twinSlug ? `/webinars/${twinSlug}` : '/webinars'} translationExists={twinSlug !== null}>
   <div class="py-10 pb-16">
     <div class="max-w-7xl mx-auto px-6">
 
@@ -35,8 +35,8 @@ const videoId = youtubeUrl
           <span class="inline-block text-xs font-semibold uppercase tracking-widest px-2.5 py-1 rounded bg-red-tint text-red">Webinar</span>
           {topic && <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-navy-light text-navy-mid">{topic}</span>}
           <span class="text-sm text-gray-400">{date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-          {hasEnTranslation && (
-            <a href={`/webinars/${slug}`}
+          {twinSlug && (
+            <a href={`/webinars/${twinSlug}`}
               class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
               🇬🇧 Read in English
             </a>

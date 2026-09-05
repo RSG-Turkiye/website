@@ -1,5 +1,6 @@
 ---
 title: "Açık Öğrenci Webinarları"
+translationKey: "open-student-webinars"
 date: 2025-01-01
 speaker: "Öğrenci Sunucuları"
 speakerAffiliation: ""

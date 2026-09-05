@@ -1,6 +1,7 @@
 ---
 title: Integrative Modeling of Biomolecular Complexes
-date: 2017-12-31
+translationKey: "integrative-modeling-of-biomolecular-complexes"
+date: 2018-01-31
 speaker: Ezgi Karaca
 speakerAffiliation: Dokuz Eylül University
 speakerTitle: Associate Professor
