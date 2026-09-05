@@ -16,9 +16,16 @@ interface Props {
   levels: Level[];
   activeLevel: string;
   comingSoonText?: string; // "(soon)" / "(yakında)"
+  /** See ProgressBar: '' when the page provides the sticky container. */
+  stickyClass?: string;
 }
 
-const { levels, activeLevel, comingSoonText = '(soon)' } = Astro.props;
+const {
+  levels,
+  activeLevel,
+  comingSoonText = '(soon)',
+  stickyClass = 'sticky top-16 z-30',
+} = Astro.props;
 
 const levelDescriptions: Record<string, string> = {
   explorer:     'No prior experience required',
@@ -28,7 +35,7 @@ const levelDescriptions: Record<string, string> = {
 };
 ---
 
-<div class="sticky top-16 z-30 bg-white border-b border-border">
+<div class:list={[stickyClass, "bg-white border-b border-border"]}>
   <div class="max-w-4xl mx-auto px-6">
     <div class="flex items-end gap-1 overflow-x-auto no-scrollbar py-0">
       {levels.map(level => (

@@ -87,15 +87,22 @@ const levelsForScript = levels.map((level, li) => ({
     </div>
   </div>
 
-  <!-- ── Level switcher ── -->
-  <LevelSwitcher
-    levels={levels.map(l => ({ id: l.id, label: l.label, exists: l.exists }))}
-    activeLevel={defaultLevel}
-    comingSoonText="(yakında)"
-  />
-
-  <!-- ── Progress bar ── -->
-  <ProgressBar accentColor="navy" progressLabel="İlerlemeniz" resetLabel="Sıfırla" />
+  <!-- İki çubuk da yapışkan ve aynı yükseklikte yapışıyorlardı: ilerleme
+       çubuğunun z-index'i yüksek ve DOM'da sonra geliyor, dolayısıyla okuyucu
+       hero'yu geçer geçmez seviye sekmelerinin üstüne oturuyor ve seviye
+       değiştirmenin tek yolu görünmez ve tıklanamaz hâle geliyordu. İkisini
+       tek bir yapışkan kapsayıcıda üst üste koymak, sekme çubuğunun
+       yüksekliğiyle uyumlu tutulması gereken sabit bir sayı olmadan ikisini de
+       ekranda tutuyor. -->
+  <div class="sticky top-16 z-40">
+    <LevelSwitcher
+      levels={levels.map(l => ({ id: l.id, label: l.label, exists: l.exists }))}
+      activeLevel={defaultLevel}
+      comingSoonText="(yakında)"
+      stickyClass=""
+    />
+    <ProgressBar accentColor="navy" progressLabel="İlerlemeniz" resetLabel="Sıfırla" stickyClass="" />
+  </div>
 
   <!-- ── Level sections ── -->
   <div class="bg-white py-12">
