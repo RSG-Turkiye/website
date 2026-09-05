@@ -288,6 +288,14 @@ was marked in flight, before any Gmail call), `sent`. A tick stuck at
 `planned` and one stuck at `claimed` are dying in different places and need
 different fixes.
 
+A row is deleted only after every one of its recipients has been attempted, so
+an invocation killed halfway leaves one whose log says something went out under
+its id while most of the list is still waiting. The tick settles up before it
+plans anything: delivered addresses are subtracted, a row with nobody left is
+dequeued, and a narrowed one carries on. Reading that state either way round
+has cost us both errors already — a duplicate delivery on 4 September, and a
+row that would have written off two of its three recipients on the 5th.
+
 This table exists because on 2026-09-05 the queue stalled for six and a half
 hours and none of those three could be told apart: `wrangler tail` is the only
 live window onto a Pages Function, and it would not connect.

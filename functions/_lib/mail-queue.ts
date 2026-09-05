@@ -161,3 +161,28 @@ export function needsSplitting<T extends QueueRow>(
 export function splitRecipients(row: QueueRow): string[][] {
   return parseList(row.recipients).map((r) => [String(r)]);
 }
+
+/**
+ * The recipients of a row that still have mail owing.
+ *
+ * A queue row is deleted only after every one of its recipients has been
+ * attempted, so an invocation killed halfway leaves a row whose log says
+ * "something went out under this id" while most of the list is still waiting.
+ * Reading that as "already sent" and dropping the row is a silent loss: on
+ * 2026-09-05 one row had three recipients, one delivery logged against it, and
+ * two people who would never have been written to at all.
+ *
+ * Reading it the other way -- resending the row whole -- is the mistake that
+ * mailed one recipient the same sponsorship letter twice on 2026-09-04. The
+ * log knows exactly who was reached; the answer is to subtract them.
+ *
+ * Addresses are compared lowercased. Domains are case-insensitive by
+ * definition, mailbox names are case-sensitive by a letter of the standard
+ * that no mail provider in use here honours, and treating "A@x.org" as
+ * unsent because the log says "a@x.org" would send it twice -- the worse of
+ * the two errors.
+ */
+export function remainingRecipients(all: string[], alreadySent: string[]): string[] {
+  const done = new Set(alreadySent.map((address) => address.toLowerCase()));
+  return all.filter((address) => !done.has(address.toLowerCase()));
+}

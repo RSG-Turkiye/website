@@ -5,6 +5,7 @@ import {
   costOf,
   needsSplitting,
   splitRecipients,
+  remainingRecipients,
   COST_MULTIPLIER,
   type QueueRow,
 } from '../functions/_lib/mail-queue';
@@ -189,4 +190,36 @@ test('a hundred-megabyte budget is what took two heavy messages at once', () => 
   const due = [row('sude', ['big'], 1), row('sude', ['big'], 1)];
   assert.equal(planTick(due, { ...PLAN, byteBudget: 100 * MB }, sizeOf).length, 2);
   assert.equal(planTick(due, PLAN, sizeOf).length, 1);
+});
+
+// --- half-delivered rows ----------------------------------------------------
+
+test('the 2026-09-05 row: three recipients, one delivered, two still owed', () => {
+  // The invocation was killed after the first recipient and before the row
+  // was dequeued. Both of the obvious readings of that state are wrong.
+  const all = ['a@x.org', 'b@x.org', 'c@x.org'];
+  assert.deepEqual(remainingRecipients(all, ['a@x.org']), ['b@x.org', 'c@x.org']);
+});
+
+test('a row every recipient has had is finished', () => {
+  const all = ['a@x.org', 'b@x.org'];
+  assert.deepEqual(remainingRecipients(all, ['b@x.org', 'a@x.org']), []);
+});
+
+test('a row nothing went out under keeps everyone', () => {
+  const all = ['a@x.org', 'b@x.org'];
+  assert.deepEqual(remainingRecipients(all, []), all);
+});
+
+test('a delivered address is not sent again for differing in case', () => {
+  // Sending twice is the worse of the two errors, and it has already happened
+  // here once. Domains are case-insensitive by definition and no provider in
+  // use treats the mailbox name otherwise.
+  assert.deepEqual(remainingRecipients(['A@X.org'], ['a@x.org']), []);
+  assert.deepEqual(remainingRecipients(['a@x.org'], ['A@X.org']), []);
+});
+
+test('the order the recipients were given is kept', () => {
+  const all = ['c@x.org', 'a@x.org', 'b@x.org'];
+  assert.deepEqual(remainingRecipients(all, ['a@x.org']), ['c@x.org', 'b@x.org']);
 });
