@@ -3,6 +3,7 @@ import { jsonResponse } from '../../_lib/auth';
 import { checkRateLimit } from '../../_lib/mail';
 import { shouldGiveUp, withinSendingWindow, SEND_WINDOW } from '../../_lib/schedule';
 import { planTick } from '../../_lib/mail-queue';
+import { startRun, finishRun, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
 import {
   resolveAttachments,
   sendAndLog,
@@ -112,24 +113,45 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
   }
 
+  const now = Math.floor(Date.now() / 1000);
+
+  // Written before the tick does anything else, so a row that never gains a
+  // finished_at is an invocation that started and was killed -- which is what
+  // an isolate over its memory limit looks like from outside. Started even
+  // for a held tick, because on 2026-09-05 "the cron fired and deliberately
+  // did nothing" and "the cron did not fire at all" were indistinguishable,
+  // and they need opposite fixes. See dispatch-log.ts.
+  const runId = await startRun(env.DB, crypto.randomUUID(), now);
+
   // The queue delivers during waking hours only. Cloudflare invokes this
   // Worker whenever it likes -- on 2026-09-05 that was 04:10 and 07:38 in the
   // morning -- and nobody chose those hours for their mail. Rows simply wait:
   // nothing is attempted, so no attempt is recorded and the give-up clock
   // does not start ticking through the night.
   if (!withinSendingWindow(new Date())) {
-    return jsonResponse({
-      ok: true,
-      processed: 0,
-      sent: 0,
-      failed: 0,
-      retried: 0,
-      alreadySent: 0,
-      held: `outside ${SEND_WINDOW.startHour}:00-${SEND_WINDOW.endHour}:00 Europe/Istanbul`,
-    });
+    const held = `outside ${SEND_WINDOW.startHour}:00-${SEND_WINDOW.endHour}:00 Europe/Istanbul`;
+    await finishRun(env.DB, runId, now, { candidates: 0, planned: 0, sent: 0, failed: 0, retried: 0, alreadySent: 0, held });
+    return jsonResponse({ ok: true, processed: 0, sent: 0, failed: 0, retried: 0, alreadySent: 0, held });
   }
 
-  const now = Math.floor(Date.now() / 1000);
+  try {
+    return await tick(env, now, runId);
+  } catch (err) {
+    // Recorded, then re-raised unchanged: the caller still sees the 500 and
+    // the Worker still logs a failed invocation. The counts stay NULL because
+    // a tick that threw does not know them.
+    await finishRun(env.DB, runId, Math.floor(Date.now() / 1000), {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+};
+
+/**
+ * One pass over the queue. Split out from the handler above only so the
+ * handler can wrap it in a single try/catch without re-indenting all of it.
+ */
+async function tick(env: Env, now: number, runId: string | null): Promise<Response> {
   // Shared across every row in this batch: a mail-out sends one file to
   // everyone, so it is fetched from R2 and encoded once rather than once per
   // recipient.
@@ -352,5 +374,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
+  // `candidates` is the count the 2026-09-05 stall needed and did not have:
+  // rows were due all afternoon, so a tick reporting zero candidates would
+  // have pointed straight at the query rather than at the sending.
+  await finishRun(env.DB, runId, Math.floor(Date.now() / 1000), {
+    candidates: candidates.results.length,
+    planned: due.results.length,
+    sent,
+    failed,
+    retried,
+    alreadySent,
+  });
+  // Hourly rather than every minute; see isPruneTick.
+  if (isPruneTick(now)) await pruneRuns(env.DB, now);
+
   return jsonResponse({ ok: true, processed: due.results.length, sent, failed, retried, alreadySent });
-};
+}
