@@ -41,7 +41,10 @@ const alternateHref = (path: string) => new URL(path, site).href;
 <html lang={lang} data-lang={lang}>
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/png" href="/logo/rsgturkey_logo_white.png" />
+    <!-- 64px, not the 1280x1280 original: this is drawn in a browser tab at
+         16 or 32 pixels and the full-size logo cost 377 KB on every first
+         visit. public/favicon.svg is Astro's default logo, not ours. -->
+    <link rel="icon" type="image/png" href="/logo/favicon-64.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
     <title>{pageTitle} | RSG Turkiye</title>
