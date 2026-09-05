@@ -262,6 +262,29 @@ treats it as *restricted* rather than merely sensitive.
    cd workers/mail-cron && npx wrangler deploy
    ```
 
+#### When the queue looks stuck
+
+Every dispatch tick writes a row to `dispatch_runs`, and the row is written in
+two parts: inserted when the tick starts, updated when it ends. Read it before
+guessing:
+
+```
+npx wrangler d1 execute rsg-members --remote --command="SELECT datetime(started_at,'unixepoch','+3 hours') tr, finished_at IS NOT NULL done, candidates, planned, sent, failed, held, error FROM dispatch_runs ORDER BY started_at DESC LIMIT 20"
+```
+
+Three answers, three different problems:
+
+| What you see | What it means |
+| --- | --- |
+| No rows for the stalled period | The tick never ran. The cron Worker or its call to this endpoint is the problem, not the queue. |
+| Rows with `done = 0` | The tick started and was killed mid-way — a Worker over its 128 MB isolate limit looks exactly like this. |
+| Rows with `candidates = 0` while mail is queued | The tick ran and found nothing due. The candidate query or the clock is wrong, not the sending. |
+| `held` set | The tick deliberately did nothing, outside the 08:00–22:00 sending window. |
+
+This table exists because on 2026-09-05 the queue stalled for six and a half
+hours and none of those three could be told apart: `wrangler tail` is the only
+live window onto a Pages Function, and it would not connect.
+
 **What the site can and cannot see.** The sync only ever fetches threads
 recorded in `mail_threads`, and a row lands there only when the site itself
 sends a message. No page, endpoint or helper lists the mailbox, so the rest

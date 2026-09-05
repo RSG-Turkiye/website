@@ -122,6 +122,15 @@
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE scheduled_emails ADD COLUMN claimed_at INTEGER"
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE sent_emails ADD COLUMN scheduled_id TEXT"
 --
+-- 7h. The dispatch_runs table below is new and created with IF NOT EXISTS, so
+--     re-running this file applies it and nothing else has to change. It must
+--     exist before the dispatch code that writes to it deploys, or every tick
+--     logs nothing -- the writes are wrapped and swallowed, so mail still
+--     goes out, but the diagnostics the table exists for are silently absent:
+--       wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--     or, to add just this table:
+--       wrangler d1 execute rsg-members --remote --command="CREATE TABLE IF NOT EXISTS dispatch_runs (id TEXT PRIMARY KEY, started_at INTEGER NOT NULL, finished_at INTEGER, candidates INTEGER, planned INTEGER, sent INTEGER, failed INTEGER, retried INTEGER, already_sent INTEGER, held TEXT, error TEXT)"
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -391,6 +400,30 @@ CREATE TABLE IF NOT EXISTS scheduled_emails (
 
 CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due ON scheduled_emails(scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_scheduled_emails_sender ON scheduled_emails(sender_user_id);
+
+-- What each dispatch tick did. Written by functions/api/mail/dispatch.ts and
+-- read by nothing -- it exists to be queried by hand when the queue misbehaves.
+--
+-- Two-phase on purpose: the row is inserted when the tick starts and updated
+-- when it ends, so `finished_at IS NULL` marks an invocation that began and
+-- never came back. On 2026-09-05 the queue stalled for six and a half hours
+-- and there was no way to tell that case apart from "the cron never fired",
+-- which needs the opposite fix. Rows older than a week are deleted by the
+-- tick itself, once an hour.
+CREATE TABLE IF NOT EXISTS dispatch_runs (
+  id            TEXT PRIMARY KEY,
+  started_at    INTEGER NOT NULL,
+  finished_at   INTEGER,
+  candidates    INTEGER,
+  planned       INTEGER,
+  sent          INTEGER,
+  failed        INTEGER,
+  retried       INTEGER,
+  already_sent  INTEGER,
+  held          TEXT,
+  error         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_dispatch_runs_started ON dispatch_runs(started_at);
 
 -- Conversations: the threads the site started, and their messages.
 --
