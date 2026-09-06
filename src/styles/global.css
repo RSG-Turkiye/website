@@ -1,6 +1,6 @@
-/* Google Fonts must come before @import "tailwindcss" */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
-
+/* Inter is loaded from the document head, not from here -- an @import in a
+   stylesheet the browser has not finished fetching cannot start until it
+   has. See the layout. */
 @import "tailwindcss";
 
 /* ============================================
