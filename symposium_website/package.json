@@ -17,11 +17,13 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
     "@tailwindcss/vite": "^4.2.2",
     "cloudinary": "^2.6.1",
     "node-html-parser": "^7.0.2",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
-    "turndown": "^7.2.2"
+    "turndown": "^7.2.2",
+    "typescript": "^5.9.3"
   }
 }
