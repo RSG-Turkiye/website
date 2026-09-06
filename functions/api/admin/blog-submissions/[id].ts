@@ -1,6 +1,7 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../../_lib/auth';
 import { openContentPR, fileExistsOnBaseBranch } from '../../../_lib/github';
+import { tagsFromRow } from '../../../_lib/blog-submission';
 
 type SubmissionRow = {
   id: string;
@@ -24,7 +25,11 @@ type ActionBody =
 
 function buildFrontmatter(row: SubmissionRow, now: number): string {
   const pubDate = new Date(now * 1000).toISOString().slice(0, 10);
-  const tags = JSON.parse(row.tags) as string[];
+  // Defensive on the way out as well as in. Rows written before the create
+  // path validated anything are still here, and a row that can never be
+  // approved -- every attempt a raw 500 with no error to show the admin -- is
+  // worse than a row published without its tags.
+  const tags = tagsFromRow(row.tags);
   const lines = [
     '---',
     `title: ${JSON.stringify(row.title)}`,
