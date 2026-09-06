@@ -74,7 +74,9 @@ const toggleUrl = translationUrl ?? (alternates ? (lang === "en" ? alternates.tr
       </>
     )}
 
-    <link rel="icon" type="image/png" href="/logo/rsgturkey_logo.png" />
+    <!-- 64px, not the 1280x1280 original: a browser tab draws this at 16 or
+         32 pixels and the full-size logo cost 598 KB on every first visit. -->
+    <link rel="icon" type="image/png" href="/logo/favicon-64.png" />
   </head>
   <body>
     <Header lang={lang} translationUrl={toggleUrl} navState={navState} />
