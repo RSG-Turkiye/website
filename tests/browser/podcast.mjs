@@ -21,6 +21,7 @@
  *   - pause and resume
  *   - crossing languages keeps the audio and moves the labels
  *   - dismissing stops it, and is remembered
+ *   - the timeline seeks by click, drag and arrow key, and survives navigation
  */
 import { chromium } from 'playwright';
 const BASE = 'http://localhost:4321';
@@ -101,6 +102,86 @@ if (!s.hidden) bad.push('kapanmadı'); else console.log('   kapandı ✓, ses pa
 await page.goto(BASE + '/', { waitUntil: 'networkidle' }); await page.waitForTimeout(900);
 s = await A();
 if (!s.hidden) bad.push('kapatma hatırlanmadı'); else console.log('   yeni sayfada da kapalı ✓');
+
+
+// --- the timeline -----------------------------------------------------------
+
+{
+
+
+  const T = () => page.evaluate(() => {
+    const a = document.getElementById('podcastAudio');
+    const s = document.getElementById('podcastSeek');
+    return { t: Number(a.currentTime.toFixed(1)), dur: Number((a.duration||0).toFixed(0)),
+             paused: a.paused, disabled: s?.disabled, val: Number(Number(s?.value).toFixed(1)),
+             max: Number(Number(s?.max).toFixed(0)),
+             progress: s?.style.getPropertyValue('--progress'),
+             valuetext: s?.getAttribute('aria-valuetext') };
+  });
+
+  await page.goto(BASE + '/podcast/', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+  console.log('1) hiçbir şey yüklenmemişken timeline devre dışı olmalı');
+  let q = await T(); console.log('  ', JSON.stringify(q));
+  if (!q.disabled) bad.push('yüklenmemişken timeline etkin');
+
+  console.log('2) bölümü başlat');
+  await page.locator('.episode-play').first().click();
+  await page.waitForTimeout(3000);
+  q = await T(); console.log('  ', JSON.stringify(q));
+  if (q.disabled) bad.push('süre bilindiği hâlde timeline devre dışı');
+  if (q.max < 3000) bad.push('max süreye ayarlanmadı: ' + q.max);
+  if (!q.progress || q.progress === '0%') bad.push('kırmızı çizgi ilerlemiyor: ' + q.progress);
+  if (!q.valuetext?.includes('/')) bad.push('aria-valuetext yok: ' + q.valuetext);
+
+  console.log('3) çizginin ortasına tıkla — ileri atlamalı');
+  const box = await page.locator('#podcastSeek').boundingBox();
+  console.log('   kutu:', JSON.stringify({w: Math.round(box.width), h: Math.round(box.height), y: Math.round(box.y)}));
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height / 2);
+  await page.waitForTimeout(1200);
+  q = await T(); console.log('  ', JSON.stringify(q));
+  if (q.t < q.dur * 0.4 || q.t > q.dur * 0.6) bad.push(`ortaya atlamadı: ${q.t}/${q.dur}`);
+  else console.log(`   ATLADI: ${q.t}s / ${q.dur}s (~%${Math.round(q.t/q.dur*100)})`);
+
+  console.log('4) geri al — %20');
+  await page.mouse.click(box.x + box.width * 0.2, box.y + box.height / 2);
+  await page.waitForTimeout(1200);
+  q = await T();
+  if (q.t > q.dur * 0.3) bad.push(`geri alamadı: ${q.t}`);
+  else console.log(`   GERİ ALDI: ${q.t}s (~%${Math.round(q.t/q.dur*100)})`);
+
+  console.log('5) klavye: ok tuşuyla ilerlet');
+  await page.locator('#podcastSeek').focus();
+  const beforeKey = (await T()).t;
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(900);
+  q = await T();
+  if (q.t < beforeKey + 25) bad.push(`ok tuşu 10sn adımlarla ilerletmedi: ${beforeKey} -> ${q.t}`);
+  else console.log(`   KLAVYE ÇALIŞTI: ${beforeKey}s -> ${q.t}s`);
+
+  console.log('6) sürükle — timeupdate elden çekmemeli');
+  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height / 2);
+  await page.mouse.down();
+  for (const f of [0.72, 0.75, 0.78, 0.8]) { await page.mouse.move(box.x + box.width * f, box.y + box.height/2); await page.waitForTimeout(180); }
+  const during = await T();
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+  q = await T();
+  console.log(`   sürükleme sırasında ${during.t}s, bırakınca ${q.t}s`);
+  if (Math.abs(q.t - during.t) > 3) bad.push(`bırakınca konum kaydı: ${during.t} -> ${q.t}`);
+  if (q.t < q.dur * 0.7) bad.push(`sürükleme hedefe götürmedi: ${q.t}/${q.dur}`);
+
+  console.log('7) gezindikten sonra timeline hâlâ doğru');
+  await page.locator('a[href$="/blog"]:visible').first().click();
+  await page.waitForTimeout(1600);
+  q = await T(); console.log('  ', JSON.stringify(q));
+  if (q.disabled) bad.push('gezinmeden sonra timeline devre dışı kaldı');
+  if (q.max < 3000) bad.push('gezinmeden sonra max sıfırlandı');
+  if (!q.progress || parseFloat(q.progress) < 60) bad.push('gezinmeden sonra ilerleme kayboldu: ' + q.progress);
+
+
+
+}
 
 console.log('\n=== SONUÇ ===');
 console.log(bad.length ? bad.map(b => ' ✗ ' + b).join('\n') : ' hepsi geçti');

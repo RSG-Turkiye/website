@@ -40,6 +40,15 @@ const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
 ---
 
 {latest && (
+  /*
+   * No `relative` in the class list, though the timeline is positioned
+   * absolutely against this element. Both utilities set `position`, the
+   * cascade decides which wins rather than the order they are written in, and
+   * adding `relative` took `fixed` away: the bar stopped being pinned to the
+   * viewport and sank to the bottom of the document -- 1439px down a 900px
+   * window, where nothing could click it. A fixed element is already a
+   * containing block for its absolutely positioned children.
+   */
   <div
     id="podcastStrip"
     hidden
@@ -49,10 +58,34 @@ const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
     data-latest-title={latest.title}
     data-latest-audio={latest.audioUrl}
   >
-    <!-- Progress, as a hairline across the top of the bar. -->
-    <div class="h-0.5 bg-white/10">
-      <div id="podcastProgress" class="h-full bg-red w-0 transition-[width] duration-300"></div>
-    </div>
+    <!--
+      The timeline: a red hairline along the top edge, and how a listener
+      moves around inside an episode.
+
+      A range input rather than a div with a click handler, because a range
+      input already is this control: dragging, click-to-jump, arrow keys, Home
+      and End, a focus ring, and a screen reader that announces a position.
+      Rebuilding that on a <div role="slider"> would be a lot of code to
+      arrive back where the browser started.
+
+      Two pieces of shaping. The visible line is two pixels but the element is
+      fourteen, sitting half above the bar's top edge, because a two-pixel
+      target cannot be hit with a mouse and certainly not with a thumb -- the
+      line is the appearance, the padding is the control. And the filled part
+      is painted with a gradient set from script: WebKit has no pseudo-element
+      for the portion left of the thumb, so there is nothing to style.
+    -->
+    <input
+      id="podcastSeek"
+      type="range"
+      min="0"
+      max="0"
+      step="1"
+      value="0"
+      disabled
+      aria-label={t('podcast.seek')}
+      class="podcast-seek absolute -top-1.5 left-0 w-full h-3.5 m-0 p-0 appearance-none bg-transparent cursor-pointer disabled:cursor-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+    />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-[54px] flex items-center gap-3">
       <button
@@ -158,7 +191,7 @@ const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
 
     const iconPlay = document.getElementById('podcastIconPlay');
     const iconPause = document.getElementById('podcastIconPause');
-    const progress = document.getElementById('podcastProgress');
+    const seek = document.getElementById('podcastSeek') as HTMLInputElement | null;
     const time = document.getElementById('podcastTime');
     const title = document.getElementById('podcastTitle');
     const close = document.getElementById('podcastStripClose');
@@ -172,6 +205,13 @@ const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
     }
     if (!dismissed) show(strip);
 
+    /**
+     * True while a finger or pointer is on the timeline. The audio goes on
+     * firing timeupdate throughout a drag, and letting it write back into the
+     * input would drag the handle out from under the person holding it.
+     */
+    let scrubbing = false;
+
     /** Draw the audio's state into this page's bar. */
     const render = () => {
       const playing = !audio.paused && !audio.ended;
@@ -180,14 +220,76 @@ const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
       toggle.setAttribute('aria-label', playing ? strip.dataset.pause ?? '' : strip.dataset.play ?? '');
       // The episode being played, which the fresh bar does not otherwise know.
       if (title && audio.dataset.title) title.textContent = audio.dataset.title;
-      if (progress) {
-        progress.style.width = audio.duration > 0 ? `${(audio.currentTime / audio.duration) * 100}%` : '0';
+
+      const known = Number.isFinite(audio.duration) && audio.duration > 0;
+      if (seek) {
+        seek.disabled = !known;
+        if (known) {
+          seek.max = String(audio.duration);
+          if (!scrubbing) seek.value = String(audio.currentTime);
+          paintSeek(Number(seek.value), audio.duration);
+        } else {
+          seek.max = '0';
+          seek.value = '0';
+          paintSeek(0, 0);
+        }
       }
-      if (time && audio.duration > 0) {
+      if (time && known) {
         time.textContent = `${mm(audio.currentTime)} / ${mm(audio.duration)}`;
       }
     };
     audio.redraw = render;
+
+    /**
+     * The filled portion, and what a screen reader is told. `value` is a
+     * number of seconds, which announced on its own would be read out as a
+     * bare figure; aria-valuetext makes it a time.
+     */
+    function paintSeek(at: number, of: number) {
+      if (!seek) return;
+      seek.style.setProperty('--progress', of > 0 ? `${Math.min(100, (at / of) * 100)}%` : '0%');
+      // Nothing loaded: no position to announce. Saying "0:00 / 0:01" would be
+      // a screen reader reading out a duration this player has not been told.
+      if (of > 0) seek.setAttribute('aria-valuetext', `${mm(at)} / ${mm(of)}`);
+      else seek.removeAttribute('aria-valuetext');
+    }
+
+    if (seek) {
+      // `input` fires throughout a drag, so the audio follows the handle
+      // rather than jumping once it is released.
+      seek.addEventListener('input', () => {
+        const to = Number(seek.value);
+        if (Number.isFinite(to)) audio.currentTime = to;
+        paintSeek(to, audio.duration || 1);
+        if (time && audio.duration > 0) time.textContent = `${mm(to)} / ${mm(audio.duration)}`;
+      });
+      for (const event of ['pointerdown', 'touchstart']) {
+        seek.addEventListener(event, () => { scrubbing = true; });
+      }
+      for (const event of ['pointerup', 'pointercancel', 'touchend', 'blur']) {
+        seek.addEventListener(event, () => { scrubbing = false; });
+      }
+
+      /**
+       * Arrow keys move by ten seconds, not by one step.
+       *
+       * A range input's arrow key moves one `step`, and `step` also decides
+       * how finely a drag can land -- so a step small enough to scrub with is
+       * far too small to walk with. On a fifty-one minute episode the default
+       * moved a second per press, which is not a way to get anywhere. Ten
+       * seconds is the skip every podcast app uses; Home and End still jump to
+       * the ends, and the browser handles those.
+       */
+      seek.addEventListener('keydown', (event) => {
+        const step = event.key === 'ArrowRight' ? 10 : event.key === 'ArrowLeft' ? -10 : 0;
+        if (step === 0 || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+        event.preventDefault();
+        const to = Math.min(audio.duration, Math.max(0, audio.currentTime + step));
+        audio.currentTime = to;
+        seek.value = String(to);
+        paintSeek(to, audio.duration);
+      });
+    }
 
     const start = () => void audio.play().catch(() => {});
 
@@ -260,3 +362,85 @@ const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
 
   document.addEventListener('astro:page-load', setUp);
 </script>
+
+<style>
+  /*
+    The timeline. Everything here shapes one range input into a hairline: the
+    element is 14px tall so it can be hit, the track it draws is 2px.
+
+    Firefox fills the played portion itself, through ::-moz-range-progress.
+    WebKit has no equivalent, so the filled part is a gradient whose stop
+    comes from --progress, which the script sets on the element -- custom
+    properties reach pseudo-elements, and nothing else does.
+  */
+  .podcast-seek::-webkit-slider-runnable-track {
+    height: 2px;
+    border-radius: 1px;
+    background: linear-gradient(
+      to right,
+      var(--color-red) var(--progress, 0%),
+      rgba(255, 255, 255, 0.22) var(--progress, 0%)
+    );
+  }
+
+  .podcast-seek::-moz-range-track {
+    height: 2px;
+    border-radius: 1px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .podcast-seek::-moz-range-progress {
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-red);
+  }
+
+  /*
+    The handle stays out of the way until it is wanted. A dot parked on the
+    top edge of every page is noise; one that appears when the pointer is near
+    or the control has focus is an affordance.
+  */
+  .podcast-seek::-webkit-slider-thumb {
+    appearance: none;
+    width: 11px;
+    height: 11px;
+    margin-top: -4.5px;
+    border-radius: 50%;
+    background: var(--color-red);
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+
+  .podcast-seek::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--color-red);
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+
+  .podcast-seek:hover::-webkit-slider-thumb,
+  .podcast-seek:focus-visible::-webkit-slider-thumb {
+    opacity: 1;
+  }
+
+  .podcast-seek:hover::-moz-range-thumb,
+  .podcast-seek:focus-visible::-moz-range-thumb {
+    opacity: 1;
+  }
+
+  /* Nothing loaded yet: the line is there, but it is not a control. */
+  .podcast-seek:disabled::-webkit-slider-thumb,
+  .podcast-seek:disabled::-moz-range-thumb {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .podcast-seek::-webkit-slider-thumb,
+    .podcast-seek::-moz-range-thumb {
+      transition: none;
+    }
+  }
+</style>
