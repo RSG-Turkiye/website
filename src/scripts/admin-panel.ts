@@ -241,7 +241,7 @@ function renderUsers(users: any[]) {
     // /api/admin/users can hand its sender is_admin -- and a new account sorts
     // to the top of this very list.
     const name = escapeHtml(u.display_name || '—');
-    const username = u.username ? `@${escapeHtml(u.username)}` : `<span class="text-gray-300">${t('admin.user.noProfile')}</span>`;
+    const username = u.username ? `@${escapeHtml(u.username)}` : `<span class="text-gray-500">${t('admin.user.noProfile')}</span>`;
     const institution = u.institution ? `<span class="text-xs text-gray-500">${escapeHtml(u.institution)}</span>` : '';
     const memberBadge = u.is_member
       ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">${t('admin.badge.member')}</span>`

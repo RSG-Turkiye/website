@@ -162,11 +162,32 @@
   color: var(--color-navy);
 }
 
+/* An embed an author pasted, at whatever width the source suggested. One post
+   carries a Google Form at width="700", which on a 360px phone scrolls the
+   whole page sideways. `pre` was given this treatment and iframes were
+   missed. */
+.post-content iframe {
+  max-width: 100%;
+}
+
+/* Tables were missed for the same reason. A three-column table whose third
+   column is bare 100-character URLs cannot be made to fit, so the table gets
+   its own scrollbar rather than giving one to the page -- and long words break
+   instead of pushing the column wider. */
 .post-content table {
   width: 100%;
   border-collapse: collapse;
   margin: 1.5rem 0;
   font-size: 0.9rem;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.post-content td,
+.post-content th {
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .post-content th,

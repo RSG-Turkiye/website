@@ -88,7 +88,7 @@ const allSections = [
 
         <!-- Sticky sidebar -->
         <aside class="hidden lg:flex flex-col gap-1 sticky top-8">
-          <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Sections</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Sections</p>
           {sections.map(s => (
             <a href={`#${s.id}`} data-nav={s.id}
               class="nav-link text-sm text-gray-500 hover:text-navy py-1.5 border-l-2 border-transparent hover:border-navy pl-3 no-underline transition-all duration-150">
@@ -98,7 +98,7 @@ const allSections = [
 
           <!-- Search -->
           <div class="mt-6 pt-5 border-t border-border">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Search</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Search</p>
             <input
               id="resourceSearch"
               type="text"
@@ -112,22 +112,38 @@ const allSections = [
             <span class="inline-flex items-center gap-1.5 text-xs text-green-700 font-medium px-2 py-1 rounded bg-green-50 border border-green-200">
               ✓ Open Source
             </span>
-            <p class="text-xs text-gray-400 mt-1.5 leading-relaxed">Freely available or open-source tools and materials.</p>
+            <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">Freely available or open-source tools and materials.</p>
           </div>
 
           <!-- No results -->
-          <p id="noResults" class="hidden text-xs text-gray-400 mt-4 italic">No matches found.</p>
+          <p id="noResults" class="hidden text-xs text-gray-500 mt-4 italic">No matches found.</p>
         </aside>
 
         <!-- Main content -->
         <div class="flex flex-col gap-16" id="resourceContent">
+          <!-- The active filter, and the way out of it.
+               Tapping a tag chip filters the list, and the search box that
+               would undo it lives in a sidebar that is `hidden lg:flex` -- so
+               below 1024px a reader could start a filter and had no way to
+               clear it but a page reload, with no message when nothing
+               matched. This sits in the main column, at every width. -->
+          <div id="activeFilter" class="hidden items-center gap-3 rounded-xl border border-border bg-navy-light px-4 py-3">
+            <p class="text-sm text-navy min-w-0 flex-1">
+              Showing matches for <span id="activeFilterTerm" class="font-semibold"></span>
+            </p>
+            <button id="clearFilter" type="button"
+              class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border border-navy-mid text-navy-mid hover:bg-navy hover:text-white transition-colors">
+              Clear
+            </button>
+          </div>
+          <p id="noResultsMain" class="hidden text-sm text-gray-500 italic">No matches found.</p>
           {allSections.map(section => (
             <div id={section.id} class="resource-section">
               <div class="flex items-baseline gap-3 mb-6">
                 <h2 class="text-lg font-semibold text-navy pb-2 border-b-2 border-navy inline-block">
                   {section.label}
                 </h2>
-                <span class="section-count text-xs font-medium text-gray-400 tabular-nums">
+                <span class="section-count text-xs font-medium text-gray-500 tabular-nums">
                   {section.items.length} resources
                 </span>
               </div>
@@ -179,6 +195,27 @@ const allSections = [
   const cards       = Array.from(document.querySelectorAll<HTMLElement>('.resource-card'));
   const sections    = Array.from(document.querySelectorAll<HTMLElement>('.resource-section'));
 
+  // Keeps the banner and the search box saying the same thing, whichever the
+  // reader used.
+  const activeFilter = document.getElementById('activeFilter');
+  const activeFilterTerm = document.getElementById('activeFilterTerm');
+  const noResultsMain = document.getElementById('noResultsMain');
+  const clearFilter = document.getElementById('clearFilter');
+
+  function showFilterState(term: string, anyMatch: boolean) {
+    if (activeFilter) {
+      activeFilter.classList.toggle('hidden', term === '');
+      activeFilter.classList.toggle('flex', term !== '');
+    }
+    if (activeFilterTerm) activeFilterTerm.textContent = term;
+    if (noResultsMain) noResultsMain.classList.toggle('hidden', term === '' || anyMatch);
+  }
+
+  clearFilter?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    filterResources('');
+  });
+
   function filterResources(term: string) {
     let anyVisible = false;
     cards.forEach(card => {
@@ -200,6 +237,7 @@ const allSections = [
     });
 
     noResults.classList.toggle('hidden', anyVisible);
+    showFilterState(term, anyVisible);
   }
 
   searchInput?.addEventListener('input', e => {

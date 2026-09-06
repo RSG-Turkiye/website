@@ -70,7 +70,7 @@ const levelColors: Record<string, string> = {
         'text-xs px-2 py-0.5 rounded-full border font-medium',
         level.exists
           ? levelColors[level.id] ?? 'bg-navy-light text-navy-mid border-[#C4CEEA]'
-          : 'bg-gray-50 text-gray-300 border-gray-200',
+          : 'bg-gray-50 text-gray-500 border-gray-200',
       ]}>
         {level.label}
         {!level.exists && <span class="ml-0.5 opacity-60">·</span>}

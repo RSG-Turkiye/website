@@ -39,12 +39,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid" />
           <textarea id="mailBody" required rows="14" maxlength="20000" placeholder="Write your message"
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus:border-navy-mid"></textarea>
-          <p class="text-xs text-gray-400 -mt-1">
+          <p class="text-xs text-gray-500 -mt-1">
             Links: <code class="text-navy">[text](https://address)</code> &middot;
             bold: <code class="text-navy">**word**</code> &middot;
             bullet list: lines starting with <code class="text-navy">-</code>
           </p>
-          <p class="text-xs text-gray-400 -mt-1">
+          <p class="text-xs text-gray-500 -mt-1">
             The recipient sees only &ldquo;RSG Turkiye&rdquo; as the sender, so sign off with your
             name and role at the end of your message.
           </p>
@@ -72,7 +72,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               class="px-5 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors disabled:opacity-50">
               Send
             </button>
-            <span id="sendStatus" class="text-xs text-gray-400"></span>
+            <span id="sendStatus" class="text-xs text-gray-500"></span>
           </div>
         </form>
 
@@ -88,13 +88,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             </label>
           </div>
           <div id="queuedList" class="flex flex-col gap-2"></div>
-          <p id="queuedEmpty" class="hidden text-sm text-gray-400">Nothing queued.</p>
+          <p id="queuedEmpty" class="hidden text-sm text-gray-500">Nothing queued.</p>
         </div>
 
         <div class="bg-white rounded-2xl border border-border shadow-sm p-6">
           <h2 class="text-sm font-semibold text-navy mb-3">My sent mail</h2>
           <div id="historyList" class="flex flex-col gap-2"></div>
-          <p id="historyEmpty" class="hidden text-sm text-gray-400">Nothing sent yet.</p>
+          <p id="historyEmpty" class="hidden text-sm text-gray-500">Nothing sent yet.</p>
         </div>
       </div>
     </div>
@@ -160,7 +160,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <div class="flex items-start justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
         <div class="min-w-0">
           <div class="text-navy truncate">${escapeHtml(s.subject)}</div>
-          <div class="text-xs text-gray-400">${escapeHtml(s.recipient_email)} · ${formatDate(s.sent_at)}</div>
+          <div class="text-xs text-gray-500">${escapeHtml(s.recipient_email)} · ${formatDate(s.sent_at)}</div>
           ${s.status === 'failed' ? `<div class="text-xs text-red-600 mt-0.5">${escapeHtml(s.error_message)}</div>` : ''}
         </div>
         <span class="shrink-0 text-xs px-2 py-0.5 rounded-full ${
@@ -180,7 +180,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <label class="flex items-center gap-2 text-sm text-gray-600">
         <input type="checkbox" class="attachment-box rounded border-border" value="${escapeHtml(a.id)}" />
         ${escapeHtml(a.filename)}
-        <span class="text-xs text-gray-400">${Math.round(a.size_bytes / 1024)} KB</span>
+        <span class="text-xs text-gray-500">${Math.round(a.size_bytes / 1024)} KB</span>
       </label>`).join('');
   }
 
@@ -315,7 +315,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <div class="flex items-start justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
         <div class="min-w-0">
           <div class="text-navy truncate">${escapeHtml(s.subject)}</div>
-          <div class="text-xs text-gray-400">
+          <div class="text-xs text-gray-500">
             ${escapeHtml(JSON.parse(s.recipients).join(', '))} · ${formatDate(s.scheduled_at)}${attachmentCount > 0 ? ` · ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}` : ''}${s.sender_email ? ` · ${escapeHtml(s.sender_email)}` : ''}
           </div>
         </div>
@@ -323,7 +323,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           ${mine ? `
           <button data-id="${escapeHtml(s.id)}" class="edit-queued-btn text-xs px-3 py-1.5 rounded-lg border border-border text-navy hover:bg-gray-50">Edit</button>
           <button data-id="${escapeHtml(s.id)}" class="cancel-queued-btn text-xs px-3 py-1.5 rounded-lg border border-border text-red-500 hover:bg-red-50">Cancel</button>
-          ` : '<span class="text-xs text-gray-400 px-1">theirs</span>'}
+          ` : '<span class="text-xs text-gray-500 px-1">theirs</span>'}
         </div>
       </div>`;
     }).join('');

@@ -34,7 +34,7 @@ const videoId = youtubeUrl
         <div class="flex items-center gap-2 flex-wrap mb-4">
           <span class="inline-block text-xs font-semibold uppercase tracking-widest px-2.5 py-1 rounded bg-red-tint text-red">Webinar</span>
           {topic && <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-navy-light text-navy-mid">{topic}</span>}
-          <span class="text-sm text-gray-400">{date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          <span class="text-sm text-gray-500">{date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
           {twinSlug && (
             <a href={`/webinars/${twinSlug}`}
               class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
@@ -63,7 +63,7 @@ const videoId = youtubeUrl
             </div>
           ) : (
             <div class="aspect-video bg-navy-light rounded-lg flex items-center justify-center">
-              <p class="text-gray-400 text-sm">Kayıt henüz mevcut değil</p>
+              <p class="text-gray-500 text-sm">Kayıt henüz mevcut değil</p>
             </div>
           )}
           {slidesUrl && (
@@ -99,7 +99,7 @@ const videoId = youtubeUrl
           <!-- Key takeaways -->
           {keyTakeaways.length > 0 && (
             <div class="rounded-lg border border-border bg-white p-5">
-              <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Neler öğreneceksiniz</p>
+              <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Neler öğreneceksiniz</p>
               <ul class="flex flex-col gap-2">
                 {keyTakeaways.map((item: string) => (
                   <li class="flex items-start gap-2 text-sm text-gray-700 leading-snug">

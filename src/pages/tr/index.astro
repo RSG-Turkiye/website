@@ -71,7 +71,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red mb-4 self-start">Webinar</span>
           {latestWebinar ? (
             <div class="flex-1 flex flex-col">
-              <p class="text-xs text-gray-400 mb-1">
+              <p class="text-xs text-gray-500 mb-1">
                 {new Date(latestWebinar.data.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
               <h3 class="text-sm font-semibold text-navy leading-snug mb-3">{latestWebinar.data.title}</h3>
@@ -104,7 +104,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red mb-4 self-start">Blog</span>
           {latestPosts[0] ? (
             <div class="flex-1 flex flex-col">
-              <p class="text-xs text-gray-400 mb-1">
+              <p class="text-xs text-gray-500 mb-1">
                 {new Date(latestPosts[0].data.pubDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
                 {latestPosts[0].data.author && <span> · {latestPosts[0].data.author}</span>}
               </p>
@@ -156,7 +156,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
     const links = SOCIALS.map(s =>
       `<a href="${s.url}" target="_blank" rel="noopener noreferrer"
         class="text-xs text-navy-mid hover:text-navy transition-colors no-underline">${s.label}</a>`
-    ).join('<span class="text-gray-300">·</span>');
+    ).join('<span class="text-gray-500">·</span>');
     card.innerHTML = `
       <p class="text-sm font-semibold text-navy mb-1">Yakında yeni etkinlikler planlanıyor!</p>
       <p class="text-xs text-gray-500 mb-4">Haberdar olmak için bizi takip edin</p>
@@ -185,7 +185,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
         return `
           <div class="mb-3 last:mb-0">
             <p class="text-sm font-semibold text-navy leading-snug">${ev.summary || ''}</p>
-            ${dateStr ? `<p class="text-xs text-gray-400 mt-0.5">${dateStr}</p>` : ''}
+            ${dateStr ? `<p class="text-xs text-gray-500 mt-0.5">${dateStr}</p>` : ''}
           </div>`;
       }).join('');
 
