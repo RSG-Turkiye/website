@@ -90,7 +90,7 @@ const benefits = [
             <button
               class="w-full flex justify-between items-center px-5 py-4 text-left text-sm font-medium text-navy hover:bg-navy-light transition-colors"
               aria-expanded="false"
-              onclick="const b=this.nextElementSibling;const open=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!open));b.style.display=open?'none':'block'"
+              data-faq-toggle
             >
               {faq.q}
               <span class="text-xl font-light text-gray-400 ml-4 shrink-0">+</span>
@@ -105,3 +105,22 @@ const benefits = [
   </section>
 
 </BaseLayout>
+<script>
+  // Attached rather than inline: an onclick attribute is a script a
+  // Content-Security-Policy cannot tell from an injected one. The behaviour is
+  // unchanged -- aria-expanded still carries the state, so a screen reader
+  // reads the same thing it did.
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-faq-toggle]')) {
+    button.addEventListener('click', () => {
+      const panel = button.nextElementSibling as HTMLElement | null;
+      const open = button.getAttribute('aria-expanded') === 'true';
+      button.setAttribute('aria-expanded', String(!open));
+      if (panel) panel.style.display = open ? 'none' : 'block';
+      const sign = button.querySelector('span');
+      // The plus never became a minus; it does now, which is the state the
+      // sighted reader was missing.
+      if (sign) sign.textContent = open ? '+' : '−';
+    });
+  }
+</script>
+

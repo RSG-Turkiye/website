@@ -116,6 +116,12 @@ const prefix = lang === 'tr' ? '/tr' : '';
 
 <script is:inline>
   (function () {
+    /** Hover highlighting, as a listener rather than an attribute. */
+    function hoverBackground(el, colour) {
+      el.addEventListener('mouseover', function () { el.style.background = colour; });
+      el.addEventListener('mouseout', function () { el.style.background = ''; });
+    }
+
     var btn = document.getElementById('mobileMenuBtn');
     var nav = document.getElementById('mobileNav');
     if (!btn || !nav) return;
@@ -184,12 +190,30 @@ const prefix = lang === 'tr' ? '/tr' : '';
                 '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.7"><path d="M2 4l4 4 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
               '</button>' +
               '<div id="userMenu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:white;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:1px solid #e5e7eb;padding:4px;z-index:100;">' +
-                '<a href="' + profileHref + '" style="display:block;padding:8px 12px;font-size:14px;color:#0f2045;text-decoration:none;border-radius:6px;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">My Profile</a>' +
-                '<form action="/auth/logout" method="POST" style="margin:0;" onsubmit="try{sessionStorage.removeItem(\'rsg_me_cache\')}catch(e){}">' +
-                  '<button type="submit" style="display:block;width:100%;padding:8px 12px;font-size:14px;color:#dc2626;text-align:left;background:transparent;border:none;border-radius:6px;cursor:pointer;" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'\'">Sign Out</button>' +
+                '<a id="menuProfileLink" href="' + profileHref + '" style="display:block;padding:8px 12px;font-size:14px;color:#0f2045;text-decoration:none;border-radius:6px;">My Profile</a>' +
+                '<form id="menuSignOutForm" action="/auth/logout" method="POST" style="margin:0;">' +
+                  '<button type="submit" style="display:block;width:100%;padding:8px 12px;font-size:14px;color:#dc2626;text-align:left;background:transparent;border:none;border-radius:6px;cursor:pointer;">Sign Out</button>' +
                 '</form>' +
               '</div>' +
             '</div>';
+
+          // Attached rather than written into the markup. An inline
+          // onmouseover or onsubmit is a script a Content-Security-Policy
+          // cannot tell from an injected one, so eight of them across four
+          // files were the reason this site could not have a policy worth
+          // having -- see public/_headers.
+          var profileLink = document.getElementById('menuProfileLink');
+          if (profileLink) hoverBackground(profileLink, '#f3f4f6');
+
+          var signOutForm = document.getElementById('menuSignOutForm');
+          if (signOutForm) {
+            var signOutBtn = signOutForm.querySelector('button');
+            if (signOutBtn) hoverBackground(signOutBtn, '#fef2f2');
+            signOutForm.addEventListener('submit', function () {
+              // Best effort: the sign-out proceeds whether or not this works.
+              try { sessionStorage.removeItem('rsg_me_cache'); } catch (e) {}
+            });
+          }
 
           // Toggle dropdown
           var menuBtn = document.getElementById('userMenuBtn');

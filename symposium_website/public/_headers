@@ -37,13 +37,19 @@
 # No Content-Security-Policy, and the reason is worth recording rather than
 # leaving as an oversight.
 #
-# A CSP worth having would have to forbid inline script. The built output
-# contains 263 inline <script> blocks and, from the header's own innerHTML,
-# 502 onmouseover, 318 onclick and 251 onsubmit attributes. A policy allowing
-# 'unsafe-inline' would permit every one of them, which is to say it would
-# permit the cross-site scripting it exists to stop -- a header that reads
-# like protection and is not.
+# A CSP worth having has to forbid inline script, and this site still emits
+# it -- though for a different reason than it used to.
 #
-# The order is: move those handlers to addEventListener, then add the policy.
-# Until then this file says nothing about scripts rather than something
-# untrue.
+# The 1,071 inline event handlers are gone: eight of them in four source files
+# multiplied across every page, and they were the worst of it, because an
+# onclick attribute is indistinguishable from an injected one. What remains is
+# Astro's own doing. It bundles a component's <script> and then inlines the
+# small bundles into the page, which leaves 534 inline module scripts and no
+# supported way to turn that off -- build.assetsInlineLimit governs stylesheets
+# and assets, not these; setting it to 0 changes nothing, measured.
+#
+# So the remaining routes to a policy are hashes, which a static _headers file
+# cannot keep in step with per-page content, or nonces, which need a value
+# minted per response -- a Pages middleware, and every page dynamic to get it.
+# Both are a project rather than a header. Until one is done, this file says
+# nothing about scripts rather than something untrue.
