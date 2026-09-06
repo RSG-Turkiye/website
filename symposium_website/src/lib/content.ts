@@ -1,6 +1,6 @@
 import { getCollection } from "astro:content";
 import { getCurrentEdition } from "./editions-content";
-import { fetchOverlay, mergeOverlay, type RepoContent } from "./overlay";
+import { fetchOverlay, mergeOverlay, repoCanStandAlone, type RepoContent } from "./overlay";
 import type { EditionLike } from "./editions";
 
 export type SessionType =
@@ -90,8 +90,43 @@ async function loadCurrentContent(): Promise<RepoContent | null> {
   };
 
   const apiBase = import.meta.env.PUBLIC_API_BASE ?? "https://rsg-turkiye.iscbsc.org";
-  const overlay = await fetchOverlay(year, apiBase);
-  return mergeOverlay(repo, overlay);
+  const result = await fetchOverlay(year, apiBase);
+
+  if (result.kind === "unavailable") {
+    // Failing is the careful option, not the dramatic one. Cloudflare Pages
+    // keeps the last successful deploy when a build fails, so a build that
+    // stops here leaves whatever is published exactly where it is. A build
+    // that carries on replaces a live programme -- speakers, schedule,
+    // committee, the registration link -- with "announced soon", from a
+    // nightly rebuild nobody is watching, because an API was down for five
+    // seconds.
+    //
+    // Only when the repo cannot fill the page itself. With content committed,
+    // the overlay is what it was always described as -- a layer on top -- and
+    // its absence is worth a line in the log and nothing more.
+    // process.env, not import.meta.env: Astro only exposes PUBLIC_-prefixed
+    // variables through the latter, and this is a build-time escape hatch that
+    // has no business being shipped to a browser. Checked the way it is
+    // because this module also loads under plain `node --test`.
+    const allowEmpty =
+      typeof process !== "undefined" && process.env?.SYMPOSIUM_ALLOW_EMPTY_BUILD === "1";
+
+    if (!repoCanStandAlone(repo) && !allowEmpty) {
+      throw new Error(
+        `[overlay] ${result.reason}, and the repo has no speakers, sessions, ` +
+          `committee or links for ${year}. Refusing to publish an empty programme ` +
+          `over whatever is live. Set SYMPOSIUM_ALLOW_EMPTY_BUILD=1 to build anyway ` +
+          `-- do that when the site is genuinely meant to say "announced soon" and ` +
+          `the API is down at the same time.`,
+      );
+    }
+    console.error(`[overlay] ${result.reason} -- building from the repo alone`);
+  } else if (result.kind === "empty") {
+    // The ordinary state of a symposium nobody has programmed yet.
+    console.info(`[overlay] ${result.reason} -- building from the repo alone`);
+  }
+
+  return mergeOverlay(repo, result.kind === "ok" ? result.overlay : null);
 }
 
 /**

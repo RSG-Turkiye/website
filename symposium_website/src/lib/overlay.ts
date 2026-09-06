@@ -1,9 +1,16 @@
 // The build-time merge of the CMS overlay onto the repo's own content.
 //
-// The repo is always the source of a working site; D1 is an overlay on top
-// of it. `mergeOverlay` is pure and takes no astro import, so it (and
-// `parseOverlay`) load under plain `node:test` -- only `fetchOverlay` is
-// impure, and it is the sole place a network call happens.
+// The repo is the source of a working site and D1 is an overlay on top of it,
+// which is true exactly as far as the repo has content. For an edition whose
+// speakers, schedule and links live only in the CMS -- 2026, as this is
+// written -- "fall back to the repo" means "publish an empty programme", so
+// `fetchOverlay` distinguishes a CMS with nothing in it from a CMS we could
+// not reach, and `repoCanStandAlone` says which of the two the caller can
+// afford. See `loadCurrentContent` for what it does with the answer.
+//
+// `mergeOverlay` is pure and takes no astro import, so it (and `parseOverlay`
+// and `repoCanStandAlone`) load under plain `node:test` -- only `fetchOverlay`
+// is impure, and it is the sole place a network call happens.
 //
 // `z` comes from `astro/zod`, not the `astro:schema` virtual specifier that
 // `src/content.config.ts` uses. `astro:schema` is a Vite-only alias (resolved
@@ -135,26 +142,63 @@ export function mergeOverlay(repo: RepoContent, overlay: Overlay | null): RepoCo
  * date, and a build that quietly succeeds with no data would delete the
  * programme -- so every failure here is loud in the log and never thrown.
  */
-export async function fetchOverlay(year: number, apiBase: string): Promise<Overlay | null> {
+/**
+ * Why a build has no overlay, which is three different situations that used
+ * to be one `null`.
+ *
+ * The distinction matters because the right response differs. "The CMS has no
+ * row for this edition yet" is the ordinary state of a symposium that has not
+ * been programmed, and the site should build and say so. "We could not reach
+ * the CMS, or could not trust what it said" is a fault, and if the repo alone
+ * cannot fill the page, building anyway publishes an empty programme over a
+ * live one -- Cloudflare Pages keeps the last successful deploy, so failing
+ * loudly preserves what is published and succeeding quietly destroys it.
+ */
+export type OverlayResult =
+  | { kind: "ok"; overlay: Overlay }
+  | { kind: "empty"; reason: string }
+  | { kind: "unavailable"; reason: string };
+
+export async function fetchOverlay(year: number, apiBase: string): Promise<OverlayResult> {
   try {
     const res = await fetch(`${apiBase}/api/symposium`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) {
-      console.error(`[overlay] ${res.status} from ${apiBase} -- building from the repo alone`);
-      return null;
+      return { kind: "unavailable", reason: `${res.status} from ${apiBase}` };
     }
     const json: unknown = await res.json();
     const data = parseOverlay(json);
     if (!data) {
-      // parseOverlay already logged the specific mismatch.
-      return null;
+      // We asked and got an answer we cannot read. That is a fault on the
+      // server, not an empty CMS, and parseOverlay has logged the specifics.
+      return { kind: "unavailable", reason: "payload shape mismatch" };
+    }
+    if (data.year === null) {
+      return { kind: "empty", reason: "no edition row in the CMS yet" };
     }
     if (data.year !== year) {
-      console.error(`[overlay] serves year ${data.year}, building ${year} -- building from the repo alone`);
-      return null;
+      return { kind: "empty", reason: `CMS serves year ${data.year}, building ${year}` };
     }
-    return data;
+    return { kind: "ok", overlay: data };
   } catch (err) {
-    console.error(`[overlay] unreachable (${String(err)}) -- building from the repo alone`);
-    return null;
+    return { kind: "unavailable", reason: `unreachable (${String(err)})` };
   }
+}
+
+/**
+ * Whether the repo alone can render a usable page for this edition.
+ *
+ * Anything at all counts: one speaker, one session, one committee member, or
+ * a registration or abstract link. With none of them the page says only that
+ * everything will be announced soon, which is the right thing to publish when
+ * it is true and the wrong thing to publish over a programme that is already
+ * live.
+ */
+export function repoCanStandAlone(repo: RepoContent): boolean {
+  return (
+    repo.speakers.length > 0 ||
+    repo.sessions.length > 0 ||
+    repo.committee.length > 0 ||
+    repo.registrationUrl.trim() !== "" ||
+    repo.abstractUrl.trim() !== ""
+  );
 }
