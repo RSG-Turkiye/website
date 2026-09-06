@@ -14,7 +14,7 @@
     "astro": "^5.13.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

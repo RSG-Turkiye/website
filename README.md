@@ -64,7 +64,7 @@ Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcs
 
 ## Local Development
 
-**Prerequisites:** Node.js 18+
+**Prerequisites:** Node.js 22+ (see `.nvmrc`)
 
 ```bash
 # Install dependencies

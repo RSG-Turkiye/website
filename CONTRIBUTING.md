@@ -45,15 +45,15 @@ A committee lead will review and merge it. The site rebuilds automatically once 
 
 ### Install prerequisites
 
-You need **Git** and **Node.js 18 or later** installed before anything else.
+You need **Git** and **Node.js 22 or later** installed before anything else.
 
-> **Node.js version requirement:** This project requires Node.js **18 or later**. Using an older version will cause errors during `npm install` or `npm run dev`. Run `node --version` to check yours.
+> **Node.js version requirement:** This project requires Node.js **22 or later** — the test suite uses `node:sqlite`, which older versions do not have. Run `node --version` to check yours.
 
 **Git:**
 - Windows / macOS: download from [git-scm.com](https://git-scm.com/downloads) and run the installer
 - Linux: `sudo apt install git` (Ubuntu/Debian) or `sudo dnf install git` (Fedora)
 
-**Node.js (version 18+):**
+**Node.js (version 22+):**
 - Go to [nodejs.org](https://nodejs.org) and download the **LTS** version (currently v22)
 - Run the installer (Windows / macOS) or follow the instructions for your Linux distro
 - Verify it worked: `node --version` should print `v18.x.x` or higher
