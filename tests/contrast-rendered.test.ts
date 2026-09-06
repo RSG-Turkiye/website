@@ -1,21 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
-import { parse, type HTMLElement } from 'node-html-parser';
+import { existsSync } from 'node:fs';
 import {
   colorOf,
   composite,
   contrast,
-  required,
-  TOKENS,
-  GREY,
-  REQUIRED_NORMAL,
   isLargeText,
+  GREY,
+  TOKENS,
+  REQUIRED_NORMAL,
 } from '../src/lib/contrast';
+import { report, scan } from './lib/contrast-scan';
 
 /**
- * Every piece of text on both sites, measured against what is behind it.
+ * Every piece of text on this site, measured against what is behind it.
  *
  * The class-list test next door forbids two greys by name. That caught the
  * worst of it and cannot catch the rest, because whether text is readable
@@ -29,94 +27,25 @@ import {
  * you know what it sits on), and reports anything under the WCAG AA ratio for
  * its size.
  *
- * It reports one line per distinct colour-on-background combination rather
- * than per element, because 290 pages share one footer and the fix is the
- * same everywhere.
+ * The measuring lives in tests/lib/contrast-scan.ts because the symposium
+ * site runs the same scan over its own build, in its own CI job. It reports
+ * one line per distinct colour-on-background combination rather than per
+ * element, because 290 pages share one footer and the fix is the same
+ * everywhere.
  */
 
-const DIST = [
-  new URL('../dist/', import.meta.url).pathname,
-  new URL('../symposium_website/dist/', import.meta.url).pathname,
-];
+/**
+ * The main site's build is always there when this runs; the symposium's is
+ * there locally and not in CI, where the two sites are separate jobs with
+ * separate working directories. So this scans whichever exist and says which,
+ * and symposium_website/tests/contrast.test.ts covers the other half inside
+ * that job -- both import the same measuring code.
+ */
+const MAIN = new URL('../dist/', import.meta.url).pathname;
 
-function pages(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) pages(path, out);
-    else if (name.endsWith('.html')) out.push(path);
-  }
-  return out;
-}
-
-interface Failure {
-  combination: string;
-  ratio: number;
-  need: number;
-  sample: string;
-  page: string;
-}
-
-function scan(roots: string[]): Failure[] {
-  const worst = new Map<string, Failure>();
-
-  for (const root of roots) {
-    for (const page of pages(root)) {
-      const body = parse(readFileSync(page, 'utf8')).querySelector('body');
-      if (!body) continue;
-
-      const walk = (el: HTMLElement, background: string) => {
-        const classes = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-
-        const bg = classes.map((c) => colorOf(c, 'bg')).find(Boolean);
-        const here = bg ? (bg.alpha < 1 ? composite(bg.hex, bg.alpha, background) : bg.hex) : background;
-
-        const fg = classes.map((c) => colorOf(c, 'text')).find(Boolean);
-        if (fg) {
-          // Only text this element owns; a child with its own colour is
-          // measured when the walk reaches it.
-          const own = el.childNodes
-            .filter((n) => n.nodeType === 3)
-            .map((n) => n.rawText.trim())
-            .join(' ')
-            .trim();
-          if (own) {
-            const colour = fg.alpha < 1 ? composite(fg.hex, fg.alpha, here) : fg.hex;
-            const ratio = contrast(colour, here);
-            const need = required(classes);
-            if (ratio < need) {
-              const name = classes.find((c) => colorOf(c, 'text'))!;
-              const key = `${name} on #${here}`;
-              const existing = worst.get(key);
-              if (!existing || ratio < existing.ratio) {
-                worst.set(key, {
-                  combination: key,
-                  ratio,
-                  need,
-                  sample: own.replace(/\s+/g, ' ').slice(0, 45),
-                  page: page.slice(page.lastIndexOf('/dist/') + 5),
-                });
-              }
-            }
-          }
-        }
-
-        for (const child of el.childNodes) {
-          if ((child as HTMLElement).tagName) walk(child as HTMLElement, here);
-        }
-      };
-
-      walk(body, TOKENS.neutral);
-    }
-  }
-  return [...worst.values()].sort((a, b) => a.ratio - b.ratio);
-}
-
-test('no text on either site falls below its WCAG AA contrast ratio', { skip: !DIST.every(existsSync) && 'no build in dist/' }, () => {
-  const failures = scan(DIST);
-  const report = failures
-    .map((f) => `${f.ratio.toFixed(2)}:1 (needs ${f.need})  ${f.combination}\n        "${f.sample}"  ${f.page}`)
-    .join('\n    ');
-  assert.deepEqual(failures, [], `text a reader cannot read:\n    ${report}\n  `);
+test('no text on the main site falls below its WCAG AA contrast ratio', { skip: !existsSync(MAIN) && 'no build in dist/' }, () => {
+  const failures = scan([MAIN]);
+  assert.deepEqual(failures, [], `text a reader cannot read:\n    ${report(failures)}\n  `);
 });
 
 // --- the numbers the fixes were chosen from -----------------------------------
