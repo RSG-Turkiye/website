@@ -93,14 +93,21 @@ const levelsForScript = levels.map((level, li) => ({
     </div>
   </div>
 
-  <!-- ── Level switcher ── -->
-  <LevelSwitcher
+  <!-- Both bars stick, and they used to stick at the same offset: the
+       progress bar has the higher z-index and comes second, so it parked
+       on top of the level tabs the moment the reader scrolled past the
+       hero, leaving the only control for switching level invisible and
+       unclickable on every domain page. Stacking them inside one sticky
+       container keeps them both on screen without anyone having to keep
+       a hard-coded offset in step with the tab bar's height. -->
+  <div class="sticky top-16 z-40">
+    <LevelSwitcher
     levels={levels.map(l => ({ id: l.id, label: l.label, exists: l.exists }))}
     activeLevel={defaultLevel}
-  />
-
-  <!-- ── Progress bar ── -->
-  <ProgressBar accentColor="navy" />
+      stickyClass=""
+    />
+    <ProgressBar accentColor="navy" stickyClass="" />
+  </div>
 
   <!-- ── Level sections ── -->
   <div class="bg-white py-12">
