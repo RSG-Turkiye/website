@@ -1,5 +1,11 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
+import {
+  submissionText,
+  submissionTags,
+  submissionImageUrl,
+  LIMITS,
+} from '../../_lib/blog-submission';
 
 type LangPost = {
   title: string;
@@ -33,37 +39,65 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   }
 
   const body = await request.json<ResubmitBody>();
-  if (!body.title || !body.description || !body.category || !body.author || !body.body) {
-    return jsonResponse({ error: 'Missing required field' }, 400);
-  }
+  // The same rules the create path uses. This is the path a writer takes to
+  // fix a rejected submission, so validating only there would leave the way
+  // back in wide open -- which is how an unapprovable row used to survive a
+  // rejection and come straight back.
+  const title = submissionText(body.title, LIMITS.title, 'Title');
+  if (!title.ok) return jsonResponse({ error: title.error }, 400);
+  const description = submissionText(body.description, LIMITS.description, 'Description');
+  if (!description.ok) return jsonResponse({ error: description.error }, 400);
+  const category = submissionText(body.category, LIMITS.category, 'Category');
+  if (!category.ok) return jsonResponse({ error: category.error }, 400);
+  const author = submissionText(body.author, LIMITS.author, 'Author');
+  if (!author.ok) return jsonResponse({ error: author.error }, 400);
+  const postBody = submissionText(body.body, LIMITS.body, 'Body');
+  if (!postBody.ok) return jsonResponse({ error: postBody.error }, 400);
+  const tags = submissionTags(body.tags);
+  if (!tags.ok) return jsonResponse({ error: tags.error }, 400);
+
   if (existing.paired_submission_id && !body.translation) {
     return jsonResponse({ error: 'This is a paired submission -- include the translation to resubmit both languages together' }, 400);
   }
+  let translationTagsJson = '[]';
   if (existing.paired_submission_id && body.translation) {
-    if (!body.translation.title || !body.translation.description || !body.translation.body) {
-      return jsonResponse({ error: 'Missing required field in translation' }, 400);
+    for (const [raw, max, label] of [
+      [body.translation.title, LIMITS.title, 'Translation title'],
+      [body.translation.description, LIMITS.description, 'Translation description'],
+      [body.translation.body, LIMITS.body, 'Translation body'],
+    ] as const) {
+      const checked = submissionText(raw, max, label);
+      if (!checked.ok) return jsonResponse({ error: checked.error }, 400);
     }
+    const translationTags = submissionTags(body.translation.tags);
+    if (!translationTags.ok) return jsonResponse({ error: translationTags.error }, 400);
+    translationTagsJson = translationTags.value;
   }
 
-  const imageUrl = body.image_url !== undefined ? body.image_url : existing.image_url;
-  const tagsJson = JSON.stringify(body.tags ?? []);
+  let imageUrl = existing.image_url;
+  if (body.image_url !== undefined) {
+    const image = submissionImageUrl(body.image_url);
+    if (!image.ok) return jsonResponse({ error: image.error }, 400);
+    imageUrl = image.value;
+  }
+  const tagsJson = tags.value;
 
   await env.DB.prepare(
     `UPDATE blog_submissions
      SET title = ?, description = ?, category = ?, tags = ?, author = ?, image_url = ?, body = ?,
          status = 'pending', rejection_reason = NULL
      WHERE id = ?`
-  ).bind(body.title, body.description, body.category, tagsJson, body.author, imageUrl, body.body, id).run();
+  ).bind(title.value, description.value, category.value, tagsJson, author.value, imageUrl, postBody.value, id).run();
 
   if (existing.paired_submission_id && body.translation) {
     const t = body.translation;
-    const pairedTagsJson = JSON.stringify(t.tags ?? []);
+    const pairedTagsJson = translationTagsJson;
     await env.DB.prepare(
       `UPDATE blog_submissions
        SET title = ?, description = ?, category = ?, tags = ?, author = ?, image_url = ?, body = ?,
            status = 'pending', rejection_reason = NULL
        WHERE id = ?`
-    ).bind(t.title, t.description, body.category, pairedTagsJson, body.author, imageUrl, t.body, existing.paired_submission_id).run();
+    ).bind(t.title, t.description, category.value, pairedTagsJson, author.value, imageUrl, t.body, existing.paired_submission_id).run();
   }
 
   return jsonResponse({ ok: true });

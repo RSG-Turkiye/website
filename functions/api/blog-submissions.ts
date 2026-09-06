@@ -1,6 +1,12 @@
 import type { Env } from '../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, getBaseUrl } from '../_lib/auth';
 import { notifyNewSubmission } from '../_lib/github';
+import {
+  submissionText,
+  submissionTags,
+  submissionImageUrl,
+  LIMITS,
+} from '../_lib/blog-submission';
 
 type SubmissionRow = {
   id: string;
@@ -95,16 +101,42 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const body = await request.json<CreateBody>();
 
-  if (!body.lang || !body.title || !body.description || !body.category || !body.author || !body.body) {
-    return jsonResponse({ error: 'Missing required field' }, 400);
-  }
   if (body.lang !== 'en' && body.lang !== 'tr') {
     return jsonResponse({ error: 'Invalid lang' }, 400);
   }
+
+  // Every field, by type and by length. Truthiness was the whole check before
+  // this, which let a non-array `tags` through and made the submission
+  // impossible to approve ever after -- see _lib/blog-submission.ts.
+  const title = submissionText(body.title, LIMITS.title, 'Title');
+  if (!title.ok) return jsonResponse({ error: title.error }, 400);
+  const description = submissionText(body.description, LIMITS.description, 'Description');
+  if (!description.ok) return jsonResponse({ error: description.error }, 400);
+  const category = submissionText(body.category, LIMITS.category, 'Category');
+  if (!category.ok) return jsonResponse({ error: category.error }, 400);
+  const author = submissionText(body.author, LIMITS.author, 'Author');
+  if (!author.ok) return jsonResponse({ error: author.error }, 400);
+  const postBody = submissionText(body.body, LIMITS.body, 'Body');
+  if (!postBody.ok) return jsonResponse({ error: postBody.error }, 400);
+  const tags = submissionTags(body.tags);
+  if (!tags.ok) return jsonResponse({ error: tags.error }, 400);
+  const image = submissionImageUrl(body.image_url);
+  if (!image.ok) return jsonResponse({ error: image.error }, 400);
+  // Declared out here because the paired INSERT below needs it, and a
+  // submission with no translation simply never uses it.
+  let translationTagsJson = '[]';
   if (body.translation) {
-    if (!body.translation.title || !body.translation.description || !body.translation.body) {
-      return jsonResponse({ error: 'Missing required field in translation' }, 400);
+    for (const [raw, max, label] of [
+      [body.translation.title, LIMITS.title, 'Translation title'],
+      [body.translation.description, LIMITS.description, 'Translation description'],
+      [body.translation.body, LIMITS.body, 'Translation body'],
+    ] as const) {
+      const checked = submissionText(raw, max, label);
+      if (!checked.ok) return jsonResponse({ error: checked.error }, 400);
     }
+    const translationTags = submissionTags(body.translation.tags);
+    if (!translationTags.ok) return jsonResponse({ error: translationTags.error }, 400);
+    translationTagsJson = translationTags.value;
     if (body.translation.lang !== 'en' && body.translation.lang !== 'tr') {
       return jsonResponse({ error: 'Invalid translation lang' }, 400);
     }
@@ -113,10 +145,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  const slug = slugify(body.title);
+  const slug = slugify(title.value);
   const now = Math.floor(Date.now() / 1000);
-  const imageUrl = body.image_url ?? '';
-  const tagsJson = JSON.stringify(body.tags ?? []);
+  const imageUrl = image.value;
+  const tagsJson = tags.value;
 
   const primaryId = generateId();
 
@@ -126,13 +158,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         (id, submitted_by, lang, title, description, category, tags, author, image_url, body, slug, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
     ).bind(
-      primaryId, user.id, body.lang, body.title, body.description, body.category,
-      tagsJson, body.author, imageUrl, body.body, slug, now
+      primaryId, user.id, body.lang, title.value, description.value, category.value,
+      tagsJson, author.value, imageUrl, postBody.value, slug, now
     ).run();
 
     await notifyNewSubmission(
-      `New blog submission: ${body.title}`,
-      `Submitted by ${user.email} (${body.lang}).\n\n${body.description}\n\nReview it in the admin panel: ${getBaseUrl(request)}/admin`,
+      `New blog submission: ${title.value}`,
+      `Submitted by ${user.email} (${body.lang}).\n\n${description.value}\n\nReview it in the admin panel: ${getBaseUrl(request)}/admin`,
       env
     );
 
@@ -141,7 +173,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const translation = body.translation;
   const pairedId = generateId();
-  const pairedTagsJson = JSON.stringify(translation.tags ?? []);
+  // Validated above with the rest of the translation half.
+  const pairedTagsJson = translationTagsJson;
 
   // paired_submission_id is a self-referencing FK (blog_submissions.id), and
   // D1 enforces foreign keys, so each row must exist before the other
@@ -153,8 +186,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       (id, submitted_by, lang, title, description, category, tags, author, image_url, body, slug, status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
   ).bind(
-    primaryId, user.id, body.lang, body.title, body.description, body.category,
-    tagsJson, body.author, imageUrl, body.body, slug, now
+    primaryId, user.id, body.lang, title.value, description.value, category.value,
+    tagsJson, author.value, imageUrl, postBody.value, slug, now
   ).run();
 
   await env.DB.prepare(
@@ -162,8 +195,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       (id, submitted_by, lang, title, description, category, tags, author, image_url, body, slug, status, created_at, paired_submission_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
   ).bind(
-    pairedId, user.id, translation.lang, translation.title, translation.description, body.category,
-    pairedTagsJson, body.author, imageUrl, translation.body, slug, now, primaryId
+    pairedId, user.id, translation.lang, translation.title, translation.description, category.value,
+    pairedTagsJson, author.value, imageUrl, translation.body, slug, now, primaryId
   ).run();
 
   await env.DB.prepare(
@@ -171,8 +204,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(pairedId, primaryId).run();
 
   await notifyNewSubmission(
-    `New blog submission: ${body.title}`,
-    `Submitted by ${user.email} (${body.lang} + ${translation.lang} translation).\n\n${body.description}\n\nReview it in the admin panel: ${getBaseUrl(request)}/admin`,
+    `New blog submission: ${title.value}`,
+    `Submitted by ${user.email} (${body.lang} + ${translation.lang} translation).\n\n${description.value}\n\nReview it in the admin panel: ${getBaseUrl(request)}/admin`,
     env
   );
 
