@@ -38,7 +38,7 @@ function initials(memberName: string) {
         {member.education && member.education.length > 0 && (
           <div class="mb-1">
             {member.education.map((edu) => (
-              <p class="text-xs text-gray-500">
+              <p class="text-xs text-gray-600">
                 {edu.degree} · {edu.field}
                 {edu.institution && ` · ${edu.institution}`}
                 {edu.year && ` (${edu.year})`}
@@ -47,7 +47,7 @@ function initials(memberName: string) {
           </div>
         )}
 
-        <p class="text-xs text-gray-500 mb-2">{member.institution}</p>
+        <p class="text-xs text-gray-600 mb-2">{member.institution}</p>
 
         {member.socialMedia && member.socialMedia.length > 0 && (
           <div class="flex gap-2 justify-center flex-wrap">

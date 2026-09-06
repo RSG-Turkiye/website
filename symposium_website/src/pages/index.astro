@@ -146,7 +146,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
           ].map(({ label, value }) => (
             <div class="bg-navy-light rounded-xl p-5 text-center">
               <p class="text-3xl font-bold text-navy">{value}</p>
-              <p class="text-sm text-gray-500 mt-1">{label}</p>
+              <p class="text-sm text-gray-600 mt-1">{label}</p>
             </div>
           ))
         }
@@ -189,7 +189,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
                   const loc = locationFor(edition.data, now);
                   return (
                     loc.kind !== "hidden" && (
-                      <p class="text-xs text-gray-400">📍 {loc.city}</p>
+                      <p class="text-xs text-gray-600">📍 {loc.city}</p>
                     )
                   );
                 })()}

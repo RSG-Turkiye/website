@@ -17,6 +17,10 @@ import { join } from 'node:path';
  */
 
 const SRC = new URL('../src/', import.meta.url).pathname;
+// The symposium site had fifteen of its own: sponsor tier headings, session
+// times, venue labels and the city line, all text-gray-400. It shares this
+// palette and had no check of its own.
+const SYMPOSIUM_SRC = new URL('../symposium_website/src/', import.meta.url).pathname;
 
 function relativeLuminance(hex: string): number {
   const channel = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -69,10 +73,12 @@ test('no text carries a grey that fails', () => {
   // telling text from decoration by reading a class list is guesswork, and
   // 147 of the 147 uses turned out to be text or as good as.
   const offenders: string[] = [];
-  for (const file of sourceFiles(SRC)) {
-    const text = readFileSync(file, 'utf8');
-    for (const match of text.matchAll(/class="[^"]*\b(text-gray-(?:300|400))\b[^"]*"/g)) {
-      offenders.push(`${file.slice(SRC.length)} (${match[1]})`);
+  for (const [label, root] of [['main', SRC], ['symposium', SYMPOSIUM_SRC]] as const) {
+    for (const file of sourceFiles(root)) {
+      const text = readFileSync(file, 'utf8');
+      for (const match of text.matchAll(/class="[^"]*\b(text-gray-(?:300|400))\b[^"]*"/g)) {
+        offenders.push(`${label}: ${file.slice(root.length)} (${match[1]})`);
+      }
     }
   }
   assert.deepEqual(offenders, [], 'these fail 4.5:1; use text-gray-500 or darker');

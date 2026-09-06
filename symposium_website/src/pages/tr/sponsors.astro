@@ -21,19 +21,19 @@ const supporters = sponsors.filter((s) => s.tier === "supporter");
   <div class="max-w-4xl mx-auto px-6 py-16 space-y-12">
     {gold.length > 0 && (
       <div>
-        <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-6 text-center">Altın Sponsor</h2>
+        <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-6 text-center">Altın Sponsor</h2>
         <div class="grid sm:grid-cols-2 gap-6">{gold.map((sp) => <SponsorLogo sponsor={sp} />)}</div>
       </div>
     )}
     {silver.length > 0 && (
       <div>
-        <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-6 text-center">Gümüş Sponsor</h2>
+        <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-6 text-center">Gümüş Sponsor</h2>
         <div class="grid sm:grid-cols-3 gap-4">{silver.map((sp) => <SponsorLogo sponsor={sp} />)}</div>
       </div>
     )}
     {supporters.length > 0 && (
       <div>
-        <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-6 text-center">Destekçiler</h2>
+        <h2 class="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-6 text-center">Destekçiler</h2>
         <div class="grid sm:grid-cols-3 gap-4">{supporters.map((sp) => <SponsorLogo sponsor={sp} />)}</div>
       </div>
     )}

@@ -67,7 +67,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
           ].map(({ n, label }) => (
             <div class="text-center p-5 rounded-lg bg-navy-light border border-[#C4CEEA]">
               <span class="block text-3xl font-bold text-navy">{n}</span>
-              <span class="block text-sm text-gray-500 mt-1">{label}</span>
+              <span class="block text-sm text-gray-600 mt-1">{label}</span>
             </div>
           ))}
         </div>
@@ -91,12 +91,12 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
           </span>
           {latestWebinar ? (
             <div class="flex-1 flex flex-col">
-              <p class="text-xs text-gray-500 mb-1">
+              <p class="text-xs text-gray-600 mb-1">
                 {new Date(latestWebinar.data.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
               <h3 class="text-sm font-semibold text-navy leading-snug mb-3">{latestWebinar.data.title}</h3>
               {latestWebinar.data.description && (
-                <p class="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{latestWebinar.data.description.slice(0, 100)}{latestWebinar.data.description.length > 100 ? '…' : ''}</p>
+                <p class="text-xs text-gray-600 leading-relaxed mb-4 flex-1">{latestWebinar.data.description.slice(0, 100)}{latestWebinar.data.description.length > 100 ? '…' : ''}</p>
               )}
               <a href={`/webinars/${latestWebinar.id.replace(/^en\//, '')}`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
                 {t('common.readMore')} →
@@ -133,13 +133,13 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
           </span>
           {latestPosts[0] ? (
             <div class="flex-1 flex flex-col">
-              <p class="text-xs text-gray-500 mb-1">
+              <p class="text-xs text-gray-600 mb-1">
                 {new Date(latestPosts[0].data.pubDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                 {latestPosts[0].data.author && <span> · {latestPosts[0].data.author}</span>}
               </p>
               <p class="text-sm font-semibold text-navy leading-snug mb-3">{latestPosts[0].data.title}</p>
               {latestPosts[0].data.description && (
-                <p class="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{latestPosts[0].data.description.slice(0, 100)}{latestPosts[0].data.description.length > 100 ? '…' : ''}</p>
+                <p class="text-xs text-gray-600 leading-relaxed mb-4 flex-1">{latestPosts[0].data.description.slice(0, 100)}{latestPosts[0].data.description.length > 100 ? '…' : ''}</p>
               )}
               <a href={`/blog/${latestPosts[0].id.replace(/^en\//, '')}`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
                 {t('common.readMore')} →
@@ -270,7 +270,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
         <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">${label}</span>
         <div class="flex-1 flex flex-col">
           <h3 class="text-sm font-semibold text-navy leading-snug mb-3">${escapeHtml(a.title)}</h3>
-          <p class="text-xs text-gray-500 leading-relaxed mb-4 flex-1">${escapeHtml(a.description)}</p>
+          <p class="text-xs text-gray-600 leading-relaxed mb-4 flex-1">${escapeHtml(a.description)}</p>
           <a href="${escapeHtml(safeUrl(a.button_url))}" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">${escapeHtml(a.button_text)} →</a>
         </div>
       </div>`;
