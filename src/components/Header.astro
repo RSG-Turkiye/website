@@ -37,7 +37,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
       <a href={`${prefix}/resources`} class="nav-link">{t('nav.resources')}</a>
       <a href={`${prefix}/learning-paths`} class="nav-link">{t('nav.learningPaths')}</a>
       <a href="https://symposium.rsg-turkiye.iscbsc.org" class="nav-link">{t('nav.symposium')}</a>
-      <a id="membersNavLink" href="/members" class="nav-link hidden">{t('nav.members')}</a>
+      <a id="membersNavLink" href={`${prefix}/members`} class="nav-link hidden">{t('nav.members')}</a>
     </nav>
 
     <!-- Actions -->
@@ -79,7 +79,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
     <a href={`${prefix}/resources`} class="mobile-link">{t('nav.resources')}</a>
     <a href={`${prefix}/learning-paths`} class="mobile-link">{t('nav.learningPaths')}</a>
     <a href="https://symposium.rsg-turkiye.iscbsc.org" class="mobile-link">{t('nav.symposium')}</a>
-    <a id="membersMobileLink" href="/members" class="mobile-link hidden">{t('nav.members')}</a>
+    <a id="membersMobileLink" href={`${prefix}/members`} class="mobile-link hidden">{t('nav.members')}</a>
     <a href={`${prefix}/join`} class="mt-3 flex items-center justify-center px-4 py-2 rounded bg-red text-white text-sm font-medium no-underline">
       {t('nav.join')}
     </a>
@@ -114,7 +114,12 @@ const prefix = lang === 'tr' ? '/tr' : '';
   }
 </style>
 
-<script is:inline>
+<script is:inline define:vars={{ ui: {
+  prefix,
+  signIn: t('nav.signIn'),
+  myProfile: t('nav.myProfile'),
+  signOut: t('nav.signOut'),
+} }}>
   (function () {
     /** Hover highlighting, as a listener rather than an attribute. */
     function hoverBackground(el, colour) {
@@ -171,11 +176,14 @@ const prefix = lang === 'tr' ? '/tr' : '';
         }
         authArea.classList.remove('hidden');
         if (!data.user) {
-          authArea.innerHTML = '<a href="/auth/login" style="display:inline-flex;align-items:center;padding:6px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;">Sign In</a>';
-          mobileAuthArea.innerHTML = '<a href="/auth/login" style="display:flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;">Sign In</a>';
+          authArea.innerHTML = '<a href="/auth/login" style="display:inline-flex;align-items:center;padding:6px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;">' + ui.signIn + '</a>';
+          mobileAuthArea.innerHTML = '<a href="/auth/login" style="display:flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;">' + ui.signIn + '</a>';
         }
         if (data.user) {
-          var profileHref = data.profile ? '/account' : '/account/setup';
+          // Was '/account' regardless of the page's language, so a Turkish
+          // reader signing in left the Turkish site. Both routes exist in both
+          // languages.
+          var profileHref = ui.prefix + (data.profile ? '/account' : '/account/setup');
           var avatarHtml = data.profile && data.profile.avatar_url
             ? '<img src="' + data.profile.avatar_url + '" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" />'
             : '<span style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.2);display:inline-flex;align-items:center;justify-content:center;font-size:11px;">👤</span>';
@@ -190,9 +198,9 @@ const prefix = lang === 'tr' ? '/tr' : '';
                 '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.7"><path d="M2 4l4 4 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
               '</button>' +
               '<div id="userMenu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:white;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:1px solid #e5e7eb;padding:4px;z-index:100;">' +
-                '<a id="menuProfileLink" href="' + profileHref + '" style="display:block;padding:8px 12px;font-size:14px;color:#0f2045;text-decoration:none;border-radius:6px;">My Profile</a>' +
+                '<a id="menuProfileLink" href="' + profileHref + '" style="display:block;padding:8px 12px;font-size:14px;color:#0f2045;text-decoration:none;border-radius:6px;">' + ui.myProfile + '</a>' +
                 '<form id="menuSignOutForm" action="/auth/logout" method="POST" style="margin:0;">' +
-                  '<button type="submit" style="display:block;width:100%;padding:8px 12px;font-size:14px;color:#dc2626;text-align:left;background:transparent;border:none;border-radius:6px;cursor:pointer;">Sign Out</button>' +
+                  '<button type="submit" style="display:block;width:100%;padding:8px 12px;font-size:14px;color:#dc2626;text-align:left;background:transparent;border:none;border-radius:6px;cursor:pointer;">' + ui.signOut + '</button>' +
                 '</form>' +
               '</div>' +
             '</div>';
@@ -227,9 +235,9 @@ const prefix = lang === 'tr' ? '/tr' : '';
           });
 
           mobileAuthArea.innerHTML =
-            '<a href="' + profileHref + '" style="display:flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;margin-bottom:8px;">My Profile</a>' +
+            '<a href="' + profileHref + '" style="display:flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;margin-bottom:8px;">' + ui.myProfile + '</a>' +
             '<form action="/auth/logout" method="POST" style="margin:0;">' +
-              '<button type="submit" style="display:flex;width:100%;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:white;font-size:14px;font-weight:500;cursor:pointer;">Sign Out</button>' +
+              '<button type="submit" style="display:flex;width:100%;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:white;font-size:14px;font-weight:500;cursor:pointer;">' + ui.signOut + '</button>' +
             '</form>';
         }
       })
