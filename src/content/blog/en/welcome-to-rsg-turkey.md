@@ -9,7 +9,7 @@ tags:
   - "bioinformatics"
   - "computational-biology"
   - "rsg-turkey"
-image: "/images/blog-welcome.jpg"
+image: ""
 lang: "en"
 draft: false
 ---

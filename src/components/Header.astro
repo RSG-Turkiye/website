@@ -1,10 +1,26 @@
 ---
 import LanguageIcon from './LanguageIcon.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
+import { getCollection } from 'astro:content';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const prefix = lang === 'tr' ? '/tr' : '';
+
+/**
+ * The years in the webinars dropdown.
+ *
+ * These were five hand-written links, 2026 down to 2022, and 2026 had no
+ * webinars in either language: the menu offered a year and the page it opened
+ * was empty. The years that do exist in Turkish are not the same set as in
+ * English either -- Turkish has nine 2024 talks and English has one -- so a
+ * single hardcoded list could not have been right for both.
+ *
+ * The listing page filters on the #year fragment, so these are the years it
+ * has something to show. Newest five, which is what the menu had room for.
+ */
+const webinars = await getCollection('webinars', ({ id, data }) => id.startsWith(`${lang}/`) && !data.draft);
+const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => b - a).slice(0, 5);
 ---
 
 <header class="fixed top-0 left-0 right-0 z-50 bg-navy h-16 border-b border-[#1a2744]">
@@ -26,11 +42,9 @@ const prefix = lang === 'tr' ? '/tr' : '';
       <div class="relative group">
         <a href={`${prefix}/webinars`} class="nav-link">{t('nav.webinars')}</a>
         <div class="dropdown-menu">
-          <a href={`${prefix}/webinars#2026`} class="dropdown-item">2026</a>
-          <a href={`${prefix}/webinars#2025`} class="dropdown-item">2025</a>
-          <a href={`${prefix}/webinars#2024`} class="dropdown-item">2024</a>
-          <a href={`${prefix}/webinars#2023`} class="dropdown-item">2023</a>
-          <a href={`${prefix}/webinars#2022`} class="dropdown-item">2022</a>
+          {menuYears.map((year) => (
+            <a href={`${prefix}/webinars#${year}`} class="dropdown-item">{year}</a>
+          ))}
         </div>
       </div>
 

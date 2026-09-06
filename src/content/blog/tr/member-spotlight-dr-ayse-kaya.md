@@ -9,7 +9,7 @@ tags:
   - "research"
   - "genomics"
   - "community"
-image: "/images/member-spotlight.jpg"
+image: ""
 lang: "tr"
 draft: false
 ---

@@ -125,3 +125,30 @@ test('there is a Turkish 404 where Cloudflare Pages will look for it', { skip: !
   assert.match(html, /Sayfa Bulunamad/, 'the Turkish 404 is in Turkish');
   assert.doesNotMatch(html, /Page Not Found/, 'and not also in English');
 });
+
+/**
+ * A year in the menu is a year with something to show.
+ *
+ * The webinars dropdown was five hand-written links, 2026 down to 2022. There
+ * are no 2026 webinars in either language, so the menu offered a year and the
+ * page it opened was empty -- and the year sets differ between languages
+ * anyway (Turkish has nine 2024 talks, English has one), so one hardcoded list
+ * could not be right for both. The listing filters on the #year fragment, so
+ * this checks the fragment against what that page actually holds.
+ */
+test('every year in the webinars menu has webinars in that language', { skip: !existsSync(DIST) && 'no build in dist/' }, () => {
+  for (const [label, page, listing] of [
+    ['English', 'index.html', 'webinars/index.html'],
+    ['Turkish', 'tr/index.html', 'tr/webinars/index.html'],
+  ]) {
+    const menu = new Set(
+      [...readFileSync(join(DIST, page), 'utf8').matchAll(/webinars#(\d{4})/g)].map((m) => m[1]),
+    );
+    const present = new Set(
+      [...readFileSync(join(DIST, listing), 'utf8').matchAll(/data-year="(\d{4})"/g)].map((m) => m[1]),
+    );
+    assert.ok(menu.size > 0, `${label}: the menu lists no years at all`);
+    const empty = [...menu].filter((y) => !present.has(y)).sort();
+    assert.deepEqual(empty, [], `${label} menu offers ${empty.join(', ')}, and that page has none`);
+  }
+});

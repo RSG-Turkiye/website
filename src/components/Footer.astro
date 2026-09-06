@@ -4,6 +4,10 @@ import { getLangFromUrl, useTranslations } from '../i18n/ui';
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const prefix = lang === 'tr' ? '/tr' : '';
+
+// The copyright line said 2024 for as long as nobody remembered to change it.
+// A year nobody has to remember is the build year.
+const buildYear = new Date().getFullYear();
 ---
 <footer class="bg-navy text-white mt-auto">
   <div class="max-w-7xl mx-auto px-6 py-12">
@@ -54,7 +58,7 @@ const prefix = lang === 'tr' ? '/tr' : '';
     </div>
 
     <div class="border-t border-white/10 mt-10 pt-6 text-center">
-      <p class="text-xs text-white/40">{t('footer.copyright')}</p>
+      <p class="text-xs text-white/40">{t('footer.copyright').replace('{year}', String(buildYear))}</p>
     </div>
   </div>
 </footer>
