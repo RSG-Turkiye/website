@@ -16,7 +16,14 @@
  * What it establishes, on the real autoplay policy with real clicks:
  *   - nothing plays until something is pressed
  *   - the strip plays without leaving the page
- *   - audio survives navigation, and there is never more than one player
+ *   - there is never more than one player
+ *
+ * What it does NOT establish any more: that audio survives navigation. It did,
+ * under <ClientRouter />, which was removed because it broke the signed-in
+ * header -- DOMContentLoaded stops firing, and three scripts and the auth area
+ * depend on it. The navigation steps below now record that the audio stops,
+ * which is the truth today. When the router comes back, with those scripts
+ * moved to astro:page-load and a test that signs in, these flip back.
  *   - /podcast switches episodes through the same player
  *   - pause and resume
  *   - crossing languages keeps the audio and moves the labels
@@ -61,8 +68,8 @@ for (const p of ['/about', '/blog', '/webinars']) {
   await page.locator(`a[href="${p}"]:visible`).first().click(); await page.waitForTimeout(1500);
   s = await A();
   console.log(`   ${p.padEnd(11)} ses ${s.t}s ${s.t > prev ? '↑' : 'DURDU'}  audio:${s.audios}`);
-  if (s.paused) bad.push(`${p} sayfasında ses durdu`);
-  if (s.t <= prev) bad.push(`${p} sayfasında ses ilerlemedi`);
+  // Not an assertion: without view transitions the audio stops here, and
+  // that is the documented state of the feature rather than a regression.
   if (s.audios !== 1) bad.push(`${p} sayfasında ${s.audios} audio`);
   prev = s.t;
 }
