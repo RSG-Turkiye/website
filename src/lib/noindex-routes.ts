@@ -14,7 +14,11 @@
  * BaseLayout.astro (what actually keeps a URL out once Google finds it some
  * other way). Those two must never drift apart.
  */
-const NOINDEX_PREFIXES = ['/account', '/admin', '/login', '/members'] as const;
+// /search is here for the same reason as the rest: the page Astro builds is
+// an empty shell with a box in it, and the results are assembled in the
+// browser. There is nothing on it for a crawler to index and nothing a
+// searcher could usefully land on.
+const NOINDEX_PREFIXES = ['/account', '/admin', '/login', '/members', '/search'] as const;
 
 /** Strip the /tr language prefix so both copies of a page share one rule. */
 function withoutLangPrefix(pathname: string): string {
