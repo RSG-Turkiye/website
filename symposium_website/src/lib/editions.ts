@@ -146,7 +146,21 @@ export function locationFor(e: EditionLike, now: Date): LocationDisplay {
  * `titleTr` at all, so this is the well-trodden path, not an edge case.
  */
 export function titleFor(e: EditionLike, lang: "en" | "tr"): string {
-  if (lang === "tr" && e.titleTr) return e.titleTr;
+  if (lang !== "tr") return e.title;
+  if (e.titleTr) return e.titleTr;
+
+  // Only 2026 has a titleTr, so every Turkish archive page had an English
+  // heading -- "12th RSG-Türkiye Student Symposium" with the Turkish body
+  // beginning "12. RSG-Türkiye Öğrenci Sempozyumu" two lines below it.
+  //
+  // Eight hand-typed strings would fix it once. This is a rule instead,
+  // because every edition title has the same shape and always will: the only
+  // thing that differs is the number, which ordinalLabel already knows how to
+  // write in Turkish. An edition whose title is not that shape -- a special
+  // one, a renamed one -- falls back to English rather than being mangled,
+  // and a titleTr in the file still wins over both.
+  const standard = /^(\d+)(?:st|nd|rd|th) RSG-Türkiye Student Symposium$/.exec(e.title.trim());
+  if (standard) return `${ordinalLabel(Number(standard[1]), "tr")} RSG-Türkiye Öğrenci Sempozyumu`;
   return e.title;
 }
 

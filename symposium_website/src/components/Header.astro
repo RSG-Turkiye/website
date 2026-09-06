@@ -29,7 +29,7 @@ const currentPath = Astro.url.pathname;
         class="h-8 w-auto"
       />
       <span class="hidden sm:block text-white/70 text-xs leading-tight border-l border-white/20 pl-2.5">
-        Student<br />Symposium
+        <Fragment set:html={t("brand.wordmark")} />
       </span>
     </a>
 

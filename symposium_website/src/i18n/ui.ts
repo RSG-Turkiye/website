@@ -47,8 +47,23 @@ export const ui = {
     "speakers.filter.all": "All Editions",
     "speakers.none": "Speakers will be announced soon.",
 
+    // The wordmark under the logo, two lines by design.
+    "brand.wordmark": "Student<br />Symposium",
     "schedule.title": "Program",
-    "schedule.subtitle": "Programme",
+    "schedule.subtitle": "Every talk, workshop and break, in order.",
+    // The ten session types, which used to be printed straight out of the
+    // JSON. On /tr/schedule that meant "Keynote", "Break" and "Networking" in
+    // the middle of a Turkish programme.
+    "session.type.opening": "Opening",
+    "session.type.keynote": "Keynote",
+    "session.type.workshop": "Workshop",
+    "session.type.panel": "Panel",
+    "session.type.talk": "Talk",
+    "session.type.company": "Industry",
+    "session.type.poster": "Poster",
+    "session.type.networking": "Networking",
+    "session.type.break": "Break",
+    "session.type.closing": "Closing",
     "schedule.none": "Schedule will be announced soon.",
     // The finished state: after an edition ends, its programme stays up as a
     // record rather than reverting to "will be announced soon" about an event
@@ -149,8 +164,19 @@ export const ui = {
     "speakers.filter.all": "Tüm Edisyonlar",
     "speakers.none": "Konuşmacılar yakında duyurulacak.",
 
+    "brand.wordmark": "Öğrenci<br />Sempozyumu",
     "schedule.title": "Program",
-    "schedule.subtitle": "Program",
+    "schedule.subtitle": "Sırasıyla bütün sunumlar, atölyeler ve aralar.",
+    "session.type.opening": "Açılış",
+    "session.type.keynote": "Davetli Konuşma",
+    "session.type.workshop": "Atölye",
+    "session.type.panel": "Panel",
+    "session.type.talk": "Sunum",
+    "session.type.company": "Sanayi",
+    "session.type.poster": "Poster",
+    "session.type.networking": "Tanışma",
+    "session.type.break": "Ara",
+    "session.type.closing": "Kapanış",
     "schedule.none": "Program yakında duyurulacak.",
     "schedule.past.note": "Sempozyumun gerçekleşen programı.",
     "schedule.past.none": "Bu edisyon için program kaydı yok.",
