@@ -5,6 +5,7 @@
 // only inside a function body that a route calls -- nothing here runs it at
 // import time.
 import type { Env } from './auth';
+import { parseHttpUrl } from './url';
 
 // The D1 row shapes, mirroring Task 2's CREATE TABLE statements exactly.
 export interface SpeakerRow { id: string; slug: string; year: number; name: string; position: string; company: string; bio: string; photo: string; linkedin: string; sort: number }
@@ -125,13 +126,7 @@ export interface EditionInput {
 // Empty/absent -> '' (the column's own "unset" value, per its NOT NULL
 // DEFAULT ''). Anything else must be http(s) -- these values are rendered
 // into hrefs on a public site, so a javascript: URL must never reach D1.
-function parseHttpUrl(value: string | undefined, field: string): string {
-  if (!value) return '';
-  if (!/^https?:\/\//i.test(value)) {
-    throw new Error(`${field} must be an http(s) URL, got: ${value}`);
-  }
-  return value;
-}
+
 
 // Empty/null/absent -> null (no deadline), never 0 -- epoch 0 is 1970, a
 // real timestamp, not "unset".

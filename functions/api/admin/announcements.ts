@@ -1,5 +1,13 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, canManageAnnouncements } from '../../_lib/auth';
+import {
+  announcementText,
+  announcementExpiry,
+  announcementUrl,
+  MAX_TITLE,
+  MAX_DESCRIPTION,
+  MAX_BUTTON_TEXT,
+} from '../../_lib/announcement';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
@@ -50,13 +58,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     expires_at: number;
   }>();
 
-  if (!body.title || !body.description || !body.button_text || !body.button_url || !body.expires_at) {
-    return jsonResponse({ error: 'Missing required field' }, 400);
-  }
-
-  if (body.title.length > 80 || body.description.length > 200 || body.button_text.length > 30) {
-    return jsonResponse({ error: 'Field too long' }, 400);
-  }
+  // Every field, by the same rules the PATCH uses. See _lib/announcement.ts:
+  // a text expires_at makes the announcement permanent, silently, because
+  // SQLite compares every TEXT value as greater than every INTEGER.
+  const title = announcementText(body.title, MAX_TITLE, 'Title', true);
+  if (!title.ok) return jsonResponse({ error: title.error }, 400);
+  const description = announcementText(body.description, MAX_DESCRIPTION, 'Description', true);
+  if (!description.ok) return jsonResponse({ error: description.error }, 400);
+  const buttonText = announcementText(body.button_text, MAX_BUTTON_TEXT, 'Button text', true);
+  if (!buttonText.ok) return jsonResponse({ error: buttonText.error }, 400);
+  const buttonUrl = announcementUrl(body.button_url, true);
+  if (!buttonUrl.ok) return jsonResponse({ error: buttonUrl.error }, 400);
+  const expiresAt = announcementExpiry(body.expires_at);
+  if (!expiresAt.ok) return jsonResponse({ error: expiresAt.error }, 400);
 
   const id = generateId();
   const now = Math.floor(Date.now() / 1000);
@@ -67,12 +81,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id,
-    body.title,
-    body.description,
-    body.button_text,
-    body.button_url,
+    // The validated values, not the raw body: binding body.expires_at here
+    // would put the string straight into the column the validation exists to
+    // protect.
+    title.value,
+    description.value,
+    buttonText.value,
+    buttonUrl.value,
     body.show_as_popup ? 1 : 0,
-    body.expires_at,
+    expiresAt.value,
     user.id,
     now
   ).run();
