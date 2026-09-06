@@ -14,6 +14,7 @@ type SubmissionRow = {
   image_url: string;
   body: string;
   slug: string;
+  status: string;
   paired_submission_id: string | null;
 };
 
@@ -58,6 +59,21 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   ).bind(id).first<SubmissionRow & { submitter_email: string }>();
   if (!row) return jsonResponse({ error: 'Not found' }, 404);
 
+  // Nothing below read this, and both branches acted on any row they were
+  // handed. Re-approving with a different slug opened a second pull request
+  // for the same post -- openContentPR is idempotent per branch name, so a
+  // different slug does not converge on the first. Rejecting an approved one
+  // flipped it to 'rejected' with its PR still open, which let the writer
+  // edit and resubmit (the resubmit path allows exactly that status) and a
+  // second approval open a third. And approving a rejected submission
+  // published something its author had been told was turned down.
+  if (row.status !== 'pending') {
+    return jsonResponse(
+      { error: `This submission was already ${row.status}.`, code: 'not_pending' },
+      409,
+    );
+  }
+
   const body = await request.json<ActionBody>();
 
   if (body.action === 'reject') {
@@ -65,13 +81,17 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
     const now = Math.floor(Date.now() / 1000);
     const rejectStatements = [
       env.DB.prepare(
-        `UPDATE blog_submissions SET status = 'rejected', rejection_reason = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?`
+        // AND status = 'pending' as well as the check above: the check
+        // reflects the row as it was read, and two admins can read it at once.
+        `UPDATE blog_submissions SET status = 'rejected', rejection_reason = ?, reviewed_at = ?, reviewed_by = ?
+         WHERE id = ? AND status = 'pending'`
       ).bind(body.reason, now, admin.id, id),
     ];
     if (row.paired_submission_id) {
       rejectStatements.push(
         env.DB.prepare(
-          `UPDATE blog_submissions SET status = 'rejected', rejection_reason = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?`
+          `UPDATE blog_submissions SET status = 'rejected', rejection_reason = ?, reviewed_at = ?, reviewed_by = ?
+           WHERE id = ? AND status = 'pending'`
         ).bind(body.reason, now, admin.id, row.paired_submission_id)
       );
     }
@@ -135,13 +155,17 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   // itself has already succeeded by this point.
   const updateStatements = [
     env.DB.prepare(
-      `UPDATE blog_submissions SET status = 'approved', pr_url = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?`
+      // AND status = 'pending' as well as the check at the top: the check
+      // reflects the row as it was read, and two admins can read it at once.
+      `UPDATE blog_submissions SET status = 'approved', pr_url = ?, reviewed_at = ?, reviewed_by = ?
+       WHERE id = ? AND status = 'pending'`
     ).bind(result.prUrl, now, admin.id, id),
   ];
   if (pairedRow) {
     updateStatements.push(
       env.DB.prepare(
-        `UPDATE blog_submissions SET status = 'approved', pr_url = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?`
+        `UPDATE blog_submissions SET status = 'approved', pr_url = ?, reviewed_at = ?, reviewed_by = ?
+         WHERE id = ? AND status = 'pending'`
       ).bind(result.prUrl, now, admin.id, pairedRow.id)
     );
   }
