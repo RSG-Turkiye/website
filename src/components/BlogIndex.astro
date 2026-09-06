@@ -16,6 +16,7 @@
  */
 import { useTranslations } from '../i18n/ui';
 import { atSize, SIZES } from '../lib/cloudinary';
+import { heroImage } from '../lib/post-image';
 import type { CollectionEntry } from 'astro:content';
 
 interface Props {
@@ -36,16 +37,10 @@ const allTags = [...new Set(posts.flatMap((p) => p.data.tags || []))].sort();
 const facts = [t('blog.fact.article'), t('blog.fact.founded'), t('blog.fact.symposium')];
 
 function getThumbnail(post: CollectionEntry<'blog'>): string | null {
-  const img = post.data.image;
   // Asked for at the size the card draws. These URLs are stored with whatever
   // transformation the image was first needed at -- usually c_limit,w_1600 for
   // a post's hero -- and fifteen of those in 128x96 boxes was 1,156,042 bytes.
-  const found =
-    img && img.startsWith('http') && !img.includes('gravatar.com')
-      ? img
-      : post.body?.match(/!\[.*?\]\((https:\/\/[^\s)]+)\)/)?.[1] ||
-        post.body?.match(/<img[^>]+src=["'](https:\/\/[^\s"']+)["']/)?.[1] ||
-        null;
+  const found = heroImage(post);
   return found ? atSize(found, SIZES.cardThumb) : null;
 }
 ---

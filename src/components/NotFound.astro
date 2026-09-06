@@ -1,0 +1,38 @@
+---
+/**
+ * The 404 body, shared by the English and Turkish pages.
+ *
+ * There was no Turkish one. A reader who mistyped a URL under /tr/ -- or
+ * followed a link to a page that had been renamed -- got an English "Page Not
+ * Found" and two English buttons, on a site they had chosen to read in
+ * Turkish.
+ */
+import { useTranslations } from '../i18n/ui';
+
+interface Props {
+  lang: 'en' | 'tr';
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const home = lang === 'en' ? '/' : '/tr/';
+const blog = lang === 'en' ? '/blog' : '/tr/blog';
+---
+
+<section class="min-h-[60vh] flex items-center bg-white">
+  <div class="max-w-7xl mx-auto px-6 text-center w-full py-16">
+    <p class="text-8xl font-bold text-navy mb-4">404</p>
+    <h1 class="text-2xl font-semibold text-navy mb-3">{t('notFound.title')}</h1>
+    <p class="text-gray-500 text-lg max-w-sm mx-auto mb-8">{t('notFound.body')}</p>
+    <div class="flex gap-3 justify-center flex-wrap">
+      <a href={home}
+        class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium hover:bg-red-hover transition-colors no-underline">
+        {t('notFound.home')}
+      </a>
+      <a href={blog}
+        class="inline-flex items-center px-6 py-3 rounded border border-navy text-navy font-medium hover:bg-navy hover:text-white transition-colors no-underline">
+        {t('notFound.blog')}
+      </a>
+    </div>
+  </div>
+</section>

@@ -1,120 +1,27 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getCollection, render } from 'astro:content';
+import BlogPostView from '../../components/BlogPostView.astro';
+import { getCollection } from 'astro:content';
 import { counterpartSlug } from '../../lib/translations';
 
 export async function getStaticPaths() {
   const all = await getCollection('blog', ({ data }) => !data.draft);
-  const enPosts = all.filter(p => p.id.startsWith('en/'));
-  return enPosts.map((post) => {
-    const slug = post.id.slice(3); // strip 'en/'
-    return {
-      params: { slug },
+  return all
+    .filter((p) => p.id.startsWith('en/'))
+    .map((post) => ({
+      params: { slug: post.id.slice(3) },
       props: { post, twinSlug: counterpartSlug(all, post.id, 'tr') },
-    };
-  });
+    }));
 }
 
 const { post, twinSlug } = Astro.props;
-const { Content } = await render(post);
-const { title, pubDate, description, author, tags, image, category } = post.data;
-const slug = post.id.slice(3);
-const canonicalUrl = `https://rsg-turkiye.iscbsc.org/blog/${slug}`;
-
-const articleJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "headline": title,
-  "description": description || '',
-  "datePublished": pubDate.toISOString(),
-  "author": author ? { "@type": "Person", "name": author } : undefined,
-  "publisher": {
-    "@type": "Organization",
-    "name": "RSG Turkiye",
-    "logo": { "@type": "ImageObject", "url": "https://rsg-turkiye.iscbsc.org/logo/rsgturkey_logo.png" }
-  },
-  "url": canonicalUrl,
-  "image": image || "https://rsg-turkiye.iscbsc.org/logo/rsgturkey_logo.png",
-  "keywords": tags?.join(', ') || '',
-};
+const { title, description } = post.data;
 ---
 
-<BaseLayout pageTitle={title} description={description} translationUrl={twinSlug ? `/tr/blog/${twinSlug}` : '/tr/blog'} translationExists={twinSlug !== null} ogType="article">
-  <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} slot="head" />
-
-  <article class="py-10 pb-16">
-    <div class="max-w-7xl mx-auto px-6">
-
-      <header class="mb-8 pb-6 border-b border-border">
-        <div class="flex items-center gap-2 flex-wrap mb-3">
-          {category && (
-            <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red">{category}</span>
-          )}
-          <span class="text-sm text-gray-500">
-            {pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-          </span>
-          {author && (
-            <span class="flex items-center gap-1.5 text-sm text-gray-500">
-              {image && (
-                <img src={image} alt={author} width="24" height="24"
-                  class="w-6 h-6 rounded-full object-cover border border-border" />
-              )}
-              {author}
-            </span>
-          )}
-          {twinSlug && (
-            <a href={`/tr/blog/${twinSlug}`}
-              class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
-              🇹🇷 Türkçe oku
-            </a>
-          )}
-        </div>
-        <h1 class="text-3xl font-bold text-navy leading-tight mb-3">{title}</h1>
-        {description && <p class="text-gray-500 text-lg leading-relaxed">{description}</p>}
-        {tags && tags.length > 0 && (
-          <div class="flex flex-wrap gap-1.5 mt-3">
-            {tags.map((tag: string) => (
-              <a href={`/tags/${tag}`}
-                class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red hover:bg-red hover:text-white transition-colors">
-                {tag}
-              </a>
-            ))}
-          </div>
-        )}
-      </header>
-
-      <div class="post-content">
-        <Content />
-      </div>
-
-      <footer class="mt-10 pt-6 border-t border-border flex items-center justify-between flex-wrap gap-4">
-        <a href="/blog"
-          class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
-          ← Back to Blog
-        </a>
-        <!-- Social sharing -->
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500 mr-1">Share:</span>
-          <a
-            href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(canonicalUrl)}&text=${encodeURIComponent(title)}`}
-            target="_blank" rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-xs text-gray-500 hover:border-navy-mid hover:text-navy transition-colors no-underline">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.736-8.84L1.254 2.25H8.08l4.259 5.632zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            X
-          </a>
-          <a
-            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(canonicalUrl)}`}
-            target="_blank" rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-xs text-gray-500 hover:border-navy-mid hover:text-navy transition-colors no-underline">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-            LinkedIn
-          </a>
-        </div>
-      </footer>
-
-    </div>
-  </article>
+<BaseLayout pageTitle={title} description={description}
+  translationUrl={twinSlug ? `/tr/blog/${twinSlug}` : '/tr/blog'}
+  translationExists={twinSlug !== null} ogType="article">
+  <BlogPostView lang="en" post={post} twinSlug={twinSlug} />
 </BaseLayout>
-
 
 <!-- post-content prose styles live in global.css -->
