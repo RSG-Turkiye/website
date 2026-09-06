@@ -10,6 +10,7 @@ import {
   TOKENS,
   REQUIRED_NORMAL,
 } from '../src/lib/contrast';
+import { parse } from 'node-html-parser';
 import { report, scan } from './lib/contrast-scan';
 
 /**
@@ -44,7 +45,7 @@ import { report, scan } from './lib/contrast-scan';
 const MAIN = new URL('../dist/', import.meta.url).pathname;
 
 test('no text on the main site falls below its WCAG AA contrast ratio', { skip: !existsSync(MAIN) && 'no build in dist/' }, () => {
-  const failures = scan([MAIN]);
+  const failures = scan([MAIN], parse);
   assert.deepEqual(failures, [], `text a reader cannot read:\n    ${report(failures)}\n  `);
 });
 

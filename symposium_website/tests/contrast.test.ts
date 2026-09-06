@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { parse } from 'node-html-parser';
 import { pages, report, scan } from '../../tests/lib/contrast-scan';
 
 /**
@@ -24,7 +25,7 @@ const DIST = new URL('../dist/', import.meta.url).pathname;
 const built = existsSync(DIST);
 
 test('no text on the symposium site falls below its WCAG AA contrast ratio', { skip: !built && 'no build in dist/' }, () => {
-  const failures = scan([DIST]);
+  const failures = scan([DIST], parse);
   assert.deepEqual(failures, [], `text a reader cannot read:\n    ${report(failures)}\n  `);
 });
 

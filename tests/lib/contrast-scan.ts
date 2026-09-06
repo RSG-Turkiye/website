@@ -1,6 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse, type HTMLElement } from 'node-html-parser';
 import { colorOf, composite, contrast, required, TOKENS } from '../../src/lib/contrast';
 
 /**
@@ -14,7 +13,25 @@ import { colorOf, composite, contrast, required, TOKENS } from '../../src/lib/co
  * mistakes, and because a rule written down twice is the bug this repository
  * keeps finding. CI runs the sites as separate jobs with separate working
  * directories, so each job scans its own build and neither can silently skip.
+ *
+ * The HTML parser is passed in rather than imported. This file sits in the
+ * root package, so a bare `node-html-parser` import here resolves against the
+ * root's node_modules -- which the symposium job does not install, and the
+ * first attempt died there with ERR_MODULE_NOT_FOUND. Both packages have the
+ * dependency; each caller hands in its own copy, and this file has no
+ * third-party import to resolve.
  */
+
+/** The shape of node-html-parser's element, reduced to what the walk uses. */
+export interface ParsedElement {
+  tagName?: string;
+  getAttribute(name: string): string | undefined;
+  childNodes: { nodeType: number; rawText: string }[];
+  querySelector(selector: string): ParsedElement | null;
+}
+
+/** node-html-parser's `parse`, supplied by the caller. */
+export type Parse = (html: string) => ParsedElement;
 
 export interface Failure {
   combination: string;
@@ -42,7 +59,7 @@ export function pages(dir: string, out: string[] = []): string[] {
  * One line per combination rather than per element: 290 pages share one
  * footer, and the fix is the same everywhere.
  */
-export function scan(roots: string[]): Failure[] {
+export function scan(roots: string[], parse: Parse): Failure[] {
   const worst = new Map<string, Failure>();
 
   for (const root of roots) {
@@ -50,7 +67,7 @@ export function scan(roots: string[]): Failure[] {
       const body = parse(readFileSync(page, 'utf8')).querySelector('body');
       if (!body) continue;
 
-      const walk = (el: HTMLElement, background: string) => {
+      const walk = (el: ParsedElement, background: string) => {
         const classes = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 
         const bg = classes.map((c) => colorOf(c, 'bg')).find(Boolean);
@@ -87,7 +104,8 @@ export function scan(roots: string[]): Failure[] {
         }
 
         for (const child of el.childNodes) {
-          if ((child as HTMLElement).tagName) walk(child as HTMLElement, here);
+          const asElement = child as unknown as ParsedElement;
+          if (asElement.tagName) walk(asElement, here);
         }
       };
 
