@@ -1,82 +1,27 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
-import { getCollection, render } from 'astro:content';
+import BlogPostView from '../../../components/BlogPostView.astro';
+import { getCollection } from 'astro:content';
 import { counterpartSlug } from '../../../lib/translations';
 
 export async function getStaticPaths() {
   const all = await getCollection('blog', ({ data }) => !data.draft);
-  const trPosts = all.filter(p => p.id.startsWith('tr/'));
-  return trPosts.map((post) => {
-    const slug = post.id.slice(3); // strip 'tr/'
-    return {
-      params: { slug },
+  return all
+    .filter((p) => p.id.startsWith('tr/'))
+    .map((post) => ({
+      params: { slug: post.id.slice(3) },
       props: { post, twinSlug: counterpartSlug(all, post.id, 'en') },
-    };
-  });
+    }));
 }
 
 const { post, twinSlug } = Astro.props;
-const { Content } = await render(post);
-const { title, pubDate, description, author, tags, image, category } = post.data;
-const slug = post.id.slice(3);
+const { title, description } = post.data;
 ---
 
-<BaseLayout pageTitle={title} description={description} translationUrl={twinSlug ? `/blog/${twinSlug}` : '/blog'} translationExists={twinSlug !== null} ogType="article">
-  <article class="py-10 pb-16">
-    <div class="max-w-7xl mx-auto px-6">
-
-      <header class="mb-8 pb-6 border-b border-border">
-        <div class="flex items-center gap-3 flex-wrap mb-3">
-          {category && (
-            <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red">{category}</span>
-          )}
-          <span class="text-sm text-gray-500">
-            {pubDate.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}
-          </span>
-          {author && (
-            <span class="flex items-center gap-1.5 text-sm text-gray-500">
-              {image && (
-                <img src={image} alt={author} width="24" height="24"
-                  class="w-6 h-6 rounded-full object-cover border border-border" />
-              )}
-              {author}
-            </span>
-          )}
-          {twinSlug && (
-            <a href={`/blog/${twinSlug}`}
-              class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
-              🇬🇧 Read in English
-            </a>
-          )}
-        </div>
-        <h1 class="text-3xl font-bold text-navy leading-tight mb-3">{title}</h1>
-        {description && <p class="text-gray-500 text-lg leading-relaxed">{description}</p>}
-        {tags && tags.length > 0 && (
-          <div class="flex flex-wrap gap-1.5 mt-3">
-            {tags.map((tag: string) => (
-              <a href={`/tr/tags/${tag}`}
-                class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red hover:bg-red hover:text-white transition-colors">
-                {tag}
-              </a>
-            ))}
-          </div>
-        )}
-      </header>
-
-
-      <div class="post-content">
-        <Content />
-      </div>
-
-      <footer class="mt-10 pt-6 border-t border-border">
-        <a href="/tr/blog"
-          class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
-          ← Bloga Dön
-        </a>
-      </footer>
-    </div>
-  </article>
+<BaseLayout pageTitle={title} description={description}
+  translationUrl={twinSlug ? `/blog/${twinSlug}` : '/blog'}
+  translationExists={twinSlug !== null} ogType="article">
+  <BlogPostView lang="tr" post={post} twinSlug={twinSlug} />
 </BaseLayout>
-
 
 <!-- post-content prose styles live in global.css -->

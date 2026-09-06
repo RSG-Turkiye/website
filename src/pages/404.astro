@@ -1,23 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import NotFound from '../components/NotFound.astro';
 ---
 
 <BaseLayout pageTitle="Page Not Found">
-  <section class="min-h-[60vh] flex items-center bg-white">
-    <div class="max-w-7xl mx-auto px-6 text-center w-full py-16">
-      <p class="text-8xl font-bold text-navy mb-4">404</p>
-      <h1 class="text-2xl font-semibold text-navy mb-3">Page Not Found</h1>
-      <p class="text-gray-500 text-lg max-w-sm mx-auto mb-8">The page you're looking for doesn't exist or has been moved.</p>
-      <div class="flex gap-3 justify-center flex-wrap">
-        <a href="/"
-          class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium hover:bg-red-hover transition-colors no-underline">
-          Go Home
-        </a>
-        <a href="/blog"
-          class="inline-flex items-center px-6 py-3 rounded border border-navy text-navy font-medium hover:bg-navy hover:text-white transition-colors no-underline">
-          Read Blog
-        </a>
-      </div>
-    </div>
-  </section>
+  <NotFound lang="en" />
 </BaseLayout>

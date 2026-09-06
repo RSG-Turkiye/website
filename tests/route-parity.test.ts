@@ -80,3 +80,48 @@ test('every Turkish page offers the controls its English twin does', { skip: !ex
       `set of readers cannot reach:\n    ${drifted.join('\n    ')}\n  `,
   );
 });
+
+/**
+ * The two things the Turkish post page silently did without.
+ *
+ * Controls carry ids and the test above catches them. Structured data and
+ * share links do not: the Turkish post page had no <script type="ld+json">
+ * and no share buttons, and the page looked complete either way. The
+ * consequence was not cosmetic -- Google saw a Turkish article as an untyped
+ * page, with no headline, date, author or publisher.
+ */
+test('a Turkish page carries the structured data and share links its English twin does', { skip: !existsSync(DIST) && 'no build in dist/' }, () => {
+  const shareHosts = (html: string): string[] =>
+    [...new Set([...html.matchAll(/href="https:\/\/(twitter\.com|www\.linkedin\.com)\/[^"]*"/g)].map((m) => m[1]))].sort();
+  const jsonLdTypes = (html: string): string[] =>
+    [...html.matchAll(/<script type="application\/ld\+json"[^>]*>(.*?)<\/script>/gs)]
+      .map((m) => (/"@type"\s*:\s*"([^"]+)"/.exec(m[1]) ?? [, '?'])[1] as string)
+      .sort();
+
+  const drifted: string[] = [];
+  for (const route of pages(DIST).filter((p) => !p.startsWith('tr/'))) {
+    const tr = join(DIST, 'tr', route);
+    if (!existsSync(tr)) continue;
+    const en = readFileSync(join(DIST, route), 'utf8');
+    const trHtml = readFileSync(tr, 'utf8');
+    const a = [jsonLdTypes(en).join(','), shareHosts(en).join(',')];
+    const b = [jsonLdTypes(trHtml).join(','), shareHosts(trHtml).join(',')];
+    if (a[0] !== b[0] || a[1] !== b[1]) {
+      drifted.push(`/${route.replace(/index\.html$/, '')}  en=[${a}]  tr=[${b}]`);
+    }
+  }
+  assert.deepEqual(drifted, [], `structured data or share links exist in one language only:\n    ${drifted.join('\n    ')}\n  `);
+});
+
+/**
+ * Cloudflare Pages serves the 404.html nearest the requested path. Without
+ * dist/tr/404.html, a mistyped URL under /tr/ answered in English.
+ */
+test('there is a Turkish 404 where Cloudflare Pages will look for it', { skip: !existsSync(DIST) && 'no build in dist/' }, () => {
+  const tr = join(DIST, 'tr', '404.html');
+  assert.ok(existsSync(join(DIST, '404.html')), 'the root 404 is still emitted');
+  assert.ok(existsSync(tr), 'dist/tr/404.html is missing; /tr/* would answer in English');
+  const html = readFileSync(tr, 'utf8');
+  assert.match(html, /Sayfa Bulunamad/, 'the Turkish 404 is in Turkish');
+  assert.doesNotMatch(html, /Page Not Found/, 'and not also in English');
+});
