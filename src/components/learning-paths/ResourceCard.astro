@@ -145,7 +145,7 @@ const tagClass = isWebinar
         target={isExternal ? '_blank' : undefined}
         rel={isExternal ? 'noopener noreferrer' : undefined}
         class="inline-flex items-center gap-1 mt-2 text-xs font-medium text-navy-mid hover:text-navy no-underline transition-colors"
-        onclick="event.stopPropagation()">
+        data-stop-propagation>
         {linkLabel}
       </a>
     )}
@@ -172,3 +172,12 @@ const tagClass = isWebinar
     border-color: rgba(134, 239, 172, 0.5);
   }
 </style>
+
+<script>
+  // The card is clickable and this link sits inside it; the click must not
+  // reach the card. Attached rather than inline, so no page carries a script
+  // attribute a Content-Security-Policy would have to permit.
+  for (const link of document.querySelectorAll('[data-stop-propagation]')) {
+    link.addEventListener('click', (event) => event.stopPropagation());
+  }
+</script>

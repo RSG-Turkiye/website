@@ -1,6 +1,41 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+const SRC = new URL('../src/', import.meta.url).pathname;
+
+/**
+ * Code with its prose removed.
+ *
+ * Written because this test's first run flagged escape-html.ts, whose comment
+ * quotes the very payload it defends against. Only block comments and lines
+ * that are entirely a comment are dropped -- stripping from `//` anywhere
+ * would eat the rest of a line holding a URL, and could hide a real handler
+ * sitting beside one.
+ */
+function withoutComments(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((line) => {
+      const t = line.trim();
+      return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('<!--');
+    })
+    .join('\n');
+}
+
+/** Everything a person edits: pages, components, layouts, scripts. */
+function sourceFiles(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) out.push(...sourceFiles(path));
+    else if (/\.(astro|ts|js|mjs)$/.test(name)) out.push(path);
+  }
+  return out;
+}
 
 /**
  * What the site tells a browser about its own files.
@@ -83,3 +118,25 @@ for (const [site, path] of [
     assert.ok(!/Content-Security-Policy/i.test(active), 'a CSP appeared; check it forbids inline script');
   });
 }
+
+test('no source file writes an inline event handler', () => {
+  // Eight of these in four files multiplied to 1,071 across the built site,
+  // and an onclick attribute is the one kind of script a Content-Security-
+  // Policy cannot tell apart from an injected one.
+  //
+  // Source rather than dist: `npm test` runs before `npm run build` in CI, so
+  // a check that reads the built output would pass by finding nothing. It also
+  // catches the shape Header.astro actually had -- handlers inside a
+  // JavaScript string, assembled with innerHTML -- because they are written
+  // literally either way.
+  const offenders: string[] = [];
+  for (const file of sourceFiles(SRC)) {
+    const text = withoutComments(readFileSync(file, 'utf8'));
+    for (const attr of ['onclick', 'onsubmit', 'onmouseover', 'onmouseout', 'onchange', 'onload', 'onerror']) {
+      if (new RegExp(`\\s${attr}=["\\']`, 'i').test(text)) {
+        offenders.push(`${file.slice(SRC.length)} (${attr})`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], 'inline handlers: attach them with addEventListener instead');
+});
