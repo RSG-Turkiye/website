@@ -2,12 +2,12 @@
 /**
  * The podcast page, once, for both languages.
  *
- * One <audio> element, not one per episode. Three of them would be three
- * players a reader can start at the same time, and -- with preload -- three
- * downloads totalling 145 MB starting the moment the page opens. Clicking an
- * episode points the single player at it.
+ * No <audio> element here at all. The strip at the foot of every page owns the
+ * site's only one, it survives navigation, and these buttons hand it an
+ * episode -- so two can never play at once, and none of the 145 MB is
+ * downloaded until somebody presses play.
  *
- * The player is here rather than a Spotify iframe because the show publishes
+ * The player is ours rather than a Spotify iframe because the show publishes
  * an RSS feed with real MP3s: styling matches the site, the interface is in
  * the reader's language, and there is no third-party frame. The subscribe
  * links to Spotify, Apple and Castbox are still offered, for people who want
@@ -15,9 +15,7 @@
  *
  * Nothing plays until somebody presses play. Browsers block audio without a
  * user gesture, Spotify's embed has never supported autoplay either, and WCAG
- * 1.4.2 counts more than three seconds of automatic sound as a failure. The
- * page makes the podcast easy to find and easy to start; it does not start
- * itself.
+ * 1.4.2 counts more than three seconds of automatic sound as a failure.
  */
 import { useTranslations } from '../i18n/ui';
 import { episodes, show, formatDate, formatDuration, summarise } from '../lib/podcast';
@@ -70,27 +68,13 @@ const platforms: [string, string][] = [
     </div>
 
     <!--
-      The player. It sits above the list and stays put while the reader scrolls
-      through episodes, so starting a second one does not mean hunting for the
-      controls again.
+      No player here. The bar at the foot of every page holds the site's only
+      audio element and these buttons drive it, which is what lets a reader
+      start an episode and then carry on reading the rest of the site.
+      (Written without the tag name in angle brackets on purpose: Astro ships
+      HTML comments, and a literal one here would count as a second player to
+      anything reading the built page -- including this feature's own test.)
     -->
-    <div id="player" class="sticky top-20 z-10 mb-8 rounded-lg border border-border bg-navy-light p-4">
-      <p
-        id="playerLabel"
-        class="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-1"
-        data-now-playing={t('podcast.nowPlaying')}
-      >
-        {t('podcast.chooseEpisode')}
-      </p>
-      <p id="playerTitle" class="text-sm font-semibold text-navy mb-3 leading-snug"></p>
-      <!--
-        preload="none": the three episodes are 145 MB between them, and a
-        reader who came to read the descriptions should not pay for any of it.
-        controls, rather than a hand-built transport, because the native one is
-        keyboard-accessible, screen-reader-labelled and already familiar.
-      -->
-      <audio id="audio" class="w-full" controls preload="none"></audio>
-    </div>
 
     <!-- Episodes -->
     <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-4">
@@ -130,37 +114,30 @@ const platforms: [string, string][] = [
 </section>
 
 <script>
-  const audio = document.getElementById('audio') as HTMLAudioElement | null;
-  const label = document.getElementById('playerLabel');
-  const title = document.getElementById('playerTitle');
-  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.episode-play'));
-
-  if (audio && label && title) {
-    const nowPlaying = label.dataset.nowPlaying ?? '';
-
-    /**
-     * A play() a browser refuses is not an error worth a console trace: it
-     * happens when the tab is backgrounded or the gesture is not recognised,
-     * and the visible controls already show the paused state.
-     */
-    const start = () => void audio.play().catch(() => {});
-
-    for (const button of buttons) {
+  /**
+   * Hands the chosen episode to the strip, which owns the site's only <audio>.
+   *
+   * An event rather than a shared function: this page and the strip are
+   * separate components, the strip outlives this page across navigations, and
+   * neither needs a reference to the other.
+   *
+   * Bound on astro:page-load, which fires on a fresh load and after every view
+   * transition, and guarded per button so arriving here twice does not stack
+   * two listeners on the same element.
+   */
+  function wireEpisodes() {
+    for (const button of document.querySelectorAll<HTMLButtonElement>('.episode-play')) {
+      if (button.dataset.wired === '1') continue;
+      button.dataset.wired = '1';
       button.addEventListener('click', () => {
-        const src = button.dataset.audio!;
-        // Clicking the episode already loaded toggles it. Setting src again
-        // would reload it and throw away where the reader had got to.
-        if (audio.dataset.loaded === src) {
-          if (audio.paused) start();
-          else audio.pause();
-          return;
-        }
-        audio.dataset.loaded = src;
-        audio.src = src;
-        title.textContent = button.dataset.title ?? '';
-        label.textContent = nowPlaying;
-        start();
+        document.dispatchEvent(
+          new CustomEvent('rsg:play-episode', {
+            detail: { url: button.dataset.audio, title: button.dataset.title },
+          }),
+        );
       });
     }
   }
+
+  document.addEventListener('astro:page-load', wireEpisodes);
 </script>
