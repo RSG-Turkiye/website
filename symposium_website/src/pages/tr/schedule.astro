@@ -50,17 +50,17 @@ const scheduleSpeakers = content?.speakers ?? [];
                 return (
                   <>
                     {loc.kind === "full" && (
-                      <p class="text-sm text-gray-500 mt-1">
+                      <p class="text-sm text-gray-600 mt-1">
                         📍 {loc.venue}, {loc.city}
                       </p>
                     )}
                     {loc.kind === "withheld" && (
-                      <p class="text-sm text-gray-500 mt-1">
+                      <p class="text-sm text-gray-600 mt-1">
                         📍 {t("venue.tba")}, {loc.city}
                       </p>
                     )}
                     {loc.kind === "city-only" && (
-                      <p class="text-sm text-gray-500 mt-1">
+                      <p class="text-sm text-gray-600 mt-1">
                         📍 {loc.city}
                       </p>
                     )}

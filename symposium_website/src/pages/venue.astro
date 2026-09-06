@@ -38,7 +38,7 @@ const effectiveEdition = edition ? withOverlayContent(edition.data, content) : n
             <div class="p-6 grid sm:grid-cols-2 gap-6">
               <div class="space-y-4">
                 <div>
-                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
                     {t("venue.date")}
                   </p>
                   <p class="text-navy font-medium text-lg">{dateFor(edition.data, lang)}</p>
@@ -48,7 +48,7 @@ const effectiveEdition = edition ? withOverlayContent(edition.data, content) : n
                   return (
                     loc.kind !== "hidden" && (
                       <div>
-                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
                           {t("venue.location")}
                         </p>
                         {loc.kind === "full" && (
@@ -72,7 +72,7 @@ const effectiveEdition = edition ? withOverlayContent(edition.data, content) : n
                 })()}
 
                 <div>
-                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
                     Contact
                   </p>
                   <a
