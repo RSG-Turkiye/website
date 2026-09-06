@@ -43,6 +43,16 @@ const alternateHref = (path: string) => new URL(path, site).href;
 <html lang={lang} data-lang={lang}>
   <head>
     <meta charset="utf-8" />
+    <!-- Inter, in three requests instead of four. The stylesheet used to be
+         pulled with @import from inside global.css, which meant the browser
+         had to fetch and parse our CSS before it learned that a font
+         stylesheet existed, and fetch that before it learned where the font
+         files were: HTML, our CSS, Google's CSS, the woff2. Declaring it here
+         starts the font stylesheet alongside our own, and the two preconnects
+         open the TLS connections while the HTML is still being read. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" />
     <!-- 64px, not the 1280x1280 original: this is drawn in a browser tab at
          16 or 32 pixels and the full-size logo cost 377 KB on every first
          visit. public/favicon.svg is Astro's default logo, not ours. -->
