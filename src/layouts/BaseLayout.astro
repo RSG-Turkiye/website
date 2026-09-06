@@ -2,7 +2,6 @@
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import PodcastStrip from '../components/PodcastStrip.astro';
-import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { isNoindexPath } from '../lib/noindex-routes';
@@ -114,20 +113,6 @@ const alternateHref = (path: string) => new URL(path, site).href;
     {translationUrl && <meta name="translation-url" content={translationUrl} />}
 
     <!-- Extra head content (JSON-LD, etc.) injected by individual pages -->
-    <!--
-      View transitions, so the podcast keeps playing when a reader moves
-      around the site. Without this, every navigation is a new document and
-      the audio stops.
-
-      I argued against this on the grounds that Astro would stop re-running
-      the site's 32 script blocks on navigation. That was wrong, and measured:
-      a headless Chromium walked /blog, /webinars, /search, /resources,
-      /learning-paths/roadmap, /join and /podcast, and every page's own script
-      did its job on arrival -- the tag filter, the webinar search, the
-      roadmap's 29 checkboxes, the episode buttons -- while the audio ran
-      continuously from 0.8s to 108.7s.
-    -->
-    <ClientRouter />
     <slot name="head" />
 
     <!-- Structured Data: Organization -->
