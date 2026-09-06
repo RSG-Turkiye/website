@@ -45,18 +45,24 @@ test('the show carries the artwork and the subscribe links the page renders', ()
   }
 });
 
-test('nothing in the data would make the page download 145 MB on open', () => {
-  // The three episodes total about 145 MB. The page must reference them only
-  // through data attributes on the buttons -- one <audio> element with no src
-  // and preload="none". This checks the built page rather than trusting the
-  // component, because that is where it would go wrong.
-  const dist = new URL('../dist/podcast/index.html', import.meta.url).pathname;
-  if (!existsSync(dist)) return; // CI builds before it tests; a fresh clone has none
-  const html = readFileSync(dist, 'utf8');
-  const audioTags = html.match(/<audio[^>]*>/g) ?? [];
-  assert.equal(audioTags.length, 1, 'one player, not one per episode');
-  assert.match(audioTags[0], /preload="none"/);
-  assert.doesNotMatch(audioTags[0], /\ssrc=/, 'the player starts empty');
+test('there is one player on the site, and it starts empty', () => {
+  // The three episodes total about 145 MB. Episodes are referenced only
+  // through data attributes on the buttons; the single player gets a src on
+  // the first press. Two players would also mean two episodes at once.
+  //
+  // Comments are stripped first. Astro ships HTML comments, so a comment that
+  // mentions the tag would otherwise read as a second player -- which is
+  // exactly what happened while this was being written.
+  for (const page of ['../dist/podcast/index.html', '../dist/tr/podcast/index.html', '../dist/index.html']) {
+    const path = new URL(page, import.meta.url).pathname;
+    if (!existsSync(path)) continue; // CI builds before it tests; a fresh clone has none
+    const html = readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    const audioTags = html.match(/<audio[^>]*>/g) ?? [];
+    assert.equal(audioTags.length, 1, `${page}: one player, not one per episode`);
+    assert.match(audioTags[0], /preload="none"/, page);
+    assert.doesNotMatch(audioTags[0], /\ssrc=/, `${page}: the player starts empty`);
+    assert.match(audioTags[0], /data-astro-transition-persist/, `${page}: the player must survive navigation`);
+  }
 });
 
 // --- formatting -----------------------------------------------------------------
