@@ -167,6 +167,43 @@ function deadlineToDateString(value: number | null): string | null {
  * silently coercing them. `year` is threaded through separately -- it names
  * which row is being edited, not a field of the edit itself.
  */
+/**
+ * Which edition year an editor is allowed to write.
+ *
+ * The panel's PUT took the year from the request body and checked only that
+ * it was an integer above 2000. The public site serves the highest year that
+ * has not been archived, so a typo -- 2062 for 2026, a stale form field --
+ * created a row that won immediately, and every list on the site is scoped by
+ * year, so the overlay began serving that year with no speakers, no schedule
+ * and no committee. The same request fires the rebuild hook, so the symposium
+ * site published a programme-less page within minutes, every later speaker
+ * landed in 2062 too, and there is no DELETE for this table: recovery is
+ * hand-written SQL.
+ *
+ * `current` is the year the panel is editing, resolved on the server the same
+ * way the GET resolves it. Next year is allowed because the row for an edition
+ * has to be created before that edition exists; nothing further is, because
+ * nothing further is a thing anyone means to do.
+ */
+export function editionYearAllowed(
+  requested: unknown,
+  current: number,
+): { ok: true; year: number } | { ok: false; error: string } {
+  if (typeof requested !== 'number' || !Number.isInteger(requested)) {
+    return { ok: false, error: 'A valid year is required' };
+  }
+  if (requested !== current && requested !== current + 1) {
+    return {
+      ok: false,
+      error:
+        `This panel edits ${current}, and can start ${current + 1}. ` +
+        `It will not write ${requested}: a year beyond the next one would become ` +
+        `the edition the public site serves, with nothing in it.`,
+    };
+  }
+  return { ok: true, year: requested };
+}
+
 export function editionRowFromInput(input: EditionInput, year: number): EditionRow {
   return {
     year,

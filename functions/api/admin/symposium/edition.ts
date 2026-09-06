@@ -4,7 +4,7 @@
 // an edition (speakers, sessions, committee) is future tasks' territory.
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../../_lib/auth';
-import { editionRowFromInput, rowToEditionInput, triggerRebuild } from '../../../_lib/symposium';
+import { editionRowFromInput, editionYearAllowed, rowToEditionInput, triggerRebuild } from '../../../_lib/symposium';
 import type { EditionRow, EditionInput } from '../../../_lib/symposium';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -48,13 +48,24 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
 
   const body = await request.json<EditionInput & { year: number }>();
 
-  if (!Number.isInteger(body.year) || body.year < 2000) {
-    return jsonResponse({ error: 'A valid year is required' }, 400);
-  }
+  // The year is resolved here, not taken on trust. The GET above picks the
+  // highest unarchived year (or this calendar year when there is no row at
+  // all); the PUT has to agree with it, or an editor's typo silently becomes
+  // the edition the public site serves. See editionYearAllowed.
+  const currentRow = await env.DB.prepare(
+    `SELECT year FROM symposium_edition
+     WHERE archived_pr_url IS NULL
+     ORDER BY year DESC
+     LIMIT 1`
+  ).first<{ year: number }>();
+  const current = currentRow?.year ?? new Date().getFullYear();
+
+  const year = editionYearAllowed(body.year, current);
+  if (!year.ok) return jsonResponse({ error: year.error }, 400);
 
   let row: EditionRow;
   try {
-    row = editionRowFromInput(body, body.year);
+    row = editionRowFromInput(body, year.year);
   } catch (err) {
     return jsonResponse({ error: String(err instanceof Error ? err.message : err) }, 400);
   }
