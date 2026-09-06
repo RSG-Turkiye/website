@@ -1,4 +1,7 @@
 ---
+// Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
+const now = new Date();
+
 // One edition's card, shared by the English and Turkish /editions pages so the
 // two cannot drift -- they were byte-identical apart from import depths.
 import { locationFor, titleFor, subtitleFor, dateFor, type EditionLike } from "../lib/editions";
@@ -16,7 +19,7 @@ interface Props {
 
 const { edition, lang, effective = null, badge } = Astro.props;
 const prefix = lang === "tr" ? "/tr" : "";
-const loc = locationFor(effective ?? edition);
+const loc = locationFor(effective ?? edition, now);
 const subtitle = subtitleFor(edition, lang);
 ---
 

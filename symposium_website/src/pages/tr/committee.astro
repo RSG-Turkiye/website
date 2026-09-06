@@ -1,4 +1,5 @@
 ---
+import { hasHappened } from "../../lib/editions";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getCurrentEdition } from "../../lib/editions-content";
@@ -8,7 +9,7 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const { state } = await getCurrentEdition();
 const content = await getCurrentContent();
-const finished = state === "finished";
+const finished = hasHappened(state);
 const members = content?.committee ?? [];
 ---
 

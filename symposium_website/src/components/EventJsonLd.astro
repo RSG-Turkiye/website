@@ -1,5 +1,8 @@
 ---
-import { locationFor, ctasFor, titleFor, subtitleFor, type EditionLike } from "../lib/editions";
+// Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
+const now = new Date();
+
+import { locationFor, openCtas, titleFor, subtitleFor, type EditionLike } from "../lib/editions";
 import type { Lang } from "../i18n/ui";
 
 interface Props {
@@ -19,8 +22,10 @@ const { edition, url, lang, finished = false } = Astro.props;
 const name = titleFor(edition, lang);
 const description = subtitleFor(edition, lang);
 
-const place = locationFor(edition);
-const registration = ctasFor(edition).find((c) => c.kind === "registration");
+const place = locationFor(edition, now);
+// Only an offer that can still be accepted. A closed registration was
+// being advertised to Google as InStock.
+const registration = openCtas(edition, now).find((c) => c.kind === "registration");
 
 // locationFor has four kinds. "full" names the hall; "withheld" and
 // "city-only" both publish only the city -- to a search engine there is no

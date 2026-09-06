@@ -1,4 +1,7 @@
 ---
+// Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
+const now = new Date();
+
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getCurrentEdition } from "../../lib/editions-content";
@@ -34,7 +37,7 @@ const effectiveEdition = edition ? withOverlayContent(edition.data, content) : n
                   <p class="text-navy font-medium text-lg">{dateFor(edition.data, lang)}</p>
                 </div>
                 {(() => {
-                  const loc = locationFor(effectiveEdition!);
+                  const loc = locationFor(effectiveEdition!, now);
                   return (
                     loc.kind !== "hidden" && (
                       <div>

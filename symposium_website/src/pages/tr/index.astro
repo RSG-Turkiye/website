@@ -1,4 +1,7 @@
 ---
+// Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
+const now = new Date();
+
 import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SponsorLogo from "../../components/SponsorLogo.astro";
@@ -7,7 +10,7 @@ import EventJsonLd from "../../components/EventJsonLd.astro";
 import { useTranslations, useFormat, getLangFromUrl } from "../../i18n/ui";
 import { getSponsorsForOrLatest } from "../../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../../lib/editions-content";
-import { locationFor, titleFor, subtitleFor , nextEditionHint, ordinalLabel } from "../../lib/editions";
+import { hasHappened, locationFor, titleFor, subtitleFor , nextEditionHint, ordinalLabel } from "../../lib/editions";
 import { symposiumsHeld } from "../../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../../lib/content";
 import AnnouncementBanner from "../../components/AnnouncementBanner.astro";
@@ -23,7 +26,7 @@ const { state, entry: upcoming } = await getCurrentEdition();
 const upcomingContent = await getCurrentContent();
 // "over" for the parts that must not survive the event -- the countdown, the
 // calls to action, the registration offer in the structured data.
-const over = state === "finished" || state === "just-held";
+const over = hasHappened(state);
 const finished = over;
 // The week after is when people look for the talks, so the edition stays the
 // headline rather than becoming an archive entry overnight.
@@ -35,7 +38,7 @@ const latestSponsors = getSponsorsForOrLatest(upcoming?.data.year ?? new Date().
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
-const place = effectiveEdition ? locationFor(effectiveEdition) : { kind: "hidden" as const };
+const place = effectiveEdition ? locationFor(effectiveEdition, now) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
 const BANNER = "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
@@ -72,6 +75,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
               class="text-white/60 text-sm tabular-nums"
               data-starts-at={startsAt}
               data-days-label={t("hero.countdown.days")}
+              data-day-label={t("hero.countdown.day")}
             ></p>
           )}
           {over ? (
@@ -157,7 +161,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
               <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded w-fit">{edition.data.year}</span>
               <h3 class="font-semibold text-navy text-sm leading-snug">{titleFor(edition.data, lang)}</h3>
               {(() => {
-                const loc = locationFor(edition.data);
+                const loc = locationFor(edition.data, now);
                 return (
                   loc.kind !== "hidden" && (
                     <p class="text-xs text-gray-400">📍 {loc.city}</p>
@@ -186,11 +190,12 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
   const el = document.getElementById("countdown");
   const startsAt = el?.dataset.startsAt;
   const daysLabel = el?.dataset.daysLabel ?? "";
+  const dayLabel = el?.dataset.dayLabel ?? daysLabel;
   if (el && startsAt) {
     const target = new Date(startsAt).getTime();
     const tick = () => {
       const days = Math.ceil((target - Date.now()) / 86_400_000);
-      el.textContent = days > 0 ? `${days} ${daysLabel}` : "";
+      el.textContent = days > 0 ? `${days} ${days === 1 ? dayLabel : daysLabel}` : "";
     };
     tick();
     setInterval(tick, 60_000);
