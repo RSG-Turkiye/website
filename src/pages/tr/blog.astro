@@ -1,37 +1,17 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import BlogIndex from '../../components/BlogIndex.astro';
 import { useTranslations } from '../../i18n/ui';
 import { getCollection } from 'astro:content';
-import { atSize, SIZES } from '../../lib/cloudinary';
 
 const lang = 'tr';
 const t = useTranslations(lang);
 
-const allBlogPosts = await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft && data.type !== 'webinar');
-const sortedPosts = allBlogPosts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
-const pageTitle = "Blog - RSG Türkiye";
-
-function getThumbnail(post: any): string | null {
-  const img = post.data.image;
-  // Asked for at the size the card draws. These URLs are stored with whatever
-  // transformation the image was first needed at -- usually c_limit,w_1600 for
-  // a post's hero -- and fifteen of those in 128x96 boxes was 1,156,042 bytes.
-  const found = (img && img.startsWith('http') && !img.includes('gravatar.com'))
-    ? img
-    : (post.body?.match(/!\[.*?\]\((https:\/\/[^\s)]+)\)/)?.[1]
-      || post.body?.match(/<img[^>]+src=["'](https:\/\/[^\s"']+)["']/)?.[1]
-      || null);
-  return found ? atSize(found, SIZES.cardThumb) : null;
-}
-
-const facts = [
-  "RSG Türkiye, hakemli bir dergide yayımlanmış akademik makalesi olan bir topluluktur.",
-  "RSG Türkiye, 2012 yılında günümüzdeki danışmanımız Prof. Nurcan Tunçbağ ile birlikte kuruldu.",
-  "Her yıl amiral gemisi etkinliğimiz olan sempozyumumuzu düzenliyoruz.",
-];
+const posts = (await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft && data.type !== 'webinar'))
+  .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 ---
 
-<BaseLayout pageTitle={pageTitle}
+<BaseLayout pageTitle="Blog - RSG Türkiye"
   description="RSG-Türkiye üyelerinin biyoinformatik, genomik ve hesaplamalı biyoloji yazıları — eğitimler, araç incelemeleri ve araştırma notları.">
 
   <div class="bg-navy py-12 text-center">
@@ -41,173 +21,6 @@ const facts = [
     </div>
   </div>
 
-  <section class="bg-white py-10">
-    <div class="max-w-6xl mx-auto px-6">
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10">
-
-        <!-- Posts -->
-        <div>
-          <div id="postsList">
-            {sortedPosts.map((post: any) => {
-              const thumbnail = getThumbnail(post);
-              const postUrl = `/tr/blog/${post.id.replace(/^tr\//, '')}`;
-              return (
-                <article class="post-item py-4 border-b border-border"
-                  data-title={post.data.title}
-                  data-description={post.data.description || ''}>
-                  <div class="flex gap-4 items-start">
-                    <a href={postUrl} class="shrink-0" tabindex="-1" aria-hidden="true">
-                      <div class="w-32 h-24 sm:w-40 sm:h-28 rounded-md overflow-hidden bg-[#E8ECF4]">
-                        {thumbnail
-                          ? <img src={thumbnail} alt="" class="w-full h-full object-cover" loading="lazy" />
-                          : <div class="w-full h-full flex items-center justify-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.2" stroke="currentColor" class="w-8 h-8 text-navy/25">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
-                              </svg>
-                            </div>
-                        }
-                      </div>
-                    </a>
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-3 text-xs text-gray-500 mb-1">
-                        <time>{new Date(post.data.pubDate).toLocaleDateString('tr-TR', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
-                        {post.data.author && <span>{post.data.author}</span>}
-                      </div>
-                      <h3 class="text-base font-semibold mb-1">
-                        <a href={postUrl} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
-                      </h3>
-                      {post.data.description && <p class="text-sm text-gray-500 leading-relaxed mb-2 line-clamp-2">{post.data.description}</p>}
-                      {post.data.tags && post.data.tags.length > 0 && (
-                        <div class="flex flex-wrap gap-1.5">
-                          {post.data.tags.slice(0, 3).map((tag: string) => (
-                            <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          <!-- Pagination controls -->
-          <div id="pagination" class="mt-8 flex items-center justify-between gap-2 flex-wrap"></div>
-          <p id="noResults" class="hidden text-sm text-gray-500 py-4">Aramanızla eşleşen yazı bulunamadı.</p>
-        </div>
-
-        <!-- Sidebar -->
-        <aside class="flex flex-col gap-6">
-
-          <!-- Search -->
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Arama</p>
-            <input type="text" id="searchPosts" placeholder={t('blog.search')}
-              class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors" />
-          </div>
-
-          <!-- About RSG Turkiye -->
-          <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
-            <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">RSG Türkiye Hakkında</p>
-            <p class="text-sm text-gray-600 leading-relaxed">
-              RSG Türkiye, Türkiye'deki ISCB Bölgesel Öğrenci Grubu'dur. Biyoinformatik ve hesaplamalı biyoloji alanındaki öğrencileri ve genç araştırmacıları bir araya getirir.
-            </p>
-            <a href="/tr/about" class="inline-block mt-3 text-xs font-medium text-navy-mid hover:text-navy transition-colors no-underline">
-              Daha fazla →
-            </a>
-          </div>
-
-          <!-- Did you know? -->
-          <div class="rounded-lg border border-border bg-white p-5">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Biliyor muydunuz?</p>
-            <ul class="flex flex-col gap-3">
-              {facts.map((fact) => (
-                <li class="flex items-start gap-2 text-sm text-gray-600 leading-snug">
-                  <span class="shrink-0 mt-0.5 text-red font-bold">✦</span>
-                  {fact}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-        </aside>
-      </div>
-    </div>
-  </section>
+  <BlogIndex lang={lang} posts={posts} />
 
 </BaseLayout>
-
-<script>
-  const PER_PAGE = 20;
-  let currentPage = parseInt(new URLSearchParams(window.location.search).get('page') || '1') || 1;
-  let filtered: HTMLElement[] = [];
-
-  const allItems = () => Array.from(document.querySelectorAll<HTMLElement>('.post-item'));
-  const searchInput = document.getElementById('searchPosts') as HTMLInputElement;
-  const paginationEl = document.getElementById('pagination')!;
-  const noResults = document.getElementById('noResults')!;
-
-  function setPageInUrl(page: number) {
-    const url = new URL(window.location.href);
-    page === 1 ? url.searchParams.delete('page') : url.searchParams.set('page', String(page));
-    history.replaceState(null, '', url.toString());
-  }
-
-  function applyFilter(term: string) {
-    filtered = allItems().filter(item => {
-      const title = (item.dataset.title || '').toLowerCase();
-      const desc = (item.dataset.description || '').toLowerCase();
-      return title.includes(term) || desc.includes(term);
-    });
-    currentPage = 1;
-    render();
-  }
-
-  function render() {
-    allItems().forEach(item => item.style.display = 'none');
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-    if (currentPage > totalPages) currentPage = totalPages;
-
-    const start = (currentPage - 1) * PER_PAGE;
-    filtered.slice(start, start + PER_PAGE).forEach(item => item.style.display = '');
-
-    noResults.classList.toggle('hidden', filtered.length > 0);
-    setPageInUrl(currentPage);
-    renderPagination(totalPages);
-  }
-
-  function renderPagination(totalPages: number) {
-    if (totalPages <= 1) { paginationEl.innerHTML = ''; return; }
-
-    const btnClass = 'px-3 py-1.5 rounded border text-sm font-medium transition-colors';
-    const activeClass = 'bg-navy text-white border-navy';
-    const inactiveClass = 'border-border text-gray-600 hover:bg-navy-light hover:border-navy-mid';
-
-    let html = `<button id="prevBtn" class="${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-border text-gray-500' : inactiveClass}"
-      ${currentPage === 1 ? 'disabled' : ''}>← Önceki</button>`;
-    html += `<div class="flex items-center gap-1 flex-wrap">`;
-    for (let p = 1; p <= totalPages; p++) {
-      html += `<button class="page-btn ${btnClass} ${p === currentPage ? activeClass : inactiveClass}" data-page="${p}">${p}</button>`;
-    }
-    html += `</div>`;
-    html += `<button id="nextBtn" class="${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-border text-gray-500' : inactiveClass}"
-      ${currentPage === totalPages ? 'disabled' : ''}>Sonraki →</button>`;
-
-    paginationEl.innerHTML = html;
-
-    document.getElementById('prevBtn')?.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); } });
-    document.getElementById('nextBtn')?.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); } });
-    document.querySelectorAll('.page-btn').forEach(btn => {
-      btn.addEventListener('click', () => { currentPage = parseInt((btn as HTMLElement).dataset.page!); render(); window.scrollTo(0, 0); });
-    });
-  }
-
-  // Init
-  filtered = allItems();
-  render();
-
-  searchInput?.addEventListener('input', function () {
-    applyFilter(this.value.toLowerCase());
-  });
-</script>
