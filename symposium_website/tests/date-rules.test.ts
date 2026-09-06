@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   locationFor,
   ctasFor,
+  openCtas,
+  ctaState,
   hasHappened,
   nextEditionHint,
   endOfSeason,
@@ -77,13 +79,14 @@ test('a published hall is published whenever you ask', () => {
 const forms = { registrationUrl: 'https://forms.gle/reg', abstractUrl: 'https://forms.gle/abs' };
 
 test('a call to action with no deadline stays open', () => {
-  assert.equal(ctasFor(forms as EditionLike, at('2030-01-01')).length, 2);
+  assert.deepEqual(openCtas(forms as EditionLike, at('2030-01-01')).map((c) => c.kind),
+    ['registration', 'abstract']);
 });
 
-test('a call to action closes the day after its deadline', () => {
+test('a call to action closes the day after its deadline, and the whole day counts', () => {
   const e = { ...forms, registrationDeadline: new Date('2026-09-30T00:00:00Z') } as EditionLike;
-  assert.deepEqual(ctasFor(e, at('2026-09-30')).map((c) => c.kind), ['registration', 'abstract']);
-  assert.deepEqual(ctasFor(e, at('2026-10-02')).map((c) => c.kind), ['abstract']);
+  assert.deepEqual(openCtas(e, at('2026-09-30')).map((c) => c.kind), ['registration', 'abstract']);
+  assert.deepEqual(openCtas(e, at('2026-10-02')).map((c) => c.kind), ['abstract']);
 });
 
 test('the two deadlines close independently', () => {
@@ -92,8 +95,24 @@ test('the two deadlines close independently', () => {
     registrationDeadline: new Date('2026-09-30T00:00:00Z'),
     abstractDeadline: new Date('2026-08-15T00:00:00Z'),
   } as EditionLike;
-  assert.deepEqual(ctasFor(e, at('2026-09-01')).map((c) => c.kind), ['registration']);
-  assert.deepEqual(ctasFor(e, at('2026-10-05')), []);
+  assert.deepEqual(openCtas(e, at('2026-09-01')).map((c) => c.kind), ['registration']);
+  assert.deepEqual(openCtas(e, at('2026-10-05')), []);
+});
+
+test('a closed form is not the same as a form that does not exist yet', () => {
+  // The hero has two sentences: "opens soon" and "has closed". They are told
+  // apart by whether the URL exists, so a closed call to action has to stay
+  // in the list -- dropping it made the day after the deadline look like the
+  // weeks before the forms went up.
+  const closed = ctasFor(
+    { ...forms, registrationDeadline: new Date('2026-08-01T00:00:00Z'), abstractDeadline: new Date('2026-08-01T00:00:00Z') } as EditionLike,
+    at('2026-09-01'),
+  );
+  assert.deepEqual(closed.map((c) => c.state), ['closed', 'closed'], 'still listed');
+  assert.equal(openCtas({ ...forms, registrationDeadline: new Date('2026-08-01T00:00:00Z'), abstractDeadline: new Date('2026-08-01T00:00:00Z') } as EditionLike, at('2026-09-01')).length, 0);
+
+  const notYet = ctasFor({ registrationUrl: '', abstractUrl: '' } as EditionLike, at('2026-09-01'));
+  assert.deepEqual(notYet, [], 'nothing to close');
 });
 
 // --- one answer to "has it happened?" ------------------------------------------
@@ -133,4 +152,25 @@ test('a December edition predicts the following winter, which runs into March', 
   const all = [edition({ year: 2026, startDate: new Date('2026-12-05T00:00:00Z'), venuePublic: true })];
   assert.equal(nextEditionHint(all, at('2028-01-15'))!.expired, false, 'still winter 2027');
   assert.equal(nextEditionHint(all, at('2028-03-02'))!.expired, true);
+});
+
+test('the hero does not announce that a closed registration is about to open', () => {
+  // The regression this pair exists for. "Opens soon" fired on an empty CTA
+  // list, and until deadlines were enforced an empty list could only mean
+  // "no URL yet". The day after registration closed it would have meant
+  // something else entirely, and said the same sentence.
+  const closed = {
+    ...forms,
+    registrationDeadline: new Date('2026-08-01T00:00:00Z'),
+    abstractDeadline: new Date('2026-08-01T00:00:00Z'),
+  } as EditionLike;
+  assert.equal(ctaState(closed, at('2026-09-01')), 'closed');
+  assert.equal(ctaState(closed, at('2026-07-01')), 'open');
+  assert.equal(ctaState({ registrationUrl: '', abstractUrl: '' } as EditionLike, at('2026-09-01')), 'soon');
+});
+
+test('one form still open keeps the buttons up', () => {
+  const half = { ...forms, abstractDeadline: new Date('2026-08-01T00:00:00Z') } as EditionLike;
+  assert.equal(ctaState(half, at('2026-09-01')), 'open');
+  assert.deepEqual(openCtas(half, at('2026-09-01')).map((c) => c.kind), ['registration']);
 });

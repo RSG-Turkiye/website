@@ -2,21 +2,26 @@
 // Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
 const now = new Date();
 
-import { ctasFor, type EditionLike } from "../lib/editions";
+import { ctaState, openCtas, type EditionLike } from "../lib/editions";
 import { useTranslations, type Lang } from "../i18n/ui";
 
 interface Props { edition: EditionLike; lang: Lang }
 const { edition, lang } = Astro.props;
 const t = useTranslations(lang);
-const ctas = ctasFor(edition, now);
+// Three states, not two -- see ctaState. Deciding it there rather than here
+// means the choice is testable without rendering a page.
+const state = ctaState(edition, now);
+const open = openCtas(edition, now);
 const locale = lang === "tr" ? "tr-TR" : "en-GB";
 ---
 
-{ctas.length === 0 ? (
+{state === "soon" ? (
   <p class="text-white/70 text-sm mt-2">{t("cta.soon")}</p>
+) : state === "closed" ? (
+  <p class="text-white/70 text-sm mt-2">{t("cta.closed")}</p>
 ) : (
   <div class="flex flex-wrap justify-center gap-4 mt-2">
-    {ctas.map((cta) => (
+    {open.map((cta) => (
       <a
         href={cta.url}
         target="_blank"

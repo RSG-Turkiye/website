@@ -163,6 +163,13 @@ export interface Cta {
   kind: "registration" | "abstract";
   url: string;
   deadline?: Date;
+  /**
+   * "closed" once the deadline has passed. Kept in the list rather than
+   * dropped, because the hero has two different things to say: a form that
+   * does not exist yet opens soon, and a form whose deadline has passed does
+   * not. Dropping closed ones made the second look like the first.
+   */
+  state: "open" | "closed";
 }
 
 /**
@@ -177,19 +184,40 @@ export function ctasFor(e: EditionLike, now: Date): Cta[] {
   // A deadline was displayed and never enforced: the day after it passed, the
   // button still said "Register" and the JSON-LD still told Google the offer
   // was InStock. A deadline is the end of the thing it is a deadline for.
-  const open = (deadline?: Date): boolean =>
-    !deadline || deadline.getTime() + ONE_DAY_MS > now.getTime();
+  //
+  // The whole day of the deadline counts -- a deadline of the 30th means the
+  // 30th is your last day, not that you had until midnight as it began.
+  const stateOf = (deadline?: Date): Cta["state"] =>
+    !deadline || deadline.getTime() + ONE_DAY_MS > now.getTime() ? "open" : "closed";
 
   const ctas: Cta[] = [];
   const reg = e.registrationUrl?.trim();
   const abs = e.abstractUrl?.trim();
-  if (reg && open(e.registrationDeadline)) {
-    ctas.push({ kind: "registration", url: reg, deadline: e.registrationDeadline });
-  }
-  if (abs && open(e.abstractDeadline)) {
-    ctas.push({ kind: "abstract", url: abs, deadline: e.abstractDeadline });
-  }
+  if (reg) ctas.push({ kind: "registration", url: reg, deadline: e.registrationDeadline, state: stateOf(e.registrationDeadline) });
+  if (abs) ctas.push({ kind: "abstract", url: abs, deadline: e.abstractDeadline, state: stateOf(e.abstractDeadline) });
   return ctas;
+}
+
+/** The calls to action that can still be acted on. */
+export function openCtas(e: EditionLike, now: Date): Cta[] {
+  return ctasFor(e, now).filter((c) => c.state === "open");
+}
+
+/**
+ * What the hero should say where the buttons go.
+ *
+ * "soon" -- no form exists yet, which is the weeks between announcing the
+ * symposium and opening registration. "closed" -- forms existed and their
+ * deadlines have passed. "open" -- render the buttons.
+ *
+ * A three-way choice rather than a template asking `ctas.length === 0`: with
+ * deadlines now enforced, an empty list means both of the first two, and the
+ * template would have announced that a closed registration was about to open.
+ */
+export function ctaState(e: EditionLike, now: Date): "soon" | "closed" | "open" {
+  const ctas = ctasFor(e, now);
+  if (ctas.length === 0) return "soon";
+  return ctas.some((c) => c.state === "open") ? "open" : "closed";
 }
 
 /**
@@ -311,6 +339,11 @@ export function seasonOf(date: Date): Season {
  * December -- so winter of year Y runs to the end of February of Y+1.
  */
 export function endOfSeason(season: Season, year: number): number {
+  // The one asymmetry: January is winter, so a January edition predicts the
+  // following January but is not called stale until March of the year after
+  // that -- fourteen months late. Every symposium so far has been in autumn,
+  // and narrowing it would mean splitting winter into its two halves for a
+  // case that has never occurred.
   switch (season) {
     case "winter": return Date.UTC(year + 1, 2, 1);
     case "spring": return Date.UTC(year, 5, 1);
