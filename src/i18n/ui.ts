@@ -167,7 +167,7 @@ export const ui = {
     'footer.quickLinks': 'Quick Links',
     'footer.contact': 'Contact',
     'footer.follow': 'Follow Us',
-    'footer.copyright': '© 2024 RSG Turkiye. All rights reserved.',
+    'footer.copyright': '© {year} RSG Turkiye. All rights reserved.',
 
     // Common
     'common.readMore': 'Read More',
@@ -637,7 +637,7 @@ export const ui = {
     'footer.quickLinks': 'Hızlı Bağlantılar',
     'footer.contact': 'İletişim',
     'footer.follow': 'Bizi Takip Edin',
-    'footer.copyright': '© 2024 RSG Türkiye. Tüm hakları saklıdır.',
+    'footer.copyright': '© {year} RSG Türkiye. Tüm hakları saklıdır.',
 
     // Common
     'common.readMore': 'Devamını Oku',

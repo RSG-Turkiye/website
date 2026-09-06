@@ -9,7 +9,7 @@ tags:
   - "education"
   - "bioinformatics"
   - "training"
-image: "/images/workshop-series.jpg"
+image: ""
 lang: "en"
 draft: false
 ---
