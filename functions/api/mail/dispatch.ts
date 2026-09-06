@@ -554,9 +554,9 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // contradicting the log sendAndLog already wrote. So: nothing to retry,
       // nothing to re-log, just count it and move on.
       //
-      // When the row is still queued, the pre-existing behaviour is correct:
-      // stamp attempts/first_tried_at and retry, unless the retry window has
-      // elapsed, in which case give up and record the failure for real.
+      // When the row is still queued it waits for the next tick, unless the
+      // retry window has elapsed, in which case it gives up and the failure is
+      // recorded for real.
       const message = err instanceof Error ? err.message : String(err);
       if (dequeued) {
         failed++;
@@ -565,14 +565,13 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
         await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
         failed++;
       } else {
+        // Only the reason. The attempt was counted before the work began, and
+        // counting it again here would retire the row in half the window it is
+        // promised -- the same mistake the rate-limit branch above made until
+        // the stamp moved, and the same one this branch kept.
         await env.DB.prepare(
-          `UPDATE scheduled_emails
-           SET attempts = attempts + 1,
-               first_tried_at = COALESCE(first_tried_at, ?),
-               last_error = ?,
-               updated_at = ?
-           WHERE id = ?`
-        ).bind(now, 'Unexpected error, will retry: ' + message, now, row.id).run();
+          'UPDATE scheduled_emails SET last_error = ?, updated_at = ? WHERE id = ?'
+        ).bind('Unexpected error, will retry: ' + message, now, row.id).run();
         retried++;
       }
     }

@@ -25,6 +25,8 @@ function harness(options: {
   rows?: Record<string, unknown>[];
   claimChanges?: number;
   failResolveWith?: 'kill';
+  /** Makes the post-send DELETE throw, which is what reaches the catch. */
+  failDelete?: boolean;
 }) {
   const log: Recorded[] = [];
   const rows = options.rows ?? [];
@@ -61,6 +63,9 @@ function harness(options: {
             },
             async run() {
               record();
+              if (options.failDelete && /DELETE FROM scheduled_emails/.test(sql)) {
+                throw new Error('D1_ERROR: simulated delete failure');
+              }
               return {
                 meta: {
                   changes: /SET claimed_at/.test(sql) ? (options.claimChanges ?? 1) : 1,
@@ -276,4 +281,22 @@ test('nothing is stamped, claimed or read outside the sending window', async () 
   }
   assert.equal(indexOf(h.order(), /attempts = attempts \+ 1/), -1);
   assert.equal(indexOf(h.order(), /^R2 head$/), -1);
+});
+
+test('a handled error records the reason without counting a second attempt', async () => {
+  // The catch branch used to stamp attempts and first_tried_at again, on top
+  // of the stamp taken before the work began. A row hitting a transient
+  // failure therefore burned two attempts a tick and retired in half the six
+  // hours it is promised. The rate-limit branch had the same bug and lost it
+  // when the stamp moved; this one kept it, and the existing "counted once"
+  // test did not catch it because it only drives the happy path.
+  const h = harness({ rows: [queueRow()], failDelete: true });
+  await tick(h.env).catch(() => undefined);
+
+  const stamps = h.order().filter((s) => /attempts = attempts \+ 1/.test(s));
+  assert.equal(stamps.length, 1, 'exactly one attempt per tick, whatever happens after');
+
+  const reason = h.log.find((l) => /SET last_error/.test(l.sql));
+  assert.ok(reason, 'and the reason is still recorded');
+  assert.ok(!/attempts/.test(reason.sql), 'the reason update touches no counter');
 });
