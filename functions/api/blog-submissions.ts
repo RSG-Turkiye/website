@@ -180,28 +180,37 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // D1 enforces foreign keys, so each row must exist before the other
   // references it. Insert the primary row first with no pairing, then the
   // paired row referencing the (now-existing) primary row, then backfill
-  // the primary row's own pairing.
-  await env.DB.prepare(
-    `INSERT INTO blog_submissions
-      (id, submitted_by, lang, title, description, category, tags, author, image_url, body, slug, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
-  ).bind(
-    primaryId, user.id, body.lang, title.value, description.value, category.value,
-    tagsJson, author.value, imageUrl, postBody.value, slug, now
-  ).run();
-
-  await env.DB.prepare(
-    `INSERT INTO blog_submissions
-      (id, submitted_by, lang, title, description, category, tags, author, image_url, body, slug, status, created_at, paired_submission_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
-  ).bind(
-    pairedId, user.id, translation.lang, translation.title, translation.description, category.value,
-    pairedTagsJson, author.value, imageUrl, translation.body, slug, now, primaryId
-  ).run();
-
-  await env.DB.prepare(
-    'UPDATE blog_submissions SET paired_submission_id = ? WHERE id = ?'
-  ).bind(pairedId, primaryId).run();
+  // the primary row's own pairing. A batch runs its statements in order
+  // inside one transaction, so that ordering holds and the three either all
+  // land or none do.
+  //
+  // As three separate calls, a failure at the second or third left the writer
+  // with a raw 500 and the database with an unpaired 'pending' row -- or a
+  // pair where only one side pointed at the other. They would then submit
+  // again, because from the form's point of view nothing happened, and get a
+  // second pair. The approve path has been batched for exactly this reason
+  // since it was written; these three were not.
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO blog_submissions
+        (id, submitted_by, lang, title, description, category, tags, author, image_url, body, slug, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+    ).bind(
+      primaryId, user.id, body.lang, title.value, description.value, category.value,
+      tagsJson, author.value, imageUrl, postBody.value, slug, now
+    ),
+    env.DB.prepare(
+      `INSERT INTO blog_submissions
+        (id, submitted_by, lang, title, description, category, tags, author, image_url, body, slug, status, created_at, paired_submission_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+    ).bind(
+      pairedId, user.id, translation.lang, translation.title, translation.description, category.value,
+      pairedTagsJson, author.value, imageUrl, translation.body, slug, now, primaryId
+    ),
+    env.DB.prepare(
+      'UPDATE blog_submissions SET paired_submission_id = ? WHERE id = ?'
+    ).bind(pairedId, primaryId),
+  ]);
 
   await notifyNewSubmission(
     `New blog submission: ${title.value}`,

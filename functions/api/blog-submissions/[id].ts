@@ -82,23 +82,32 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   }
   const tagsJson = tags.value;
 
-  await env.DB.prepare(
-    `UPDATE blog_submissions
-     SET title = ?, description = ?, category = ?, tags = ?, author = ?, image_url = ?, body = ?,
-         status = 'pending', rejection_reason = NULL
-     WHERE id = ?`
-  ).bind(title.value, description.value, category.value, tagsJson, author.value, imageUrl, postBody.value, id).run();
-
-  if (existing.paired_submission_id && body.translation) {
-    const t = body.translation;
-    const pairedTagsJson = translationTagsJson;
-    await env.DB.prepare(
+  // Both halves of a pair go back to 'pending' together or neither does. As
+  // two calls, a failure between them left the primary pending and the
+  // translation still rejected: the admin list then shows a half-resubmitted
+  // pair, and approving the primary picks up the stale rejected translation.
+  const updates = [
+    env.DB.prepare(
       `UPDATE blog_submissions
        SET title = ?, description = ?, category = ?, tags = ?, author = ?, image_url = ?, body = ?,
            status = 'pending', rejection_reason = NULL
        WHERE id = ?`
-    ).bind(t.title, t.description, category.value, pairedTagsJson, author.value, imageUrl, t.body, existing.paired_submission_id).run();
+    ).bind(title.value, description.value, category.value, tagsJson, author.value, imageUrl, postBody.value, id),
+  ];
+
+  if (existing.paired_submission_id && body.translation) {
+    const t = body.translation;
+    updates.push(
+      env.DB.prepare(
+        `UPDATE blog_submissions
+         SET title = ?, description = ?, category = ?, tags = ?, author = ?, image_url = ?, body = ?,
+             status = 'pending', rejection_reason = NULL
+         WHERE id = ?`
+      ).bind(t.title, t.description, category.value, translationTagsJson, author.value, imageUrl, t.body, existing.paired_submission_id)
+    );
   }
+
+  await env.DB.batch(updates);
 
   return jsonResponse({ ok: true });
 };
