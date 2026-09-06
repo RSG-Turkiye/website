@@ -1,10 +1,13 @@
 ---
+// Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
+const now = new Date();
+
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SessionRow from "../components/SessionRow.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 import { getCurrentEdition } from "../lib/editions-content";
-import { locationFor, titleFor, dateFor } from "../lib/editions";
+import { hasHappened, locationFor, titleFor, dateFor } from "../lib/editions";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -13,7 +16,7 @@ const { state, entry: edition } = await getCurrentEdition();
 const content = await getCurrentContent();
 // Two different things to say: the week after it happened, and afterwards.
 const justHeld = state === "just-held";
-const finished = state === "finished" || justHeld;
+const finished = hasHappened(state);
 const effectiveEdition = edition ? withOverlayContent(edition.data, content) : null;
 const sessions = content?.sessions ?? [];
 const scheduleSpeakers = content?.speakers ?? [];
@@ -50,7 +53,7 @@ const scheduleSpeakers = content?.speakers ?? [];
                 <span class="text-sm text-gray-500">{dateFor(edition.data, lang)}</span>
               </div>
               {(() => {
-                const loc = locationFor(effectiveEdition!);
+                const loc = locationFor(effectiveEdition!, now);
                 return (
                   <>
                     {loc.kind === "full" && (

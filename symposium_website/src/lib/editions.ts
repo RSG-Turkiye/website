@@ -101,7 +101,7 @@ export type LocationDisplay =
  * unannounced. Every page and the JSON-LD go through this one function, so
  * there is a single place the hall can leak from -- and one place to test.
  */
-export function locationFor(e: EditionLike): LocationDisplay {
+export function locationFor(e: EditionLike, now: Date): LocationDisplay {
   const venue = e.venue?.trim() ?? "";
   const city = e.venueCity?.trim() ?? "";
   const cityPublishable = e.cityPublic && city;
@@ -109,6 +109,16 @@ export function locationFor(e: EditionLike): LocationDisplay {
   if (e.venuePublic && venue) {
     return { kind: "full", venue, city };
   }
+
+  // "To be announced" is a promise about the future. Once the event has
+  // happened the hall is not going to be announced, and the hero went on
+  // saying "10 October 2026 - Ankara - Venue to be announced" directly above
+  // "thanks to everyone who came" -- in simulation, still saying it in June
+  // 2028. Past editions whose hall was never published show the city, which
+  // is all the site ever knew.
+  //
+  // `now` is required rather than defaulted so that a new caller has to
+  // decide, instead of inheriting a wrong answer from a default argument.
   // "Withheld" is decided by the flag, not by whether the hall's name happens
   // to be sitting in this repository.
   //
@@ -118,7 +128,8 @@ export function locationFor(e: EditionLike): LocationDisplay {
   // yet. Now `venuePublic: false` says on its own that there is a hall and it
   // is not being announced, the name stays wherever the organisers keep it,
   // and it is typed in beside the flag on the day it becomes public.
-  if (!e.venuePublic && cityPublishable) {
+  const stillAhead = !e.startDate || endOfEvent(e) > now.getTime();
+  if (!e.venuePublic && cityPublishable && stillAhead) {
     return { kind: "withheld", city };
   }
   if (cityPublishable) {
@@ -162,12 +173,22 @@ export interface Cta {
  * soon" line instead of disabled buttons -- and the day the URL lands, the
  * button appears with no template change.
  */
-export function ctasFor(e: EditionLike): Cta[] {
+export function ctasFor(e: EditionLike, now: Date): Cta[] {
+  // A deadline was displayed and never enforced: the day after it passed, the
+  // button still said "Register" and the JSON-LD still told Google the offer
+  // was InStock. A deadline is the end of the thing it is a deadline for.
+  const open = (deadline?: Date): boolean =>
+    !deadline || deadline.getTime() + ONE_DAY_MS > now.getTime();
+
   const ctas: Cta[] = [];
   const reg = e.registrationUrl?.trim();
   const abs = e.abstractUrl?.trim();
-  if (reg) ctas.push({ kind: "registration", url: reg, deadline: e.registrationDeadline });
-  if (abs) ctas.push({ kind: "abstract", url: abs, deadline: e.abstractDeadline });
+  if (reg && open(e.registrationDeadline)) {
+    ctas.push({ kind: "registration", url: reg, deadline: e.registrationDeadline });
+  }
+  if (abs && open(e.abstractDeadline)) {
+    ctas.push({ kind: "abstract", url: abs, deadline: e.abstractDeadline });
+  }
   return ctas;
 }
 
@@ -188,6 +209,25 @@ export type CurrentEdition =
   | { state: "just-held"; edition: EditionLike }
   | { state: "finished"; edition: EditionLike }
   | { state: "none"; edition: null };
+
+/**
+ * Has the edition happened?
+ *
+ * Six pages asked this and two of them got it wrong. `schedule` and the two
+ * home pages wrote `state === "finished" || state === "just-held"`;
+ * `speakers` and `committee` wrote `state === "finished"` and stopped there.
+ * So for the seven days after a symposium -- exactly the week people come
+ * looking for it -- /speakers said "Speakers will be announced soon" about an
+ * event that had finished, directly above the list of the previous edition's
+ * speakers, with nothing to say which year either statement was about. The
+ * page is out of the menu in that state but it is in the sitemap and its URL
+ * still works.
+ *
+ * One function, so the two states cannot come apart again.
+ */
+export function hasHappened(state: CurrentEdition["state"]): boolean {
+  return state === "finished" || state === "just-held";
+}
 
 /**
  * How long a finished edition stays the headline before becoming archive.
@@ -265,6 +305,21 @@ export function seasonOf(date: Date): Season {
 }
 
 /**
+ * The moment a season stops being the present one, as a timestamp.
+ *
+ * Winter straddles the new year -- a December edition predicts the following
+ * December -- so winter of year Y runs to the end of February of Y+1.
+ */
+export function endOfSeason(season: Season, year: number): number {
+  switch (season) {
+    case "winter": return Date.UTC(year + 1, 2, 1);
+    case "spring": return Date.UTC(year, 5, 1);
+    case "summer": return Date.UTC(year, 8, 1);
+    case "autumn": return Date.UTC(year, 11, 1);
+  }
+}
+
+/**
  * What to say about the edition that has not been announced yet, once the
  * finished one has stopped being news.
  *
@@ -290,15 +345,20 @@ export function nextEditionHint(
   if (!last.startDate) return null;
   const ordinal = ordinalOf(last);
   const year = last.year + 1;
+  const season = seasonOf(last.startDate);
   return {
     ordinal: ordinal === null ? null : ordinal + 1,
     year,
-    season: seasonOf(last.startDate),
-    // The prediction assumes the next edition happens a year later. If that
-    // year has itself gone by -- nobody added the file, the symposium paused
-    // -- the sentence would be advertising a date in the past, so the caller
-    // drops the date and keeps the number.
-    expired: year < now.getUTCFullYear(),
+    season,
+    // The prediction assumes the next edition happens a year later, in the
+    // same season. If that season has itself gone by -- nobody added the
+    // file, the symposium paused -- the sentence advertises a date in the
+    // past, so the caller drops the date and keeps the number.
+    //
+    // This used to compare years, which is two months too coarse: on
+    // 15 December 2027 the site still said "expected in autumn 2027", a
+    // fortnight after autumn ended, and kept saying it until New Year.
+    expired: now.getTime() >= endOfSeason(season, year),
   };
 }
 

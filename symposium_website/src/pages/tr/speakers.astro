@@ -4,7 +4,7 @@ import SpeakerCard from "../../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../../i18n/ui";
 import { getSpeakers, getCurrentContent } from "../../lib/content";
 import { getCurrentEdition } from "../../lib/editions-content";
-import { titleFor } from "../../lib/editions";
+import { hasHappened, titleFor } from "../../lib/editions";
 import { getCollection } from "astro:content";
 
 const lang = getLangFromUrl(Astro.url);
@@ -14,7 +14,7 @@ const editionYears = [...new Set(editions.map((e) => e.data.year))].sort((a, b) 
 
 const { state, entry: upcoming } = await getCurrentEdition();
 const upcomingContent = await getCurrentContent();
-const finished = state === "finished";
+const finished = hasHappened(state);
 const hasUpcomingSpeakers = upcomingContent ? upcomingContent.speakers.length > 0 : false;
 
 // The upcoming edition's speakers come from the merged overlay content, not

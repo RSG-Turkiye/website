@@ -2,6 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { splitEditions, currentEditionOf, ordinalOf, symposiumsHeld, nextEditionHint, seasonOf, ordinalLabel, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
 
+/**
+ * A fixed clock. locationFor and ctasFor now take one: "to be announced" is a
+ * promise about the future and a deadline is a date, so neither can be
+ * decided without knowing when it is being asked. These cases are all about
+ * an edition still ahead of us, or one with no date at all.
+ */
+const NOW = new Date('2026-06-01T00:00:00Z');
+
 function edition(year: number, startDate?: string, endDate?: string): EditionLike {
   return {
     year,
@@ -90,13 +98,13 @@ const withVenue = (venuePublic: boolean, cityPublic: boolean) =>
   ({ venue: HALL, venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
 
 test('both public: hall and city are shown', () => {
-  assert.deepEqual(locationFor(withVenue(true, true)),
+  assert.deepEqual(locationFor(withVenue(true, true), NOW),
     { kind: 'full', venue: HALL, city: 'Ankara' });
 });
 
 test('venue recorded, hall withheld, city public: renders as withheld', () => {
   // People need "Ankara" to book travel weeks before we name the hall.
-  assert.deepEqual(locationFor(withVenue(false, true)), { kind: 'withheld', city: 'Ankara' });
+  assert.deepEqual(locationFor(withVenue(false, true), NOW), { kind: 'withheld', city: 'Ankara' });
 });
 
 test('the hall is withheld even when its name is not in the repo (the 2026 case)', () => {
@@ -104,51 +112,51 @@ test('the hall is withheld even when its name is not in the repo (the 2026 case)
   // being announced, and the name is nowhere in these files. Before this, the
   // only way to get "venue to be announced" was to commit the hall.
   const noName = ({ venue: '', venueCity: 'Ankara', venuePublic: false, cityPublic: true }) as EditionLike;
-  assert.deepEqual(locationFor(noName), { kind: 'withheld', city: 'Ankara' });
+  assert.deepEqual(locationFor(noName, NOW), { kind: 'withheld', city: 'Ankara' });
 });
 
 test('an edition with no hall at all still shows just the city', () => {
   const none = ({ venue: '', venueCity: 'Ankara', venuePublic: true, cityPublic: true }) as EditionLike;
-  assert.deepEqual(locationFor(none), { kind: 'city-only', city: 'Ankara' });
+  assert.deepEqual(locationFor(none, NOW), { kind: 'city-only', city: 'Ankara' });
 });
 
 test('neither announced: nothing at all', () => {
-  assert.deepEqual(locationFor(withVenue(false, false)), { kind: 'hidden' });
+  assert.deepEqual(locationFor(withVenue(false, false), NOW), { kind: 'hidden' });
 });
 
 test('the hall never leaks through the city-only branch', () => {
-  const shown = locationFor(withVenue(false, true));
+  const shown = locationFor(withVenue(false, true), NOW);
   assert.ok(!JSON.stringify(shown).includes('U3'), 'the hall must not appear');
 });
 
 test('an edition with no venue recorded is hidden even when public', () => {
-  assert.deepEqual(locationFor({ venue: '', venueCity: '', venuePublic: true, cityPublic: true } as EditionLike),
+  assert.deepEqual(locationFor({ venue: '', venueCity: '', venuePublic: true, cityPublic: true } as EditionLike, NOW),
     { kind: 'hidden' });
 });
 
 test('no venue on record, city public: city-only, never withheld (regression guard for 2018/2022 bug)', () => {
-  const shown = locationFor({ venue: '', venueCity: 'Ankara', venuePublic: true, cityPublic: true } as EditionLike);
+  const shown = locationFor({ venue: '', venueCity: 'Ankara', venuePublic: true, cityPublic: true } as EditionLike, NOW);
   assert.deepEqual(shown, { kind: 'city-only', city: 'Ankara' });
   assert.notEqual(shown.kind, 'withheld', 'archived editions with no recorded venue must not show TBA');
 });
 
 test('venue recorded, hall withheld, city not public: hidden', () => {
-  assert.deepEqual(locationFor(withVenue(false, false)), { kind: 'hidden' });
+  assert.deepEqual(locationFor(withVenue(false, false), NOW), { kind: 'hidden' });
 });
 
 test('the hall never leaks through the withheld branch either', () => {
-  const shown = locationFor(withVenue(false, true));
+  const shown = locationFor(withVenue(false, true), NOW);
   assert.ok(!JSON.stringify(shown).includes('U3'), 'the hall must not appear in withheld state');
 });
 
 test('no CTA is offered while no form exists', () => {
   // A greyed-out "Register (soon)" button sitting there for five weeks
   // reads as broken, so the button is absent until the URL is real.
-  assert.deepEqual(ctasFor({ registrationUrl: '', abstractUrl: '' } as EditionLike), []);
+  assert.deepEqual(ctasFor({ registrationUrl: '', abstractUrl: '' } as EditionLike, NOW), []);
 });
 
 test('each CTA appears independently as its URL is filled in', () => {
-  const only = ctasFor({ registrationUrl: '', abstractUrl: 'https://forms.gle/abs' } as EditionLike);
+  const only = ctasFor({ registrationUrl: '', abstractUrl: 'https://forms.gle/abs' } as EditionLike, NOW);
   assert.equal(only.length, 1);
   assert.equal(only[0].kind, 'abstract');
   assert.equal(only[0].url, 'https://forms.gle/abs');
@@ -158,7 +166,7 @@ test('registration is listed before abstracts when both are open', () => {
   const both = ctasFor({
     registrationUrl: 'https://forms.gle/reg',
     abstractUrl: 'https://forms.gle/abs',
-  } as EditionLike);
+  } as EditionLike, NOW);
   assert.deepEqual(both.map(c => c.kind), ['registration', 'abstract']);
 });
 
@@ -167,12 +175,12 @@ test('a deadline rides along with its CTA', () => {
     registrationUrl: 'https://forms.gle/reg',
     registrationDeadline: new Date('2026-10-01'),
     abstractUrl: '',
-  } as EditionLike);
+  } as EditionLike, NOW);
   assert.equal(cta.deadline?.toISOString().slice(0, 10), '2026-10-01');
 });
 
 test('whitespace is not a URL', () => {
-  assert.deepEqual(ctasFor({ registrationUrl: '   ', abstractUrl: '' } as EditionLike), []);
+  assert.deepEqual(ctasFor({ registrationUrl: '   ', abstractUrl: '' } as EditionLike, NOW), []);
 });
 
 test('titleFor: english language always gets the english title', () => {

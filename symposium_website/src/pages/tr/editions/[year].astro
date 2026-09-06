@@ -1,4 +1,7 @@
 ---
+// Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
+const now = new Date();
+
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import SpeakerCard from "../../../components/SpeakerCard.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
@@ -60,7 +63,7 @@ const subtitle = subtitleFor(edition.data, lang);
       <div class="flex flex-wrap gap-4 mt-4 text-sm text-white/60">
         {edition.data.date && <span>📅 {dateFor(edition.data, lang)}</span>}
         {(() => {
-          const loc = locationFor(edition.data);
+          const loc = locationFor(edition.data, now);
           return (
             <>
               {loc.kind === "full" && (

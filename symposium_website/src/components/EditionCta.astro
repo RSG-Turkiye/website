@@ -1,11 +1,14 @@
 ---
+// Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
+const now = new Date();
+
 import { ctasFor, type EditionLike } from "../lib/editions";
 import { useTranslations, type Lang } from "../i18n/ui";
 
 interface Props { edition: EditionLike; lang: Lang }
 const { edition, lang } = Astro.props;
 const t = useTranslations(lang);
-const ctas = ctasFor(edition);
+const ctas = ctasFor(edition, now);
 const locale = lang === "tr" ? "tr-TR" : "en-GB";
 ---
 
