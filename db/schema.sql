@@ -13,8 +13,12 @@
 -- 2. This file's `CREATE TABLE IF NOT EXISTS announcements` statement
 --    below is NOT applied to production automatically by any deploy step
 --    -- it must be run by hand (`IF NOT EXISTS` makes it safe to re-run):
---      wrangler d1 execute rsg-members --remote --command="CREATE TABLE IF NOT EXISTS announcements (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL, button_text TEXT NOT NULL, button_url TEXT NOT NULL, show_as_popup INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL, created_by TEXT NOT NULL REFERENCES users(id), created_at INTEGER NOT NULL)"
---      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS idx_announcements_expires_at ON announcements(expires_at)"
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Apply the file rather than a copy of the statement: this note used to
+--    carry its own CREATE TABLE, it was written before the `site` column
+--    existed, and an operator following the note on a fresh database got a
+--    nine-column table that item 7b then refuses to alter. Every statement in
+--    the body is IF NOT EXISTS, so running the whole file is safe.
 --    Without this, every write to /api/admin/announcements (create/edit)
 --    500s with a raw Cloudflare "Worker threw exception" error page
 --    instead of a JSON error -- which surfaces client-side as the Save
@@ -102,7 +106,8 @@
 --     a Save button that does nothing. (7a fails differently -- see above.)
 --
 -- 7e. The two symposium slug indexes below are UNIQUE and created with
---     IF NOT EXISTS, so unlike 7d they are ordinary statements in this file
+--     IF NOT EXISTS, so unlike the ALTERs in 7g and 7i they are ordinary
+--     statements in this file
 --     and re-running the schema applies them. Neither table has been written
 --     to yet, so there are no duplicates to clean up first. If that ever
 --     stops being true, the CREATE fails loudly rather than silently
@@ -348,7 +353,13 @@ CREATE TABLE IF NOT EXISTS sent_emails (
   gmail_thread_id   TEXT,
   status            TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
   error_message     TEXT,
-  sent_at           INTEGER NOT NULL
+  sent_at           INTEGER NOT NULL,
+  -- The queue row this came from, when it came from the queue. It is what the
+  -- dispatcher reads to tell, after an invocation was killed mid-send, which
+  -- recipients already had their mail. Added by migration 7g; folded in here
+  -- because a fresh database built from this file needs it too, and for three
+  -- weeks this was the one migration column that had not been.
+  scheduled_id      TEXT
 );
 
 -- Admin-curated attachment library (sponsorship pack, invitation letter).
