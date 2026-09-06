@@ -1,0 +1,49 @@
+# Response headers for Cloudflare Pages.
+#
+# Everything here was served with `cache-control: public, max-age=0,
+# must-revalidate` -- the Pages default -- which tells a browser it may keep a
+# file but must ask before every use. Measured on the live site: the answer is
+# 304 and no bytes come back, and the question costs about 0.7 s, on the
+# critical path, for the stylesheet that blocks painting.
+
+# Astro puts a content hash in these filenames, so the browser never needs to
+# ask whether they changed.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Not hashed -- the name stays the same when the file changes -- so a day,
+# with a week of serving the old one while the new one is fetched in the
+# background. Long enough to matter on a second visit, short enough that a
+# replaced logo is not stuck for a year.
+/logo/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/flags/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/images/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# HTML is deliberately left to revalidate. A page that cached for a day would
+# mean an announcement, a new post or a corrected date waiting a day to
+# appear, and the revalidation of an HTML page is not on the critical path the
+# way the stylesheet's is.
+/*
+  # Nothing embeds this site, and being framed is how a click on someone
+  # else's page becomes a click on ours.
+  X-Frame-Options: DENY
+  # None of these are used. Saying so stops a future dependency using them
+  # without anyone deciding to.
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+# No Content-Security-Policy, and the reason is worth recording rather than
+# leaving as an oversight.
+#
+# A CSP worth having would have to forbid inline script. The built output
+# contains 263 inline <script> blocks and, from the header's own innerHTML,
+# 502 onmouseover, 318 onclick and 251 onsubmit attributes. A policy allowing
+# 'unsafe-inline' would permit every one of them, which is to say it would
+# permit the cross-site scripting it exists to stop -- a header that reads
+# like protection and is not.
+#
+# The order is: move those handlers to addEventListener, then add the policy.
+# Until then this file says nothing about scripts rather than something
+# untrue.
