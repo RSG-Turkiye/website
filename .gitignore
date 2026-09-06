@@ -23,7 +23,12 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
-rsgturkey.WordPress.2026-03-22.xml
+# WordPress exports. A pattern, not a filename: the previous line here named
+# one specific export and a second one with a different date sat tracked in
+# this public repository for months, carrying 76 people's email addresses.
+# These files are a migration input, they belong on the machine doing the
+# migration, and nothing in the build reads them.
+*WordPress*.xml
 wp-import/
 wp-image-urls.txt
 wp-images/
