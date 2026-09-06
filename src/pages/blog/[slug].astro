@@ -39,7 +39,7 @@ const articleJsonLd = {
 };
 ---
 
-<BaseLayout pageTitle={title} description={description} translationUrl={twinSlug ? `/tr/blog/${twinSlug}` : '/tr/blog'} translationExists={twinSlug !== null}>
+<BaseLayout pageTitle={title} description={description} translationUrl={twinSlug ? `/tr/blog/${twinSlug}` : '/tr/blog'} translationExists={twinSlug !== null} ogType="article">
   <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} slot="head" />
 
   <article class="py-10 pb-16">

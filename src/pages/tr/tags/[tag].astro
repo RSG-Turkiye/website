@@ -25,7 +25,10 @@ const { tag } = Astro.params;
 const { posts, hasEnTranslation } = Astro.props;
 ---
 
-<BaseLayout pageTitle={`Etiket: ${tag}`} translationExists={hasEnTranslation}>
+<BaseLayout
+  pageTitle={`Etiket: ${tag}`}
+  description={`RSG Türkiye blogunda "${tag}" etiketli ${posts.length} yazı.`}
+  translationExists={hasEnTranslation}>
 
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">

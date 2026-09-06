@@ -15,7 +15,8 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())[0];
 ---
 
-<BaseLayout pageTitle={pageTitle}>
+<BaseLayout pageTitle={pageTitle}
+  description="RSG-Türkiye: Türkiye'deki öğrenciler için hesaplamalı biyoloji ve biyoinformatik — webinarlar, atölyeler, yıllık sempozyum ve katılabileceğiniz bir topluluk.">
 
   <!-- Hero -->
   <section

@@ -20,10 +20,22 @@ test('the turkish copy of a private page is treated the same as the english one'
 test('the public pages we want ranked are left alone', () => {
   for (const path of [
     '/', '/tr/', '/tr', '/about/', '/blog/', '/blog/some-post/', '/webinars/',
-    '/resources/', '/learning-paths/', '/events/', '/join/', '/tags/', '/search/',
+    '/resources/', '/learning-paths/', '/events/', '/join/', '/tags/',
     '/tr/about/', '/tr/blog/some-post/',
   ]) {
     assert.equal(isNoindexPath(path), false, path + ' must stay indexable');
+  }
+});
+
+test('the search pages are shells, and were in the sitemap', () => {
+  // /search/ used to be in the list above. That was a reasonable default and
+  // it was wrong: the built page's only content of its own is a box and the
+  // words "Type something to search…" -- 577 characters, of which everything
+  // but a line and a half is the header and footer. The results are assembled
+  // in the browser, so a crawler sees the empty template and a searcher who
+  // landed there would find nothing.
+  for (const path of ['/search', '/search/', '/tr/search/']) {
+    assert.equal(isNoindexPath(path), true, path + ' must not be indexed');
   }
 });
 
