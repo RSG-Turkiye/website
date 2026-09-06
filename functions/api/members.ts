@@ -1,5 +1,6 @@
 import type { Env } from '../_lib/auth';
 import { getSessionUser, jsonResponse } from '../_lib/auth';
+import { intParam, PAGE_LIMIT, PAGE_OFFSET } from '../_lib/params';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
@@ -8,8 +9,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const search = url.searchParams.get('search')?.trim() ?? '';
   const interest = url.searchParams.get('interest')?.trim() ?? '';
   const badge = url.searchParams.get('badge')?.trim() ?? '';
-  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '24'), 48);
-  const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0'), 0);
+  const limit = intParam(url.searchParams.get('limit'), PAGE_LIMIT);
+  const offset = intParam(url.searchParams.get('offset'), PAGE_OFFSET);
 
   const conditions: string[] = ['p.is_public = 1'];
   const bindings: (string | number)[] = [];

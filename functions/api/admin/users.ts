@@ -1,6 +1,6 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
-import { RANK_ORDINALS, awardRank, type Rank } from '../../_lib/rank';
+import { isRank, awardRank, MANUAL_REASON } from '../../_lib/rank';
 import { grantSender, revokeSender } from './senders';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -127,13 +127,22 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       await env.DB.prepare('UPDATE profiles SET bio = NULL WHERE user_id = ?').bind(body.user_id).run();
       break;
     case 'set_rank': {
-      const rank = body.value as Rank | undefined;
-      if (!rank || !(rank in RANK_ORDINALS)) return jsonResponse({ error: 'Invalid rank' }, 400);
-      await awardRank(body.user_id, rank, 'admin_manual', env);
+      // isRank, not `in`: `in` walks the prototype chain, so "toString" was a
+      // valid rank and its ordinal was a function.
+      if (!isRank(body.value)) return jsonResponse({ error: 'Invalid rank' }, 400);
+      await awardRank(body.user_id, body.value, MANUAL_REASON, env);
       break;
     }
     case 'award_badge': {
       if (!body.value) return jsonResponse({ error: 'Missing badge code' }, 400);
+      // badge_code is a foreign key. Without this, a code that is not in
+      // achievement_badges -- a typo, a badge that was removed -- came back
+      // as a 500 from the constraint, telling the admin nothing about what
+      // they got wrong.
+      const known = await env.DB.prepare(
+        'SELECT 1 FROM achievement_badges WHERE code = ?'
+      ).bind(body.value).first();
+      if (!known) return jsonResponse({ error: `Unknown badge code: ${body.value}` }, 400);
       await env.DB.prepare(
         'INSERT OR IGNORE INTO user_achievement_badges (user_id, badge_code, awarded_at, awarded_by) VALUES (?, ?, ?, ?)'
       ).bind(body.user_id, body.value, Math.floor(Date.now() / 1000), user.id).run();
