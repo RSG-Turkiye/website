@@ -360,6 +360,17 @@ const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
     render();
   }
 
+  /*
+   * Both, and neither is redundant.
+   *
+   * `astro:page-load` is fired by <ClientRouter />, and only by it. This ran
+   * on that event alone for one commit, and when the router came back out --
+   * it was breaking the signed-in header -- the event stopped firing and the
+   * player never started. Calling setUp directly is what runs today; the
+   * listener is what will run on navigations if view transitions return, and
+   * setUp is written to be safe called twice.
+   */
+  setUp();
   document.addEventListener('astro:page-load', setUp);
 </script>
 

@@ -139,5 +139,9 @@ const platforms: [string, string][] = [
     }
   }
 
+  // Directly for today, on the event for if view transitions ever come back.
+  // wireEpisodes is guarded per button, so calling it twice binds nothing
+  // twice. See PodcastStrip for why both are here.
+  wireEpisodes();
   document.addEventListener('astro:page-load', wireEpisodes);
 </script>
