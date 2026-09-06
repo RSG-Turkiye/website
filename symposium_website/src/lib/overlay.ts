@@ -40,6 +40,17 @@ export interface RepoContent {
   speakers: Speaker[];
   sessions: Session[];
   committee: CommitteeMember[];
+  /** From the CMS only: the repo has no announcements of its own. */
+  announcements: Announcement[];
+}
+
+/** A note from the organisers, shown above the fold until it expires. */
+export interface Announcement {
+  id: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonUrl: string;
 }
 
 // Mirrors the shape `functions/_lib/symposium.ts` (Task 3) serves. The two
@@ -58,7 +69,20 @@ const OverlaySchema = z.object({
   speakers: z.array(z.object({ slug: z.string(), name: z.string() }).passthrough()),
   sessions: z.array(z.object({ slug: z.string(), title: z.string(), order: z.number() }).passthrough()),
   committee: z.array(z.object({ name: z.string() }).passthrough()),
-  announcements: z.array(z.unknown()),
+  // Was z.array(z.unknown()): the payload carried announcements, the schema
+  // let them through, and nothing on this site did anything with them. A
+  // shape, so a renamed field on the server is caught here rather than
+  // rendering a blank card.
+  announcements: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string(),
+      button_text: z.string(),
+      button_url: z.string(),
+      expires_at: z.number(),
+    }).passthrough(),
+  ),
 });
 
 export type Overlay = z.infer<typeof OverlaySchema>;
@@ -128,6 +152,18 @@ export function mergeOverlay(repo: RepoContent, overlay: Overlay | null): RepoCo
   if (overlay.committee && overlay.committee.length > 0) {
     merged.committee = overlay.committee as unknown as CommitteeMember[];
   }
+
+  // Assigned rather than merged-if-non-empty, unlike the three lists above.
+  // Those exist in the repo and an empty overlay means "no opinion"; these
+  // exist only in the CMS, so an empty list is the answer, not a silence.
+  // Deleting an announcement has to make it disappear.
+  merged.announcements = (overlay.announcements ?? []).map((a) => ({
+    id: a.id,
+    title: a.title,
+    description: a.description,
+    buttonText: a.button_text,
+    buttonUrl: a.button_url,
+  }));
 
   return merged;
 }

@@ -1,6 +1,8 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageAnnouncements } from '../../../_lib/auth';
+import { triggerRebuild } from '../../../_lib/symposium';
 import {
+  announcementSite,
   announcementText,
   announcementExpiry,
   announcementUrl,
@@ -23,6 +25,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
     button_url: string;
     show_as_popup: boolean;
     expires_at: number;
+    site: string;
   }>>();
 
   const fields: string[] = [];
@@ -38,6 +41,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   if (body.button_text !== undefined) checks.push(['button_text', 'button_text = ?', announcementText(body.button_text, MAX_BUTTON_TEXT, 'Button text', true)]);
   if (body.button_url !== undefined) checks.push(['button_url', 'button_url = ?', announcementUrl(body.button_url, true)]);
   if (body.expires_at !== undefined) checks.push(['expires_at', 'expires_at = ?', announcementExpiry(body.expires_at)]);
+  if (body.site !== undefined) checks.push(['site', 'site = ?', announcementSite(body.site)]);
 
   for (const [, clause, result] of checks) {
     if (!result.ok) return jsonResponse({ error: result.error }, 400);
@@ -49,10 +53,18 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
 
   if (fields.length === 0) return jsonResponse({ error: 'No fields to update' }, 400);
 
+  // Read before the write, so a row moving off the symposium site still
+  // triggers the rebuild that removes it from there.
+  const before = await env.DB.prepare('SELECT site FROM announcements WHERE id = ?')
+    .bind(id).first<{ site: string }>();
+
   bindings.push(id);
   await env.DB.prepare(`UPDATE announcements SET ${fields.join(', ')} WHERE id = ?`).bind(...bindings).run();
 
-  return jsonResponse({ ok: true });
+  const touchesSymposium = before?.site === 'symposium' || body.site === 'symposium';
+  const rebuild = touchesSymposium ? await triggerRebuild(env) : null;
+
+  return jsonResponse({ ok: true, rebuild });
 };
 
 export const onRequestDelete: PagesFunction<Env> = async ({ request, params, env }) => {
@@ -62,7 +74,12 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, params, env
   if (!canManageAnnouncements(user)) return jsonResponse({ error: 'Forbidden' }, 403);
 
   const id = params.id as string;
+  const before = await env.DB.prepare('SELECT site FROM announcements WHERE id = ?')
+    .bind(id).first<{ site: string }>();
   await env.DB.prepare('DELETE FROM announcements WHERE id = ?').bind(id).run();
+  // Deleting one has to take it off the symposium site too, and that site is
+  // static: without a rebuild it stays up until the nightly cron.
+  const rebuild = before?.site === 'symposium' ? await triggerRebuild(env) : null;
 
-  return jsonResponse({ ok: true });
+  return jsonResponse({ ok: true, rebuild });
 };

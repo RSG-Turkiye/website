@@ -81,3 +81,83 @@ test('a real url from the overlay does replace the repo one', () => {
   );
   assert.equal(out.registrationUrl, 'https://forms.gle/new');
 });
+
+// --- announcements ------------------------------------------------------------
+
+test('announcements come from the overlay, because the repo has none', () => {
+  const out = mergeOverlay(repo, {
+    announcements: [
+      {
+        id: 'a1',
+        title: 'Registration open',
+        description: 'Until 1 October',
+        button_text: 'Register',
+        button_url: 'https://example.org',
+        expires_at: 4_000_000_000,
+      },
+    ],
+  } as never);
+  assert.deepEqual(out.announcements, [
+    {
+      id: 'a1',
+      title: 'Registration open',
+      description: 'Until 1 October',
+      buttonText: 'Register',
+      buttonUrl: 'https://example.org',
+    },
+  ]);
+});
+
+test('an empty list clears them, unlike the three repo-backed lists', () => {
+  // Speakers, sessions and committee live in the repo, so an empty overlay
+  // means "no opinion" and the repo's own stand -- the test above this block
+  // pins that. Announcements exist only in the CMS, so deleting the last one
+  // has to make it disappear rather than leave the previous build's showing.
+  const withOne = { ...(repo as object), announcements: [
+    { id: 'old', title: 'Old', description: '', buttonText: '', buttonUrl: '' },
+  ] } as never;
+  const out = mergeOverlay(withOne, { announcements: [] } as never);
+  assert.deepEqual(out.announcements, []);
+});
+
+test('an overlay that carries no announcements field clears them too', () => {
+  // The field is required by the schema, so this is defence rather than a
+  // case the server can produce -- and clearing is the safe direction here.
+  const out = mergeOverlay(repo, { speakers: [] } as never);
+  assert.deepEqual(out.announcements, []);
+});
+
+test('an announcement missing a field the site renders is refused', () => {
+  // The schema exists so a renamed field on the server is caught here rather
+  // than rendering a card with a blank title. It was z.array(z.unknown()),
+  // which caught nothing -- and nothing on this site read announcements at
+  // all, so there was nothing to catch.
+  const base = {
+    year: 2026,
+    edition: {
+      registrationUrl: '', registrationDeadline: null,
+      abstractUrl: '', abstractDeadline: null,
+      venuePublic: null, cityPublic: null,
+    },
+    speakers: [], sessions: [], committee: [],
+  };
+  const good = { ...base, announcements: [{ id: 'a', title: 'T', description: '', button_text: '', button_url: '', expires_at: 1 }] };
+  assert.notEqual(parseOverlay(good), null);
+
+  for (const missing of ['id', 'title', 'description', 'button_text', 'button_url', 'expires_at']) {
+    const announcement: Record<string, unknown> = { ...good.announcements[0] };
+    delete announcement[missing];
+    assert.equal(parseOverlay({ ...base, announcements: [announcement] }), null, `missing ${missing}`);
+  }
+});
+
+test('an announcement may carry fields this site does not use', () => {
+  // show_as_popup is a main-site idea; the server sends the row it has.
+  const payload = {
+    year: 2026,
+    edition: { registrationUrl: '', registrationDeadline: null, abstractUrl: '', abstractDeadline: null, venuePublic: null, cityPublic: null },
+    speakers: [], sessions: [], committee: [],
+    announcements: [{ id: 'a', title: 'T', description: '', button_text: '', button_url: '', expires_at: 1, show_as_popup: 1 }],
+  };
+  assert.notEqual(parseOverlay(payload), null);
+});

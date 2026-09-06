@@ -5,6 +5,8 @@ import {
   announcementText,
   announcementExpiry,
   announcementUrl,
+  announcementSite,
+  SITES,
   MAX_TITLE,
   MAX_DESCRIPTION,
   MAX_BUTTON_TEXT,
@@ -116,4 +118,32 @@ test('a required field cannot be empty, and the error names it', () => {
   const result = announcementText('', MAX_TITLE, 'Title', true);
   assert.equal(result.ok, false);
   assert.match(result.ok === false ? result.error : '', /Title/);
+});
+
+// --- which site an announcement belongs to ------------------------------------
+
+test('the site defaults to main, which is every row that exists today', () => {
+  // The column was read by two endpoints and written by none, so every
+  // announcement ever created is a main-site one. Absent must keep meaning
+  // that, or the next edit of an old row would move it.
+  assert.deepEqual(announcementSite(undefined), { ok: true, value: 'main' });
+  assert.deepEqual(announcementSite(''), { ok: true, value: 'main' });
+  assert.deepEqual(announcementSite(null), { ok: true, value: 'main' });
+});
+
+test('the symposium site can be chosen, which it could not before', () => {
+  assert.deepEqual(announcementSite('symposium'), { ok: true, value: 'symposium' });
+  assert.deepEqual(announcementSite('main'), { ok: true, value: 'main' });
+});
+
+test('a third site is refused rather than stored', () => {
+  // Both readers filter on an exact string, so a typo would create an
+  // announcement that appears on neither site and looks saved.
+  for (const bad of ['sympsoium', 'Main', 'both', 42, {}]) {
+    assert.equal(announcementSite(bad).ok, false, String(bad));
+  }
+});
+
+test('the two sites are the two the readers filter on', () => {
+  assert.deepEqual([...SITES], ['main', 'symposium']);
 });

@@ -9,6 +9,7 @@ import { getSponsorsForOrLatest } from "../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
 import { locationFor, titleFor, subtitleFor, symposiumsHeld , nextEditionHint, ordinalLabel } from "../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
+import AnnouncementBanner from "../components/AnnouncementBanner.astro";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -50,6 +51,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
   image={BANNER}
 >
   {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} finished={finished} />}
+  <AnnouncementBanner announcements={upcomingContent?.announcements ?? []} />
+
   <!-- ── Hero ──────────────────────────────────────────────────── -->
   <section class="relative bg-navy text-white overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style={`background-image: url('${BANNER}')`}></div>

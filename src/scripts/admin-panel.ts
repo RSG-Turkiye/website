@@ -108,6 +108,7 @@ function renderAnnouncements(items: any[]) {
     <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
       <td class="px-5 py-4 text-navy font-medium">${escapeHtml(a.title)}</td>
       <td class="px-5 py-4 text-gray-500 tabular-nums">${formatDate(a.expires_at)}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml(a.site ?? 'main')}</td>
       <td class="px-5 py-4 text-gray-500">${a.show_as_popup ? t('admin.announcements.popupYes') : t('admin.announcements.popupNo')}</td>
       <td class="px-5 py-4 text-right">
         <button data-id="${a.id}" class="edit-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2">${t('admin.announcements.edit')}</button>
@@ -128,6 +129,7 @@ function renderAnnouncements(items: any[]) {
       const expiresDate = new Date(item.expires_at * 1000);
       const localExpiresDateStr = `${expiresDate.getFullYear()}-${String(expiresDate.getMonth() + 1).padStart(2, '0')}-${String(expiresDate.getDate()).padStart(2, '0')}`;
       (document.getElementById('annExpiresAt') as HTMLInputElement).value = localExpiresDateStr;
+      (document.getElementById('annSite') as unknown as HTMLSelectElement).value = item.site ?? 'main';
       (document.getElementById('annShowAsPopup') as HTMLInputElement).checked = item.show_as_popup;
       document.getElementById('cancelEditBtn')!.classList.remove('hidden');
     });
@@ -179,6 +181,7 @@ function setupAnnouncementForm() {
       description: (document.getElementById('annDescription') as HTMLTextAreaElement).value,
       button_text: (document.getElementById('annButtonText') as HTMLInputElement).value,
       button_url: (document.getElementById('annButtonUrl') as HTMLInputElement).value,
+      site: (document.getElementById('annSite') as unknown as HTMLSelectElement).value,
       show_as_popup: (document.getElementById('annShowAsPopup') as HTMLInputElement).checked,
       expires_at: Math.floor(new Date(expiresDate + 'T23:59:59').getTime() / 1000),
     };

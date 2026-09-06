@@ -1,0 +1,43 @@
+---
+/**
+ * Notes from the organisers, above the fold on the home page.
+ *
+ * They come from the CMS through the build-time overlay, which is how
+ * everything else on this site arrives. The main site fetches its own at
+ * runtime and swaps cards around; that would be the wrong shape here, where
+ * every page is static and a nightly rebuild is the normal way content
+ * changes.
+ *
+ * Nothing renders when there are none, which is the usual state.
+ */
+import type { Announcement } from "../lib/overlay";
+
+interface Props {
+  announcements: Announcement[];
+}
+
+const { announcements } = Astro.props;
+---
+
+{announcements.length > 0 && (
+  <section class="bg-red-tint border-b border-red/20">
+    <div class="max-w-4xl mx-auto px-6 py-5 flex flex-col gap-4">
+      {announcements.map((a) => (
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-navy">{a.title}</p>
+            {a.description && <p class="text-sm text-gray-600 mt-0.5">{a.description}</p>}
+          </div>
+          {a.buttonUrl && a.buttonText && (
+            <a
+              href={a.buttonUrl}
+              class="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red text-white text-sm font-semibold hover:bg-red/90 transition-colors no-underline"
+            >
+              {a.buttonText}
+            </a>
+          )}
+        </div>
+      ))}
+    </div>
+  </section>
+)}
