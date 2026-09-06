@@ -43,13 +43,13 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
         <div class="grid md:grid-cols-[320px_1fr] gap-4 items-start">
           <div class="bg-white rounded-2xl border border-border shadow-sm p-3">
             <div id="threadList" class="flex flex-col gap-1"></div>
-            <p id="threadsEmpty" class="hidden text-sm text-gray-400 px-2 py-4">
+            <p id="threadsEmpty" class="hidden text-sm text-gray-500 px-2 py-4">
               Henüz cevap yok.
             </p>
           </div>
 
           <div class="bg-[#F0F0EE] rounded-2xl border border-border p-4 min-h-[420px]">
-            <p id="threadEmpty" class="text-sm text-gray-400 text-center py-24">
+            <p id="threadEmpty" class="text-sm text-gray-500 text-center py-24">
               Okumak için bir yazışma seçin.
             </p>
 
@@ -69,7 +69,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
                 <textarea id="replyBody" rows="5" required maxlength="20000"
                   placeholder="Cevabınızı yazın"
                   class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus:border-navy-mid"></textarea>
-                <p class="text-xs text-gray-400 -mt-1">
+                <p class="text-xs text-gray-500 -mt-1">
                   RSG adresinden gönderilir. Alıcının kimin cevapladığını bilmesi için sonuna adınızı yazın.
                 </p>
                 <div class="flex items-center gap-3">
@@ -77,7 +77,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
                     class="px-5 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors disabled:opacity-50">
                     Cevapla
                   </button>
-                  <span id="replyStatus" class="text-xs text-gray-400"></span>
+                  <span id="replyStatus" class="text-xs text-gray-500"></span>
                 </div>
               </form>
             </div>
@@ -221,11 +221,11 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <span class="text-sm truncate ${t.unread ? 'font-bold text-navy' : 'text-navy'}">${
             escapeHtml(t.recipient_name || t.recipient_email)
           }</span>
-          <span class="text-[11px] text-gray-400 shrink-0">${formatDate(t.last_message_at)}</span>
+          <span class="text-[11px] text-gray-500 shrink-0">${formatDate(t.last_message_at)}</span>
         </div>
         <div class="text-xs truncate ${t.unread ? 'font-semibold text-navy' : 'text-gray-500'}">${escapeHtml(t.subject)}</div>
-        <div class="text-xs text-gray-400 truncate">${t.last_direction === 'out' ? '&uarr; ' : '&darr; '}${escapeHtml(t.snippet)}</div>
-        ${t.sender_email ? `<div class="text-[11px] text-gray-400 mt-1">${escapeHtml(t.sender_name || t.sender_email)}</div>` : ''}
+        <div class="text-xs text-gray-500 truncate">${t.last_direction === 'out' ? '&uarr; ' : '&darr; '}${escapeHtml(t.snippet)}</div>
+        ${t.sender_email ? `<div class="text-[11px] text-gray-500 mt-1">${escapeHtml(t.sender_name || t.sender_email)}</div>` : ''}
       </button>`).join('');
 
     list.querySelectorAll<HTMLElement>('.thread-item').forEach(el => {
@@ -276,7 +276,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
         <div class="max-w-[85%] rounded-2xl px-4 py-3 ${
           m.direction === 'out' ? 'bg-navy text-white' : 'bg-white border border-border text-navy'
         }">
-          <div class="text-[11px] mb-1 ${m.direction === 'out' ? 'text-white/70' : 'text-gray-400'}">
+          <div class="text-[11px] mb-1 ${m.direction === 'out' ? 'text-white/70' : 'text-gray-500'}">
             ${escapeHtml(m.direction === 'out' ? 'RSG Türkiye' : (m.from_name || m.from_email))}
             &middot; ${formatDate(m.sent_at)}
           </div>
@@ -286,7 +286,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
                must not be escaped again, and the only one inserted as HTML. -->
           <div class="mail-body text-sm leading-relaxed">${m.body_html}</div>
           ${m.attachment_count > 0 ? `<div class="text-[11px] mt-2 ${
-            m.direction === 'out' ? 'text-white/70' : 'text-gray-400'
+            m.direction === 'out' ? 'text-white/70' : 'text-gray-500'
           }">${m.attachment_count} ek var &mdash; indirmek için RSG posta kutusunu Gmail'den açın.</div>` : ''}
         </div>
       </div>`).join('');

@@ -136,7 +136,7 @@ const levelsForScript = levels.map((level, li) => ({
             <div class="mb-10">
               <h3 class="text-xs font-bold tracking-widest uppercase text-navy-mid mb-4 flex items-center gap-2">
                 {SECTION_LABELS[section.type] ?? section.type}
-                <span id={`section-count-${level.id}-${section.type}`} class="text-gray-300 font-normal normal-case tracking-normal"></span>
+                <span id={`section-count-${level.id}-${section.type}`} class="text-gray-500 font-normal normal-case tracking-normal"></span>
               </h3>
               <div class="flex flex-col gap-3">
                 {section.resources.map((res, ri) => (
@@ -184,7 +184,7 @@ const levelsForScript = levels.map((level, li) => ({
                 class="group flex items-start gap-3 p-3 rounded-lg bg-white border border-border hover:border-navy-mid hover:shadow-sm transition-all duration-150 no-underline">
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-semibold text-navy group-hover:text-navy-mid transition-colors leading-tight">
-                    {item.title} <span class="text-gray-300 font-normal text-xs">↗</span>
+                    {item.title} <span class="text-gray-500 font-normal text-xs">↗</span>
                   </p>
                   <p class="text-xs text-gray-500 mt-0.5">{item.description}</p>
                 </div>
@@ -242,7 +242,7 @@ const levelsForScript = levels.map((level, li) => ({
       btn.classList.toggle('border-navy', isActive);
       btn.classList.toggle('text-navy', isActive);
       btn.classList.toggle('border-transparent', !isActive);
-      btn.classList.toggle('text-gray-400', !isActive);
+      btn.classList.toggle('text-gray-500', !isActive);
     });
 
     currentLevel = levelId;

@@ -50,7 +50,7 @@ const articleJsonLd = {
           {category && (
             <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red">{category}</span>
           )}
-          <span class="text-sm text-gray-400">
+          <span class="text-sm text-gray-500">
             {pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </span>
           {author && (
@@ -94,7 +94,7 @@ const articleJsonLd = {
         </a>
         <!-- Social sharing -->
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-400 mr-1">Share:</span>
+          <span class="text-xs text-gray-500 mr-1">Share:</span>
           <a
             href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(canonicalUrl)}&text=${encodeURIComponent(title)}`}
             target="_blank" rel="noopener noreferrer"

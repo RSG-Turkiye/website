@@ -72,7 +72,7 @@ const facts = [
                       </div>
                     </a>
                     <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-3 text-xs text-gray-400 mb-1">
+                      <div class="flex items-center gap-3 text-xs text-gray-500 mb-1">
                         <time>{new Date(post.data.pubDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
                         {post.data.author && <span>{post.data.author}</span>}
                       </div>
@@ -104,7 +104,7 @@ const facts = [
 
           <!-- Search -->
           <div>
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Search</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Search</p>
             <input
               type="text"
               id="searchPosts"
@@ -115,7 +115,7 @@ const facts = [
 
           <!-- Tag filter -->
           <div>
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Filter by tag</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Filter by tag</p>
             <select id="tagFilter" class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors bg-white text-navy">
               <option value="">All tags</option>
               {allTags.map((tag: string) => <option value={tag}>{tag}</option>)}
@@ -135,7 +135,7 @@ const facts = [
 
           <!-- Did you know? -->
           <div class="rounded-lg border border-border bg-white p-5">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Did you know?</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Did you know?</p>
             <ul class="flex flex-col gap-3">
               {facts.map((fact) => (
                 <li class="flex items-start gap-2 text-sm text-gray-600 leading-snug">
@@ -206,14 +206,14 @@ const facts = [
     const activeClass = 'bg-navy text-white border-navy';
     const inactiveClass = 'border-border text-gray-600 hover:bg-navy-light hover:border-navy-mid';
 
-    let html = `<button id="prevBtn" class="${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-border text-gray-400' : inactiveClass}"
+    let html = `<button id="prevBtn" class="${btnClass} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed border-border text-gray-500' : inactiveClass}"
       ${currentPage === 1 ? 'disabled' : ''}>← Prev</button>`;
     html += `<div class="flex items-center gap-1 flex-wrap">`;
     for (let p = 1; p <= totalPages; p++) {
       html += `<button class="page-btn ${btnClass} ${p === currentPage ? activeClass : inactiveClass}" data-page="${p}">${p}</button>`;
     }
     html += `</div>`;
-    html += `<button id="nextBtn" class="${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-border text-gray-400' : inactiveClass}"
+    html += `<button id="nextBtn" class="${btnClass} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed border-border text-gray-500' : inactiveClass}"
       ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>`;
 
     paginationEl.innerHTML = html;
