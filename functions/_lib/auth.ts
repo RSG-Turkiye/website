@@ -86,6 +86,17 @@ export async function createSession(userId: string, env: Env): Promise<{ token: 
   const expiresAt = now + SESSION_DURATION;
   const expires = new Date((now + SESSION_DURATION) * 1000);
 
+  // Rows were only ever inserted. Nothing read an expired session -- every
+  // lookup filters on expires_at -- so this was not a security hole, it was a
+  // table that grows by one row per sign-in for ever and is never smaller.
+  //
+  // Signing in is the natural moment to sweep: it is the only time this table
+  // is written, it happens often enough that the table stays small and rarely
+  // enough to cost nothing, and it needs no cron and no coupling to the mail
+  // dispatcher's tick. The delete runs first so a failure surfaces here rather
+  // than after a session the caller is about to be handed.
+  await env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now).run();
+
   await env.DB.prepare(
     'INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)'
   ).bind(token, userId, expiresAt, now).run();

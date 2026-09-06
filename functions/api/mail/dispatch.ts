@@ -16,6 +16,8 @@ import {
   type ComposeInput,
   type RecipientResult,
   type AttachmentCache,
+  attachmentSizes,
+  idsOf,
 } from '../../_lib/compose';
 
 interface ScheduledRow {
@@ -228,23 +230,6 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
 }
 
 /** Every distinct attachment in the candidate window, by size on disk. */
-async function attachmentSizes(env: Env, rows: { attachment_ids: string }[]): Promise<Map<string, number>> {
-  const ids = new Set<string>();
-  for (const row of rows) {
-    try {
-      const parsed = JSON.parse(row.attachment_ids);
-      if (Array.isArray(parsed)) for (const id of parsed) ids.add(String(id));
-    } catch {
-      // Corrupt rows are dropped in the loop below; they just cost nothing here.
-    }
-  }
-  if (ids.size === 0) return new Map();
-  const list = [...ids];
-  const rowsOut = await env.DB.prepare(
-    `SELECT id, size_bytes FROM mail_attachments WHERE id IN (${list.map(() => '?').join(',')})`
-  ).bind(...list).all<{ id: string; size_bytes: number }>();
-  return new Map(rowsOut.results.map((r) => [r.id, r.size_bytes]));
-}
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Without this, anyone could drain the queue early or burn the Gmail quota
@@ -313,7 +298,13 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   // Oldest first still, but no sender takes more than PER_SENDER of a tick.
   // Attachment sizes decide how much of a tick each row costs, so they are
   // read once for the whole candidate window rather than per row.
-  const sizes = await attachmentSizes(env, candidates.results);
+  // Captured before reconciliation and splitting rewrite this list. It is the
+  // answer to "how many rows were due?", which is what the 5 September stall
+  // needed and did not have -- and by the time it was logged, splitting had
+  // already filtered rows out of the array it was counting.
+  const dueCount = candidates.results.length;
+
+  const sizes = await attachmentSizes(env, idsOf(candidates.results));
   const sizeOf = (id: string) => sizes.get(id) ?? 0;
   const plan = { batch: BATCH, perSender: PER_SENDER, byteBudget: BYTE_BUDGET };
 
@@ -581,7 +572,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   // rows were due all afternoon, so a tick reporting zero candidates would
   // have pointed straight at the query rather than at the sending.
   await finishRun(env.DB, runId, Math.floor(Date.now() / 1000), {
-    candidates: candidates.results.length,
+    candidates: dueCount,
     planned: due.results.length,
     sent,
     failed,
