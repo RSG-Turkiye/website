@@ -1,7 +1,7 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
 import { validateCompose, checkRateLimit } from '../../_lib/mail';
-import { resolveAttachments, sendAndLog, type ComposeInput } from '../../_lib/compose';
+import { attachmentSizes, resolveAttachments, sendAndLog, type ComposeInput } from '../../_lib/compose';
 import { validateScheduledAt } from '../../_lib/schedule';
 import { costOf } from '../../_lib/mail-queue';
 
@@ -24,13 +24,6 @@ interface ComposeBody {
 const INLINE_BUDGET = 8 * 1024 * 1024;
 
 /** Sizes for the attachments named, so the cost can be worked out up front. */
-async function attachmentSizes(env: Env, ids: string[]): Promise<Map<string, number>> {
-  if (ids.length === 0) return new Map();
-  const rows = await env.DB.prepare(
-    `SELECT id, size_bytes FROM mail_attachments WHERE id IN (${ids.map(() => '?').join(',')})`
-  ).bind(...ids).all<{ id: string; size_bytes: number }>();
-  return new Map(rows.results.map((r) => [r.id, r.size_bytes]));
-}
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);

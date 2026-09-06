@@ -21,25 +21,39 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const state = await env.DB.prepare(
-    'SELECT last_synced_at FROM mail_sync_state WHERE id = 1'
-  ).first<{ last_synced_at: number | null }>();
 
-  const last = state?.last_synced_at ?? null;
-  if (last !== null && now - last < MIN_REFRESH_SECONDS) {
-    // Two members opening the page in the same minute is the normal case, not
-    // an abuse to punish: answer 200 and let them read the cache.
-    return jsonResponse({ ok: true, skipped: true, retryAfter: MIN_REFRESH_SECONDS - (now - last) });
+  // Claiming the minute and reading it are one statement.
+  //
+  // This used to SELECT the timestamp, compare it, and UPDATE it -- three
+  // steps with two members' requests able to interleave between them. Both
+  // read the same old value, both decided they were allowed, and both called
+  // Gmail. The throttle exists to protect one shared quota, so the case it
+  // has to survive is exactly the one where two people click at once.
+  //
+  // The UPDATE stamps the attempt rather than the success: runSync writes this
+  // column on every path it completes, but a sync that throws early -- a
+  // revoked scope, an unreachable mailbox -- would leave it as it was, and
+  // every page load would then hit Gmail unthrottled.
+  const claim = await env.DB.prepare(
+    `UPDATE mail_sync_state
+     SET last_synced_at = ?
+     WHERE id = 1 AND (last_synced_at IS NULL OR last_synced_at <= ?)`
+  ).bind(now, now - MIN_REFRESH_SECONDS).run();
+
+  if (claim.meta.changes !== 1) {
+    // Somebody else has the minute. Two members opening the page together is
+    // the normal case, not an abuse to punish: answer 200 and let this one
+    // read the cache.
+    const state = await env.DB.prepare(
+      'SELECT last_synced_at FROM mail_sync_state WHERE id = 1'
+    ).first<{ last_synced_at: number | null }>();
+    const last = state?.last_synced_at ?? now;
+    return jsonResponse({
+      ok: true,
+      skipped: true,
+      retryAfter: Math.max(0, MIN_REFRESH_SECONDS - (now - last)),
+    });
   }
-
-  // Stamp the attempt before delegating, not after. runSync writes this column
-  // on every path it completes, but a sync that throws early -- a revoked
-  // scope, a mailbox that is not reachable -- would leave it NULL forever, and
-  // every page load would then hit Gmail unthrottled. The throttle guards a
-  // shared quota, so it has to count attempts, not successes.
-  await env.DB.prepare(
-    'UPDATE mail_sync_state SET last_synced_at = ? WHERE id = 1'
-  ).bind(now).run();
 
   const result = await runSync(env, new URL(request.url).origin);
   // Deliberately not returning runSync's body. It carries operator

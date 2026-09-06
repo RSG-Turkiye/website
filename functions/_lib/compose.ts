@@ -288,3 +288,39 @@ export async function logFailure(env: Env, input: ComposeInput, reason: string):
     await insertLog(env, input, recipient, null, null, reason);
   }
 }
+
+/**
+ * How big each of these attachments is, from the database rather than R2.
+ *
+ * Two copies of this existed -- one in api/mail/send.ts taking ids, one in
+ * api/mail/dispatch.ts taking rows and pulling the ids out of their JSON. The
+ * query was identical and the comments about what it costs had already drifted
+ * apart. Callers with rows flatten first; see idsOf.
+ */
+export async function attachmentSizes(env: Env, ids: string[]): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map();
+  const rows = await env.DB.prepare(
+    `SELECT id, size_bytes FROM mail_attachments WHERE id IN (${ids.map(() => '?').join(',')})`
+  ).bind(...ids).all<{ id: string; size_bytes: number }>();
+  return new Map(rows.results.map((r) => [r.id, r.size_bytes]));
+}
+
+/**
+ * Every distinct attachment id named by these rows.
+ *
+ * A row whose attachment_ids is not parseable JSON contributes nothing: the
+ * dispatch loop drops such a row anyway, and failing the whole tick's size
+ * lookup because one row is corrupt would stop the queue.
+ */
+export function idsOf(rows: { attachment_ids: string }[]): string[] {
+  const ids = new Set<string>();
+  for (const row of rows) {
+    try {
+      const parsed = JSON.parse(row.attachment_ids);
+      if (Array.isArray(parsed)) for (const id of parsed) ids.add(String(id));
+    } catch {
+      // Not parseable; the row is dropped downstream.
+    }
+  }
+  return [...ids];
+}

@@ -84,6 +84,26 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     ? [...new Set(body.attachment_ids.filter((v): v is string => typeof v === 'string'))]
     : [];
 
+  // The ids were kept for their type and nothing else, so an id that names no
+  // attachment -- a typo, one that has since been deactivated -- was stored,
+  // the edit reported success, and the mail failed hours later inside the
+  // dispatcher with `unknown_attachment`, at the time it was meant to go out.
+  // Checking here means the person editing finds out while they are looking.
+  if (attachmentIds.length > 0) {
+    const known = await env.DB.prepare(
+      `SELECT id FROM mail_attachments
+       WHERE is_active = 1 AND id IN (${attachmentIds.map(() => '?').join(',')})`
+    ).bind(...attachmentIds).all<{ id: string }>();
+    if (known.results.length !== attachmentIds.length) {
+      const found = new Set(known.results.map((r) => r.id));
+      const missing = attachmentIds.filter((id) => !found.has(id));
+      return jsonResponse(
+        { error: `Unknown attachment: ${missing.join(', ')}`, code: 'unknown_attachment' },
+        400,
+      );
+    }
+  }
+
   await env.DB.prepare(
     `UPDATE scheduled_emails
      SET recipients = ?, subject = ?, body = ?,

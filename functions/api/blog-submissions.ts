@@ -1,3 +1,5 @@
+import { slugify } from '../_lib/slug';
+
 import type { Env } from '../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, getBaseUrl } from '../_lib/auth';
 import { notifyNewSubmission } from '../_lib/github';
@@ -7,6 +9,9 @@ import {
   submissionImageUrl,
   LIMITS,
 } from '../_lib/blog-submission';
+
+/** Filenames become URLs; 80 characters is what this endpoint has always cut at. */
+const SLUG_MAX = 80;
 
 type SubmissionRow = {
   id: string;
@@ -46,26 +51,6 @@ function toPublicShape(row: SubmissionRow) {
   };
 }
 
-const TURKISH_CHAR_MAP: Record<string, string> = {
-  'ı': 'i', 'İ': 'i', 'ğ': 'g', 'Ğ': 'g', 'ü': 'u', 'Ü': 'u',
-  'ş': 's', 'Ş': 's', 'ö': 'o', 'Ö': 'o', 'ç': 'c', 'Ç': 'c',
-};
-
-function slugify(title: string): string {
-  // Turkish dotless ı (U+0131) has no NFKD canonical decomposition (unlike
-  // ö/ğ/ü/ş/ç, which decompose into base+diacritic and get stripped below),
-  // so it would otherwise survive untouched and turn into a stray hyphen.
-  // Transliterate all six Turkish letter-pairs explicitly first so
-  // correctness doesn't depend on Unicode decomposition subtleties.
-  const transliterated = title.replace(/[ığĞüÜşŞöÖçÇİ]/g, c => TURKISH_CHAR_MAP[c] ?? c);
-  return transliterated
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '') // strip any remaining accents
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-}
 
 type LangPost = {
   title: string;
@@ -145,7 +130,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  const slug = slugify(title.value);
+  const slug = slugify(title.value, { maxLength: SLUG_MAX });
   const now = Math.floor(Date.now() / 1000);
   const imageUrl = image.value;
   const tagsJson = tags.value;

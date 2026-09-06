@@ -4,6 +4,7 @@
 // triggerRebuild is the one exception: it uses fetch and takes an Env, but
 // only inside a function body that a route calls -- nothing here runs it at
 // import time.
+import { slugify } from './slug';
 import type { Env } from './auth';
 import { parseHttpUrl } from './url';
 
@@ -278,33 +279,6 @@ const SESSION_TYPES = new Set([
 // speakerSlugs would silently stop matching a slug generated this way. Each
 // of these is mapped to its ASCII equivalent explicitly, before any case
 // folding runs, so toLowerCase() never sees the character that trips it up.
-const TURKISH_TRANSLITERATION: Record<string, string> = {
-  'İ': 'i', 'I': 'i', 'ı': 'i',
-  'Ğ': 'g', 'ğ': 'g',
-  'Ü': 'u', 'ü': 'u',
-  'Ş': 's', 'ş': 's',
-  'Ö': 'o', 'ö': 'o',
-  'Ç': 'c', 'ç': 'c',
-};
-
-/**
- * A stable, URL-safe slug. Idempotent: slugifying an already-slugged string,
- * or the same name twice, always returns the same value -- so a hand-typed
- * slug that gets re-saved untouched never drifts, and re-slugging a
- * speakerSlugs entry to match is always a no-op.
- */
-function slugify(value: string): string {
-  let transliterated = '';
-  for (const ch of value) {
-    transliterated += TURKISH_TRANSLITERATION[ch] ?? ch;
-  }
-  return transliterated
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '') // any other language's accents NFKD split out
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 // What the admin edit form for each kind submits and is loaded with -- see
 // EditionInput's doc comment above for the shape rule this follows: GET
