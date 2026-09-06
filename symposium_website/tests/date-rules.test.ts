@@ -5,6 +5,7 @@ import {
   ctasFor,
   openCtas,
   ctaState,
+  titleFor,
   hasHappened,
   nextEditionHint,
   endOfSeason,
@@ -173,4 +174,34 @@ test('one form still open keeps the buttons up', () => {
   const half = { ...forms, abstractDeadline: new Date('2026-08-01T00:00:00Z') } as EditionLike;
   assert.equal(ctaState(half, at('2026-09-01')), 'open');
   assert.deepEqual(openCtas(half, at('2026-09-01')).map((c) => c.kind), ['registration']);
+});
+
+// --- the Turkish heading on an archive page -----------------------------------
+
+test('a Turkish edition title is derived when the file does not carry one', () => {
+  // Only 2026 has a titleTr. Every other Turkish edition page was headed in
+  // English, with the Turkish body starting "12. RSG-Türkiye Öğrenci
+  // Sempozyumu" directly underneath.
+  for (const [n, expected] of [
+    [5, '5. RSG-Türkiye Öğrenci Sempozyumu'],
+    [11, '11. RSG-Türkiye Öğrenci Sempozyumu'],
+    [12, '12. RSG-Türkiye Öğrenci Sempozyumu'],
+  ] as [number, string][]) {
+    const e = { title: `${n}${n === 5 ? 'th' : 'th'} RSG-Türkiye Student Symposium` } as EditionLike;
+    assert.equal(titleFor(e, 'tr'), expected);
+    assert.equal(titleFor(e, 'en'), e.title, 'English is untouched');
+  }
+});
+
+test('a titleTr in the file still wins', () => {
+  const e = { title: '13th RSG-Türkiye Student Symposium', titleTr: 'On Üçüncü Sempozyum' } as EditionLike;
+  assert.equal(titleFor(e, 'tr'), 'On Üçüncü Sempozyum');
+});
+
+test('a title that is not the standard shape falls back rather than being mangled', () => {
+  // A special edition, or one that gets renamed. Guessing at it would be
+  // worse than showing the English name it actually has.
+  for (const title of ['RSG-Türkiye @ HiBiT 2019', '5th RSG-Türkiye Student Symposium (Postponed)', '']) {
+    assert.equal(titleFor({ title } as EditionLike, 'tr'), title);
+  }
 });

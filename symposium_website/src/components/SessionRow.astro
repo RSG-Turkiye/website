@@ -1,5 +1,6 @@
 ---
 import type { Session, SessionType, Speaker } from "../lib/content";
+import { getLangFromUrl, useTranslations } from "../i18n/ui";
 
 const sessionTypeColors: Record<SessionType, string> = {
   opening: "bg-navy text-white",
@@ -23,6 +24,7 @@ const { session, speakers: allSpeakers } = Astro.props;
 const sessionSpeakers = allSpeakers.filter((s) =>
   session.speakerSlugs.includes(s.slug)
 );
+const t = useTranslations(getLangFromUrl(Astro.url));
 const colorClass = sessionTypeColors[session.type];
 const isBreak = session.type === "break";
 ---
@@ -36,11 +38,11 @@ const isBreak = session.type === "break";
   <!-- Type badge -->
   <span
     class:list={[
-      "shrink-0 mt-0.5 text-xs font-semibold px-2 py-0.5 rounded-full capitalize",
+      "shrink-0 mt-0.5 text-xs font-semibold px-2 py-0.5 rounded-full",
       colorClass,
     ]}
   >
-    {session.type}
+    {t(`session.type.${session.type}`)}
   </span>
 
   <!-- Content -->
