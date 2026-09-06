@@ -111,6 +111,7 @@ const repo = (over: Partial<RepoContent> = {}): RepoContent => ({
   speakers: [],
   sessions: [],
   committee: [],
+  announcements: [],
   ...over,
 });
 

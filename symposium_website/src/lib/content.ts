@@ -87,6 +87,9 @@ async function loadCurrentContent(): Promise<RepoContent | null> {
     speakers,
     sessions,
     committee,
+    // The repo has none: an announcement is a CMS-only thing, so this is the
+    // starting point the overlay replaces.
+    announcements: [],
   };
 
   const apiBase = import.meta.env.PUBLIC_API_BASE ?? "https://rsg-turkiye.iscbsc.org";

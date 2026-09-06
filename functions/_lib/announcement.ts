@@ -82,3 +82,22 @@ export function announcementUrl(raw: unknown, required: boolean): FieldResult<st
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Which site an announcement belongs to.
+ *
+ * `/api/announcements` filters `site = 'main'` and `/api/symposium` filters
+ * `site = 'symposium'`. Both have read the column since it was added; nothing
+ * ever wrote it, so every row defaulted to 'main' and the symposium list was
+ * empty by construction rather than by circumstance.
+ */
+export const SITES = ['main', 'symposium'] as const;
+export type Site = (typeof SITES)[number];
+
+export function announcementSite(raw: unknown): FieldResult<Site> {
+  if (raw === undefined || raw === null || raw === '') return { ok: true, value: 'main' };
+  if (typeof raw !== 'string' || !SITES.includes(raw as Site)) {
+    return { ok: false, error: `Site must be one of: ${SITES.join(', ')}.` };
+  }
+  return { ok: true, value: raw as Site };
+}

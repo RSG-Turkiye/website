@@ -10,6 +10,7 @@ import { getCurrentEdition, getPastEditions } from "../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor , nextEditionHint, ordinalLabel } from "../../lib/editions";
 import { symposiumsHeld } from "../../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../../lib/content";
+import AnnouncementBanner from "../../components/AnnouncementBanner.astro";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -44,6 +45,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
 
 <BaseLayout pageTitle={t("nav.home")} image={BANNER}>
   {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} finished={finished} />}
+  <AnnouncementBanner announcements={upcomingContent?.announcements ?? []} />
+
   <section class="relative bg-navy text-white overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style={`background-image: url('${BANNER}')`}></div>
     <div class="absolute inset-0 bg-navy/75"></div>

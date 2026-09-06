@@ -1,6 +1,8 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, canManageAnnouncements } from '../../_lib/auth';
+import { triggerRebuild } from '../../_lib/symposium';
 import {
+  announcementSite,
   announcementText,
   announcementExpiry,
   announcementUrl,
@@ -15,7 +17,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!canManageAnnouncements(user)) return jsonResponse({ error: 'Forbidden' }, 403);
 
   const result = await env.DB.prepare(
-    `SELECT id, title, description, button_text, button_url, show_as_popup, expires_at, created_at
+    `SELECT id, site, title, description, button_text, button_url, show_as_popup, expires_at, created_at
      FROM announcements
      ORDER BY created_at DESC`
   ).all<{
@@ -56,6 +58,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     button_url: string;
     show_as_popup: boolean;
     expires_at: number;
+    site: string;
   }>();
 
   // Every field, by the same rules the PATCH uses. See _lib/announcement.ts:
@@ -72,15 +75,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const expiresAt = announcementExpiry(body.expires_at);
   if (!expiresAt.ok) return jsonResponse({ error: expiresAt.error }, 400);
 
+  // Which site this belongs to. The column has been read by two endpoints
+  // since it was added -- /api/announcements filters `site = 'main'` and
+  // /api/symposium filters `site = 'symposium'` -- and written by nothing, so
+  // every row defaulted to 'main' and the symposium query returned an empty
+  // list for ever.
+  const site = announcementSite(body.site);
+  if (!site.ok) return jsonResponse({ error: site.error }, 400);
+
   const id = generateId();
   const now = Math.floor(Date.now() / 1000);
 
   await env.DB.prepare(
     `INSERT INTO announcements
-      (id, title, description, button_text, button_url, show_as_popup, expires_at, created_by, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, site, title, description, button_text, button_url, show_as_popup, expires_at, created_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id,
+    site.value,
     // The validated values, not the raw body: binding body.expires_at here
     // would put the string straight into the column the validation exists to
     // protect.
@@ -94,5 +106,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     now
   ).run();
 
-  return jsonResponse({ ok: true, id });
+  // A symposium announcement lives on a statically built site that reads it
+  // at build time, so without this it appears at the next nightly rebuild --
+  // up to a day of an editor watching nothing happen. The edition endpoint
+  // has fired this since it was written, for the same reason.
+  const rebuild = site.value === 'symposium' ? await triggerRebuild(env) : null;
+
+  return jsonResponse({ ok: true, id, rebuild });
 };
