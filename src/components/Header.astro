@@ -135,13 +135,20 @@ const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => 
   myProfile: t('nav.myProfile'),
   signOut: t('nav.signOut'),
 } }}>
-  (function () {
-    /** Hover highlighting, as a listener rather than an attribute. */
-    function hoverBackground(el, colour) {
-      el.addEventListener('mouseover', function () { el.style.background = colour; });
-      el.addEventListener('mouseout', function () { el.style.background = ''; });
-    }
+  /**
+   * Hover highlighting, as a listener rather than an attribute.
+   *
+   * Shared, and it has to be: this lived inside the mobile-menu block below
+   * and was called from the auth block, which is a different function and
+   * could not see it. Every signed-in visitor hit a ReferenceError there --
+   * see the comment on the catch.
+   */
+  function hoverBackground(el, colour) {
+    el.addEventListener('mouseover', function () { el.style.background = colour; });
+    el.addEventListener('mouseout', function () { el.style.background = ''; });
+  }
 
+  (function () {
     var btn = document.getElementById('mobileMenuBtn');
     var nav = document.getElementById('mobileNav');
     if (!btn || !nav) return;
@@ -175,9 +182,38 @@ const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => 
       try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch {}
     }
 
+    /**
+     * Render failures are not fetch failures.
+     *
+     * The catch at the end of this chain is here for a request that does not
+     * arrive -- offline, a 500 -- and it used to cover the rendering as well.
+     * That hid a real bug for as long as it existed: hoverBackground was out
+     * of scope, every signed-in visitor threw a ReferenceError on the line
+     * that used it, and the catch quietly ran the signed-out fallback. The
+     * account menu never bound its click handler, so the box did nothing when
+     * pressed, and the mobile profile and sign-out links -- written after that
+     * line -- never appeared at all. Nothing was logged, because the catch had
+     * eaten it.
+     *
+     * So the fetch is caught here, on its own, and the renderer below is left
+     * to fail loudly if it is ever broken again.
+     */
     var cached = getCached();
-    (cached ? Promise.resolve(cached) : fetch('/api/me').then(function(r) { return r.json(); }).then(function(d) { if (d.user) { setCache(d); } return d; }))
+    (cached
+      ? Promise.resolve(cached)
+      : fetch('/api/me')
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d.user) { setCache(d); } return d; })
+          .catch(function () { return null; }))
       .then(function (data) {
+        if (!data) {
+          // The request failed. Show the site as it looks to a visitor who is
+          // not signed in, which is the safe reading of "we do not know".
+          authArea.classList.remove('hidden');
+          var fallbackJoin = document.getElementById('joinBtn');
+          if (fallbackJoin) { fallbackJoin.classList.remove('hidden'); fallbackJoin.classList.add('lg:inline-flex'); }
+          return;
+        }
         var joinBtn = document.getElementById('joinBtn');
         if (joinBtn && (!data.user || !data.user.is_member)) {
           joinBtn.classList.remove('hidden');
@@ -255,11 +291,6 @@ const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => 
               '<button type="submit" style="display:flex;width:100%;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:white;font-size:14px;font-weight:500;cursor:pointer;">' + ui.signOut + '</button>' +
             '</form>';
         }
-      })
-      .catch(function () {
-        authArea.classList.remove('hidden');
-        var joinBtn = document.getElementById('joinBtn');
-        if (joinBtn) { joinBtn.classList.remove('hidden'); joinBtn.classList.add('lg:inline-flex'); }
       });
   })();
 </script>
