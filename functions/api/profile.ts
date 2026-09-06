@@ -83,32 +83,41 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Parsed rather than prefix-matched; see avatarUrl.
   const avatar = avatarUrl(body.avatar_url);
 
-  if (existing) {
-    await env.DB.prepare(
-      `UPDATE profiles SET username=?, display_name=?, institution=?, bio=?, avatar_url=?, updated_at=? WHERE user_id=?`
-    ).bind(username, displayName, institution.value, bio.value, avatar, now, user.id).run();
-  } else {
-    await env.DB.prepare(
-      `INSERT INTO profiles (user_id, username, display_name, institution, bio, avatar_url, card_template, is_public, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'default', 1, ?)`
-    ).bind(user.id, username, displayName, institution.value, bio.value, avatar, now).run();
-  }
+  const profileRow = existing
+    ? env.DB.prepare(
+        `UPDATE profiles SET username=?, display_name=?, institution=?, bio=?, avatar_url=?, updated_at=? WHERE user_id=?`
+      ).bind(username, displayName, institution.value, bio.value, avatar, now, user.id)
+    : env.DB.prepare(
+        `INSERT INTO profiles (user_id, username, display_name, institution, bio, avatar_url, card_template, is_public, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'default', 1, ?)`
+      ).bind(user.id, username, displayName, institution.value, bio.value, avatar, now);
 
-  // Replace interests
-  await env.DB.prepare('DELETE FROM user_interests WHERE user_id = ?').bind(user.id).run();
-  for (const interest of interests) {
-    await env.DB.prepare(
-      'INSERT INTO user_interests (user_id, interest) VALUES (?, ?)'
-    ).bind(user.id, interest).run();
-  }
-
-  // Replace badges
-  await env.DB.prepare('DELETE FROM user_badges WHERE user_id = ?').bind(user.id).run();
-  for (const badge of badges) {
-    await env.DB.prepare(
-      'INSERT INTO user_badges (user_id, badge) VALUES (?, ?)'
-    ).bind(user.id, badge).run();
-  }
+  // The whole save, in one transaction.
+  //
+  // Interests and badges are replaced rather than merged, and a replacement
+  // that stops halfway leaves a member with part of a list they did not
+  // choose. This was the profile row, then a DELETE, then a loop of INSERTs,
+  // then another DELETE and another loop -- every gap a chance to be the last
+  // thing that ran, and the profile row already committed by then, so the
+  // request 500s with the save half done and nothing to tell them which half.
+  //
+  // The profile row goes in the batch too, for the same reason: saving a new
+  // display name and losing the interests submitted with it is not a smaller
+  // failure, just a quieter one.
+  await env.DB.batch([
+    profileRow,
+    env.DB.prepare('DELETE FROM user_interests WHERE user_id = ?').bind(user.id),
+    ...interests.map((interest) =>
+      env.DB.prepare('INSERT INTO user_interests (user_id, interest) VALUES (?, ?)').bind(
+        user.id,
+        interest,
+      ),
+    ),
+    env.DB.prepare('DELETE FROM user_badges WHERE user_id = ?').bind(user.id),
+    ...badges.map((badge) =>
+      env.DB.prepare('INSERT INTO user_badges (user_id, badge) VALUES (?, ?)').bind(user.id, badge),
+    ),
+  ]);
 
   return jsonResponse({ ok: true });
 };
