@@ -1,0 +1,23 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PodcastIndex from '../../components/PodcastIndex.astro';
+import { useTranslations } from '../../i18n/ui';
+import { show } from '../../lib/podcast';
+
+const lang = 'tr';
+const t = useTranslations(lang);
+---
+
+<BaseLayout pageTitle="Podcast - RSG Türkiye" description={show.description.slice(0, 200)}
+  translationUrl="/podcast" translationExists={true}>
+
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">{t('podcast.title')}</h1>
+      <p class="text-white/70 mt-2">{t('podcast.subtitle')}</p>
+    </div>
+  </div>
+
+  <PodcastIndex lang={lang} />
+
+</BaseLayout>

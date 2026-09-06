@@ -1,0 +1,44 @@
+{
+  "syncedAt": "2026-09-06T15:48:07.257Z",
+  "title": "RSG-Türkiye Biyoinformatik Podcast",
+  "description": "RSG-Türkiye olarak biyoinformatik ve hesaplamalı biyoloji alanındaki Türkçe podcast serimizle karşınızdayız. Bu alandaki Türkçe içeriklerin sayısını artırmak ve daha fazla kişiye ulaşmak için başlattığımız bu yayında, mikrofonu alanın uzmanlarına uzatıyor ve biyoinformatiğin insanlığa kazandırdıklarını konuşuyoruz. Uluslararası Hesaplamalı Biyoloji Topluluğu (ISCB) Öğrenci Konseyi’ne (SC) bağlı Bölgesel Öğrenci Gruplarından (RSG) biriyiz. Türkiye'de Biyoinformatik ve hesaplamalı biyoloji alanında çalışanlar için bir ağ oluşturarak, onları uluslararası bilim topluluğuyla buluşmayı amaçlıyoruz.",
+  "image": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_nologo/42547757/42547757-1739968189617-a3324e4bb2c3d.jpg",
+  "platforms": {
+    "spotify": "https://open.spotify.com/show/7rA9IoDcI5ybW0Y4HQlmHq",
+    "apple": "https://podcasts.apple.com/podcast/id1797656975",
+    "castbox": "https://castbox.fm/channel/6480428",
+    "rss": "https://anchor.fm/s/fe335014/podcast/rss"
+  },
+  "episodes": [
+    {
+      "guid": "0d999288-4a2e-46fb-93d4-d87711a8978f",
+      "title": "Biyoinformatikçinin Gözünden: Kariyer Adımları, Zorluklar ve Gelecek Trendler",
+      "pubDate": "2025-05-24T10:30:00.000Z",
+      "durationSeconds": 3065,
+      "audioUrl": "https://anchor.fm/s/fe335014/podcast/play/103129403/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2025-4-26%2F7950c99d-ba68-ed90-052c-939c9885bbe5.mp3",
+      "audioBytes": 73563173,
+      "image": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_episode/42547757/42547757-1748064217004-b53ba7c1cd04b.jpg",
+      "description": "Dr. Ravza Gür, lisans eğitimini Marmara Üniversitesi Biyomühendislik bölümünde tamamladıktan sonra, yüksek lisansını Yıldız Teknik Üniversitesi Biyomühendislik alanında yaptı. Bu süreçte biyoinformatik ve sistem biyolojisi üzerine çalışmalar yürüttü. Doktora eğitimine Oxford Üniversitesi'nde devam eden Dr. Gür, burada tek hücre genomiği ve epigenomiği üzerine yoğunlaşarak, scATAC-seq analizlerinin çözünürlüğünü artırmaya yönelik matematiksel yöntemler geliştirdi. Aynı zamanda, biyologların yüksek boyutlu tek hücre epigenomik ve genetik verilerini keşfetmelerini sağlayan interaktif bir platform oluşturdu. 2023 yılında Oxford Üniversitesi Genom Biyolojisi Laboratuvarı’nda doktora sonrası araştırmacı olarak çalışmaya başladı. Tek hücreli multiomik epigenetik ve transkriptomik veriler üzerinde analiz yöntemleri geliştiriyor ve derin öğrenme modelleri oluşturup test eden bir ekiple birlikte çalışıyor. Araştırmalarının temel amacı, tek hücre teknolojileri ve makine öğrenimi kullanarak insan hastalıklarıyla ilişkili kodlamayan genetik varyasyonları anlamak. Genomun kodlamayan bölgeleri gen düzenlemesinde kritik bir rol oynadığı için bu alan, hastalık mekanizmalarını çözmede büyük önem taşıyor. Dr. Gür, şu anda Oxford Üniversitesi'nde kıdemli araştırmacı olarak çalışmalarına devam etmekte ve genomik, epigenetik ve makine öğrenimi alanlarında öncü araştırmalara katkıda bulunmaktan büyük heyecan duymaktadır."
+    },
+    {
+      "guid": "b2423033-98fe-4406-8bb3-b4ee7bf31370",
+      "title": "Yaşam Bilimlerinde Dijital Evrim",
+      "pubDate": "2025-03-13T11:00:00.000Z",
+      "durationSeconds": 2448,
+      "audioUrl": "https://anchor.fm/s/fe335014/podcast/play/99777145/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2025-2-13%2Ff98fc342-1078-cf43-2f53-fc43028cd554.mp3",
+      "audioBytes": 58753625,
+      "image": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_episode/42547757/42547757-1741828014244-17241c1ed15bc.jpg",
+      "description": "Biyoinformatik ve biyoteknoloji, sağlık ve bilim dünyasında nasıl bir dönüşüm yaratıyor? 🚀 Bu bölümde, podcast konuğumuz olan Beste Turanlı Hoca'mızla birlikte biyoinformatiğin geleceğini, kişiye özel tıbbın erişilebilirliğini, kanser araştırmalarındaki rolünü ve yapay zekanın biyolojik keşiflere etkisini konuştuk. Büyük veri ve hesaplamalı biyolojinin bilimde nasıl bir devrim yarattığını keşfetmek için hemen dinleyin!"
+    },
+    {
+      "guid": "ec1b7523-6abd-487e-839d-93d3cf720b12",
+      "title": "Biyoinformatik Yolculuğuna İlk Adım: RSG-Türkiye",
+      "pubDate": "2025-02-19T13:52:31.000Z",
+      "durationSeconds": 1647,
+      "audioUrl": "https://anchor.fm/s/fe335014/podcast/play/98723225/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2025-1-19%2F7ae8bc4a-1953-924e-444f-65075cb15419.mp3",
+      "audioBytes": 13179524,
+      "image": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_episode/42547757/42547757-1739970188421-d6cd8e34cc223.jpg",
+      "description": "Podcast'imizin ilk bölümünde, RSG-Türkiye’nin misyonunu, vizyonunu ve topluluğun yaptığı çalışmaları konuşuyoruz. 2025 RSG-Türkiye başkanı Nilay, topluluğun nasıl bir amaçla faaliyet gösterdiğini, genç bilim insanlarına nasıl bir ortam sunduğunu ve gelecekteki hedeflerini bizlerle paylaşıyor. Biyoinformatik ve hesaplamalı biyoloji alanında Türkiye’deki bilim insanlarını bir araya getiren RSG-Türkiye’nin hikayesini keşfetmeye hazır olun!"
+    }
+  ]
+}

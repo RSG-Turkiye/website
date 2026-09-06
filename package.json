@@ -7,7 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "podcast:sync": "tsx scripts/sync-podcast.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.15",
