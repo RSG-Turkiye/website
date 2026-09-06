@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rowsToOverlay, editionRowFromInput, rowToEditionInput, rowFromInput, rowToInput, KIND_TABLES } from '../functions/_lib/symposium';
+import {
+  KIND_TABLES,
+  editionRowFromInput,
+  editionYearAllowed,
+  rowFromInput,
+  rowToEditionInput,
+  rowToInput,
+  rowsToOverlay,
+} from '../functions/_lib/symposium';
 
 const editionRow = {
   year: 2026, registration_url: 'https://forms.gle/reg', registration_deadline: 1790000000,
@@ -230,4 +238,42 @@ test('every committee field round trips to itself, not to its neighbour', () => 
   });
   const { id, sort, ...expectedRow } = row;
   assert.deepEqual(rowFromInput('committee', input, row.year), expectedRow);
+});
+
+// --- which edition year the panel may write ---------------------------------
+
+test('the panel writes the year it is editing', () => {
+  assert.deepEqual(editionYearAllowed(2026, 2026), { ok: true, year: 2026 });
+});
+
+test('and may start next year, because the row precedes the edition', () => {
+  assert.deepEqual(editionYearAllowed(2027, 2026), { ok: true, year: 2027 });
+});
+
+test('a typo that would become the edition the public site serves is refused', () => {
+  // 2062 for 2026. The public endpoint takes the highest unarchived year, so
+  // this row would win at once and serve no speakers, no schedule and no
+  // committee -- and the same request fires the rebuild hook.
+  const result = editionYearAllowed(2062, 2026);
+  assert.equal(result.ok, false);
+  assert.match(result.ok === false ? result.error : '', /2062/);
+  assert.match(result.ok === false ? result.error : '', /2026/);
+});
+
+test('a past year is refused too, archived or not', () => {
+  // Less dangerous -- it would not win the ordering -- but writing to a
+  // finished edition rewrites what that year says it was.
+  assert.equal(editionYearAllowed(2025, 2026).ok, false);
+  assert.equal(editionYearAllowed(2019, 2026).ok, false);
+});
+
+test('anything that is not a whole number is refused', () => {
+  for (const bad of ['2026', 2026.5, NaN, Infinity, null, undefined, {}]) {
+    assert.equal(editionYearAllowed(bad, 2026).ok, false, String(bad));
+  }
+});
+
+test('the boundary is the next year, not any future year', () => {
+  assert.equal(editionYearAllowed(2027, 2026).ok, true);
+  assert.equal(editionYearAllowed(2028, 2026).ok, false);
 });
