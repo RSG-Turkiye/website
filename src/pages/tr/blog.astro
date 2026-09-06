@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { useTranslations } from '../../i18n/ui';
 import { getCollection } from 'astro:content';
+import { atSize, SIZES } from '../../lib/cloudinary';
 
 const lang = 'tr';
 const t = useTranslations(lang);
@@ -12,10 +13,15 @@ const pageTitle = "Blog - RSG Türkiye";
 
 function getThumbnail(post: any): string | null {
   const img = post.data.image;
-  if (img && img.startsWith('http') && !img.includes('gravatar.com')) return img;
-  return post.body?.match(/!\[.*?\]\((https:\/\/[^\s)]+)\)/)?.[1]
-    || post.body?.match(/<img[^>]+src=["'](https:\/\/[^\s"']+)["']/)?.[1]
-    || null;
+  // Asked for at the size the card draws. These URLs are stored with whatever
+  // transformation the image was first needed at -- usually c_limit,w_1600 for
+  // a post's hero -- and fifteen of those in 128x96 boxes was 1,156,042 bytes.
+  const found = (img && img.startsWith('http') && !img.includes('gravatar.com'))
+    ? img
+    : (post.body?.match(/!\[.*?\]\((https:\/\/[^\s)]+)\)/)?.[1]
+      || post.body?.match(/<img[^>]+src=["'](https:\/\/[^\s"']+)["']/)?.[1]
+      || null);
+  return found ? atSize(found, SIZES.cardThumb) : null;
 }
 
 const facts = [
