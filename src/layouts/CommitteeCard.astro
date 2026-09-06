@@ -1,4 +1,5 @@
 ---
+import { atSize, SIZES } from '../lib/cloudinary';
 interface Member {
   name: string;
   role: string;
@@ -26,7 +27,8 @@ function initials(memberName: string) {
       <div class="text-center p-4 bg-navy-light border border-[#C4CEEA] rounded-lg hover:border-navy-mid transition-colors">
         <div class="w-24 h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-navy-mid bg-navy flex items-center justify-center">
           {member.image
-            ? <img src={member.image} alt={member.name} width="96" height="96" class="w-full h-full object-cover" />
+            ? <img src={atSize(member.image, SIZES.portrait)} alt={member.name} width="96" height="96"
+                loading="lazy" decoding="async" class="w-full h-full object-cover" />
             : <span class="text-white text-xl font-semibold">{initials(member.name)}</span>
           }
         </div>

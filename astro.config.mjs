@@ -2,8 +2,12 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { isNoindexPath } from './src/lib/noindex-routes';
+import { rehypeLazyImages } from './src/plugins/rehype-lazy-images.mjs';
 
 export default defineConfig({
+  markdown: {
+    rehypePlugins: [rehypeLazyImages],
+  },
   site: 'https://rsg-turkiye.iscbsc.org',
   output: 'static',
   redirects: {

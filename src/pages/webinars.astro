@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { getCollection } from 'astro:content';
+import { atSize, SIZES } from '../lib/cloudinary';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -126,7 +127,8 @@ function initials(name: string) {
                   >
                     <span class="avatar-inner">
                       {s.photo
-                        ? <img src={s.photo} alt={s.name} class="w-full h-full object-cover" />
+                        ? <img src={atSize(s.photo, SIZES.avatarTiny)} alt={s.name} width="30" height="30"
+                loading="lazy" decoding="async" class="w-full h-full object-cover" />
                         : initials(s.name)
                       }
                     </span>
