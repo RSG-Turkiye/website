@@ -1,5 +1,13 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageAnnouncements } from '../../../_lib/auth';
+import {
+  announcementText,
+  announcementExpiry,
+  announcementUrl,
+  MAX_TITLE,
+  MAX_DESCRIPTION,
+  MAX_BUTTON_TEXT,
+} from '../../../_lib/announcement';
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env }) => {
   if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
@@ -20,20 +28,24 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   const fields: string[] = [];
   const bindings: (string | number)[] = [];
 
-  if (body.title !== undefined) { fields.push('title = ?'); bindings.push(body.title); }
-  if (body.description !== undefined) { fields.push('description = ?'); bindings.push(body.description); }
-  if (body.button_text !== undefined) { fields.push('button_text = ?'); bindings.push(body.button_text); }
-  if (body.button_url !== undefined) { fields.push('button_url = ?'); bindings.push(body.button_url); }
-  if (body.show_as_popup !== undefined) { fields.push('show_as_popup = ?'); bindings.push(body.show_as_popup ? 1 : 0); }
-  if (body.expires_at !== undefined) { fields.push('expires_at = ?'); bindings.push(body.expires_at); }
+  // Validated before binding, by the same rules the create path uses. This
+  // used to call .length on whatever arrived -- so a numeric title passed the
+  // check and was stored as a number -- and never looked at expires_at or
+  // button_url at all.
+  const checks: [string, string, { ok: boolean; value?: unknown; error?: string }][] = [];
+  if (body.title !== undefined) checks.push(['title', 'title = ?', announcementText(body.title, MAX_TITLE, 'Title', true)]);
+  if (body.description !== undefined) checks.push(['description', 'description = ?', announcementText(body.description, MAX_DESCRIPTION, 'Description', true)]);
+  if (body.button_text !== undefined) checks.push(['button_text', 'button_text = ?', announcementText(body.button_text, MAX_BUTTON_TEXT, 'Button text', true)]);
+  if (body.button_url !== undefined) checks.push(['button_url', 'button_url = ?', announcementUrl(body.button_url, true)]);
+  if (body.expires_at !== undefined) checks.push(['expires_at', 'expires_at = ?', announcementExpiry(body.expires_at)]);
 
-  if (
-    (body.title !== undefined && body.title.length > 80) ||
-    (body.description !== undefined && body.description.length > 200) ||
-    (body.button_text !== undefined && body.button_text.length > 30)
-  ) {
-    return jsonResponse({ error: 'Field too long' }, 400);
+  for (const [, clause, result] of checks) {
+    if (!result.ok) return jsonResponse({ error: result.error }, 400);
+    fields.push(clause);
+    bindings.push(result.value as string | number);
   }
+
+  if (body.show_as_popup !== undefined) { fields.push('show_as_popup = ?'); bindings.push(body.show_as_popup ? 1 : 0); }
 
   if (fields.length === 0) return jsonResponse({ error: 'No fields to update' }, 400);
 
