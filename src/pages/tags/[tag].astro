@@ -1,14 +1,15 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
+import { tagged } from '../../lib/tags';
 
 export async function getStaticPaths() {
-  const allPosts = await getCollection('blog', ({ id, data }) => id.startsWith('en/') && !data.draft && data.type !== 'webinar');
+  const allPosts = await getCollection('blog', tagged('en'));
   const uniqueTags = [...new Set(allPosts.flatMap((post) => post.data.tags))];
 
   // A tag only used by English posts has no /tr/tags page, so hreflang must
   // not claim one -- pointing it at a URL that 404s is worse than nothing.
-  const trPosts = await getCollection('blog', ({ id, data }) => id.startsWith('tr/') && !data.draft && data.type !== 'webinar');
+  const trPosts = await getCollection('blog', tagged('tr'));
   const trTags = new Set(trPosts.flatMap((post) => post.data.tags));
 
   return uniqueTags.map((tag) => {
