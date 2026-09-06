@@ -1,0 +1,117 @@
+---
+/**
+ * A slim bar at the foot of every page, announcing the newest episode.
+ *
+ * The ask was a horizontal player that starts playing when somebody opens the
+ * site. The second half is not buildable -- browsers block audio without a
+ * gesture, and Spotify's embed never supported autoplay either -- and it would
+ * be unkind if it were: a fair share of this site's readers are on a
+ * university network, in a library or in a lecture.
+ *
+ * What the ask was actually for is the podcast being *noticed*. This is that:
+ * always visible, silent, one tap from playing, and it goes away when someone
+ * closes it and stays away.
+ *
+ * It links to /podcast rather than playing inline. Astro serves this site as
+ * separate documents, so a player in here would stop at the first navigation
+ * -- worse than not having one. Playing across pages needs <ClientRouter />,
+ * which would stop all 32 of this site's script blocks from running on
+ * navigation until each is moved to astro:page-load. That is its own job; see
+ * issue #52.
+ */
+import { useTranslations } from '../i18n/ui';
+import { latest, formatDuration } from '../lib/podcast';
+
+interface Props {
+  lang: 'en' | 'tr';
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const href = lang === 'tr' ? '/tr/podcast' : '/podcast';
+---
+
+{latest && (
+  <div
+    id="podcastStrip"
+    hidden
+    class="fixed bottom-0 left-0 right-0 z-40 bg-navy text-white border-t border-white/10"
+  >
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+      <a
+        href={href}
+        class="flex items-center gap-3 min-w-0 flex-1 no-underline text-white group"
+      >
+        <span class="shrink-0 w-9 h-9 rounded-full bg-red flex items-center justify-center group-hover:bg-red-hover transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+        <span class="min-w-0">
+          <span class="block text-[10px] font-semibold uppercase tracking-widest text-white/60 leading-none mb-0.5">
+            {t('podcast.latest')}
+          </span>
+          <span class="block text-sm truncate leading-tight">{latest.title}</span>
+        </span>
+      </a>
+
+      {latest.durationSeconds > 0 && (
+        <span class="hidden sm:inline text-xs text-white/60 shrink-0 tabular-nums">
+          {formatDuration(latest.durationSeconds, lang)}
+        </span>
+      )}
+
+      <a
+        href={href}
+        class="hidden sm:inline-flex items-center px-4 py-1.5 rounded bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium no-underline text-white shrink-0"
+      >
+        {t('podcast.strip.listen')}
+      </a>
+
+      <button
+        id="podcastStripClose"
+        type="button"
+        aria-label={t('podcast.strip.dismiss')}
+        class="shrink-0 w-8 h-8 rounded flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer bg-transparent border-0"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+)}
+
+<script>
+  const KEY = 'rsg:podcast-strip-dismissed';
+  const strip = document.getElementById('podcastStrip');
+  const close = document.getElementById('podcastStripClose');
+
+  if (strip) {
+    // Rendered hidden and shown from here, so a reader who has dismissed it
+    // never sees it flash in on the way to being removed.
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem(KEY) === '1';
+    } catch {
+      // Private windows and blocked site data throw on access. Showing the
+      // strip is the right answer when we cannot know.
+    }
+    if (!dismissed) {
+      strip.hidden = false;
+      // The strip covers the bottom of the page; without this the footer's
+      // last line sits underneath it.
+      document.body.style.paddingBottom = `${strip.offsetHeight}px`;
+    }
+
+    close?.addEventListener('click', () => {
+      strip.hidden = true;
+      document.body.style.paddingBottom = '';
+      try {
+        localStorage.setItem(KEY, '1');
+      } catch {
+        // Dismissal lasts for this page only. Better than refusing to close.
+      }
+    });
+  }
+</script>

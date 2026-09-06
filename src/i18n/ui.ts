@@ -102,6 +102,21 @@ export const ui = {
     'about.join.contact': 'Get in Touch',
 
     // Blog Page
+    // Podcast
+    'nav.podcast': 'Podcast',
+    'podcast.title': 'Podcast',
+    'podcast.subtitle': 'Conversations on bioinformatics and computational biology, in Turkish.',
+    'podcast.episodes': 'Episodes',
+    'podcast.listenOn': 'Also on',
+    'podcast.play': 'Play',
+    'podcast.pause': 'Pause',
+    'podcast.nowPlaying': 'Now playing',
+    'podcast.chooseEpisode': 'Choose an episode to start listening.',
+    'podcast.latest': 'Latest episode',
+    'podcast.strip.listen': 'Listen',
+    'podcast.strip.dismiss': 'Dismiss',
+    'podcast.turkishOnly': 'The podcast is in Turkish.',
+
     'blog.title': 'Blog',
     'blog.subtitle': 'Latest news, insights, and updates from our community',
     'blog.featured': 'Featured Articles',
@@ -572,6 +587,21 @@ export const ui = {
     'about.join.contact': 'İletişime Geç',
 
     // Blog Page
+    // Podcast
+    'nav.podcast': 'Podcast',
+    'podcast.title': 'Podcast',
+    'podcast.subtitle': 'Biyoinformatik ve hesaplamalı biyoloji üzerine sohbetler.',
+    'podcast.episodes': 'Bölümler',
+    'podcast.listenOn': 'Ayrıca',
+    'podcast.play': 'Oynat',
+    'podcast.pause': 'Duraklat',
+    'podcast.nowPlaying': 'Şu an çalıyor',
+    'podcast.chooseEpisode': 'Dinlemeye başlamak için bir bölüm seçin.',
+    'podcast.latest': 'Son bölüm',
+    'podcast.strip.listen': 'Dinle',
+    'podcast.strip.dismiss': 'Kapat',
+    'podcast.turkishOnly': '',
+
     'blog.title': 'Blog',
     'blog.subtitle': 'Topluluğumuzdan en son haberler, içgörüler ve güncellemeler',
     'blog.featured': 'Öne Çıkan Makaleler',

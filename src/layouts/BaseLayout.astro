@@ -1,6 +1,7 @@
 ---
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import PodcastStrip from '../components/PodcastStrip.astro';
 import '../styles/global.css';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { isNoindexPath } from '../lib/noindex-routes';
@@ -139,5 +140,6 @@ const alternateHref = (path: string) => new URL(path, site).href;
       <slot />
     </main>
     <Footer />
+    <PodcastStrip lang={lang} />
   </body>
 </html>
