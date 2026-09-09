@@ -53,7 +53,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
   pageTitle={t("nav.home")}
   image={BANNER}
 >
-  {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} finished={finished} />}
+  {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} finished={finished} speakers={upcomingContent?.speakers ?? []} />}
   <AnnouncementBanner announcements={upcomingContent?.announcements ?? []} />
 
   <!-- ── Hero ──────────────────────────────────────────────────── -->

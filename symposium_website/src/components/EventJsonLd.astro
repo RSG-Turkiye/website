@@ -3,6 +3,8 @@
 const now = new Date();
 
 import { locationFor, openCtas, titleFor, subtitleFor, type EditionLike } from "../lib/editions";
+import { SYMPOSIUM_BANNER } from "../lib/branding";
+import type { Speaker } from "../lib/content";
 import type { Lang } from "../i18n/ui";
 
 interface Props {
@@ -14,8 +16,12 @@ interface Props {
    * symposium that already finished would have Google inviting people to
    * sign up for it. */
   finished?: boolean;
+  /** The announced speakers, for `performer`. Empty until they are, which is
+   * the normal state for most of an edition's life -- an Event claiming an
+   * empty cast is worse than one that does not mention it. */
+  speakers?: Speaker[];
 }
-const { edition, url, lang, finished = false } = Astro.props;
+const { edition, url, lang, finished = false, speakers = [] } = Astro.props;
 
 // The Turkish page must not publish English structured data, so name and
 // description follow the same titleTr/subtitleTr preference the hero uses.
@@ -40,6 +46,18 @@ const location =
       ? { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: place.city, addressCountry: "TR" } }
       : undefined;
 
+// Google asks for an image of the event. An edition with its own poster uses
+// it; the rest fall back to the banner that already represents the symposium
+// as the page's og:image, so search results and shares show the same picture.
+const image = edition.posterImage || SYMPOSIUM_BANNER;
+
+// Named people only. A speaker with no name is not a performer, and the list
+// is left out entirely when nobody has been announced.
+const performers = speakers
+  .map((s) => s.name?.trim())
+  .filter((name): name is string => Boolean(name))
+  .map((name) => ({ "@type": "Person", name }));
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Event",
@@ -49,9 +67,11 @@ const jsonLd = {
   startDate: edition.startDate?.toISOString().slice(0, 10),
   ...(edition.endDate && { endDate: edition.endDate.toISOString().slice(0, 10) }),
   eventStatus: "https://schema.org/EventScheduled",
+  image,
   eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
   organizer: { "@type": "Organization", name: "ISCB SC RSG-Türkiye", url: "https://rsg-turkiye.iscbsc.org" },
   url,
+  ...(performers.length > 0 && { performer: performers }),
   ...(location && { location }),
   ...(registration && !finished && { offers: { "@type": "Offer", url: registration.url, availability: "https://schema.org/InStock" } }),
 };
