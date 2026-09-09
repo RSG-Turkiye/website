@@ -143,6 +143,20 @@
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE dispatch_runs ADD COLUMN phase TEXT"
 --
 
+-- 7j. Committee members carry team labels (social media, graphic design and
+--     so on) and the symposium's /committee page groups by them. The column
+--     is additive with a default, so existing rows read as "no team" and
+--     keep rendering exactly as they did -- but three routes SELECT it by
+--     name, and the reach of that is wider than the committee: the admin
+--     list 500s, the archive run 500s, and so does /api/symposium, which is
+--     the public overlay. A failed overlay fetch is not an error on the
+--     symposium site -- it falls back to the repo's own content -- so the
+--     next build there would quietly drop every speaker and session that
+--     lives only in D1. Run this BEFORE the code deploys. ALTER TABLE ADD
+--     COLUMN is NOT idempotent -- do not re-run this one:
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_committee ADD COLUMN teams TEXT NOT NULL DEFAULT '[]'"
+--
+
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   google_id     TEXT UNIQUE NOT NULL,
@@ -560,6 +574,12 @@ CREATE TABLE IF NOT EXISTS symposium_committee (
   affiliation TEXT NOT NULL DEFAULT '',
   photo       TEXT NOT NULL DEFAULT '',
   linkedin    TEXT NOT NULL DEFAULT '',
+  -- A JSON array of team names, e.g. ["Sosyal Medya","Grafik Tasarim"]. A
+  -- member can be on several teams and is listed under each. Free text, so
+  -- the same label is written once per member and never centrally: the
+  -- grouping matches case-insensitively for that reason. '[]' -- not '' --
+  -- is the empty value, so every row parses as JSON.
+  teams       TEXT NOT NULL DEFAULT '[]',
   sort        INTEGER NOT NULL DEFAULT 0
 );
 

@@ -115,7 +115,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
          FROM symposium_sessions WHERE year = ? ORDER BY sort, id`
       ).bind(edition.year).all<SessionRow>(),
       env.DB.prepare(
-        `SELECT id, year, name, role, role_tr, affiliation, photo, linkedin, sort
+        `SELECT id, year, name, role, role_tr, affiliation, photo, linkedin, teams, sort
          FROM symposium_committee WHERE year = ? ORDER BY sort, id`
       ).bind(edition.year).all<CommitteeRow>(),
     ]);

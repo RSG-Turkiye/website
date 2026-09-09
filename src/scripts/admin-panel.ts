@@ -14,6 +14,7 @@
 import { useTranslations } from '../i18n/ui';
 import { RANK_LABELS, type Rank } from '../lib/badges';
 import { escapeHtml } from './escape-html';
+import { uploadImage } from './image-upload';
 
 type Lang = 'en' | 'tr';
 
@@ -760,21 +761,28 @@ function setupPaneSwitching(initial: string): void {
     await loadCommittee();
   }
 
-  // Filter buttons
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      currentFilter = (btn as HTMLButtonElement).dataset.filter!;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
-      btn.classList.add('active-filter');
-      loadUsers();
+  // The filter buttons and the search box belong to the users pane, which
+  // only a full admin's panel renders. The `!` below said otherwise, and for
+  // a symposium organiser -- the account this panel's committee section is
+  // for -- getElementById returned null and the bootstrap threw. It is the
+  // last statement in this function, so nothing was lost, but every one of
+  // those visits logged an error and the next line added here would have
+  // been.
+  if (isFullAdmin) {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFilter = (btn as HTMLButtonElement).dataset.filter!;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
+        btn.classList.add('active-filter');
+        loadUsers();
+      });
     });
-  });
 
-  // Search
-  document.getElementById('searchInput')!.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(loadUsers, 350);
-  });
+    document.getElementById('searchInput')!.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadUsers, 350);
+    });
+  }
 })();
 
 function escapeHtmlForBlogReview(s: unknown): string {
@@ -1229,12 +1237,37 @@ function setupSessionForm(): void {
 
 interface CommitteeItem {
   id: string; sort: number; name: string; role: string; roleTr: string;
-  affiliation: string; photo: string; linkedin: string;
+  affiliation: string; photo: string; linkedin: string; teams: string[];
+}
+
+/** The teams currently in use, for the form's datalist. Kept case-folded so
+ * "Sosyal Medya" and "sosyal medya" offer one suggestion, spelled the way the
+ * first member on that team spelled it -- the same rule the public page
+ * groups by. */
+function teamSuggestions(items: CommitteeItem[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const item of items) {
+    for (const team of item.teams ?? []) {
+      const key = team.toLocaleLowerCase('tr');
+      if (!byKey.has(key)) byKey.set(key, team);
+    }
+  }
+  return [...byKey.values()];
 }
 
 function renderCommittee(items: CommitteeItem[]): void {
   const tbody = document.getElementById('symCommitteeTableBody')!;
   const empty = document.getElementById('symCommitteeEmptyState')!;
+
+  // Before the early return: with no members there are no suggestions, and
+  // a datalist left holding the previous edition's teams would be worse than
+  // an empty one.
+  const datalist = document.getElementById('symCommitteeTeamOptions');
+  if (datalist) {
+    datalist.innerHTML = teamSuggestions(items)
+      .map((team) => `<option value="${escapeHtml(team)}"></option>`)
+      .join('');
+  }
 
   if (items.length === 0) {
     tbody.innerHTML = '';
@@ -1248,6 +1281,7 @@ function renderCommittee(items: CommitteeItem[]): void {
       <td class="px-5 py-4 text-navy font-medium">${escapeHtml(c.name)}</td>
       <td class="px-5 py-4 text-gray-500">${escapeHtml(lang === 'tr' ? (c.roleTr || c.role) : c.role)}</td>
       <td class="px-5 py-4 text-gray-500">${escapeHtml(c.affiliation)}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml((c.teams ?? []).join(', '))}</td>
       <td class="px-5 py-4 text-right">
         <button data-id="${c.id}" class="edit-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.edit')}</button>
         <button data-id="${c.id}" class="delete-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.delete')}</button>
@@ -1266,6 +1300,8 @@ function renderCommittee(items: CommitteeItem[]): void {
       (document.getElementById('symCommitteeAffiliation') as HTMLInputElement).value = item.affiliation;
       (document.getElementById('symCommitteePhoto') as HTMLInputElement).value = item.photo;
       (document.getElementById('symCommitteeLinkedin') as HTMLInputElement).value = item.linkedin;
+      (document.getElementById('symCommitteeTeams') as HTMLInputElement).value = (item.teams ?? []).join(', ');
+      showCommitteePhotoPreview(item.photo);
       document.getElementById('symCommitteeCancelBtn')!.classList.remove('hidden');
     });
   });
@@ -1288,6 +1324,58 @@ async function loadCommittee(): Promise<void> {
   renderCommittee(data.items);
 }
 
+/** Shows (or hides) the thumbnail beside the file input. */
+function showCommitteePhotoPreview(url: string): void {
+  const preview = document.getElementById('symCommitteePhotoPreview') as HTMLImageElement | null;
+  if (!preview) return;
+  preview.src = url;
+  preview.classList.toggle('hidden', !url);
+}
+
+/**
+ * Uploads a chosen photograph and writes the resulting URL into the field
+ * the form already submits, so the save path is unchanged -- the photo is
+ * still a URL by the time it reaches the server.
+ *
+ * The upload happens on choosing the file rather than on save: it is the
+ * slow step, and doing it here means the URL is visible and correctable
+ * before anything is committed. uploadImage downscales in the browser first
+ * and rethrows the server's own message, which says what is wrong and what
+ * to do about it.
+ */
+function setupCommitteePhotoUpload(): void {
+  const input = document.getElementById('symCommitteePhotoFile') as HTMLInputElement | null;
+  const url = document.getElementById('symCommitteePhoto') as HTMLInputElement | null;
+  const status = document.getElementById('symCommitteePhotoStatus') as HTMLElement | null;
+  if (!input || !url || !status) return;
+
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    status.textContent = t('admin.symposium.committee.form.photoUploading');
+    input.disabled = true;
+    try {
+      const uploaded = await uploadImage(file);
+      url.value = uploaded;
+      showCommitteePhotoPreview(uploaded);
+      status.textContent = t('admin.symposium.committee.form.photoUploaded');
+    } catch (err) {
+      status.textContent = '';
+      showToast(err instanceof Error ? err.message : t('admin.toast.error'), true);
+    } finally {
+      input.disabled = false;
+      // Cleared so choosing the same file again still fires a change event --
+      // which is what a retry after a failed upload looks like.
+      input.value = '';
+    }
+  });
+
+  // A URL typed or pasted by hand deserves the same thumbnail as an uploaded
+  // one; without this the preview would only ever reflect the upload.
+  url.addEventListener('input', () => showCommitteePhotoPreview(url.value));
+}
+
 function setupCommitteeForm(): void {
   const form = document.getElementById('symCommitteeForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('symCommitteeCancelBtn')!;
@@ -1295,9 +1383,16 @@ function setupCommitteeForm(): void {
   function resetForm() {
     form.reset();
     (document.getElementById('symCommitteeEditId') as HTMLInputElement).value = '';
+    // form.reset() restores the *initial* value of each field, which for the
+    // photo URL is empty -- but the preview and the status line are not form
+    // fields and would otherwise still be showing the last member edited.
+    showCommitteePhotoPreview('');
+    (document.getElementById('symCommitteePhotoStatus') as HTMLElement).textContent = '';
     cancelBtn.classList.add('hidden');
   }
   cancelBtn.addEventListener('click', resetForm);
+
+  setupCommitteePhotoUpload();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1309,6 +1404,10 @@ function setupCommitteeForm(): void {
       affiliation: (document.getElementById('symCommitteeAffiliation') as HTMLInputElement).value,
       photo: (document.getElementById('symCommitteePhoto') as HTMLInputElement).value,
       linkedin: (document.getElementById('symCommitteeLinkedin') as HTMLInputElement).value,
+      // Split here, trimmed and deduplicated on the server -- which is where
+      // it has to happen anyway, since this field is not the only way in.
+      teams: (document.getElementById('symCommitteeTeams') as HTMLInputElement).value
+        .split(',').map((team) => team.trim()).filter(Boolean),
     };
 
     const url = editId ? `/api/admin/symposium/committee/${editId}` : '/api/admin/symposium/committee';

@@ -1,5 +1,5 @@
 import type { Env } from '../../_lib/auth';
-import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
+import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../_lib/auth';
 import { imageSize } from '../../_lib/images';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
@@ -27,7 +27,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
-  if (user.is_writer !== 1) return jsonResponse({ error: 'Forbidden' }, 403);
+  // Writers upload blog images; the symposium panel uploads committee
+  // photographs through this same route rather than a second copy of the
+  // size, type and dimension checks below -- a second copy is a second place
+  // for one of them to be forgotten. The bucket is shared, which is fine:
+  // both are public images on the same two sites, published by people who
+  // can already publish to them.
+  if (user.is_writer !== 1 && !canManageSymposium(user)) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
+  }
 
   const contentType = request.headers.get('Content-Type') ?? '';
   const extension = ALLOWED_TYPES[contentType];

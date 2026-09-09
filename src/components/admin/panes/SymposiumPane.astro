@@ -221,10 +221,41 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <input id="symCommitteeRoleTr" type="text" placeholder={t('admin.symposium.committee.form.roleTrPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
-        <input id="symCommitteePhoto" type="url" placeholder={t('admin.symposium.committee.form.photoPlaceholder')}
-          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <input id="symCommitteeLinkedin" type="url" placeholder={t('admin.symposium.committee.form.linkedinPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <!--
+          Free text, comma-separated. A datalist offers the teams already in
+          use so the second person on a team picks the existing spelling
+          rather than inventing a near-miss of it; the grouping matches
+          case-insensitively either way, so a near-miss is a cosmetic problem
+          rather than a split team.
+        -->
+        <input id="symCommitteeTeams" type="text" list="symCommitteeTeamOptions"
+          placeholder={t('admin.symposium.committee.form.teamsPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <datalist id="symCommitteeTeamOptions"></datalist>
+
+        <!--
+          The photo used to be a URL field, which meant uploading the picture
+          somewhere else first. The file input hands it to the same route the
+          blog uses -- 5 MB, JPEG/PNG/WebP/GIF, downscaled in the browser
+          before it is sent. The URL it comes back as stays visible and
+          editable underneath, so an already-hosted photograph can still be
+          pasted and an uploaded one can be seen.
+        -->
+        <div class="sm:col-span-2 flex flex-col gap-2">
+          <label class="text-xs font-medium text-gray-500" for="symCommitteePhotoFile">
+            {t('admin.symposium.committee.form.photoLabel')}
+          </label>
+          <div class="flex flex-wrap items-center gap-3">
+            <input id="symCommitteePhotoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+              class="text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded-xl file:border-0 file:bg-navy file:text-white file:text-sm file:font-medium hover:file:bg-navy-mid file:cursor-pointer" />
+            <img id="symCommitteePhotoPreview" alt="" class="hidden w-12 h-12 rounded-full object-cover border border-border" />
+            <p id="symCommitteePhotoStatus" class="text-xs text-gray-500"></p>
+          </div>
+          <input id="symCommitteePhoto" type="url" placeholder={t('admin.symposium.committee.form.photoPlaceholder')}
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </div>
         <div class="sm:col-span-2 flex items-center gap-3">
           <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
             {t('admin.symposium.committee.form.save')}
@@ -244,6 +275,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.name')}</th>
             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.role')}</th>
             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.affiliation')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.teams')}</th>
             <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
           </tr>
         </thead>

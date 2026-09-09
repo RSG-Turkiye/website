@@ -21,6 +21,10 @@ export interface Session {
 export interface CommitteeMember {
   name: string; role: string; roleTr: string;
   affiliation: string; photo: string; linkedin?: string;
+  /** Optional because the overlay is validated with `.passthrough()` and an
+   * older payload has no `teams` at all. Read it through `groupByTeam`,
+   * never directly, so there is one place that copes with its absence. */
+  teams?: string[];
 }
 
 async function forYear<T>(collection: "speakers" | "sessions" | "committee", year: number, key: "people" | "items"): Promise<T[]> {

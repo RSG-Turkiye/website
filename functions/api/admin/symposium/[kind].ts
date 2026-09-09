@@ -39,7 +39,7 @@ async function resolveYear(env: Env): Promise<number> {
 const LIST_COLUMNS: Record<SymposiumKind, string> = {
   speakers: 'id, slug, year, name, position, company, bio, photo, linkedin, sort',
   sessions: 'id, slug, year, title, type, time, end_time, description, speaker_slugs, sort',
-  committee: 'id, year, name, role, role_tr, affiliation, photo, linkedin, sort',
+  committee: 'id, year, name, role, role_tr, affiliation, photo, linkedin, teams, sort',
 };
 
 function insertStatement(
@@ -68,9 +68,9 @@ function insertStatement(
     case 'committee': {
       const r = row as Omit<CommitteeRow, 'id' | 'sort'>;
       return {
-        sql: `INSERT INTO symposium_committee (id, year, name, role, role_tr, affiliation, photo, linkedin, sort)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        values: [id, r.year, r.name, r.role, r.role_tr, r.affiliation, r.photo, r.linkedin, sort],
+        sql: `INSERT INTO symposium_committee (id, year, name, role, role_tr, affiliation, photo, linkedin, teams, sort)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        values: [id, r.year, r.name, r.role, r.role_tr, r.affiliation, r.photo, r.linkedin, r.teams, sort],
       };
     }
   }

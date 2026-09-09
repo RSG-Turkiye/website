@@ -1,0 +1,65 @@
+---
+/**
+ * The committee roster, once, for both languages.
+ *
+ * /committee and /tr/committee were byte-identical apart from how deep their
+ * imports reached. Team grouping would have had to be written twice, and the
+ * second copy is the one that gets forgotten -- exactly how the Turkish blog
+ * page ended up without a tag filter.
+ *
+ * Members are grouped by team, and one member appears under every team they
+ * carry. When nobody has a team the grouping collapses to a single untagged
+ * block and this renders the plain grid it always did -- no headings appear
+ * until somebody uses the feature.
+ */
+import { useTranslations } from "../i18n/ui";
+import { groupByTeam } from "../lib/committee";
+import type { CommitteeMember } from "../lib/content";
+
+interface Props {
+  lang: "en" | "tr";
+  members: CommitteeMember[];
+  /** A finished edition with no roster says so; an upcoming one promises one. */
+  finished: boolean;
+}
+
+const { lang, members, finished } = Astro.props;
+const t = useTranslations(lang);
+const teams = groupByTeam(members);
+/** With one untagged block there is nothing to head -- that is the old page. */
+const showHeadings = teams.length > 1 || teams[0]?.label != null;
+---
+
+<div class="max-w-5xl mx-auto px-6 py-16">
+  {members.length === 0 ? (
+    <p class="text-gray-500 text-center py-16">{finished ? t("committee.past.none") : t("committee.tba")}</p>
+  ) : (
+    <div class="flex flex-col gap-12">
+      {teams.map((team) => (
+        <section>
+          {showHeadings && (
+            <h2 class="text-lg font-bold text-navy mb-1">{team.label ?? t("committee.noTeam")}</h2>
+          )}
+          {showHeadings && <div class="w-12 h-0.5 bg-navy-mid mb-6"></div>}
+          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {team.members.map((m) => (
+              <div class="bg-white rounded-xl border border-border p-5 text-center">
+                {m.photo && (
+                  <img src={m.photo} alt={m.name} loading="lazy"
+                       class="w-24 h-24 rounded-full object-cover mx-auto mb-3" />
+                )}
+                <h3 class="font-semibold text-navy">{m.name}</h3>
+                <p class="text-sm text-navy-mid">{(lang === "tr" && m.roleTr) || m.role}</p>
+                {m.affiliation && <p class="text-xs text-gray-500 mt-1">{m.affiliation}</p>}
+                {m.linkedin && (
+                  <a href={m.linkedin} target="_blank" rel="noopener noreferrer"
+                     class="text-xs text-navy-mid hover:text-navy mt-2 inline-block">LinkedIn</a>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )}
+</div>

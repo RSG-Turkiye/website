@@ -106,6 +106,7 @@ function committeeToJson(c: OverlayCommittee) {
     affiliation: c.affiliation,
     photo: c.photo,
     linkedin: orAbsent(c.linkedin),
+    teams: c.teams,
   };
 }
 
