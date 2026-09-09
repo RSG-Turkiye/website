@@ -113,11 +113,11 @@
 --     stops being true, the CREATE fails loudly rather than silently
 --     dropping a row -- deduplicate by hand, then re-run.
 --
--- 7f. Granting is_symposium has no UI: functions/api/admin/users.ts knows
---     about is_announcer, is_writer and is_sender only, so the admin user
---     list can neither show nor set this role. Until that is added, the
---     symposium pane is reachable by is_admin accounts and by nobody else
---     unless you grant it by hand:
+-- 7f. Granting is_symposium used to have no UI, so the symposium pane was
+--     reachable by is_admin accounts and by nobody else unless the role was
+--     granted by hand. The admin user list can now show and set it like any
+--     other role, and the hand-written form is kept only for a database with
+--     no admin account to do it from:
 --       wrangler d1 execute rsg-members --remote --command="UPDATE users SET is_symposium = 1 WHERE email = 'someone@example.com'"
 --
 -- 7g. The mail queue's exactly-once columns. Both are nullable and additive,

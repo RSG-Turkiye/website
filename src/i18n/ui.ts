@@ -390,6 +390,10 @@ export const ui = {
     'admin.badge.admin': 'Admin',
     'admin.badge.announcer': 'Announcer',
     'admin.badge.writer': 'Writer',
+    // The role that opens the symposium pane -- the programme, speakers
+    // and committee -- without granting anything else. It could only be
+    // set by hand before, so in practice only full admins had it.
+    'admin.badge.symposium': 'Symposium',
     'admin.badge.mail': 'mail',
     'admin.badge.private': 'Private',
     'admin.action.unverify': 'Unverify',
@@ -400,6 +404,8 @@ export const ui = {
     'admin.action.makeAnnouncer': 'Make announcer',
     'admin.action.removeWriter': 'Remove writer',
     'admin.action.makeWriter': 'Make writer',
+    'admin.action.removeSymposium': 'Remove symposium editor',
+    'admin.action.makeSymposium': 'Make symposium editor',
     'admin.action.removeSender': 'Remove RSG sender',
     'admin.action.makeSender': 'Make RSG sender',
     'admin.action.makePrivate': 'Make profile private',
@@ -894,6 +900,7 @@ export const ui = {
     'admin.badge.admin': 'Admin',
     'admin.badge.announcer': 'Announcer',
     'admin.badge.writer': 'Writer',
+    'admin.badge.symposium': 'Sempozyum',
     'admin.badge.mail': 'mail',
     'admin.badge.private': 'Gizli',
     'admin.action.unverify': 'Üyeliği kaldır',
@@ -904,6 +911,8 @@ export const ui = {
     'admin.action.makeAnnouncer': 'Announcer yap',
     'admin.action.removeWriter': 'Writer yetkisini kaldır',
     'admin.action.makeWriter': 'Writer yap',
+    'admin.action.removeSymposium': 'Sempozyum yetkisini kaldır',
+    'admin.action.makeSymposium': 'Sempozyum editörü yap',
     'admin.action.removeSender': 'RSG gönderici yetkisini al',
     'admin.action.makeSender': 'RSG göndericisi yap',
     'admin.action.makePrivate': 'Profili gizle',

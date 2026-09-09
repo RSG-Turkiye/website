@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   let query = `
     SELECT
-      u.id, u.email, u.is_member, u.is_admin, u.is_announcer, u.is_writer, u.is_sender, u.created_at, u.last_login,
+      u.id, u.email, u.is_member, u.is_admin, u.is_announcer, u.is_writer, u.is_sender, u.is_symposium, u.created_at, u.last_login,
       p.username, p.display_name, p.institution, p.is_public,
       COALESCE(
         (SELECT rank FROM rank_history rh WHERE rh.user_id = u.id
@@ -113,6 +113,17 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       break;
     case 'remove_announcer':
       await env.DB.prepare('UPDATE users SET is_announcer = 0 WHERE id = ?').bind(body.user_id).run();
+      break;
+    // The symposium role could only be granted by hand, with a wrangler
+    // command in a comment in db/schema.sql, so in practice only full admins
+    // ever had it -- which is the wrong shape for a role whose whole point is
+    // to let an organiser edit the programme without being an admin of
+    // everything.
+    case 'make_symposium':
+      await env.DB.prepare('UPDATE users SET is_symposium = 1 WHERE id = ?').bind(body.user_id).run();
+      break;
+    case 'remove_symposium':
+      await env.DB.prepare('UPDATE users SET is_symposium = 0 WHERE id = ?').bind(body.user_id).run();
       break;
     case 'make_writer':
       await env.DB.prepare('UPDATE users SET is_writer = 1 WHERE id = ?').bind(body.user_id).run();
