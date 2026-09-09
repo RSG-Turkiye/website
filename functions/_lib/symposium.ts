@@ -403,7 +403,14 @@ export type RebuildStatus = { state: 'started' | 'queued' | 'failed'; detail: st
 export async function triggerRebuild(env: Env): Promise<RebuildStatus> {
   if (!env.SYMPOSIUM_DEPLOY_HOOK) return { state: 'failed', detail: 'no hook configured' };
   try {
-    const res = await fetch(env.SYMPOSIUM_DEPLOY_HOOK, { method: 'POST' });
+    // The row is already written by the time we get here, so this call is
+    // the editor waiting on Cloudflare for no reason of their own. It takes
+    // about 1.5 seconds normally; a cap means a stalled API costs a save a
+    // few seconds rather than hanging the form.
+    const res = await fetch(env.SYMPOSIUM_DEPLOY_HOOK, {
+      method: 'POST',
+      signal: AbortSignal.timeout(8000),
+    });
     const body = await res.text();
     // 304: a build is already waiting and this one joined it.
     if (res.status === 304) return { state: 'queued', detail: 'a build was already queued' };
@@ -414,7 +421,11 @@ export async function triggerRebuild(env: Env): Promise<RebuildStatus> {
     return { state: 'started', detail: 'rebuild started' };
   } catch (err) {
     console.error(`rebuild hook threw: ${String(err).slice(0, 200)}`);
-    return { state: 'failed', detail: 'hook unreachable' };
+    // A timeout is not proof the hook did nothing -- it may have started a
+    // build we never heard the answer to -- so the detail says so rather
+    // than claiming the request never arrived.
+    const timedOut = err instanceof Error && err.name === 'TimeoutError';
+    return { state: 'failed', detail: timedOut ? 'hook timed out' : 'hook unreachable' };
   }
 }
 

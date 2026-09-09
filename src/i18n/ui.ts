@@ -499,6 +499,11 @@ export const ui = {
     'admin.symposium.committee.table.noneYet': 'No committee members yet.',
     'admin.symposium.committee.edit': 'Edit',
     'admin.symposium.committee.delete': 'Delete',
+    // Shown on the save button itself while the request is in flight. The
+    // route writes to D1 and then asks Cloudflare to rebuild, which alone
+    // takes about 1.5 seconds -- long enough that a button which does not
+    // change gets pressed twice.
+    'admin.symposium.saving': 'Saving…',
     'admin.symposium.rebuild.started': 'Saved. Rebuild started.',
     'admin.symposium.rebuild.queued': 'Saved. A rebuild was already running — it will publish this too.',
     // No nightly rebuild exists. This used to promise one, so a save that
@@ -994,6 +999,7 @@ export const ui = {
     'admin.symposium.committee.table.noneYet': 'Henüz kurul üyesi yok.',
     'admin.symposium.committee.edit': 'Düzenle',
     'admin.symposium.committee.delete': 'Sil',
+    'admin.symposium.saving': 'Kaydediliyor…',
     'admin.symposium.rebuild.started': 'Kaydedildi. Yeniden yapılandırma başladı.',
     'admin.symposium.rebuild.queued': 'Kaydedildi. Zaten süren bir derleme vardı — bunu da yayınlayacak.',
     'admin.symposium.rebuild.failed': 'Kaydedildi ama site yeniden derlenmedi ({detail}). Bunu yayınlayacak başka bir şey yok — siteyi yöneten kişiye haber verin.',

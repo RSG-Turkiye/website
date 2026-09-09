@@ -926,6 +926,35 @@ async function loadBlogSubmissions() {
  * whose edit had in fact published was told it had not and that something
  * would fix it overnight. Nothing runs overnight.
  */
+/**
+ * Runs a form's save with its submit button visibly busy.
+ *
+ * Saving a symposium row is not fast: the route writes to D1 and then asks
+ * Cloudflare to rebuild the symposium site, and that second call alone
+ * measures about 1.5 seconds. For that second and a half the panel used to
+ * show nothing at all -- the button looked exactly as it had -- so an editor
+ * pressed it again. The second press wrote a second row, and a committee
+ * member was added twice.
+ *
+ * Disabling alone is not enough to see: these buttons set their own
+ * background, so a browser's default greying does not show through. The
+ * label changes too, which is the part that actually reads as "working".
+ */
+async function whileSaving(button: HTMLButtonElement | null, save: () => Promise<void>): Promise<void> {
+  if (!button) return save();
+  const label = button.textContent;
+  button.disabled = true;
+  button.classList.add('opacity-60', 'cursor-not-allowed');
+  button.textContent = t('admin.symposium.saving');
+  try {
+    await save();
+  } finally {
+    button.disabled = false;
+    button.classList.remove('opacity-60', 'cursor-not-allowed');
+    button.textContent = label;
+  }
+}
+
 function showRebuildStatus(
   elId: string,
   rebuild: { state?: 'started' | 'queued' | 'failed'; triggered?: boolean; detail: string },
@@ -980,8 +1009,13 @@ async function loadEdition(): Promise<void> {
 
 function setupEditionForm(): void {
   const form = document.getElementById('symEditionForm') as HTMLFormElement;
-  form.addEventListener('submit', async (e) => {
+  const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
+    void whileSaving(submitBtn, saveEdition);
+  });
+
+  async function saveEdition(): Promise<void> {
     if (symposiumYear === null) return;
 
     const body = {
@@ -1007,7 +1041,7 @@ function setupEditionForm(): void {
       const err = await res.json() as { error: string };
       showToast(err.error || t('admin.toast.error'), true);
     }
-  });
+  }
 }
 
 // --- Speakers -----------------------------------------------------------
@@ -1098,8 +1132,13 @@ function setupSpeakerForm(): void {
   }
   cancelBtn.addEventListener('click', resetForm);
 
-  form.addEventListener('submit', async (e) => {
+  const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
+    void whileSaving(submitBtn, saveSpeaker);
+  });
+
+  async function saveSpeaker(): Promise<void> {
     const editId = (document.getElementById('symSpeakerEditId') as HTMLInputElement).value;
     const body = {
       slug: (document.getElementById('symSpeakerSlug') as HTMLInputElement).value,
@@ -1129,7 +1168,7 @@ function setupSpeakerForm(): void {
       const err = await res.json() as { error: string };
       showToast(err.error || t('admin.toast.error'), true);
     }
-  });
+  }
 }
 
 // --- Sessions -------------------------------------------------------------
@@ -1214,8 +1253,13 @@ function setupSessionForm(): void {
   }
   cancelBtn.addEventListener('click', resetForm);
 
-  form.addEventListener('submit', async (e) => {
+  const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
+    void whileSaving(submitBtn, saveSession);
+  });
+
+  async function saveSession(): Promise<void> {
     const editId = (document.getElementById('symSessionEditId') as HTMLInputElement).value;
     const body = {
       slug: (document.getElementById('symSessionSlug') as HTMLInputElement).value,
@@ -1243,7 +1287,7 @@ function setupSessionForm(): void {
       const err = await res.json() as { error: string };
       showToast(err.error || t('admin.toast.error'), true);
     }
-  });
+  }
 }
 
 // --- Committee --------------------------------------------------------
@@ -1444,22 +1488,11 @@ function setupCommitteeForm(): void {
 
   setupCommitteePhotoUpload();
 
-  const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement;
+  const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
-    // Disabled for the duration: a save takes a moment (it also asks
-    // Cloudflare to rebuild), and with nothing to show for it people press
-    // the button again. A second press used to fire a second write that
-    // raced the first, and a second rebuild request that Cloudflare then
-    // answered with 304 -- which the panel reported as a failure. One press,
-    // one write.
-    submitBtn.disabled = true;
-    try {
-      await saveCommittee();
-    } finally {
-      submitBtn.disabled = false;
-    }
+    void whileSaving(submitBtn, saveCommittee);
   });
 
   async function saveCommittee(): Promise<void> {
