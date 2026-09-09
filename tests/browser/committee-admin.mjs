@@ -117,7 +117,6 @@ ok(afterUpload.fileCleared, 'dosya girdisi temizlendi (aynı dosya yeniden denen
 console.log('5) kaydet — ekipler dizi olarak, fotoğraf yüklenen URL olarak gidiyor');
 await page.fill('#symCommitteeTeams', 'Sosyal Medya , , grafik tasarım');
 await page.click('#symCommitteeForm button[type=submit]');
-await page.waitForFunction(() => !!window.__unused || true);
 await page.waitForTimeout(600);
 console.log('   ', JSON.stringify(saved));
 ok(saved?.method === 'PUT', 'düzenleme PUT ile gitti');

@@ -146,10 +146,14 @@
 -- 7j. Committee members carry team labels (social media, graphic design and
 --     so on) and the symposium's /committee page groups by them. The column
 --     is additive with a default, so existing rows read as "no team" and
---     keep rendering exactly as they did -- but the admin panel SELECTs it
---     by name, so without this every committee list 500s with D1 "no such
---     column: teams". ALTER TABLE ADD COLUMN is NOT idempotent -- do not
---     re-run this one:
+--     keep rendering exactly as they did -- but three routes SELECT it by
+--     name, and the reach of that is wider than the committee: the admin
+--     list 500s, the archive run 500s, and so does /api/symposium, which is
+--     the public overlay. A failed overlay fetch is not an error on the
+--     symposium site -- it falls back to the repo's own content -- so the
+--     next build there would quietly drop every speaker and session that
+--     lives only in D1. Run this BEFORE the code deploys. ALTER TABLE ADD
+--     COLUMN is NOT idempotent -- do not re-run this one:
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_committee ADD COLUMN teams TEXT NOT NULL DEFAULT '[]'"
 --
 
