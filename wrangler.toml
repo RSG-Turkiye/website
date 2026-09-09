@@ -18,7 +18,7 @@ bucket_name = "rsg-mail-attachments"
 
 [vars]
 GOOGLE_CLIENT_ID = "273051123979-t52aq69ueh1mji460qie6ip2j68c3agc.apps.googleusercontent.com"
-PUBLIC_BLOG_IMAGES_URL = "https://pub-5c845f6be1514cfeb871010a8014ce1e.r2.dev"
+PUBLIC_BLOG_IMAGES_URL = "https://rsg-turkiye.iscbsc.org/api/images"
 # The address members' mail is sent from. Gmail accepts any address verified
 # as a "send mail as" alias on the sending account, so switching to
 # rsg-turkey@iscbsc.org once that alias works is a change to this line only --
