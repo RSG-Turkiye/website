@@ -256,6 +256,9 @@ function renderUsers(users: any[]) {
     const writerBadge = u.is_writer
       ? `<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">${t('admin.badge.writer')}</span>`
       : '';
+    const symposiumBadge = u.is_symposium
+      ? `<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">${t('admin.badge.symposium')}</span>`
+      : '';
     const senderBadge = u.is_sender
       ? `<span class="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ml-1">${t('admin.badge.mail')}</span>`
       : '';
@@ -304,6 +307,10 @@ function renderUsers(users: any[]) {
             ? `<button data-id="${u.id}" data-action="remove_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeWriter')}</button>`
             : `<button data-id="${u.id}" data-action="make_writer" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeWriter')}</button>`
           }
+          ${u.is_symposium
+            ? `<button data-id="${u.id}" data-action="remove_symposium" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeSymposium')}</button>`
+            : `<button data-id="${u.id}" data-action="make_symposium" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeSymposium')}</button>`
+          }
           ${u.is_sender
             ? `<button data-id="${u.id}" data-action="remove_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeSender')}</button>`
             : `<button data-id="${u.id}" data-action="make_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeSender')}</button>`
@@ -321,7 +328,7 @@ function renderUsers(users: any[]) {
           ${institution}
         </td>
         <td class="px-5 py-4 text-gray-500"><span class="block max-w-[28ch] truncate" title="${escapeHtml(u.email)}">${escapeHtml(u.email)}</span></td>
-        <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${writerBadge}${senderBadge}${privateBadge}</td>
+        <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${writerBadge}${symposiumBadge}${senderBadge}${privateBadge}</td>
         <td class="px-5 py-4">${rankSelect}</td>
         <td class="px-5 py-4"><div class="flex flex-wrap gap-1 max-w-[220px]">${badgeChips}</div></td>
         <td class="px-5 py-4 text-gray-500 tabular-nums">${formatDate(u.created_at)}</td>
