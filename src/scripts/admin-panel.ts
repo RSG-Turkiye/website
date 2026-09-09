@@ -1430,32 +1430,55 @@ function showCommitteePhotoPreview(url: string): void {
  * and rethrows the server's own message, which says what is wrong and what
  * to do about it.
  */
+/**
+ * The upload currently in flight, if any.
+ *
+ * A photograph is uploaded when the file is chosen, not when the form is
+ * saved -- that is deliberate, so the URL is visible and correctable before
+ * anything is committed. But it left a gap: the upload takes a moment, the
+ * save read the URL field the instant it was pressed, and a member saved
+ * during those seconds was stored with no photograph at all. It happened to
+ * a real committee member, who was saved, looked wrong, and had to be
+ * entered again.
+ *
+ * So the save waits for this. Not a boolean flag but the promise itself,
+ * because "wait for it to finish" is what the save actually needs, and a
+ * flag would have the save polling or racing the moment it flips.
+ */
+let committeePhotoUpload: Promise<void> | null = null;
+
 function setupCommitteePhotoUpload(): void {
   const input = document.getElementById('symCommitteePhotoFile') as HTMLInputElement | null;
   const url = document.getElementById('symCommitteePhoto') as HTMLInputElement | null;
   const status = document.getElementById('symCommitteePhotoStatus') as HTMLElement | null;
   if (!input || !url || !status) return;
 
-  input.addEventListener('change', async () => {
+  input.addEventListener('change', () => {
     const file = input.files?.[0];
     if (!file) return;
 
     status.textContent = t('admin.symposium.committee.form.photoUploading');
     input.disabled = true;
-    try {
-      const uploaded = await uploadImage(file);
-      url.value = uploaded;
-      showCommitteePhotoPreview(uploaded);
-      status.textContent = t('admin.symposium.committee.form.photoUploaded');
-    } catch (err) {
-      status.textContent = '';
-      showToast(err instanceof Error ? err.message : t('admin.toast.error'), true);
-    } finally {
-      input.disabled = false;
-      // Cleared so choosing the same file again still fires a change event --
-      // which is what a retry after a failed upload looks like.
-      input.value = '';
-    }
+
+    // Held so the save can await it. It never rejects: a failed upload is
+    // reported here and leaves the URL field alone, and a save that follows
+    // should still save everything else rather than be dragged down with it.
+    committeePhotoUpload = (async () => {
+      try {
+        const uploaded = await uploadImage(file);
+        url.value = uploaded;
+        showCommitteePhotoPreview(uploaded);
+        status.textContent = t('admin.symposium.committee.form.photoUploaded');
+      } catch (err) {
+        status.textContent = '';
+        showToast(err instanceof Error ? err.message : t('admin.toast.error'), true);
+      } finally {
+        input.disabled = false;
+        // Cleared so choosing the same file again still fires a change event
+        // -- which is what a retry after a failed upload looks like.
+        input.value = '';
+      }
+    })();
   });
 
   // A URL typed or pasted by hand deserves the same thumbnail as an uploaded
@@ -1482,6 +1505,9 @@ function setupCommitteeForm(): void {
     // fields and would otherwise still be showing the last member edited.
     showCommitteePhotoPreview('');
     (document.getElementById('symCommitteePhotoStatus') as HTMLElement).textContent = '';
+    // The save above already awaited it; clearing here stops the *next* save
+    // waiting on a settled promise from a member already stored.
+    committeePhotoUpload = null;
     cancelBtn.classList.add('hidden');
   }
   cancelBtn.addEventListener('click', resetForm);
@@ -1496,6 +1522,16 @@ function setupCommitteeForm(): void {
   });
 
   async function saveCommittee(): Promise<void> {
+    // Before reading any field: a photograph chosen a second ago may still
+    // be uploading, and its URL lands in the form only when it finishes.
+    // Saving first is how a member ended up in the database with no photo.
+    if (committeePhotoUpload) {
+      const status = document.getElementById('symCommitteePhotoStatus');
+      if (status) status.textContent = t('admin.symposium.committee.form.photoUploading');
+      await committeePhotoUpload;
+      committeePhotoUpload = null;
+    }
+
     const editId = (document.getElementById('symCommitteeEditId') as HTMLInputElement).value;
     const body = {
       name: (document.getElementById('symCommitteeName') as HTMLInputElement).value,
