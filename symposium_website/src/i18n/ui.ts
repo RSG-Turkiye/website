@@ -120,6 +120,10 @@ export const ui = {
     "committee.title": "Organising Committee",
     "committee.subtitle": "The team behind the symposium.",
     "committee.tba": "The organising committee will be announced soon.",
+    // The heading over members who carry no team label. Only ever shown
+    // alongside real team headings -- with no teams at all the page has no
+    // headings to be the odd one out of.
+    "committee.noTeam": "Organising Committee",
   },
 
   tr: {
@@ -224,6 +228,7 @@ export const ui = {
     "committee.title": "Düzenleme Kurulu",
     "committee.subtitle": "Sempozyumun arkasındaki ekip.",
     "committee.tba": "Düzenleme kurulu yakında duyurulacak.",
+    "committee.noTeam": "Düzenleme Kurulu",
   },
 } as const;
 

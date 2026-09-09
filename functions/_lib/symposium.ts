@@ -11,7 +11,7 @@ import { parseHttpUrl } from './url';
 // The D1 row shapes, mirroring Task 2's CREATE TABLE statements exactly.
 export interface SpeakerRow { id: string; slug: string; year: number; name: string; position: string; company: string; bio: string; photo: string; linkedin: string; sort: number }
 export interface SessionRow { id: string; slug: string; year: number; title: string; type: string; time: string; end_time: string; description: string; speaker_slugs: string; sort: number }
-export interface CommitteeRow { id: string; year: number; name: string; role: string; role_tr: string; affiliation: string; photo: string; linkedin: string; sort: number }
+export interface CommitteeRow { id: string; year: number; name: string; role: string; role_tr: string; affiliation: string; photo: string; linkedin: string; teams: string; sort: number }
 export interface AnnouncementRow { id: string; title: string; description: string; button_text: string; button_url: string; show_as_popup: number; expires_at: number }
 export interface EditionRow { year: number; registration_url: string; registration_deadline: number | null; abstract_url: string; abstract_deadline: number | null; venue_public: number | null; city_public: number | null }
 
@@ -19,7 +19,7 @@ export interface EditionRow { year: number; registration_url: string; registrati
 export interface EditionOverlay { registrationUrl: string; registrationDeadline: number | null; abstractUrl: string; abstractDeadline: number | null; venuePublic: boolean | null; cityPublic: boolean | null }
 export interface OverlaySpeaker { slug: string; name: string; position: string; company: string; bio: string; photo: string; linkedin?: string }
 export interface OverlaySession { slug: string; title: string; type: string; speakerSlugs: string[]; description: string; time: string; endTime?: string; order: number }
-export interface OverlayCommittee { name: string; role: string; roleTr: string; affiliation: string; photo: string; linkedin?: string }
+export interface OverlayCommittee { name: string; role: string; roleTr: string; affiliation: string; photo: string; linkedin?: string; teams: string[] }
 export interface Overlay {
   year: number | null;
   edition: EditionOverlay;
@@ -48,6 +48,72 @@ export function parseSpeakerSlugs(raw: string): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * The read direction for `symposium_committee.teams`. Same contract as
+ * parseSpeakerSlugs: one unparseable row must not fail the whole build, and
+ * there is one definition of "how teams decodes" rather than a second that
+ * can drift. Rows written before the column existed hold '[]' by default,
+ * and a row somehow holding '' still reads as no teams rather than throwing.
+ */
+export function parseTeams(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((team): team is string => typeof team === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/** The most a single member may be listed under. Somebody is on two or three
+ * teams; twenty is a paste accident, and each one becomes a heading on the
+ * public page. */
+export const MAX_TEAMS = 6;
+/** Long enough for "Bilimsel Program ve Konusmaci Iliskileri", short enough
+ * that a pasted paragraph cannot become a heading. */
+export const MAX_TEAM_LENGTH = 60;
+
+/**
+ * The write direction. Team labels are free text -- the organisers add a
+ * team without waiting for a deploy -- which puts the whole burden of
+ * consistency here:
+ *
+ * - whitespace is trimmed and runs collapsed, so "Sosyal  Medya " and
+ *   "Sosyal Medya" are not two teams;
+ * - duplicates are dropped case-insensitively, keeping the first spelling,
+ *   so one member cannot appear twice under the same heading;
+ * - empties disappear rather than becoming a blank heading.
+ *
+ * Case is *not* normalised beyond that: the label is shown to readers
+ * exactly as typed, so "RSG" must not become "Rsg". Two members who spell a
+ * team differently ("Sosyal medya" / "Sosyal Medya") are still grouped
+ * together -- see groupByTeam on the symposium site -- and the first
+ * spelling wins the heading.
+ */
+export function normaliseTeams(input: unknown): string[] {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input)) throw new Error('committee member teams must be an array of strings');
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of input) {
+    if (typeof raw !== 'string') throw new Error('committee member teams must be an array of strings');
+    const team = raw.trim().replace(/\s+/g, ' ');
+    if (!team) continue;
+    if (team.length > MAX_TEAM_LENGTH) {
+      throw new Error(`team name is too long (max ${MAX_TEAM_LENGTH} characters): ${team.slice(0, MAX_TEAM_LENGTH)}...`);
+    }
+    const key = team.toLocaleLowerCase('tr');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(team);
+  }
+  if (out.length > MAX_TEAMS) {
+    throw new Error(`a committee member can be listed under at most ${MAX_TEAMS} teams, got ${out.length}`);
+  }
+  return out;
 }
 
 function bySortThenId<T extends { sort: number; id: string }>(rows: T[]): T[] {
@@ -99,6 +165,7 @@ export function rowsToOverlay(
       affiliation: c.affiliation,
       photo: c.photo,
       linkedin: c.linkedin,
+      teams: parseTeams(c.teams),
     })),
     announcements,
   };
@@ -314,6 +381,7 @@ export interface CommitteeInput {
   affiliation?: string;
   photo?: string;
   linkedin?: string;
+  teams?: string[];
 }
 
 export type SymposiumInput = SpeakerInput | SessionInput | CommitteeInput;
@@ -388,6 +456,7 @@ export function rowFromInput(
         affiliation: committee.affiliation ?? '',
         photo: parseHttpUrl(committee.photo, 'committee member photo URL'),
         linkedin: parseHttpUrl(committee.linkedin, 'committee member LinkedIn URL'),
+        teams: JSON.stringify(normaliseTeams(committee.teams)),
       };
     }
     default:
@@ -429,6 +498,7 @@ export function rowToInput(
       return {
         id: r.id, sort: r.sort, name: r.name, role: r.role, roleTr: r.role_tr,
         affiliation: r.affiliation, photo: r.photo, linkedin: r.linkedin,
+        teams: parseTeams(r.teams),
       };
     }
     default:

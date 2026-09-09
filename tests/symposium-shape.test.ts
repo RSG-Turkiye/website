@@ -229,12 +229,13 @@ test('every committee field round trips to itself, not to its neighbour', () => 
   const row = {
     id: 'co1', year: 2026, name: 'Ali Veli', role: 'Chair', role_tr: 'Başkan',
     affiliation: 'Gebze Technical University', photo: 'https://example.org/ali.jpg',
-    linkedin: 'https://linkedin.com/in/aliveli', sort: 2,
+    linkedin: 'https://linkedin.com/in/aliveli', teams: '["Sosyal Medya","Grafik Tasarım"]', sort: 2,
   };
   const input = rowToInput('committee', row);
   assert.deepEqual(input, {
     id: row.id, sort: row.sort, name: row.name, role: row.role, roleTr: row.role_tr,
     affiliation: row.affiliation, photo: row.photo, linkedin: row.linkedin,
+    teams: ['Sosyal Medya', 'Grafik Tasarım'],
   });
   const { id, sort, ...expectedRow } = row;
   assert.deepEqual(rowFromInput('committee', input, row.year), expectedRow);

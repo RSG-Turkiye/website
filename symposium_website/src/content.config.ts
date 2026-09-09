@@ -84,6 +84,10 @@ const committee = defineCollection({
       affiliation: z.string().default(""),
       photo: z.string().default(""),
       linkedin: z.string().optional(),
+      // Free-text team labels -- "Sosyal Medya", "Grafik Tasarim" -- one
+      // member under each they carry. Defaulted, so the rosters archived
+      // before teams existed still parse and simply group as untagged.
+      teams: z.array(z.string()).default([]),
     })),
   }),
 });

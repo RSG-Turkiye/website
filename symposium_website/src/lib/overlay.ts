@@ -68,7 +68,7 @@ const OverlaySchema = z.object({
   }),
   speakers: z.array(z.object({ slug: z.string(), name: z.string() }).passthrough()),
   sessions: z.array(z.object({ slug: z.string(), title: z.string(), order: z.number() }).passthrough()),
-  committee: z.array(z.object({ name: z.string() }).passthrough()),
+  committee: z.array(z.object({ name: z.string(), teams: z.array(z.string()).default([]) }).passthrough()),
   // Was z.array(z.unknown()): the payload carried announcements, the schema
   // let them through, and nothing on this site did anything with them. A
   // shape, so a renamed field on the server is caught here rather than
