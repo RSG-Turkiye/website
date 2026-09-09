@@ -50,11 +50,15 @@ await page.route('**/api/admin/symposium/committee', async (r) => {
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ year: 2026, items: committee }) });
   }
   saved = { method: 'POST', body: r.request().postDataJSON() };
-  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ rebuild: { triggered: false, detail: '' } }) });
+  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ rebuild: { state: 'started', detail: 'rebuild started' } }) });
 });
+let saves = 0;
 await page.route('**/api/admin/symposium/committee/*', async (r) => {
+  saves++;
   saved = { method: r.request().method(), body: r.request().postDataJSON() };
-  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ rebuild: { triggered: false, detail: '' } }) });
+  // Slow, so a second click has time to land if the button is not disabled.
+  await new Promise((done) => setTimeout(done, 700));
+  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ rebuild: { state: 'queued', detail: 'a build was already queued' } }) });
 });
 await page.route('**/api/admin/symposium/edition', (r) => r.fulfill({
   contentType: 'application/json', body: JSON.stringify({ year: 2026, edition: {} }) }));
@@ -124,13 +128,22 @@ ok(afterUpload.fileCleared, 'dosya girdisi temizlendi (aynı dosya yeniden denen
 console.log('5) kaydet — ekipler dizi olarak, fotoğraf yüklenen URL olarak gidiyor');
 await page.fill('#symCommitteeTeams', 'Social Media , , graphic design');
 await page.fill('#symCommitteeTeamsTr', 'Sosyal Medya, Grafik Tasarım');
+// Twice, deliberately: the button must be disabled by the time the second
+// click lands, so only one write happens.
 await page.click('#symCommitteeForm button[type=submit]');
-await page.waitForTimeout(600);
+await page.click('#symCommitteeForm button[type=submit]', { force: true }).catch(() => {});
+await page.waitForTimeout(1400);
 console.log('   ', JSON.stringify(saved));
 ok(saved?.method === 'PUT', 'düzenleme PUT ile gitti');
 ok(JSON.stringify(saved?.body?.teams) === '["Social Media","graphic design"]', 'boş İngilizce etiket düşürüldü');
 ok(JSON.stringify(saved?.body?.teamsTr) === '["Sosyal Medya","Grafik Tasarım"]', 'Türkçe liste dizi olarak gitti');
 ok(saved?.body?.photo === 'https://cdn.example.org/uploaded.webp', 'yüklenen fotoğraf kaydedildi');
+
+console.log('5b) kaydet düğmesi kayıt sürerken kilitli, ve 304 bir hata gibi gösterilmiyor');
+console.log('   ', JSON.stringify({ saves, status: await page.textContent('#symCommitteeStatus') }));
+ok(saves === 1, `tek tıklama tek yazma yaptı (gelen: ${saves})`);
+ok(!/not rebuilt|nightly|yeniden derlenmedi|gecelik/i.test(await page.textContent('#symCommitteeStatus')),
+  'sıraya alınmış derleme hata gibi gösterilmiyor');
 
 console.log('6) kaydettikten sonra form temizlendi — önizleme bir öncekini göstermiyor');
 const afterSave = await page.evaluate(() => ({

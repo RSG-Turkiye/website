@@ -500,7 +500,10 @@ export const ui = {
     'admin.symposium.committee.edit': 'Edit',
     'admin.symposium.committee.delete': 'Delete',
     'admin.symposium.rebuild.started': 'Saved. Rebuild started.',
-    'admin.symposium.rebuild.pending': 'Saved. Not rebuilt yet — the nightly rebuild will publish this ({detail}).',
+    'admin.symposium.rebuild.queued': 'Saved. A rebuild was already running — it will publish this too.',
+    // No nightly rebuild exists. This used to promise one, so a save that
+    // genuinely failed to publish looked like it would sort itself out.
+    'admin.symposium.rebuild.failed': 'Saved, but the site was not rebuilt ({detail}). Nothing else will publish it — tell whoever maintains the site.',
   },
   tr: {
     // Navigation
@@ -992,7 +995,8 @@ export const ui = {
     'admin.symposium.committee.edit': 'Düzenle',
     'admin.symposium.committee.delete': 'Sil',
     'admin.symposium.rebuild.started': 'Kaydedildi. Yeniden yapılandırma başladı.',
-    'admin.symposium.rebuild.pending': 'Kaydedildi. Henüz yeniden yapılandırılmadı — gecelik derleme bunu yayınlayacak ({detail}).',
+    'admin.symposium.rebuild.queued': 'Kaydedildi. Zaten süren bir derleme vardı — bunu da yayınlayacak.',
+    'admin.symposium.rebuild.failed': 'Kaydedildi ama site yeniden derlenmedi ({detail}). Bunu yayınlayacak başka bir şey yok — siteyi yöneten kişiye haber verin.',
   },
 } as const;
 

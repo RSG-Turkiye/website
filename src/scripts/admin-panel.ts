@@ -920,11 +920,24 @@ async function loadBlogSubmissions() {
 // in functions/_lib/symposium.ts.
 
 /** Beside a save button: what happened to the write, and to the rebuild it triggered. */
-function showRebuildStatus(elId: string, rebuild: { triggered: boolean; detail: string }): void {
+/**
+ * Three states, not two. `queued` used to be reported as a failure -- and the
+ * failure text promised a nightly rebuild that does not exist, so an editor
+ * whose edit had in fact published was told it had not and that something
+ * would fix it overnight. Nothing runs overnight.
+ */
+function showRebuildStatus(
+  elId: string,
+  rebuild: { state?: 'started' | 'queued' | 'failed'; triggered?: boolean; detail: string },
+): void {
   const el = document.getElementById(elId)!;
-  el.textContent = rebuild.triggered
-    ? t('admin.symposium.rebuild.started')
-    : tf('admin.symposium.rebuild.pending', { detail: rebuild.detail });
+  // `triggered` is what an older deploy of the API still sends; the panel and
+  // the Functions are not deployed at the same instant.
+  const state = rebuild.state ?? (rebuild.triggered ? 'started' : 'failed');
+  el.textContent =
+    state === 'started' ? t('admin.symposium.rebuild.started')
+    : state === 'queued' ? t('admin.symposium.rebuild.queued')
+    : tf('admin.symposium.rebuild.failed', { detail: rebuild.detail });
   el.classList.remove('hidden');
 }
 
@@ -1431,8 +1444,25 @@ function setupCommitteeForm(): void {
 
   setupCommitteePhotoUpload();
 
+  const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement;
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    // Disabled for the duration: a save takes a moment (it also asks
+    // Cloudflare to rebuild), and with nothing to show for it people press
+    // the button again. A second press used to fire a second write that
+    // raced the first, and a second rebuild request that Cloudflare then
+    // answered with 304 -- which the panel reported as a failure. One press,
+    // one write.
+    submitBtn.disabled = true;
+    try {
+      await saveCommittee();
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  async function saveCommittee(): Promise<void> {
     const editId = (document.getElementById('symCommitteeEditId') as HTMLInputElement).value;
     const body = {
       name: (document.getElementById('symCommitteeName') as HTMLInputElement).value,
@@ -1467,5 +1497,5 @@ function setupCommitteeForm(): void {
       const err = await res.json() as { error: string };
       showToast(err.error || t('admin.toast.error'), true);
     }
-  });
+  }
 }
