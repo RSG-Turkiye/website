@@ -25,7 +25,7 @@ interface Props {
 
 const { lang, members, finished } = Astro.props;
 const t = useTranslations(lang);
-const teams = groupByTeam(members);
+const teams = groupByTeam(members, lang);
 /** With one untagged block there is nothing to head -- that is the old page. */
 const showHeadings = teams.length > 1 || teams[0]?.label != null;
 ---

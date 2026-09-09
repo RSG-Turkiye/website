@@ -19,7 +19,11 @@ export interface EditionRow { year: number; registration_url: string; registrati
 export interface EditionOverlay { registrationUrl: string; registrationDeadline: number | null; abstractUrl: string; abstractDeadline: number | null; venuePublic: boolean | null; cityPublic: boolean | null }
 export interface OverlaySpeaker { slug: string; name: string; position: string; company: string; bio: string; photo: string; linkedin?: string }
 export interface OverlaySession { slug: string; title: string; type: string; speakerSlugs: string[]; description: string; time: string; endTime?: string; order: number }
-export interface OverlayCommittee { name: string; role: string; roleTr: string; affiliation: string; photo: string; linkedin?: string; teams: string[] }
+/** A team label in both languages. `tr` may be empty: a team named only in
+ * English is shown in English on both sites, the way an untranslated role
+ * already is. */
+export interface Team { en: string; tr: string }
+export interface OverlayCommittee { name: string; role: string; roleTr: string; affiliation: string; photo: string; linkedin?: string; teams: Team[] }
 export interface Overlay {
   year: number | null;
   edition: EditionOverlay;
@@ -54,17 +58,42 @@ export function parseSpeakerSlugs(raw: string): string[] {
  * The read direction for `symposium_committee.teams`. Same contract as
  * parseSpeakerSlugs: one unparseable row must not fail the whole build, and
  * there is one definition of "how teams decodes" rather than a second that
- * can drift. Rows written before the column existed hold '[]' by default,
+ * can drift.
+ *
+ * Two stored shapes are accepted. The current one is a pair per team,
+ * `[{"en":"Scientific Program","tr":"Bilimsel Program"}]`. The first version
+ * of this column stored bare strings, `["Scientific Program"]`, and a row
+ * written then reads as English-only rather than as nothing -- which is
+ * exactly what it meant. Rows written before the column existed hold '[]',
  * and a row somehow holding '' still reads as no teams rather than throwing.
  */
-export function parseTeams(raw: string): string[] {
+export function parseTeams(raw: string): Team[] {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((team): team is string => typeof team === 'string');
+    parsed = JSON.parse(raw);
   } catch {
     return [];
   }
+  if (!Array.isArray(parsed)) return [];
+
+  const teams: Team[] = [];
+  for (const item of parsed) {
+    if (typeof item === 'string') {
+      if (item) teams.push({ en: item, tr: '' });
+      continue;
+    }
+    if (item && typeof item === 'object') {
+      const { en, tr } = item as { en?: unknown; tr?: unknown };
+      const pair = {
+        en: typeof en === 'string' ? en : '',
+        tr: typeof tr === 'string' ? tr : '',
+      };
+      // A pair with neither name is not a team; it would render as a blank
+      // heading with people under it.
+      if (pair.en || pair.tr) teams.push(pair);
+    }
+  }
+  return teams;
 }
 
 /** The most a single member may be listed under. Somebody is on two or three
@@ -74,6 +103,41 @@ export const MAX_TEAMS = 6;
 /** Long enough for "Bilimsel Program ve Konusmaci Iliskileri", short enough
  * that a pasted paragraph cannot become a heading. */
 export const MAX_TEAM_LENGTH = 60;
+
+/**
+ * The key two spellings of one team must share.
+ *
+ * Turkish and English disagree about the letter I, and picking either
+ * locale's rule alone breaks the other: a Turkish-locale lowercase folds
+ * "Iletisim" and "iletisim" together but pulls "RSG MEDIA" apart from
+ * "RSG Media" (capital I becomes dotless i), while a plain lowercase does
+ * the opposite. Both spellings turn up in these labels -- the teams are
+ * Turkish words and the organisation's own name is an English acronym -- so
+ * every form of the letter is folded to one before lowercasing.
+ *
+ * The cost is that dotless and dotted i are the same letter here, so "Sira"
+ * spelled either way is one team. For free-text team names that is the
+ * better error of the two: it merges what should probably be merged, where
+ * the alternative splits a team over a capital letter.
+ */
+function teamKey(value: string): string {
+  return value.replace(/[\u0130I\u0131]/g, 'i').toLowerCase();
+}
+
+function tidy(value: unknown, field: string): string {
+  if (typeof value !== 'string') throw new Error(`${field} must be an array of strings`);
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (text.length > MAX_TEAM_LENGTH) {
+    throw new Error(`team name is too long (max ${MAX_TEAM_LENGTH} characters): ${text.slice(0, MAX_TEAM_LENGTH)}...`);
+  }
+  return text;
+}
+
+function asList(input: unknown, field: string): string[] {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input)) throw new Error(`${field} must be an array of strings`);
+  return input.map((raw) => tidy(raw, field));
+}
 
 /**
  * The write direction. Team labels are free text -- the organisers add a
@@ -91,24 +155,42 @@ export const MAX_TEAM_LENGTH = 60;
  * team differently ("Sosyal medya" / "Sosyal Medya") are still grouped
  * together -- see groupByTeam on the symposium site -- and the first
  * spelling wins the heading.
+ *
+ * The two languages arrive as separate lists, because that is what the form
+ * has (two fields, like Role and Role (Turkish)), and are zipped into pairs
+ * *here* rather than stored side by side. Parallel arrays in the column
+ * would be the same fact stored twice: deduplicating one shifts its indices
+ * against the other, and nothing downstream could tell that the labels had
+ * come apart. A pair cannot come apart.
+ *
+ * Turkish is optional -- a team named only in English shows in English on
+ * both sites. But a *partial* Turkish list is refused rather than guessed
+ * at: if it is given at all it must name every team, in the same order.
  */
-export function normaliseTeams(input: unknown): string[] {
-  if (input === undefined || input === null) return [];
-  if (!Array.isArray(input)) throw new Error('committee member teams must be an array of strings');
+export function normaliseTeams(input: unknown, turkish?: unknown): Team[] {
+  const en = asList(input, 'committee member teams');
+  const tr = asList(turkish, 'committee member Turkish teams');
 
-  const out: string[] = [];
+  if (tr.length > 0 && tr.length !== en.length) {
+    throw new Error(
+      `${en.length} team name(s) in English and ${tr.length} in Turkish: the two lists are ` +
+      `matched one to one and in order, so give a Turkish name for every team or leave Turkish empty`,
+    );
+  }
+
+  const out: Team[] = [];
   const seen = new Set<string>();
-  for (const raw of input) {
-    if (typeof raw !== 'string') throw new Error('committee member teams must be an array of strings');
-    const team = raw.trim().replace(/\s+/g, ' ');
-    if (!team) continue;
-    if (team.length > MAX_TEAM_LENGTH) {
-      throw new Error(`team name is too long (max ${MAX_TEAM_LENGTH} characters): ${team.slice(0, MAX_TEAM_LENGTH)}...`);
-    }
-    const key = team.toLocaleLowerCase('tr');
+  for (let i = 0; i < en.length; i++) {
+    const pair = { en: en[i], tr: tr[i] ?? '' };
+    // An empty English name with a Turkish one is a team named only in
+    // Turkish, which is allowed; both empty is a stray comma.
+    if (!pair.en && !pair.tr) continue;
+    // Keyed on whichever name it has, so a repeated team is dropped whether
+    // it was written in English or only in Turkish.
+    const key = teamKey(pair.en || pair.tr);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(team);
+    out.push(pair);
   }
   if (out.length > MAX_TEAMS) {
     throw new Error(`a committee member can be listed under at most ${MAX_TEAMS} teams, got ${out.length}`);
@@ -381,7 +463,10 @@ export interface CommitteeInput {
   affiliation?: string;
   photo?: string;
   linkedin?: string;
+  /** Two lists, matched one to one and in order -- the form has two fields,
+   * as it does for Role. `teamsTr` may be omitted entirely. */
   teams?: string[];
+  teamsTr?: string[];
 }
 
 export type SymposiumInput = SpeakerInput | SessionInput | CommitteeInput;
@@ -456,7 +541,7 @@ export function rowFromInput(
         affiliation: committee.affiliation ?? '',
         photo: parseHttpUrl(committee.photo, 'committee member photo URL'),
         linkedin: parseHttpUrl(committee.linkedin, 'committee member LinkedIn URL'),
-        teams: JSON.stringify(normaliseTeams(committee.teams)),
+        teams: JSON.stringify(normaliseTeams(committee.teams, committee.teamsTr)),
       };
     }
     default:
@@ -498,7 +583,10 @@ export function rowToInput(
       return {
         id: r.id, sort: r.sort, name: r.name, role: r.role, roleTr: r.role_tr,
         affiliation: r.affiliation, photo: r.photo, linkedin: r.linkedin,
-        teams: parseTeams(r.teams),
+        // Back into the two lists the form submits, in the order the pairs
+        // are stored, so loading a row and saving it unchanged is a no-op.
+        teams: parseTeams(r.teams).map((t) => t.en),
+        teamsTr: parseTeams(r.teams).map((t) => t.tr),
       };
     }
     default:

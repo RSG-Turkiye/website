@@ -68,7 +68,26 @@ const OverlaySchema = z.object({
   }),
   speakers: z.array(z.object({ slug: z.string(), name: z.string() }).passthrough()),
   sessions: z.array(z.object({ slug: z.string(), title: z.string(), order: z.number() }).passthrough()),
-  committee: z.array(z.object({ name: z.string(), teams: z.array(z.string()).default([]) }).passthrough()),
+  committee: z.array(z.object({
+    name: z.string(),
+    // Both shapes, on purpose. This schema is a network boundary between two
+    // things that are NOT deployed together: the main site's Functions serve
+    // this payload, and the symposium site's build consumes it, each on its
+    // own Pages project. During the window between the two deploys the build
+    // sees the *previous* payload shape -- and because the repo has no
+    // committee of its own, a rejected payload makes the build refuse to
+    // publish rather than quietly emptying the page. Strictness here turns
+    // every payload change into a broken deploy.
+    //
+    // So a bare string, the first version of this field, is read as a team
+    // named in English only -- which is what it meant.
+    teams: z.array(
+      z.union([
+        z.string().transform((en) => ({ en, tr: "" })),
+        z.object({ en: z.string().default(""), tr: z.string().default("") }),
+      ]),
+    ).default([]),
+  }).passthrough()),
   // Was z.array(z.unknown()): the payload carried announcements, the schema
   // let them through, and nothing on this site did anything with them. A
   // shape, so a renamed field on the server is caught here rather than

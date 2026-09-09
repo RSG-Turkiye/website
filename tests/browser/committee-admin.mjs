@@ -37,9 +37,9 @@ await page.route('**/api/me', (r) => r.fulfill({
 let committee = [
   { id: 'c1', sort: 0, name: 'Ayşe Kaya', role: 'Social Media', roleTr: 'Sosyal Medya',
     affiliation: 'GTÜ', photo: 'https://example.org/ayse.jpg', linkedin: '',
-    teams: ['Sosyal Medya', 'Bilimsel Program'] },
+    teams: ['Social Media', 'Scientific Program'], teamsTr: ['Sosyal Medya', 'Bilimsel Program'] },
   { id: 'c2', sort: 1, name: 'Mehmet Tan', role: 'Design', roleTr: 'Tasarım',
-    affiliation: 'ODTÜ', photo: '', linkedin: '', teams: [] },
+    affiliation: 'ODTÜ', photo: '', linkedin: '', teams: [], teamsTr: [] },
 ];
 
 let saved = null;
@@ -73,24 +73,31 @@ await page.waitForSelector('#symCommitteeTableBody tr');
 const rows = await page.$$eval('#symCommitteeTableBody tr', (trs) =>
   trs.map((tr) => [...tr.querySelectorAll('td')].slice(0, 4).map((td) => td.textContent.trim())));
 console.log('   ', JSON.stringify(rows));
-ok(rows[0][3] === 'Sosyal Medya, Bilimsel Program', 'iki ekipli üyenin ekipleri tabloda');
+ok(rows[0][3] === 'Social Media, Scientific Program',
+  `İngilizce panel İngilizce adları gösteriyor (gelen: ${rows[0][3]})`);
 ok(rows[1][3] === '', 'ekipsiz üyenin hücresi boş');
 
-console.log('2) datalist kullanımdaki ekipleri öneriyor');
-const options = await page.$$eval('#symCommitteeTeamOptions option', (os) => os.map((o) => o.value));
+console.log('2) her iki dil alanı da kullanımdaki ekipleri öneriyor');
+const options = await page.evaluate(() => ({
+  en: [...document.querySelectorAll('#symCommitteeTeamOptions option')].map((o) => o.value),
+  tr: [...document.querySelectorAll('#symCommitteeTeamTrOptions option')].map((o) => o.value),
+}));
 console.log('   ', JSON.stringify(options));
-ok(options.length === 2 && options.includes('Sosyal Medya'), 'öneriler dolu');
+ok(JSON.stringify(options.en) === '["Social Media","Scientific Program"]', 'İngilizce öneriler');
+ok(JSON.stringify(options.tr) === '["Sosyal Medya","Bilimsel Program"]', 'Türkçe öneriler');
 
 console.log('3) düzenle — ekipler ve fotoğraf forma yükleniyor');
 await page.click('#symCommitteeTableBody tr:first-child .edit-committee-btn');
 const filled = await page.evaluate(() => ({
   teams: document.getElementById('symCommitteeTeams').value,
+  teamsTr: document.getElementById('symCommitteeTeamsTr').value,
   photo: document.getElementById('symCommitteePhoto').value,
   previewHidden: document.getElementById('symCommitteePhotoPreview').classList.contains('hidden'),
   editId: document.getElementById('symCommitteeEditId').value,
 }));
 console.log('   ', JSON.stringify(filled));
-ok(filled.teams === 'Sosyal Medya, Bilimsel Program', 'ekipler alanı virgüllü dolu');
+ok(filled.teams === 'Social Media, Scientific Program', 'İngilizce ekipler alanı dolu');
+ok(filled.teamsTr === 'Sosyal Medya, Bilimsel Program', 'Türkçe ekipler alanı dolu');
 ok(filled.previewHidden === false, 'mevcut fotoğrafın önizlemesi görünür');
 
 console.log('4) dosya seç — yükleniyor ve URL alanına yazılıyor');
@@ -115,17 +122,19 @@ ok(afterUpload.preview === 'https://cdn.example.org/uploaded.webp', 'önizleme y
 ok(afterUpload.fileCleared, 'dosya girdisi temizlendi (aynı dosya yeniden denenebilir)');
 
 console.log('5) kaydet — ekipler dizi olarak, fotoğraf yüklenen URL olarak gidiyor');
-await page.fill('#symCommitteeTeams', 'Sosyal Medya , , grafik tasarım');
+await page.fill('#symCommitteeTeams', 'Social Media , , graphic design');
+await page.fill('#symCommitteeTeamsTr', 'Sosyal Medya, Grafik Tasarım');
 await page.click('#symCommitteeForm button[type=submit]');
 await page.waitForTimeout(600);
 console.log('   ', JSON.stringify(saved));
 ok(saved?.method === 'PUT', 'düzenleme PUT ile gitti');
-ok(JSON.stringify(saved?.body?.teams) === '["Sosyal Medya","grafik tasarım"]', 'boş etiket düşürüldü, dizi gönderildi');
+ok(JSON.stringify(saved?.body?.teams) === '["Social Media","graphic design"]', 'boş İngilizce etiket düşürüldü');
+ok(JSON.stringify(saved?.body?.teamsTr) === '["Sosyal Medya","Grafik Tasarım"]', 'Türkçe liste dizi olarak gitti');
 ok(saved?.body?.photo === 'https://cdn.example.org/uploaded.webp', 'yüklenen fotoğraf kaydedildi');
 
 console.log('6) kaydettikten sonra form temizlendi — önizleme bir öncekini göstermiyor');
 const afterSave = await page.evaluate(() => ({
-  teams: document.getElementById('symCommitteeTeams').value,
+  teams: document.getElementById('symCommitteeTeams').value + document.getElementById('symCommitteeTeamsTr').value,
   photo: document.getElementById('symCommitteePhoto').value,
   previewHidden: document.getElementById('symCommitteePhotoPreview').classList.contains('hidden'),
   status: document.getElementById('symCommitteePhotoStatus').textContent,
@@ -135,10 +144,35 @@ ok(afterSave.teams === '' && afterSave.photo === '', 'alanlar boşaldı');
 ok(afterSave.previewHidden, 'önizleme gizlendi');
 ok(afterSave.status === '', 'durum satırı temizlendi');
 
-console.log('7) yükleme reddedilirse sunucunun mesajı gösteriliyor, URL bozulmuyor');
+console.log('7) sayıları uyuşmayan iki liste — sunucunun mesajı kullanıcıya ulaşıyor');
+// The count check lives on the server, so this asserts the panel surfaces
+// its message rather than swallowing it behind a generic error.
+saved = null;
+await page.unroute('**/api/admin/symposium/committee/*');
+await page.route('**/api/admin/symposium/committee/*', (r) => {
+  saved = { method: r.request().method(), body: r.request().postDataJSON() };
+  return r.fulfill({ status: 400, contentType: 'application/json',
+    body: JSON.stringify({ error: '2 team name(s) in English and 1 in Turkish: the two lists are matched one to one and in order, so give a Turkish name for every team or leave Turkish empty' }) });
+});
+await page.click('#symCommitteeTableBody tr:first-child .edit-committee-btn');
+await page.fill('#symCommitteeTeams', 'Social Media, Scientific Program');
+await page.fill('#symCommitteeTeamsTr', 'Sosyal Medya');
+await page.click('#symCommitteeForm button[type=submit]');
+await page.waitForTimeout(700);
+const mismatch = await page.evaluate(() => ({
+  toast: document.body.innerText.includes('matched one to one'),
+  teams: document.getElementById('symCommitteeTeams').value,
+}));
+console.log('   ', JSON.stringify({ ...mismatch, sentTr: saved?.body?.teamsTr }));
+ok(JSON.stringify(saved?.body?.teamsTr) === '["Sosyal Medya"]', 'kısmi Türkçe liste olduğu gibi gönderildi');
+ok(mismatch.toast, 'sunucunun sayı uyuşmazlığı mesajı gösterildi');
+ok(mismatch.teams === 'Social Media, Scientific Program', 'reddedilen kayıtta form temizlenmedi');
+
+console.log('8) yükleme reddedilirse sunucunun mesajı gösteriliyor, URL bozulmuyor');
 await page.unroute('**/api/blog-submissions/upload-image');
 await page.route('**/api/blog-submissions/upload-image', (r) =>
   r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Image too large (max 5MB)' }) }));
+const urlBefore = await page.inputValue('#symCommitteePhoto');
 await page.setInputFiles('#symCommitteePhotoFile', { name: 'big.png', mimeType: 'image/png', buffer: png });
 await page.waitForTimeout(900);
 const afterFail = await page.evaluate(() => ({
@@ -149,7 +183,7 @@ const afterFail = await page.evaluate(() => ({
 }));
 console.log('   ', JSON.stringify(afterFail));
 ok(afterFail.toast, 'sunucunun kendi mesajı gösterildi');
-ok(afterFail.photo === '', 'başarısız yükleme URL alanına bir şey yazmadı');
+ok(afterFail.photo === urlBefore, `başarısız yükleme mevcut URL'i bozmadı (${urlBefore || 'boş'})`);
 ok(!afterFail.disabled, 'dosya girdisi yeniden denenebilir durumda');
 
 await browser.close();

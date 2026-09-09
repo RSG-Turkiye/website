@@ -64,6 +64,30 @@ test('a payload with an extra field is accepted', () => {
   assert.equal(ok?.speakers[0].slug, 'a');
 });
 
+test('a committee payload in either team shape is accepted', () => {
+  // The API and this site are separate Pages projects and are not deployed
+  // together, so during the window between the two deploys this build reads
+  // the *previous* payload shape. The repo has no committee of its own, so a
+  // rejected payload does not degrade to the repo's copy -- it refuses to
+  // publish at all. Being strict about a field's shape here turns every
+  // change to the API into a broken deploy, and it did exactly that once.
+  const base = {
+    year: 2026,
+    edition: { registrationUrl: '', registrationDeadline: null, abstractUrl: '', abstractDeadline: null, venuePublic: null, cityPublic: null },
+    speakers: [], sessions: [], announcements: [],
+  };
+  // Today's shape.
+  const pairs = parseOverlay({ ...base, committee: [{ name: 'A', teams: [{ en: 'Social Media', tr: 'Sosyal Medya' }] }] });
+  assert.deepEqual(pairs?.committee[0].teams, [{ en: 'Social Media', tr: 'Sosyal Medya' }]);
+  // The first shape this field had, which is what a not-yet-redeployed API
+  // still serves. A bare name meant English only.
+  const strings = parseOverlay({ ...base, committee: [{ name: 'A', teams: ['Scientific Program'] }] });
+  assert.deepEqual(strings?.committee[0].teams, [{ en: 'Scientific Program', tr: '' }]);
+  // And no teams at all, which is every row written before the column.
+  const none = parseOverlay({ ...base, committee: [{ name: 'A' }] });
+  assert.deepEqual(none?.committee[0].teams, []);
+});
+
 test('an empty url from the overlay does not erase the repo one', () => {
   // The column is NOT NULL DEFAULT '', so a row that exists only to carry a flag
   // arrives with '' here. That must read as "no opinion", not "delete it".

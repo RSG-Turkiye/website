@@ -1237,22 +1237,43 @@ function setupSessionForm(): void {
 
 interface CommitteeItem {
   id: string; sort: number; name: string; role: string; roleTr: string;
-  affiliation: string; photo: string; linkedin: string; teams: string[];
+  affiliation: string; photo: string; linkedin: string;
+  /** Two lists, matched one to one and in order. */
+  teams: string[]; teamsTr: string[];
 }
 
-/** The teams currently in use, for the form's datalist. Kept case-folded so
- * "Sosyal Medya" and "sosyal medya" offer one suggestion, spelled the way the
- * first member on that team spelled it -- the same rule the public page
- * groups by. */
-function teamSuggestions(items: CommitteeItem[]): string[] {
+/** Folds two spellings of one team to one key. Must agree with `teamKey` in
+ * functions/_lib/symposium.ts and in the symposium site's committee.ts --
+ * every form of the letter I to one, then lowercase -- or the panel offers a
+ * suggestion the server then treats as a different team. */
+function teamKey(value: string): string {
+  return value.replace(/[\u0130I\u0131]/g, 'i').toLowerCase();
+}
+
+/** The team names currently in use, for a field's datalist: one suggestion
+ * per team, spelled the way the first member on it spelled it. Blanks are
+ * dropped -- a team with no Turkish name must not offer an empty option. */
+function teamSuggestions(items: CommitteeItem[], lang: 'en' | 'tr'): string[] {
   const byKey = new Map<string, string>();
   for (const item of items) {
-    for (const team of item.teams ?? []) {
-      const key = team.toLocaleLowerCase('tr');
+    const list = (lang === 'tr' ? item.teamsTr : item.teams) ?? [];
+    for (const team of list) {
+      if (!team) continue;
+      const key = teamKey(team);
       if (!byKey.has(key)) byKey.set(key, team);
     }
   }
   return [...byKey.values()];
+}
+
+/** What a member's teams read as in the panel's own language, for the table.
+ * Falls back across languages the way the public page's headings do. */
+function teamLabels(item: CommitteeItem): string[] {
+  const en = item.teams ?? [];
+  const tr = item.teamsTr ?? [];
+  return en
+    .map((name, i) => (lang === 'tr' ? tr[i] || name : name || tr[i] || ''))
+    .filter(Boolean);
 }
 
 function renderCommittee(items: CommitteeItem[]): void {
@@ -1262,9 +1283,13 @@ function renderCommittee(items: CommitteeItem[]): void {
   // Before the early return: with no members there are no suggestions, and
   // a datalist left holding the previous edition's teams would be worse than
   // an empty one.
-  const datalist = document.getElementById('symCommitteeTeamOptions');
-  if (datalist) {
-    datalist.innerHTML = teamSuggestions(items)
+  for (const [id, suggestionLang] of [
+    ['symCommitteeTeamOptions', 'en'],
+    ['symCommitteeTeamTrOptions', 'tr'],
+  ] as const) {
+    const datalist = document.getElementById(id);
+    if (!datalist) continue;
+    datalist.innerHTML = teamSuggestions(items, suggestionLang)
       .map((team) => `<option value="${escapeHtml(team)}"></option>`)
       .join('');
   }
@@ -1281,7 +1306,7 @@ function renderCommittee(items: CommitteeItem[]): void {
       <td class="px-5 py-4 text-navy font-medium">${escapeHtml(c.name)}</td>
       <td class="px-5 py-4 text-gray-500">${escapeHtml(lang === 'tr' ? (c.roleTr || c.role) : c.role)}</td>
       <td class="px-5 py-4 text-gray-500">${escapeHtml(c.affiliation)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml((c.teams ?? []).join(', '))}</td>
+      <td class="px-5 py-4 text-gray-500">${escapeHtml(teamLabels(c).join(', '))}</td>
       <td class="px-5 py-4 text-right">
         <button data-id="${c.id}" class="edit-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.edit')}</button>
         <button data-id="${c.id}" class="delete-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.delete')}</button>
@@ -1301,6 +1326,11 @@ function renderCommittee(items: CommitteeItem[]): void {
       (document.getElementById('symCommitteePhoto') as HTMLInputElement).value = item.photo;
       (document.getElementById('symCommitteeLinkedin') as HTMLInputElement).value = item.linkedin;
       (document.getElementById('symCommitteeTeams') as HTMLInputElement).value = (item.teams ?? []).join(', ');
+      // Joined even when every entry is empty, so the two fields stay the
+      // same length and a member loaded and saved unchanged is a no-op.
+      const trTeams = item.teamsTr ?? [];
+      (document.getElementById('symCommitteeTeamsTr') as HTMLInputElement).value =
+        trTeams.some(Boolean) ? trTeams.join(', ') : '';
       showCommitteePhotoPreview(item.photo);
       document.getElementById('symCommitteeCancelBtn')!.classList.remove('hidden');
     });
@@ -1376,6 +1406,13 @@ function setupCommitteePhotoUpload(): void {
   url.addEventListener('input', () => showCommitteePhotoPreview(url.value));
 }
 
+/** An empty field means "no Turkish names at all", which the server accepts;
+ * anything else keeps its blanks so the two lists stay aligned by position. */
+function splitTurkishTeams(value: string): string[] {
+  if (!value.trim()) return [];
+  return value.split(',').map((team) => team.trim());
+}
+
 function setupCommitteeForm(): void {
   const form = document.getElementById('symCommitteeForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('symCommitteeCancelBtn')!;
@@ -1405,9 +1442,13 @@ function setupCommitteeForm(): void {
       photo: (document.getElementById('symCommitteePhoto') as HTMLInputElement).value,
       linkedin: (document.getElementById('symCommitteeLinkedin') as HTMLInputElement).value,
       // Split here, trimmed and deduplicated on the server -- which is where
-      // it has to happen anyway, since this field is not the only way in.
+      // it has to happen anyway, since these fields are not the only way in.
+      // Empty entries are kept in the Turkish list rather than filtered, so
+      // "A, , C" still lines up with three English names; the server drops a
+      // pair only when both names are empty.
       teams: (document.getElementById('symCommitteeTeams') as HTMLInputElement).value
         .split(',').map((team) => team.trim()).filter(Boolean),
+      teamsTr: splitTurkishTeams((document.getElementById('symCommitteeTeamsTr') as HTMLInputElement).value),
     };
 
     const url = editId ? `/api/admin/symposium/committee/${editId}` : '/api/admin/symposium/committee';

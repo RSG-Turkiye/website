@@ -84,10 +84,14 @@ const committee = defineCollection({
       affiliation: z.string().default(""),
       photo: z.string().default(""),
       linkedin: z.string().optional(),
-      // Free-text team labels -- "Sosyal Medya", "Grafik Tasarim" -- one
-      // member under each they carry. Defaulted, so the rosters archived
-      // before teams existed still parse and simply group as untagged.
-      teams: z.array(z.string()).default([]),
+      // Free-text team labels, one member under each they carry, named in
+      // both languages. `tr` may be empty: a team named only in English is
+      // shown in English on both sites, as an untranslated role already is.
+      // Pairs rather than two parallel lists, so the two names cannot come
+      // apart. No legacy bare-string form is accepted here because no
+      // committee roster has ever been archived into this repo -- the only
+      // reader of that older shape is parseTeams, on the D1 side.
+      teams: z.array(z.object({ en: z.string().default(""), tr: z.string().default("") })).default([]),
     })),
   }),
 });

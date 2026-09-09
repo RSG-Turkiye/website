@@ -485,7 +485,10 @@ export const ui = {
     'admin.symposium.committee.form.photoUploaded': 'Uploaded.',
     // Comma-separated because a member is usually on one team and sometimes
     // two; a tag widget would be more machinery than the job needs.
-    'admin.symposium.committee.form.teamsPlaceholder': 'Teams, comma separated (e.g. Social Media, Graphic Design)',
+    'admin.symposium.committee.form.teamsPlaceholder': 'Teams in English, comma separated (e.g. Social Media, Graphic Design)',
+    // Matched one to one against the English list, in order. Leave empty
+    // to show the English name on both sites.
+    'admin.symposium.committee.form.teamsTrPlaceholder': 'Teams in Turkish, same order (e.g. Sosyal Medya, Grafik Tasarım)',
     'admin.symposium.committee.table.teams': 'Teams',
     'admin.symposium.committee.form.linkedinPlaceholder': 'LinkedIn URL',
     'admin.symposium.committee.form.save': 'Save committee member',
@@ -976,7 +979,8 @@ export const ui = {
     'admin.symposium.committee.form.photoLabel': 'Fotoğraf — en fazla 5 MB, JPEG/PNG/WebP/GIF',
     'admin.symposium.committee.form.photoUploading': 'Yükleniyor…',
     'admin.symposium.committee.form.photoUploaded': 'Yüklendi.',
-    'admin.symposium.committee.form.teamsPlaceholder': 'Ekipler, virgülle ayırın (ör. Sosyal Medya, Grafik Tasarım)',
+    'admin.symposium.committee.form.teamsPlaceholder': 'Ekipler (İngilizce), virgülle ayırın (ör. Social Media, Graphic Design)',
+    'admin.symposium.committee.form.teamsTrPlaceholder': 'Ekipler (Türkçe), aynı sırada (ör. Sosyal Medya, Grafik Tasarım)',
     'admin.symposium.committee.table.teams': 'Ekipler',
     'admin.symposium.committee.form.linkedinPlaceholder': 'LinkedIn URL\'si',
     'admin.symposium.committee.form.save': 'Kurul üyesini kaydet',
