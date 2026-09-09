@@ -199,6 +199,40 @@ ok(afterFail.toast, 'sunucunun kendi mesajı gösterildi');
 ok(afterFail.photo === urlBefore, `başarısız yükleme mevcut URL'i bozmadı (${urlBefore || 'boş'})`);
 ok(!afterFail.disabled, 'dosya girdisi yeniden denenebilir durumda');
 
+console.log('9) yükleme biterken kaydet — fotoğraf kaybolmamalı');
+// This is what lost a real committee member's photograph: the upload runs on
+// choosing the file, the save used to read the URL field the instant it was
+// pressed, and a save in those seconds stored an empty photo.
+let slowUploads = 0;
+await page.unroute('**/api/blog-submissions/upload-image');
+await page.route('**/api/blog-submissions/upload-image', async (r) => {
+  slowUploads++;
+  await new Promise((done) => setTimeout(done, 1500));
+  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ url: 'https://cdn.example.org/late.webp' }) });
+});
+saved = null;
+await page.unroute('**/api/admin/symposium/committee');
+await page.route('**/api/admin/symposium/committee', async (r) => {
+  if (r.request().method() === 'GET') {
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ year: 2026, items: committee }) });
+  }
+  saved = { method: 'POST', body: r.request().postDataJSON() };
+  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ rebuild: { state: 'started', detail: '' } }) });
+});
+
+await page.click('#symCommitteeCancelBtn');
+await page.fill('#symCommitteeName', 'Melih Koç');
+await page.setInputFiles('#symCommitteePhotoFile', { name: 'melih.png', mimeType: 'image/png', buffer: png });
+// Immediately -- long before the upload can finish.
+await page.waitForTimeout(120);
+await page.click('#symCommitteeForm button[type=submit]');
+await page.waitForTimeout(3000);
+console.log('   ', JSON.stringify({ ...saved?.body, teams: undefined, teamsTr: undefined }));
+ok(slowUploads === 1, 'yükleme bir kez yapıldı');
+ok(saved?.body?.name === 'Melih Koç', 'kayıt gitti');
+ok(saved?.body?.photo === 'https://cdn.example.org/late.webp',
+  `kayıt yüklemeyi bekledi (gelen foto: ${JSON.stringify(saved?.body?.photo)})`);
+
 await browser.close();
 console.log(bad.length ? `\n${bad.length} SORUN:\n - ` + bad.join('\n - ') : '\nHEPSİ GEÇTİ');
 process.exit(bad.length ? 1 : 0);
