@@ -30,7 +30,7 @@ export const IMAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
  * invocation; with it, the edge answers almost all of them. */
 const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
-export const onRequestGet: PagesFunction<Env> = async ({ params, env, request }) => {
+const serve: PagesFunction<Env> = async ({ params, env, request }) => {
   const key = String(params.key);
   if (!IMAGE_KEY.test(key)) return new Response('Not found', { status: 404 });
 
@@ -54,3 +54,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env, request })
   const ranged = 'range' in object && object.range !== undefined && request.headers.has('Range');
   return new Response(object.body, { status: ranged ? 206 : 200, headers });
 };
+
+export const onRequestGet = serve;
+/**
+ * HEAD too, or it falls through to the static handler and answers with the
+ * site's HTML 404 page while GET on the same URL returns the image. Pages
+ * dispatches by method and does not derive HEAD from onRequestGet; the
+ * runtime drops the body, so this is the same handler. Browsers use GET for
+ * an <img>, so nothing was visibly broken -- but a link checker, a crawler
+ * or a cache probing with HEAD was told the image does not exist.
+ */
+export const onRequestHead = serve;
