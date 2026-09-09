@@ -18,13 +18,18 @@ export interface Session {
   description: string; time: string; endTime?: string; order: number;
 }
 
+/** A team label in both languages; `tr` empty means "no Turkish name given",
+ * and the English one is shown on both sites. Mirrors the shape
+ * functions/_lib/symposium.ts serves. */
+export interface Team { en: string; tr: string }
+
 export interface CommitteeMember {
   name: string; role: string; roleTr: string;
   affiliation: string; photo: string; linkedin?: string;
   /** Optional because the overlay is validated with `.passthrough()` and an
    * older payload has no `teams` at all. Read it through `groupByTeam`,
    * never directly, so there is one place that copes with its absence. */
-  teams?: string[];
+  teams?: Team[];
 }
 
 async function forYear<T>(collection: "speakers" | "sessions" | "committee", year: number, key: "people" | "items"): Promise<T[]> {

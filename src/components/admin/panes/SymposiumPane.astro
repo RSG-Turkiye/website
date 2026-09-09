@@ -224,16 +224,30 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
         <input id="symCommitteeLinkedin" type="url" placeholder={t('admin.symposium.committee.form.linkedinPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <!--
-          Free text, comma-separated. A datalist offers the teams already in
-          use so the second person on a team picks the existing spelling
-          rather than inventing a near-miss of it; the grouping matches
-          case-insensitively either way, so a near-miss is a cosmetic problem
-          rather than a split team.
+          Free text, comma-separated, in both languages -- the same pairing
+          as Role and Role (Turkish) just above. The two lists are matched
+          one to one and in order, and the server refuses a partial Turkish
+          list rather than guessing which team a name belongs to.
+
+          Turkish may be left empty entirely: a team named only in English
+          is shown in English on both sites.
+
+          Each field offers the names already in use, so the second person
+          on a team picks the existing spelling rather than inventing a
+          near-miss. A near-miss in the same language still groups correctly
+          -- matching ignores case and spacing -- but a team written only in
+          English by one person and only in Turkish by another cannot be
+          recognised as one team by anything, which is what these
+          suggestions are really for.
         -->
         <input id="symCommitteeTeams" type="text" list="symCommitteeTeamOptions"
           placeholder={t('admin.symposium.committee.form.teamsPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <datalist id="symCommitteeTeamOptions"></datalist>
+        <input id="symCommitteeTeamsTr" type="text" list="symCommitteeTeamTrOptions"
+          placeholder={t('admin.symposium.committee.form.teamsTrPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <datalist id="symCommitteeTeamTrOptions"></datalist>
 
         <!--
           The photo used to be a URL field, which meant uploading the picture

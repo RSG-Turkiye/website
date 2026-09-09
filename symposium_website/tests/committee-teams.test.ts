@@ -1,111 +1,155 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { groupByTeam } from '../src/lib/committee';
-import type { CommitteeMember } from '../src/lib/content';
+import type { CommitteeMember, Team } from '../src/lib/content';
 
 /**
- * Committee members are grouped by their team labels.
+ * Committee members are grouped by their team labels, in the reader's
+ * language.
  *
  * The page this drives cannot be checked by eye: the repo's committee folder
- * holds nothing but a .gitkeep and the live overlay's roster is empty, so
- * /committee renders "will be announced soon" no matter what this code does.
- * The grouping is a pure function for exactly that reason, and these are the
- * cases the organisers described -- somebody on two teams, somebody on none.
+ * holds nothing but a .gitkeep and the live roster is one person, so most of
+ * these cases have never existed in production. The grouping is a pure
+ * function for exactly that reason.
  */
 
-const person = (name: string, teams?: string[]): CommitteeMember => ({
+const team = (en: string, tr = ''): Team => ({ en, tr });
+const person = (name: string, teams?: Team[]): CommitteeMember => ({
   name, role: '', roleTr: '', affiliation: '', photo: '', teams,
 });
 
-test('a member on two teams is listed under both', () => {
-  const groups = groupByTeam([
-    person('Ayşe', ['Sosyal Medya', 'Bilimsel Program']),
-    person('Mehmet', ['Bilimsel Program']),
+const shape = (groups: { label: string | null; members: CommitteeMember[] }[]) =>
+  groups.map((g) => [g.label, g.members.map((m) => m.name)]);
+
+test('a member on two teams is listed under both, in each language', () => {
+  const people = [
+    person('Ayşe', [team('Social Media', 'Sosyal Medya'), team('Scientific Program', 'Bilimsel Program')]),
+    person('Mehmet', [team('Scientific Program', 'Bilimsel Program')]),
+  ];
+  assert.deepEqual(shape(groupByTeam(people, 'en')), [
+    ['Social Media', ['Ayşe']],
+    ['Scientific Program', ['Ayşe', 'Mehmet']],
   ]);
-  assert.deepEqual(
-    groups.map((g) => [g.label, g.members.map((m) => m.name)]),
-    [
-      ['Sosyal Medya', ['Ayşe']],
-      ['Bilimsel Program', ['Ayşe', 'Mehmet']],
-    ],
-  );
+  assert.deepEqual(shape(groupByTeam(people, 'tr')), [
+    ['Sosyal Medya', ['Ayşe']],
+    ['Bilimsel Program', ['Ayşe', 'Mehmet']],
+  ]);
+});
+
+test('a team named only in English still heads the Turkish page', () => {
+  // The case that exists in production right now: one member, one team,
+  // entered before the Turkish field existed. A blank heading would be the
+  // worst outcome of adding the second language.
+  const groups = groupByTeam([person('Sude', [team('Scientific Program')])], 'tr');
+  assert.deepEqual(shape(groups), [['Scientific Program', ['Sude']]]);
+});
+
+test('a team named only in Turkish still heads the English page', () => {
+  const groups = groupByTeam([person('Ayşe', [team('', 'Sosyal Medya')])], 'en');
+  assert.deepEqual(shape(groups), [['Sosyal Medya', ['Ayşe']]]);
+});
+
+test("a later member's translation replaces a fallback heading", () => {
+  // The first member gave no Turkish name, so the Turkish page fell back to
+  // English; the second member supplies one. Both are on the same team, and
+  // the reader should get the translation rather than the fallback.
+  const groups = groupByTeam([
+    person('Sude', [team('Scientific Program')]),
+    person('Ayşe', [team('Scientific Program', 'Bilimsel Program')]),
+  ], 'tr');
+  assert.deepEqual(shape(groups), [['Bilimsel Program', ['Sude', 'Ayşe']]]);
+});
+
+test('a real heading is never overwritten by a later fallback', () => {
+  const groups = groupByTeam([
+    person('Ayşe', [team('Scientific Program', 'Bilimsel Program')]),
+    person('Sude', [team('Scientific Program')]),
+  ], 'tr');
+  assert.deepEqual(shape(groups), [['Bilimsel Program', ['Ayşe', 'Sude']]]);
+});
+
+test('English-only and Turkish-only spellings of one team do not meet', () => {
+  // An accepted limit, not an oversight: nothing here can know that
+  // "Scientific Program" and "Bilimsel Program" are the same team when no
+  // member has written both. The admin form offers the names already in use
+  // in both fields, which is what stops it happening.
+  const groups = groupByTeam([
+    person('Sude', [team('Scientific Program')]),
+    person('Ayşe', [team('', 'Bilimsel Program')]),
+  ], 'tr');
+  assert.equal(groups.length, 2, 'documented limit changed -- update the comment in committee.ts');
 });
 
 test('members with no team come last, in one block with no label', () => {
   const groups = groupByTeam([
-    person('Ayşe', ['Sosyal Medya']),
+    person('Ayşe', [team('Social Media', 'Sosyal Medya')]),
     person('Mehmet'),
     person('Zeynep', []),
-  ]);
+  ], 'tr');
   assert.equal(groups.length, 2);
   assert.equal(groups[1].label, null);
   assert.deepEqual(groups[1].members.map((m) => m.name), ['Mehmet', 'Zeynep']);
 });
 
 test('with nobody on a team the result is the old flat grid', () => {
-  // One unlabelled group, which CommitteeGrid renders without any heading --
-  // the page as it was before teams existed.
-  const groups = groupByTeam([person('Ayşe'), person('Mehmet')]);
+  const groups = groupByTeam([person('Ayşe'), person('Mehmet')], 'en');
   assert.equal(groups.length, 1);
   assert.equal(groups[0].label, null);
   assert.equal(groups[0].members.length, 2);
 });
 
 test('an empty roster produces no groups at all', () => {
-  assert.deepEqual(groupByTeam([]), []);
+  assert.deepEqual(groupByTeam([], 'en'), []);
 });
 
 test('spelling and spacing differences do not split a team', () => {
-  // Free text: nobody picks the label from a list, so two people typing the
-  // same team must still land under one heading.
   const groups = groupByTeam([
-    person('Ayşe', ['Sosyal Medya']),
-    person('Mehmet', ['sosyal  medya ']),
-  ]);
+    person('Ayşe', [team('Social Media')]),
+    person('Mehmet', [team('social  media ')]),
+  ], 'en');
   assert.equal(groups.length, 1);
   assert.deepEqual(groups[0].members.map((m) => m.name), ['Ayşe', 'Mehmet']);
 });
 
-test('Turkish dotted and dotless I fold together', () => {
-  // toLowerCase() alone leaves "İ" as "i" + a combining dot, which never
-  // equals the "i" in "iletişim". The heading is a Turkish word far more
-  // often than not, so this is the common case, not the exotic one.
-  const groups = groupByTeam([
-    person('Ayşe', ['İletişim']),
-    person('Mehmet', ['iletişim']),
-  ]);
-  assert.equal(groups.length, 1, `expected one team, got ${groups.map((g) => g.label).join(' / ')}`);
+test('every form of the letter I folds together', () => {
+  // Must match teamKey on the write side exactly, or a member saved under
+  // one spelling renders under a second heading.
+  for (const [a, b] of [['İletişim', 'iletişim'], ['RSG MEDIA', 'RSG Media'], ['IT', 'it']]) {
+    const groups = groupByTeam([person('Ayşe', [team(a)]), person('Mehmet', [team(b)])], 'tr');
+    assert.equal(groups.length, 1, `${a} / ${b} became ${groups.map((g) => g.label).join(' / ')}`);
+  }
 });
 
 test('the heading keeps the first spelling, uppercase and all', () => {
   const groups = groupByTeam([
-    person('Ayşe', ['RSG Medya']),
-    person('Mehmet', ['rsg medya']),
-  ]);
-  assert.equal(groups[0].label, 'RSG Medya');
+    person('Ayşe', [team('RSG Media')]),
+    person('Mehmet', [team('rsg media')]),
+  ], 'en');
+  assert.equal(groups[0].label, 'RSG Media');
 });
 
 test('a member who lists one team twice appears once under it', () => {
-  const groups = groupByTeam([person('Ayşe', ['Tasarım', 'tasarım'])]);
+  const groups = groupByTeam([person('Ayşe', [team('Design'), team('design')])], 'en');
   assert.equal(groups.length, 1);
   assert.equal(groups[0].members.length, 1);
 });
 
 test('team order follows the order members are already sorted in', () => {
-  // Sort is set in the admin panel; teams inherit it rather than carrying a
-  // second ordering that could disagree with it.
   const groups = groupByTeam([
-    person('Ayşe', ['Sponsorluk']),
-    person('Mehmet', ['Grafik Tasarım']),
-    person('Zeynep', ['Sponsorluk']),
-  ]);
-  assert.deepEqual(groups.map((g) => g.label), ['Sponsorluk', 'Grafik Tasarım']);
+    person('Ayşe', [team('Sponsorship')]),
+    person('Mehmet', [team('Graphic Design')]),
+    person('Zeynep', [team('Sponsorship')]),
+  ], 'en');
+  assert.deepEqual(groups.map((g) => g.label), ['Sponsorship', 'Graphic Design']);
 });
 
 test('a member with no teams field at all is untagged, not dropped', () => {
-  // The overlay schema passes payloads through, so an older one carries no
-  // teams key; the rosters archived before this feature have none either.
-  const groups = groupByTeam([{ name: 'Ayşe', role: '', roleTr: '', affiliation: '', photo: '' }]);
+  const groups = groupByTeam([{ name: 'Ayşe', role: '', roleTr: '', affiliation: '', photo: '' }], 'en');
   assert.equal(groups.length, 1);
   assert.equal(groups[0].members[0].name, 'Ayşe');
+});
+
+test('a pair with neither name is not a heading', () => {
+  const groups = groupByTeam([person('Ayşe', [team('', ''), team('Design')])], 'en');
+  assert.deepEqual(shape(groups), [['Design', ['Ayşe']]]);
 });
