@@ -79,8 +79,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       return;
     }
 
-    // Get username from URL path: /members/someusername
-    const username = window.location.pathname.split('/').filter(Boolean).pop();
+    // ?u=someusername is how _redirects hands it over; the path is the
+    // fallback for the case where Cloudflare rewrites in place and the
+    // address bar still reads /members/someusername.
+    const fromQuery = new URLSearchParams(window.location.search).get('u');
+    const fromPath = window.location.pathname.split('/').filter(Boolean).pop();
+    const username = (fromQuery || fromPath || '').trim();
 
     if (!username || username === 'profile') {
       window.location.href = '/members';
