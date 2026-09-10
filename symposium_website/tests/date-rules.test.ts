@@ -45,33 +45,33 @@ const at = (iso: string) => new Date(`${iso}T12:00:00Z`);
 
 test('a withheld hall is still withheld while the event is ahead', () => {
   const e = edition({ startDate: new Date('2026-10-10T00:00:00Z') });
-  assert.deepEqual(locationFor(e, at('2026-09-01')), { kind: 'withheld', city: 'Ankara' });
+  assert.deepEqual(locationFor(e, at('2026-09-01'), 'en'), { kind: 'withheld', city: 'Ankara' });
 });
 
 test('a withheld hall becomes city-only once the event is over', () => {
   // The hall is not going to be announced now. Saying it will be is a promise
   // the site cannot keep, and it sat above "thanks to everyone who came".
   const e = edition({ startDate: new Date('2026-10-10T00:00:00Z') });
-  assert.deepEqual(locationFor(e, at('2026-10-12')), { kind: 'city-only', city: 'Ankara' });
-  assert.deepEqual(locationFor(e, at('2028-06-01')), { kind: 'city-only', city: 'Ankara' });
+  assert.deepEqual(locationFor(e, at('2026-10-12'), 'en'), { kind: 'city-only', city: 'Ankara' });
+  assert.deepEqual(locationFor(e, at('2028-06-01'), 'en'), { kind: 'city-only', city: 'Ankara' });
 });
 
 test('the hall never leaks on either side of the event', () => {
   const e = edition({ venue: 'ODTU U3 Amfi', startDate: new Date('2026-10-10T00:00:00Z') });
   for (const when of ['2026-09-01', '2026-10-12', '2030-01-01']) {
-    assert.ok(!JSON.stringify(locationFor(e, at(when))).includes('U3'), when);
+    assert.ok(!JSON.stringify(locationFor(e, at(when), 'en')).includes('U3'), when);
   }
 });
 
 test('an undated edition is never treated as over', () => {
   // 2018-2023 record only a year. They must keep whatever they show today.
   const e = edition({ startDate: undefined });
-  assert.deepEqual(locationFor(e, at('2030-01-01')), { kind: 'withheld', city: 'Ankara' });
+  assert.deepEqual(locationFor(e, at('2030-01-01'), 'en'), { kind: 'withheld', city: 'Ankara' });
 });
 
 test('a published hall is published whenever you ask', () => {
   const e = edition({ venuePublic: true, venue: 'METU Informatics Institute', startDate: new Date('2023-10-10T00:00:00Z') });
-  assert.deepEqual(locationFor(e, at('2030-01-01')),
+  assert.deepEqual(locationFor(e, at('2030-01-01'), 'en'),
     { kind: 'full', venue: 'METU Informatics Institute', city: 'Ankara' });
 });
 

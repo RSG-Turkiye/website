@@ -38,7 +38,7 @@ const latestSponsors = getSponsorsForOrLatest(upcoming?.data.year ?? new Date().
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
-const place = effectiveEdition ? locationFor(effectiveEdition, now) : { kind: "hidden" as const };
+const place = effectiveEdition ? locationFor(effectiveEdition, now, lang) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
 const BANNER = "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
@@ -161,7 +161,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
               <span class="bg-navy text-white text-xs font-bold px-2 py-0.5 rounded w-fit">{edition.data.year}</span>
               <h3 class="font-semibold text-navy text-sm leading-snug">{titleFor(edition.data, lang)}</h3>
               {(() => {
-                const loc = locationFor(edition.data, now);
+                const loc = locationFor(edition.data, now, lang);
                 return (
                   loc.kind !== "hidden" && (
                     <p class="text-xs text-gray-600">📍 {loc.city}</p>

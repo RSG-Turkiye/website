@@ -40,7 +40,7 @@ const latestSponsors = getSponsorsForOrLatest(upcoming?.data.year ?? new Date().
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
-const place = effectiveEdition ? locationFor(effectiveEdition, now) : { kind: "hidden" as const };
+const place = effectiveEdition ? locationFor(effectiveEdition, now, lang) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
 const BANNER =
@@ -186,7 +186,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
                 </span>
                 <h3 class="font-semibold text-navy text-sm leading-snug">{edition.data.title}</h3>
                 {(() => {
-                  const loc = locationFor(edition.data, now);
+                  const loc = locationFor(edition.data, now, lang);
                   return (
                     loc.kind !== "hidden" && (
                       <p class="text-xs text-gray-600">📍 {loc.city}</p>

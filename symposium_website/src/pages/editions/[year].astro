@@ -63,7 +63,7 @@ const speakers =
       <div class="flex flex-wrap gap-4 mt-4 text-sm text-white/60">
         {edition.data.date && <span>📅 {dateFor(edition.data, lang)}</span>}
         {(() => {
-          const loc = locationFor(edition.data, now);
+          const loc = locationFor(edition.data, now, lang);
           return (
             <>
               {loc.kind === "full" && (

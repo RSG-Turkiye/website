@@ -48,21 +48,44 @@ test('no edition names a hall it is not announcing', () => {
   for (const file of editionFiles) {
     const fields = frontmatter(readFileSync(join(EDITIONS, file), 'utf8'));
     if (fields.venuePublic !== 'false') continue;
-    assert.equal(
-      fields.venue ?? '',
-      '',
-      `${file} withholds its venue and still records the name. The site shows ` +
-        `"venue to be announced" from venuePublic alone; the name belongs ` +
-        `wherever the organisers keep it until the day it is announced, and ` +
-        `this repository is public.`,
-    );
+    // Both name fields. A hall written only in Turkish is exactly as
+    // published as one written only in English, and `venueTr` was added
+    // after this rule -- a check that knew about one field and not the
+    // other would read as passing while the name sat in the file.
+    for (const field of ['venue', 'venueTr'] as const) {
+      assert.equal(
+        fields[field] ?? '',
+        '',
+        `${file} withholds its venue and still records the name in ${field}. ` +
+          `The site shows "venue to be announced" from venuePublic alone; the ` +
+          `name belongs wherever the organisers keep it until the day it is ` +
+          `announced, and this repository is public.`,
+      );
+    }
   }
 });
 
-test('the 2026 edition is the case this exists for, and it is clean', () => {
+test('2026 announces its hall, and announces it consistently', () => {
+  // This edition is why the rule above exists: its hall was withheld from
+  // 2026-09-06 until the organisers announced it on 2026-09-10. It is kept
+  // here as the worked example of the other state -- announced -- because
+  // the halfway house is what goes wrong: a name recorded with the flag
+  // still off, or a translation with no canonical name behind it.
   const fields = frontmatter(readFileSync(join(EDITIONS, '2026.md'), 'utf8'));
-  assert.equal(fields.venuePublic, 'false', 'the hall is still unannounced');
-  assert.equal(fields.venue, '', 'and its name is not here');
-  assert.equal(fields.cityPublic, 'true', 'while the city is public, so travel can be booked');
+  assert.equal(fields.venuePublic, 'true', 'the hall is announced');
+  assert.ok(fields.venue, 'so the canonical name is recorded');
+  assert.ok(fields.venueTr, 'and the Turkish one, since both pages print it');
+  assert.equal(fields.cityPublic, 'true');
   assert.equal(fields.venueCity, 'Ankara');
+});
+
+test('no edition translates a hall it has not named', () => {
+  // venueTr is the translation of venue, never a substitute: locationFor
+  // decides whether a hall exists from `venue` alone, so a venueTr with no
+  // venue behind it would print on the Turkish pages and nowhere else.
+  for (const file of editionFiles) {
+    const fields = frontmatter(readFileSync(join(EDITIONS, file), 'utf8'));
+    if (!fields.venueTr) continue;
+    assert.ok(fields.venue, `${file} has venueTr but no venue`);
+  }
 });

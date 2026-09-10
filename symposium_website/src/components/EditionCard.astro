@@ -19,7 +19,7 @@ interface Props {
 
 const { edition, lang, effective = null, badge } = Astro.props;
 const prefix = lang === "tr" ? "/tr" : "";
-const loc = locationFor(effective ?? edition, now);
+const loc = locationFor(effective ?? edition, now, lang);
 const subtitle = subtitleFor(edition, lang);
 ---
 

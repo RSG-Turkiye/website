@@ -54,8 +54,14 @@ test('the Event names no hall that the edition is not announcing', { skip: !buil
     const text = readFileSync(EDITIONS + file, 'utf8');
     const match = /^venue:\s*(.+)$/m.exec(text);
     const venue = match?.[1].trim().replace(/^["']|["']$/g, '');
-    const isPublic = /^venuePublic:\s*true\s*$/m.test(text);
-    if (venue && !isPublic) halls.push(venue);
+    // Withheld means the flag is explicitly false. An absent venuePublic is
+    // the schema's default of *true*, and reading it as withheld -- which
+    // this did until 2026-09-10 -- called four announced halls secret. It
+    // passed anyway, because none of them happened to appear in the
+    // upcoming edition's Event, so the mistake was invisible until 2026
+    // announced its own hall and the check turned on it.
+    const withheld = /^venuePublic:\s*false\s*$/m.test(text);
+    if (venue && withheld) halls.push(venue);
   }
 
   for (const page of PAGES) {
@@ -64,14 +70,30 @@ test('the Event names no hall that the edition is not announcing', { skip: !buil
     for (const hall of halls) {
       assert.ok(!serialised.includes(hall), `${page}: the Event names a withheld hall`);
     }
-    // The upcoming edition withholds its hall, so the Place must carry an
-    // address and no name at all -- a name is the only field that could
-    // carry it.
     if (event.location && halls.length > 0) {
       assert.equal(event.location.name, undefined,
         `${page}: location.name is set while a hall is being withheld`);
     }
   }
+});
+
+test('the Event publishes the hall the edition announces, in that language', () => {
+  // The other half of the rule above, and the half that has teeth today:
+  // since 2026 announced its hall the withheld list is empty, so a check
+  // that only looked for leaks would pass while emitting nothing at all.
+  // This asks the opposite question -- that an announced hall reaches the
+  // markup, and reaches it translated.
+  const upcoming = readFileSync(EDITIONS + '2026.md', 'utf8');
+  const name = (field: string) =>
+    new RegExp(`^${field}:\\s*(.+)$`, 'm').exec(upcoming)?.[1].trim().replace(/^["']|["']$/g, '') ?? '';
+  const venue = name('venue');
+  const venueTr = name('venueTr');
+  const announced = /^venuePublic:\s*true\s*$/m.test(upcoming);
+  assert.ok(announced && venue, 'this test assumes 2026 announces a hall; update it when that changes');
+
+  assert.equal(eventOf('index.html')!.location?.name, venue);
+  assert.equal(eventOf('tr/index.html')!.location?.name, venueTr || venue);
+  assert.notEqual(venueTr, '', 'the Turkish page would otherwise publish the English name');
 });
 
 test('the Event carries the fields that are always available', { skip: !built && 'no build in dist/' }, () => {
