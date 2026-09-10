@@ -1,0 +1,163 @@
+---
+/**
+ * The venue page's body, once, for both languages.
+ *
+ * /venue and /tr/venue were copies, and they had already drifted: the
+ * English one printed `edition.data.title` untranslated, both hard-coded
+ * their own "Contact" heading instead of translating one, and the travel
+ * paragraph existed twice in two shapes. Adding directions to both copies
+ * would have doubled that. Now the page is written once and every string
+ * comes from `ui.ts`, so a change to one language is visible as a missing
+ * key in the other rather than as a page nobody re-reads.
+ */
+import { locationFor, titleFor, dateFor, type EditionLike } from "../lib/editions";
+import { useTranslations, type Lang } from "../i18n/ui";
+
+interface Props {
+  lang: Lang;
+  /** The edition as recorded in the repo -- title and date come from here. */
+  edition: EditionLike | null;
+  /** The same edition with the CMS overlay applied; what decides the location. */
+  effectiveEdition: EditionLike | null;
+  now: Date;
+}
+
+const { lang, edition, effectiveEdition, now } = Astro.props;
+const t = useTranslations(lang);
+const loc = effectiveEdition ? locationFor(effectiveEdition, now, lang) : null;
+
+/** METU's own pages, so directions stay right when the university changes
+ * them. The Turkish transport page has more detail than the English one, so
+ * each language is sent to the best page it has. */
+const OFFICIAL = lang === "tr"
+  ? "https://tim.metu.edu.tr/tr/odtuye-ulasim"
+  : "https://www.metu.edu.tr/transportation";
+const MAP_PDF = "https://www.metu.edu.tr/tr/system/files/odtu-kampus-haritasi.pdf";
+const MAP_INTERACTIVE = "https://harita.metu.edu.tr/";
+/** The hall's own entry on METU's map, which is also where its name and
+ * position are taken from rather than from a description of the campus that
+ * nobody here can check. */
+const HALL_ON_MAP = "https://harita.metu.edu.tr/yer/243/fizik-bolumu-uclu-amfi";
+
+const directions = [
+  { key: "metro", icon: "M" },
+  { key: "bus", icon: "B" },
+  { key: "gates", icon: "A" },
+  { key: "campus", icon: "U" },
+] as const;
+---
+
+<div class="max-w-4xl mx-auto px-6 py-16">
+  {!edition ? (
+    <p class="text-gray-500 text-center py-12">{t("venue.none")}</p>
+  ) : (
+    <>
+      <div class="bg-white rounded-xl border border-border overflow-hidden mb-8">
+        <div class="bg-navy-light px-6 py-4 border-b border-border">
+          <h2 class="font-semibold text-navy text-lg">{titleFor(edition, lang)}</h2>
+        </div>
+        <div class="p-6 grid sm:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">{t("venue.date")}</p>
+              <p class="text-navy font-medium text-lg">{dateFor(edition, lang)}</p>
+            </div>
+
+            {loc && loc.kind !== "hidden" && (
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">{t("venue.location")}</p>
+                {loc.kind === "full" && (
+                  <>
+                    <p class="text-navy font-medium">{loc.venue}</p>
+                    <p class="text-gray-500 text-sm">{loc.city}</p>
+                  </>
+                )}
+                {loc.kind === "withheld" && (
+                  <>
+                    <p class="text-navy font-medium">{t("venue.tba")}</p>
+                    <p class="text-gray-500 text-sm">{loc.city}</p>
+                  </>
+                )}
+                {loc.kind === "city-only" && <p class="text-gray-500 text-sm">{loc.city}</p>}
+              </div>
+            )}
+
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">{t("venue.contact")}</p>
+              <a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy transition-colors text-sm">
+                turkey.rsg@gmail.com
+              </a>
+            </div>
+          </div>
+
+          <!--
+            The campus, not the hall, and the caption says so. No freely
+            licensed photograph of the U3 amphitheatre could be found; this
+            one is public domain. See public/images/metu-campus.jpg.txt.
+          -->
+          <figure class="m-0">
+            <img
+              src="/images/metu-campus.jpg"
+              alt=""
+              width="1480"
+              height="800"
+              loading="lazy"
+              class="w-full rounded-lg object-cover aspect-video border border-border"
+            />
+            <figcaption class="text-xs text-gray-500 mt-2 leading-snug">{t("venue.photoCaption")}</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <!-- Directions -->
+      <section>
+        <h2 class="text-xl font-bold text-navy mb-1">{t("venue.directions.title")}</h2>
+        <div class="w-12 h-0.5 bg-navy-mid mb-6"></div>
+
+        <div class="grid sm:grid-cols-2 gap-4 mb-6">
+          {directions.map(({ key, icon }) => (
+            <div class="bg-white rounded-xl border border-border p-5">
+              <div class="flex items-start gap-3">
+                <span
+                  class="shrink-0 w-8 h-8 rounded-full bg-navy-light text-navy font-semibold text-sm flex items-center justify-center"
+                  aria-hidden="true"
+                >
+                  {icon}
+                </span>
+                <div class="min-w-0">
+                  <h3 class="font-semibold text-navy text-sm mb-1">{t(`venue.directions.${key}.title`)}</h3>
+                  <p class="text-sm text-gray-600 leading-relaxed">{t(`venue.directions.${key}.body`)}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-6">
+          {[
+            [HALL_ON_MAP, t("venue.directions.hallOnMap")],
+            [MAP_INTERACTIVE, t("venue.directions.interactiveMap")],
+            [MAP_PDF, t("venue.directions.map")],
+            [OFFICIAL, t("venue.directions.official")],
+          ].map(([href, label]) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-gray-600 hover:border-navy-mid hover:text-navy transition-colors no-underline"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+
+        <p class="text-sm text-gray-600">
+          {t("venue.directions.ask")}{" "}
+          <a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy transition-colors">
+            turkey.rsg@gmail.com
+          </a>
+        </p>
+      </section>
+    </>
+  )}
+</div>
