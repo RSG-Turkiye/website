@@ -4,13 +4,13 @@ date: 2025-03-21
 speaker: "Elena Papaleo"
 speakerAffiliation: "University of Copenhagen / Technical University of Denmark"
 speakerTitle: "Associate Professor"
-speakerPhoto: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055923/rsgturkey/webinars/elena-papaleo.jpg"
 description: "A structure-based framework that joins genetic and structural data to explain what variants do — in cancer predisposition, in drug resistance, and in the tools her group builds to classify and predict variant effects."
 youtubeUrl: "https://www.youtube.com/watch?v=M-Q0V_ziow8"
 slidesUrl: ""
 year: 2025
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055923/rsgturkey/webinars/elena-papaleo.jpg"
 topic: ""
 keyTakeaways:
   - "A structure-based framework for investigating variant effects in disease"

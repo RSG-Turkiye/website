@@ -4,13 +4,13 @@ date: 2025-03-21
 speaker: "Elena Papaleo"
 speakerAffiliation: "Kopenhag Üniversitesi / Danimarka Teknik Üniversitesi"
 speakerTitle: "Doçent Doktor"
-speakerPhoto: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055923/rsgturkey/webinars/elena-papaleo.jpg"
 description: "Genetik ve yapısal veriyi birleştirerek varyantların ne yaptığını açıklayan yapı temelli bir çerçeve: kansere yatkınlık, ilaç direnci ve grubunun varyant etkilerini sınıflandırmak için geliştirdiği araçlar."
 youtubeUrl: "https://www.youtube.com/watch?v=M-Q0V_ziow8"
 slidesUrl: ""
 year: 2025
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055923/rsgturkey/webinars/elena-papaleo.jpg"
 topic: ""
 keyTakeaways:
   - "Hastalıklarda varyant etkilerini incelemek için yapı temelli bir çerçeve"

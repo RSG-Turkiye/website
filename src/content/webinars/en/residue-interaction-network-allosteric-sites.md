@@ -4,13 +4,13 @@ date: 2025-02-12
 speaker: "Özge Kürkçüoğlu"
 speakerAffiliation: "Istanbul Technical University"
 speakerTitle: "Associate Professor"
-speakerPhoto: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055924/rsgturkey/webinars/ozge-kurkcuoglu.jpg"
 description: "A residue interaction network model that describes a protein's native structure as a weighted graph and uses network centrality to propose putative allosteric sites for drug binding, demonstrated on GPCRs and other complexes."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2025
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055924/rsgturkey/webinars/ozge-kurkcuoglu.jpg"
 topic: ""
 keyTakeaways:
   - "Why allosteric sites matter in computer-aided drug design"

@@ -4,13 +4,13 @@ date: 2025-10-21
 speaker: "Pavlína Pokorná"
 speakerAffiliation: "CNR-IOM, Italy"
 speakerTitle: "Postdoctoral Fellow"
-speakerPhoto: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055925/rsgturkey/webinars/pavlina-pokorna.jpg"
 description: "All-atom enhanced-sampling simulations of three-quartet RNA G-quadruplex folding, which turns out to be a multi-pathway process with no simple structured intermediates — and a candid account of where current force fields fall short."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2025
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055925/rsgturkey/webinars/pavlina-pokorna.jpg"
 topic: ""
 keyTakeaways:
   - "Why RNA's flexibility makes its structural dynamics hard to capture"
