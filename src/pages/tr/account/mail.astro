@@ -3,8 +3,8 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout
-  pageTitle="RSG Adına Mail Gönder — RSG Türkiye"
-  description="RSG Türkiye adresinden mail gönderin."
+  pageTitle="RSG Adına Mail Gönder — RSG-Türkiye"
+  description="RSG-Türkiye adresinden mail gönderin."
   translationUrl="/account/mail"
 >
   <div class="min-h-screen bg-[#F7F7F6] py-12 px-4">
@@ -24,7 +24,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <h1 class="text-xl font-bold text-navy">RSG Adına Mail Gönder</h1>
           <p class="text-sm text-gray-500 mt-1">
             <span id="fromAddress" class="font-medium text-navy"></span> adresinden gönderilir.
-            Cevaplar size değil, RSG Türkiye kutusuna gider. Her alıcı ayrı bir
+            Cevaplar size değil, RSG-Türkiye kutusuna gider. Her alıcı ayrı bir
             mesaj alır ve diğerlerini görmez.
           </p>
           <a href="/tr/account/conversations" class="text-sm text-navy-mid hover:underline">Yazışmalar &rarr;</a>
@@ -45,7 +45,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             madde listesi: <code class="text-navy">-</code> ile başlayan satırlar
           </p>
           <p class="text-xs text-gray-500 -mt-1">
-            Alıcı gönderen olarak yalnızca &ldquo;RSG Türkiye&rdquo; görür; mesajın sonunda
+            Alıcı gönderen olarak yalnızca &ldquo;RSG-Türkiye&rdquo; görür; mesajın sonunda
             adınızı ve görevinizi yazarak kendinizi tanıtın.
           </p>
 
@@ -390,7 +390,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     }
 
     document.getElementById('composeContent')!.classList.remove('hidden');
-    document.getElementById('fromAddress')!.textContent = 'RSG Türkiye adresi';
+    document.getElementById('fromAddress')!.textContent = 'RSG-Türkiye adresi';
     setupForm();
     await Promise.all([loadHistory(), loadAttachments(), loadQueued()]);
   }

@@ -24,7 +24,14 @@ export const ui = {
     'nav.signOut': 'Sign Out',
 
     // Hero Section
-    'hero.title': 'RSG Turkiye',
+    // The name on its own, for the header and anywhere the brand is
+    // written plainly. Hyphenated: it is one name, and every other place
+    // that already spells it out -- the footer, the symposium site, the
+    // structured data -- writes it that way.
+    'brand.name': 'RSG-Turkiye',
+    // The hero says who we are in full. Same name, with the parent body
+    // in front of it.
+    'hero.title': 'ISCB-SC RSG-Turkiye',
     'hero.description': 'A non-profit student society providing a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics in Turkiye.',
     'hero.membership': 'Member of the International Society for Computational Biology (ISCB) Student Council (SC) Regional Student Groups (RSG)',
     'hero.learnMore': 'Learn More',
@@ -60,7 +67,7 @@ export const ui = {
     'features.innovation.description': 'Stay at the forefront of bioinformatics innovation.',
 
     // About Page
-    'about.title': 'About RSG Turkiye',
+    'about.title': 'About RSG-Turkiye',
     'about.subtitle': 'A non-profit community of early career researchers interested in computational biology and bioinformatics.',
     'about.whoWeAre.title': 'Who Are We?',
     'about.whoWeAre.description': 'RSG-Turkiye is a volunteer platform affiliated with the International Society for Computational Biology (ISCB) Student Council, bringing together students and early-career researchers in computational biology and bioinformatics across Turkiye.',
@@ -133,12 +140,12 @@ export const ui = {
     'blog.tagFilter': 'Filter by tag',
     'blog.allTags': 'All tags',
     'blog.noResults': 'No posts match your search.',
-    'blog.aboutTitle': 'About RSG Turkiye',
-    'blog.aboutBody': 'RSG Turkiye is the Regional Student Group of ISCB in Turkiye, connecting students and young researchers in bioinformatics and computational biology.',
+    'blog.aboutTitle': 'About RSG-Turkiye',
+    'blog.aboutBody': 'RSG-Turkiye is the Regional Student Group of ISCB in Turkiye, connecting students and young researchers in bioinformatics and computational biology.',
     'blog.learnMore': 'Learn more →',
     'blog.didYouKnow': 'Did you know?',
-    'blog.fact.article': 'RSG Turkiye has a published academic article in a peer-reviewed journal.',
-    'blog.fact.founded': 'RSG Turkiye was first founded in 2012, with Prof. Nurcan Tunçbağ as our founding advisor — who is still with us today.',
+    'blog.fact.article': 'RSG-Turkiye has a published academic article in a peer-reviewed journal.',
+    'blog.fact.founded': 'RSG-Turkiye was first founded in 2012, with Prof. Nurcan Tunçbağ as our founding advisor — who is still with us today.',
     'blog.fact.symposium': 'We organize our annual symposium every year, our flagship event bringing together the bioinformatics community.',
     'blog.backToBlog': '← Back to Blog',
     'notFound.title': 'Page Not Found',
@@ -163,7 +170,7 @@ export const ui = {
     'contact.info.social': 'Social Media',
 
     // Join Page
-    'join.title': 'Join RSG Turkiye',
+    'join.title': 'Join RSG-Turkiye',
     'join.subtitle': 'Become part of our growing community',
     'join.form.name': 'Full Name',
     'join.form.email': 'Email Address',
@@ -183,7 +190,7 @@ export const ui = {
     'footer.quickLinks': 'Quick Links',
     'footer.contact': 'Contact',
     'footer.follow': 'Follow Us',
-    'footer.copyright': '© {year} RSG Turkiye. All rights reserved.',
+    'footer.copyright': '© {year} RSG-Turkiye. All rights reserved.',
 
     // Common
     'common.readMore': 'Read More',
@@ -534,7 +541,8 @@ export const ui = {
     'nav.signOut': 'Çıkış Yap',
 
     // Hero Section
-    'hero.title': 'RSG Türkiye',
+    'brand.name': 'RSG-Türkiye',
+    'hero.title': 'ISCB-SC RSG-Türkiye',
     'hero.description': 'Türkiye\'de hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve doktora sonrası araştırmacılar arasında iletişim ve etkileşim için çerçeve sağlayan kar amacı gütmeyen bir öğrenci topluluğu.',
     'hero.membership': 'Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi (SC) Bölgesel Öğrenci Grupları (RSG) üyesi.',
     'hero.learnMore': 'Daha Fazla Bilgi',
@@ -570,7 +578,7 @@ export const ui = {
     'features.innovation.description': 'Biyoinformatik inovasyonunun ön saflarında kalın.',
 
     // About Page
-    'about.title': 'RSG Türkiye Hakkında',
+    'about.title': 'RSG-Türkiye Hakkında',
     'about.subtitle': 'Hesaplamalı biyoloji ve biyoinformatik ile ilgilenen erken kariyer araştırmacılarından oluşan kar amacı gütmeyen bir topluluk.',
     'about.whoWeAre.title': 'Biz Kimiz?',
     'about.whoWeAre.description': 'RSG-Türkiye, Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi\'ne bağlı, Türkiye\'deki hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve erken kariyer araştırmacılarını bir araya getiren gönüllü bir platformdur.',
@@ -643,12 +651,12 @@ export const ui = {
     'blog.tagFilter': 'Etikete göre filtrele',
     'blog.allTags': 'Tüm etiketler',
     'blog.noResults': 'Aramanızla eşleşen yazı bulunamadı.',
-    'blog.aboutTitle': 'RSG Türkiye Hakkında',
-    'blog.aboutBody': 'RSG Türkiye, Türkiye\'deki ISCB Bölgesel Öğrenci Grubu\'dur. Biyoinformatik ve hesaplamalı biyoloji alanındaki öğrencileri ve genç araştırmacıları bir araya getirir.',
+    'blog.aboutTitle': 'RSG-Türkiye Hakkında',
+    'blog.aboutBody': 'RSG-Türkiye, Türkiye\'deki ISCB Bölgesel Öğrenci Grubu\'dur. Biyoinformatik ve hesaplamalı biyoloji alanındaki öğrencileri ve genç araştırmacıları bir araya getirir.',
     'blog.learnMore': 'Daha fazla →',
     'blog.didYouKnow': 'Biliyor muydunuz?',
-    'blog.fact.article': 'RSG Türkiye, hakemli bir dergide yayımlanmış akademik makalesi olan bir topluluktur.',
-    'blog.fact.founded': 'RSG Türkiye, 2012 yılında günümüzdeki danışmanımız Prof. Nurcan Tunçbağ ile birlikte kuruldu.',
+    'blog.fact.article': 'RSG-Türkiye, hakemli bir dergide yayımlanmış akademik makalesi olan bir topluluktur.',
+    'blog.fact.founded': 'RSG-Türkiye, 2012 yılında günümüzdeki danışmanımız Prof. Nurcan Tunçbağ ile birlikte kuruldu.',
     'blog.fact.symposium': 'Her yıl amiral gemisi etkinliğimiz olan sempozyumumuzu düzenliyoruz.',
     'blog.backToBlog': '← Bloga Dön',
     'notFound.title': 'Sayfa Bulunamadı',
@@ -673,7 +681,7 @@ export const ui = {
     'contact.info.social': 'Sosyal Medya',
 
     // Join Page
-    'join.title': 'RSG Türkiye\'ye Katıl',
+    'join.title': 'RSG-Türkiye\'ye Katıl',
     'join.subtitle': 'Büyüyen topluluğumuzun bir parçası olun',
     'join.form.name': 'Tam Ad',
     'join.form.email': 'E-posta Adresi',
@@ -693,7 +701,7 @@ export const ui = {
     'footer.quickLinks': 'Hızlı Bağlantılar',
     'footer.contact': 'İletişim',
     'footer.follow': 'Bizi Takip Edin',
-    'footer.copyright': '© {year} RSG Türkiye. Tüm hakları saklıdır.',
+    'footer.copyright': '© {year} RSG-Türkiye. Tüm hakları saklıdır.',
 
     // Common
     'common.readMore': 'Devamını Oku',

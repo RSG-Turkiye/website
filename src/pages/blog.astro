@@ -11,7 +11,7 @@ const posts = (await getCollection('blog', ({ id, data }) => id.startsWith('en/'
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
 ---
 
-<BaseLayout pageTitle="Blog - RSG Turkiye"
+<BaseLayout pageTitle="Blog - RSG-Turkiye"
   description="Articles by RSG-Türkiye members on bioinformatics, genomics and computational biology — tutorials, tool reviews and research notes.">
 
   <div class="bg-navy py-12 text-center">
