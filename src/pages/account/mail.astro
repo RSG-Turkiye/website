@@ -3,8 +3,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout
-  pageTitle="Send mail as RSG — RSG Turkiye"
-  description="Send mail from the RSG Turkiye address."
+  pageTitle="Send mail as RSG — RSG-Turkiye"
+  description="Send mail from the RSG-Turkiye address."
   translationUrl="/tr/account/mail"
 >
   <div class="min-h-screen bg-[#F7F7F6] py-12 px-4">
@@ -24,7 +24,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <h1 class="text-xl font-bold text-navy">Send mail as RSG</h1>
           <p class="text-sm text-gray-500 mt-1">
             Sent from <span id="fromAddress" class="font-medium text-navy"></span>.
-            Replies go to the RSG Turkiye inbox, not to you. Each recipient
+            Replies go to the RSG-Turkiye inbox, not to you. Each recipient
             receives a separate message and never sees the others.
           </p>
           <a href="/account/conversations" class="text-sm text-navy-mid hover:underline">Conversations &rarr;</a>
@@ -45,7 +45,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             bullet list: lines starting with <code class="text-navy">-</code>
           </p>
           <p class="text-xs text-gray-500 -mt-1">
-            The recipient sees only &ldquo;RSG Turkiye&rdquo; as the sender, so sign off with your
+            The recipient sees only &ldquo;RSG-Turkiye&rdquo; as the sender, so sign off with your
             name and role at the end of your message.
           </p>
 
@@ -390,7 +390,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     }
 
     document.getElementById('composeContent')!.classList.remove('hidden');
-    document.getElementById('fromAddress')!.textContent = 'the RSG Turkiye address';
+    document.getElementById('fromAddress')!.textContent = 'the RSG-Turkiye address';
     setupForm();
     await Promise.all([loadHistory(), loadAttachments(), loadQueued()]);
   }

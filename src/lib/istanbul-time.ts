@@ -2,7 +2,7 @@
  * Every time a member sees or sets on the compose pages is Europe/Istanbul
  * time, never the browser's local timezone.
  *
- * RSG Türkiye, its members and its recipients are all in Turkey. A member
+ * RSG-Türkiye, its members and its recipients are all in Turkey. A member
  * travelling abroad, or one whose machine's clock is misconfigured, would
  * otherwise schedule mail for the wrong hour with no sign anything was off --
  * the `datetime-local` input just shows a bare "09:00" either way.

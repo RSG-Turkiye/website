@@ -7,8 +7,8 @@ import { feedItems } from '../../lib/feed';
 export async function GET(context: APIContext) {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
   return rss({
-    title: 'RSG Türkiye Blog',
-    description: 'RSG Türkiye blogundaki son yazılar — ISCB Student Council Bölgesel Öğrenci Grubu',
+    title: 'RSG-Türkiye Blog',
+    description: 'RSG-Türkiye blogundaki son yazılar — ISCB Student Council Bölgesel Öğrenci Grubu',
     site: context.site!,
     items: feedItems(posts, 'tr'),
     customData: '<language>tr</language>',

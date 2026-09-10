@@ -19,8 +19,8 @@ import { feedItems } from '../lib/feed';
 export async function GET(context: APIContext) {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
   return rss({
-    title: 'RSG Türkiye Blog',
-    description: 'Latest blog posts from RSG Türkiye — ISCB Student Council Regional Student Group',
+    title: 'RSG-Türkiye Blog',
+    description: 'Latest blog posts from RSG-Türkiye — ISCB Student Council Regional Student Group',
     site: context.site!,
     items: feedItems(posts, 'en'),
     // One feed per language rather than one mixed feed claiming en-us, which

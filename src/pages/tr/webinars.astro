@@ -6,7 +6,7 @@ import { atSize, SIZES } from '../../lib/cloudinary';
 
 const lang = 'tr';
 const t = useTranslations(lang);
-const pageTitle = "Webinarlar - RSG Türkiye";
+const pageTitle = "Webinarlar - RSG-Türkiye";
 
 const allWebinars = await getCollection('webinars', ({ data }) => !data.draft);
 const trWebinars = allWebinars.filter(w => w.id.startsWith('tr/'));
@@ -97,7 +97,7 @@ function initials(name: string) {
           <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
             <p class="text-xs font-semibold uppercase tracking-widest text-navy-mid mb-2">Seri Hakkında</p>
             <p class="text-sm text-gray-600 leading-relaxed">
-              RSG Türkiye, biyoinformatik, yapısal biyoloji ve hesaplamalı biyoloji alanlarındaki araştırmacılarla düzenli webinarlar düzenlemektedir. Herkese açıktır.
+              RSG-Türkiye, biyoinformatik, yapısal biyoloji ve hesaplamalı biyoloji alanlarındaki araştırmacılarla düzenli webinarlar düzenlemektedir. Herkese açıktır.
             </p>
           </div>
 

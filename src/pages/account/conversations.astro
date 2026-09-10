@@ -3,8 +3,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout
-  pageTitle="Conversations — RSG Turkiye"
-  description="Replies to mail sent from the RSG Turkiye address."
+  pageTitle="Conversations — RSG-Turkiye"
+  description="Replies to mail sent from the RSG-Turkiye address."
   translationUrl="/tr/account/conversations"
 >
   <div class="min-h-screen bg-[#F7F7F6] py-12 px-4">
@@ -277,7 +277,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           m.direction === 'out' ? 'bg-navy text-white' : 'bg-white border border-border text-navy'
         }">
           <div class="text-[11px] mb-1 ${m.direction === 'out' ? 'text-white/70' : 'text-gray-500'}">
-            ${escapeHtml(m.direction === 'out' ? 'RSG Türkiye' : (m.from_name || m.from_email))}
+            ${escapeHtml(m.direction === 'out' ? 'RSG-Türkiye' : (m.from_name || m.from_email))}
             &middot; ${formatDate(m.sent_at)}
           </div>
           <!-- body_html is produced by renderPlainWithLinks on the server: the
