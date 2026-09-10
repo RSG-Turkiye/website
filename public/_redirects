@@ -1,4 +1,20 @@
-/members/:username  /members/profile  200
+# A member card links to /members/<username>, and this is what serves the
+# profile page for it. The username travels in the query string because the
+# path does not survive: Cloudflare answers this rule with a 308 to the
+# destination rather than rewriting in place -- measured on the live site,
+# /members/ayse came back 308 -> /members/profile/ -- so the browser's URL
+# becomes the destination and anything only in the original path is lost.
+# profile.astro then read "profile" as the username and bounced back to
+# /members, which looked to the reader like the page simply reloading.
+#
+# Carrying it as :username makes the rule right under either behaviour: as a
+# rewrite the address bar keeps /members/ayse, as a redirect it becomes
+# /members/profile/?u=ayse. Both give the page the name it needs.
+#
+# The trailing slash matters too. Astro builds directory-style pages, so
+# /members/profile is itself a 308 to /members/profile/ -- pointing at the
+# unslashed form meant two redirects where one would do.
+/members/:username  /members/profile/?u=:username  200
 
 # Three duplicate posts removed in #74, redirected because they were live for
 # years and the dead slug may be the indexed one.
