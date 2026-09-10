@@ -75,6 +75,26 @@ Always create a new branch before making changes:
 git checkout -b add-my-blog-post
 ```
 
+### Uploading images (optional)
+
+Images are hosted on Cloudinary, which resizes and re-encodes them per
+visitor — that is why image URLs carry `f_auto,q_auto,w_600`. Uploading
+needs credentials the repository does not carry:
+
+```bash
+cp .env.example .env     # then fill in the two blank values
+```
+
+`.env` is gitignored and stays on your machine. You only do this once; every
+later upload picks it up. The keys are in the Cloudinary console under
+Settings → API Keys, and an organiser can give them to you.
+
+GitHub Secrets are not an alternative here: those are readable only by
+GitHub Actions, not by a script you run locally.
+
+Nothing else needs these. `npm run dev`, `npm run build` and `npm test` all
+work without a `.env`.
+
 ---
 
 ## 2. Writing a Blog Post
