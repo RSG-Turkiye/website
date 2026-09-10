@@ -14,6 +14,11 @@ const editions = defineCollection({
     subtitle: z.string().default(""),
     date: z.string(),
     venue: z.string().default(""),
+    // The hall in Turkish. `venue` stays the canonical, English form -- it is
+    // what decides whether a hall exists at all, and what the English pages
+    // and the Event markup publish. This is only the translation, the way
+    // titleTr and dateTr are.
+    venueTr: z.string().default(""),
     venueCity: z.string().default(""),
     /** The Turkish rendering of `date`. Without it the Turkish pages print
      * the English string -- "October 30 - November 2, 2025" under a Turkish

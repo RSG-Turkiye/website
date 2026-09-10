@@ -53,7 +53,7 @@ const scheduleSpeakers = content?.speakers ?? [];
                 <span class="text-sm text-gray-500">{dateFor(edition.data, lang)}</span>
               </div>
               {(() => {
-                const loc = locationFor(effectiveEdition!, now);
+                const loc = locationFor(effectiveEdition!, now, lang);
                 return (
                   <>
                     {loc.kind === "full" && (

@@ -98,13 +98,13 @@ const withVenue = (venuePublic: boolean, cityPublic: boolean) =>
   ({ venue: HALL, venueCity: 'Ankara', venuePublic, cityPublic }) as EditionLike;
 
 test('both public: hall and city are shown', () => {
-  assert.deepEqual(locationFor(withVenue(true, true), NOW),
+  assert.deepEqual(locationFor(withVenue(true, true), NOW, 'en'),
     { kind: 'full', venue: HALL, city: 'Ankara' });
 });
 
 test('venue recorded, hall withheld, city public: renders as withheld', () => {
   // People need "Ankara" to book travel weeks before we name the hall.
-  assert.deepEqual(locationFor(withVenue(false, true), NOW), { kind: 'withheld', city: 'Ankara' });
+  assert.deepEqual(locationFor(withVenue(false, true), NOW, 'en'), { kind: 'withheld', city: 'Ankara' });
 });
 
 test('the hall is withheld even when its name is not in the repo (the 2026 case)', () => {
@@ -112,40 +112,40 @@ test('the hall is withheld even when its name is not in the repo (the 2026 case)
   // being announced, and the name is nowhere in these files. Before this, the
   // only way to get "venue to be announced" was to commit the hall.
   const noName = ({ venue: '', venueCity: 'Ankara', venuePublic: false, cityPublic: true }) as EditionLike;
-  assert.deepEqual(locationFor(noName, NOW), { kind: 'withheld', city: 'Ankara' });
+  assert.deepEqual(locationFor(noName, NOW, 'en'), { kind: 'withheld', city: 'Ankara' });
 });
 
 test('an edition with no hall at all still shows just the city', () => {
   const none = ({ venue: '', venueCity: 'Ankara', venuePublic: true, cityPublic: true }) as EditionLike;
-  assert.deepEqual(locationFor(none, NOW), { kind: 'city-only', city: 'Ankara' });
+  assert.deepEqual(locationFor(none, NOW, 'en'), { kind: 'city-only', city: 'Ankara' });
 });
 
 test('neither announced: nothing at all', () => {
-  assert.deepEqual(locationFor(withVenue(false, false), NOW), { kind: 'hidden' });
+  assert.deepEqual(locationFor(withVenue(false, false), NOW, 'en'), { kind: 'hidden' });
 });
 
 test('the hall never leaks through the city-only branch', () => {
-  const shown = locationFor(withVenue(false, true), NOW);
+  const shown = locationFor(withVenue(false, true), NOW, 'en');
   assert.ok(!JSON.stringify(shown).includes('U3'), 'the hall must not appear');
 });
 
 test('an edition with no venue recorded is hidden even when public', () => {
-  assert.deepEqual(locationFor({ venue: '', venueCity: '', venuePublic: true, cityPublic: true } as EditionLike, NOW),
+  assert.deepEqual(locationFor({ venue: '', venueCity: '', venuePublic: true, cityPublic: true } as EditionLike, NOW, 'en'),
     { kind: 'hidden' });
 });
 
 test('no venue on record, city public: city-only, never withheld (regression guard for 2018/2022 bug)', () => {
-  const shown = locationFor({ venue: '', venueCity: 'Ankara', venuePublic: true, cityPublic: true } as EditionLike, NOW);
+  const shown = locationFor({ venue: '', venueCity: 'Ankara', venuePublic: true, cityPublic: true } as EditionLike, NOW, 'en');
   assert.deepEqual(shown, { kind: 'city-only', city: 'Ankara' });
   assert.notEqual(shown.kind, 'withheld', 'archived editions with no recorded venue must not show TBA');
 });
 
 test('venue recorded, hall withheld, city not public: hidden', () => {
-  assert.deepEqual(locationFor(withVenue(false, false), NOW), { kind: 'hidden' });
+  assert.deepEqual(locationFor(withVenue(false, false), NOW, 'en'), { kind: 'hidden' });
 });
 
 test('the hall never leaks through the withheld branch either', () => {
-  const shown = locationFor(withVenue(false, true), NOW);
+  const shown = locationFor(withVenue(false, true), NOW, 'en');
   assert.ok(!JSON.stringify(shown).includes('U3'), 'the hall must not appear in withheld state');
 });
 

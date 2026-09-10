@@ -28,7 +28,7 @@ const { edition, url, lang, finished = false, speakers = [] } = Astro.props;
 const name = titleFor(edition, lang);
 const description = subtitleFor(edition, lang);
 
-const place = locationFor(edition, now);
+const place = locationFor(edition, now, lang);
 // Only an offer that can still be accepted. A closed registration was
 // being advertised to Google as InStock.
 const registration = openCtas(edition, now).find((c) => c.kind === "registration");

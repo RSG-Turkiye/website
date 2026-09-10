@@ -25,6 +25,9 @@ export interface EditionLike {
   startDate?: Date;
   endDate?: Date;
   venue?: string;
+  /** The Turkish name for the same hall. Never decides anything; only
+   * what a Turkish page prints. */
+  venueTr?: string;
   venueCity?: string;
   venuePublic?: boolean;
   cityPublic?: boolean;
@@ -101,12 +104,18 @@ export type LocationDisplay =
  * unannounced. Every page and the JSON-LD go through this one function, so
  * there is a single place the hall can leak from -- and one place to test.
  */
-export function locationFor(e: EditionLike, now: Date): LocationDisplay {
-  const venue = e.venue?.trim() ?? "";
+export function locationFor(e: EditionLike, now: Date, lang: "en" | "tr"): LocationDisplay {
+  // Two different questions, deliberately answered by two different fields.
+  // Whether there *is* a hall is `venue` alone, so both languages agree on
+  // the kind -- a hall named only in Turkish must not make the Turkish page
+  // say "full" while the English one says "city-only". Which name to print
+  // is then the translation, exactly as titleFor does it.
+  const hall = e.venue?.trim() ?? "";
+  const venue = (lang === "tr" && e.venueTr?.trim()) || hall;
   const city = e.venueCity?.trim() ?? "";
   const cityPublishable = e.cityPublic && city;
 
-  if (e.venuePublic && venue) {
+  if (e.venuePublic && hall) {
     return { kind: "full", venue, city };
   }
 
