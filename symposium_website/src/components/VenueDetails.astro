@@ -34,6 +34,10 @@ const OFFICIAL = lang === "tr"
   : "https://www.metu.edu.tr/transportation";
 const MAP_PDF = "https://www.metu.edu.tr/tr/system/files/odtu-kampus-haritasi.pdf";
 const MAP_INTERACTIVE = "https://harita.metu.edu.tr/";
+/** The hall's own entry on METU's map, which is also where its name and
+ * position are taken from rather than from a description of the campus that
+ * nobody here can check. */
+const HALL_ON_MAP = "https://harita.metu.edu.tr/yer/243/fizik-bolumu-uclu-amfi";
 
 const directions = [
   { key: "metro", icon: "M" },
@@ -131,6 +135,7 @@ const directions = [
 
         <div class="flex flex-wrap gap-2 mb-6">
           {[
+            [HALL_ON_MAP, t("venue.directions.hallOnMap")],
             [MAP_INTERACTIVE, t("venue.directions.interactiveMap")],
             [MAP_PDF, t("venue.directions.map")],
             [OFFICIAL, t("venue.directions.official")],
