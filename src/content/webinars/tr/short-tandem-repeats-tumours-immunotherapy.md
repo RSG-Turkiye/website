@@ -1,6 +1,6 @@
 ---
 title: Tümörlerde Kısa Ardışık Tekrarlar ve İmmünoterapi
-date: 2018-07-01
+date: 2018-07-12
 speaker: Tugce Bilgin Sonay
 speakerAffiliation: Lozan Üniversitesi
 speakerTitle: ""

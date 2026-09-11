@@ -1,13 +1,13 @@
 ---
 title: Metagenomik Verileri Kullanarak Karmaşık Mikrobiyal Toplulukların Modellenmesi
-date: 2021-04-13
+date: 2022-04-13
 speaker: Niranjan Nagarajan
 speakerAffiliation: Singapur Genom Enstitüsü / Singapur Ulusal Üniversitesi
 speakerTitle: Doçent
 description: Kesitsel mikrobiyom veri kümelerinden ekolojik etkileşim ağlarını çıkarmak için bir beklenti maksimizasyon algoritması (BEEM-Static); enterotip yapısını ve ekolojik dinamikleri ortaya koymak.
 youtubeUrl: "https://www.youtube.com/watch?v=JVcwYxyn814"
 slidesUrl: ""
-year: 2021
+year: 2022
 type: bioinfonet
 image: ""
 topic: ""
