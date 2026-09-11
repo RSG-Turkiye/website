@@ -29,9 +29,17 @@ const subtitle = subtitleFor(edition, lang);
 >
   {edition.posterImage && (
     <div class="aspect-video overflow-hidden bg-navy-light">
+      <!--
+        alt is empty on purpose. The heading below is the same string, so
+        naming the poster repeats it: a screen reader read every card's
+        title twice, and copying the page as text produced the title, then
+        the year, then the title again. The poster carries nothing the card
+        does not already say in text, which is exactly when alt should be
+        empty rather than descriptive.
+      -->
       <img
         src={edition.posterImage}
-        alt={titleFor(edition, lang)}
+        alt=""
         class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
         loading="lazy"
       />
