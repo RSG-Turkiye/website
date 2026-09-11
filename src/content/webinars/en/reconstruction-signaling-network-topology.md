@@ -6,7 +6,7 @@ speakerAffiliation: METU (Middle East Technical University)
 speakerTitle: ""
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437794/rsgturkey/webinars/tolga-can.png"
 description: The first webinar of the BioInfoNet series, presenting methods for reconstructing signaling network topology from steady state and dynamic perturbation data.
-youtubeUrl: "http://www.youtube.com/watch?v=nfF_kZeZSJQ"
+youtubeUrl: ""
 slidesUrl: ""
 year: 2014
 type: bioinfonet
