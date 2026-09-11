@@ -1,11 +1,11 @@
 ---
 title: Computational Metagenomics on the Species Level
-date: 2014-09-01
+date: 2014-09-25
 speaker: Bernhard Y. Renard
 speakerAffiliation: Robert Koch Institute
 speakerTitle: Research Group Head
 description: A talk on computational metagenomics on the species level, part of the early BioInfoNet webinar series, exploring the challenges and opportunities of metagenomic data analysis.
-youtubeUrl: "http://www.youtube.com/watch?v=nfF_kZeZSJQ"
+youtubeUrl: ""
 slidesUrl: ""
 year: 2014
 type: bioinfonet
