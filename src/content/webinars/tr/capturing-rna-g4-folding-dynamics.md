@@ -4,13 +4,13 @@ date: 2025-10-21
 speaker: "Pavlína Pokorná"
 speakerAffiliation: "CNR-IOM, İtalya"
 speakerTitle: "Doktora Sonrası Araştırmacı"
-speakerPhoto: ""
+speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055925/rsgturkey/webinars/pavlina-pokorna.jpg"
 description: "Üç kuartetli RNA G-kuadrupleks katlanmasının tüm atom gelişmiş örnekleme simülasyonları: basit yapılı ara ürünleri olmayan, çok yollu bir süreç — ve mevcut kuvvet alanlarının nerede yetersiz kaldığına dair açık sözlü bir değerlendirme."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2025
 type: bioinfonet
-image: ""
+image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055925/rsgturkey/webinars/pavlina-pokorna.jpg"
 topic: ""
 keyTakeaways:
   - "RNA'nın esnekliğinin yapısal dinamiği yakalamayı neden zorlaştırdığı"
