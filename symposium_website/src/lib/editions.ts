@@ -325,7 +325,7 @@ export function ordinalOf(edition: EditionLike): number | null {
  * How many symposiums have been held, for the counters on the homepage and
  * /about -- which said 12+ and 11+ respectively, disagreeing with each other.
  *
- * Not the number of files: the collection documents editions 1, 3, and 4 through 13, so
+ * Not the number of files: the collection documents editions 1 through 13, less the years with no symposium, so
  * counting entries would publish 9 and quietly deny that the first four
  * happened. The titles carry the real count, and the highest of them is the
  * edition currently in play -- so subtract it while it is still ahead of us.
