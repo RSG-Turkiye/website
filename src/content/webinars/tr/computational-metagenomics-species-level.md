@@ -12,7 +12,6 @@ type: bioinfonet
 image: ""
 topic: ""
 keyTakeaways: []
-draft: true
 ---
 
 Dr. Can'ın (ODTÜ, Ankara) konuşmasının ardından bir sonraki konuğumuz Almanya'nın Berlin kentindeki Robert Koch Enstitüsü'ndendi. Dr. Bernhard Y. Renard, Almanya'nın ulusal bulaşıcı hastalıklar enstitüsü olan Robert Koch Enstitüsü'nde biyoinformatik araştırma grubunun başındadır ve Freie Universität Berlin Matematik ve Bilgisayar Bilimleri Bölümü'nde doçenttir (Privatdozent).

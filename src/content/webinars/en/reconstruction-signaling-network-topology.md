@@ -13,7 +13,6 @@ type: bioinfonet
 image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437794/rsgturkey/webinars/tolga-can.png"
 topic: ""
 keyTakeaways: []
-draft: true
 ---
 
 The first webinar of BioInfoNet series was given by Dr. Tolga Can from METU (Middle East Technical University), Ankara, Türkiye. METU is one of the oldest, biggest and best universities in Türkiye. [Dr. Can](http://www.ceng.metu.edu.tr/~tcan/) has a bioinformatics lab in the Computer Science Department.

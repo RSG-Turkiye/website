@@ -13,7 +13,6 @@ type: bioinfonet
 image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437794/rsgturkey/webinars/tolga-can.png"
 topic: ""
 keyTakeaways: []
-draft: true
 ---
 
 BioInfoNet serisinin ilk webinarını ODTÜ'den (Orta Doğu Teknik Üniversitesi, Ankara) Dr. Tolga Can verdi. ODTÜ, Türkiye'nin en köklü, en büyük ve en iyi üniversitelerinden biridir. [Dr. Can](http://www.ceng.metu.edu.tr/~tcan/), Bilgisayar Mühendisliği Bölümü'nde bir biyoinformatik laboratuvarı yürütmektedir.
