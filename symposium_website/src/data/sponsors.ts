@@ -47,19 +47,26 @@ export function getSponsorsByEdition(year: number): Sponsor[] {
 }
 
 /**
- * The sponsors to show for `year`, falling back to the most recent edition
- * that has any.
+ * The sponsors of editions before `year`, and which years each supported.
  *
- * The homepage asked for 2024 by hand -- correct while no later edition had
- * sponsors, and silently wrong the moment one did, in the very file whose
- * point was to stop hardcoding the current edition. Asking for the current
- * year and falling back keeps it right in both directions: nothing to change
- * when 2026's sponsors arrive, and nothing missing until they do.
+ * There used to be a `getSponsorsForOrLatest` that answered "this edition's
+ * sponsors, or the last edition that had any". The fallback was meant to
+ * save a code change when 2026's sponsors arrived. What it actually did was
+ * put 2023 and 2024's companies under a heading that reads "Our Sponsors"
+ * on a page about the 2026 symposium -- naming firms as backers of an event
+ * they have not agreed to back. Nobody reading it could tell.
+ *
+ * So the two questions are now asked separately and answered honestly:
+ * `getSponsorsByEdition` for who is sponsoring this one, this for who has
+ * before. Nothing still has to change when 2026's sponsors are added -- add
+ * 2026 to a sponsor's `editions` and it moves from one list to the other by
+ * itself.
  */
-export function getSponsorsForOrLatest(year: number): Sponsor[] {
-  const own = getSponsorsByEdition(year);
-  if (own.length > 0) return own;
-  const years = [...new Set(sponsors.flatMap((s) => s.editions))].sort((a, b) => b - a);
-  const fallback = years.find((y) => y < year) ?? years[0];
-  return fallback === undefined ? [] : getSponsorsByEdition(fallback);
+export function getPastSponsors(year: number): { sponsor: Sponsor; years: number[] }[] {
+  return sponsors
+    .filter((s) => !s.editions.includes(year) && s.editions.some((y) => y < year))
+    .map((s) => ({ sponsor: s, years: s.editions.filter((y) => y < year).sort((a, b) => b - a) }))
+    // Most recent supporter first, then alphabetically so the order never
+    // depends on the order of the array above.
+    .sort((a, b) => b.years[0] - a.years[0] || a.sponsor.name.localeCompare(b.sponsor.name));
 }

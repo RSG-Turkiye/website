@@ -8,7 +8,7 @@ import SponsorLogo from "../components/SponsorLogo.astro";
 import EditionCta from "../components/EditionCta.astro";
 import EventJsonLd from "../components/EventJsonLd.astro";
 import { useTranslations, useFormat, getLangFromUrl } from "../i18n/ui";
-import { getSponsorsForOrLatest } from "../data/sponsors";
+import { getSponsorsByEdition } from "../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
 import { hasHappened, locationFor, titleFor, subtitleFor, symposiumsHeld , nextEditionHint, ordinalLabel } from "../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
@@ -35,8 +35,12 @@ const finished = over;
 const justHeld = state === "just-held";
 const nextUp = nextEditionHint((await getCollection("editions")).map((e) => e.data), new Date());
 
-// Whichever edition is in play, falling back to the last one that had any.
-const latestSponsors = getSponsorsForOrLatest(upcoming?.data.year ?? new Date().getFullYear());
+// This edition's sponsors and nobody else's. There used to be a fallback
+// to the last edition that had any, which put 2023 and 2024's companies
+// under a heading reading "Our Sponsors" on a page about 2026. With none
+// yet the section simply does not render; it appears by itself when the
+// first one is added. Who has sponsored before is on /sponsors, labelled.
+const currentSponsors = getSponsorsByEdition(upcoming?.data.year ?? new Date().getFullYear());
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
@@ -202,17 +206,25 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
   </section>
 
   <!-- ── Sponsors ───────────────────────────────────────────────── -->
-  <section id="sponsors" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-16">
-    <h2 class="text-2xl font-bold text-navy text-center mb-8">{t("home.sponsors.title")}</h2>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-3xl mx-auto">
-      {latestSponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
-    </div>
-    <div class="text-center mt-8">
-      <a href={`${prefix}/sponsors`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
-        {lang === "tr" ? "Tüm sponsorları gör →" : "View all sponsors →"}
-      </a>
-    </div>
-  </section>
+  <!--
+    Only when this edition has some. An empty grid under "Our Sponsors" says
+    nothing to a reader and reads as a broken page; the link to /sponsors,
+    where past supporters are listed and labelled as past, sits inside the
+    section rather than orphaned above an empty space.
+  -->
+  {currentSponsors.length > 0 && (
+    <section id="sponsors" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-16">
+      <h2 class="text-2xl font-bold text-navy text-center mb-8">{t("home.sponsors.title")}</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-3xl mx-auto">
+        {currentSponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
+      </div>
+      <div class="text-center mt-8">
+        <a href={`${prefix}/sponsors`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
+          {t("home.sponsors.viewAll")}
+        </a>
+      </div>
+    </section>
+  )}
 </BaseLayout>
 
 <script>

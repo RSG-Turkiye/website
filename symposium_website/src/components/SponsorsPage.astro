@@ -1,0 +1,96 @@
+---
+/**
+ * The sponsors page, once, for both languages.
+ *
+ * /sponsors and /tr/sponsors were copies differing in 91 lines, all of them
+ * a `lang === "tr" ? … : …` resolved one way in each file. Every tier
+ * heading and the whole call to action lived outside the translation
+ * dictionary, so nothing could report one drifting from the other.
+ *
+ * The split it renders matters more than the deduplication. The page used
+ * to list every sponsor the project has ever had, by tier, with no year
+ * anywhere -- so companies that backed 2023 and 2024 read as backers of the
+ * symposium being advertised. They are now two sections, and the past one
+ * says which edition each supported.
+ */
+import SponsorLogo from "./SponsorLogo.astro";
+import { getSponsorsByEdition, getPastSponsors, type Sponsor } from "../data/sponsors";
+import { useTranslations, useFormat, type Lang } from "../i18n/ui";
+
+interface Props {
+  lang: Lang;
+  /** The edition the page is about -- the one coming, or the one just held. */
+  year: number;
+}
+
+const { lang, year } = Astro.props;
+const t = useTranslations(lang);
+const tf = useFormat(lang);
+
+const current = getSponsorsByEdition(year);
+const past = getPastSponsors(year);
+
+const TIERS = [
+  ["gold", "sm:grid-cols-2"],
+  ["silver", "sm:grid-cols-3"],
+  ["supporter", "sm:grid-cols-3"],
+] as const;
+
+const byTier = (list: Sponsor[], tier: Sponsor["tier"]) => list.filter((s) => s.tier === tier);
+---
+
+<div class="max-w-4xl mx-auto px-6 py-16 space-y-14">
+
+  <!-- This edition -->
+  <section>
+    <h2 class="text-lg font-bold text-navy mb-1">{tf("sponsors.current.heading", { year })}</h2>
+    <div class="w-12 h-0.5 bg-navy-mid mb-6"></div>
+
+    {current.length === 0 ? (
+      <p class="text-gray-500 text-sm">{tf("sponsors.current.none", { year })}</p>
+    ) : (
+      <div class="space-y-10">
+        {TIERS.map(([tier, cols]) => byTier(current, tier).length > 0 && (
+          <div>
+            <h3 class="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-6 text-center">
+              {t(`sponsors.tier.${tier}`)}
+            </h3>
+            <div class={`grid ${cols} gap-6`}>
+              {byTier(current, tier).map((sp) => <SponsorLogo sponsor={sp} />)}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <!-- Everyone before -->
+  {past.length > 0 && (
+    <section>
+      <h2 class="text-lg font-bold text-navy mb-1">{t("sponsors.past.heading")}</h2>
+      <div class="w-12 h-0.5 bg-navy-mid mb-3"></div>
+      <p class="text-sm text-gray-600 mb-6">{t("sponsors.past.note")}</p>
+
+      <div class="grid sm:grid-cols-3 gap-4">
+        {past.map(({ sponsor, years }) => (
+          <div class="flex flex-col">
+            <div class="flex-1"><SponsorLogo sponsor={sponsor} /></div>
+            <p class="text-xs text-gray-500 text-center mt-2">{years.join(", ")}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <!-- Become a sponsor -->
+  <div class="bg-navy-light rounded-2xl p-8 text-center">
+    <h3 class="text-xl font-bold text-navy mb-3">{t("sponsors.become")}</h3>
+    <p class="text-gray-600 mb-5 text-sm">{t("sponsors.become.body")}</p>
+    <a
+      href="mailto:turkey.rsg@gmail.com"
+      class="inline-block bg-red text-white px-6 py-3 rounded-lg font-semibold text-sm hover:bg-red-hover transition-colors"
+    >
+      {t("sponsors.become.cta")}
+    </a>
+  </div>
+</div>
