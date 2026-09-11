@@ -29,6 +29,9 @@ export interface EditionLike {
    * what a Turkish page prints. */
   venueTr?: string;
   venueCity?: string;
+  /** The Turkish name for the same city. Never decides anything; only
+   * what a Turkish page prints. */
+  venueCityTr?: string;
   venuePublic?: boolean;
   cityPublic?: boolean;
   registrationUrl?: string;
@@ -112,8 +115,12 @@ export function locationFor(e: EditionLike, now: Date, lang: "en" | "tr"): Locat
   // is then the translation, exactly as titleFor does it.
   const hall = e.venue?.trim() ?? "";
   const venue = (lang === "tr" && e.venueTr?.trim()) || hall;
-  const city = e.venueCity?.trim() ?? "";
-  const cityPublishable = e.cityPublic && city;
+  // The same split as the hall above, and for the same reason: whether a
+  // city may be shown is decided by `venueCity` alone, so both languages
+  // agree on the kind; which name to print is then the translation.
+  const place = e.venueCity?.trim() ?? "";
+  const city = (lang === "tr" && e.venueCityTr?.trim()) || place;
+  const cityPublishable = e.cityPublic && place;
 
   if (e.venuePublic && hall) {
     return { kind: "full", venue, city };

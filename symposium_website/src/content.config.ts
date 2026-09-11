@@ -20,6 +20,11 @@ const editions = defineCollection({
     // titleTr and dateTr are.
     venueTr: z.string().default(""),
     venueCity: z.string().default(""),
+    /** The city in Turkish. `venueCity` stays the canonical form -- the one
+     * the English pages and the Event markup publish. This is only the
+     * translation, the way venueTr is: "Istanbul" -> "İstanbul",
+     * "Online" -> "Çevrimiçi", "Cappadocia" -> "Kapadokya". */
+    venueCityTr: z.string().default(""),
     /** The Turkish rendering of `date`. Without it the Turkish pages print
      * the English string -- "October 30 - November 2, 2025" under a Turkish
      * heading. Optional: falls back to `date`. */

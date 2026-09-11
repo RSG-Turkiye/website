@@ -397,3 +397,29 @@ test('a prediction that has already gone by stops claiming a date', () => {
   assert.equal(stale?.expired, true);
   assert.equal(stale?.ordinal, 14, 'the number is still known, only the date is not');
 });
+
+test('the Turkish city name changes what is printed, never what is decided', () => {
+  // venueCityTr is a translation, exactly like venueTr: it must not be able
+  // to make a city appear where venueCity is empty, or the Turkish page
+  // would name a place the English one is withholding.
+  const base = { year: 2015, title: '3rd', venue: '', cityPublic: true, venuePublic: true };
+  const now = new Date('2026-01-01');
+
+  const translated = { ...base, venueCity: 'Online', venueCityTr: 'Çevrimiçi' };
+  assert.deepEqual(locationFor(translated, now, 'en'), { kind: 'city-only', city: 'Online' });
+  assert.deepEqual(locationFor(translated, now, 'tr'), { kind: 'city-only', city: 'Çevrimiçi' });
+
+  // No canonical city: hidden in both languages, translation or not.
+  const orphan = { ...base, venueCity: '', venueCityTr: 'Kapadokya' };
+  assert.deepEqual(locationFor(orphan, now, 'en'), { kind: 'hidden' });
+  assert.deepEqual(locationFor(orphan, now, 'tr'), { kind: 'hidden' });
+
+  // Withheld stays withheld in both, and the Turkish name is what shows.
+  const withheld = { ...base, venueCity: 'Istanbul', venueCityTr: 'İstanbul', cityPublic: false };
+  assert.deepEqual(locationFor(withheld, now, 'tr'), { kind: 'hidden' });
+
+  // And with a hall, the full form carries the translated city too.
+  const full = { ...base, venue: 'Hall', venueTr: 'Salon', venueCity: 'Istanbul', venueCityTr: 'İstanbul' };
+  assert.deepEqual(locationFor(full, now, 'tr'), { kind: 'full', venue: 'Salon', city: 'İstanbul' });
+  assert.deepEqual(locationFor(full, now, 'en'), { kind: 'full', venue: 'Hall', city: 'Istanbul' });
+});
