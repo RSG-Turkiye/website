@@ -1,6 +1,6 @@
 ---
 title: Reconstruction of Signaling Network Topology from Steady State and Dynamic Perturbation Data
-date: 2014-09-01
+date: 2014-08-28
 speaker: Tolga Can
 speakerAffiliation: METU (Middle East Technical University)
 speakerTitle: ""
