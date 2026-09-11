@@ -1,13 +1,13 @@
 ---
 title: Tıbbi Görüntü Analizi İçin Derin Öğrenme
-date: 2021-04-27
+date: 2022-04-27
 speaker: Çiğdem Gündüz Demir
 speakerAffiliation: Koç Üniversitesi
 speakerTitle: Profesör
 description: Tıbbi görüntü analizinde segmentasyon görevleri için derin öğrenme tabanlı yoğun tahmin ağları; histopatolojik ve in vivo görüntüleme için özel ağ mimarileri ve kayıp fonksiyonları.
 youtubeUrl: ""
 slidesUrl: ""
-year: 2021
+year: 2022
 type: bioinfonet
 image: ""
 topic: ""

@@ -1,13 +1,13 @@
 ---
 title: Deep Learning for Medical Image Analysis
-date: 2021-04-27
+date: 2022-04-27
 speaker: Çiğdem Gündüz Demir
 speakerAffiliation: Koç University
 speakerTitle: Professor
 description: Deep learning based dense prediction networks for segmentation tasks in medical image analysis, with network architectures and loss functions designed for histopathological and in vivo imaging.
 youtubeUrl: ""
 slidesUrl: ""
-year: 2021
+year: 2022
 type: bioinfonet
 image: ""
 topic: ""

@@ -1,13 +1,13 @@
 ---
 title: Modelling Complex Microbial Communities Using Metagenomic Data
-date: 2021-04-13
+date: 2022-04-13
 speaker: Niranjan Nagarajan
 speakerAffiliation: Genome Institute of Singapore / National University of Singapore
 speakerTitle: Associate Professor
 description: An expectation maximisation algorithm (BEEM-Static) for inferring ecological interaction networks from cross-sectional microbiome datasets, revealing enterotype structure and ecological dynamics.
 youtubeUrl: "https://www.youtube.com/watch?v=JVcwYxyn814"
 slidesUrl: ""
-year: 2021
+year: 2022
 type: bioinfonet
 image: ""
 topic: ""
