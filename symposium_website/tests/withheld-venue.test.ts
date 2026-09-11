@@ -89,3 +89,43 @@ test('no edition translates a hall it has not named', () => {
     assert.ok(fields.venue, `${file} has venueTr but no venue`);
   }
 });
+
+test('no edition translates a city it has not named', () => {
+  // The same rule as venueTr, for the same reason. `venueCity` alone decides
+  // whether a city may be shown -- cityPublic gates it and locationFor reads
+  // it -- so a venueCityTr with nothing behind it would appear on the Turkish
+  // pages while the English ones said nothing, and a withheld city would leak
+  // in one language only.
+  for (const file of editionFiles) {
+    const fields = frontmatter(readFileSync(join(EDITIONS, file), 'utf8'));
+    if (!fields.venueCityTr) continue;
+    assert.ok(fields.venueCity, `${file} has venueCityTr but no venueCity`);
+  }
+});
+
+test('no Turkish page is left printing an English city name', () => {
+  // Four editions read "Istanbul" and "Online" under Turkish headings for as
+  // long as the site had no venueCityTr. The city is one of three words on an
+  // edition card, so it is half the card. This lists the spellings that are
+  // wrong in Turkish rather than trying to detect translation in general:
+  // "Ankara", "Antalya", "İzmir" and "Güzelyurt" are already the same in
+  // both, and asking for a translation of those would invite a pointless one.
+  const needsTurkish: Record<string, string> = {
+    Istanbul: 'İstanbul',
+    Online: 'Çevrimiçi',
+    Cappadocia: 'Kapadokya',
+    Izmir: 'İzmir',
+  };
+  for (const file of editionFiles) {
+    const fields = frontmatter(readFileSync(join(EDITIONS, file), 'utf8'));
+    const want = needsTurkish[fields.venueCity ?? ''];
+    if (!want) continue;
+    assert.equal(
+      fields.venueCityTr ?? '',
+      want,
+      `${file} has venueCity "${fields.venueCity}", which is not how it is ` +
+        `written in Turkish. Set venueCityTr: "${want}" so the Turkish ` +
+        `edition card and hero do not print the English spelling.`,
+    );
+  }
+});
