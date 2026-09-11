@@ -123,6 +123,19 @@ export const ui = {
     "sponsors.title": "Our Sponsors",
     "sponsors.subtitle": "We thank our sponsors for their generous support.",
     "sponsors.become": "Become a Sponsor",
+    // Sponsors of the edition that is coming, as opposed to the ones who
+    // have supported past ones. The site used to show the second under a
+    // heading that read like the first.
+    "sponsors.current.heading": "Sponsors of the {year} symposium",
+    "sponsors.current.none": "Sponsors for the {year} symposium will be announced here.",
+    "sponsors.past.heading": "Those who have supported us",
+    "sponsors.past.note": "Companies and institutions that sponsored earlier symposiums. The year beside each is the edition it supported.",
+    "sponsors.tier.gold": "Gold Sponsors",
+    "sponsors.tier.silver": "Silver Sponsors",
+    "sponsors.tier.supporter": "Supporters",
+    "sponsors.become.body": "Interested in supporting our symposium and connecting with the computational biology community in Türkiye?",
+    "sponsors.become.cta": "Get in Touch",
+    "home.sponsors.viewAll": "View all sponsors →",
 
     "footer.tagline": "ISCB SC RSG-Türkiye Student Symposium",
     "footer.links": "Quick Links",
@@ -247,6 +260,16 @@ export const ui = {
     "sponsors.title": "Sponsorlarımız",
     "sponsors.subtitle": "Cömert destekleri için sponsorlarımıza teşekkür ederiz.",
     "sponsors.become": "Sponsor Olun",
+    "sponsors.current.heading": "{year} sempozyumunun sponsorları",
+    "sponsors.current.none": "{year} sempozyumunun sponsorları burada duyurulacak.",
+    "sponsors.past.heading": "Bize destek olanlar",
+    "sponsors.past.note": "Geçmiş sempozyumlara sponsor olan şirketler ve kurumlar. Yanlarındaki yıl, destek oldukları edisyondur.",
+    "sponsors.tier.gold": "Altın Sponsor",
+    "sponsors.tier.silver": "Gümüş Sponsor",
+    "sponsors.tier.supporter": "Destekçiler",
+    "sponsors.become.body": "Sempozyumumuzu desteklemek ve Türkiye'deki hesaplamalı biyoloji topluluğuyla buluşmak ister misiniz?",
+    "sponsors.become.cta": "Bizimle İletişime Geçin",
+    "home.sponsors.viewAll": "Tüm sponsorları gör →",
 
     "footer.tagline": "ISCB SC RSG-Türkiye Öğrenci Sempozyumu",
     "footer.links": "Hızlı Bağlantılar",
