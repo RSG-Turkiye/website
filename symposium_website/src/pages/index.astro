@@ -127,7 +127,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
         <Fragment>
           <h1 class="text-4xl sm:text-5xl font-bold leading-tight">{t("hero.tagline")}</h1>
           <p class="text-lg text-white/80 leading-relaxed">{t("hero.subtitle")}</p>
-          <a href={`${prefix}/editions`} class="mt-2 px-6 py-3 rounded-lg border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors text-sm">
+          <a href={`${prefix}/editions/`} class="mt-2 px-6 py-3 rounded-lg border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors text-sm">
             {t("nav.editions")}
           </a>
         </Fragment>
@@ -163,7 +163,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex items-center justify-between mb-8">
         <h2 class="text-2xl font-bold text-navy">{t("nav.editions")}</h2>
-        <a href={`${prefix}/editions`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
+        <a href={`${prefix}/editions/`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
           {lang === "tr" ? "Tümünü gör →" : "View all →"}
         </a>
       </div>
@@ -171,7 +171,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
         {
           recentEditions.map((edition) => (
             <a
-              href={`${prefix}/editions/${edition.data.year}`}
+              href={`${prefix}/editions/${edition.data.year}/`}
               class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow"
             >
               {edition.data.posterImage && (
@@ -219,7 +219,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
         {currentSponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
       </div>
       <div class="text-center mt-8">
-        <a href={`${prefix}/sponsors`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
+        <a href={`${prefix}/sponsors/`} class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
           {t("home.sponsors.viewAll")}
         </a>
       </div>

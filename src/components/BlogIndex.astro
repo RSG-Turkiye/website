@@ -29,7 +29,7 @@ const t = useTranslations(lang);
 
 /** `/blog/slug` in English, `/tr/blog/slug` in Turkish. */
 const base = lang === 'en' ? '/blog' : '/tr/blog';
-const aboutHref = lang === 'en' ? '/about' : '/tr/about';
+const aboutHref = lang === 'en' ? '/about/' : '/tr/about/';
 const locale = lang === 'en' ? 'en-US' : 'tr-TR';
 
 const allTags = [...new Set(posts.flatMap((p) => p.data.tags || []))].sort();
@@ -54,7 +54,7 @@ function getThumbnail(post: CollectionEntry<'blog'>): string | null {
         <div id="postsList">
           {posts.map((post) => {
             const thumbnail = getThumbnail(post);
-            const postUrl = `${base}/${post.id.replace(/^(en|tr)\//, '')}`;
+            const postUrl = `${base}/${post.id.replace(/^(en|tr)\//, '')}/`;
             return (
               <article class="post-item py-4 border-b border-border"
                 data-title={post.data.title}

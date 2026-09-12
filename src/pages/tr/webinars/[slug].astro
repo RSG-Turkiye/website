@@ -36,7 +36,7 @@ const videoId = youtubeUrl
           {topic && <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-navy-light text-navy-mid">{topic}</span>}
           <span class="text-sm text-gray-500">{date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
           {twinSlug && (
-            <a href={`/webinars/${twinSlug}`}
+            <a href={`/webinars/${twinSlug}/`}
               class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
               🇬🇧 Read in English
             </a>
@@ -115,7 +115,7 @@ const videoId = youtubeUrl
       </div>
 
       <footer class="mt-10 pt-6 border-t border-border">
-        <a href="/tr/webinars"
+        <a href="/tr/webinars/"
           class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
           ← Webinarlara Dön
         </a>

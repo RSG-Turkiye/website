@@ -24,13 +24,13 @@ export interface NavItem {
 export function navItemsFor(state: NavState, lang: Lang): NavItem[] {
   const items: NavItem[] = [
     { href: "/", labelKey: "nav.home" },
-    { href: "/editions", labelKey: "nav.editions" },
+    { href: "/editions/", labelKey: "nav.editions" },
   ];
-  if (state.hasSchedule) items.push({ href: "/schedule", labelKey: "nav.schedule" });
-  if (state.hasSpeakers) items.push({ href: "/speakers", labelKey: "nav.speakers" });
-  items.push({ href: "/venue", labelKey: "nav.venue" });
-  if (state.hasCommittee) items.push({ href: "/committee", labelKey: "nav.committee" });
-  items.push({ href: "/sponsors", labelKey: "nav.sponsors" });
+  if (state.hasSchedule) items.push({ href: "/schedule/", labelKey: "nav.schedule" });
+  if (state.hasSpeakers) items.push({ href: "/speakers/", labelKey: "nav.speakers" });
+  items.push({ href: "/venue/", labelKey: "nav.venue" });
+  if (state.hasCommittee) items.push({ href: "/committee/", labelKey: "nav.committee" });
+  items.push({ href: "/sponsors/", labelKey: "nav.sponsors" });
 
   if (lang === "tr") {
     return items.map((i) => ({ ...i, href: i.href === "/" ? "/tr/" : "/tr" + i.href }));

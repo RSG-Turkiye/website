@@ -26,10 +26,10 @@ const buildYear = new Date().getFullYear();
       <div>
         <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{t('footer.quickLinks')}</h4>
         <ul class="space-y-2">
-          <li><a href={`${prefix}/about`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.about')}</a></li>
-          <li><a href={`${prefix}/blog`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.blog')}</a></li>
-          <li><a href={`${prefix}/webinars`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.webinars')}</a></li>
-          <li><a href={`${prefix}/resources`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.resources')}</a></li>
+          <li><a href={`${prefix}/about/`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.about')}</a></li>
+          <li><a href={`${prefix}/blog/`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.blog')}</a></li>
+          <li><a href={`${prefix}/webinars/`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.webinars')}</a></li>
+          <li><a href={`${prefix}/resources/`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.resources')}</a></li>
         </ul>
       </div>
 
@@ -37,7 +37,7 @@ const buildYear = new Date().getFullYear();
       <div>
         <h4 class="text-xs font-semibold uppercase tracking-widest text-white/50 mb-3">{lang === 'tr' ? 'Topluluk' : 'Community'}</h4>
         <ul class="space-y-2">
-          <li><a href={`${prefix}/join`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.join')}</a></li>
+          <li><a href={`${prefix}/join/`} class="text-sm text-white/75 hover:text-white transition-colors">{t('nav.join')}</a></li>
           <li><a href="https://iscbsc.org/" target="_blank" rel="noopener noreferrer" class="text-sm text-white/75 hover:text-white transition-colors">ISCB Student Council</a></li>
         </ul>
       </div>

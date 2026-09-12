@@ -12,9 +12,13 @@ export default defineConfig({
   },
   site: 'https://rsg-turkiye.iscbsc.org',
   output: 'static',
+  // Targets carry the trailing slash, which is the canonical form: the site is
+  // built in directory format, so Cloudflare Pages 308s /x to /x/. Without it
+  // these redirects chained -- a 301 into a 308 -- for every visitor and every
+  // crawl.
   redirects: {
-    '/learning-paths/undergrad': '/learning-paths/roadmap',
-    '/learning-paths/grad':      '/learning-paths/genomics',
+    '/learning-paths/undergrad': '/learning-paths/roadmap/',
+    '/learning-paths/grad':      '/learning-paths/genomics/',
   },
   integrations: [
     // Cloudflare Pages serves the 404.html closest to the requested path, so

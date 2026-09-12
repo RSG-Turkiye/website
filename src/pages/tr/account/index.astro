@@ -14,13 +14,13 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
       <!-- Not logged in -->
       <div id="notLoggedIn" class="hidden text-center py-24">
         <p class="text-gray-500 mb-4">Profilinizi görüntülemek için giriş yapmanız gerekmektedir.</p>
-        <a href="/tr/login" class="inline-flex px-6 py-2.5 rounded-xl bg-navy text-white text-sm font-semibold no-underline hover:bg-navy-mid transition-colors">Giriş Yap</a>
+        <a href="/tr/login/" class="inline-flex px-6 py-2.5 rounded-xl bg-navy text-white text-sm font-semibold no-underline hover:bg-navy-mid transition-colors">Giriş Yap</a>
       </div>
 
       <!-- No profile yet -->
       <div id="noProfile" class="hidden text-center py-24">
         <p class="text-gray-500 mb-4">Henüz profilinizi oluşturmadınız.</p>
-        <a href="/tr/account/setup" class="inline-flex px-6 py-2.5 rounded-xl bg-navy text-white text-sm font-semibold no-underline hover:bg-navy-mid transition-colors">Profil Oluştur</a>
+        <a href="/tr/account/setup/" class="inline-flex px-6 py-2.5 rounded-xl bg-navy text-white text-sm font-semibold no-underline hover:bg-navy-mid transition-colors">Profil Oluştur</a>
       </div>
 
       <!-- Profile content -->
@@ -40,7 +40,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
                   <h1 id="displayName" class="text-xl font-bold text-navy"></h1>
                   <p id="usernameEl" class="text-sm text-gray-500"></p>
                 </div>
-                <a href="/tr/account/setup" class="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors no-underline">Profili düzenle</a>
+                <a href="/tr/account/setup/" class="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors no-underline">Profili düzenle</a>
               </div>
               <p id="institutionEl" class="text-sm text-gray-500 mt-1 hidden"></p>
               <p id="bioEl" class="text-sm text-gray-600 mt-3 leading-relaxed hidden"></p>
@@ -89,7 +89,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             <h2 class="text-sm font-semibold text-navy mb-1">RSG Adına Mail Gönder</h2>
             <p class="text-sm text-gray-500">RSG-Türkiye adresinden mail gönderme yetkiniz var.</p>
           </div>
-          <a href="/tr/account/mail" class="shrink-0 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">Aç</a>
+          <a href="/tr/account/mail/" class="shrink-0 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">Aç</a>
         </div>
 
         <!-- Conversations (only for authorised senders) -->
@@ -101,7 +101,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             </h2>
             <p class="text-sm text-gray-500">RSG adına gönderdiğiniz e-postalara gelen cevaplar.</p>
           </div>
-          <a href="/tr/account/conversations" class="shrink-0 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">Aç</a>
+          <a href="/tr/account/conversations/" class="shrink-0 px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">Aç</a>
         </div>
 
         <!-- Write a post (writers only) -->
@@ -175,7 +175,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
           <div>
             <h2 class="text-sm font-semibold text-navy mb-1">RSG-Türkiye üyesi olun</h2>
             <p class="text-sm text-gray-500 mb-3">Üyelik formunu doldurun, onaylanın ve üye rozetinizi kazanın.</p>
-            <a href="/tr/join" class="inline-flex px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium no-underline hover:bg-navy-mid transition-colors">Üyelik başvurusu →</a>
+            <a href="/tr/join/" class="inline-flex px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium no-underline hover:bg-navy-mid transition-colors">Üyelik başvurusu →</a>
           </div>
         </div>
 

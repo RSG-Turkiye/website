@@ -120,7 +120,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
         <Fragment>
           <h1 class="text-4xl sm:text-5xl font-bold leading-tight">{t("hero.tagline")}</h1>
           <p class="text-lg text-white/80 leading-relaxed">{t("hero.subtitle")}</p>
-          <a href="/tr/editions" class="mt-2 px-6 py-3 rounded-lg border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors text-sm">
+          <a href="/tr/editions/" class="mt-2 px-6 py-3 rounded-lg border border-white/30 text-white font-semibold hover:bg-white/10 transition-colors text-sm">
             {t("nav.editions")}
           </a>
         </Fragment>
@@ -151,11 +151,11 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex items-center justify-between mb-8">
         <h2 class="text-2xl font-bold text-navy">{t("nav.editions")}</h2>
-        <a href="/tr/editions" class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">Tümünü gör →</a>
+        <a href="/tr/editions/" class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">Tümünü gör →</a>
       </div>
       <div class="grid sm:grid-cols-3 gap-6">
         {recentEditions.map((edition) => (
-          <a href={`/tr/editions/${edition.data.year}`} class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
+          <a href={`/tr/editions/${edition.data.year}/`} class="group bg-white rounded-xl border border-border overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
             {edition.data.posterImage && (
               <div class="aspect-video overflow-hidden bg-navy-light">
                 <img src={edition.data.posterImage} alt={titleFor(edition.data, lang)} class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" loading="lazy" />
@@ -192,7 +192,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
         {currentSponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
       </div>
       <div class="text-center mt-8">
-        <a href="/tr/sponsors" class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
+        <a href="/tr/sponsors/" class="text-sm text-navy-mid hover:text-navy transition-colors font-medium">
           {t("home.sponsors.viewAll")}
         </a>
       </div>

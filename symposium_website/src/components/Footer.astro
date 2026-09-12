@@ -32,18 +32,18 @@ const year = new Date().getFullYear();
         <ul class="space-y-2">
           <li><a href={`${prefix}/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.home")}</a></li>
           {navState.hasSpeakers && (
-            <li><a href={`${prefix}/speakers`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.speakers")}</a></li>
+            <li><a href={`${prefix}/speakers/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.speakers")}</a></li>
           )}
           {navState.hasSchedule && (
-            <li><a href={`${prefix}/schedule`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.schedule")}</a></li>
+            <li><a href={`${prefix}/schedule/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.schedule")}</a></li>
           )}
-          <li><a href={`${prefix}/venue`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.venue")}</a></li>
-          <li><a href={`${prefix}/about`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.about")}</a></li>
+          <li><a href={`${prefix}/venue/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.venue")}</a></li>
+          <li><a href={`${prefix}/about/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.about")}</a></li>
           {navState.hasCommittee && (
-            <li><a href={`${prefix}/committee`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.committee")}</a></li>
+            <li><a href={`${prefix}/committee/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.committee")}</a></li>
           )}
-          <li><a href={`${prefix}/sponsors`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.sponsors")}</a></li>
-          <li><a href={`${prefix}/editions`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.editions")}</a></li>
+          <li><a href={`${prefix}/sponsors/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.sponsors")}</a></li>
+          <li><a href={`${prefix}/editions/`} class="text-sm text-white/75 hover:text-white transition-colors">{t("nav.editions")}</a></li>
         </ul>
       </div>
 

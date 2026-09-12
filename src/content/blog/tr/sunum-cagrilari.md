@@ -12,7 +12,7 @@ draft: false
 
 ### Ogrenci Webinarlari
 
-Bilginizi ve deneyiminizi paylasmak mi istiyorsunuz? Artik projenizi, tezlerinizi ve belirli bir alandaki uzman bilgi birikiminizi webinarlarimiz araciligi ile paylasabilirsiniz! Formu doldurun ve ozet gonderiminiz bilimsel komitemiz tarafindan incelendikten sonra sizinle iletisime gecip gerekli ayarlamalari yapalim! [Ozet Cagrisi – Ogrenci Sunumlari](/blog/call-for-student-presentations)
+Bilginizi ve deneyiminizi paylasmak mi istiyorsunuz? Artik projenizi, tezlerinizi ve belirli bir alandaki uzman bilgi birikiminizi webinarlarimiz araciligi ile paylasabilirsiniz! Formu doldurun ve ozet gonderiminiz bilimsel komitemiz tarafindan incelendikten sonra sizinle iletisime gecip gerekli ayarlamalari yapalim! [Ozet Cagrisi – Ogrenci Sunumlari](/blog/call-for-student-presentations/)
 
 * * *
 
