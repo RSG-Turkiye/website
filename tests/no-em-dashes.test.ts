@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, globSync } from 'node:fs';
+import { readFileSync, readdirSync, globSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -78,6 +78,70 @@ test('no em dash appears in anything a reader sees', () => {
       `${offenders.length > shown.length ? `\n    ... and ${offenders.length - shown.length} more` : ''}\n  `,
   );
 });
+
+/**
+ * The source check above is necessary and not sufficient.
+ *
+ * Astro's markdown runs smartypants, which turns `--` in a body into an em
+ * dash on the way out. So a file can pass the scan above and still put a dash
+ * in front of the reader: `HIBIT'22 -- the 15th...` was rendering as
+ * `HIBIT'22 — the 15th...` on /editions/2022/ for exactly that reason. The
+ * guard has to read what the browser gets.
+ *
+ * Frontmatter strings do not go through smartypants, so there `--` stays two
+ * hyphens, which is its own small blemish. Both are caught here.
+ */
+function builtPages(dist: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.html')) out.push(full);
+    }
+  };
+  walk(dist);
+  return out;
+}
+
+/** Script and style bodies are not prose, and neither is an HTML comment. */
+function visible(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/g, ' ')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/g, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
+}
+
+for (const site of ['', 'symposium_website/']) {
+  const dist = join(REPO, site, 'dist');
+  const label = site === '' ? 'main site' : 'symposium site';
+
+  test(`no dash reaches the reader on the ${label}`, {
+    skip: !existsSync(dist) && `run \`npm run build\` in ${site || 'the root'} first`,
+  }, () => {
+    const pages = builtPages(dist);
+    assert.ok(pages.length > 20, `expected a built site, found ${pages.length} pages`);
+
+    const offenders: string[] = [];
+    for (const page of pages) {
+      const html = visible(readFileSync(page, 'utf8'));
+      const rel = page.slice(REPO.length);
+      if (html.includes('—')) offenders.push(`${rel}  em dash`);
+      // A literal `--` between words: frontmatter that smartypants never saw.
+      if (/\w\s--\s\w/.test(html)) offenders.push(`${rel}  literal --`);
+    }
+
+    const shown = offenders.slice(0, 12);
+    assert.deepEqual(
+      offenders,
+      [],
+      `${offenders.length} page(s) show a dash to the reader. Note that \`--\` ` +
+        `in a markdown body becomes an em dash, so fixing the source means ` +
+        `rewriting the sentence, not swapping the character:\n    ${shown.join('\n    ')}` +
+        `${offenders.length > shown.length ? `\n    ... and ${offenders.length - shown.length} more` : ''}\n  `,
+    );
+  });
+}
 
 test('the en dash is still allowed, because date ranges need it', () => {
   // Guarding against an over-zealous fix that removes both characters: the

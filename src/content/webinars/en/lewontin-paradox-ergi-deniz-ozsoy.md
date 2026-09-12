@@ -14,7 +14,7 @@ image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1
 topic: ""
 keyTakeaways:
   - "The theoretical expectation of a linear link between population size and genetic diversity"
-  - "Why real-world data often contradicts this expectation -- the Lewontin Paradox"
+  - "Why real-world data often contradicts this expectation: the Lewontin Paradox"
   - "How the classical Hill-Robertson effect and linked selection help explain the paradox"
   - "Modern approaches researchers use to address this longstanding evolutionary puzzle"
   - "Why the paradox remains an active area of research in evolutionary biology"
