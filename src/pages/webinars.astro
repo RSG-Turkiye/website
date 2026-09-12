@@ -63,7 +63,7 @@ function initials(name: string) {
                   {webinar.data.speaker && <span>{webinar.data.speaker}</span>}
                 </div>
                 <h2 class="text-base font-semibold mb-1">
-                  <a href={`/webinars/${webinar.id.slice(3)}`} class="text-navy hover:text-navy-mid transition-colors">
+                  <a href={`/webinars/${webinar.id.slice(3)}/`} class="text-navy hover:text-navy-mid transition-colors">
                     {webinar.data.title}
                   </a>
                 </h2>
@@ -120,7 +120,7 @@ function initials(name: string) {
               <div class="flex flex-wrap gap-2">
                 {speakers.map((s) => (
                   <a
-                    href={`/webinars/${s.slug}`}
+                    href={`/webinars/${s.slug}/`}
                     class="speaker-avatar"
                     data-name={s.name}
                     aria-label={s.name}

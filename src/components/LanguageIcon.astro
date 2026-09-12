@@ -36,9 +36,9 @@
       const currentPath = window.location.pathname;
       let newPath;
       if (newLang === 'tr') {
-        newPath = currentPath === '/' ? '/tr' : (currentPath.startsWith('/tr/') ? currentPath : '/tr' + currentPath);
+        newPath = currentPath === '/' ? '/tr/' : (currentPath.startsWith('/tr/') ? currentPath : '/tr' + currentPath);
       } else {
-        newPath = currentPath === '/tr' ? '/' : (currentPath.startsWith('/tr/') ? currentPath.replace('/tr', '') : currentPath);
+        newPath = (currentPath === '/tr' || currentPath === '/tr/') ? '/' : (currentPath.startsWith('/tr/') ? currentPath.replace('/tr', '') : currentPath);
       }
       window.location.href = newPath;
     });

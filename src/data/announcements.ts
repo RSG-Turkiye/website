@@ -91,7 +91,7 @@ export const announcements: Announcement[] = [
     description: 'Representing Turkiye at the international ISCB Student Council meeting. Share your ideas and connect with global peers.',
     primaryAction: {
       text: 'Learn More',
-      url: '/about'
+      url: '/about/'
     },
     secondaryAction: {
       text: 'Get Involved',

@@ -63,8 +63,9 @@ test('no Turkish page links to an English one', () => {
 
 test('the header asks for the members page in the page\'s own language', () => {
   const header = readFileSync(new URL('../src/components/Header.astro', import.meta.url).pathname, 'utf8');
-  assert.ok(!/href="\/members"/.test(header), 'a hardcoded /members is back');
-  assert.match(header, /membersNavLink[^>]*href=\{`\$\{prefix\}\/members`\}/);
+  assert.ok(!/href="\/members\/?"/.test(header), 'a hardcoded /members is back');
+  // The trailing slash is the canonical form -- see internal-links-canonical.
+  assert.match(header, /membersNavLink[^>]*href=\{`\$\{prefix\}\/members\/`\}/);
 });
 
 test('the signed-in menu is built from translations, not literals', () => {

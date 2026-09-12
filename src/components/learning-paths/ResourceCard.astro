@@ -3,7 +3,8 @@
  * ResourceCard — renders a single learning path resource with a progress checkbox.
  *
  * URL resolution order for webinar resources:
- *   1. webinarSlug  → /webinars/<slug>   (internal page)
+ *   1. webinarSlug  → /webinars/<slug>/  (internal page; the trailing slash is
+ *      the canonical form, so the link does not cost a 308 redirect)
  *   2. youtubeUrl   → YouTube             (external, before the page exists)
  *   3. neither      → no link            ("Recording not yet available")
  *
@@ -59,7 +60,7 @@ let unavailable = false;
 
 if (isWebinar) {
   if (resource.webinarSlug) {
-    href = `/webinars/${resource.webinarSlug}`;
+    href = `/webinars/${resource.webinarSlug}/`;
     linkLabel = L.watch;
   } else if (resource.youtubeUrl) {
     href = resource.youtubeUrl;

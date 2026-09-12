@@ -29,7 +29,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
         class="mx-auto mb-6 rounded-lg bg-white p-1" />
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">{t('hero.title')}</h1>
       <p class="text-white/75 text-lg leading-relaxed mb-8 max-w-xl mx-auto">{t('hero.description')}</p>
-      <a href="/tr/join"
+      <a href="/tr/join/"
         class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium text-base hover:bg-red-hover transition-colors no-underline">
         {t('hero.joinCommunity')}
       </a>
@@ -79,7 +79,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
               {latestWebinar.data.description && (
                 <p class="text-xs text-gray-600 leading-relaxed mb-4 flex-1">{latestWebinar.data.description.slice(0, 100)}{latestWebinar.data.description.length > 100 ? '…' : ''}</p>
               )}
-              <a href={`/tr/webinars/${latestWebinar.id.replace(/^tr\//, '')}`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
+              <a href={`/tr/webinars/${latestWebinar.id.replace(/^tr\//, '')}/`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
                 Devamını Oku →
               </a>
             </div>
@@ -87,7 +87,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
             <div class="flex-1 flex flex-col">
               <h3 class="text-base font-semibold text-navy mb-2">{t('contentCards.webinar.title')}</h3>
               <p class="text-sm text-gray-500 leading-relaxed mb-4 flex-1">{t('contentCards.webinar.description')}</p>
-              <a href="/tr/webinars" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">{t('contentCards.webinar.button')} →</a>
+              <a href="/tr/webinars/" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">{t('contentCards.webinar.button')} →</a>
             </div>
           )}
         </div>
@@ -113,14 +113,14 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
               {latestPosts[0].data.description && (
                 <p class="text-xs text-gray-600 leading-relaxed mb-4 flex-1">{latestPosts[0].data.description.slice(0, 100)}{latestPosts[0].data.description.length > 100 ? '…' : ''}</p>
               )}
-              <a href={`/tr/blog/${latestPosts[0].id.replace(/^tr\//, '')}`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
+              <a href={`/tr/blog/${latestPosts[0].id.replace(/^tr\//, '')}/`} class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-auto">
                 Devamını Oku →
               </a>
             </div>
           ) : (
             <div class="flex-1 flex flex-col">
               <p class="text-sm text-gray-500 leading-relaxed mb-4 flex-1">{t('contentCards.blog.description')}</p>
-              <a href="/tr/blog" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">{t('contentCards.blog.button')} →</a>
+              <a href="/tr/blog/" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors">{t('contentCards.blog.button')} →</a>
             </div>
           )}
         </div>
@@ -133,7 +133,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
     <div class="max-w-2xl mx-auto px-6">
       <h2 class="text-2xl font-semibold text-navy mb-3">{t('cta.title')}</h2>
       <p class="text-gray-500 mb-6">{t('cta.description')}</p>
-      <a href="/tr/join"
+      <a href="/tr/join/"
         class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium hover:bg-red-hover transition-colors no-underline">
         {t('cta.joinToday')}
       </a>
@@ -190,7 +190,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
           </div>`;
       }).join('');
 
-      card.innerHTML = `${html}<a href="/tr/events" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-2 inline-block">Tüm etkinlikler →</a>`;
+      card.innerHTML = `${html}<a href="/tr/events/" class="text-sm font-medium text-navy-mid hover:text-navy transition-colors mt-2 inline-block">Tüm etkinlikler →</a>`;
     } catch {
       emptyState();
     }

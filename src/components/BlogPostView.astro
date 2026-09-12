@@ -82,7 +82,7 @@ const articleJsonLd = {
           </span>
         )}
         {twinSlug && (
-          <a href={`${twinBase}/${twinSlug}`}
+          <a href={`${twinBase}/${twinSlug}/`}
             class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border text-xs text-gray-500 hover:bg-navy-light hover:border-navy-mid transition-colors no-underline">
             {t('blog.readInOther')}
           </a>
@@ -93,7 +93,7 @@ const articleJsonLd = {
       {tags && tags.length > 0 && (
         <div class="flex flex-wrap gap-1.5 mt-3">
           {tags.map((tag: string) => (
-            <a href={`${tagBase}/${tag}`}
+            <a href={`${tagBase}/${tag}/`}
               class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-red-tint text-red hover:bg-red hover:text-white transition-colors">
               {tag}
             </a>
@@ -107,7 +107,7 @@ const articleJsonLd = {
     </div>
 
     <footer class="mt-10 pt-6 border-t border-border flex items-center justify-between flex-wrap gap-4">
-      <a href={base}
+      <a href={`${base}/`}
         class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
         {t('blog.backToBlog')}
       </a>

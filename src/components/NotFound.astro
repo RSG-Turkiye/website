@@ -16,7 +16,7 @@ interface Props {
 const { lang } = Astro.props;
 const t = useTranslations(lang);
 const home = lang === 'en' ? '/' : '/tr/';
-const blog = lang === 'en' ? '/blog' : '/tr/blog';
+const blog = lang === 'en' ? '/blog/' : '/tr/blog/';
 ---
 
 <section class="min-h-[60vh] flex items-center bg-white">
