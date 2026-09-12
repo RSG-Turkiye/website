@@ -21,7 +21,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Alper Yılmaz** — Associate Professor, Yıldız Technical University
+**Alper Yılmaz**: Associate Professor, Yıldız Technical University
 
 Alper Yılmaz is an Associate Professor at Yıldız Technical University. He gave the earlier RSG-Türkiye webinar on the power of the Linux terminal for bioinformatics analysis, which this session continues.
 

@@ -18,12 +18,12 @@ keyTakeaways: []
 
 Bu bölümde Koç Üniversitesi öğrencilerini ağırlıyoruz.
 
-- **Simge Şenyüz** — protein–protein etkileşim arayüzlerinde ilaç benzeri molekül yapıları
-- **Cansu Demirel** — kanser ile nörogelişimsel bozuklukların ağ düzeyindeki ortaklıkları ve farkları
-- **Enes Sefa Ayar** — tümör ilerlemesinin ağlarla modellenmesi ve kişiselleştirilmiş tıp
-- **Melisa Ece Zeylan** — vasküler bilişsel bozulmada (VCI) önemli yolakların aydınlatılması
-- **Sina Dadmand** — ağ gömmeleriyle onkolojik ilaç yanıtı tahmini
+- **Simge Şenyüz**, protein–protein etkileşim arayüzlerinde ilaç benzeri molekül yapıları
+- **Cansu Demirel**, kanser ile nörogelişimsel bozuklukların ağ düzeyindeki ortaklıkları ve farkları
+- **Enes Sefa Ayar**, tümör ilerlemesinin ağlarla modellenmesi ve kişiselleştirilmiş tıp
+- **Melisa Ece Zeylan**, vasküler bilişsel bozulmada (VCI) önemli yolakların aydınlatılması
+- **Sina Dadmand**, ağ gömmeleriyle onkolojik ilaç yanıtı tahmini
 
-**Tarih:** 22 Eylül 2023 — 13:00–16:00 (GMT+3)
+**Tarih:** 22 Eylül 2023 – 13:00–16:00 (GMT+3)
 
 **Biçim:** Çevrimiçi

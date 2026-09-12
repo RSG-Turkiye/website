@@ -4,7 +4,7 @@ date: 2018-12-12
 speaker: Stephan Schiffels
 speakerAffiliation: Max Planck Institute for the Science of Human History
 speakerTitle: Group Leader for Population Genetics, Department of Archaeogenetics
-description: Reading human history out of genomes — the origins of our species in Africa, the Anglo-Saxon migration period seen through ancient DNA, and the peopling of North America.
+description: "Reading human history out of genomes: the origins of our species in Africa, the Anglo-Saxon migration period seen through ancient DNA, and the peopling of North America."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2018
@@ -21,7 +21,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Stephan Schiffels** — Group Leader for Population Genetics, Department of Archaeogenetics, Max Planck Institute for the Science of Human History
+**Stephan Schiffels**: Group Leader for Population Genetics, Department of Archaeogenetics, Max Planck Institute for the Science of Human History
 
 **Abstract**
 
@@ -29,6 +29,6 @@ Our human past leaves traces in our genomes, via population size changes, admixt
 
 In this talk, I will introduce the field of historical population genetics, and showcase three examples: First, I will show how our genomes contain information about the origins of our species in Africa, in the deep past. Second, I will demonstrate how we can use ancient DNA from Anglo-Saxon remains in Great Britain to investigate the nature and consequences of the Anglo-Saxon migration period. Third, I will introduce our most recent project, in which we use ancient and modern DNA to investigate the peopling of North America.
 
-**Date:** December 12th, 2018 — 15:00 CET / 17:00 Istanbul
+**Date:** December 12th, 2018 – 15:00 CET / 17:00 Istanbul
 
 **Language:** English

@@ -4,7 +4,7 @@ date: 2019-08-20
 speaker: "Mine Çetinkaya-Rundel"
 speakerAffiliation: ""
 speakerTitle: "Associate Professor"
-description: "Good, better and best workflows for reproducibility — from data storage and cleaning through analysis to communicating the final result."
+description: "Good, better and best workflows for reproducibility: from data storage and cleaning through analysis to communicating the final result."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2019
@@ -20,9 +20,9 @@ keyTakeaways: []
 
 **Abstract**
 
-For a data analysis to be reproducible, the data and code should be assembled in a way such that results — tables and figures — can be re-created.
+For a data analysis to be reproducible, the data and code should be assembled in a way such that results (tables and figures) can be re-created.
 
 This talk addresses the challenges of reproducing scientific results: data that is not available, missing dependencies, outdated software. It presents good, better and best workflows for reproducibility, touching on everything from data storage and cleaning, through analysis, to the communication of final results.
 
-**Date:** August 20th, 2019 — 17:00 (Istanbul)
+**Date:** August 20th, 2019 – 17:00 (Istanbul)
 

@@ -17,7 +17,7 @@ const BADGE_LABELS: Record<string, string> = {
 };
 ---
 
-<BaseLayout pageTitle="Üyeler — RSG-Türkiye" description="RSG-Türkiye biyoinformatik topluluğuna göz atın.">
+<BaseLayout pageTitle="Üyeler, RSG-Türkiye" description="RSG-Türkiye biyoinformatik topluluğuna göz atın.">
   <div class="min-h-screen bg-[#F7F7F6] pt-24 pb-16 px-4">
     <div class="max-w-6xl mx-auto">
 
@@ -182,7 +182,7 @@ const BADGE_LABELS: Record<string, string> = {
     isLoading = false;
   }
 
-  // Init — require login
+  // Init, require login
   (async () => {
     const authRes = await fetch('/api/me');
     const authData: any = await authRes.json();

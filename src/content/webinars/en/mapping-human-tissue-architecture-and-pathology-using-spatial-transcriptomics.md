@@ -26,6 +26,6 @@ He is now a group leader at the Wellcome Sanger Institute. His research aims to 
 
 Spatial transcriptomic technologies promise to resolve cellular wiring diagrams of tissues in health and disease, but comprehensive mapping of cell types in situ remains a challenge. First, I will present **cell2location**, a principled Bayesian model that can resolve fine-grained cell types in spatial transcriptomic data and create comprehensive cellular maps of diverse tissues. Second, I will present **GBM-space**, our new effort to discover tumour tissue architecture in glioblastoma using multi-modal genomics. We discover a striking spatial organisation of GBMs, where malignant cell states regionally segregate and associate with distinct tumour microenvironment cells.
 
-**Date:** June 21st, 2023 — 18:00 (GMT+3)
+**Date:** June 21st, 2023 – 18:00 (GMT+3)
 
 **Language:** English

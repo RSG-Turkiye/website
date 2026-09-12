@@ -18,10 +18,10 @@ keyTakeaways: []
 
 Bu bölümde Acıbadem Üniversitesi öğrencilerini ağırlıyoruz.
 
-- **Alara Erenel, MSc** — *BRCA1 Geninde X, Y ve Z SNP'lerinin Birlikte Görülmesi: in siliko Bir İnceleme*
-- **Alper Bülbül, MSc** — *Protein–protein etkileşimlerinin 3B ve dizi analizleriyle varyant patojenite tahmin aracı*
-- **Ekin Köni** — *Meme Kanseri Kaynaklı Leptomeningeal Metastazda Mutasyona Uğramış Genlerin Bütünleşik Analizi*
-- **İrem Çongur** — *Küçük Hücreli Dışı Akciğer Kanseri Kaynaklı Leptomeningeal Karsinomda Mutasyona Uğramış Genlerin Biyoinformatik Analizi*
+- **Alara Erenel, MSc**: *BRCA1 Geninde X, Y ve Z SNP'lerinin Birlikte Görülmesi: in siliko Bir İnceleme*
+- **Alper Bülbül, MSc**: *Protein–protein etkileşimlerinin 3B ve dizi analizleriyle varyant patojenite tahmin aracı*
+- **Ekin Köni**, *Meme Kanseri Kaynaklı Leptomeningeal Metastazda Mutasyona Uğramış Genlerin Bütünleşik Analizi*
+- **İrem Çongur**, *Küçük Hücreli Dışı Akciğer Kanseri Kaynaklı Leptomeningeal Karsinomda Mutasyona Uğramış Genlerin Biyoinformatik Analizi*
 
-**Tarih:** 21 Mayıs 2022 — 11:00 (İstanbul)
+**Tarih:** 21 Mayıs 2022 – 11:00 (İstanbul)
 

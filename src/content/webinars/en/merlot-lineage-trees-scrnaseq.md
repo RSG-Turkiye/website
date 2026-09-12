@@ -16,7 +16,7 @@ keyTakeaways: []
 
 **Presenter**
 
-**Gonzalo Parra, PhD** — Postdoctoral Researcher, Statistical Genomics and Systems Genetics, European Molecular Biology Laboratory (EMBL), Heidelberg, Germany
+**Gonzalo Parra, PhD**: Postdoctoral Researcher, Statistical Genomics and Systems Genetics, European Molecular Biology Laboratory (EMBL), Heidelberg, Germany
 
 **Abstract**
 
@@ -24,5 +24,5 @@ Advances in single-cell transcriptomics techniques are revolutionizing studies o
 
 This talk introduces MERLoT, a tool for reconstructing complex lineage trees from single-cell transcriptomics data, which can also impute temporal gene expression profiles along the reconstructed trees. Its capabilities are demonstrated across real cases and simulated datasets.
 
-**Date:** February 20th, 2020 — 10:00 (Bogotá)
+**Date:** February 20th, 2020 – 10:00 (Bogotá)
 

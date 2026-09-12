@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Sunucu**
 
-**Elena Papaleo** — Doçent Doktor, Kopenhag Üniversitesi / Danimarka Teknik Üniversitesi
+**Elena Papaleo**: Doçent Doktor, Kopenhag Üniversitesi / Danimarka Teknik Üniversitesi
 
 Elena Papaleo, doktorasını Endüstriyel Biyoteknoloji alanında tamamladı ve Milano-Bicocca Üniversitesi'nin çeşitli bölümlerinde doktora sonrası araştırmacı, ardından aynı üniversitede ve Kopenhag Üniversitesi'nde kıdemli doktora sonrası araştırmacı olarak çalıştı. Şu anda Kopenhag Üniversitesi ve Danimarka Teknik Üniversitesi'nde doçent doktor ve Danimarka Kanser Derneği üyesidir. PLoS One, Frontiers in Molecular Biosciences ve Journal of Molecular Graphics and Modelling gibi dergilerin yayın kurullarında yer almaktadır.
 

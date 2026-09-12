@@ -16,7 +16,7 @@ keyTakeaways: []
 
 **Presenter**
 
-**Asst. Prof. Şebnem Eşsiz** — Kadir Has University
+**Asst. Prof. Şebnem Eşsiz**, Kadir Has University
 
 **Abstract**
 
@@ -24,5 +24,5 @@ This talk covers homology modelling and coarse-grained molecular dynamics studie
 
 The accuracy of comparative models derived from homologous proteins in the low sequence similarity range is limited substantially by inaccuracies in the alignment. Despite advances in alignment methods, accuracy remains challenging. The talk covers iterative approaches of model building and model assessment alongside standard modelling techniques, with molecular dynamics studies of the NMDA tetrameric and nicotinic acetylcholine pentameric ion channel proteins used to show the current state of all-atom MD research.
 
-**Date:** April 15th, 2019 — 17:00 (Istanbul)
+**Date:** April 15th, 2019 – 17:00 (Istanbul)
 

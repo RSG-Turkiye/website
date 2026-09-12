@@ -53,6 +53,6 @@ Klebsiella pneumoniae is an opportunistic bacterial pathogen leading to life-thr
 
 ---
 
-**Date:** April 8th, 2022 — 14:00 (GMT+3)
+**Date:** April 8th, 2022 – 14:00 (GMT+3)
 
 **Language:** English

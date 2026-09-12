@@ -14,7 +14,7 @@ image: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1
 topic: ""
 keyTakeaways:
   - "Popülasyon büyüklüğü ile genetik çeşitlilik arasında doğrusal bir ilişki bekleyen teorik varsayım"
-  - "Gerçek dünya verilerinin bu beklentiyle neden sıkça çeliştiği — Lewontin Paradoksu"
+  - "Gerçek dünya verilerinin bu beklentiyle neden sıkça çeliştiği, Lewontin Paradoksu"
   - "Klasik Hill-Robertson etkisi ve bağlantılı seçilimin paradoksu açıklamaya nasıl yardımcı olduğu"
   - "Araştırmacıların bu uzun süredir devam eden evrimsel bilmeceyi çözmek için kullandığı modern yaklaşımlar"
   - "Paradoksun evrimsel biyolojide neden hâlâ aktif bir araştırma alanı olduğu"

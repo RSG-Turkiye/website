@@ -24,6 +24,6 @@ Dr. Nagarajan is Associate Director and Senior Group Leader at the Genome Instit
 
 The structure and function of diverse microbial communities is underpinned by undefined ecological interactions. With the rapid adoption of next-generation sequencing to study microbiomes, data-driven inference of microbial interactions based on abundance correlations is widely used, but has the disadvantage that ecological interpretation is not possible. We present an expectation maximisation algorithm (BEEM-Static) that can be applied to cross-sectional datasets to infer interaction networks based on an ecological model (generalised Lotka–Volterra). Benchmarking against ten state-of-the-art correlation-based methods showed that BEEM-Static can infer the presence and direction of ecological interactions even with relative abundance data (AUC-ROC > 0.85). Applying BEEM-Static to a large public dataset of human gut microbiomes (n = 4,617) identified multiple stable equilibria that better reflect ecological enterotypes.
 
-**Date:** April 13th, 2021 — 10:00 AM (GMT+3)
+**Date:** April 13th, 2021 – 10:00 AM (GMT+3)
 
 **Language:** English

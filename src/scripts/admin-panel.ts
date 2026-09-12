@@ -580,7 +580,7 @@ function setupAttachmentUpload() {
     }
 
     const kind = ALLOWED_UPLOAD_TYPES[file.type];
-    chosen.textContent = file.name + ' — ' + formatBytes(file.size) + (kind ? ' · ' + kind : '');
+    chosen.textContent = file.name + ' · ' + formatBytes(file.size) + (kind ? ' · ' + kind : '');
     chosen.classList.remove('hidden');
 
     // Both checks are repeated on the server, which is what actually

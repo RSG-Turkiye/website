@@ -24,6 +24,6 @@ keyTakeaways: []
 
 Alternative splicing (AS) plays an important role in the differentiation of immune cells during the immune response, as 29% of AS genes are immune-specific. To understand post-transcriptional regulation in human germinal centre B cells at both the gene and the isoform level, we set out to develop a long-read Oxford Nanopore Technologies (ONT) workflow. We developed a workflow called 'Nexons' to identify different splicing variants. An in-depth analysis of splicing regulators with Nexons revealed that poison exons of splicing factors such as SRSF3 are preferentially removed upon activation.
 
-**Date:** May 20th, 2022 — 10:30 AM (GMT+3)
+**Date:** May 20th, 2022 – 10:30 AM (GMT+3)
 
 **Language:** English

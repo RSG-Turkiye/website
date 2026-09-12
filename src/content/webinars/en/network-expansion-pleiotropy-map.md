@@ -16,7 +16,7 @@ keyTakeaways: []
 
 **Presenter**
 
-**Dr. Inigo Barrio Hernandez** — EMBL-EBI
+**Dr. Inigo Barrio Hernandez**, EMBL-EBI
 
 **Abstract**
 
@@ -24,5 +24,5 @@ Proteins that interact within molecular networks tend to have similar functions 
 
 This talk explores how interactome data can generate profiles for comparing traits and identify protein communities involved in cell signalling and disease pathogenesis. Applying network-based approaches to common genetic variation associated with more than 1000 traits produces a disease pleiotropy map, which can reveal hotspots of potential therapeutic targets.
 
-**Date:** April 26th, 2023 — 15:00 (Istanbul)
+**Date:** April 26th, 2023 – 15:00 (Istanbul)
 

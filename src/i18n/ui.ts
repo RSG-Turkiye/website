@@ -71,7 +71,7 @@ export const ui = {
     'about.subtitle': 'A non-profit community of early career researchers interested in computational biology and bioinformatics.',
     'about.whoWeAre.title': 'Who Are We?',
     'about.whoWeAre.description': 'RSG-Turkiye is a volunteer platform affiliated with the International Society for Computational Biology (ISCB) Student Council, bringing together students and early-career researchers in computational biology and bioinformatics across Turkiye.',
-    'about.whoWeAre.detail': 'Operating entirely on volunteerism since 2011, we are a non-hierarchical community that creates and supports one another. We organize annual student symposiums, monthly webinars with international experts, journal club meetings, and hands-on workshops — connecting young scientists in Turkiye with each other and with colleagues around the world.',
+    'about.whoWeAre.detail': 'Operating entirely on volunteerism since 2011, we are a non-hierarchical community that creates and supports one another. We organize annual student symposiums, monthly webinars with international experts, journal club meetings, and hands-on workshops: connecting young scientists in Turkiye with each other and with colleagues around the world.',
     'about.affiliation.title': 'International Affiliation',
     'about.affiliation.description': 'Member of ISCB Student Council Regional Student Groups',
     'about.community.title': 'Community Focus',
@@ -85,7 +85,7 @@ export const ui = {
     'about.symposiums.title': 'Student Symposiums',
     'about.symposiums.description': 'Our annual symposium brings students and expert speakers together to present research, exchange ideas, and build connections across institutions.',
     'about.webinars.title': 'Webinars',
-    'about.webinars.description': 'Monthly online talks with researchers from leading centers worldwide — EMBL-EBI, Wellcome Sanger, and more. All recordings are freely available on our YouTube channel.',
+    'about.webinars.description': 'Monthly online talks with researchers from leading centers worldwide: EMBL-EBI, Wellcome Sanger, and more. All recordings are freely available on our YouTube channel.',
     'about.presentations.title': 'Student Presentations',
     'about.presentations.description': 'Students present their own thesis work or papers to the community, developing both scientific communication skills and a culture of constructive feedback.',
 
@@ -437,7 +437,7 @@ export const ui = {
 
     // Admin Panel - Symposium
     'admin.symposium.heading': 'Symposium',
-    'admin.symposium.yearFragment': ' — {year}',
+    'admin.symposium.yearFragment': ', {year}',
     'admin.symposium.loadFailed': 'Could not load this section.',
     'admin.symposium.edition.heading': 'Edition settings',
     'admin.symposium.edition.registrationUrl': 'Registration URL',
@@ -498,7 +498,7 @@ export const ui = {
     'admin.symposium.committee.form.roleTrPlaceholder': 'Role (Turkish)',
     'admin.symposium.committee.form.affiliationPlaceholder': 'Affiliation',
     'admin.symposium.committee.form.photoPlaceholder': 'Photo URL (or upload above)',
-    'admin.symposium.committee.form.photoLabel': 'Photo — max 5 MB, JPEG/PNG/WebP/GIF',
+    'admin.symposium.committee.form.photoLabel': 'Photo: max 5 MB, JPEG/PNG/WebP/GIF',
     'admin.symposium.committee.form.photoUploading': 'Uploading…',
     'admin.symposium.committee.form.photoUploaded': 'Uploaded.',
     // Comma-separated because a member is usually on one team and sometimes
@@ -523,10 +523,10 @@ export const ui = {
     // change gets pressed twice.
     'admin.symposium.saving': 'Saving…',
     'admin.symposium.rebuild.started': 'Saved. Rebuild started.',
-    'admin.symposium.rebuild.queued': 'Saved. A rebuild was already running — it will publish this too.',
+    'admin.symposium.rebuild.queued': 'Saved. A rebuild was already running: it will publish this too.',
     // No nightly rebuild exists. This used to promise one, so a save that
     // genuinely failed to publish looked like it would sort itself out.
-    'admin.symposium.rebuild.failed': 'Saved, but the site was not rebuilt ({detail}). Nothing else will publish it — tell whoever maintains the site.',
+    'admin.symposium.rebuild.failed': 'Saved, but the site was not rebuilt ({detail}). Nothing else will publish it: tell whoever maintains the site.',
   },
   tr: {
     // Navigation
@@ -950,7 +950,7 @@ export const ui = {
 
     // Admin Panel - Symposium
     'admin.symposium.heading': 'Sempozyum',
-    'admin.symposium.yearFragment': ' — {year}',
+    'admin.symposium.yearFragment': ', {year}',
     'admin.symposium.loadFailed': 'Bu bölüm yüklenemedi.',
     'admin.symposium.edition.heading': 'Etkinlik ayarları',
     'admin.symposium.edition.registrationUrl': 'Kayıt URL\'si',
@@ -1011,7 +1011,7 @@ export const ui = {
     'admin.symposium.committee.form.roleTrPlaceholder': 'Görev (Türkçe)',
     'admin.symposium.committee.form.affiliationPlaceholder': 'Kurum',
     'admin.symposium.committee.form.photoPlaceholder': 'Fotoğraf URL\'si (ya da yukarıdan yükleyin)',
-    'admin.symposium.committee.form.photoLabel': 'Fotoğraf — en fazla 5 MB, JPEG/PNG/WebP/GIF',
+    'admin.symposium.committee.form.photoLabel': 'Fotoğraf: en fazla 5 MB, JPEG/PNG/WebP/GIF',
     'admin.symposium.committee.form.photoUploading': 'Yükleniyor…',
     'admin.symposium.committee.form.photoUploaded': 'Yüklendi.',
     'admin.symposium.committee.form.teamsPlaceholder': 'Ekipler (İngilizce), virgülle ayırın (ör. Social Media, Graphic Design)',
@@ -1028,8 +1028,8 @@ export const ui = {
     'admin.symposium.committee.delete': 'Sil',
     'admin.symposium.saving': 'Kaydediliyor…',
     'admin.symposium.rebuild.started': 'Kaydedildi. Yeniden yapılandırma başladı.',
-    'admin.symposium.rebuild.queued': 'Kaydedildi. Zaten süren bir derleme vardı — bunu da yayınlayacak.',
-    'admin.symposium.rebuild.failed': 'Kaydedildi ama site yeniden derlenmedi ({detail}). Bunu yayınlayacak başka bir şey yok — siteyi yöneten kişiye haber verin.',
+    'admin.symposium.rebuild.queued': 'Kaydedildi. Zaten süren bir derleme vardı: bunu da yayınlayacak.',
+    'admin.symposium.rebuild.failed': 'Kaydedildi ama site yeniden derlenmedi ({detail}). Bunu yayınlayacak başka bir şey yok: siteyi yöneten kişiye haber verin.',
   },
 } as const;
 

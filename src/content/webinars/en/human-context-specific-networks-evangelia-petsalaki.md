@@ -28,7 +28,7 @@ In this talk I will present the network-based methods our group has developed fo
 
 I will also introduce CEN-tools, an integrated web server and Python package designed to explore gene essentiality across different contexts, and discuss the linear model we developed to disentangle the effects of tissue types and cancer mutations on context-specific essentiality.
 
-**Date:** July 16th, 2024 — 4:00 PM (GMT+3)
+**Date:** July 16th, 2024 – 4:00 PM (GMT+3)
 
 **Venue:** Zoom
 

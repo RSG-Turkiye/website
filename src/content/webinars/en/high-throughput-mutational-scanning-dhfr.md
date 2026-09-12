@@ -5,7 +5,7 @@ speaker: "Tandaç Furkan Güçlü"
 speakerAffiliation: "Sabancı University"
 speakerTitle: "Post-Doctoral Research Associate"
 speakerPhoto: ""
-description: "A GPU-accelerated pipeline running 4,752 alchemical free energy perturbation simulations to quantify how single mutations in dihydrofolate reductase change trimethoprim binding — antibiotic resistance predicted before it appears in the clinic."
+description: "A GPU-accelerated pipeline running 4,752 alchemical free energy perturbation simulations to quantify how single mutations in dihydrofolate reductase change trimethoprim binding: antibiotic resistance predicted before it appears in the clinic."
 youtubeUrl: "https://www.youtube.com/watch?v=fd1Gh8p8bdQ"
 slidesUrl: ""
 year: 2025
@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Tandaç Furkan Güçlü** — Post-Doctoral Research Associate, Sabancı University
+**Tandaç Furkan Güçlü**: Post-Doctoral Research Associate, Sabancı University
 
 Tandaç Furkan Güçlü earned his PhD in Molecular Biology, Genetics and Bioengineering from Sabancı University in 2021 and has been a postdoctoral researcher in the MIDST lab since then, where he works on the EuroCC4SEE project. He employs molecular dynamics, GPU-accelerated free energy perturbation and network-theoretic analyses to map how point mutations affect protein structure and ligand binding. His work has led to publications on alchemical screening of dihydrofolate reductase and allosteric network mapping in PDZ domains, and he develops scalable HPC workflows and training programmes for computational structural biology.
 

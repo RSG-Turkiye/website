@@ -4,7 +4,7 @@ date: 2021-10-14
 speaker: Afshan Nabi
 speakerAffiliation: OccamzRazor
 speakerTitle: Makine Öğrenimi Mühendisi
-description: Yanlış tanımlanmış lncRNA'ları tespit etmek için derin öğrenme modellerinin eğitim dinamiklerinden yararlanan bir çerçeve — ribo-seq deneylerine gerek duymadan >%91 AUC başarısı.
+description: Yanlış tanımlanmış lncRNA'ları tespit etmek için derin öğrenme modellerinin eğitim dinamiklerinden yararlanan bir çerçeve, ribo-seq deneylerine gerek duymadan >%91 AUC başarısı.
 youtubeUrl: ""
 slidesUrl: ""
 year: 2021

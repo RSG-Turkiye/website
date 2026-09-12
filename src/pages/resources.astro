@@ -17,10 +17,10 @@ const learningResources: Resource[] = [
   { title: "OSSU Bioinformatics", description: "A free, open-source self-paced curriculum for a complete bioinformatics education, curated from top university courses.", url: "https://github.com/ossu/bioinformatics", tags: ["curriculum", "self-paced"], opensource: true },
   { title: "EMBL-EBI Training", description: "Free online training courses in bioinformatics, genomics, proteomics, and data analysis from the European Bioinformatics Institute.", url: "https://www.ebi.ac.uk/training", tags: ["courses", "genomics", "proteomics"], opensource: false },
   { title: "Harvard HBC Training", description: "Workshop materials from the Harvard Chan Bioinformatics Core covering RNA-seq, ChIP-seq, scRNA-seq, and more.", url: "https://hbctraining.github.io/main", tags: ["workshops", "rna-seq", "single-cell"], opensource: true },
-  { title: "Galaxy Training Network", description: "Hundreds of free, community-developed tutorials for data analysis using Galaxy — from genomics to proteomics and imaging.", url: "https://training.galaxyproject.org", tags: ["tutorials", "galaxy", "community"], opensource: true },
+  { title: "Galaxy Training Network", description: "Hundreds of free, community-developed tutorials for data analysis using Galaxy: from genomics to proteomics and imaging.", url: "https://training.galaxyproject.org", tags: ["tutorials", "galaxy", "community"], opensource: true },
   { title: "TeachOpenCADD", description: "Jupyter-based teaching platform for computer-aided drug design using open-source Python tools. By the Volkamer Lab at Charité Berlin.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "drug-design", "python"], opensource: true },
   { title: "StatQuest with Josh Starmer", description: "Clearly explained statistics and machine learning concepts, with a strong focus on biology and bioinformatics applications.", url: "https://www.youtube.com/@statquest", tags: ["statistics", "machine-learning", "youtube"], opensource: false },
-  { title: "The Carpentries", description: "Hands-on lessons for Shell, Git, Python, and R — designed for researchers with no programming background.", url: "https://carpentries.org", tags: ["programming", "data-skills"], opensource: true },
+  { title: "The Carpentries", description: "Hands-on lessons for Shell, Git, Python, and R: designed for researchers with no programming background.", url: "https://carpentries.org", tags: ["programming", "data-skills"], opensource: true },
   { title: "Bioinformatics Specialization (Coursera)", description: "Seven-course specialization by Pavel Pevzner and Phillip Compeau (UC San Diego) covering algorithms and sequence analysis.", url: "https://www.coursera.org/specializations/bioinformatics", tags: ["algorithms", "coursera", "sequence-analysis"], opensource: false },
 ];
 
@@ -29,7 +29,7 @@ const mdResources: Resource[] = [
   { title: "NAMD Tutorials (UIUC)", description: "Official NAMD tutorials from the Theoretical and Computational Biophysics Group at UIUC. Covers equilibration, steered MD, and free energy perturbation.", url: "https://www.ks.uiuc.edu/Training/Tutorials", tags: ["NAMD", "MD", "tutorials"], opensource: true },
   { title: "CHARMM-GUI", description: "Web platform for building complex biomolecular systems. Generates ready-to-run input files for GROMACS, NAMD, AMBER, and CHARMM.", url: "https://www.charmm-gui.org", tags: ["system-builder", "GROMACS", "NAMD", "AMBER"], opensource: false },
   { title: "TeachOpenCADD", description: "Open-source, Python-based platform covering ligand-based and structure-based drug design in Jupyter notebooks.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "drug-design", "jupyter"], opensource: true },
-  { title: "Galaxy for Molecular Dynamics", description: "Galaxy-based workflows for MD simulation analysis — integrates GROMACS, MDAnalysis, and visualization tools in reproducible pipelines.", url: "https://usegalaxy.eu/workflows", tags: ["galaxy", "GROMACS", "reproducible"], opensource: true },
+  { title: "Galaxy for Molecular Dynamics", description: "Galaxy-based workflows for MD simulation analysis: integrates GROMACS, MDAnalysis, and visualization tools in reproducible pipelines.", url: "https://usegalaxy.eu/workflows", tags: ["galaxy", "GROMACS", "reproducible"], opensource: true },
 ];
 
 const databases: Resource[] = [
@@ -38,29 +38,29 @@ const databases: Resource[] = [
   { title: "RCSB Protein Data Bank (PDB)", description: "Archive of 3D structural data of proteins, nucleic acids, and complexes determined by X-ray, NMR, and cryo-EM.", url: "https://www.rcsb.org", tags: ["protein-structure", "3d"], opensource: false },
   { title: "AlphaFold Protein Structure Database", description: "AI-predicted protein structures for nearly all known proteins, produced by DeepMind and EMBL-EBI.", url: "https://alphafold.ebi.ac.uk", tags: ["protein-structure", "AI", "prediction"], opensource: false },
   { title: "Ensembl", description: "Genome browser and annotation database for vertebrate and model organism genomes, maintained by EMBL-EBI.", url: "https://www.ensembl.org", tags: ["genome", "annotation", "browser"], opensource: false },
-  { title: "GEO — Gene Expression Omnibus", description: "Public repository for high-throughput gene expression and functional genomics data (microarray, RNA-seq, ChIP-seq, etc.).", url: "https://www.ncbi.nlm.nih.gov/geo", tags: ["gene-expression", "transcriptomics"], opensource: false },
+  { title: "GEO: Gene Expression Omnibus", description: "Public repository for high-throughput gene expression and functional genomics data (microarray, RNA-seq, ChIP-seq, etc.).", url: "https://www.ncbi.nlm.nih.gov/geo", tags: ["gene-expression", "transcriptomics"], opensource: false },
   { title: "STRING", description: "Database of known and predicted protein–protein interactions, integrating experiments, text mining, and comparative genomics.", url: "https://string-db.org", tags: ["protein-interactions", "networks"], opensource: false },
-  { title: "KEGG", description: "Kyoto Encyclopedia of Genes and Genomes — reference database for biological pathways, diseases, drugs, and genomes.", url: "https://www.kegg.jp", tags: ["pathways", "metabolism"], opensource: false },
+  { title: "KEGG", description: "Kyoto Encyclopedia of Genes and Genomes: reference database for biological pathways, diseases, drugs, and genomes.", url: "https://www.kegg.jp", tags: ["pathways", "metabolism"], opensource: false },
   { title: "Human Cell Atlas", description: "International effort to map every cell type in the human body using single-cell genomics and spatial transcriptomics.", url: "https://www.humancellatlas.org", tags: ["single-cell", "atlas", "transcriptomics"], opensource: false },
   { title: "GTEx Portal", description: "Gene expression data across human tissues and the genetic variants (eQTLs) that regulate them.", url: "https://gtexportal.org", tags: ["gene-expression", "eQTL", "tissues"], opensource: false },
 ];
 
 const tools: Resource[] = [
   { title: "nf-core", description: "A community effort to collect curated, peer-reviewed Nextflow pipelines. 100+ analysis pipelines ready to run, covering RNA-seq, ChIP-seq, scRNA-seq, variant calling, and more.", url: "https://nf-co.re", tags: ["nextflow", "pipelines", "community"], opensource: true },
-  { title: "Galaxy Project", description: "Web-based platform for accessible, reproducible bioinformatics analysis — no command line required.", url: "https://usegalaxy.org", tags: ["web-platform", "reproducible", "beginners"], opensource: true },
+  { title: "Galaxy Project", description: "Web-based platform for accessible, reproducible bioinformatics analysis: no command line required.", url: "https://usegalaxy.org", tags: ["web-platform", "reproducible", "beginners"], opensource: true },
   { title: "Bioconductor", description: "Open-source R packages for bioinformatics: differential expression, ChIP-seq, single-cell, and more.", url: "https://www.bioconductor.org", tags: ["R", "packages", "genomics"], opensource: true },
-  { title: "GATK", description: "Genome Analysis Toolkit by the Broad Institute — industry-standard tools for variant discovery in high-throughput sequencing data.", url: "https://gatk.broadinstitute.org", tags: ["variant-calling", "WGS", "WES"], opensource: true },
+  { title: "GATK", description: "Genome Analysis Toolkit by the Broad Institute: industry-standard tools for variant discovery in high-throughput sequencing data.", url: "https://gatk.broadinstitute.org", tags: ["variant-calling", "WGS", "WES"], opensource: true },
   { title: "Nextflow", description: "Reactive workflow framework for scalable and reproducible bioinformatics pipelines across HPC and cloud environments.", url: "https://www.nextflow.io", tags: ["workflow", "pipelines", "HPC"], opensource: true },
   { title: "Snakemake", description: "Python-based workflow management system for reproducible and scalable data analyses.", url: "https://snakemake.readthedocs.io", tags: ["workflow", "python", "pipelines"], opensource: true },
-  { title: "BLAST", description: "Basic Local Alignment Search Tool — find regions of similarity between nucleotide or protein sequences and database entries.", url: "https://blast.ncbi.nlm.nih.gov", tags: ["sequence-search", "alignment"], opensource: true },
+  { title: "BLAST", description: "Basic Local Alignment Search Tool: find regions of similarity between nucleotide or protein sequences and database entries.", url: "https://blast.ncbi.nlm.nih.gov", tags: ["sequence-search", "alignment"], opensource: true },
   { title: "Cytoscape", description: "Open-source platform for visualizing and analyzing biological networks and pathways.", url: "https://cytoscape.org", tags: ["networks", "visualization"], opensource: true },
-  { title: "IGV — Integrative Genomics Viewer", description: "High-performance desktop and web application for interactive exploration of genomic data.", url: "https://igv.org", tags: ["genome-browser", "visualization"], opensource: true },
+  { title: "IGV: Integrative Genomics Viewer", description: "High-performance desktop and web application for interactive exploration of genomic data.", url: "https://igv.org", tags: ["genome-browser", "visualization"], opensource: true },
 ];
 
 const community: Resource[] = [
-  { title: "Biostars", description: "Question & answer forum for bioinformatics — search before posting, the answer is probably already there.", url: "https://www.biostars.org", tags: ["forum", "Q&A"], opensource: false },
+  { title: "Biostars", description: "Question & answer forum for bioinformatics: search before posting, the answer is probably already there.", url: "https://www.biostars.org", tags: ["forum", "Q&A"], opensource: false },
   { title: "ISCB Student Council", description: "International organization for students and young researchers in computational biology, affiliated with ISCB.", url: "https://www.iscb.org/iscb-student-council", tags: ["community", "networking"], opensource: false },
-  { title: "RSG-Turkiye GitHub", description: "Our organization's GitHub — past training materials, scripts, and resources from RSG-Turkiye events.", url: "https://github.com/RSG-Turkiye", tags: ["training", "open-source"], opensource: true },
+  { title: "RSG-Turkiye GitHub", description: "Our organization's GitHub: past training materials, scripts, and resources from RSG-Turkiye events.", url: "https://github.com/RSG-Turkiye", tags: ["training", "open-source"], opensource: true },
 ];
 
 const allSections = [

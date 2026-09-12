@@ -21,7 +21,7 @@ keyTakeaways:
 
 **Sunucu**
 
-**Alper Yılmaz** — Doç. Dr., Yıldız Teknik Üniversitesi
+**Alper Yılmaz**, Doç. Dr., Yıldız Teknik Üniversitesi
 
 Alper Yılmaz, Yıldız Teknik Üniversitesi'nde doçent doktordur. RSG-Türkiye'nin Linux terminalinin biyoinformatik analizdeki gücü üzerine önceki webinarını da o vermişti; bu oturum onun devamıdır.
 

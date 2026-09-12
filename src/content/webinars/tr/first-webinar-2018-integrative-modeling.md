@@ -6,7 +6,7 @@ speaker: Ezgi Karaca
 speakerAffiliation: İzmir Biyotıp ve Genom Enstitüsü
 speakerTitle: Doçent
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437044/rsgturkey/webinars/ezgi-karaca.jpg"
-description: 2018'in ilk webinarı — Doç. Prof. Ezgi Karaca'nın yapısal biyoloji teknikleri, HADDOCK ve Nature Methods'ta yayınlanan bütünleştirici modelleme çalışması üzerine sunumu.
+description: 2018'in ilk webinarı, Doç. Prof. Ezgi Karaca'nın yapısal biyoloji teknikleri, HADDOCK ve Nature Methods'ta yayınlanan bütünleştirici modelleme çalışması üzerine sunumu.
 youtubeUrl: "https://www.youtube.com/watch?v=jmFxZDTmEBo"
 slidesUrl: ""
 year: 2018

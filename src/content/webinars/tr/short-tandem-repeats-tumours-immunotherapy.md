@@ -5,7 +5,7 @@ speaker: Tugce Bilgin Sonay
 speakerAffiliation: Lozan Üniversitesi
 speakerTitle: ""
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1787437988/rsgturkey/webinars/tugce-bilgin-sonay.png"
-description: Tümörlerde Mikrosatellit Kararsızlığı üzerine bir webinar — kısa ardışık tekrarların gen ifadesi ve epigenetik üzerindeki etkisi ve bu etkilerin immünoterapide nasıl kullanılabileceği.
+description: Tümörlerde Mikrosatellit Kararsızlığı üzerine bir webinar, kısa ardışık tekrarların gen ifadesi ve epigenetik üzerindeki etkisi ve bu etkilerin immünoterapide nasıl kullanılabileceği.
 youtubeUrl: "https://youtu.be/GmjwyTZinjU"
 slidesUrl: ""
 year: 2018
