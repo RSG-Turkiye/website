@@ -41,3 +41,19 @@ test('schedule and speakers are reachable once filled -- they are built either w
   // linked them: reachable only by typing the URL.
   assert.ok(navItemsFor(FULL, 'en').some(i => i.href === '/schedule/'));
 });
+
+/**
+ * /speakers is an archive, and its nav item now follows that.
+ *
+ * `navItemsFor` only sees the flags, so this is the contract between it and
+ * BaseLayout: the flag means "the page has something on it", not "the current
+ * edition has something on it". The layout computes hasSpeakers from the
+ * whole speakers collection for exactly that reason, and the test below
+ * checks it stayed that way.
+ */
+test('a page carrying only past editions is still linked', () => {
+  const archiveOnly = { hasSchedule: false, hasSpeakers: true, hasCommittee: false };
+  const hrefs = navItemsFor(archiveOnly, 'en').map(i => i.href);
+  assert.ok(hrefs.includes('/speakers/'), 'speakers has three editions on it and must be reachable');
+  assert.ok(!hrefs.includes('/schedule/'), 'schedule is current-edition only and has nothing');
+});

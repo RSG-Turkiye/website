@@ -7,6 +7,7 @@ import { getLangFromUrl, useTranslations } from "../i18n/ui";
 import { getCurrentContent } from "../lib/content";
 import type { NavState } from "../lib/nav";
 import { alternatesFor } from "../lib/hreflang";
+import { getCollection } from "astro:content";
 
 interface Props {
   pageTitle: string;
@@ -31,9 +32,16 @@ const t = useTranslations(lang);
 // to none of them. getCurrentContent() is memoised, so this costs one fetch
 // per build rather than one per page.
 const content = await getCurrentContent();
+
+// /speakers is the one page here that is an archive: it lists every edition
+// that has speakers, newest first, not just the one coming up. Keying its nav
+// item on the current edition meant a page carrying three years of speakers
+// was reachable only by typing the URL. /schedule and /committee really are
+// current-edition pages, so those stay as they were.
+const archiveSpeakers = (await getCollection("speakers")).some((e) => e.data.people.length > 0);
 const navState: NavState = {
   hasSchedule: (content?.sessions.length ?? 0) > 0,
-  hasSpeakers: (content?.speakers.length ?? 0) > 0,
+  hasSpeakers: (content?.speakers.length ?? 0) > 0 || archiveSpeakers,
   hasCommittee: (content?.committee.length ?? 0) > 0,
 };
 

@@ -34,7 +34,7 @@ const scheduleSpeakers = content?.speakers ?? [];
   </section>
 
   <!-- Schedule -->
-  <div class="max-w-3xl mx-auto px-6 py-12">
+  <div class="max-w-3xl mx-auto px-6 py-12" data-sessions={sessions.length}>
     {
       edition && sessions.length > 0 ? (
         <Fragment>
