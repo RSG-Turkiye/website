@@ -21,16 +21,18 @@ interface Props {
   members: CommitteeMember[];
   /** A finished edition with no roster says so; an upcoming one promises one. */
   finished: boolean;
+  /** Inside another page's container: drop the outer padding, head at h3. */
+  bare?: boolean;
 }
 
-const { lang, members, finished } = Astro.props;
+const { lang, members, finished, bare = false } = Astro.props;
 const t = useTranslations(lang);
 const teams = groupByTeam(members, lang);
 /** With one untagged block there is nothing to head -- that is the old page. */
 const showHeadings = teams.length > 1 || teams[0]?.label != null;
 ---
 
-<div class="max-w-5xl mx-auto px-6 py-16">
+<div class={bare ? "" : "max-w-5xl mx-auto px-6 py-16"}>
   {members.length === 0 ? (
     <p class="text-gray-500 text-center py-16">{finished ? t("committee.past.none") : t("committee.tba")}</p>
   ) : (
@@ -38,7 +40,9 @@ const showHeadings = teams.length > 1 || teams[0]?.label != null;
       {teams.map((team) => (
         <section>
           {showHeadings && (
-            <h2 class="text-lg font-bold text-navy mb-1">{team.label ?? t("committee.noTeam")}</h2>
+            bare
+              ? <h3 class="text-base font-bold text-navy mb-1">{team.label ?? t("committee.noTeam")}</h3>
+              : <h2 class="text-lg font-bold text-navy mb-1">{team.label ?? t("committee.noTeam")}</h2>
           )}
           {showHeadings && <div class="w-12 h-0.5 bg-navy-mid mb-6"></div>}
           <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -4,9 +4,10 @@ const now = new Date();
 
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import SpeakerCard from "../../../components/SpeakerCard.astro";
+import CommitteeGrid from "../../../components/CommitteeGrid.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
 import { getCollection, render } from "astro:content";
-import { getSpeakerBySlug, getCurrentContent } from "../../../lib/content";
+import { getSpeakerBySlug, getCurrentContent, getCommittee } from "../../../lib/content";
 import { getCurrentEdition } from "../../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor, dateFor } from "../../../lib/editions";
 
@@ -45,6 +46,17 @@ const speakers =
     : currentEntry?.data.year === edition.data.year
       ? (await getCurrentContent())?.speakers ?? []
       : [];
+
+// Who organised this one. Past editions read the roster committed under
+// src/content/committee/<year>.json; the current one goes through the same
+// merge /committee does, so a name added in the panel shows here too. When
+// that edition is archived the roster is written to its own JSON file and
+// this page keeps showing it without anyone doing anything -- which is the
+// point: next year's team inherits a page that already lists this year's.
+const committee =
+  currentEntry?.data.year === edition.data.year
+    ? (await getCurrentContent())?.committee ?? []
+    : await getCommittee(edition.data.year);
 const title = titleFor(edition.data, lang);
 const subtitle = subtitleFor(edition.data, lang);
 ---
@@ -97,6 +109,12 @@ const subtitle = subtitleFor(edition.data, lang);
       </div>
     )}
     <div class="prose-content"><Content /></div>
+    {committee.length > 0 && (
+      <div>
+        <h2 class="text-xl font-bold text-navy mb-5">{t("committee.title")}</h2>
+        <CommitteeGrid lang={lang} members={committee} finished bare />
+      </div>
+    )}
     {edition.data.galleryImages.length > 0 && (
       <div>
         <h2 class="text-xl font-bold text-navy mb-5">Galeri</h2>
