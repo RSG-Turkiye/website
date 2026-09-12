@@ -52,6 +52,10 @@ test('no roster carries contact details', () => {
   for (const { file } of rosters()) {
     const raw = readFileSync(join(DIR, file), 'utf8');
     raw.split('\n').forEach((line, i) => {
+      // Image URLs carry a Cloudinary version stamp and R2 object ids, which
+      // are long digit runs by construction. What they hold is checked by the
+      // host allow-list below instead.
+      if (/"(photo|linkedin)":/.test(line)) return;
       // An email address. LinkedIn URLs are allowed and have no @.
       if (line.includes('@')) offenders.push(`${file}:${i + 1}  email address`);
       // A phone number, however it is punctuated. Years are four digits and
@@ -96,6 +100,30 @@ test('affiliations name an institution, not a degree', () => {
     }
   }
   assert.deepEqual(offenders, [], `degree level in an affiliation:\n    ${offenders.join('\n    ')}\n  `);
+});
+
+test('every photo is served from a host that works in Türkiye', () => {
+  // pages.dev, r2.dev and workers.dev are blocked by Turkish ISPs, so an R2
+  // object has to come through the main site's /api/images proxy rather than
+  // its bucket URL. Cloudinary is the other host the sites use.
+  const allowed = [
+    'https://res.cloudinary.com/dyuf14ra5/image/upload/',
+    'https://rsg-turkiye.iscbsc.org/api/images/',
+  ];
+  const offenders: string[] = [];
+  for (const { file, people } of rosters()) {
+    for (const person of people) {
+      if (!person.photo) continue;
+      if (!allowed.some((prefix) => person.photo!.startsWith(prefix))) {
+        offenders.push(`${file}: ${person.name} -- ${person.photo}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `photo served from a host the sites do not use:\n    ${offenders.join('\n    ')}\n  `,
+  );
 });
 
 test('a past edition page shows its committee, and one without a roster shows nothing', {
