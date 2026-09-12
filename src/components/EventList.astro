@@ -1,0 +1,87 @@
+---
+/**
+ * The /events page's body, shared by the English and Turkish routes.
+ *
+ * Both pages used to carry their own copy of the event list and their own
+ * copy of this markup. Two lists meant two things to update and, in
+ * practice, neither got updated.
+ */
+import { events, groupEvents, statusOf, type CommunityEvent } from "../data/events";
+import { useTranslations } from "../i18n/ui";
+
+interface Props {
+  lang: "en" | "tr";
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+// Build time. The page is rebuilt nightly, so "now" is at worst a day old --
+// and the boundary this decides is midnight after an event's last day.
+const now = new Date();
+const { upcoming, symposiums, workshops } = groupEvents(events, now);
+
+const sections: { id: string; title: string; items: CommunityEvent[] }[] = [
+  { id: "upcoming", title: t("events.section.upcoming"), items: upcoming },
+  { id: "symposiums", title: t("events.symposiums.title"), items: symposiums },
+  { id: "workshops", title: t("events.workshops.title"), items: workshops },
+];
+
+const symposiumSite = lang === "tr"
+  ? "https://symposium.rsg-turkiye.iscbsc.org/tr/editions/"
+  : "https://symposium.rsg-turkiye.iscbsc.org/editions/";
+---
+
+<section class="bg-white py-16">
+  <div class="max-w-7xl mx-auto px-6">
+    {/* An empty section renders a heading over nothing, which reads as a
+        broken page. With no event ahead of us, "Upcoming Events" simply
+        does not appear. */}
+    {sections.filter((s) => s.items.length > 0).map((section) => (
+      <div class="mb-12" id={section.id}>
+        <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">
+          {section.title}
+        </h2>
+        <div class="flex flex-col">
+          {section.items.map((event) => {
+            const status = statusOf(event, now);
+            return (
+              <div class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 py-5 border-b border-border items-start">
+                <div class="flex flex-col">
+                  <span class="text-sm font-medium text-navy">{event.when[lang]}</span>
+                  <span class="text-xs text-gray-500">{event.location[lang]}</span>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <strong class="text-navy">{event.title[lang]}</strong>
+                    <span class={`inline-block text-xs font-medium px-2 py-0.5 rounded ${status === "upcoming" ? "bg-red-tint text-red" : "bg-navy-light text-navy-mid"}`}>
+                      {status === "upcoming" ? t("events.status.upcoming") : t("events.status.completed")}
+                    </span>
+                    <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">
+                      {event.type === "symposium" ? t("events.type.symposium") : t("events.type.workshop")}
+                    </span>
+                  </div>
+                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{event.description[lang]}</p>
+                  {status === "upcoming" && (
+                    <a
+                      href="mailto:turkey.rsg@gmail.com"
+                      class="inline-flex items-center px-3 py-1.5 rounded bg-red text-white text-xs font-medium hover:bg-red-hover transition-colors no-underline"
+                    >
+                      {t("events.register")}
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ))}
+
+    <p class="text-sm">
+      <a href={symposiumSite} class="text-navy-mid hover:text-navy transition-colors font-medium no-underline">
+        {t("events.archive.link")}
+      </a>
+    </p>
+  </div>
+</section>

@@ -1,38 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import EventList from '../components/EventList.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "Events - RSG-Turkiye";
-
-const events = [
-  {
-    category: "Symposiums",
-    id: "symposiums",
-    events: [
-      { title: "Student Symposium 2024", date: "2024", location: "Turkiye", description: "Annual student symposium bringing together researchers and students in computational biology.", status: "completed", type: "symposium" },
-      { title: "Student Symposium 2023", date: "2023", location: "Turkiye", description: "Annual student symposium featuring research presentations and networking opportunities.", status: "completed", type: "symposium" },
-    ]
-  },
-  {
-    category: "Workshops",
-    id: "workshops",
-    events: [
-      { title: "Single-Cell Workshop", date: "2024", location: "Turkiye", description: "Hands-on workshop on single-cell analysis techniques and methodologies.", status: "completed", type: "workshop" },
-      { title: "Structural Biology Workshop", date: "Dec 2021", location: "Virtual", description: "Introduction to Computational Structural Biology — protein structure determination, molecular docking (HADDOCK, SWISS, PRISM), and molecular dynamics (NAMD).", status: "completed", type: "workshop" },
-      { title: "COVID-19 Research Workshop", date: "2020", location: "Virtual", description: "Workshop focused on computational approaches to COVID-19 research and data analysis.", status: "completed", type: "workshop" },
-    ]
-  },
-  {
-    category: lang === 'tr' ? 'Yaklaşan Etkinlikler' : 'Upcoming Events',
-    id: "upcoming",
-    events: [
-      { title: "Annual Symposium 2025", date: "TBD 2025", location: "Turkiye", description: "Our annual symposium bringing together the computational biology community in Turkiye.", status: "upcoming", type: "symposium" },
-      { title: "Bioinformatics Tools Workshop", date: "TBD 2025", location: "TBD", description: "Hands-on workshop on popular bioinformatics tools and pipelines.", status: "upcoming", type: "workshop" },
-    ]
-  }
-];
 ---
 
 <BaseLayout pageTitle={pageTitle}
@@ -46,45 +19,6 @@ const events = [
     </div>
   </div>
 
-  <!-- Events List -->
-  <section class="bg-white py-16">
-    <div class="max-w-7xl mx-auto px-6">
-      {events.map((category) => (
-        <div class="mb-12" id={category.id}>
-          <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">
-            {category.category}
-          </h2>
-          <div class="flex flex-col">
-            {category.events.map((event) => (
-              <div class="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-4 py-5 border-b border-border items-start">
-                <div class="flex flex-col">
-                  <span class="text-sm font-medium text-navy">{event.date}</span>
-                  <span class="text-xs text-gray-500">{event.location}</span>
-                </div>
-                <div>
-                  <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <strong class="text-navy">{event.title}</strong>
-                    <span class={`inline-block text-xs font-medium px-2 py-0.5 rounded ${event.status === 'upcoming' ? 'bg-red-tint text-red' : 'bg-navy-light text-navy-mid'}`}>
-                      {event.status === 'upcoming' ? t('events.status.upcoming') : t('events.status.completed')}
-                    </span>
-                    <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">
-                      {event.type}
-                    </span>
-                  </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{event.description}</p>
-                  {event.status === 'upcoming' && (
-                    <a href="mailto:turkey.rsg@gmail.com"
-                      class="inline-flex items-center px-3 py-1.5 rounded bg-red text-white text-xs font-medium hover:bg-red-hover transition-colors no-underline">
-                      {t('events.register')}
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </section>
+  <EventList lang={lang} />
 
 </BaseLayout>

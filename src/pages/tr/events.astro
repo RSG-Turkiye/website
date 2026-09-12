@@ -1,43 +1,17 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import EventList from '../../components/EventList.astro';
 import { useTranslations } from '../../i18n/ui';
 
-const lang = 'tr';
+const lang = 'tr' as const;
 const t = useTranslations(lang);
 const pageTitle = "Etkinlikler - RSG-Türkiye";
-
-const events = [
-  {
-    category: "Sempozyumlar",
-    id: "symposiums",
-    events: [
-      { title: "Öğrenci Sempozyumu 2024", date: "2024", location: "Türkiye", description: "Hesaplamalı biyolojide araştırmacı ve öğrencileri bir araya getiren yıllık öğrenci sempozyumu.", status: "completed", type: "sempozyum" },
-      { title: "Öğrenci Sempozyumu 2023", date: "2023", location: "Türkiye", description: "Araştırma sunumları ve ağ oluşturma fırsatları içeren yıllık öğrenci sempozyumu.", status: "completed", type: "sempozyum" },
-    ]
-  },
-  {
-    category: "Atölyeler",
-    id: "workshops",
-    events: [
-      { title: "Tek Hücreli Analiz Atölyesi", date: "2024", location: "Türkiye", description: "Tek hücreli analiz teknikleri ve metodolojileri üzerine uygulamalı atölye.", status: "completed", type: "atölye" },
-      { title: "Yapısal Biyoloji Atölyesi", date: "Aralık 2021", location: "Çevrimiçi", description: "Hesaplamalı Yapısal Biyolojiye Giriş — protein yapı belirleme, moleküler yuvalama ve moleküler dinamikler.", status: "completed", type: "atölye" },
-      { title: "COVID-19 Araştırma Atölyesi", date: "2020", location: "Çevrimiçi", description: "COVID-19 araştırmalarına hesaplamalı yaklaşımlar üzerine atölye.", status: "completed", type: "atölye" },
-    ]
-  },
-  {
-    category: "Yaklaşan Etkinlikler",
-    id: "upcoming",
-    events: [
-      { title: "Yıllık Sempozyum 2025", date: "TBD 2025", location: "Türkiye", description: "Türkiye'deki hesaplamalı biyoloji topluluğunu bir araya getiren yıllık sempozyumumuz.", status: "upcoming", type: "sempozyum" },
-      { title: "Biyoinformatik Araçları Atölyesi", date: "TBD 2025", location: "TBD", description: "Popüler biyoinformatik araçlar ve pipeline'lar üzerine uygulamalı atölye.", status: "upcoming", type: "atölye" },
-    ]
-  }
-];
 ---
 
 <BaseLayout pageTitle={pageTitle}
   description="RSG-Türkiye'nin yaklaşan ve geçmiş etkinlikleri: yıllık öğrenci sempozyumu, atölyeler ve topluluk buluşmaları.">
 
+  <!-- Sayfa Başlığı -->
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
       <h1 class="text-3xl font-bold text-white">{t('events.title')}</h1>
@@ -45,39 +19,6 @@ const events = [
     </div>
   </div>
 
-  <section class="bg-white py-16">
-    <div class="max-w-7xl mx-auto px-6">
-      {events.map((category) => (
-        <div class="mb-12" id={category.id}>
-          <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">{category.category}</h2>
-          <div class="flex flex-col">
-            {category.events.map((event) => (
-              <div class="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-4 py-5 border-b border-border items-start">
-                <div class="flex flex-col">
-                  <span class="text-sm font-medium text-navy">{event.date}</span>
-                  <span class="text-xs text-gray-500">{event.location}</span>
-                </div>
-                <div>
-                  <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <strong class="text-navy">{event.title}</strong>
-                    <span class={`inline-block text-xs font-medium px-2 py-0.5 rounded ${event.status === 'upcoming' ? 'bg-red-tint text-red' : 'bg-navy-light text-navy-mid'}`}>
-                      {event.status === 'upcoming' ? t('events.status.upcoming') : t('events.status.completed')}
-                    </span>
-                    <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">{event.type}</span>
-                  </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{event.description}</p>
-                  {event.status === 'upcoming' && (
-                    <a href="mailto:turkey.rsg@gmail.com" class="inline-flex items-center px-3 py-1.5 rounded bg-red text-white text-xs font-medium hover:bg-red-hover transition-colors no-underline">
-                      {t('events.register')}
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </section>
+  <EventList lang={lang} />
 
 </BaseLayout>
