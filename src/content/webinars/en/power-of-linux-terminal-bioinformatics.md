@@ -20,4 +20,4 @@ keyTakeaways: []
 
 We invite everyone with an interest in bioinformatics to this talk, "The Power of the Linux Terminal for Bioinformatics Analysis", in which Assoc. Prof. Dr. Alper Yılmaz will make the case for the Linux terminal as the tool for managing and analysing large, complex and varied biological datasets effectively.
 
-**Date:** March 19th, 2024 — 16:00 (GMT+3)
+**Date:** March 19th, 2024 – 16:00 (GMT+3)

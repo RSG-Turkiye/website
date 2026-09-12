@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Sunucu**
 
-**Francesco Gentile** — Doktor Öğretim Üyesi, Ottawa Üniversitesi
+**Francesco Gentile**: Doktor Öğretim Üyesi, Ottawa Üniversitesi
 
 Francesco Gentile, Ottawa Üniversitesi Kimya ve Biyomoleküler Bilimler Bölümü'nde doktor öğretim üyesi ve Ottawa Sistem Biyolojisi Enstitüsü'nde baş araştırmacıdır. Politecnico di Torino'dan Biyomühendislik yüksek lisansı ve Alberta Üniversitesi'nden Biyofizik doktorası aldı; 2022'de Ottawa Üniversitesi'ne katılmadan önce British Columbia Üniversitesi'nde CIHR/MSFHR destekli doktora sonrası araştırma yaptı. Grubu, kanser, nörolojik hastalıklar ve antimikrobiyal direnç alanlarında küçük moleküllerin ve biyoterapötiklerin keşfi için hesaplamalı ve yapay zekâ yöntemleri geliştiriyor. Lugano, İsviçre merkezli yapay zekâ odaklı ilaç keşif şirketi InVirtuo Laboratories'in kurucu ortağıdır.
 

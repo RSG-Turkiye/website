@@ -1,7 +1,7 @@
 ---
 number: 6
 emoji: "🎬"
-title: "RSG Turkiye — Watch the Experts"
+title: "RSG Turkiye, Watch the Experts"
 subtitle: "These sessions from our archive are accessible to anyone starting out. Real researchers, real problems, explained well."
 color: red
 resources:
@@ -12,11 +12,11 @@ resources:
     year: 2022
     webinarSlug: big-data-in-life-sciences-nikolay-oskolkov
   - title: "Aspects of High-Throughput Molecular Data Analysis"
-    description: "A broad overview of HT data types, preprocessing strategies, and common analytical pitfalls — an excellent first look at how data flows through a real lab."
+    description: "A broad overview of HT data types, preprocessing strategies, and common analytical pitfalls: an excellent first look at how data flows through a real lab."
     tag: Webinar
     webinarSlug: aspects-of-high-throughput-molecular-data-analysis
-  - title: "Mapping Human Tissue Architecture — Spatial Transcriptomics"
-    description: "A window into cutting-edge research. Don't worry about understanding every detail — focus on the biological questions being asked."
+  - title: "Mapping Human Tissue Architecture, Spatial Transcriptomics"
+    description: "A window into cutting-edge research. Don't worry about understanding every detail, focus on the biological questions being asked."
     tag: Webinar
     speaker: "Dr. Ömer Ali Bayraktar"
     year: 2023

@@ -5,7 +5,7 @@ speaker: Abdullah Kahraman
 speakerAffiliation: University Hospital Zurich
 speakerTitle: Head of Clinical Bioinformatics in Molecular Tumor Profiling
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789170275/rsgturkey/webinars/abdullah-kahraman.jpg"
-description: The validated FoundationOne® diagnostic assay for solid tumours — what it detects across 315 cancer-related genes, how it performs in clinical practice, and the first results from University Hospital Zurich.
+description: "The validated FoundationOne® diagnostic assay for solid tumours: what it detects across 315 cancer-related genes, how it performs in clinical practice, and the first results from University Hospital Zurich."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2018
@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Abdullah Kahraman** — Head of Clinical Bioinformatics in Molecular Tumor Profiling, University Hospital Zurich
+**Abdullah Kahraman**: Head of Clinical Bioinformatics in Molecular Tumor Profiling, University Hospital Zurich
 
 **Abstract**
 
@@ -32,6 +32,6 @@ The FoundationOne® assay is designed to detect various genomic alterations in 3
 
 The FoundationOne® has already established itself as an essential element at tumour board meetings, where it supports oncologists in the diagnosis and decision making process for succeeding treatment options. Here, I will introduce the audience to the assay, give an overview of the first results obtained at the University Hospital Zurich, will demonstrate its advantages and give statistics on its performance.
 
-**Date:** October 5th, 2018 — 16:00 CET / 17:00 Istanbul
+**Date:** October 5th, 2018 – 16:00 CET / 17:00 Istanbul
 
 **Language:** English

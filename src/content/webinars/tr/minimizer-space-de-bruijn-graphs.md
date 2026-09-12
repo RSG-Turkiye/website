@@ -32,12 +32,12 @@ DNA dizileme verileri, giderek daha düşük hata oranlarıyla daha uzun okumala
 
 mdBG'nin üç kullanım durumu gösterilmektedir:
 
-- **İnsan genomu montajı** — 8 çekirdek ve 10 GB RAM kullanılarak 10 dakikanın altında tamamlanan insan genomu montajı
-- **Metagenom montajı** — 60 Gbp metagenom okuması 1 GB RAM kullanılarak 4 dakikada birleştirildi
-- **Pangenom temsili** — 661.405 bakteri genomundan oluşan koleksiyonun grafiksel temsili ve antimikrobiyal direnç (AMR) genlerinin minimizer-uzayda başarılı şekilde aranması
+- **İnsan genomu montajı**, 8 çekirdek ve 10 GB RAM kullanılarak 10 dakikanın altında tamamlanan insan genomu montajı
+- **Metagenom montajı**, 60 Gbp metagenom okuması 1 GB RAM kullanılarak 4 dakikada birleştirildi
+- **Pangenom temsili**, 661.405 bakteri genomundan oluşan koleksiyonun grafiksel temsili ve antimikrobiyal direnç (AMR) genlerinin minimizer-uzayda başarılı şekilde aranması
 
 Yaklaşım, PacBio HiFi okumalarının ultra hızlı, düşük bellekli ve yüksek süreklilikle birleştirilmesini sağlayan **rust-mdbg** yazılımıyla hayata geçirilmiştir.
 
-**Tarih:** 25 Haziran, 2021 — 20:00 (GMT+3)
+**Tarih:** 25 Haziran, 2021 – 20:00 (GMT+3)
 
 **Dil:** İngilizce

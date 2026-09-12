@@ -24,5 +24,5 @@ Omik, yaşayan sistemleri profillemek amacıyla oluşturulan kapsamlı yaklaşı
 
 Bu konuşma, tek hücre verisi için web tabanlı interaktif görselleştirme platformlarını inceliyor; bunları kullanılabilirlik, kullanıcı arayüzü, geliştirici desteği ve farklı dosya boyutlarındaki başarım açısından karşılaştırıyor, kullandıkları dosya biçimlerini de ele alıyor. Karşılaştırma ayrıntılı tek hücre analizine yönelik: hücre tiplerinin belirlenmesi, kümeler arası gen ifadesi karşılaştırması ve veri kümesinin daha geniş biçimde incelenmesi.
 
-**Tarih:** 24 Haziran 2019 — 16:00 (İstanbul)
+**Tarih:** 24 Haziran 2019 – 16:00 (İstanbul)
 

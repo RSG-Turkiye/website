@@ -21,7 +21,7 @@ year: 2024
 type: "bioinfonet"
 ---
 
-RNA molecules and their interactions with proteins play critical roles in gene regulation, splicing, and many other cellular processes — yet modeling them computationally remains a significant challenge due to their structural flexibility. In this webinar, Dr. Elisa Frezza presents a toolkit of computational approaches for tackling these problems: from all-atom and coarse-grained molecular dynamics simulations to normal mode analysis in internal coordinates. The talk covers practical strategies for integrating experimental data and handling the large conformational changes that make RNA and protein-RNA systems particularly difficult to study.
+RNA molecules and their interactions with proteins play critical roles in gene regulation, splicing, and many other cellular processes: yet modeling them computationally remains a significant challenge due to their structural flexibility. In this webinar, Dr. Elisa Frezza presents a toolkit of computational approaches for tackling these problems: from all-atom and coarse-grained molecular dynamics simulations to normal mode analysis in internal coordinates. The talk covers practical strategies for integrating experimental data and handling the large conformational changes that make RNA and protein-RNA systems particularly difficult to study.
 
 ## About the Speaker
 
@@ -29,4 +29,4 @@ Dr. Elisa Frezza obtained her master's degree in Materials Science from the Univ
 
 During her postdoctoral research, she worked at the MMSB CNRS UMR 5086/Université Claude Bernard Lyon 1 laboratory under the supervision of Dr. Lavery, focusing on biophysics, bioinformatics, and structural biology as part of the Human Brain Project. Since September 2017, she has been serving as an Assistant Professor at the Faculty of Pharmacy at Université Paris Cité within the CiTCoM laboratory.
 
-Her research spans materials science to biology, employing theoretical and computational approaches across multiple scales. She has developed methods including all-atom and coarse-grained molecular dynamics simulations, normal mode analysis in internal coordinates, and biostatistics — collaborating with experimentalists and theorists alike on problems at the intersection of physics, chemistry, biology, and computer science.
+Her research spans materials science to biology, employing theoretical and computational approaches across multiple scales. She has developed methods including all-atom and coarse-grained molecular dynamics simulations, normal mode analysis in internal coordinates, and biostatistics: collaborating with experimentalists and theorists alike on problems at the intersection of physics, chemistry, biology, and computer science.

@@ -108,7 +108,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
 
   const slug = body.slug ?? row.slug;
   if (!/^[a-z0-9-]{1,80}$/.test(slug)) {
-    return jsonResponse({ error: 'Invalid slug — use only lowercase letters, numbers, and hyphens' }, 400);
+    return jsonResponse({ error: 'Invalid slug: use only lowercase letters, numbers, and hyphens' }, 400);
   }
   let pairedRow: SubmissionRow | null = null;
   if (row.paired_submission_id) {
@@ -183,7 +183,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
     return jsonResponse({
       ok: true,
       pr_url: result.prUrl,
-      warning: 'PR opened successfully, but updating the submission record failed — it may still show as pending.',
+      warning: 'PR opened successfully, but updating the submission record failed, so it may still show as pending.',
     });
   }
 

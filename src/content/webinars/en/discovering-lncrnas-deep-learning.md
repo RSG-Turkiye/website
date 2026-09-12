@@ -24,6 +24,6 @@ Afshan is a machine learning engineer at OccamzRazor. She completed her MSc in C
 
 Long non-coding RNAs (lncRNAs) are the largest class of non-coding RNAs (ncRNAs). Recent experimental evidence, however, has shown that some lncRNAs contain small open reading frames (sORFs) that are translated into functional micropeptides. Current methods to detect misannotated lncRNAs rely on ribosome profiling (ribo-seq) experiments, which are expensive and cell-type dependent. We present a framework that exploits the training dynamics of deep learning models to determine whether a given lncRNA transcript is misannotated. Our deep sequential learning models achieve >91% AUC and >93% AUPR in classifying non-coding and coding sequences while allowing us to identify possible misannotated lncRNAs present in the dataset. Our results overlap significantly with a set of experimentally validated misannotated lncRNAs as well as coding sORFs within lncRNAs found by a ribo-seq dataset.
 
-**Date:** October 14th, 2021 — 6:00 PM (GMT+3)
+**Date:** October 14th, 2021 – 6:00 PM (GMT+3)
 
 **Language:** English

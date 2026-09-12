@@ -70,7 +70,7 @@ const levelsForScript = levels.map((level, li) => ({
 ---
 
 <BaseLayout
-  pageTitle={`${name} — Öğrenme Yolu — RSG-Türkiye`}
+  pageTitle={`${name} (Öğrenme Yolu) RSG-Türkiye`}
   description={tagline}
   translationExists={hasEnTranslation}>
 
@@ -292,7 +292,7 @@ const levelsForScript = levels.map((level, li) => ({
     const fill = document.getElementById('progressFill');
     const label = document.getElementById('progressLabel');
     if (fill) fill.style.width = pct + '%';
-    if (label) label.textContent = total > 0 ? `${done} / ${total}` : '—';
+    if (label) label.textContent = total > 0? `${done} / ${total}`: ', ';
   }
 
   levelsForScript.forEach(level => {

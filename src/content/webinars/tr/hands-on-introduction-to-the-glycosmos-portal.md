@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Sunucu**
 
-**Kiyoko F. Aoki-Kinoshita** — Profesör, Soka Üniversitesi
+**Kiyoko F. Aoki-Kinoshita**: Profesör, Soka Üniversitesi
 
 Kiyoko F. Aoki-Kinoshita, doktorasını Northwestern Üniversitesi'nde bilgisayar bilimi alanında tamamladı; kariyerine Kyoto Üniversitesi'nde, ardından Soka Üniversitesi'nde devam etti. Japonya'daki Soka Üniversitesi Fen ve Mühendislik Fakültesi Bilgi Sistemleri Mühendisliği Bölümü üyesidir ve glikoinformatik alanında önemli birçok kaynağın geliştirilmesinde etkin rol almıştır.
 

@@ -1,11 +1,11 @@
 ---
 name: Yapısal Biyoloji & Proteomik
 emoji: 🔬
-tagline: Protein yapısı, moleküler dinamikler, kenetlenme ve AlphaFold çağı — 3 boyutlu şeklin işlevi nasıl belirlediği.
+tagline: "Protein yapısı, moleküler dinamikler, kenetlenme ve AlphaFold çağı: 3 boyutlu şeklin işlevi nasıl belirlediği."
 order: 3
 goDeeper:
   - title: "PDB-101 Learning Resources"
-    description: "Protein Veri Bankası'nın kendi eğitim materyali — ayın molekülünden yapısal biyoloji başlangıç rehberlerine."
+    description: "Protein Veri Bankası'nın kendi eğitim materyali, ayın molekülünden yapısal biyoloji başlangıç rehberlerine."
     url: "https://pdb101.rcsb.org"
   - title: "GROMACS Tutorials (Justin Lemkul)"
     description: "En iyi ücretsiz MD simülasyon eğitimleri. Başka bir şey çalıştırmadan önce lizozim-suda eğitimini tamamlayın."

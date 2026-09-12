@@ -5,7 +5,7 @@ speaker: Abdullah Kahraman
 speakerAffiliation: Zürih Üniversite Hastanesi
 speakerTitle: Moleküler Tümör Profillemede Klinik Biyoinformatik Birim Başkanı
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789170275/rsgturkey/webinars/abdullah-kahraman.jpg"
-description: Solid tümörler için doğrulanmış FoundationOne® tanı testi — 315 kanser ilişkili gende neyi saptadığı, klinik pratikteki başarımı ve Zürih Üniversite Hastanesi'nden ilk sonuçlar.
+description: "Solid tümörler için doğrulanmış FoundationOne® tanı testi: 315 kanser ilişkili gende neyi saptadığı, klinik pratikteki başarımı ve Zürih Üniversite Hastanesi'nden ilk sonuçlar."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2018
@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Sunucu**
 
-**Abdullah Kahraman** — Moleküler Tümör Profillemede Klinik Biyoinformatik Birim Başkanı, Zürih Üniversite Hastanesi
+**Abdullah Kahraman**: Moleküler Tümör Profillemede Klinik Biyoinformatik Birim Başkanı, Zürih Üniversite Hastanesi
 
 **Özet**
 
@@ -32,6 +32,6 @@ FoundationOne® testi, tek nükleotid varyantları, indeller ve kopya sayısı d
 
 FoundationOne®, onkologlara tanı ve sonraki tedavi seçeneklerine karar verme sürecinde destek olduğu tümör konseyi toplantılarının vazgeçilmez bir unsuru hâline gelmiştir. Bu konuşmada testi tanıtacak, Zürih Üniversite Hastanesi'nde elde edilen ilk sonuçlara genel bir bakış sunacak, avantajlarını gösterecek ve başarımına dair istatistikleri paylaşacağım.
 
-**Tarih:** 5 Ekim 2018 — 16:00 CET / 17:00 İstanbul
+**Tarih:** 5 Ekim 2018 – 16:00 CET / 17:00 İstanbul
 
 **Dil:** İngilizce

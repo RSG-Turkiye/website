@@ -1,7 +1,7 @@
 ---
 name: Biyolojide Makine Öğrenmesi
 emoji: 🤖
-tagline: Protein dil modelleri, yapı tahmini ve diziler üzerinde derin öğrenme — yapay zekanın moleküler biyolojiyle buluştuğu yer.
+tagline: "Protein dil modelleri, yapı tahmini ve diziler üzerinde derin öğrenme: yapay zekanın moleküler biyolojiyle buluştuğu yer."
 order: 2
 goDeeper:
   - title: "StatQuest with Josh Starmer"
@@ -13,7 +13,7 @@ goDeeper:
   - title: "ML for Genomics (MIT 6.874)"
     description: "MIT'nin biyolojik veriler için makine öğrenmesi yöntemleri kursu. Dersler serbestçe erişilebilir."
     url: "https://mit6874.github.io"
-  - title: "Papers With Code — Biology"
+  - title: "Papers With Code, Biology"
     description: "Bio-ML makaleleri için kıyaslama tabloları ve tekrarlanabilir kod. Neyin gerçekten işe yaradığını görün."
     url: "https://paperswithcode.com/area/biology"
 ---

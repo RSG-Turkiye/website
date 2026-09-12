@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Francesco Gentile** — Assistant Professor, University of Ottawa
+**Francesco Gentile**: Assistant Professor, University of Ottawa
 
 Francesco Gentile is an Assistant Professor in the Department of Chemistry and Biomolecular Sciences at the University of Ottawa and a Principal Investigator at the Ottawa Institute of Systems Biology. He holds an MSc in Bioengineering from the Politecnico di Torino and a PhD in Biophysics from the University of Alberta, and completed a CIHR/MSFHR-funded postdoctoral fellowship at the University of British Columbia before joining the University of Ottawa in 2022. His group develops computational and AI methods for the discovery of small molecules and biotherapeutics across cancer, neurological diseases and antimicrobial resistance. He is a co-founder of InVirtuo Laboratories, an AI-driven drug discovery company based in Lugano, Switzerland.
 

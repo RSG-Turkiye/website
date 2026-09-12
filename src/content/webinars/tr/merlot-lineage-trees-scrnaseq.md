@@ -16,7 +16,7 @@ keyTakeaways: []
 
 **Sunucu**
 
-**Gonzalo Parra, PhD** — Doktora Sonrası Araştırmacı, İstatistiksel Genomik ve Sistem Genetiği, Avrupa Moleküler Biyoloji Laboratuvarı (EMBL), Heidelberg, Almanya
+**Gonzalo Parra, PhD**: Doktora Sonrası Araştırmacı, İstatistiksel Genomik ve Sistem Genetiği, Avrupa Moleküler Biyoloji Laboratuvarı (EMBL), Heidelberg, Almanya
 
 **Özet**
 
@@ -24,5 +24,5 @@ Tek hücre transkriptomiği tekniklerindeki ilerlemeler, hücresel farklılaşma
 
 Bu konuşma, tek hücre transkriptomik verisinden karmaşık soy ağaçları kuran ve kurulan ağaçlar boyunca zamansal gen ifadesi profillerini tamamlayabilen MERLoT aracını tanıtıyor. Aracın yetenekleri gerçek örnekler ve benzetim veri kümeleri üzerinde gösteriliyor.
 
-**Tarih:** 20 Şubat 2020 — 10:00 (Bogotá)
+**Tarih:** 20 Şubat 2020 – 10:00 (Bogotá)
 

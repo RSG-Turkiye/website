@@ -2,7 +2,7 @@
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 ---
 
-<BaseLayout pageTitle="Profilim — RSG-Türkiye" description="RSG-Türkiye üye profiliniz.">
+<BaseLayout pageTitle="Profilim, RSG-Türkiye" description="RSG-Türkiye üye profiliniz.">
   <div class="min-h-screen bg-[#F7F7F6] py-12 px-4">
     <div class="max-w-3xl mx-auto">
 
@@ -127,7 +127,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             <input id="subAuthor" type="text" placeholder="Yazar adı" required
               class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-300 focus:outline-none focus:border-navy-mid" />
             <div class="sm:col-span-2">
-              <label for="subImage" class="block text-xs text-gray-500 mb-1">Kapak görseli (opsiyonel — yazının küçük resmi olarak kullanılır)</label>
+              <label for="subImage" class="block text-xs text-gray-500 mb-1">Kapak görseli (opsiyonel, yazının küçük resmi olarak kullanılır)</label>
               <input id="subImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
                 class="text-sm text-gray-600" />
             </div>
@@ -375,7 +375,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 
   function submissionStatusHtml(s: Submission): string {
     if (s.status === 'approved' && s.pr_url) {
-      return `<a href="${escapeHtml(s.pr_url)}" target="_blank" rel="noopener noreferrer" class="text-xs text-green-700">Onaylandı — PR'ı görüntüle →</a>`;
+      return `<a href="${escapeHtml(s.pr_url)}" target="_blank" rel="noopener noreferrer" class="text-xs text-green-700">Onaylandı, PR'ı görüntüle →</a>`;
     }
     if (s.status === 'rejected') {
       return `<span class="text-xs text-red-600">Reddedildi: ${escapeHtml(s.rejection_reason ?? '')}</span> <button data-id="${s.id}" class="edit-resubmit-btn text-xs text-navy-mid hover:underline ml-2">Düzenle ve tekrar gönder</button>`;

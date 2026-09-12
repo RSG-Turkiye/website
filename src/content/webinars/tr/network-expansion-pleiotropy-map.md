@@ -16,7 +16,7 @@ keyTakeaways: []
 
 **Sunucu**
 
-**Dr. Inigo Barrio Hernandez** — EMBL-EBI
+**Dr. Inigo Barrio Hernandez**, EMBL-EBI
 
 **Özet**
 
@@ -24,5 +24,5 @@ Moleküler ağlar içinde etkileşen proteinler benzer işlevlere sahip olma eğ
 
 Bu konuşma, interaktom verisinin özellikleri karşılaştırmaya yarayan profiller üretmek ve hücre sinyalleşmesi ile hastalık patogenezinde rol oynayan protein topluluklarını belirlemek için nasıl kullanılabileceğini ele alıyor. Ağ temelli yaklaşımların 1000'den fazla özellikle ilişkili yaygın genetik varyasyona uygulanması bir hastalık pleiotropi haritası ortaya çıkarıyor; bu harita da olası tedavi hedeflerinin yoğunlaştığı noktaları gösterebiliyor.
 
-**Tarih:** 26 Nisan 2023 — 15:00 (İstanbul)
+**Tarih:** 26 Nisan 2023 – 15:00 (İstanbul)
 

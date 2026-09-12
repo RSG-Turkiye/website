@@ -22,9 +22,9 @@ keyTakeaways: []
 
 Protein kinazlar, diğer proteinlerin fosforilasyonunu katalizleyen geniş bir enzim ailesidir. Fosforilasyon olayları hücre içi sinyal iletimini düzenler ve hücresel mekanizmalarda merkezî rol oynar.
 
-Fosforilasyon bölgelerini öngörmeye yönelik mevcut hesaplamalı yöntemler geleneksel denetimli öğrenmeye dayanır; bu da tahminleri bilinen bölgelere sahip kinazlarla sınırlar. DeepKinZero, önceden fosforilasyon verisi bulunmayan, az çalışılmış kinazlar için tahmin yapmayı mümkün kılan sıfır-çekimli (zero-shot) bir öğrenme yaklaşımıdır. Peptid dizilerini ve kinaz temsillerini vektör uzaylarına gömer ve bir uyumluluk fonksiyonu aracılığıyla iyi tanımlanmış kinazlardan az tanımlanmış olanlara bilgi aktarır — böylece önemli bir ilaç hedefi sınıfına dair anlayışımızı genişletme potansiyeli taşır.
+Fosforilasyon bölgelerini öngörmeye yönelik mevcut hesaplamalı yöntemler geleneksel denetimli öğrenmeye dayanır; bu da tahminleri bilinen bölgelere sahip kinazlarla sınırlar. DeepKinZero, önceden fosforilasyon verisi bulunmayan, az çalışılmış kinazlar için tahmin yapmayı mümkün kılan sıfır-çekimli (zero-shot) bir öğrenme yaklaşımıdır. Peptid dizilerini ve kinaz temsillerini vektör uzaylarına gömer ve bir uyumluluk fonksiyonu aracılığıyla iyi tanımlanmış kinazlardan az tanımlanmış olanlara bilgi aktarır, böylece önemli bir ilaç hedefi sınıfına dair anlayışımızı genişletme potansiyeli taşır.
 
 Konuşma Fatma Dinçaslan ile birlikte yapıldı.
 
-**Tarih:** 16 Temmuz 2019 — 18:00 (İstanbul)
+**Tarih:** 16 Temmuz 2019 – 18:00 (İstanbul)
 

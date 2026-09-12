@@ -5,7 +5,7 @@ speaker: "Elena Papaleo"
 speakerAffiliation: "University of Copenhagen / Technical University of Denmark"
 speakerTitle: "Associate Professor"
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055923/rsgturkey/webinars/elena-papaleo.jpg"
-description: "A structure-based framework that joins genetic and structural data to explain what variants do — in cancer predisposition, in drug resistance, and in the tools her group builds to classify and predict variant effects."
+description: "A structure-based framework that joins genetic and structural data to explain what variants do: in cancer predisposition, in drug resistance, and in the tools her group builds to classify and predict variant effects."
 youtubeUrl: "https://www.youtube.com/watch?v=M-Q0V_ziow8"
 slidesUrl: ""
 year: 2025
@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Elena Papaleo** — Associate Professor, University of Copenhagen / Technical University of Denmark
+**Elena Papaleo**: Associate Professor, University of Copenhagen / Technical University of Denmark
 
 Elena Papaleo completed her PhD in Industrial Biotechnology and worked as a postdoctoral researcher in several departments of Milano-Bicocca University, later as a senior postdoctoral researcher there and at the University of Copenhagen. She is now an Associate Professor at the University of Copenhagen and the Technical University of Denmark, and a member of the Danish Cancer Society. She sits on the editorial boards of several journals, including PLoS One, Frontiers in Molecular Biosciences and the Journal of Molecular Graphics and Modelling.
 

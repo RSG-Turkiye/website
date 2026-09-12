@@ -53,6 +53,6 @@ Klebsiella pneumoniae, yaşamı tehdit eden hastane kaynaklı enfeksiyonlara yol
 
 ---
 
-**Tarih:** 8 Nisan, 2022 — 14:00 (GMT+3)
+**Tarih:** 8 Nisan, 2022 – 14:00 (GMT+3)
 
 **Dil:** İngilizce

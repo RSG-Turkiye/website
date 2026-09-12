@@ -16,7 +16,7 @@ keyTakeaways: []
 
 **Sunucu**
 
-**Dr. Öğr. Üyesi Şebnem Eşsiz** — Kadir Has Üniversitesi
+**Dr. Öğr. Üyesi Şebnem Eşsiz**, Kadir Has Üniversitesi
 
 **Özet**
 
@@ -24,5 +24,5 @@ Bu konuşma, homoloji modellemesi ile kaba taneli moleküler dinamik çalışmal
 
 Düşük dizi benzerliği aralığındaki homolog proteinlerden türetilen karşılaştırmalı modellerin doğruluğu, büyük ölçüde hizalamadaki hatalarla sınırlanıyor. Hizalama yöntemlerindeki ilerlemelere rağmen doğruluk hâlâ zorlu bir mesele. Konuşma, standart modelleme tekniklerinin yanı sıra model kurma ve model değerlendirmenin yinelemeli yaklaşımlarını kapsıyor; tüm atom MD araştırmalarının bugünkü durumunu göstermek için NMDA tetramerik ve nikotinik asetilkolin pentamerik iyon kanalı proteinleri üzerindeki moleküler dinamik çalışmaları kullanılıyor.
 
-**Tarih:** 15 Nisan 2019 — 17:00 (İstanbul)
+**Tarih:** 15 Nisan 2019 – 17:00 (İstanbul)
 

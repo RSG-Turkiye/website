@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Özge Kürkçüoğlu** — Associate Professor, Istanbul Technical University
+**Özge Kürkçüoğlu**: Associate Professor, Istanbul Technical University
 
 Özge Kürkçüoğlu is an Associate Professor in the Department of Chemical Engineering at Istanbul Technical University, Türkiye. Her work develops network-based models of protein structures to identify allosteric communication and druggable sites, with applications to the bacterial ribosome and to class A GPCRs.
 

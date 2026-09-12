@@ -5,7 +5,7 @@ speaker: "Pavlína Pokorná"
 speakerAffiliation: "CNR-IOM, İtalya"
 speakerTitle: "Doktora Sonrası Araştırmacı"
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055925/rsgturkey/webinars/pavlina-pokorna.jpg"
-description: "Üç kuartetli RNA G-kuadrupleks katlanmasının tüm atom gelişmiş örnekleme simülasyonları: basit yapılı ara ürünleri olmayan, çok yollu bir süreç — ve mevcut kuvvet alanlarının nerede yetersiz kaldığına dair açık sözlü bir değerlendirme."
+description: "Üç kuartetli RNA G-kuadrupleks katlanmasının tüm atom gelişmiş örnekleme simülasyonları: basit yapılı ara ürünleri olmayan, çok yollu bir süreç, ve mevcut kuvvet alanlarının nerede yetersiz kaldığına dair açık sözlü bir değerlendirme."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2025
@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Sunucu**
 
-**Pavlína Pokorná** — Doktora Sonrası Araştırmacı, CNR-IOM, İtalya
+**Pavlína Pokorná**: Doktora Sonrası Araştırmacı, CNR-IOM, İtalya
 
 Pavlína Pokorná, doktorasını Çek Cumhuriyeti'ndeki Masaryk Üniversitesi'nde Jiří Šponer danışmanlığında Biyomoleküler Kimya ve Biyoinformatik alanında aldı. 2023'ten beri İtalya'daki CNR-IOM'da Alessandra Magistrato'nun grubunda doktora sonrası araştırmacıdır. Araştırmaları nükleik asitlerin ve RNA–protein komplekslerinin çok ölçekli hesaplamalı incelenmesine, özellikle RNA konformasyon değişimlerini içeren dinamik sistemlerin ve süreçlerin modellenmesine odaklanıyor; son dönemde ağırlıklı olarak splicing ile ilgili sistemler üzerine çalıştı.
 

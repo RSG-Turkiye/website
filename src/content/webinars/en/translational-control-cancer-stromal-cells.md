@@ -17,8 +17,8 @@ keyTakeaways: []
 
 **Presenters**
 
-**Assist. Prof. Ola Larsson** — Karolinska Institute
-**İnci Şevval Aksoylu** — Karolinska Institute
+**Assist. Prof. Ola Larsson**, Karolinska Institute
+**İnci Şevval Aksoylu**, Karolinska Institute
 
 A talk on translational control of cancer and stromal cells, paired with a tutorial: *Transcriptome wide analysis of translational efficiency*.
 

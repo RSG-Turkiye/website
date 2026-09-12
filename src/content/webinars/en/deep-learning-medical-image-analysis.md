@@ -24,6 +24,6 @@ keyTakeaways: []
 
 Automated imaging systems are becoming important tools for medical and biological research, as they facilitate rapid analyses with better reproducibility. Segmenting the regions of interest on a medical image is typically one of the first but most critical steps of these systems. In this talk, I will briefly touch on the main challenges of segmentation tasks in medical image analysis and then present examples of dense prediction networks that my research group has designed and implemented to overcome these challenges. In particular, I will talk about our proposed network architectures and loss functions, specifically designed to facilitate better training of segmentation networks.
 
-**Date:** April 27th, 2021 — 6:00 PM (GMT+3)
+**Date:** April 27th, 2021 – 6:00 PM (GMT+3)
 
 **Language:** English

@@ -5,7 +5,7 @@ speaker: "Pavlína Pokorná"
 speakerAffiliation: "CNR-IOM, Italy"
 speakerTitle: "Postdoctoral Fellow"
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055925/rsgturkey/webinars/pavlina-pokorna.jpg"
-description: "All-atom enhanced-sampling simulations of three-quartet RNA G-quadruplex folding, which turns out to be a multi-pathway process with no simple structured intermediates — and a candid account of where current force fields fall short."
+description: "All-atom enhanced-sampling simulations of three-quartet RNA G-quadruplex folding, which turns out to be a multi-pathway process with no simple structured intermediates, and a candid account of where current force fields fall short."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2025
@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Pavlína Pokorná** — Postdoctoral Fellow, CNR-IOM, Italy
+**Pavlína Pokorná**: Postdoctoral Fellow, CNR-IOM, Italy
 
 Pavlína Pokorná received her PhD in Biomolecular Chemistry and Bioinformatics from Masaryk University, Czech Republic, under the supervision of Jiří Šponer. Since 2023 she has been a postdoctoral fellow in the group of Alessandra Magistrato at CNR-IOM, Italy. Her research focuses on multi-scale computational studies of nucleic acids and RNA–protein complexes, with particular emphasis on modelling dynamic systems and processes involving RNA conformational changes; recently she has worked mainly on splicing-related systems.
 

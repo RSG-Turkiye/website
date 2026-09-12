@@ -21,7 +21,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Mustafa Tekpınar** — Van Yüzüncü Yıl University
+**Mustafa Tekpınar**, Van Yüzüncü Yıl University
 
 Mustafa Tekpınar works at Van Yüzüncü Yıl University, Van, Türkiye.
 

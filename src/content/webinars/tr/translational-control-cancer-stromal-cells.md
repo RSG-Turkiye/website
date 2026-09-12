@@ -17,8 +17,8 @@ keyTakeaways: []
 
 **Sunucular**
 
-**Yrd. Doç. Dr. Ola Larsson** — Karolinska Enstitüsü
-**İnci Şevval Aksoylu** — Karolinska Enstitüsü
+**Yrd. Doç. Dr. Ola Larsson**, Karolinska Enstitüsü
+**İnci Şevval Aksoylu**, Karolinska Enstitüsü
 
 Kanser ve stromal hücrelerde translasyonel kontrol üzerine bir konuşma ve beraberindeki eğitim: *Translasyon verimliliğinin transkriptom ölçeğinde analizi*.
 

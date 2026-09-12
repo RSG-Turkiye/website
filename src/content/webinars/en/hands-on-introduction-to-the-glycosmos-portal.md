@@ -22,7 +22,7 @@ keyTakeaways:
 
 **Presenter**
 
-**Kiyoko F. Aoki-Kinoshita** — Professor, Soka University
+**Kiyoko F. Aoki-Kinoshita**: Professor, Soka University
 
 Kiyoko F. Aoki-Kinoshita completed her PhD in computer science at Northwestern University and continued her career at Kyoto University and then Soka University. She is a member of the Department of Information Systems Engineering, Faculty of Science and Engineering, at Soka University, Japan, and has been actively engaged in the development of several resources of significant importance to glycoinformatics.
 

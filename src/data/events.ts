@@ -138,8 +138,8 @@ export const events: CommunityEvent[] = [
     when: { en: "3 March 2024", tr: "3 Mart 2024" },
     location: { en: "Online", tr: "Çevrimiçi" },
     description: {
-      en: "A hands-on workshop with Dr. Kübra Narcı on standardising bioinformatics workflows — community best practices, containerised environments with Docker and Singularity, and running pipelines in the cloud.",
-      tr: "Dr. Kübra Narcı ile biyoinformatik iş akışlarının standartlaştırılması üzerine uygulamalı atölye — topluluk iyi uygulamaları, Docker ve Singularity ile konteynerli ortamlar ve bulutta iş akışı çalıştırma.",
+      en: "A hands-on workshop with Dr. Kübra Narcı on standardising bioinformatics workflows: community best practices, containerised environments with Docker and Singularity, and running pipelines in the cloud.",
+      tr: "Dr. Kübra Narcı ile biyoinformatik iş akışlarının standartlaştırılması üzerine uygulamalı atölye: topluluk iyi uygulamaları, Docker ve Singularity ile konteynerli ortamlar ve bulutta iş akışı çalıştırma.",
     },
   },
   {

@@ -76,7 +76,7 @@ const levelsForScript = levels.map((level, li) => ({
 ---
 
 <BaseLayout
-  pageTitle={`${name} — Learning Path — RSG-Turkiye`}
+  pageTitle={`${name} (Learning Path) RSG-Turkiye`}
   description={tagline}
   translationExists={hasTrTranslation}>
 
@@ -306,7 +306,7 @@ const levelsForScript = levels.map((level, li) => ({
     const fill = document.getElementById('progressFill');
     const label = document.getElementById('progressLabel');
     if (fill) fill.style.width = pct + '%';
-    if (label) label.textContent = total > 0 ? `${done} / ${total}` : '—';
+    if (label) label.textContent = total > 0? `${done} / ${total}`: ', ';
   }
 
   // Listen to all checkboxes across all levels

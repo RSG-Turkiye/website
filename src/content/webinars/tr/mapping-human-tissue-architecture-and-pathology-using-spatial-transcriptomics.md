@@ -26,6 +26,6 @@ Dr. Bayraktar, Drosophila kullanarak nöral çeşitliliğin gelişimsel özellik
 
 Uzamsal transkriptomik teknolojiler, sağlık ve hastalıktaki dokuların hücresel bağlantı şemalarını çözmeyi vaat ediyor; ancak hücre türlerinin yerinde kapsamlı biçimde haritalanması hâlâ bir zorluk olmaya devam ediyor. İlk olarak, uzaysal transkriptomik verilerdeki ince taneli hücre tiplerini çözebilen ve çeşitli dokuların kapsamlı hücresel haritalarını oluşturabilen ilkeli bir Bayesian modeli olan **cell2location**'ı sunacağım. İkinci olarak, çok modlu genomik kullanarak glioblastomadaki tümör dokusu mimarisini keşfetmeye yönelik yeni çabamız olan **GBM-space**'i sunacağım. Malign hücre durumlarının bölgesel olarak ayrıldığı ve farklı tümör mikroçevre hücreleriyle ilişkilendiği GBM'lerin çarpıcı bir mekânsal organizasyonunu keşfediyoruz.
 
-**Tarih:** 21 Haziran, 2023 — 18:00 (GMT+3)
+**Tarih:** 21 Haziran, 2023 – 18:00 (GMT+3)
 
 **Dil:** İngilizce

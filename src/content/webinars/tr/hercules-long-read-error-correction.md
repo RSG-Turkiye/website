@@ -4,7 +4,7 @@ date: 2019-05-23
 speaker: Ercüment Çiçek
 speakerAffiliation: Bilkent Üniversitesi / Carnegie Mellon Üniversitesi
 speakerTitle: Yardımcı Doçent
-description: Hercules — uzun okuma hata düzeltme için ilk makine öğrenimi algoritması; Gizli Markov Modelleri kullanarak mevcut yöntemlere kıyasla daha yüksek haritalama oranı elde ediyor.
+description: Hercules, uzun okuma hata düzeltme için ilk makine öğrenimi algoritması; Gizli Markov Modelleri kullanarak mevcut yöntemlere kıyasla daha yüksek haritalama oranı elde ediyor.
 youtubeUrl: "https://www.youtube.com/watch?v=CInovnE8C-M"
 slidesUrl: ""
 year: 2019

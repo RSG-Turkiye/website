@@ -4,7 +4,7 @@ date: 2016-08-12
 speaker: "Martin Krzywinski"
 speakerAffiliation: "Kanada Michael Smith Genom Bilimleri Merkezi, BC Kanser Ajansı"
 speakerTitle: ""
-description: "Bilgi tasarımını bilimsel şekiller için pratik ilkelere dönüştürmek — iyi tasarlanmış bir grafiğin nasıl hem özlü hem anlaşılır olabileceği ve tasarımın izleyicinin dikkatini nasıl yönlendirdiği."
+description: "Bilgi tasarımını bilimsel şekiller için pratik ilkelere dönüştürmek, iyi tasarlanmış bir grafiğin nasıl hem özlü hem anlaşılır olabileceği ve tasarımın izleyicinin dikkatini nasıl yönlendirdiği."
 youtubeUrl: ""
 slidesUrl: ""
 year: 2016
@@ -16,7 +16,7 @@ keyTakeaways: []
 
 **Sunucu**
 
-**Dr. Martin Krzywinski** — Kanada Michael Smith Genom Bilimleri Merkezi, BC Kanser Ajansı, Vancouver
+**Dr. Martin Krzywinski**: Kanada Michael Smith Genom Bilimleri Merkezi, BC Kanser Ajansı, Vancouver
 
 **Özet**
 
@@ -24,5 +24,5 @@ keyTakeaways: []
 
 Bu konuşma, bilgi tasarımını bilimsel şekiller üretmeye yönelik pratik ilkelere indirgiyor; öğrencilerden ve meslektaşlardan örneklerle, bir posterin ya da yayının şeklini tasarlama ve yeniden tasarlama sürecini gösteriyor.
 
-**Tarih:** 12 Ağustos 2016 — 13:30 (İstanbul)
+**Tarih:** 12 Ağustos 2016 – 13:30 (İstanbul)
 

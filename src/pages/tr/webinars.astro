@@ -271,7 +271,7 @@ function initials(name: string) {
     });
   }
 
-  // Init — filter by year hash if present (e.g. #2025)
+  // Init, filter by year hash if present (e.g. #2025)
   const yearHash = window.location.hash.replace('#', '');
   if (yearHash && /^\d{4}$/.test(yearHash)) {
     filtered = allItems().filter(item => item.dataset.year === yearHash);
