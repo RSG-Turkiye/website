@@ -22,7 +22,7 @@ const built = existsSync(DIST + 'index.html');
 function cards(page: string): { alt: string; heading: string }[] {
   const html = readFileSync(DIST + page, 'utf8');
   const out: { alt: string; heading: string }[] = [];
-  for (const [, card] of html.matchAll(/<a[^>]+href="[^"]*\/editions\/20\d\d"[\s\S]*?<\/a>/g).map((m) => [null, m[0]] as const)) {
+  for (const [, card] of html.matchAll(/<a[^>]+href="[^"]*\/editions\/20\d\d\/?"[\s\S]*?<\/a>/g).map((m) => [null, m[0]] as const)) {
     const img = /<img[^>]*>/.exec(card);
     if (!img) continue; // the one edition with no poster
     const alt = /\salt="([^"]*)"/.exec(img[0])?.[1] ?? '__missing__';
