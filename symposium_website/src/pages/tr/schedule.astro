@@ -28,7 +28,7 @@ const scheduleSpeakers = content?.speakers ?? [];
       <p class="text-white/70 text-lg">{t("schedule.subtitle")}</p>
     </div>
   </section>
-  <div class="max-w-3xl mx-auto px-6 py-12">
+  <div class="max-w-3xl mx-auto px-6 py-12" data-sessions={sessions.length}>
     {
       edition && sessions.length > 0 ? (
         <Fragment>
