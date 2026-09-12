@@ -1,0 +1,37 @@
+{
+  "year": 2018,
+  "people": [
+    {
+      "name": "Tülay Karakulak",
+      "role": "Chair",
+      "roleTr": "Sempozyum Başkanı",
+      "affiliation": "",
+      "photo": "",
+      "teams": []
+    },
+    {
+      "name": "Deniz Doğan",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "",
+      "photo": "",
+      "teams": []
+    },
+    {
+      "name": "Yasin Kaya",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "",
+      "photo": "",
+      "teams": []
+    },
+    {
+      "name": "Sevilay Güleşen",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "",
+      "photo": "",
+      "teams": []
+    }
+  ]
+}
