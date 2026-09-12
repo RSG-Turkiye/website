@@ -7,6 +7,21 @@ export interface Sponsor {
   editions: number[];
 }
 
+/**
+ * Who supported which edition, from the reports RSG sent to the ISCB Student
+ * Council. `Symposium/Leader/Reports/` in the organisation's Drive.
+ *
+ * Every entry here used to read `editions: [2023, 2024]`, which was a guess:
+ * the four names came off the 2023 page and the second year was assumed.
+ * The 2023 report thanks "HIBIT 2023, PhiTech, Genomize, ERES Biotechnology,
+ * Gen-Era, ATO, and ISCB-SC"; the 2024 report names Pendik Municipality,
+ * ERES Biotechnology and the Systems Biology and Bioinformatics Association,
+ * and nobody else. So three of the four lose 2024 and three new names arrive.
+ *
+ * The tier of the three added here is not recorded anywhere, so they sit in
+ * `supporter`, which is where the 2023 venue provider already was. Move them
+ * when somebody who was in the room says otherwise.
+ */
 export const sponsors: Sponsor[] = [
   {
     name: "PhiTech",
@@ -14,7 +29,7 @@ export const sponsors: Sponsor[] = [
     logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606578/rsgturkey/symposium/2023/08/logov2retina.png",
     description: "More Omics into Clinics",
     tier: "gold",
-    editions: [2023, 2024],
+    editions: [2023],
   },
   {
     name: "Genomize",
@@ -22,7 +37,8 @@ export const sponsors: Sponsor[] = [
     logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606578/rsgturkey/symposium/2023/08/image.png",
     description: "Turning Genomic Data Into Actionable Insights",
     tier: "gold",
-    editions: [2023, 2024],
+    // Catering for the 2023 edition, per that year's report.
+    editions: [2023],
   },
   {
     name: "ERES Biyoteknoloji",
@@ -30,7 +46,18 @@ export const sponsors: Sponsor[] = [
     logo: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606579/rsgturkey/symposium/2023/08/10878861_739905599412429_1738250842_o.jpg",
     description: "Bioteknoloji çözümleri",
     tier: "silver",
+    // The only sponsor named in both reports. In 2024 its founder, Elçin
+    // Ekşi, also gave the career session.
     editions: [2023, 2024],
+  },
+  {
+    name: "Gen-Era",
+    url: "https://gen-era.com.tr/",
+    logo: "",
+    description: "",
+    tier: "supporter",
+    // Travel fellowships for five participants in 2023.
+    editions: [2023],
   },
   {
     name: "Ankara Chamber of Commerce",
@@ -38,7 +65,27 @@ export const sponsors: Sponsor[] = [
     logo: "",
     description: "",
     tier: "supporter",
-    editions: [2023, 2024],
+    // Provided the venue for the first day of the 2023 symposium.
+    editions: [2023],
+  },
+  {
+    name: "Pendik Municipality",
+    url: "https://www.pendik.bel.tr/",
+    logo: "",
+    description: "",
+    tier: "supporter",
+    // The 2024 report: "With the support of our sponsor, Pendik Municipality,
+    // the event was held at the Mehmet Akif Ersoy Cultural Center".
+    editions: [2024],
+  },
+  {
+    name: "Systems Biology and Bioinformatics Association",
+    url: "",
+    logo: "",
+    description: "",
+    tier: "supporter",
+    // Gave one of the two 2024 career presentations.
+    editions: [2024],
   },
 ];
 
