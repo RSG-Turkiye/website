@@ -11,6 +11,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history. The sitemap's <lastmod> is the date of the commit
+          # that last touched each file, so a shallow clone leaves almost
+          # every URL undated and the test that guards it cannot tell that
+          # from a regression.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -42,6 +48,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history. The sitemap's <lastmod> is the date of the commit
+          # that last touched each file, so a shallow clone leaves almost
+          # every URL undated and the test that guards it cannot tell that
+          # from a regression.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
