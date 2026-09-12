@@ -4,6 +4,7 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { isNoindexPath } from './src/lib/noindex-routes';
+import { lastmodFor } from './src/lib/lastmod';
 import { rehypeLazyImages } from './src/plugins/rehype-lazy-images.mjs';
 
 export default defineConfig({
@@ -43,6 +44,14 @@ export default defineConfig({
     // Google to crawl them -- see src/lib/noindex-routes.ts.
     sitemap({
       filter: (page) => !isNoindexPath(new URL(page).pathname),
+      // A sitemap without <lastmod> gives a crawler no way to tell a page
+      // written this week from one untouched since 2019. The date comes from
+      // git; see src/lib/lastmod.ts for why not the build time or the
+      // content's own date, and why a URL with no known date gets none.
+      serialize: (item) => {
+        const lastmod = lastmodFor(item.url);
+        return lastmod ? { ...item, lastmod } : item;
+      },
     }),
   ],
   vite: {

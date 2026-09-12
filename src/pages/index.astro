@@ -2,9 +2,11 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { getCollection } from 'astro:content';
-import { yearsSinceFounding } from '../data/events';
+import { events, groupEvents, yearsSinceFounding } from '../data/events';
 
 const lang = getLangFromUrl(Astro.url);
+const nextEvent = groupEvents(events, new Date()).upcoming[0] ?? null;
+const eventsHref = lang === 'tr' ? '/tr/events/' : '/events/';
 const t = useTranslations(lang);
 const pageTitle = "RSG-Turkiye - Computational Biology Community";
 
@@ -119,11 +121,31 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
             {lang === 'tr' ? 'Etkinlik' : 'Event'}
           </span>
+          <!--
+            Rendered at build time from src/data/events.ts. The Google
+            Calendar script below replaces it when a key is configured and the
+            calendar has something; until then this is what a visitor sees.
+            It used to be a skeleton that the script turned into "New events
+            coming soon!" whenever PUBLIC_GOOGLE_CALENDAR_API_KEY was unset --
+            which it is in production, so that is what everyone got, a month
+            before the 13th symposium.
+          -->
           <div id="calendarCard" class="flex-1 flex flex-col">
-            <div class="flex flex-col gap-2 animate-pulse">
-              <div class="h-3 bg-navy/10 rounded w-3/4"></div>
-              <div class="h-3 bg-navy/10 rounded w-1/2"></div>
-            </div>
+            {nextEvent ? (
+              <Fragment>
+                <p class="text-xs text-navy-mid mb-1">{nextEvent.when[lang]}</p>
+                <p class="text-sm font-semibold text-navy mb-1">{nextEvent.title[lang]}</p>
+                <p class="text-xs text-navy-mid mb-4">{nextEvent.location[lang]}</p>
+                <a href={eventsHref} class="mt-auto text-sm font-medium text-navy-mid hover:text-navy transition-colors no-underline">
+                  {t('events.seeAll')}
+                </a>
+              </Fragment>
+            ) : (
+              <Fragment>
+                <p class="text-sm font-semibold text-navy mb-1">{t('events.none.title')}</p>
+                <p class="text-xs text-navy-mid mb-4">{t('events.none.follow')}</p>
+              </Fragment>
+            )}
           </div>
         </div>
 
