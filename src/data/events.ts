@@ -167,3 +167,18 @@ export const events: CommunityEvent[] = [
     },
   },
 ];
+
+/**
+ * The year RSG-Türkiye was founded, per the "Glorious History of RSG Turkey"
+ * slide its founders showed at the 2017 and 2018 symposiums: "Founded by
+ * Billur Engin, Nurcan Tunçbağ and Emre Güney, 2011". The first student
+ * symposium followed in 2012, which is a different and also true number --
+ * "since 2012" elsewhere on the site refers to the symposiums, not the group.
+ */
+export const FOUNDED_YEAR = 2011;
+
+/** Whole years since founding, for the counter on the homepage. It read a
+ * hard-coded "10+" for years; the group turned ten in 2021. */
+export function yearsSinceFounding(now: Date): number {
+  return now.getFullYear() - FOUNDED_YEAR;
+}

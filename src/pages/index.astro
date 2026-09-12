@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { getCollection } from 'astro:content';
+import { yearsSinceFounding } from '../data/events';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -60,7 +61,7 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
         <!-- Stats grid -->
         <div class="grid grid-cols-2 gap-4">
           {[
-            { n: '10+', label: t('stats.years') },
+            { n: `${yearsSinceFounding(new Date())}+`, label: t('stats.years') },
             { n: '500+', label: t('stats.members') },
             { n: '80+', label: t('stats.webinars') },
             { n: '12', label: lang === 'tr' ? 'Sempozyum' : 'Symposiums' },

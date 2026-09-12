@@ -339,7 +339,14 @@ export function symposiumsHeld(all: EditionLike[], now: Date): number {
   const { upcoming } = splitEditions(all, now);
   const upcomingOrdinal = upcoming ? ordinalOf(upcoming) : null;
   const held = upcomingOrdinal === highest && highest > 0 ? highest - 1 : highest;
-  return Math.max(held, all.length);
+
+  // The floor is the editions that have *happened*, not the number of files.
+  // It used to be `all.length`, which was safe only while the collection was
+  // missing editions: once 2012, 2013 and 2015 were added the file count
+  // reached 13 and overrode the correct answer, so the homepage announced
+  // thirteen symposiums held while the thirteenth was still a month away.
+  const { past } = splitEditions(all, now);
+  return Math.max(held, past.length);
 }
 
 

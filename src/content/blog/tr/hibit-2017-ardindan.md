@@ -18,7 +18,7 @@ Bir baska eglenceli RSG Turkiye etkinligini arkada birakirken, yeni arkadaslarim
 
 28 Haziran’dan itibaren HIBIT organizasyon komitesinin bize sagladigi destek sayesinde kayit masasinda yerimizi bulduk ve bir cok yeni arkadasla tanisma firsati elde ettik. Bu sirada grubumuzdan Cansu Dincer & Zeynep Ozkeserli ortaklasmasinin ortaya cikardigi RSG Turkiye rozetlerimizi dagitmayi da ihmal etmedik tabii!
 
-Kayitlar sirasinda tanisma firsati da buldugumuzdan 2 gun suresince yeni arkadaslarimizla grubumuzu tartistik, tanittik, yaptigimiz etkinliklerden bahsettik. Ayrica bu sene grubumuz ISCB SC tarafindan desteklenerek, HIBIT’17 posterlerinden en iyi 3 postere odul verilmesini sagladi. Poster oturumu sirasinda HIBIT’17 nin bilimsel komitesi (Ercument Cicek, Can Alkan, Ozgur Sahin, Attila Gursoy, Ozlem Keskin) tarafindan degerlendirilen posterlerden en iyi ucune 29 Haziran HIBIT’17 kapanisi sirasinda bilimsel komiteyi temsilen Ercument Cicek tarafindan odulleri verildi.
+Kayitlar sirasinda tanisma firsati da buldugumuzdan 2 gun suresince yeni arkadaslarimizla grubumuzu tartistik, tanittik, yaptigimiz etkinliklerden bahsettik. Ayrica bu sene grubumuz ISCB-SC tarafindan desteklenerek, HIBIT’17 posterlerinden en iyi 3 postere odul verilmesini sagladi. Poster oturumu sirasinda HIBIT’17 nin bilimsel komitesi (Ercument Cicek, Can Alkan, Ozgur Sahin, Attila Gursoy, Ozlem Keskin) tarafindan degerlendirilen posterlerden en iyi ucune 29 Haziran HIBIT’17 kapanisi sirasinda bilimsel komiteyi temsilen Ercument Cicek tarafindan odulleri verildi.
 
 En iyi 3. poster odulu: Meltem Eda Omur -MYELIN INTERACTOME : IDENTIFICATION OF CELL-CELL INTERACTIONS IN MULTIPLE SCLEROSIS VIA BIPARTITE GRAPH BASED PROTEIN-PROTEIN INTERACTION NETWORKS
 
@@ -52,4 +52,4 @@ Tesekkurler:
 
 3- Basta Zeynep Ozkeserli, Burcu Yaldiz, Melike Donertas, Elif Bozlak, Cansu Dincer ve Cansu Demirel olmak uzere tum RSG Turkiye aktif uyelerine ve organizasyon suresince grubumuzla ic ice calisarak cok iyi bir deneyim gecirmemizi saglayan HIBIT’17 komitesine sonsuz tesekkurler!
 
-4- ISCB SC bu etkinligimiz icin bize maddi destek saglayarak, etkinlikteki posterlerin odullendirilmesini saglamistir. Bu sebeple ISCB SC destek degerlendirme komitesine tesekkurlerimizi sunuyoruz.
+4- ISCB-SC bu etkinligimiz icin bize maddi destek saglayarak, etkinlikteki posterlerin odullendirilmesini saglamistir. Bu sebeple ISCB-SC destek degerlendirme komitesine tesekkurlerimizi sunuyoruz.
