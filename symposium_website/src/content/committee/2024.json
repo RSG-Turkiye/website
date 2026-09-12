@@ -1,0 +1,272 @@
+{
+  "year": 2024,
+  "people": [
+    {
+      "name": "Kübra Kubat",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Balıkesir Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Core Team",
+          "tr": "Düzenleme Komitesi"
+        }
+      ]
+    },
+    {
+      "name": "Gizem Beyza Anık",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Marmara Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Core Team",
+          "tr": "Düzenleme Komitesi"
+        }
+      ]
+    },
+    {
+      "name": "Gülce Çelen",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Yıldız Teknik Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Core Team",
+          "tr": "Düzenleme Komitesi"
+        }
+      ]
+    },
+    {
+      "name": "Fatma Tosun",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Yıldız Teknik Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Core Team",
+          "tr": "Düzenleme Komitesi"
+        }
+      ]
+    },
+    {
+      "name": "Nilay Yönet",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Yıldız Teknik Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Core Team",
+          "tr": "Düzenleme Komitesi"
+        }
+      ]
+    },
+    {
+      "name": "Eda Çandır",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Dokuz Eylül Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Core Team",
+          "tr": "Düzenleme Komitesi"
+        }
+      ]
+    },
+    {
+      "name": "Emre Can Buluz",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Ege Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Core Team",
+          "tr": "Düzenleme Komitesi"
+        }
+      ]
+    },
+    {
+      "name": "Vuslat Berfin Sakızcı",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Uludağ Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Programme",
+          "tr": "Program"
+        }
+      ]
+    },
+    {
+      "name": "Şeyma Nur Özkan",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Ege Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Programme",
+          "tr": "Program"
+        }
+      ]
+    },
+    {
+      "name": "Emre Taha Çevik",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Gebze Teknik Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Communications",
+          "tr": "İletişim"
+        },
+        {
+          "en": "Website",
+          "tr": "Websitesi"
+        }
+      ]
+    },
+    {
+      "name": "Ezgi Gökçe Aydöre",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Hacettepe Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Communications",
+          "tr": "İletişim"
+        }
+      ]
+    },
+    {
+      "name": "Atam Noyan Erçetin",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "İstanbul Teknik Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Sponsorship",
+          "tr": "Sponsorluk"
+        }
+      ]
+    },
+    {
+      "name": "Sude Karaoğlan",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Gebze Teknik Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Sponsorship",
+          "tr": "Sponsorluk"
+        }
+      ]
+    },
+    {
+      "name": "Canan Güzel",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Uludağ Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Sponsorship",
+          "tr": "Sponsorluk"
+        }
+      ]
+    },
+    {
+      "name": "Ömer Demir",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "İstanbul Medeniyet Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Sponsorship",
+          "tr": "Sponsorluk"
+        }
+      ]
+    },
+    {
+      "name": "Ege Altun",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Ege Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Graphic Design",
+          "tr": "Grafik Tasarım"
+        }
+      ]
+    },
+    {
+      "name": "Merve Erol",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Marmara Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Graphic Design",
+          "tr": "Grafik Tasarım"
+        }
+      ]
+    },
+    {
+      "name": "Şevval Keskin",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Ankara Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Website",
+          "tr": "Websitesi"
+        }
+      ]
+    },
+    {
+      "name": "Ece Bayraktar",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "İstanbul Teknik Üniversitesi",
+      "photo": "",
+      "teams": [
+        {
+          "en": "Social Media",
+          "tr": "Sosyal Medya"
+        }
+      ]
+    },
+    {
+      "name": "Ayşe Akkan",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "İzmir Yüksek Teknoloji Enstitüsü",
+      "photo": "",
+      "teams": []
+    },
+    {
+      "name": "Hatice Betül Kuzudişli",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Marmara Üniversitesi",
+      "photo": "",
+      "teams": []
+    }
+  ]
+}
