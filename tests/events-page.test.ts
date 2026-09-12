@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, globSync } from 'node:fs';
+import { readFileSync, globSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { events, groupEvents, statusOf, type CommunityEvent } from '../src/data/events';
 
@@ -99,4 +99,36 @@ test('no page anywhere hard-codes an event status', () => {
   const offenders = globSync('**/*.astro', { cwd: SRC })
     .filter((f) => /status:\s*["'](upcoming|completed)["']/.test(readFileSync(join(SRC, f), 'utf8')));
   assert.deepEqual(offenders, [], `hard-coded event status in: ${offenders.join(', ')}`);
+});
+
+test('the homepage event card is rendered, not left to a script that may never run', () => {
+  // The card was a skeleton filled in by a Google Calendar script. In
+  // production PUBLIC_GOOGLE_CALENDAR_API_KEY is unset, so the script took
+  // its `if (!API_KEY) { emptyState(); return; }` branch on every visit and
+  // every visitor read "New events coming soon!" -- a month before the 13th
+  // symposium, which /events was listing at the same time.
+  //
+  // It is now rendered at build time from the same list /events uses. The
+  // script still runs and still wins when a key exists; it just no longer
+  // decides what the page says when it does not.
+  const DIST = new URL('../dist/', import.meta.url).pathname;
+  for (const page of ['index.html', 'tr/index.html']) {
+    const file = join(DIST, page);
+    if (!existsSync(file)) return; // no build: skip rather than pass vacuously
+    const html = readFileSync(file, 'utf8');
+    const card = /id="calendarCard"[\s\S]*?<\/div>/.exec(html)?.[0] ?? '';
+    assert.ok(card, `${page} has no event card`);
+    assert.ok(
+      !/animate-pulse/.test(card),
+      `${page} still ships the loading skeleton as the card's only content`,
+    );
+    const upcoming = groupEvents(events, new Date()).upcoming[0];
+    if (upcoming) {
+      const lang = page.startsWith('tr/') ? 'tr' : 'en';
+      assert.ok(
+        card.includes(upcoming.title[lang]),
+        `${page} does not name the next event (${upcoming.title[lang]})`,
+      );
+    }
+  }
 });
