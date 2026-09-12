@@ -61,6 +61,18 @@ function initials(name: string) {
                 <div class="flex items-center gap-3 text-xs text-gray-500 mb-2">
                   <time>{webinar.data.date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
                   {webinar.data.speaker && <span>{webinar.data.speaker}</span>}
+                {/*
+                  Whether a recording exists, on the card rather than only on
+                  the page behind it: 49 of the 82 entries have none, so a
+                  reader looking for something to watch was opening cards to
+                  find out. Marking the ones that do is quieter than marking
+                  the ones that do not.
+                */}
+                  {webinar.data.youtubeUrl && (
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-tint text-red font-medium">
+                      ▶ Kayıt var
+                    </span>
+                  )}
                 </div>
                 <h2 class="text-base font-semibold mb-1">
                   <a href={`/tr/webinars/${webinar.id.slice(3)}/`} class="text-navy hover:text-navy-mid transition-colors">

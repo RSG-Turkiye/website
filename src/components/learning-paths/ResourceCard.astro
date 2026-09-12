@@ -32,6 +32,32 @@ const { resource, resourceId, lang = 'en' } = Astro.props;
 
 const isWebinar = resource.tag === 'Webinar';
 
+/**
+ * The tag a card shows.
+ *
+ * `tag` is an English keyword in the content files, and it was rendered raw:
+ * a Turkish reader on /tr/learning-paths/roadmap/ met "Action", "Reading",
+ * "Course", "Tool" and "Challenge" among Turkish prose. The keyword stays the
+ * key -- it is what the link-label rules below match on -- and only the
+ * displayed string is translated. A tag with no entry falls back to itself,
+ * which is right for "Webinar" and "Platform".
+ */
+const TAG_TR: Record<string, string> = {
+  Tool: 'Araç',
+  Reading: 'Okuma',
+  Paper: 'Makale',
+  Tutorial: 'Eğitim',
+  Course: 'Kurs',
+  Action: 'Uygulama',
+  Videos: 'Video',
+  Pipeline: 'İş akışı',
+  Interactive: 'Etkileşimli',
+  Dataset: 'Veri kümesi',
+  Challenge: 'Alıştırma',
+  Book: 'Kitap',
+};
+const tagLabel = lang === 'tr' ? (TAG_TR[resource.tag ?? ''] ?? resource.tag) : resource.tag;
+
 const L = lang === 'tr' ? {
   watch:        'İzle →',
   watchYouTube: 'YouTube\'da İzle →',
@@ -125,7 +151,7 @@ const tagClass = isWebinar
       <div class="flex items-center gap-2 shrink-0">
         {resource.tag && (
           <span class={`text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${tagClass}`}>
-            {resource.tag}
+            {tagLabel}
           </span>
         )}
         {!unavailable && href && isExternal && (

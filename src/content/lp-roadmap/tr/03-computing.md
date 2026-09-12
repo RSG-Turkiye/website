@@ -2,7 +2,7 @@
 number: 3
 emoji: "💻"
 title: "Bilgisayar Temelleri"
-subtitle: "Programcı olmanız gerekmiyor. Komut satırıyla yeterince tehlikeli olmanız ve bir dilde akıcı olmanız yeterli."
+subtitle: "Programcı olmanız gerekmiyor. Komut satırında işinizi görecek kadar rahat olmanız ve bir dilde yolunuzu bulmanız yeterli."
 color: navy
 resources:
   - title: "The Unix Shell, Software Carpentry"
