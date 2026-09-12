@@ -5,7 +5,7 @@ export const ui = {
   en: {
     "site.title": "RSG-Türkiye Student Symposium",
     "site.description":
-      "Annual student symposium on computational biology and bioinformatics, organized by ISCB SC RSG-Türkiye.",
+      "Annual student symposium on computational biology and bioinformatics, organized by ISCB-SC RSG-Türkiye.",
 
     "nav.home": "Home",
     "nav.speakers": "Speakers",
@@ -19,7 +19,7 @@ export const ui = {
     "editions.badge.upcoming": "Upcoming",
     "nav.committee": "Committee",
 
-    "hero.tagline": "ISCB SC RSG-Türkiye Student Symposium",
+    "hero.tagline": "ISCB-SC RSG-Türkiye Student Symposium",
     "hero.subtitle":
       "Bringing together students and researchers in computational biology and bioinformatics.",
     "hero.cta.about": "Learn More",
@@ -37,7 +37,7 @@ export const ui = {
 
     "home.about.title": "About the Symposium",
     "home.about.body":
-      "RSG-Türkiye is a student-led, non-profit organization affiliated with the International Society for Computational Biology Student Council (ISCB SC). Since 2012, we have been organizing annual student symposiums that attract undergraduate and graduate students and foster interdisciplinary collaboration in computational biology and bioinformatics across Türkiye.",
+      "RSG-Türkiye is a student-led, non-profit organization affiliated with the International Society for Computational Biology Student Council (ISCB-SC). Since 2012, we have been organizing annual student symposiums that attract undergraduate and graduate students and foster interdisciplinary collaboration in computational biology and bioinformatics across Türkiye.",
 
     "home.latest.title": "Latest Edition",
     "home.sponsors.title": "Our Sponsors",
@@ -117,7 +117,7 @@ export const ui = {
     "about.title": "About RSG-Türkiye",
     "about.mission.title": "Our Mission",
     "about.mission.body":
-      "ISCB SC RSG-Türkiye has become a paramount student initiative, organizing events that contribute to the developing computational biology and bioinformatics society in Türkiye. We organize student symposiums attracting undergraduate and graduate students since 2012. Being less formal and more student-focused than HiBiT, our symposiums provide a platform where students can actively participate, present their work, and connect with researchers.",
+      "ISCB-SC RSG-Türkiye has become a paramount student initiative, organizing events that contribute to the developing computational biology and bioinformatics society in Türkiye. We organize student symposiums attracting undergraduate and graduate students since 2012. Being less formal and more student-focused than HiBiT, our symposiums provide a platform where students can actively participate, present their work, and connect with researchers.",
     "about.history.title": "Previous Editions",
 
     "sponsors.title": "Our Sponsors",
@@ -137,10 +137,10 @@ export const ui = {
     "sponsors.become.cta": "Get in Touch",
     "home.sponsors.viewAll": "View all sponsors →",
 
-    "footer.tagline": "ISCB SC RSG-Türkiye Student Symposium",
+    "footer.tagline": "ISCB-SC RSG-Türkiye Student Symposium",
     "footer.links": "Quick Links",
     "footer.connect": "Connect",
-    "footer.copyright": "© {year} ISCB SC RSG-Türkiye. All rights reserved.",
+    "footer.copyright": "© {year} ISCB-SC RSG-Türkiye. All rights reserved.",
 
     "404.title": "Page Not Found",
     "404.body": "The page you are looking for does not exist.",
@@ -158,7 +158,7 @@ export const ui = {
   tr: {
     "site.title": "RSG-Türkiye Öğrenci Sempozyumu",
     "site.description":
-      "ISCB SC RSG-Türkiye tarafından düzenlenen hesaplamalı biyoloji ve biyoinformatik alanındaki yıllık öğrenci sempozyumu.",
+      "ISCB-SC RSG-Türkiye tarafından düzenlenen hesaplamalı biyoloji ve biyoinformatik alanındaki yıllık öğrenci sempozyumu.",
 
     "nav.home": "Ana Sayfa",
     "nav.speakers": "Konuşmacılar",
@@ -172,7 +172,7 @@ export const ui = {
     "editions.badge.upcoming": "Yaklaşan",
     "nav.committee": "Komite",
 
-    "hero.tagline": "ISCB SC RSG-Türkiye Öğrenci Sempozyumu",
+    "hero.tagline": "ISCB-SC RSG-Türkiye Öğrenci Sempozyumu",
     "hero.subtitle":
       "Hesaplamalı biyoloji ve biyoinformatik alanındaki öğrencileri ve araştırmacıları bir araya getiriyoruz.",
     "hero.cta.about": "Daha Fazla",
@@ -187,7 +187,7 @@ export const ui = {
 
     "home.about.title": "Sempozyum Hakkında",
     "home.about.body":
-      "RSG-Türkiye, Uluslararası Hesaplamalı Biyoloji Derneği Öğrenci Konseyi'ne (ISCB SC) bağlı, öğrenci liderliğinde, kar amacı gütmeyen bir organizasyondur. 2012'den bu yana Türkiye'deki hesaplamalı biyoloji ve biyoinformatik topluluğuna katkıda bulunmak amacıyla lisans ve lisansüstü öğrencileri çeken yıllık öğrenci sempozyumları düzenliyoruz.",
+      "RSG-Türkiye, Uluslararası Hesaplamalı Biyoloji Derneği Öğrenci Konseyi'ne (ISCB-SC) bağlı, öğrenci liderliğinde, kar amacı gütmeyen bir organizasyondur. 2012'den bu yana Türkiye'deki hesaplamalı biyoloji ve biyoinformatik topluluğuna katkıda bulunmak amacıyla lisans ve lisansüstü öğrencileri çeken yıllık öğrenci sempozyumları düzenliyoruz.",
 
     "home.latest.title": "Son Edisyon",
     "home.sponsors.title": "Sponsorlarımız",
@@ -254,7 +254,7 @@ export const ui = {
     "about.title": "RSG-Türkiye Hakkında",
     "about.mission.title": "Misyonumuz",
     "about.mission.body":
-      "ISCB SC RSG-Türkiye, Türkiye'deki hesaplamalı biyoloji ve biyoinformatik topluluğunun gelişimine katkıda bulunmak amacıyla etkinlikler düzenleyen önemli bir öğrenci inisiyatifi haline gelmiştir. 2012'den bu yana lisans ve lisansüstü öğrencileri çeken öğrenci sempozyumları düzenliyoruz. HiBiT'ten daha az resmi ve daha öğrenci odaklı olan sempozyumlarımız, öğrencilerin aktif olarak katılabileceği, çalışmalarını sunabileceği ve araştırmacılarla bağlantı kurabileceği bir platform sunmaktadır.",
+      "ISCB-SC RSG-Türkiye, Türkiye'deki hesaplamalı biyoloji ve biyoinformatik topluluğunun gelişimine katkıda bulunmak amacıyla etkinlikler düzenleyen önemli bir öğrenci inisiyatifi haline gelmiştir. 2012'den bu yana lisans ve lisansüstü öğrencileri çeken öğrenci sempozyumları düzenliyoruz. HiBiT'ten daha az resmi ve daha öğrenci odaklı olan sempozyumlarımız, öğrencilerin aktif olarak katılabileceği, çalışmalarını sunabileceği ve araştırmacılarla bağlantı kurabileceği bir platform sunmaktadır.",
     "about.history.title": "Önceki Edisyonlar",
 
     "sponsors.title": "Sponsorlarımız",
@@ -271,10 +271,10 @@ export const ui = {
     "sponsors.become.cta": "Bizimle İletişime Geçin",
     "home.sponsors.viewAll": "Tüm sponsorları gör →",
 
-    "footer.tagline": "ISCB SC RSG-Türkiye Öğrenci Sempozyumu",
+    "footer.tagline": "ISCB-SC RSG-Türkiye Öğrenci Sempozyumu",
     "footer.links": "Hızlı Bağlantılar",
     "footer.connect": "Bağlantı",
-    "footer.copyright": "© {year} ISCB SC RSG-Türkiye. Tüm hakları saklıdır.",
+    "footer.copyright": "© {year} ISCB-SC RSG-Türkiye. Tüm hakları saklıdır.",
 
     "404.title": "Sayfa Bulunamadı",
     "404.body": "Aradığınız sayfa mevcut değil.",

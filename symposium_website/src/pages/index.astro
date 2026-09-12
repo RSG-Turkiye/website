@@ -144,9 +144,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
       <div class="mt-10 grid sm:grid-cols-3 gap-4">
         {
           [
-            { label: lang === "tr" ? "Kuruluş Yılı" : "Since", value: "2012" },
+            { label: lang === "tr" ? "Kuruluş Yılı" : "Founded", value: "2011" },
             { label: lang === "tr" ? "Edisyon" : "Editions", value: String(held) },
-            { label: lang === "tr" ? "Üye Ağı" : "Network", value: "ISCB SC" },
+            { label: lang === "tr" ? "Üye Ağı" : "Network", value: "ISCB-SC" },
           ].map(({ label, value }) => (
             <div class="bg-navy-light rounded-xl p-5 text-center">
               <p class="text-3xl font-bold text-navy">{value}</p>

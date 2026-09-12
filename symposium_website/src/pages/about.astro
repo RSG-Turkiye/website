@@ -32,9 +32,9 @@ const past = await getPastEditions();
     <div class="mt-8 grid sm:grid-cols-3 gap-4">
       {
         [
-          { label: lang === "tr" ? "Kuruluş Yılı" : "Founded", value: "2012" },
+          { label: lang === "tr" ? "Kuruluş Yılı" : "Founded", value: "2011" },
           { label: lang === "tr" ? "Sempozyum" : "Symposiums", value: String(held) },
-          { label: lang === "tr" ? "Üye Ağı" : "Community", value: "ISCB SC" },
+          { label: lang === "tr" ? "Üye Ağı" : "Community", value: "ISCB-SC" },
         ].map(({ label, value }) => (
           <div class="bg-navy-light rounded-xl p-5 text-center">
             <p class="text-3xl font-bold text-navy">{value}</p>

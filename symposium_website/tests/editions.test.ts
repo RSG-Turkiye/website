@@ -423,3 +423,21 @@ test('the Turkish city name changes what is printed, never what is decided', () 
   assert.deepEqual(locationFor(full, now, 'tr'), { kind: 'full', venue: 'Salon', city: 'İstanbul' });
   assert.deepEqual(locationFor(full, now, 'en'), { kind: 'full', venue: 'Hall', city: 'Istanbul' });
 });
+
+test('the counter does not count the edition that has not happened yet', () => {
+  // The floor used to be the number of files. That was invisible while the
+  // collection was incomplete -- nine files, thirteen ordinals -- and became
+  // wrong the moment 2012, 2013 and 2015 were added: thirteen files, and the
+  // homepage announced thirteen symposiums held a month before the
+  // thirteenth.
+  const all: EditionLike[] = [
+    { year: 2023, title: '10th RSG-Türkiye Student Symposium', startDate: new Date('2023-10-03') },
+    { year: 2024, title: '11th RSG-Türkiye Student Symposium', startDate: new Date('2024-11-15') },
+    { year: 2025, title: '12th RSG-Türkiye Student Symposium', startDate: new Date('2025-10-30') },
+    { year: 2026, title: '13th RSG-Türkiye Student Symposium', startDate: new Date('2026-10-10') },
+  ];
+  // Four files, four ordinals, and the last one is still ahead of us.
+  assert.equal(symposiumsHeld(all, new Date('2026-09-12')), 12);
+  // The day after it, it counts.
+  assert.equal(symposiumsHeld(all, new Date('2026-10-12')), 13);
+});

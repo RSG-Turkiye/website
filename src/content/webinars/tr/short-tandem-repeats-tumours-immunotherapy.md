@@ -26,4 +26,4 @@ Konuşmanın başında kısa ardışık tekrarların saptanması ile bunların f
 
 Kısa ardışık tekrarların kanseri nasıl etkilediğini ve immünoterapi amacıyla nasıl kullanılabileceğini merak ediyorsanız bu webinarı izlemenizi kesinlikle öneririz: https://youtu.be/GmjwyTZinjU
 
-ISCB SC RSG-Türkiye olarak davetimizi kabul edip bu son derece bilgilendirici konuşmayı yaptığı için Tuğçe'ye tekrar teşekkür ederiz!
+ISCB-SC RSG-Türkiye olarak davetimizi kabul edip bu son derece bilgilendirici konuşmayı yaptığı için Tuğçe'ye tekrar teşekkür ederiz!
