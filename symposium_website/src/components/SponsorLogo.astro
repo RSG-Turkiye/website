@@ -6,13 +6,21 @@ interface Props {
 }
 
 const { sponsor } = Astro.props;
+
+// Not every supporter has a site we can link. `<a href="">` resolves to the
+// current page, so a card with no URL would be a link that reloads.
+const Tag = sponsor.url ? "a" : "div";
+const linkProps = sponsor.url
+  ? { href: sponsor.url, target: "_blank", rel: "noopener noreferrer" }
+  : {};
 ---
 
-<a
-  href={sponsor.url}
-  target="_blank"
-  rel="noopener noreferrer"
-  class="flex h-full flex-col items-center justify-center gap-3 bg-white rounded-xl border border-border p-6 hover:shadow-md transition-shadow group"
+<Tag
+  {...linkProps}
+  class:list={[
+    "flex h-full flex-col items-center justify-center gap-3 bg-white rounded-xl border border-border p-6 group",
+    sponsor.url && "hover:shadow-md transition-shadow",
+  ]}
   title={sponsor.name}
 >
   {
@@ -24,8 +32,8 @@ const { sponsor } = Astro.props;
         loading="lazy"
       />
     ) : (
-      <span class="text-navy font-semibold text-lg">{sponsor.name}</span>
+      <span class="text-navy font-semibold text-lg text-center">{sponsor.name}</span>
     )
   }
   {sponsor.description && <p class="text-xs text-gray-500 text-center">{sponsor.description}</p>}
-</a>
+</Tag>

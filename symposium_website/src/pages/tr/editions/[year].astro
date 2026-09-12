@@ -5,11 +5,13 @@ const now = new Date();
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import SpeakerCard from "../../../components/SpeakerCard.astro";
 import CommitteeGrid from "../../../components/CommitteeGrid.astro";
+import SponsorLogo from "../../../components/SponsorLogo.astro";
 import { useTranslations, getLangFromUrl } from "../../../i18n/ui";
 import { getCollection, render } from "astro:content";
 import { getSpeakerBySlug, getCurrentContent, getCommittee } from "../../../lib/content";
 import { getCurrentEdition } from "../../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor, dateFor } from "../../../lib/editions";
+import { getSponsorsByEdition } from "../../../data/sponsors";
 
 export async function getStaticPaths() {
   const editions = await getCollection("editions");
@@ -57,6 +59,10 @@ const committee =
   currentEntry?.data.year === edition.data.year
     ? (await getCurrentContent())?.committee ?? []
     : await getCommittee(edition.data.year);
+// Who backed this edition. /sponsors answers the same question for the
+// current one and keeps a list of everyone before; until now the year each
+// company actually supported was recorded in the data and shown nowhere.
+const sponsors = getSponsorsByEdition(edition.data.year);
 const title = titleFor(edition.data, lang);
 const subtitle = subtitleFor(edition.data, lang);
 ---
@@ -115,6 +121,16 @@ const subtitle = subtitleFor(edition.data, lang);
         <CommitteeGrid lang={lang} members={committee} finished bare />
       </div>
     )}
+    <!-- Who backed this one -->
+    {sponsors.length > 0 && (
+      <div>
+        <h2 class="text-xl font-bold text-navy mb-5">{t("nav.sponsors")}</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {sponsors.map((sp) => <SponsorLogo sponsor={sp} />)}
+        </div>
+      </div>
+    )}
+
     {edition.data.galleryImages.length > 0 && (
       <div>
         <h2 class="text-xl font-bold text-navy mb-5">Galeri</h2>
