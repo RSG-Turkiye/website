@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import EntryIndex from '../../components/EntryIndex.astro';
 import { useTranslations } from '../../i18n/ui';
 import { getCollection } from 'astro:content';
 import { events, groupEvents, yearsSinceFounding } from '../../data/events';
@@ -36,6 +37,9 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
       </a>
     </div>
   </section>
+
+  <!-- ── Three ways in ─────────────────────────────────── -->
+  <EntryIndex lang={lang} />
 
   <!-- Mission + Stats -->
   <section class="bg-white py-16">
