@@ -37,6 +37,20 @@ export const ui = {
     'hero.learnMore': 'Learn More',
     'hero.joinCommunity': 'Join Our Community',
 
+    // The three doors under the hero. Written as the visitor's own sentence,
+    // not as a section of the site, because the question a reader answers
+    // first is "which of these is me".
+    'doors.heading': 'Where do you want to start',
+    'doors.new.question': 'I am new to bioinformatics',
+    'doors.new.detail': 'A roadmap from nothing. Biology or computing, both are a starting point.',
+    'doors.new.count': '{n} stages',
+    'doors.content.question': 'I am looking for content',
+    'doors.content.detail': 'Every webinar recording, by speaker and by subject.',
+    'doors.content.count': '{n} recordings',
+    'doors.join.question': 'I want to join the community',
+    'doors.join.detail': 'Active and passive membership, the teams, and how to apply.',
+    'doors.join.end': 'Membership',
+
     // Announcements
     'announcements.title': 'Latest Announcements',
     'announcements.subtitle': 'Stay updated with our newest activities, events, and opportunities',
@@ -552,6 +566,17 @@ export const ui = {
     'hero.membership': 'Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi (SC) Bölgesel Öğrenci Grupları (RSG) üyesi.',
     'hero.learnMore': 'Daha Fazla Bilgi',
     'hero.joinCommunity': 'Topluluğumuza Katıl',
+
+    'doors.heading': 'Nereden başlamak istiyorsun',
+    'doors.new.question': 'Biyoinformatiğe yeniyim',
+    'doors.new.detail': 'Sıfırdan yol haritası. Biyoloji ya da yazılım, ikisi de başlangıç.',
+    'doors.new.count': '{n} aşama',
+    'doors.content.question': 'İçerik arıyorum',
+    'doors.content.detail': 'Webinar kayıtlarının tamamı, konuşmacı ve konuya göre.',
+    'doors.content.count': '{n} kayıt',
+    'doors.join.question': 'Topluluğa katılmak istiyorum',
+    'doors.join.detail': 'Aktif ve pasif üyelik, ekipler ve başvuru süreci.',
+    'doors.join.end': 'Üyelik',
 
     // Announcements
     'announcements.title': 'Son Duyurular',

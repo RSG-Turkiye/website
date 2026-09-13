@@ -1,0 +1,91 @@
+---
+/**
+ * Three ways in, as an index rather than three cards.
+ *
+ * An outside review said the site's best content, the learning paths, is
+ * invisible from the homepage, and proposed three explicit entrances
+ * (#203). The first three shapes I drew for it were all the same object:
+ * a bordered, rounded card with a heading, two lines and an arrow. Adding
+ * a fifth card grid to a page that already has four would not lift these
+ * three questions out of the page, it would bury them in it.
+ *
+ * So this is a list of rows on hairline rules, the only section on the
+ * homepage without boxes, which is what makes it read as a signpost. The
+ * site is an archive -- thirteen symposiums, eighty-two webinars, fifteen
+ * years of records -- and an archive's front door should look like a table
+ * of contents.
+ *
+ * The counts are read from the collections, not typed. The eighty-third
+ * webinar updates this row by existing.
+ */
+import { getCollection } from "astro:content";
+import { useTranslations } from "../i18n/ui";
+
+interface Props {
+  lang: "en" | "tr";
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const prefix = lang === "tr" ? "/tr" : "";
+
+const stages = (await getCollection("lpRoadmap")).filter((e) => e.id.startsWith(`${lang}/`)).length;
+const webinars = (
+  await getCollection("webinars", ({ id, data }) => id.startsWith(`${lang}/`) && !data.draft)
+).length;
+
+const rows = [
+  {
+    href: `${prefix}/learning-paths/roadmap/`,
+    question: t("doors.new.question"),
+    detail: t("doors.new.detail"),
+    // "8 aşama" / "8 stages". A count, so it is set in tabular figures
+    // beside the other two and lines up with them.
+    end: t("doors.new.count").replace("{n}", String(stages)),
+  },
+  {
+    href: `${prefix}/webinars/`,
+    question: t("doors.content.question"),
+    detail: t("doors.content.detail"),
+    end: t("doors.content.count").replace("{n}", String(webinars)),
+  },
+  {
+    href: `${prefix}/join/`,
+    question: t("doors.join.question"),
+    detail: t("doors.join.detail"),
+    // Nothing to count here, so this slot holds the word instead. Keeping
+    // the column means the three rows still end on the same axis.
+    end: t("doors.join.end"),
+  },
+];
+---
+
+<section class="bg-white border-b border-border">
+  <div class="max-w-4xl mx-auto px-6 py-14">
+    <h2 class="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-5">
+      {t("doors.heading")}
+    </h2>
+
+    <nav class="border-t border-navy">
+      {rows.map((row) => (
+        <a
+          href={row.href}
+          class="group grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center gap-2 sm:gap-6 py-5 px-1 sm:px-1.5 border-b border-[#C4CEEA] no-underline text-navy hover:bg-navy-light hover:px-3 focus-visible:bg-navy-light transition-[background-color,padding] duration-150"
+        >
+          <span>
+            <span class="block text-lg sm:text-xl font-semibold leading-tight tracking-tight">
+              {row.question}
+            </span>
+            <span class="block text-sm text-gray-600 mt-1 leading-snug">{row.detail}</span>
+          </span>
+          <span class="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+            <span class="text-sm text-navy-mid tabular-nums whitespace-nowrap">{row.end}</span>
+            <span
+              class="text-lg leading-none text-navy-mid group-hover:translate-x-0.5 transition-transform duration-150"
+              aria-hidden="true">→</span>
+          </span>
+        </a>
+      ))}
+    </nav>
+  </div>
+</section>
