@@ -102,6 +102,55 @@ too". So:
   served again by the public endpoint, which is the one way this phase can
   itself cause the problem it is fixing.
 
+### Phase 0b -- the edition is snapshotted into git while it is still running
+
+Phase 0 makes retirement honest, but it does not answer "what if something
+happens to the CMS". Between the day an edition is entered and the day it
+finishes, its content exists in exactly one place: D1.
+
+`renderArchive` and `openContentPR` already do the work; what they do not do
+is run before the edition is over. So:
+
+- A daily snapshot. The cron already runs; for the upcoming edition it
+  renders the same files the archiver would and calls `openContentPR`, which
+  converges on the same branch and the same pull request when called again
+  with the same arguments (`functions/_lib/github.ts:263`). One long-lived
+  pull request per edition, refreshed, merged when the edition ends.
+- A "send to git now" button in the panel, on the same code path, for an
+  organiser who has just entered something they do not want to lose.
+
+A snapshot never sets `archived_at`: the edition is still upcoming and the
+public endpoint must go on serving it from D1. Writing to git and retiring
+from the API are two different acts, which is the same separation phase 0
+makes.
+
+Three things this must respect:
+
+- **The hall does not go through it.** While `venue_public != 1` the
+  snapshot writes no `venue`/`venueTr` into the markdown, on the same rule
+  the public endpoint follows. A snapshot that ignored this would hand back
+  everything phase 2 wins, through a button, into a public repository. This
+  is what `withheld-venue.test.ts` exists to catch, and it will.
+- **A merged snapshot changes what an outage looks like, for the better.**
+  Today an unreachable API leaves the 2026 page saying "announced soon",
+  because the repo holds nothing for that year. With a snapshot merged, the
+  same outage shows the last known programme. `repoCanStandAlone` starts
+  returning true for the upcoming edition, which is the behaviour its
+  refusal branch was written to protect.
+- **And it gives an emptied list somewhere to fall back to.** In
+  `mergeOverlay` an empty list means "no opinion", so deleting the last
+  speaker in the panel would let a merged snapshot's roster reappear.
+  Harmless today because the repo has nothing; real as soon as snapshots are
+  merged. Either the overlay distinguishes "empty" from "absent" for the
+  upcoming edition, or the panel refuses to delete the last row. Decide when
+  phase 0b is planned, not while implementing it.
+
+Worth checking before any of this is built: Cloudflare D1's Time Travel is a
+thirty-day point-in-time restore. If it is available on this account it
+covers "something happened to the CMS" more completely than any snapshot,
+and phase 0b becomes what it should be -- content in git, reviewable, where
+the rest of the site's content lives -- rather than the only backup there is.
+
 ### Phase 1 -- the edition's own details, and its images
 
 New columns: `title`, `title_tr`, `subtitle`, `subtitle_tr`, `date_text`,
