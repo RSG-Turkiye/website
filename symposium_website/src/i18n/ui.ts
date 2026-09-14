@@ -185,7 +185,7 @@ export const ui = {
     "cta.abstract": "Bildiri Gönder",
     "cta.soon": "Kayıt ve bildiri çağrısı yakında açılacak.",
     "cta.register.soon": "Kayıt yakında açılacak.",
-    "cta.abstract.soon": "Bildiri çağrısı yakında açılacak.",
+    "cta.abstract.soon": "Bildiri çağrısı yakında açılacaktır.",
     "cta.closed": "Kayıt ve bildiri gönderimi kapandı.",
     "cta.deadline": "Son tarih: {date}",
     "hero.countdown.days": "gün kaldı",
