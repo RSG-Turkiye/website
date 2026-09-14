@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitEditions, currentEditionOf, ordinalOf, symposiumsHeld, nextEditionHint, seasonOf, ordinalLabel, type EditionLike, locationFor, ctasFor, titleFor, subtitleFor } from '../src/lib/editions';
+import { splitEditions, currentEditionOf, ordinalOf, symposiumsHeld, nextEditionHint, seasonOf, ordinalLabel, type EditionLike, locationFor, ctasFor, pendingCtas, titleFor, subtitleFor } from '../src/lib/editions';
 
 /**
  * A fixed clock. locationFor and ctasFor now take one: "to be announced" is a
@@ -181,6 +181,46 @@ test('a deadline rides along with its CTA', () => {
 
 test('whitespace is not a URL', () => {
   assert.deepEqual(ctasFor({ registrationUrl: '   ', abstractUrl: '' } as EditionLike, NOW), []);
+});
+
+test('nothing is pending once both forms exist', () => {
+  assert.deepEqual(pendingCtas({
+    registrationUrl: 'https://forms.gle/reg',
+    abstractUrl: 'https://forms.gle/abs',
+  } as EditionLike), []);
+});
+
+test('the abstract call is pending while only registration is open', () => {
+  // The live state as this is written: the registration link landed first and
+  // the call for abstracts is days away. Without this the hero says nothing
+  // at all about abstracts, because ctaState went from "soon" to "open" the
+  // moment the first URL arrived.
+  assert.deepEqual(pendingCtas({
+    registrationUrl: 'https://forms.gle/reg',
+    abstractUrl: '',
+  } as EditionLike), ['abstract']);
+});
+
+test('registration is pending while only the abstract form is open', () => {
+  assert.deepEqual(pendingCtas({
+    registrationUrl: '',
+    abstractUrl: 'https://forms.gle/abs',
+  } as EditionLike), ['registration']);
+});
+
+test('both are pending while neither form exists', () => {
+  // ctaState already says "soon" here and the template never asks, but the
+  // rule answers for itself rather than relying on its one caller.
+  assert.deepEqual(pendingCtas({ registrationUrl: '', abstractUrl: '' } as EditionLike), [
+    'registration',
+    'abstract',
+  ]);
+});
+
+test('whitespace is not a URL for pendingCtas either', () => {
+  assert.deepEqual(pendingCtas({ registrationUrl: '   ', abstractUrl: 'https://forms.gle/abs' } as EditionLike), [
+    'registration',
+  ]);
 });
 
 test('titleFor: english language always gets the english title', () => {

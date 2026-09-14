@@ -234,6 +234,31 @@ export function openCtas(e: EditionLike, now: Date): Cta[] {
 }
 
 /**
+ * The calls to action that have no form yet.
+ *
+ * The other half of {@link ctasFor}, and the reason it is needed: the hero's
+ * three states are about the edition as a whole, so the day the registration
+ * link landed the state went from "soon" to "open" and the sentence that had
+ * been promising a call for abstracts disappeared with it. Registration was
+ * announced and abstracts stopped being mentioned at all -- which reads as
+ * though there will not be any.
+ *
+ * Derived, not written down, so the line retires itself: the sentence is gone
+ * the first build after the abstract URL is filled in, and nobody has to
+ * remember to delete it. Symmetrical for the same reason -- whichever form
+ * arrives second is the one that gets promised.
+ *
+ * Takes no `now`: whether a form exists is not a question about the clock.
+ * A deadline that has passed is a different thing, and `ctasFor` answers it.
+ */
+export function pendingCtas(e: EditionLike): Cta["kind"][] {
+  const kinds: Cta["kind"][] = [];
+  if (!e.registrationUrl?.trim()) kinds.push("registration");
+  if (!e.abstractUrl?.trim()) kinds.push("abstract");
+  return kinds;
+}
+
+/**
  * What the hero should say where the buttons go.
  *
  * "soon" -- no form exists yet, which is the weeks between announcing the
