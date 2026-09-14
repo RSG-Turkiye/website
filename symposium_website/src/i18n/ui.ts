@@ -27,6 +27,10 @@ export const ui = {
     "cta.register": "Register",
     "cta.abstract": "Submit an Abstract",
     "cta.soon": "Registration and the call for abstracts open soon.",
+    // Said under the buttons when the other form has not opened yet, so
+    // announcing one does not read as a decision against the other.
+    "cta.register.soon": "Registration opens soon.",
+    "cta.abstract.soon": "The call for abstracts opens soon.",
     "cta.closed": "Registration and abstract submission have closed.",
     "cta.deadline": "Deadline: {date}",
     "hero.countdown.days": "days to go",
@@ -180,6 +184,8 @@ export const ui = {
     "cta.register": "Kayıt Ol",
     "cta.abstract": "Bildiri Gönder",
     "cta.soon": "Kayıt ve bildiri çağrısı yakında açılacak.",
+    "cta.register.soon": "Kayıt yakında açılacak.",
+    "cta.abstract.soon": "Bildiri çağrısı yakında açılacak.",
     "cta.closed": "Kayıt ve bildiri gönderimi kapandı.",
     "cta.deadline": "Son tarih: {date}",
     "hero.countdown.days": "gün kaldı",
