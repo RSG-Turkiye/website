@@ -244,22 +244,24 @@ async function createPullRequest(
       // content is already where it needs to be.
       return { kind: 'no-commits' };
     }
-    if (kind === 'exists') {
-      // A previous attempt already opened this PR, most often a prior day's
-      // snapshot that crashed before its URL was recorded, or -- the case
-      // this task exists for -- a still-open snapshot PR on the day the
-      // archive tries to take over the same branch. Recover its URL rather
-      // than failing, and retitle it so the caller's own wording (an
-      // archive's "merge this promptly", not a snapshot's "merging is
-      // optional") is what a reviewer actually sees.
-      const existing = await findExistingPr(branchName, env);
-      if (existing) {
+    // 'exists' and 'other' both still attempt the same recovery lookup
+    // today's code ran unconditionally on any 422 -- an unrelated validation
+    // failure essentially never coincides with an already-open PR, but this
+    // keeps that fallback exactly as it was rather than short-circuiting it
+    // based on the message classify422 happened to recognize. Retitling is
+    // reserved for 'exists', though: a previous attempt already opening this
+    // PR (most often a prior day's snapshot that crashed before its URL was
+    // recorded, or -- the case this task exists for -- a still-open snapshot
+    // PR on the day the archive tries to take over the same branch) is
+    // actual evidence the caller's own wording belongs on it; recovering an
+    // open PR after some unrelated 422 is not.
+    const existing = await findExistingPr(branchName, env);
+    if (existing) {
+      if (kind === 'exists') {
         await retitlePullRequest(existing, title, body, env);
-        return { kind: 'recovered', prUrl: existing };
       }
+      return { kind: 'recovered', prUrl: existing };
     }
-    // 'other', or 'exists' with no open PR actually found: fall through to
-    // the same error handling every other failure gets.
     throw new Error(`Failed to open PR (${res.status}): ${errBody}`);
   }
   if (!res.ok) {
