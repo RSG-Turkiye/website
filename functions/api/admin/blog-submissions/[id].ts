@@ -145,6 +145,14 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
       files,
       title: `New blog post: ${row.title}`,
       prBody: `Submitted by ${row.submitter_email}, approved by ${admin.email}.\n\n${row.description}`,
+      // Each blog submission gets its own `blog-submission/<slug>` branch, so
+      // unlike symposium-archive there is no second writer that could ever
+      // legitimately hold a different title on this same branch -- a
+      // recovered PR here is always this same approval, retried. Retitling
+      // it is therefore harmless (it just re-asserts the same title/body),
+      // and `true` keeps this call's behaviour exactly as it was before
+      // `retitle` existed.
+      retitle: true,
     },
     env
   );

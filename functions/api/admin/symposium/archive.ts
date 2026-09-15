@@ -114,6 +114,12 @@ export async function snapshotEdition(edition: EditionCandidateRow, env: Env): P
         files,
         title: snapshotPrTitle(edition.year),
         prBody: snapshotPrBody(edition.year),
+        // A snapshot never retitles a recovered pull request: its own
+        // wording is already what a refreshed copy should say, and this is
+        // what stops it clobbering the archive's wording on the same branch
+        // when a FINISHED edition's archive PR is still open and unmerged
+        // (see the doc comment on OpenPrParams.retitle).
+        retitle: false,
       },
       env
     );
@@ -286,6 +292,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         files,
         title: archivePrTitle(edition.year),
         prBody: archivePrBody(edition.year),
+        // Replacing a snapshot's wording with the archive's own is exactly
+        // what this path is for: a recovered pull request here was most
+        // likely still carrying the daily snapshot's "Snapshot the ... CMS
+        // content" title, and a reviewer must see the archive's wording, not
+        // the snapshot's, once the edition is finished.
+        retitle: true,
       },
       env
     );

@@ -122,15 +122,26 @@ function toFile(value: unknown): string {
  * site's content collections expect.
  *
  * A kind with no overlay rows produces no file at all, rather than an empty
- * `{ people: [] }` -- the overlay is additive, not authoritative: an empty
- * list here means the CMS was never used for that kind, not that the kind
- * should be emptied. Whatever the repo already holds for that year (nothing,
+ * `{ people: [] }`. This is NOT because the live site falls back to the
+ * repo's list when the overlay is empty -- it does not: see
+ * symposium_website/src/lib/overlay.ts's `mergeOverlay`, which assigns a
+ * reachable overlay's speakers/sessions/committee entire, empty list
+ * included, so on the live site an empty overlay empties the page. The
+ * reason `renderArchive` still writes no file here is different: doing so
+ * would overwrite whatever the repo already holds for that year (nothing,
  * for a brand-new edition; a hand-written roster, for one entered before the
- * CMS existed) is exactly what a merged build already shows -- see
- * symposium_website/src/lib/overlay.ts's `mergeOverlay`, which leaves the
- * repo's list standing whenever the overlay's own list is empty. Skipping
- * the file here is what keeps the pull request from ever proposing to
- * delete content nothing in this request has any opinion about.
+ * CMS existed) with an empty list, for an edition the CMS currently has
+ * nothing to say about. Skipping the file is what keeps the pull request
+ * from proposing to delete content nothing in this request has any opinion
+ * about.
+ *
+ * Known gap, not yet handled: if every row of a kind is deleted through the
+ * panel (as opposed to never having been entered), this function still
+ * writes no file, so the repository goes on holding the old one and a
+ * retired edition's page can render a roster that was actually deleted.
+ * Distinguishing "emptied" from "never populated" needs more than this
+ * comment -- recorded in this branch's pull request as a known gap rather
+ * than guessed at here.
  *
  * When a kind's overlay rows are non-empty, they wholesale replace whatever
  * file already exists for that year -- again mirroring `mergeOverlay`, which

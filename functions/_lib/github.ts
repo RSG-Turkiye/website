@@ -15,6 +15,16 @@ type OpenPrParams = {
   files: Array<{ path: string; content: string }>;
   title: string;
   prBody: string;
+  /** Whether to PATCH a recovered pull request's title and body onto
+   * `title`/`prBody` above, when GitHub's 422 says one already exists for
+   * this branch. Required, not defaulted -- the two writers that can share a
+   * `symposium-archive/<year>` branch disagree on the right answer (the
+   * archive path must overwrite a snapshot's wording; the snapshot path must
+   * never overwrite the archive's), so this library has no safe guess to
+   * fall back to, and a caller that forgets the field must fail to compile
+   * rather than silently retitle -- the more dangerous of the two -- an
+   * existing pull request that was not its own. */
+  retitle: boolean;
 };
 
 export type OpenPrResult =
@@ -183,9 +193,12 @@ async function findExistingPr(branchName: string, env: Env): Promise<string | nu
 /**
  * Best-effort PATCH of an existing pull request's title and body. Used when
  * `createPullRequest` recovers a pull request that a prior day's snapshot
- * opened -- its wording ("Snapshot the ... CMS content", "merging is
- * optional") is wrong once the caller is the archive, and this is what
- * replaces it with the caller's own wording.
+ * opened and the caller passed `retitle: true` -- its wording ("Snapshot the
+ * ... CMS content", "merging is optional") is wrong once the caller is the
+ * archive, and this is what replaces it with the caller's own wording. Never
+ * called for a caller that passed `retitle: false`: a snapshot recovering
+ * this same PR must not overwrite whatever the archive (or a human reviewer)
+ * has since put on it.
  *
  * Never throws and never fails the caller: the pull request already exists
  * and its URL is what the caller needed, so a PATCH failure (a transient
@@ -219,6 +232,7 @@ async function createPullRequest(
   branchName: string,
   title: string,
   body: string,
+  retitle: boolean,
   env: Env
 ): Promise<CreatePrOutcome> {
   const res = await githubRequest(
@@ -249,15 +263,19 @@ async function createPullRequest(
     // failure essentially never coincides with an already-open PR, but this
     // keeps that fallback exactly as it was rather than short-circuiting it
     // based on the message classify422 happened to recognize. Retitling is
-    // reserved for 'exists', though: a previous attempt already opening this
-    // PR (most often a prior day's snapshot that crashed before its URL was
-    // recorded, or -- the case this task exists for -- a still-open snapshot
-    // PR on the day the archive tries to take over the same branch) is
-    // actual evidence the caller's own wording belongs on it; recovering an
-    // open PR after some unrelated 422 is not.
+    // reserved for 'exists', though, and even then only when the caller's own
+    // `retitle` says to: a previous attempt already opening this PR (most
+    // often a prior day's snapshot that crashed before its URL was recorded,
+    // or -- the case this task exists for -- a still-open snapshot PR on the
+    // day the archive tries to take over the same branch) is evidence the
+    // caller's own wording belongs on it only when the caller is the kind
+    // that gets to overwrite it (the archive, passing `retitle: true`); a
+    // snapshot recovering the same PR passes `retitle: false` precisely so it
+    // never overwrites an archive's wording with its own, and recovering an
+    // open PR after some unrelated 422 is not evidence of anything at all.
     const existing = await findExistingPr(branchName, env);
     if (existing) {
-      if (kind === 'exists') {
+      if (kind === 'exists' && retitle) {
         await retitlePullRequest(existing, title, body, env);
       }
       return { kind: 'recovered', prUrl: existing };
@@ -362,7 +380,7 @@ export async function openContentPR(params: OpenPrParams, env: Env): Promise<Ope
     for (const file of params.files) {
       await commitFile(branchName, file.path, file.content, `Add ${file.path}`, env);
     }
-    const outcome = await createPullRequest(branchName, params.title, params.prBody, env);
+    const outcome = await createPullRequest(branchName, params.title, params.prBody, params.retitle, env);
     if (outcome.kind === 'no-commits') return { success: false, reason: 'no-commits' };
     return { success: true, prUrl: outcome.prUrl };
   } catch (e) {

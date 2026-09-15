@@ -105,6 +105,7 @@ test('a retried commit updates the existing file instead of 422ing on a missing 
       files: [{ path: 'a.json', content: '{"x":1}\n' }],
       title: 't',
       prBody: 'b',
+      retitle: true,
     };
 
     const first = await openContentPR(params, env);
@@ -136,6 +137,7 @@ test('a retried PR recovers the existing PR\'s url instead of failing on the 422
       files: [{ path: 'a.json', content: '{"x":1}\n' }],
       title: 't',
       prBody: 'b',
+      retitle: true,
     };
 
     const first = await openContentPR(params, env);
@@ -163,6 +165,7 @@ test('a branch that already exists from a prior attempt is reused, not treated a
       files: [{ path: 'a.json', content: '{"x":1}\n' }],
       title: 't',
       prBody: 'b',
+      retitle: true,
     };
 
     await openContentPR(params, env);

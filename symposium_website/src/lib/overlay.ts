@@ -178,10 +178,13 @@ export function mergeOverlay(repo: RepoContent, overlay: Overlay | null): RepoCo
   merged.sessions = overlay.sessions as unknown as Session[];
   merged.committee = overlay.committee as unknown as CommitteeMember[];
 
-  // Assigned rather than merged-if-non-empty, unlike the three lists above.
-  // Those exist in the repo and an empty overlay means "no opinion"; these
-  // exist only in the CMS, so an empty list is the answer, not a silence.
-  // Deleting an announcement has to make it disappear.
+  // Assigned the same way as the three lists above, for a different reason.
+  // Speakers/sessions/committee can exist in the repo before the CMS ever
+  // touches them, so a reachable overlay's own list -- empty included -- has
+  // to win outright, or a deleted last row would come back from the dead.
+  // Announcements have no such repo fallback to protect: they exist only in
+  // the CMS, so there is nothing else they could mean to fall back to.
+  // Deleting an announcement has to make it disappear either way.
   merged.announcements = (overlay.announcements ?? []).map((a) => ({
     id: a.id,
     title: a.title,
