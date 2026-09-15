@@ -346,6 +346,71 @@ git commit -m "The daily run copies an unfinished edition into git too"
 
 ---
 
+### Task 3b: openContentPR tells "already exists" apart from "nothing to merge"
+
+Added after task 3's review, which found a defect this plan introduces.
+
+**The failure.** Snapshot and archive share the branch `symposium-archive/<year>`,
+and on the day an edition ends its snapshot pull request is in one of two states.
+Both break. If it is still open, the archive stamps `archived_pr_url` onto a pull
+request titled "Snapshot the ... CMS content" whose body says merging is optional,
+which is the opposite of what an archive must say. If it was merged and the CMS
+has not changed since, the branch is not ahead of main, `createPullRequest` gets
+GitHub's 422 "No commits between ...", `findExistingPr` searches `state=open` and
+finds nothing, `openContentPR` throws, the route reports `'error'`, `anyError`
+raises, and the cron alarms every day forever while the edition never retires.
+The second is triggered by somebody doing the right thing.
+
+**Rejected fix:** giving snapshots their own branch. It cures the wording and
+leaves the lockout exactly as it is, because the cause is the content already
+being on main, not the branch's name.
+
+**Files:** `functions/_lib/github.ts`, `functions/api/admin/symposium/archive.ts`,
+`tests/pr-outcomes.test.ts` (create).
+
+- [ ] **Step 1: A failing test for reading GitHub's two 422s apart**
+
+The 422 body text is the only thing that distinguishes them. Write
+`classify422(body: string): 'exists' | 'no-commits' | 'other'` as a pure
+function and test it against GitHub's real messages: `"A pull request already
+exists for RSG-Turkiye:symposium-archive/2026."` and `"No commits between main
+and symposium-archive/2026"`, plus an unrelated validation body that must come
+back `'other'` rather than being guessed at.
+
+- [ ] **Step 2: Make it pass, and widen OpenPrResult**
+
+`classify422` in `functions/_lib/github.ts`. Then `OpenPrResult` gains
+`{ success: false; reason: 'no-commits' }` as a distinct outcome from today's
+`{ success: false; error: string }`. `'other'` keeps today's throw-into-error
+path unchanged.
+
+- [ ] **Step 3: Retitle a recovered pull request**
+
+When `createPullRequest` recovers an existing open pull request, `PATCH
+/repos/{owner}/{repo}/pulls/{number}` with the caller's title and body, so the
+archive's wording replaces a snapshot's. `pullNumberFromUrl` already extracts
+the number from the URL `findExistingPr` returns. A failed PATCH must not fail
+the whole call: the pull request exists and that is what the caller needed.
+
+- [ ] **Step 4: The archive route reads "no commits" as done**
+
+In `functions/api/admin/symposium/archive.ts`, a finished edition whose
+`openContentPR` returns `reason: 'no-commits'` has its content on main already.
+Stamp it rather than failing: find the merged pull request for that head and
+record it, or stamp `archived_at` directly. Its result status says so, and
+`anyError` must not include it.
+
+For a SNAPSHOT, `'no-commits'` is the ordinary state of a day with no CMS
+changes after a merge. It is not an error and not a new pull request: report it
+and move on.
+
+- [ ] **Step 5: Verify, then commit**
+
+`npx astro check`, `npm test`, and both new tests. Commit as
+`Tell "a pull request already exists" from "nothing to merge"`.
+
+---
+
 ### Task 4: A panel button that snapshots on demand
 
 **Files:**
