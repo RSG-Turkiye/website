@@ -89,6 +89,17 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
             <option value="false">{t('admin.symposium.edition.optionHide')}</option>
           </select>
         </label>
+        <!--
+          Hidden until the route reports one. An archive pull request that
+          nobody merges used to be visible only in the database, while the
+          site quietly served the edition's programme from an empty repo.
+        -->
+        <p id="symEditionArchivePr" class="hidden sm:col-span-2 text-xs text-gray-600">
+          <span>{t('admin.symposium.edition.archivePrOpen')}</span>
+          <a id="symEditionArchivePrLink" href="#" target="_blank" rel="noopener noreferrer" class="underline text-navy">
+            {t('admin.symposium.edition.archivePrLink')}
+          </a>
+        </p>
         <div class="sm:col-span-2 flex items-center gap-3">
           <button type="submit" id="symEditionSaveBtn" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
             {t('admin.symposium.edition.save')}
