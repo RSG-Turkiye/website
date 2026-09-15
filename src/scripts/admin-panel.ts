@@ -987,6 +987,7 @@ interface EditionData {
   abstractDeadline: string | null;
   venuePublic: boolean | null;
   cityPublic: boolean | null;
+  archivePrUrl: string | null;
 }
 
 /** A tri-state <select>'s value ('' / 'true' / 'false') back to boolean | null. */
@@ -1012,6 +1013,15 @@ async function loadEdition(): Promise<void> {
     data.venuePublic === null ? '' : String(data.venuePublic);
   (document.getElementById('symEditionCityPublic') as unknown as HTMLSelectElement).value =
     data.cityPublic === null ? '' : String(data.cityPublic);
+
+  const archiveNote = document.getElementById('symEditionArchivePr')!;
+  const archiveLink = document.getElementById('symEditionArchivePrLink') as HTMLAnchorElement;
+  if (data.archivePrUrl) {
+    archiveLink.href = data.archivePrUrl;
+    archiveNote.classList.remove('hidden');
+  } else {
+    archiveNote.classList.add('hidden');
+  }
 }
 
 function setupEditionForm(): void {

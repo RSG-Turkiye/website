@@ -156,6 +156,32 @@
 --     COLUMN is NOT idempotent -- do not re-run this one:
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_committee ADD COLUMN teams TEXT NOT NULL DEFAULT '[]'"
 --
+-- 7k. functions/api/symposium.ts and the two admin symposium routes now
+--    filter on archived_at; deploying without this first makes every one of
+--    them 500 with D1 "no such column: archived_at". ALTER TABLE ADD COLUMN
+--    is not idempotent, so this is a note rather than a statement below:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_edition ADD COLUMN archived_at INTEGER"
+--    Then backfill, so that an edition already archived and merged stays
+--    retired rather than reappearing on the public endpoint:
+--      wrangler d1 execute rsg-members --remote --command="UPDATE symposium_edition SET archived_at = updated_at WHERE archived_pr_url IS NOT NULL AND archived_at IS NULL"
+--    The backfill deliberately assumes an already-stamped edition was
+--    merged. That is what today's behaviour already asserts -- such a row is
+--    retired right now -- so this preserves it exactly rather than making
+--    finished editions public again.
+--
+--    That assumption has a deadline: 2026-10-11. The 2026 symposium ends
+--    2026-10-10, and the code deployed before this migration stamps
+--    archived_pr_url the moment the archive pull request OPENS, not when it
+--    merges -- the exact bug this branch exists to fix. Run the backfill
+--    before 2026-10-11 and it is safe, because no row can carry an
+--    archived_pr_url yet. Run it later, and 2026's row may already carry one
+--    from an unmerged pull request, and the backfill would stamp archived_at
+--    for it anyway and permanently retire 2026 with its content sitting only
+--    in a branch. If you are running this after 2026-10-11, first run:
+--      wrangler d1 execute rsg-members --remote --command="SELECT year, archived_pr_url FROM symposium_edition WHERE archived_pr_url IS NOT NULL"
+--    and confirm on GitHub that each listed pull request actually merged
+--    before running the backfill above.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -529,6 +555,13 @@ CREATE TABLE IF NOT EXISTS symposium_edition (
   venue_public          INTEGER,
   city_public           INTEGER,
   archived_pr_url       TEXT,
+  -- When the archive pull request was *merged*, as a unix timestamp. NULL
+  -- while it is unopened or open. This, not archived_pr_url, is what retires
+  -- an edition from the public endpoint: stamping on the pull request being
+  -- opened meant a pull request nobody merged emptied the programme, on a
+  -- build that stayed green because a year mismatch is the same ordinary
+  -- state as an edition nobody has programmed yet.
+  archived_at           INTEGER,
   updated_by            TEXT NOT NULL REFERENCES users(id),
   updated_at            INTEGER NOT NULL
 );

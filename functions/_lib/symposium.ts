@@ -349,6 +349,31 @@ export function editionYearAllowed(
   return { ok: true, year: requested };
 }
 
+/**
+ * What the archive run should do with one edition row.
+ *
+ * Three states, not two. `archived_pr_url` used to mean both "a pull request
+ * exists" and "this edition is dealt with", so opening the pull request
+ * retired the edition from the public endpoint whether or not anybody merged
+ * it -- and an unmerged one left the site serving an empty programme on a
+ * build that stayed green.
+ *
+ * Pure, and separated from the route, so the three cases are a table in a
+ * test rather than something only reachable by standing up D1 and GitHub.
+ */
+export type ArchiveDecision =
+  | { action: 'skip' }
+  | { action: 'check-merge' }
+  | { action: 'open-pr' };
+
+export function archiveDecision(
+  row: { archived_pr_url: string | null; archived_at: number | null },
+): ArchiveDecision {
+  if (row.archived_at != null) return { action: 'skip' };
+  if (row.archived_pr_url) return { action: 'check-merge' };
+  return { action: 'open-pr' };
+}
+
 export function editionRowFromInput(input: EditionInput, year: number): EditionRow {
   return {
     year,

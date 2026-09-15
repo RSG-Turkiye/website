@@ -16,16 +16,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   // public endpoint's choice of row (functions/api/symposium.ts) -- this
   // panel edits exactly the row that endpoint would serve.
   const edition = await env.DB.prepare(
-    `SELECT year, registration_url, registration_deadline, abstract_url, abstract_deadline, venue_public, city_public
+    `SELECT year, registration_url, registration_deadline, abstract_url, abstract_deadline, venue_public, city_public, archived_pr_url
      FROM symposium_edition
-     WHERE archived_pr_url IS NULL
+     WHERE archived_at IS NULL
      ORDER BY year DESC
      LIMIT 1`
-  ).first<EditionRow>();
+  ).first<EditionRow & { archived_pr_url: string | null }>();
 
   // No row yet: hand back defaults for the current year rather than a 404,
   // so the form has something sane to start from.
-  const row: EditionRow = edition ?? {
+  const row: EditionRow & { archived_pr_url: string | null } = edition ?? {
     year: new Date().getFullYear(),
     registration_url: '',
     registration_deadline: null,
@@ -33,11 +33,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     abstract_deadline: null,
     venue_public: null,
     city_public: null,
+    archived_pr_url: null,
   };
 
-  // Exactly the shape PUT accepts back, plus the year that names the row --
-  // a client can GET, edit one field, and PUT the whole object untouched.
-  return jsonResponse({ year: row.year, ...rowToEditionInput(row) });
+  // archivePrUrl rides along rather than going through rowToEditionInput:
+  // that function's output is exactly what PUT accepts back, and this is
+  // read-only -- the panel displays it and never sends it.
+  return jsonResponse({ year: row.year, ...rowToEditionInput(row), archivePrUrl: row.archived_pr_url });
 };
 
 export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
@@ -54,7 +56,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   // the edition the public site serves. See editionYearAllowed.
   const currentRow = await env.DB.prepare(
     `SELECT year FROM symposium_edition
-     WHERE archived_pr_url IS NULL
+     WHERE archived_at IS NULL
      ORDER BY year DESC
      LIMIT 1`
   ).first<{ year: number }>();
