@@ -126,11 +126,21 @@ makes.
 
 Three things this must respect:
 
-- **The hall does not go through it.** While `venue_public != 1` the
-  snapshot writes no `venue`/`venueTr` into the markdown, on the same rule
-  the public endpoint follows. A snapshot that ignored this would hand back
-  everything phase 2 wins, through a button, into a public repository. This
-  is what `withheld-venue.test.ts` exists to catch, and it will.
+- **The hall travels exactly when it is already public.** Put positively,
+  which is how the organisers put it: if the CMS says show it on the site,
+  commit it, because the repository holding something the website already
+  publishes leaks nothing. If the CMS says do not show it, it does not go
+  into a pull request. One flag, checked at write time, for `venue`/`venueTr`
+  and the same for the city with `city_public`.
+
+  The one thing this rule does not cover, and does not need to: git history
+  does not forget. A hall committed while public stays in a public repository
+  even if the flag is flipped back afterwards. That is acceptable because the
+  gate protects a hall that was *never* announced, which is the case the
+  incident behind `withheld-venue.test.ts` was about; a hall that has been on
+  the live site is not a secret any more. `withheld-venue.test.ts` stays the
+  net, and stays compatible: it forbids a non-public hall in the repository,
+  and a public one is exactly what this rule commits.
 - **A merged snapshot changes what an outage looks like, for the better.**
   Today an unreachable API leaves the 2026 page saying "announced soon",
   because the repo holds nothing for that year. With a snapshot merged, the
