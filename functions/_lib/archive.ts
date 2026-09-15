@@ -122,15 +122,26 @@ function toFile(value: unknown): string {
  * site's content collections expect.
  *
  * A kind with no overlay rows produces no file at all, rather than an empty
- * `{ people: [] }` -- the overlay is additive, not authoritative: an empty
- * list here means the CMS was never used for that kind, not that the kind
- * should be emptied. Whatever the repo already holds for that year (nothing,
+ * `{ people: [] }`. This is NOT because the live site falls back to the
+ * repo's list when the overlay is empty -- it does not: see
+ * symposium_website/src/lib/overlay.ts's `mergeOverlay`, which assigns a
+ * reachable overlay's speakers/sessions/committee entire, empty list
+ * included, so on the live site an empty overlay empties the page. The
+ * reason `renderArchive` still writes no file here is different: doing so
+ * would overwrite whatever the repo already holds for that year (nothing,
  * for a brand-new edition; a hand-written roster, for one entered before the
- * CMS existed) is exactly what a merged build already shows -- see
- * symposium_website/src/lib/overlay.ts's `mergeOverlay`, which leaves the
- * repo's list standing whenever the overlay's own list is empty. Skipping
- * the file here is what keeps the pull request from ever proposing to
- * delete content nothing in this request has any opinion about.
+ * CMS existed) with an empty list, for an edition the CMS currently has
+ * nothing to say about. Skipping the file is what keeps the pull request
+ * from proposing to delete content nothing in this request has any opinion
+ * about.
+ *
+ * Known gap, not yet handled: if every row of a kind is deleted through the
+ * panel (as opposed to never having been entered), this function still
+ * writes no file, so the repository goes on holding the old one and a
+ * retired edition's page can render a roster that was actually deleted.
+ * Distinguishing "emptied" from "never populated" needs more than this
+ * comment -- recorded in this branch's pull request as a known gap rather
+ * than guessed at here.
  *
  * When a kind's overlay rows are non-empty, they wholesale replace whatever
  * file already exists for that year -- again mirroring `mergeOverlay`, which
@@ -179,4 +190,50 @@ export function renderArchive(overlay: Overlay): { path: string; content: string
   }
 
   return files;
+}
+
+/**
+ * The pull request text for an edition that has not happened yet.
+ *
+ * Deliberately not the archive's wording. The same branch carries both for as
+ * long as a year, and the archive body tells a reviewer the live site's
+ * programme is missing and to merge promptly. A snapshot opened ten months
+ * before the symposium that said the same thing would train everyone to
+ * ignore the one that means it.
+ */
+export function snapshotPrTitle(year: number): string {
+  return `Snapshot the ${year} symposium CMS content`;
+}
+
+export function snapshotPrBody(year: number): string {
+  return (
+    `A daily copy of what the CMS holds for the ${year} symposium, so its ` +
+    `content exists somewhere other than the database while the edition is ` +
+    `still being prepared.\n\n` +
+    `**Merging is optional and nothing breaks if this sits here.** The live ` +
+    `site reads the CMS directly, so merging changes nothing a visitor sees ` +
+    `today. What it buys is the fallback: with this merged, an unreachable ` +
+    `CMS leaves the site rendering the last known programme instead of ` +
+    `"announced soon".\n\n` +
+    `This pull request is refreshed every day. Merging it does not stop that; ` +
+    `a new one opens with the next day's changes.`
+  );
+}
+
+export function archivePrTitle(year: number): string {
+  return `Archive the ${year} symposium`;
+}
+
+export function archivePrBody(year: number): string {
+  return (
+    `The ${year} symposium has ended. This folds its CMS overlay ` +
+    `into the content collection permanently.\n\n` +
+    `**Merge this promptly.** The site decides an edition is over from its dates ` +
+    `alone, so ${year} stopped being the upcoming edition the moment it ` +
+    `ended, and the pages that render its programme have gone back to reading the ` +
+    `repo -- which does not have this content until you merge. Until then ` +
+    `/schedule, /speakers and /committee are empty for ${year}.\n\n` +
+    `Also worth doing in the same pass: editions/${year}.md still has an ` +
+    `empty \`speakers:\` list, so that edition's own page shows no speaker grid.`
+  );
 }

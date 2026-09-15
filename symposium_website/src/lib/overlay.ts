@@ -129,12 +129,17 @@ export function parseOverlay(data: unknown): Overlay | null {
 /**
  * Applies the overlay to the repo's content.
  *
- * Absent or empty means "no opinion": a missing or `null` edition field, or
- * an empty list, leaves the repo's value standing. Only a non-empty list or
- * an explicit `true`/`false` flag overrides. This is what keeps a bad
- * deploy or a half-run migration from silently erasing a published
- * programme -- removing every speaker is an act for a pull request, not an
- * empty API response.
+ * For the six edition fields: absent or empty still means "no opinion" -- a
+ * missing or `null` edition field, or (for the two URLs) an empty string,
+ * leaves the repo's value standing, and only a non-empty value or an
+ * explicit `true`/`false` flag overrides. This is what keeps a bad deploy or
+ * a half-run migration from silently erasing a published link or deadline.
+ *
+ * For the three lists -- `speakers`, `sessions`, `committee` -- a reachable
+ * overlay (anything but `null`) is assigned wholesale, empty included; see
+ * the comment above those assignments for why. Only a `null` overlay (the
+ * API was unreachable, or its payload did not parse) leaves the repo's own
+ * lists standing.
  *
  * Never reads `venue` or `venueCity` from the overlay, even if a payload
  * carried them: those come from the edition markdown only.
@@ -162,20 +167,24 @@ export function mergeOverlay(repo: RepoContent, overlay: Overlay | null): RepoCo
   if (edition.venuePublic != null) merged.venuePublic = edition.venuePublic;
   if (edition.cityPublic != null) merged.cityPublic = edition.cityPublic;
 
-  if (overlay.speakers && overlay.speakers.length > 0) {
-    merged.speakers = overlay.speakers as unknown as Speaker[];
-  }
-  if (overlay.sessions && overlay.sessions.length > 0) {
-    merged.sessions = overlay.sessions as unknown as Session[];
-  }
-  if (overlay.committee && overlay.committee.length > 0) {
-    merged.committee = overlay.committee as unknown as CommitteeMember[];
-  }
+  // Assigned, not merged-if-non-empty. These three are snapshotted into the
+  // repo daily now (see the archive route), so the repo holds a copy of what
+  // the CMS last said rather than an independent source -- and under the old
+  // "an empty list means no opinion" rule, deleting the last speaker in the
+  // panel let that copy come back from the dead. A reachable overlay is the
+  // answer, empty included; an unreachable one is `null` and still falls back
+  // to the repo, which is what the snapshot is for.
+  merged.speakers = overlay.speakers as unknown as Speaker[];
+  merged.sessions = overlay.sessions as unknown as Session[];
+  merged.committee = overlay.committee as unknown as CommitteeMember[];
 
-  // Assigned rather than merged-if-non-empty, unlike the three lists above.
-  // Those exist in the repo and an empty overlay means "no opinion"; these
-  // exist only in the CMS, so an empty list is the answer, not a silence.
-  // Deleting an announcement has to make it disappear.
+  // Assigned the same way as the three lists above, for a different reason.
+  // Speakers/sessions/committee can exist in the repo before the CMS ever
+  // touches them, so a reachable overlay's own list -- empty included -- has
+  // to win outright, or a deleted last row would come back from the dead.
+  // Announcements have no such repo fallback to protect: they exist only in
+  // the CMS, so there is nothing else they could mean to fall back to.
+  // Deleting an announcement has to make it disappear either way.
   merged.announcements = (overlay.announcements ?? []).map((a) => ({
     id: a.id,
     title: a.title,

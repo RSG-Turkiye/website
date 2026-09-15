@@ -79,6 +79,13 @@ function makeFakeGithub() {
       return new Response(JSON.stringify(pr ? [pr] : []), { status: 200 });
     }
 
+    if (method === 'PATCH' && /\/pulls\/\d+$/.test(url.pathname)) {
+      // retitlePullRequest -- these tests are not exercising that behaviour
+      // (see tests/pr-outcomes.test.ts for that), just retrying a call that
+      // recovers an already-open PR, so this only needs to not 404.
+      return new Response(JSON.stringify({}), { status: 200 });
+    }
+
     throw new Error(`unexpected fake fetch: ${method} ${url}`);
   };
 
@@ -98,6 +105,7 @@ test('a retried commit updates the existing file instead of 422ing on a missing 
       files: [{ path: 'a.json', content: '{"x":1}\n' }],
       title: 't',
       prBody: 'b',
+      retitle: true,
     };
 
     const first = await openContentPR(params, env);
@@ -129,6 +137,7 @@ test('a retried PR recovers the existing PR\'s url instead of failing on the 422
       files: [{ path: 'a.json', content: '{"x":1}\n' }],
       title: 't',
       prBody: 'b',
+      retitle: true,
     };
 
     const first = await openContentPR(params, env);
@@ -156,6 +165,7 @@ test('a branch that already exists from a prior attempt is reused, not treated a
       files: [{ path: 'a.json', content: '{"x":1}\n' }],
       title: 't',
       prBody: 'b',
+      retitle: true,
     };
 
     await openContentPR(params, env);

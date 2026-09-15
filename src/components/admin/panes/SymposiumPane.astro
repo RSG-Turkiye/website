@@ -104,8 +104,13 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <button type="submit" id="symEditionSaveBtn" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
             {t('admin.symposium.edition.save')}
           </button>
+          <button type="button" id="symEditionSnapshotBtn" class="px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+            {t('admin.symposium.edition.snapshot')}
+          </button>
           <p id="symEditionStatus" class="hidden text-xs text-gray-500"></p>
+          <p id="symEditionSnapshotStatus" class="hidden text-xs text-gray-500"></p>
         </div>
+        <p class="sm:col-span-2 text-xs text-gray-500">{t('admin.symposium.edition.snapshotHint')}</p>
       </form>
     </div>
   </section>
