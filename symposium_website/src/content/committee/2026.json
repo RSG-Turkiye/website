@@ -1,0 +1,222 @@
+{
+  "year": 2026,
+  "people": [
+    {
+      "name": "Sude Karaoğlan",
+      "role": "Secretary of RSG-Turkiye",
+      "roleTr": "RSG-Türkiye Sekreteri",
+      "affiliation": "Gebze Teknik Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/b7547186-c02f-4560-8016-961a5c1bd3e6.jpg",
+      "linkedin": "https://www.linkedin.com/in/sudekaraoglan/",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Lâl Derin Çokbankir",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Orta Doğu Teknik Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/2eaf2c49-0106-4202-9f62-a022403b7052.jpg",
+      "linkedin": "https://www.linkedin.com/in/lâl-derin-çokbankir-919ab2319/",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Melih Koç",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Hacettepe Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/52c7f870-0e5b-4631-9271-b865ff201236.jpg",
+      "linkedin": "https://www.linkedin.com/in/mlh-koc/",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        }
+      ]
+    },
+    {
+      "name": "Erva Yılmaz",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Bursa Uludağ Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/9305a953-cca9-487c-aeaa-fd3fb90db766.jpg",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        },
+        {
+          "en": "Graphic Design",
+          "tr": "Grafik Tasarım"
+        }
+      ]
+    },
+    {
+      "name": "Aysun Türkmen",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "İstanbul Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/28d2a7fd-1197-4eb8-8c1c-7fd82bfcf484.jpg",
+      "linkedin": "https://www.linkedin.com/in/aysun-türkmen-311545383/",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        }
+      ]
+    },
+    {
+      "name": "Emre Taha Çevik",
+      "role": "President of RSG-Turkiye",
+      "roleTr": "RSG-Türkiye Başkanı",
+      "affiliation": "Gebze Teknik Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/186d82ea-4782-4c39-b12b-d14f613fdcc3.jpg",
+      "linkedin": "https://www.linkedin.com/in/emrecev/",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Zeynep Ateşgil",
+      "role": "Social Media Leader",
+      "roleTr": "Sosyal medya",
+      "affiliation": "Uludağ Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/4f23ad6d-2e7e-4d41-ab42-94669b7fa1be.webp",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Hilal Kınalı",
+      "role": " Website leader",
+      "roleTr": "Web sitesi Lideri",
+      "affiliation": "Acıbadem Üniveristesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/5c879311-264b-4d38-a4eb-0cea5a099ff9.webp",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Ayşe Akkan",
+      "role": " Graphic Design Leader",
+      "roleTr": "Grafik Tasarım Lideri",
+      "affiliation": "Ege Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/a0fb0120-0219-4968-addd-264ad1b4c4b8.webp",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Grafik Tasarım"
+        }
+      ]
+    },
+    {
+      "name": "Gizem Beyza Anık",
+      "role": "Vice President",
+      "roleTr": "Başkan yardımcısı",
+      "affiliation": "Nobel İlaç",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/216e4774-d587-4f51-8543-ecfd3c228ca5.webp",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Gökçe Koçak",
+      "role": " Sponsorship Leader",
+      "roleTr": "Sponsorluk Lideri",
+      "affiliation": "Uludağ Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/0845dace-ab12-4477-8986-314762f2e868.webp",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Ilgın Erol",
+      "role": "Member",
+      "roleTr": "Üye",
+      "affiliation": "Acıbadem Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/69cd7ba4-800a-498c-9b35-2471a4c055e8.webp",
+      "teams": [
+        {
+          "en": "Graphic Design",
+          "tr": "Grafik Tasarım"
+        }
+      ]
+    },
+    {
+      "name": "Kurayi Chawatama",
+      "role": "Translate Leader",
+      "roleTr": "Çeviri Lideri",
+      "affiliation": "Uludağ Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/e4e88597-bd92-425a-a5b4-dc495b48a70f.webp",
+      "teams": [
+        {
+          "en": "Chair",
+          "tr": "Yönetim"
+        }
+      ]
+    },
+    {
+      "name": "Neval Halitoğlu",
+      "role": "Member",
+      "roleTr": "Üye",
+      "affiliation": "Trakya Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/d3f38897-0f09-4464-b388-30fdb9691a41.webp",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        }
+      ]
+    },
+    {
+      "name": "Rabia Kılıçak",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "Fırat Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/c913976a-909f-49af-8558-2912562aaf85.webp",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        }
+      ]
+    },
+    {
+      "name": "Muhammed Mahsum Tunç",
+      "role": "Member",
+      "roleTr": "Üye",
+      "affiliation": "İstanbul Üniversitesi",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/9cfb04a4-92ff-47a4-b0f3-7f8abe1942a2.webp",
+      "teams": [
+        {
+          "en": "Graphic Design",
+          "tr": "Grafik Tasarım"
+        }
+      ]
+    }
+  ]
+}
