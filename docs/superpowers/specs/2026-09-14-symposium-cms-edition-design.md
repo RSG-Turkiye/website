@@ -137,13 +137,43 @@ Three things this must respect:
   same outage shows the last known programme. `repoCanStandAlone` starts
   returning true for the upcoming edition, which is the behaviour its
   refusal branch was written to protect.
-- **And it gives an emptied list somewhere to fall back to.** In
-  `mergeOverlay` an empty list means "no opinion", so deleting the last
-  speaker in the panel would let a merged snapshot's roster reappear.
-  Harmless today because the repo has nothing; real as soon as snapshots are
-  merged. Either the overlay distinguishes "empty" from "absent" for the
-  upcoming edition, or the panel refuses to delete the last row. Decide when
-  phase 0b is planned, not while implementing it.
+- **And it gives an emptied value somewhere to fall back to.** Measured
+  against the real `mergeOverlay`, with a repo holding a merged snapshot:
+
+  | Done in the panel | What the site shows |
+  | --- | --- |
+  | Edit a link, rename a speaker | the edit. Correct. |
+  | Delete one speaker of three | two speakers. Correct. |
+  | Clear a link, or a deadline | the snapshot's old value, back from the dead |
+  | Delete the *last* speaker | the snapshot's whole roster, back from the dead |
+
+  Editing always works; deleting does not. The cause is `mergeOverlay`
+  treating an empty string and an empty list as "no opinion", so the repo
+  wins -- and after a merged snapshot the repo is no longer empty. Harmless
+  today for exactly one reason: the repo holds nothing for 2026, so there is
+  nothing to resurrect. Phase 0b is what creates the bug.
+
+  **Decision: the overlay becomes authoritative when it is present.** When
+  `fetchOverlay` returns `ok` -- a real CMS row for the year being built --
+  its values are the answer, empty included. A null overlay (the API down, or
+  no row at all) still falls back to the repo, which is the entire point of
+  the snapshot and is preserved: measured, an unreachable API still renders
+  the snapshot's roster and links.
+
+  The rule has a cost and it is worth naming, because today's rule was
+  written against it: a CMS row created only to flip `venuePublic` carries
+  two empty link strings, and under the new rule those would erase links the
+  repo markdown holds. That risk lives only while a row can be sparse *and*
+  the repo holds something the row never wrote. Once a field group has moved
+  into the CMS (phases 1 to 4) the panel writes the whole of it, and the
+  snapshot means the repo's copy came from the row in the first place. So the
+  switch is made **per field group, as each one moves**, not once and for
+  all: a field the CMS does not yet own keeps today's "empty means no
+  opinion".
+
+  The alternative -- the panel refusing to delete the last row -- was
+  rejected. It makes the product worse to protect an implementation detail,
+  and it does not fix clearing a link at all.
 
 Worth checking before any of this is built: Cloudflare D1's Time Travel is a
 thirty-day point-in-time restore. If it is available on this account it
