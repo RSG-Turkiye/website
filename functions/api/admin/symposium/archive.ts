@@ -19,10 +19,13 @@ import { renderArchive, endOfEventFromMarkdown, editionMarkdownPath } from '../.
 import { openContentPR, getFileOnBaseBranch, notifyNewSubmission, prState } from '../../../_lib/github';
 
 // What the SELECT below reads: EditionRow's own columns, plus archived_pr_url
-// itself -- every other query in this codebase filters that column out of
-// its own SELECT before it's ever read (it's the guard, not the payload);
-// this is the one place that needs its *value*, to tell an
-// already-archived edition apart from one nobody has touched yet.
+// and archived_at themselves. The public endpoint and the admin edition
+// route both filter archived_at out of their own WHERE clause without ever
+// reading its value (it's the guard, not the payload); the admin edition
+// route does now also return archived_pr_url, to display it, but this
+// remains the one place that reads *both* columns together, because
+// archiveDecision needs the pair to tell apart the three states a row can be
+// in: untouched, pull request open, and actually merged.
 type EditionCandidateRow = EditionRow & { archived_pr_url: string | null; archived_at: number | null };
 
 /**
@@ -35,7 +38,8 @@ type ArchiveResult =
   | { year: number; status: 'archived'; prUrl: string }
   | { year: number; status: 'already-archived'; prUrl: string }
   | { year: number; status: 'pr-open'; prUrl: string }
-  | { year: number; status: 'merge-check-failed'; prUrl: string; error: string }
+  | { year: number; status: 'pr-closed-unmerged'; prUrl: string }
+  | { year: number; status: 'merge-check-failed'; prUrl: string; error: string; permanent: boolean }
   | { year: number; status: 'not-yet-over' }
   | { year: number; status: 'undated' }
   | { year: number; status: 'missing-edition-markdown' }
@@ -86,12 +90,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         results.push({ year: edition.year, status: 'already-archived', prUrl });
       } else if (state.kind === 'unmerged') {
         results.push({ year: edition.year, status: 'pr-open', prUrl });
+      } else if (state.kind === 'closed-unmerged') {
+        // Closed without merging: the edition's content is sitting in a
+        // branch nobody is going to merge, and nothing here reopens a pull
+        // request automatically. This needs a human, so it joins the run's
+        // error condition below rather than being left for a retry that
+        // would never change anything.
+        results.push({ year: edition.year, status: 'pr-closed-unmerged', prUrl });
       } else {
-        // Left exactly as it was, for the next run. Not an error status for
-        // the whole run: a rate limit is not a failed archive, and returning
-        // 502 for one would make the cron's only failure signal fire on a
-        // condition that fixes itself.
-        results.push({ year: edition.year, status: 'merge-check-failed', prUrl, error: state.error });
+        // state.kind === 'unknown'. A transient cause (permanent: false) is
+        // left exactly as it was, for the next run to retry: a rate limit
+        // is not a failed archive, and making the whole run report failure
+        // for one would make the cron's only failure signal fire on a
+        // condition that fixes itself. A permanent cause (a revoked token,
+        // lost permission, a deleted pull request, or a URL that never
+        // named one) will not fix itself, so `permanent` is carried on the
+        // result and joins the run's error condition below.
+        results.push({
+          year: edition.year,
+          status: 'merge-check-failed',
+          prUrl,
+          error: state.error,
+          permanent: state.permanent,
+        });
       }
       continue;
     }
@@ -199,13 +220,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       continue;
     }
 
-    // Tell a human, the way the blog flow does. Nothing else surfaces this
-    // PR: archived_pr_url is stored but displayed nowhere, and the admin pane
-    // has no archive section -- so without this the branch's one required
-    // manual step is one nobody is told about, while the programme is missing
-    // from the live site. Never throws, and deliberately awaited after the
-    // PR exists but before the UPDATE, so a notification failure cannot cost
-    // us the URL.
+    // Tell a human, the way the blog flow does. The admin pane now shows
+    // this PR too (functions/api/admin/symposium/edition.ts returns
+    // archived_pr_url and SymposiumPane.astro renders it as a banner), but
+    // only to someone who happens to open that panel -- without a real
+    // notification the branch's one required manual step is still something
+    // nobody is told about, while the programme is missing from the live
+    // site. Never throws, and deliberately awaited after the PR exists but
+    // before the UPDATE, so a notification failure cannot cost us the URL.
     await notifyNewSubmission(
       `Merge the ${edition.year} symposium archive`,
       `${pr.prUrl}\n\nThe ${edition.year} symposium has ended and its CMS content is ` +
@@ -230,6 +252,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     results.push({ year: edition.year, status: 'archived', prUrl: pr.prUrl });
   }
 
-  const anyError = results.some((r) => r.status === 'error');
+  // A permanent merge-check failure and a closed-unmerged pull request both
+  // need a human and will never resolve on their own, so both join `error`
+  // here even though neither is the 'error' status itself -- that status is
+  // reserved for the GitHub/D1 failures above it. A transient
+  // merge-check-failed does not: see the branch above for why.
+  const anyError = results.some(
+    (r) =>
+      r.status === 'error' ||
+      r.status === 'pr-closed-unmerged' ||
+      (r.status === 'merge-check-failed' && r.permanent)
+  );
   return jsonResponse({ ok: !anyError, results }, anyError ? 502 : 200);
 };

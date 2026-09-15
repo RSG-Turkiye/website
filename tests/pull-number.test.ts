@@ -22,3 +22,10 @@ test('anything else is refused rather than guessed at', () => {
   assert.equal(pullNumberFromUrl('not a url'), null);
   assert.equal(pullNumberFromUrl('https://github.com/RSG-Turkiye/website/pull/abc'), null);
 });
+
+test('a well-formed pull request URL for a different repository is refused', () => {
+  // archived_pr_url is free text written by this codebase, but a stray value
+  // pointing at another repository's pull request must not make an
+  // unrelated merge retire an edition.
+  assert.equal(pullNumberFromUrl('https://github.com/some-other-org/some-other-repo/pull/226'), null);
+});

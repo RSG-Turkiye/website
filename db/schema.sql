@@ -169,6 +169,19 @@
 --    retired right now -- so this preserves it exactly rather than making
 --    finished editions public again.
 --
+--    That assumption has a deadline: 2026-10-11. The 2026 symposium ends
+--    2026-10-10, and the code deployed before this migration stamps
+--    archived_pr_url the moment the archive pull request OPENS, not when it
+--    merges -- the exact bug this branch exists to fix. Run the backfill
+--    before 2026-10-11 and it is safe, because no row can carry an
+--    archived_pr_url yet. Run it later, and 2026's row may already carry one
+--    from an unmerged pull request, and the backfill would stamp archived_at
+--    for it anyway and permanently retire 2026 with its content sitting only
+--    in a branch. If you are running this after 2026-10-11, first run:
+--      wrangler d1 execute rsg-members --remote --command="SELECT year, archived_pr_url FROM symposium_edition WHERE archived_pr_url IS NOT NULL"
+--    and confirm on GitHub that each listed pull request actually merged
+--    before running the backfill above.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,

@@ -279,6 +279,11 @@ export async function openContentPR(params: OpenPrParams, env: Env): Promise<Ope
   }
 }
 
+/** Escapes a string for use inside a `new RegExp(...)` pattern. */
+function escapeForRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * The number out of a pull request's browser URL, or null when the string is
  * not one.
@@ -286,30 +291,50 @@ export async function openContentPR(params: OpenPrParams, env: Env): Promise<Ope
  * Separated from the request below so the refusals are testable without a
  * token: an issue URL, an empty column and a truncated string must all come
  * back null rather than being read as a pull request that would then be
- * asked about.
+ * asked about. The URL must also name *this* repository's owner and name --
+ * `archived_pr_url` is free text written by this codebase, but a stray value
+ * pointing at another repository's pull request must not make an unrelated
+ * merge retire an edition, so it is refused here rather than trusted and
+ * handed to `prState`.
  */
 export function pullNumberFromUrl(prUrl: string): number | null {
-  const match = /\/pull\/(\d+)\/?$/.exec(prUrl.trim());
+  const pattern = new RegExp(
+    `/${escapeForRegex(GITHUB_OWNER)}/${escapeForRegex(GITHUB_REPO)}/pull/(\\d+)/?$`
+  );
+  const match = pattern.exec(prUrl.trim());
   return match ? Number(match[1]) : null;
 }
 
 /**
- * Whether a pull request has been merged.
+ * Whether, and how, a pull request has been resolved.
  *
- * `unknown` is deliberately not `unmerged`: a rate limit or a bad token must
- * leave the edition exactly as it was for the next run to retry, and
- * treating "we could not ask" as "not merged" would do that -- but treating
- * it as merged would retire an edition whose content is not in the
- * repository. The caller stamps only on `merged`.
+ * Four states, not two:
+ * - `merged` / `unmerged`: still awaiting review or ready to merge.
+ * - `closed-unmerged`: a human closed it without merging. Nothing reopens a
+ *   pull request automatically, so this needs a person, not a retry.
+ * - `unknown`: we could not tell. Split by `permanent`, because the two
+ *   causes need opposite responses. A rate limit, a 5xx, or a thrown network
+ *   error (`permanent: false`) fixes itself, so the edition must be left
+ *   exactly as it was for the next run to retry -- treating "we could not
+ *   ask" as "not merged" would retire an edition whose content is not in the
+ *   repository, and raising an alarm for it would fire on a condition that
+ *   resolves on its own. A revoked token (401), lost permission (403), a
+ *   deleted pull request (404), or a URL that never named a pull request at
+ *   all (`permanent: true`) will not fix itself by retrying and needs a
+ *   human to notice -- the caller uses this flag to decide whether the run
+ *   as a whole reports failure.
  */
 export type PrState =
   | { kind: 'merged'; mergedAt: number }
   | { kind: 'unmerged' }
-  | { kind: 'unknown'; error: string };
+  | { kind: 'closed-unmerged' }
+  | { kind: 'unknown'; error: string; permanent: boolean };
 
 export async function prState(prUrl: string, env: Env): Promise<PrState> {
   const number = pullNumberFromUrl(prUrl);
-  if (number === null) return { kind: 'unknown', error: `not a pull request URL: ${prUrl}` };
+  if (number === null) {
+    return { kind: 'unknown', error: `not a pull request URL: ${prUrl}`, permanent: true };
+  }
   try {
     const res = await githubRequest(
       `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${number}`,
@@ -318,13 +343,37 @@ export async function prState(prUrl: string, env: Env): Promise<PrState> {
     );
     if (!res.ok) {
       const body = await res.text();
-      return { kind: 'unknown', error: `pull ${number} lookup failed (${res.status}): ${body.slice(0, 200)}` };
+      // 401/403/404 will not fix themselves on the next run's retry; every
+      // other status (429, 5xx, and anything else GitHub might return) is
+      // treated as transient.
+      const permanent = res.status === 401 || res.status === 403 || res.status === 404;
+      return {
+        kind: 'unknown',
+        error: `pull ${number} lookup failed (${res.status}): ${body.slice(0, 200)}`,
+        permanent,
+      };
     }
-    const data = await res.json<{ merged_at: string | null }>();
-    if (!data.merged_at) return { kind: 'unmerged' };
-    return { kind: 'merged', mergedAt: Math.floor(Date.parse(data.merged_at) / 1000) };
+    const data = await res.json<{ merged_at: string | null; state: string }>();
+    if (data.merged_at) {
+      const mergedAt = Math.floor(Date.parse(data.merged_at) / 1000);
+      if (!Number.isFinite(mergedAt)) {
+        // A malformed merged_at is not proof of a merge -- report it as
+        // unknown rather than stamping archived_at with a bad timestamp.
+        // Not `permanent`: it is GitHub's data, not this URL, that is
+        // wrong, and there is nothing a human needs to do about a single
+        // bad read that a retry might not repeat.
+        return {
+          kind: 'unknown',
+          error: `pull ${number} merged_at did not parse: ${data.merged_at}`,
+          permanent: false,
+        };
+      }
+      return { kind: 'merged', mergedAt };
+    }
+    if (data.state === 'closed') return { kind: 'closed-unmerged' };
+    return { kind: 'unmerged' };
   } catch (e) {
-    return { kind: 'unknown', error: e instanceof Error ? e.message : 'Unknown GitHub API error' };
+    return { kind: 'unknown', error: e instanceof Error ? e.message : 'Unknown GitHub API error', permanent: false };
   }
 }
 

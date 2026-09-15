@@ -990,7 +990,7 @@ export const ui = {
     'admin.symposium.edition.optionShow': 'Göster',
     'admin.symposium.edition.optionHide': 'Gizle',
     'admin.symposium.edition.save': 'Etkinlik ayarlarını kaydet',
-    'admin.symposium.edition.archivePrOpen': 'Bu sürümün merge edilmemiş bir arşiv PR\'ı var.',
+    'admin.symposium.edition.archivePrOpen': 'Bu etkinliğin merge edilmemiş bir arşiv PR\'ı var.',
     'admin.symposium.edition.archivePrLink': 'İncele',
     'admin.symposium.speakers.heading': 'Konuşmacılar',
     'admin.symposium.speakers.form.slugPlaceholder': 'Slug (boş bırakılırsa isimden oluşturulur)',
