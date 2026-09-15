@@ -1,5 +1,7 @@
 // Folds a finished symposium edition's D1 overlay into the repo, permanently,
-// by opening a pull request a human reviews and merges.
+// by opening a pull request a human reviews and merges -- and, for an
+// edition that has not finished yet, copies its current overlay into a
+// daily-refreshed pull request too, so its content is never only in D1.
 //
 // Called by the symposium-cron Worker with a shared secret, the same way
 // GitHub Actions calls /api/mail/dispatch with MAIL_SYNC_SECRET -- this is
@@ -89,37 +91,46 @@ async function fetchOverlayRows(year: number, env: Env) {
  * demand.
  */
 export async function snapshotEdition(edition: EditionCandidateRow, env: Env): Promise<ArchiveResult> {
-  const { speakers, sessions, committee } = await fetchOverlayRows(edition.year, env);
+  try {
+    const { speakers, sessions, committee } = await fetchOverlayRows(edition.year, env);
 
-  // Announcements are never archived -- renderArchive has no file for them,
-  // they are a live-site popup mechanism, not content-collection data -- so
-  // rowsToOverlay is given an empty list rather than querying a table whose
-  // result would be thrown away.
-  const overlay = rowsToOverlay(edition, speakers, sessions, committee, []);
-  const files = renderArchive(overlay);
+    // Announcements are never archived -- renderArchive has no file for them,
+    // they are a live-site popup mechanism, not content-collection data -- so
+    // rowsToOverlay is given an empty list rather than querying a table whose
+    // result would be thrown away.
+    const overlay = rowsToOverlay(edition, speakers, sessions, committee, []);
+    const files = renderArchive(overlay);
 
-  if (files.length === 0) {
-    return { year: edition.year, status: 'no-overlay-content' };
+    if (files.length === 0) {
+      return { year: edition.year, status: 'no-overlay-content' };
+    }
+
+    const pr = await openContentPR(
+      {
+        branchPrefix: 'symposium-archive',
+        branchSlug: String(edition.year),
+        files,
+        title: snapshotPrTitle(edition.year),
+        prBody: snapshotPrBody(edition.year),
+      },
+      env
+    );
+
+    if (!pr.success) {
+      // Best effort: a failed snapshot is retried by tomorrow's run, and must
+      // not raise the alarm the way a failed archive does (see anyError below).
+      return { year: edition.year, status: 'snapshot-failed', error: pr.error };
+    }
+
+    return { year: edition.year, status: 'snapshotted', prUrl: pr.prUrl };
+  } catch (err) {
+    // A D1 error out of fetchOverlayRows, or a throw out of rowsToOverlay /
+    // renderArchive, must land here rather than propagate out of
+    // onRequestPost: an uncaught throw would become a 500 that raises the
+    // cron's alarm, and a snapshot is best effort by contract the same way a
+    // returned pr.success === false is, above.
+    return { year: edition.year, status: 'snapshot-failed', error: err instanceof Error ? err.message : String(err) };
   }
-
-  const pr = await openContentPR(
-    {
-      branchPrefix: 'symposium-archive',
-      branchSlug: String(edition.year),
-      files,
-      title: snapshotPrTitle(edition.year),
-      prBody: snapshotPrBody(edition.year),
-    },
-    env
-  );
-
-  if (!pr.success) {
-    // Best effort: a failed snapshot is retried by tomorrow's run, and must
-    // not raise the alarm the way a failed archive does (see anyError below).
-    return { year: edition.year, status: 'snapshot-failed', error: pr.error };
-  }
-
-  return { year: edition.year, status: 'snapshotted', prUrl: pr.prUrl };
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -321,6 +332,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // here even though neither is the 'error' status itself -- that status is
   // reserved for the GitHub/D1 failures above it. A transient
   // merge-check-failed does not: see the branch above for why.
+  //
+  // 'snapshot-failed' is deliberately absent. A snapshot is best effort --
+  // the cron's alarm exists for the archive, not for a daily copy of an
+  // edition that has not happened yet -- so a failed one must not make the
+  // whole run report failure; tomorrow's run tries again on its own.
   const anyError = results.some(
     (r) =>
       r.status === 'error' ||
