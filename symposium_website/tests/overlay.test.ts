@@ -159,11 +159,15 @@ test('announcements come from the overlay, because the repo has none', () => {
   ]);
 });
 
-test('an empty list clears them, unlike the three repo-backed lists', () => {
-  // Speakers, sessions and committee live in the repo, so an empty overlay
-  // means "no opinion" and the repo's own stand -- the test above this block
-  // pins that. Announcements exist only in the CMS, so deleting the last one
-  // has to make it disappear rather than leave the previous build's showing.
+test('an empty list clears announcements, because they exist only in the CMS', () => {
+  // Speakers, sessions and committee also clear on a reachable-but-empty
+  // overlay now -- see 'a reachable overlay with empty lists empties the
+  // repo lists, not "no opinion"' and 'deleting the last speaker in the CMS
+  // actually empties the page' above, so clearing on empty is no longer what
+  // sets announcements apart. What still does: those three have a repo copy
+  // to fall back to when the overlay is null; announcements do not, so
+  // deleting the last one has to make it disappear rather than leave the
+  // previous build's showing.
   const withOne = { ...(repo as object), announcements: [
     { id: 'old', title: 'Old', description: '', buttonText: '', buttonUrl: '' },
   ] } as never;
