@@ -17,6 +17,16 @@ test('a snapshot says merging is optional and what merging buys', () => {
   assert.ok(/optional/i.test(snapshotPrBody(2026)));
 });
 
+test('a snapshot tells its merger not to squash it', () => {
+  // The branch is long lived and written again the next day. A squash leaves
+  // it permanently ahead of main, so every following run reopens a pull
+  // request proposing a file main already has. This is the only place that
+  // rule is written down where the person merging will see it.
+  const body = snapshotPrBody(2026);
+  assert.ok(/merge commit/i.test(body));
+  assert.ok(/not a squash/i.test(body));
+});
+
 test('the archive body still says the edition has ended', () => {
   assert.ok(/has ended/i.test(archivePrBody(2026)));
 });
