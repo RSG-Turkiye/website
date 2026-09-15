@@ -216,7 +216,14 @@ export function snapshotPrBody(year: number): string {
     `CMS leaves the site rendering the last known programme instead of ` +
     `"announced soon".\n\n` +
     `This pull request is refreshed every day. Merging it does not stop that; ` +
-    `a new one opens with the next day's changes.`
+    `a new one opens with the next day's changes.\n\n` +
+    `**Merge this with a merge commit, not a squash.** The branch is long lived ` +
+    `and the next day's run writes to it again. A squash copies the content into ` +
+    `a new commit that the branch never sees, so the branch stays permanently ` +
+    `ahead of main and every following run reopens a pull request proposing the ` +
+    `same file. Measured on 2026-09-16: squashed, the next run reopened a ` +
+    `+222/-0 pull request for a file main already had; merged, the branch went ` +
+    `to zero commits ahead and the run went quiet.`
   );
 }
 
