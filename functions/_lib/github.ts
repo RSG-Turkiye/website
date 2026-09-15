@@ -17,7 +17,34 @@ type OpenPrParams = {
   prBody: string;
 };
 
-type OpenPrResult = { success: true; prUrl: string } | { success: false; error: string };
+export type OpenPrResult =
+  | { success: true; prUrl: string }
+  | { success: false; error: string }
+  | { success: false; reason: 'no-commits' };
+
+/**
+ * Tells apart GitHub's two different 422 bodies on `POST .../pulls`, since
+ * the body text is the only signal that distinguishes them:
+ *
+ * - `'exists'`: "A pull request already exists for owner:branch." -- a
+ *   previous attempt already opened one; recover its URL rather than fail.
+ * - `'no-commits'`: "No commits between main and branch" -- the branch has
+ *   nothing to propose because its content is already on main (the day's
+ *   snapshot PR was merged and nothing has changed since). This is not a
+ *   failure to recover from; it means the caller's content is already where
+ *   it needs to be.
+ * - `'other'`: anything else. Kept as its own case, rather than folded into
+ *   one of the two above, so an unrelated validation failure keeps today's
+ *   throw-into-error behaviour exactly instead of being guessed at.
+ *
+ * A pure function so the three outcomes are testable without a token or a
+ * network call.
+ */
+export function classify422(body: string): 'exists' | 'no-commits' | 'other' {
+  if (body.includes('No commits between')) return 'no-commits';
+  if (body.includes('A pull request already exists')) return 'exists';
+  return 'other';
+}
 
 async function githubRequest(
   path: string,
@@ -153,12 +180,47 @@ async function findExistingPr(branchName: string, env: Env): Promise<string | nu
   return data[0]?.html_url ?? null;
 }
 
+/**
+ * Best-effort PATCH of an existing pull request's title and body. Used when
+ * `createPullRequest` recovers a pull request that a prior day's snapshot
+ * opened -- its wording ("Snapshot the ... CMS content", "merging is
+ * optional") is wrong once the caller is the archive, and this is what
+ * replaces it with the caller's own wording.
+ *
+ * Never throws and never fails the caller: the pull request already exists
+ * and its URL is what the caller needed, so a PATCH failure (a transient
+ * GitHub error, a permissions gap) is logged and swallowed rather than
+ * turned into a failure of the whole open-a-PR attempt.
+ */
+async function retitlePullRequest(prUrl: string, title: string, body: string, env: Env): Promise<void> {
+  const number = pullNumberFromUrl(prUrl);
+  if (number === null) return;
+  try {
+    const res = await githubRequest(
+      `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${number}`,
+      { method: 'PATCH', body: JSON.stringify({ title, body }) },
+      env
+    );
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error(`Failed to retitle PR ${number} (${res.status}): ${errBody}`);
+    }
+  } catch (e) {
+    console.error('retitlePullRequest threw', e);
+  }
+}
+
+type CreatePrOutcome =
+  | { kind: 'opened'; prUrl: string }
+  | { kind: 'recovered'; prUrl: string }
+  | { kind: 'no-commits' };
+
 async function createPullRequest(
   branchName: string,
   title: string,
   body: string,
   env: Env
-): Promise<string> {
+): Promise<CreatePrOutcome> {
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls`,
     {
@@ -173,21 +235,39 @@ async function createPullRequest(
     env
   );
   if (res.status === 422) {
-    // GitHub's own reason for a 422 here is almost always "A pull request
-    // already exists for <owner>:<branch>" -- the retry case this exists
-    // for, where a previous attempt opened the PR but crashed before its
-    // URL was recorded. Recover that PR's URL rather than failing; if this
-    // 422 is for some other reason (no existing PR is found), fall through
-    // to the same error handling every other failure gets.
-    const existing = await findExistingPr(branchName, env);
-    if (existing) return existing;
+    const errBody = await res.text();
+    const kind = classify422(errBody);
+    if (kind === 'no-commits') {
+      // The branch has nothing to propose because its content is already on
+      // main -- most likely a prior snapshot PR for this same branch was
+      // merged and nothing has changed since. Not a failure: the caller's
+      // content is already where it needs to be.
+      return { kind: 'no-commits' };
+    }
+    if (kind === 'exists') {
+      // A previous attempt already opened this PR, most often a prior day's
+      // snapshot that crashed before its URL was recorded, or -- the case
+      // this task exists for -- a still-open snapshot PR on the day the
+      // archive tries to take over the same branch. Recover its URL rather
+      // than failing, and retitle it so the caller's own wording (an
+      // archive's "merge this promptly", not a snapshot's "merging is
+      // optional") is what a reviewer actually sees.
+      const existing = await findExistingPr(branchName, env);
+      if (existing) {
+        await retitlePullRequest(existing, title, body, env);
+        return { kind: 'recovered', prUrl: existing };
+      }
+    }
+    // 'other', or 'exists' with no open PR actually found: fall through to
+    // the same error handling every other failure gets.
+    throw new Error(`Failed to open PR (${res.status}): ${errBody}`);
   }
   if (!res.ok) {
     const errBody = await res.text();
     throw new Error(`Failed to open PR (${res.status}): ${errBody}`);
   }
   const data = await res.json<{ html_url: string }>();
-  return data.html_url;
+  return { kind: 'opened', prUrl: data.html_url };
 }
 
 /**
@@ -248,6 +328,14 @@ export async function getFileOnBaseBranch(filePath: string, env: Env): Promise<s
  * -- it can echo back the GitHub API response body, which is not secret
  * itself but is diagnostic detail with no business leaving this server.
  *
+ * Returns { success: false, reason: 'no-commits' } instead, distinct from
+ * the `error` shape above, when GitHub refuses the PR because the branch has
+ * nothing to propose -- its content is already on main, most often because
+ * an earlier PR for this same branch was merged and nothing has changed
+ * since. This is not a failure a caller should retry expecting a different
+ * outcome; it means the requested content already exists at the base
+ * branch.
+ *
  * Generalised from the blog approval flow's own `openBlogPostPR`:
  * `branchPrefix` is what used to be the hardcoded `blog-submission/`, now
  * supplied by each caller so a second flow (the symposium archive) can open
@@ -272,8 +360,9 @@ export async function openContentPR(params: OpenPrParams, env: Env): Promise<Ope
     for (const file of params.files) {
       await commitFile(branchName, file.path, file.content, `Add ${file.path}`, env);
     }
-    const prUrl = await createPullRequest(branchName, params.title, params.prBody, env);
-    return { success: true, prUrl };
+    const outcome = await createPullRequest(branchName, params.title, params.prBody, env);
+    if (outcome.kind === 'no-commits') return { success: false, reason: 'no-commits' };
+    return { success: true, prUrl: outcome.prUrl };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Unknown GitHub API error' };
   }

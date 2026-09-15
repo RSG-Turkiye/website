@@ -51,7 +51,9 @@ export type ArchiveResult =
   | { year: number; status: 'pr-closed-unmerged'; prUrl: string }
   | { year: number; status: 'merge-check-failed'; prUrl: string; error: string; permanent: boolean }
   | { year: number; status: 'snapshotted'; prUrl: string }
+  | { year: number; status: 'snapshot-no-changes' }
   | { year: number; status: 'snapshot-failed'; error: string }
+  | { year: number; status: 'archived-no-pr' }
   | { year: number; status: 'undated' }
   | { year: number; status: 'missing-edition-markdown' }
   | { year: number; status: 'no-overlay-content' }
@@ -117,6 +119,13 @@ export async function snapshotEdition(edition: EditionCandidateRow, env: Env): P
     );
 
     if (!pr.success) {
+      if ('reason' in pr) {
+        // The branch has nothing new to propose because its content already
+        // matches main -- the ordinary state of a day with no CMS changes
+        // since a prior snapshot merged. Not an error, and no new pull
+        // request to report: just move on.
+        return { year: edition.year, status: 'snapshot-no-changes' };
+      }
       // Best effort: a failed snapshot is retried by tomorrow's run, and must
       // not raise the alarm the way a failed archive does (see anyError below).
       return { year: edition.year, status: 'snapshot-failed', error: pr.error };
@@ -282,6 +291,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     );
 
     if (!pr.success) {
+      if ('reason' in pr) {
+        // The branch has no commits to propose against main because this
+        // edition's content is already there -- an earlier day's snapshot
+        // (or a previous archive attempt) was already merged, and nothing in
+        // the CMS overlay has changed since. That is success, not failure:
+        // the edition's content is on main right now, which is exactly what
+        // an archive is for. Stamped directly rather than by looking up a
+        // merged PR for this head, because there may be no such PR to find
+        // -- a snapshot PR never stamps archived_pr_url (see snapshotEdition
+        // above), so this may be the first time this edition's row is ever
+        // touched by this endpoint. `archived_at` is the one fact this
+        // endpoint actually needs to record: the edition is retired and the
+        // next run's archiveDecision must return 'skip' for it, rather than
+        // trying the same no-op PR again forever.
+        await env.DB.prepare(
+          `UPDATE symposium_edition SET archived_at = ? WHERE year = ?`
+        ).bind(now, edition.year).run();
+        results.push({ year: edition.year, status: 'archived-no-pr' });
+        continue;
+      }
       // Left unarchived: a bad token, a rate limit, or GitHub being down are
       // all things a retry on the next scheduled run can recover from --
       // and openContentPR itself is now safely retryable end to end (it
@@ -337,6 +366,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // the cron's alarm exists for the archive, not for a daily copy of an
   // edition that has not happened yet -- so a failed one must not make the
   // whole run report failure; tomorrow's run tries again on its own.
+  //
+  // 'snapshot-no-changes' and 'archived-no-pr' are deliberately absent too:
+  // both mean openContentPR's underlying GitHub call reported "no commits
+  // between main and this branch", i.e. the content is already on main.
+  // For a snapshot that is the ordinary state of a day with nothing new to
+  // copy; for a finished edition it is success -- archived_at is stamped
+  // above in the same branch that produces this status, so the edition is
+  // retired rather than retried forever.
   const anyError = results.some(
     (r) =>
       r.status === 'error' ||

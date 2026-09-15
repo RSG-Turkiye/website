@@ -150,7 +150,15 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   );
 
   if (!result.success) {
-    return jsonResponse({ error: result.error }, 502);
+    // A blog submission's branch always adds a brand-new file (fileExistsOnBaseBranch
+    // above already refused a slug collision), so it is always ahead of main and
+    // 'no-commits' should never happen here -- but the type gained a shape with no
+    // `error` field, so this is made explicit rather than left to read as the old
+    // shape and hand back `undefined`.
+    const message = 'reason' in result
+      ? 'GitHub reported nothing to commit for this submission -- please retry.'
+      : result.error;
+    return jsonResponse({ error: message }, 502);
   }
 
   // Batch both UPDATEs into one D1 call so they succeed or fail together --

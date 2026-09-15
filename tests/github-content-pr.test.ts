@@ -79,6 +79,13 @@ function makeFakeGithub() {
       return new Response(JSON.stringify(pr ? [pr] : []), { status: 200 });
     }
 
+    if (method === 'PATCH' && /\/pulls\/\d+$/.test(url.pathname)) {
+      // retitlePullRequest -- these tests are not exercising that behaviour
+      // (see tests/pr-outcomes.test.ts for that), just retrying a call that
+      // recovers an already-open PR, so this only needs to not 404.
+      return new Response(JSON.stringify({}), { status: 200 });
+    }
+
     throw new Error(`unexpected fake fetch: ${method} ${url}`);
   };
 
