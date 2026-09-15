@@ -180,3 +180,49 @@ export function renderArchive(overlay: Overlay): { path: string; content: string
 
   return files;
 }
+
+/**
+ * The pull request text for an edition that has not happened yet.
+ *
+ * Deliberately not the archive's wording. The same branch carries both for as
+ * long as a year, and the archive body tells a reviewer the live site's
+ * programme is missing and to merge promptly. A snapshot opened ten months
+ * before the symposium that said the same thing would train everyone to
+ * ignore the one that means it.
+ */
+export function snapshotPrTitle(year: number): string {
+  return `Snapshot the ${year} symposium CMS content`;
+}
+
+export function snapshotPrBody(year: number): string {
+  return (
+    `A daily copy of what the CMS holds for the ${year} symposium, so its ` +
+    `content exists somewhere other than the database while the edition is ` +
+    `still being prepared.\n\n` +
+    `**Merging is optional and nothing breaks if this sits here.** The live ` +
+    `site reads the CMS directly, so merging changes nothing a visitor sees ` +
+    `today. What it buys is the fallback: with this merged, an unreachable ` +
+    `CMS leaves the site rendering the last known programme instead of ` +
+    `"announced soon".\n\n` +
+    `This pull request is refreshed every day. Merging it does not stop that; ` +
+    `a new one opens with the next day's changes.`
+  );
+}
+
+export function archivePrTitle(year: number): string {
+  return `Archive the ${year} symposium`;
+}
+
+export function archivePrBody(year: number): string {
+  return (
+    `The ${year} symposium has ended. This folds its CMS overlay ` +
+    `into the content collection permanently.\n\n` +
+    `**Merge this promptly.** The site decides an edition is over from its dates ` +
+    `alone, so ${year} stopped being the upcoming edition the moment it ` +
+    `ended, and the pages that render its programme have gone back to reading the ` +
+    `repo -- which does not have this content until you merge. Until then ` +
+    `/schedule, /speakers and /committee are empty for ${year}.\n\n` +
+    `Also worth doing in the same pass: editions/${year}.md still has an ` +
+    `empty \`speakers:\` list, so that edition's own page shows no speaker grid.`
+  );
+}
