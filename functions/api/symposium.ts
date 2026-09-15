@@ -18,13 +18,14 @@ import type {
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   const now = Math.floor(Date.now() / 1000);
 
-  // The upcoming edition: highest year, not yet archived. Task 8 stamps
-  // archived_pr_url once an edition is folded into the repo, which is what
-  // retires it from this endpoint.
+  // The upcoming edition: highest year not yet archived. "Archived" means the
+  // archive pull request *merged* -- archived_pr_url only says one was
+  // opened, and retiring on that emptied the programme for as long as it sat
+  // unmerged.
   const edition = await env.DB.prepare(
     `SELECT year, registration_url, registration_deadline, abstract_url, abstract_deadline, venue_public, city_public
      FROM symposium_edition
-     WHERE archived_pr_url IS NULL
+     WHERE archived_at IS NULL
      ORDER BY year DESC
      LIMIT 1`
   ).first<EditionRow>();

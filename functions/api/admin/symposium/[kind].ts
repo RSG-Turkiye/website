@@ -31,7 +31,7 @@ function isKnownKind(value: string): value is SymposiumKind {
 // on. No row yet: the current calendar year, so there is something to add to.
 async function resolveYear(env: Env): Promise<number> {
   const edition = await env.DB.prepare(
-    `SELECT year FROM symposium_edition WHERE archived_pr_url IS NULL ORDER BY year DESC LIMIT 1`
+    `SELECT year FROM symposium_edition WHERE archived_at IS NULL ORDER BY year DESC LIMIT 1`
   ).first<{ year: number }>();
   return edition?.year ?? new Date().getFullYear();
 }

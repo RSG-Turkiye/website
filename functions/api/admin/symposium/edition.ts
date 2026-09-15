@@ -18,7 +18,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const edition = await env.DB.prepare(
     `SELECT year, registration_url, registration_deadline, abstract_url, abstract_deadline, venue_public, city_public
      FROM symposium_edition
-     WHERE archived_pr_url IS NULL
+     WHERE archived_at IS NULL
      ORDER BY year DESC
      LIMIT 1`
   ).first<EditionRow>();
@@ -54,7 +54,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   // the edition the public site serves. See editionYearAllowed.
   const currentRow = await env.DB.prepare(
     `SELECT year FROM symposium_edition
-     WHERE archived_pr_url IS NULL
+     WHERE archived_at IS NULL
      ORDER BY year DESC
      LIMIT 1`
   ).first<{ year: number }>();
