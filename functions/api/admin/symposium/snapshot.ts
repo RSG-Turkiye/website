@@ -37,18 +37,21 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     case 'snapshotted':
       return jsonResponse({ ok: true, prUrl: result.prUrl });
     case 'snapshot-no-changes':
-      // The branch already matches main: nothing new to copy, the same
-      // outcome the panel shows as "nothing to copy yet".
-      return jsonResponse({ ok: false, reason: 'no-overlay-content' });
+      // The branch already matches main: this edition's content is already
+      // safely in git, just not changed since the last copy. Reported under
+      // its own reason, distinct from no-overlay-content -- an organizer who
+      // just typed something and sees "nothing to copy" would reasonably
+      // fear it vanished, when the opposite is true.
+      return jsonResponse({ ok: false, reason: 'snapshot-no-changes' });
     case 'no-overlay-content':
       return jsonResponse({ ok: false, reason: 'no-overlay-content' });
     case 'snapshot-failed':
       return jsonResponse({ ok: false, reason: 'failed' });
     default:
-      // snapshotEdition's own contract only ever returns one of the three
-      // statuses above -- this branch exists so a future status added to
-      // ArchiveResult that snapshotEdition starts returning is not silently
-      // swallowed as a success.
+      // Unreachable given snapshotEdition's current body, which returns only
+      // the four statuses handled above. Kept anyway so a status added later
+      // to ArchiveResult that snapshotEdition starts returning is not
+      // silently swallowed as a success.
       return jsonResponse({ ok: false, reason: 'failed' });
   }
 };

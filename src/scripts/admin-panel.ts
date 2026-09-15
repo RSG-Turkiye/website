@@ -1052,6 +1052,8 @@ function setupEditionForm(): void {
         `<a href="${escapeHtml(data.prUrl)}" target="_blank" rel="noopener noreferrer" class="underline text-navy">${escapeHtml(data.prUrl)}</a>`;
     } else if (data.reason === 'no-overlay-content') {
       statusEl.textContent = t('admin.symposium.edition.snapshotEmpty');
+    } else if (data.reason === 'snapshot-no-changes') {
+      statusEl.textContent = t('admin.symposium.edition.snapshotNoChanges');
     } else {
       statusEl.textContent = t('admin.symposium.edition.snapshotFailed');
     }
