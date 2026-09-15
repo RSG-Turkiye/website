@@ -15,7 +15,15 @@ import type {
   SessionRow,
   CommitteeRow,
 } from '../../../_lib/symposium';
-import { renderArchive, endOfEventFromMarkdown, editionMarkdownPath } from '../../../_lib/archive';
+import {
+  renderArchive,
+  endOfEventFromMarkdown,
+  editionMarkdownPath,
+  snapshotPrTitle,
+  snapshotPrBody,
+  archivePrTitle,
+  archivePrBody,
+} from '../../../_lib/archive';
 import { openContentPR, getFileOnBaseBranch, notifyNewSubmission, prState } from '../../../_lib/github';
 
 // What the SELECT below reads: EditionRow's own columns, plus archived_pr_url
@@ -26,7 +34,7 @@ import { openContentPR, getFileOnBaseBranch, notifyNewSubmission, prState } from
 // remains the one place that reads *both* columns together, because
 // archiveDecision needs the pair to tell apart the three states a row can be
 // in: untouched, pull request open, and actually merged.
-type EditionCandidateRow = EditionRow & { archived_pr_url: string | null; archived_at: number | null };
+export type EditionCandidateRow = EditionRow & { archived_pr_url: string | null; archived_at: number | null };
 
 /**
  * One archive attempt's outcome, returned per edition so a run that finds
@@ -34,17 +42,85 @@ type EditionCandidateRow = EditionRow & { archived_pr_url: string | null; archiv
  * editions edited through the CMS before any of them finished) reports each
  * rather than stopping at the first.
  */
-type ArchiveResult =
+export type ArchiveResult =
   | { year: number; status: 'archived'; prUrl: string }
   | { year: number; status: 'already-archived'; prUrl: string }
   | { year: number; status: 'pr-open'; prUrl: string }
   | { year: number; status: 'pr-closed-unmerged'; prUrl: string }
   | { year: number; status: 'merge-check-failed'; prUrl: string; error: string; permanent: boolean }
-  | { year: number; status: 'not-yet-over' }
+  | { year: number; status: 'snapshotted'; prUrl: string }
+  | { year: number; status: 'snapshot-failed'; error: string }
   | { year: number; status: 'undated' }
   | { year: number; status: 'missing-edition-markdown' }
   | { year: number; status: 'no-overlay-content' }
   | { year: number; status: 'error'; error: string };
+
+/**
+ * The three SELECTs an edition's overlay is built from, gathered once so the
+ * finished path and the snapshot path below share a single copy of each --
+ * tests/symposium-columns.test.ts reads these statements by name and exists
+ * precisely so the same fact is never written twice here and left to drift.
+ */
+async function fetchOverlayRows(year: number, env: Env) {
+  const [speakers, sessions, committee] = await Promise.all([
+    env.DB.prepare(
+      `SELECT id, slug, year, name, position, company, bio, photo, linkedin, sort
+       FROM symposium_speakers WHERE year = ? ORDER BY sort, id`
+    ).bind(year).all<SpeakerRow>(),
+    env.DB.prepare(
+      `SELECT id, slug, year, title, type, time, end_time, description, speaker_slugs, sort
+       FROM symposium_sessions WHERE year = ? ORDER BY sort, id`
+    ).bind(year).all<SessionRow>(),
+    env.DB.prepare(
+      `SELECT id, year, name, role, role_tr, affiliation, photo, linkedin, teams, sort
+       FROM symposium_committee WHERE year = ? ORDER BY sort, id`
+    ).bind(year).all<CommitteeRow>(),
+  ]);
+  return { speakers: speakers.results, sessions: sessions.results, committee: committee.results };
+}
+
+/**
+ * Renders an edition's current CMS overlay and opens (or refreshes) its pull
+ * request with the snapshot wording, for an edition that has not finished
+ * yet. Deliberately stamps nothing: archived_pr_url means the archive pull
+ * request exists and archived_at means it merged and the edition is retired,
+ * and this edition is neither of those things. Called from the loop below,
+ * and exported so the admin edition route can trigger the same snapshot on
+ * demand.
+ */
+export async function snapshotEdition(edition: EditionCandidateRow, env: Env): Promise<ArchiveResult> {
+  const { speakers, sessions, committee } = await fetchOverlayRows(edition.year, env);
+
+  // Announcements are never archived -- renderArchive has no file for them,
+  // they are a live-site popup mechanism, not content-collection data -- so
+  // rowsToOverlay is given an empty list rather than querying a table whose
+  // result would be thrown away.
+  const overlay = rowsToOverlay(edition, speakers, sessions, committee, []);
+  const files = renderArchive(overlay);
+
+  if (files.length === 0) {
+    return { year: edition.year, status: 'no-overlay-content' };
+  }
+
+  const pr = await openContentPR(
+    {
+      branchPrefix: 'symposium-archive',
+      branchSlug: String(edition.year),
+      files,
+      title: snapshotPrTitle(edition.year),
+      prBody: snapshotPrBody(edition.year),
+    },
+    env
+  );
+
+  if (!pr.success) {
+    // Best effort: a failed snapshot is retried by tomorrow's run, and must
+    // not raise the alarm the way a failed archive does (see anyError below).
+    return { year: edition.year, status: 'snapshot-failed', error: pr.error };
+  }
+
+  return { year: edition.year, status: 'snapshotted', prUrl: pr.prUrl };
+}
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const secret = request.headers.get('X-Archive-Secret');
@@ -150,30 +226,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     if (endOfEvent > now) {
-      results.push({ year: edition.year, status: 'not-yet-over' });
+      // Still ahead of us. Its content lives only in D1 until the day it
+      // ends, which is the whole window this snapshot exists to cover: a
+      // pull request refreshed daily means the CMS is never the only copy.
+      //
+      // Nothing is stamped. archived_pr_url means "the archive pull request
+      // exists" and archived_at means "it merged and this edition is
+      // retired"; a snapshot is neither, and writing either one here would
+      // retire an edition that has not happened.
+      const snapshot = await snapshotEdition(edition, env);
+      results.push(snapshot);
       continue;
     }
 
-    const [speakers, sessions, committee] = await Promise.all([
-      env.DB.prepare(
-        `SELECT id, slug, year, name, position, company, bio, photo, linkedin, sort
-         FROM symposium_speakers WHERE year = ? ORDER BY sort, id`
-      ).bind(edition.year).all<SpeakerRow>(),
-      env.DB.prepare(
-        `SELECT id, slug, year, title, type, time, end_time, description, speaker_slugs, sort
-         FROM symposium_sessions WHERE year = ? ORDER BY sort, id`
-      ).bind(edition.year).all<SessionRow>(),
-      env.DB.prepare(
-        `SELECT id, year, name, role, role_tr, affiliation, photo, linkedin, teams, sort
-         FROM symposium_committee WHERE year = ? ORDER BY sort, id`
-      ).bind(edition.year).all<CommitteeRow>(),
-    ]);
+    const { speakers, sessions, committee } = await fetchOverlayRows(edition.year, env);
 
     // Announcements are never archived -- renderArchive has no file for
     // them, they are a live-site popup mechanism, not content-collection
     // data -- so rowsToOverlay is given an empty list rather than querying a
     // table whose result would be thrown away.
-    const overlay = rowsToOverlay(edition, speakers.results, sessions.results, committee.results, []);
+    const overlay = rowsToOverlay(edition, speakers, sessions, committee, []);
     const files = renderArchive(overlay);
 
     if (files.length === 0) {
@@ -192,16 +264,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         branchPrefix: 'symposium-archive',
         branchSlug: String(edition.year),
         files,
-        title: `Archive the ${edition.year} symposium`,
-        prBody: `The ${edition.year} symposium has ended. This folds its CMS overlay ` +
-          `into the content collection permanently.\n\n` +
-          `**Merge this promptly.** The site decides an edition is over from its dates ` +
-          `alone, so ${edition.year} stopped being the upcoming edition the moment it ` +
-          `ended, and the pages that render its programme have gone back to reading the ` +
-          `repo -- which does not have this content until you merge. Until then ` +
-          `/schedule, /speakers and /committee are empty for ${edition.year}.\n\n` +
-          `Also worth doing in the same pass: editions/${edition.year}.md still has an ` +
-          `empty \`speakers:\` list, so that edition's own page shows no speaker grid.`,
+        title: archivePrTitle(edition.year),
+        prBody: archivePrBody(edition.year),
       },
       env
     );
