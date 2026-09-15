@@ -1027,10 +1027,35 @@ async function loadEdition(): Promise<void> {
 function setupEditionForm(): void {
   const form = document.getElementById('symEditionForm') as HTMLFormElement;
   const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
+  const snapshotBtn = document.getElementById('symEditionSnapshotBtn') as HTMLButtonElement | null;
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     void whileSaving(submitBtn, saveEdition);
   });
+  snapshotBtn?.addEventListener('click', () => {
+    void whileSaving(snapshotBtn, sendSnapshot);
+  });
+
+  async function sendSnapshot(): Promise<void> {
+    const statusEl = document.getElementById('symEditionSnapshotStatus')!;
+    const res = await fetch('/api/admin/symposium/snapshot', { method: 'POST' });
+    if (!res.ok) {
+      statusEl.textContent = t('admin.symposium.edition.snapshotFailed');
+      statusEl.classList.remove('hidden');
+      return;
+    }
+    const data = await res.json() as { ok: boolean; prUrl?: string; reason?: string };
+    statusEl.classList.remove('hidden');
+    if (data.ok && data.prUrl) {
+      statusEl.innerHTML =
+        `${escapeHtml(t('admin.symposium.edition.snapshotDone'))} ` +
+        `<a href="${escapeHtml(data.prUrl)}" target="_blank" rel="noopener noreferrer" class="underline text-navy">${escapeHtml(data.prUrl)}</a>`;
+    } else if (data.reason === 'no-overlay-content') {
+      statusEl.textContent = t('admin.symposium.edition.snapshotEmpty');
+    } else {
+      statusEl.textContent = t('admin.symposium.edition.snapshotFailed');
+    }
+  }
 
   async function saveEdition(): Promise<void> {
     if (symposiumYear === null) return;
