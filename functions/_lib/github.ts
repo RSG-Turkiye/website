@@ -280,6 +280,55 @@ export async function openContentPR(params: OpenPrParams, env: Env): Promise<Ope
 }
 
 /**
+ * The number out of a pull request's browser URL, or null when the string is
+ * not one.
+ *
+ * Separated from the request below so the refusals are testable without a
+ * token: an issue URL, an empty column and a truncated string must all come
+ * back null rather than being read as a pull request that would then be
+ * asked about.
+ */
+export function pullNumberFromUrl(prUrl: string): number | null {
+  const match = /\/pull\/(\d+)\/?$/.exec(prUrl.trim());
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Whether a pull request has been merged.
+ *
+ * `unknown` is deliberately not `unmerged`: a rate limit or a bad token must
+ * leave the edition exactly as it was for the next run to retry, and
+ * treating "we could not ask" as "not merged" would do that -- but treating
+ * it as merged would retire an edition whose content is not in the
+ * repository. The caller stamps only on `merged`.
+ */
+export type PrState =
+  | { kind: 'merged'; mergedAt: number }
+  | { kind: 'unmerged' }
+  | { kind: 'unknown'; error: string };
+
+export async function prState(prUrl: string, env: Env): Promise<PrState> {
+  const number = pullNumberFromUrl(prUrl);
+  if (number === null) return { kind: 'unknown', error: `not a pull request URL: ${prUrl}` };
+  try {
+    const res = await githubRequest(
+      `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${number}`,
+      { method: 'GET' },
+      env
+    );
+    if (!res.ok) {
+      const body = await res.text();
+      return { kind: 'unknown', error: `pull ${number} lookup failed (${res.status}): ${body.slice(0, 200)}` };
+    }
+    const data = await res.json<{ merged_at: string | null }>();
+    if (!data.merged_at) return { kind: 'unmerged' };
+    return { kind: 'merged', mergedAt: Math.floor(Date.parse(data.merged_at) / 1000) };
+  } catch (e) {
+    return { kind: 'unknown', error: e instanceof Error ? e.message : 'Unknown GitHub API error' };
+  }
+}
+
+/**
  * Opens a GitHub issue assigned to env.GITHUB_NOTIFY_USERNAME so that
  * account gets a real "you were assigned" notification. Used to alert a
  * human the moment a member submits a post, since no PR exists yet at
