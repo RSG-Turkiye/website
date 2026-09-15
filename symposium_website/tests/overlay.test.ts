@@ -20,17 +20,44 @@ test('the overlay supplies the links the repo does not have', () => {
   assert.equal(out.registrationUrl, 'https://forms.gle/reg');
 });
 
-test('an empty speaker list means no opinion, not deletion', () => {
-  // A bad deploy or a half-run migration must not silently erase a published
-  // programme. Removing every speaker is an act for a pull request.
+test('a reachable overlay with empty lists empties the repo lists, not "no opinion"', () => {
+  // Superseded by task 1 of the snapshot-to-git plan: this test used to assert
+  // the opposite (an empty overlay list left the repo's own list standing).
+  // That was right while the repo held nothing for the upcoming edition, but
+  // once the repo holds a daily snapshot of the CMS, "empty means no opinion"
+  // means deleting the last speaker in the panel resurrects the snapshot's
+  // copy. A reachable overlay -- anything but `null` -- is now authoritative
+  // for these three lists, empty included. See the "deleting the last
+  // speaker" test below for the case this protects, and "an overlay that is
+  // absent still falls back to the repo" for the fallback that still holds.
   const out = mergeOverlay(repo, { speakers: [], sessions: [] } as never);
-  assert.equal(out.speakers[0].name, 'From Repo');
-  assert.equal(out.sessions[0].title, 'From Repo');
+  assert.deepEqual(out.speakers, []);
+  assert.deepEqual(out.sessions, []);
 });
 
 test('a non-empty list replaces the repo list wholesale', () => {
   const out = mergeOverlay(repo, { speakers: [{ slug: 'from-cms', name: 'From CMS' }] } as never);
   assert.deepEqual(out.speakers.map((s: { name: string }) => s.name), ['From CMS']);
+});
+
+test('deleting the last speaker in the CMS actually empties the page', () => {
+  // The repo holds a merged snapshot, which is the state phase 0b creates and
+  // that this project has never been in before. Under the old rule an empty
+  // overlay list meant "no opinion" and this roster came back from the dead.
+  const withTwo = { ...(repo as object), speakers: [{ slug: 'a', name: 'A' }, { slug: 'b', name: 'B' }] } as never;
+  const merged = mergeOverlay(withTwo, { speakers: [] } as never);
+  assert.deepEqual(merged.speakers, []);
+});
+
+test('an overlay that is absent still falls back to the repo', () => {
+  // The whole point of the snapshot: an unreachable API renders what git holds.
+  assert.equal(mergeOverlay(repo, null).speakers.length, 1);
+});
+
+test('a non-empty overlay list still replaces the repo, as before', () => {
+  const withTwo = { ...(repo as object), speakers: [{ slug: 'a', name: 'A' }, { slug: 'b', name: 'B' }] } as never;
+  const merged = mergeOverlay(withTwo, { speakers: [{ slug: 'c', name: 'C' }] } as never);
+  assert.deepEqual(merged.speakers.map((s: { slug: string }) => s.slug), ['c']);
 });
 
 test('a null flag leaves the repo flag standing', () => {
