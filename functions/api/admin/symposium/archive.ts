@@ -8,7 +8,7 @@
 // this directly.
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
-import { rowsToOverlay } from '../../../_lib/symposium';
+import { rowsToOverlay, archiveDecision } from '../../../_lib/symposium';
 import type {
   EditionRow,
   SpeakerRow,
@@ -16,14 +16,14 @@ import type {
   CommitteeRow,
 } from '../../../_lib/symposium';
 import { renderArchive, endOfEventFromMarkdown, editionMarkdownPath } from '../../../_lib/archive';
-import { openContentPR, getFileOnBaseBranch, notifyNewSubmission } from '../../../_lib/github';
+import { openContentPR, getFileOnBaseBranch, notifyNewSubmission, prState } from '../../../_lib/github';
 
 // What the SELECT below reads: EditionRow's own columns, plus archived_pr_url
 // itself -- every other query in this codebase filters that column out of
 // its own SELECT before it's ever read (it's the guard, not the payload);
 // this is the one place that needs its *value*, to tell an
 // already-archived edition apart from one nobody has touched yet.
-type EditionCandidateRow = EditionRow & { archived_pr_url: string | null };
+type EditionCandidateRow = EditionRow & { archived_pr_url: string | null; archived_at: number | null };
 
 /**
  * One archive attempt's outcome, returned per edition so a run that finds
@@ -34,6 +34,8 @@ type EditionCandidateRow = EditionRow & { archived_pr_url: string | null };
 type ArchiveResult =
   | { year: number; status: 'archived'; prUrl: string }
   | { year: number; status: 'already-archived'; prUrl: string }
+  | { year: number; status: 'pr-open'; prUrl: string }
+  | { year: number; status: 'merge-check-failed'; prUrl: string; error: string }
   | { year: number; status: 'not-yet-over' }
   | { year: number; status: 'undated' }
   | { year: number; status: 'missing-edition-markdown' }
@@ -55,7 +57,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // set stays small on its own.
   const editions = await env.DB.prepare(
     `SELECT year, registration_url, registration_deadline, abstract_url, abstract_deadline,
-            venue_public, city_public, archived_pr_url
+            venue_public, city_public, archived_pr_url, archived_at
      FROM symposium_edition
      ORDER BY year ASC`
   ).all<EditionCandidateRow>();
@@ -63,8 +65,34 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const results: ArchiveResult[] = [];
 
   for (const edition of editions.results) {
-    if (edition.archived_pr_url) {
-      results.push({ year: edition.year, status: 'already-archived', prUrl: edition.archived_pr_url });
+    const decision = archiveDecision(edition);
+
+    if (decision.action === 'skip') {
+      results.push({ year: edition.year, status: 'already-archived', prUrl: edition.archived_pr_url ?? '' });
+      continue;
+    }
+
+    if (decision.action === 'check-merge') {
+      // The pull request exists. Whether the edition is finished is now
+      // GitHub's answer, not ours: until it merges, the content is in a
+      // branch and the public endpoint must go on serving this edition from
+      // D1.
+      const prUrl = edition.archived_pr_url!;
+      const state = await prState(prUrl, env);
+      if (state.kind === 'merged') {
+        await env.DB.prepare(
+          `UPDATE symposium_edition SET archived_at = ? WHERE year = ?`
+        ).bind(state.mergedAt, edition.year).run();
+        results.push({ year: edition.year, status: 'already-archived', prUrl });
+      } else if (state.kind === 'unmerged') {
+        results.push({ year: edition.year, status: 'pr-open', prUrl });
+      } else {
+        // Left exactly as it was, for the next run. Not an error status for
+        // the whole run: a rate limit is not a failed archive, and returning
+        // 502 for one would make the cron's only failure signal fire on a
+        // condition that fixes itself.
+        results.push({ year: edition.year, status: 'merge-check-failed', prUrl, error: state.error });
+      }
       continue;
     }
 
@@ -186,13 +214,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       env
     );
 
-    // Written in the same statement that the next invocation's read of
-    // archived_pr_url guards on, so a Worker that runs this endpoint twice
-    // in a row -- or twice in one night after a retry -- opens exactly one
-    // pull request per edition. If the process dies between openContentPR
-    // resolving and this UPDATE running, the *next* run's openContentPR call
-    // converges on the same PR (see its own doc comment) and this UPDATE
-    // simply runs then instead -- no separate locking needed on top of that.
+    // Written in the same statement the next run's archiveDecision reads, so
+    // a Worker that runs this endpoint twice opens exactly one pull request
+    // per edition. This stamps only that a pull request exists -- the
+    // edition is not retired until archived_at, which the check-merge branch
+    // above writes once GitHub says it merged. If the process dies between
+    // openContentPR resolving and this UPDATE running, the *next* run's
+    // openContentPR call converges on the same PR (see its own doc comment)
+    // and this UPDATE simply runs then instead -- no separate locking needed
+    // on top of that.
     await env.DB.prepare(
       `UPDATE symposium_edition SET archived_pr_url = ? WHERE year = ?`
     ).bind(pr.prUrl, edition.year).run();
