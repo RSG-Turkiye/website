@@ -449,3 +449,107 @@ test('an edition with no markdown stub yet is still copied, not silently skipped
     globalThis.fetch = realFetch;
   }
 });
+
+test('a file whose content already matches is not written again', async () => {
+  // GitHub records a commit even when the content is byte-identical, and a
+  // commit is enough to put the branch ahead of main and open a pull request.
+  // A daily refresh with nothing new to say was producing an empty one every
+  // night: +0/-0, no files, ahead_by 1. Skipping the write is what lets
+  // openContentPR reach "No commits between" instead.
+  const same = 'the same bytes\n';
+  const puts: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? 'GET';
+    if (method === 'GET' && url.pathname.endsWith('/git/ref/heads/main')) {
+      return new Response(JSON.stringify({ object: { sha: 'base-sha' } }), { status: 200 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/git/refs')) {
+      return new Response(JSON.stringify({}), { status: 422 });
+    }
+    if (method === 'GET' && url.pathname.includes('/contents/')) {
+      return new Response(
+        JSON.stringify({ sha: 'file-sha', content: Buffer.from(same, 'utf-8').toString('base64') }),
+        { status: 200 }
+      );
+    }
+    if (method === 'PUT' && url.pathname.includes('/contents/')) {
+      puts.push(url.pathname);
+      return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), { status: 201 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/pulls')) {
+      return new Response(
+        JSON.stringify({ message: 'No commits between main and symposium-archive/2099' }),
+        { status: 422 }
+      );
+    }
+    throw new Error(`unexpected fake fetch: ${method} ${url}`);
+  }) as never;
+
+  try {
+    const result = await openContentPR(
+      {
+        branchPrefix: 'symposium-archive',
+        branchSlug: '2099',
+        files: [{ path: 'a/b.json', content: same }],
+        title: 'unchanged',
+        prBody: 'unchanged',
+        retitle: false,
+      },
+      env
+    );
+    assert.deepEqual(puts, [], 'no write may be issued when the bytes already match');
+    assert.equal(result.success, false);
+    assert.equal((result as { reason?: string }).reason, 'no-commits');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('a file whose content differs is still written', async () => {
+  const puts: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? 'GET';
+    if (method === 'GET' && url.pathname.endsWith('/git/ref/heads/main')) {
+      return new Response(JSON.stringify({ object: { sha: 'base-sha' } }), { status: 200 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/git/refs')) {
+      return new Response(JSON.stringify({}), { status: 201 });
+    }
+    if (method === 'GET' && url.pathname.includes('/contents/')) {
+      return new Response(
+        JSON.stringify({ sha: 'file-sha', content: Buffer.from('old bytes\n', 'utf-8').toString('base64') }),
+        { status: 200 }
+      );
+    }
+    if (method === 'PUT' && url.pathname.includes('/contents/')) {
+      puts.push(url.pathname);
+      return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), { status: 201 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/pulls')) {
+      return new Response(JSON.stringify({ html_url: 'https://github.com/o/r/pull/7' }), { status: 201 });
+    }
+    throw new Error(`unexpected fake fetch: ${method} ${url}`);
+  }) as never;
+
+  try {
+    const result = await openContentPR(
+      {
+        branchPrefix: 'symposium-archive',
+        branchSlug: '2099',
+        files: [{ path: 'a/b.json', content: 'new bytes\n' }],
+        title: 'changed',
+        prBody: 'changed',
+        retitle: false,
+      },
+      env
+    );
+    assert.equal(puts.length, 1, 'a real change must still be written');
+    assert.equal(result.success, true);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
