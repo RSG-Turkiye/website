@@ -123,7 +123,11 @@ async function createBranch(branchName: string, baseSha: string, env: Env): Prom
  * converge instead of colliding when a retry finds a file a previous,
  * crashed attempt already wrote.
  */
-async function getFileSha(branchName: string, filePath: string, env: Env): Promise<string | undefined> {
+async function getFile(
+  branchName: string,
+  filePath: string,
+  env: Env,
+): Promise<{ sha: string; content: string } | undefined> {
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}?ref=${branchName}`,
     { method: 'GET' },
@@ -134,8 +138,11 @@ async function getFileSha(branchName: string, filePath: string, env: Env): Promi
     const body = await res.text();
     throw new Error(`Failed to read ${filePath} on ${branchName} (${res.status}): ${body}`);
   }
-  const data = await res.json<{ sha: string }>();
-  return data.sha;
+  // The content comes back base64 with newlines in it, which Buffer ignores.
+  // Read alongside the sha rather than in a second request: commitFile needs
+  // both, and one round trip answers both questions.
+  const data = await res.json<{ sha: string; content?: string }>();
+  return { sha: data.sha, content: data.content ? Buffer.from(data.content, 'base64').toString('utf-8') : '' };
 }
 
 async function commitFile(
@@ -151,7 +158,23 @@ async function commitFile(
   // was supposed to record it. Looking the sha up first, and including it
   // when the file exists, makes this call idempotent: create when the path
   // is new, update-in-place (same content, same result) when it isn't.
-  const sha = await getFileSha(branchName, filePath, env);
+  const existing = await getFile(branchName, filePath, env);
+
+  // Writing content byte-identical to what the branch already holds still
+  // makes GitHub record a commit -- one whose tree is unchanged. That is
+  // enough to put the branch ahead of main, which is enough for a pull
+  // request to open, so a daily refresh with nothing new to say produced an
+  // empty pull request every night. Measured on 2026-09-16: +0/-0, no files,
+  // ahead_by 1, and the commit named after the file it did not change.
+  //
+  // An empty pull request every night is worse than none: it teaches
+  // everybody to skim past this branch, which is exactly what the one that
+  // matters cannot afford. Skipping the write leaves the branch level with
+  // main, so openContentPR reaches GitHub's "No commits between" and the
+  // caller hears that nothing changed.
+  if (existing && existing.content === content) return;
+
+  const sha = existing?.sha;
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`,
     {
