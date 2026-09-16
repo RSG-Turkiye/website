@@ -553,3 +553,109 @@ test('a file whose content differs is still written', async () => {
     globalThis.fetch = realFetch;
   }
 });
+
+test('a freshly created branch that cannot answer yet falls back to base', async () => {
+  // The branch is created in this same request, and GitHub's read of its ref
+  // came back empty right afterwards. Without a fallback the comparison never
+  // happens and the write goes out, recording a commit for bytes that were
+  // already identical -- which is how an empty pull request opened on
+  // 2026-09-16 even with the skip in place.
+  const same = 'the same bytes\n';
+  const puts: string[] = [];
+  const refsRead: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? 'GET';
+    if (method === 'GET' && url.pathname.endsWith('/git/ref/heads/main')) {
+      return new Response(JSON.stringify({ object: { sha: 'base-sha' } }), { status: 200 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/git/refs')) {
+      return new Response(JSON.stringify({}), { status: 201 });
+    }
+    if (method === 'GET' && url.pathname.includes('/contents/')) {
+      const ref = url.searchParams.get('ref') ?? '';
+      refsRead.push(ref);
+      // The just-created branch cannot answer; base can.
+      if (ref !== 'main') return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+      return new Response(
+        JSON.stringify({ sha: 'base-file-sha', content: Buffer.from(same, 'utf-8').toString('base64') }),
+        { status: 200 }
+      );
+    }
+    if (method === 'PUT' && url.pathname.includes('/contents/')) {
+      puts.push(url.pathname);
+      return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), { status: 201 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/pulls')) {
+      return new Response(
+        JSON.stringify({ message: 'No commits between main and symposium-archive/2099' }),
+        { status: 422 }
+      );
+    }
+    throw new Error(`unexpected fake fetch: ${method} ${url}`);
+  }) as never;
+
+  try {
+    const result = await openContentPR(
+      {
+        branchPrefix: 'symposium-archive',
+        branchSlug: '2099',
+        files: [{ path: 'a/b.json', content: same }],
+        title: 'unchanged',
+        prBody: 'unchanged',
+        retitle: false,
+      },
+      env
+    );
+    assert.ok(refsRead.includes('main'), 'base must be consulted when the branch cannot answer');
+    assert.deepEqual(puts, [], 'no write may be issued when base already holds these bytes');
+    assert.equal((result as { reason?: string }).reason, 'no-commits');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('a new file that exists on neither the branch nor base is still written', async () => {
+  const puts: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? 'GET';
+    if (method === 'GET' && url.pathname.endsWith('/git/ref/heads/main')) {
+      return new Response(JSON.stringify({ object: { sha: 'base-sha' } }), { status: 200 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/git/refs')) {
+      return new Response(JSON.stringify({}), { status: 201 });
+    }
+    if (method === 'GET' && url.pathname.includes('/contents/')) {
+      return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+    }
+    if (method === 'PUT' && url.pathname.includes('/contents/')) {
+      puts.push(url.pathname);
+      return new Response(JSON.stringify({ content: { sha: 'new-sha' } }), { status: 201 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/pulls')) {
+      return new Response(JSON.stringify({ html_url: 'https://github.com/o/r/pull/9' }), { status: 201 });
+    }
+    throw new Error(`unexpected fake fetch: ${method} ${url}`);
+  }) as never;
+
+  try {
+    const result = await openContentPR(
+      {
+        branchPrefix: 'symposium-archive',
+        branchSlug: '2099',
+        files: [{ path: 'brand/new.json', content: 'first time\n' }],
+        title: 'new',
+        prBody: 'new',
+        retitle: false,
+      },
+      env
+    );
+    assert.equal(puts.length, 1, 'a genuinely new file must still be written');
+    assert.equal(result.success, true);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
