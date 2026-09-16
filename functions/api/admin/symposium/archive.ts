@@ -238,7 +238,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       // ahead of its own markdown existing, or a year that never had one.
       // Never treated as "finished": there is nothing to compare a date
       // against.
+      //
+      // Snapshotted anyway, and this is the point of taking a copy at all.
+      // The first days of a new edition are when its content is most exposed
+      // -- it exists only in D1 and nobody has committed a stub yet -- and
+      // gating the copy on a file somebody has to remember to add left
+      // exactly that window uncovered, silently: the reason appeared only in
+      // this run's log. A copy needs no date. The date decides whether an
+      // edition is over, which is the archive's question, not this one.
       results.push({ year: edition.year, status: 'missing-edition-markdown' });
+      results.push(await snapshotEdition(edition, env));
       continue;
     }
 
@@ -247,7 +256,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       // The markdown exists but names no startDate/endDate -- most likely a
       // brand-new edition still being set up. Undated is not the same as
       // over; this is left alone rather than guessed at.
+      //
+      // Copied for the same reason as the branch above: not knowing whether
+      // an edition has finished is a reason not to archive it, never a
+      // reason to leave its content in one place.
       results.push({ year: edition.year, status: 'undated' });
+      results.push(await snapshotEdition(edition, env));
       continue;
     }
 

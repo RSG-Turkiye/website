@@ -408,3 +408,44 @@ test('a SNAPSHOT day with no-commits reports snapshot-no-changes, not error, and
     globalThis.fetch = realFetch;
   }
 });
+
+test('an edition with no markdown stub yet is still copied, not silently skipped', async () => {
+  // The first days of a new edition are when its content is most exposed: it
+  // exists only in D1, and editions/<year>.md is a file somebody still has to
+  // remember to commit. Gating the copy on that file left exactly that window
+  // uncovered, and the reason appeared only in this run's log.
+  //
+  // makeGithubFetch is given no markdown for the year, so the stub lookup 404s.
+  const year = 2099;
+  const editionsRows: FakeRow[] = [
+    { year, registration_url: '', registration_deadline: null, abstract_url: '', abstract_deadline: null, venue_public: null, city_public: null, archived_pr_url: null, archived_at: null },
+  ];
+  const { DB, runCalls } = fakeDb(editionsRows);
+  const env = {
+    DB,
+    GITHUB_PAT: 'unused-fetch-is-stubbed',
+    SYMPOSIUM_ARCHIVE_SECRET: 'secret',
+  } as never;
+  const request = new Request('https://example.com/api/admin/symposium/archive', {
+    method: 'POST',
+    headers: { 'X-Archive-Secret': 'secret' },
+  });
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = makeGithubFetch({});
+  try {
+    const res = await onRequestPost({ request, env } as never);
+    const payload = await res.json() as { ok: boolean; results: Array<{ year: number; status: string }> };
+
+    assert.equal(payload.ok, true, 'a missing stub is not a failed run');
+    const statuses = payload.results.map((r) => r.status);
+    assert.ok(statuses.includes('missing-edition-markdown'), 'the reason it cannot be archived is still reported');
+    assert.ok(
+      statuses.some((st) => st.startsWith('snapshot')),
+      `the copy must still be attempted -- got ${JSON.stringify(statuses)}`,
+    );
+    assert.equal(runCalls.length, 0, 'an edition that cannot be dated is never stamped');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
