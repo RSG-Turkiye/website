@@ -10,7 +10,7 @@ import EventJsonLd from "../../components/EventJsonLd.astro";
 import { useTranslations, useFormat, getLangFromUrl } from "../../i18n/ui";
 import { getSponsorsByEdition } from "../../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../../lib/editions-content";
-import { hasHappened, locationFor, titleFor, subtitleFor , nextEditionHint, ordinalLabel } from "../../lib/editions";
+import { hasHappened, locationFor, titleFor, subtitleFor , nextEditionHint, ordinalLabel, dateFor } from "../../lib/editions";
 import { symposiumsHeld } from "../../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../../lib/content";
 import AnnouncementBanner from "../../components/AnnouncementBanner.astro";
@@ -66,9 +66,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
           <h1 class="text-4xl sm:text-5xl font-bold leading-tight">{heading}</h1>
           {theme && <p class="text-lg text-white/80 leading-relaxed">{theme}</p>}
           <p class="text-white/90 font-medium">
-            {upcoming.data.startDate?.toLocaleDateString("tr-TR", {
-              day: "numeric", month: "long", year: "numeric",
-            })}
+            {/* dateFor, not a format of startDate alone -- see the English
+                page for why. dateTr is what carries a range in Turkish. */}
+            {dateFor(upcoming.data, "tr")}
             {place.kind === "full" && ` · ${place.venue}, ${place.city}`}
             {place.kind === "withheld" && ` · ${place.city} · ${t("venue.tba")}`}
             {place.kind === "city-only" && ` · ${place.city}`}
