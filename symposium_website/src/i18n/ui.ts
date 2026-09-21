@@ -42,6 +42,7 @@ export const ui = {
     "cta.abstract.soon": "The call for abstracts opens soon.",
     "cta.closed": "Registration and abstract submission have closed.",
     "cta.deadline": "Deadline: {date}",
+    "cta.guidelines": "Read the abstract and poster guidelines before you submit",
     "hero.countdown.days": "days to go",
     // Turkish has no plural agreement after a number, so both keys carry the
     // same string there. English does, and the hero said "1 days to go" on
@@ -206,6 +207,7 @@ export const ui = {
     "cta.abstract.soon": "Bildiri çağrısı yakında açılacaktır.",
     "cta.closed": "Kayıt ve bildiri gönderimi kapandı.",
     "cta.deadline": "Son tarih: {date}",
+    "cta.guidelines": "Göndermeden önce bildiri ve poster kılavuzunu okuyun",
     "hero.countdown.days": "gün kaldı",
     "hero.countdown.day": "gün kaldı",
 
