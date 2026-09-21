@@ -40,6 +40,11 @@ const nextUp = nextEditionHint((await getCollection("editions")).map((e) => e.da
 // first one is added. Who has sponsored before is on /sponsors, labelled.
 const currentSponsors = getSponsorsByEdition(upcoming?.data.year ?? new Date().getFullYear());
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
+// Null unless this edition has guidelines written for it, which is what
+// decides whether the hero offers a link to them. Same rule as the nav item.
+const guidelinesHref = upcoming && (await getCollection("guidelines")).some((g) => g.data.year === upcoming.data.year)
+  ? "/tr/abstracts/"
+  : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
 const place = effectiveEdition ? locationFor(effectiveEdition, now, lang) : { kind: "hidden" as const };
@@ -113,7 +118,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
               )}
             </Fragment>
           ) : (
-            <EditionCta edition={effectiveEdition!} lang={lang} />
+            <EditionCta edition={effectiveEdition!} lang={lang} guidelinesHref={guidelinesHref} />
           )}
         </Fragment>
       ) : (
