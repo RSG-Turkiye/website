@@ -39,10 +39,15 @@ const content = await getCurrentContent();
 // was reachable only by typing the URL. /schedule and /committee really are
 // current-edition pages, so those stay as they were.
 const archiveSpeakers = (await getCollection("speakers")).some((e) => e.data.people.length > 0);
+// The guidelines are repo content, not CMS content, so this asks the
+// collection rather than the overlay. Any year having them is enough: the
+// page shows the upcoming edition's, and falls back to saying they are coming.
+const hasGuidelines = (await getCollection("guidelines")).length > 0;
 const navState: NavState = {
   hasSchedule: (content?.sessions.length ?? 0) > 0,
   hasSpeakers: (content?.speakers.length ?? 0) > 0 || archiveSpeakers,
   hasCommittee: (content?.committee.length ?? 0) > 0,
+  hasGuidelines,
 };
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
