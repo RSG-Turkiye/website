@@ -78,10 +78,16 @@ function getThumbnail(post: CollectionEntry<'blog'>): string | null {
                       <time>{new Date(post.data.pubDate).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })}</time>
                       {post.data.author && <span>{post.data.author}</span>}
                     </div>
-                    <h3 class="text-base font-semibold mb-1">
+                    {/* break-words because a title is somebody else's text and
+                        can carry a word no column is wide enough for. At 320px
+                        "Microencapsulation" was 156px in a 128px column and the
+                        whole page scrolled sideways by 4px. min-w-0 on the
+                        parent lets the column shrink; this lets the word do
+                        the same. */}
+                    <h3 class="text-base font-semibold mb-1 break-words">
                       <a href={postUrl} class="text-navy hover:text-navy-mid transition-colors">{post.data.title}</a>
                     </h3>
-                    {post.data.description && <p class="text-sm text-gray-500 leading-relaxed mb-2 line-clamp-2">{post.data.description}</p>}
+                    {post.data.description && <p class="text-sm text-gray-500 leading-relaxed mb-2 line-clamp-2 break-words">{post.data.description}</p>}
                     {post.data.tags && post.data.tags.length > 0 && (
                       <div class="flex flex-wrap gap-1.5">
                         {post.data.tags.slice(0, 3).map((tag: string) => (
