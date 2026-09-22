@@ -190,27 +190,42 @@ function initials(name: string) {
     transform: scale(1.12);
     z-index: 10;
   }
-  .speaker-avatar::after {
-    content: attr(data-name);
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1a2744;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 5px;
-    font-size: 11px;
-    font-weight: 500;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s;
-    z-index: 20;
+  /*
+    Only where a pointer can hover. A phone cannot, so this tooltip could
+    never be seen there -- and it was not free: `opacity: 0` hides a box, it
+    does not remove one, and `white-space: nowrap` made each of the eighty
+    boxes as wide as the name inside it. The one at the end of a row reached
+    past the card, and the page scrolled sideways by 51px at 390px wide.
+
+    Nothing is lost on touch: the name is already on the anchor's aria-label,
+    which is what a screen reader reads, and tapping goes to the speaker's
+    own page.
+  */
+  @media (hover: hover) and (pointer: fine) {
+    .speaker-avatar::after {
+      content: attr(data-name);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a2744;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 20;
+    }
+
+    .speaker-avatar:hover::after {
+      opacity: 1;
+    }
   }
-  .speaker-avatar:hover::after {
-    opacity: 1;
-  }
+
 </style>
 
 <script>
