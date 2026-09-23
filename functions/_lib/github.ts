@@ -172,8 +172,22 @@ async function commitFile(
   // matters cannot afford. Skipping the write leaves the branch level with
   // main, so openContentPR reaches GitHub's "No commits between" and the
   // caller hears that nothing changed.
-  if (existing && existing.content === content) return;
+  // Compared against the base branch when the branch itself cannot answer.
+  // The branch is always cut from base, so base's copy is what it inherits --
+  // and "will this pull request have a diff" is a question about base anyway.
+  //
+  // This is not a hypothetical fallback. Measured on 2026-09-16: with the
+  // branch freshly created in this same request, the read of its ref came
+  // back empty, the comparison never happened, and the write went out and
+  // recorded a commit for bytes that were already identical -- the very thing
+  // the check above exists to prevent. Reading base is not subject to that
+  // window, because base was not created a moment ago.
+  const onBase = existing ? undefined : await getFile(GITHUB_BASE_BRANCH, filePath, env);
+  if ((existing ?? onBase)?.content === content) return;
 
+  // The sha still has to be the BRANCH's, not base's: it is what GitHub
+  // checks the update against, and base's sha would be rejected or, worse,
+  // overwrite the wrong revision.
   const sha = existing?.sha;
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`,
