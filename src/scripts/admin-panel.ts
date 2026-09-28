@@ -15,6 +15,7 @@ import { useTranslations } from '../i18n/ui';
 import { RANK_LABELS, type Rank } from '../lib/badges';
 import { escapeHtml } from './escape-html';
 import { uploadImage } from './image-upload';
+import { drivePhotoUrl } from '../../functions/_lib/photo-url';
 
 type Lang = 'en' | 'tr';
 
@@ -1140,6 +1141,7 @@ function renderSpeakers(items: SpeakerItem[]): void {
       (document.getElementById('symSpeakerBio') as HTMLTextAreaElement).value = item.bio;
       (document.getElementById('symSpeakerPhoto') as HTMLInputElement).value = item.photo;
       (document.getElementById('symSpeakerLinkedin') as HTMLInputElement).value = item.linkedin;
+      speakerPhoto?.show(item.photo);
       document.getElementById('symSpeakerCancelBtn')!.classList.remove('hidden');
     });
   });
@@ -1172,9 +1174,16 @@ function setupSpeakerForm(): void {
   function resetForm() {
     form.reset();
     (document.getElementById('symSpeakerEditId') as HTMLInputElement).value = '';
+    speakerPhoto?.reset();
     cancelBtn.classList.add('hidden');
   }
   cancelBtn.addEventListener('click', resetForm);
+
+  speakerPhoto = setupPhotoUpload(
+    'symSpeaker',
+    t('admin.symposium.speakers.form.photoUploading'),
+    t('admin.symposium.speakers.form.photoUploaded'),
+  );
 
   const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
   form.addEventListener('submit', (e) => {
@@ -1183,6 +1192,9 @@ function setupSpeakerForm(): void {
   });
 
   async function saveSpeaker(): Promise<void> {
+    // Before reading any field -- see PhotoField.
+    await speakerPhoto?.settle();
+
     const editId = (document.getElementById('symSpeakerEditId') as HTMLInputElement).value;
     const body = {
       slug: (document.getElementById('symSpeakerSlug') as HTMLInputElement).value,
@@ -1432,7 +1444,7 @@ function renderCommittee(items: CommitteeItem[]): void {
       const trTeams = item.teamsTr ?? [];
       (document.getElementById('symCommitteeTeamsTr') as HTMLInputElement).value =
         trTeams.some(Boolean) ? trTeams.join(', ') : '';
-      showCommitteePhotoPreview(item.photo);
+      committeePhoto?.show(item.photo);
       document.getElementById('symCommitteeCancelBtn')!.classList.remove('hidden');
     });
   });
@@ -1455,80 +1467,103 @@ async function loadCommittee(): Promise<void> {
   renderCommittee(data.items);
 }
 
-/** Shows (or hides) the thumbnail beside the file input. */
-function showCommitteePhotoPreview(url: string): void {
-  const preview = document.getElementById('symCommitteePhotoPreview') as HTMLImageElement | null;
-  if (!preview) return;
-  preview.src = url;
-  preview.classList.toggle('hidden', !url);
-}
-
 /**
- * Uploads a chosen photograph and writes the resulting URL into the field
- * the form already submits, so the save path is unchanged -- the photo is
- * still a URL by the time it reaches the server.
+ * A photo field: a file input that uploads, the URL field the form actually
+ * submits, and a thumbnail. The committee form had this first; the speaker
+ * form has the same one, which is why the element ids are a prefix.
  *
  * The upload happens on choosing the file rather than on save: it is the
  * slow step, and doing it here means the URL is visible and correctable
  * before anything is committed. uploadImage downscales in the browser first
  * and rethrows the server's own message, which says what is wrong and what
  * to do about it.
- */
-/**
- * The upload currently in flight, if any.
  *
- * A photograph is uploaded when the file is chosen, not when the form is
- * saved -- that is deliberate, so the URL is visible and correctable before
- * anything is committed. But it left a gap: the upload takes a moment, the
- * save read the URL field the instant it was pressed, and a member saved
- * during those seconds was stored with no photograph at all. It happened to
- * a real committee member, who was saved, looked wrong, and had to be
- * entered again.
- *
- * So the save waits for this. Not a boolean flag but the promise itself,
- * because "wait for it to finish" is what the save actually needs, and a
- * flag would have the save polling or racing the moment it flips.
+ * `pending` is the upload currently in flight, if any. The save used to read
+ * the URL field the instant it was pressed, and a committee member saved
+ * during those seconds was stored with no photograph at all -- it happened to
+ * a real member, who had to be entered again. So every save awaits this
+ * first. Not a boolean flag but the promise itself, because "wait for it to
+ * finish" is what the save actually needs.
  */
-let committeePhotoUpload: Promise<void> | null = null;
-
-function setupCommitteePhotoUpload(): void {
-  const input = document.getElementById('symCommitteePhotoFile') as HTMLInputElement | null;
-  const url = document.getElementById('symCommitteePhoto') as HTMLInputElement | null;
-  const status = document.getElementById('symCommitteePhotoStatus') as HTMLElement | null;
-  if (!input || !url || !status) return;
-
-  input.addEventListener('change', () => {
-    const file = input.files?.[0];
-    if (!file) return;
-
-    status.textContent = t('admin.symposium.committee.form.photoUploading');
-    input.disabled = true;
-
-    // Held so the save can await it. It never rejects: a failed upload is
-    // reported here and leaves the URL field alone, and a save that follows
-    // should still save everything else rather than be dragged down with it.
-    committeePhotoUpload = (async () => {
-      try {
-        const uploaded = await uploadImage(file);
-        url.value = uploaded;
-        showCommitteePhotoPreview(uploaded);
-        status.textContent = t('admin.symposium.committee.form.photoUploaded');
-      } catch (err) {
-        status.textContent = '';
-        showToast(err instanceof Error ? err.message : t('admin.toast.error'), true);
-      } finally {
-        input.disabled = false;
-        // Cleared so choosing the same file again still fires a change event
-        // -- which is what a retry after a failed upload looks like.
-        input.value = '';
-      }
-    })();
-  });
-
-  // A URL typed or pasted by hand deserves the same thumbnail as an uploaded
-  // one; without this the preview would only ever reflect the upload.
-  url.addEventListener('input', () => showCommitteePhotoPreview(url.value));
+interface PhotoField {
+  /** Resolves once any upload in flight has written its URL (or failed). */
+  settle(): Promise<void>;
+  /** Shows the thumbnail for a URL already on the record being edited. */
+  show(url: string): void;
+  /** Clears the thumbnail, the status line and any settled upload. */
+  reset(): void;
 }
+
+function setupPhotoUpload(prefix: 'symCommittee' | 'symSpeaker', uploadingText: string, uploadedText: string): PhotoField {
+  const input = document.getElementById(`${prefix}PhotoFile`) as HTMLInputElement | null;
+  const url = document.getElementById(`${prefix}Photo`) as HTMLInputElement | null;
+  const status = document.getElementById(`${prefix}PhotoStatus`) as HTMLElement | null;
+  const preview = document.getElementById(`${prefix}PhotoPreview`) as HTMLImageElement | null;
+  let pending: Promise<void> | null = null;
+
+  // A Drive share link is a page, not a picture; the server stores the direct
+  // form, and the thumbnail shows what the site will show.
+  function show(value: string): void {
+    if (!preview) return;
+    preview.src = value ? drivePhotoUrl(value) : '';
+    preview.classList.toggle('hidden', !value);
+  }
+
+  if (input && url && status) {
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      status.textContent = uploadingText;
+      input.disabled = true;
+
+      // It never rejects: a failed upload is reported here and leaves the
+      // URL field alone, and a save that follows should still save
+      // everything else rather than be dragged down with it.
+      pending = (async () => {
+        try {
+          const uploaded = await uploadImage(file);
+          url.value = uploaded;
+          show(uploaded);
+          status.textContent = uploadedText;
+        } catch (err) {
+          status.textContent = '';
+          showToast(err instanceof Error ? err.message : t('admin.toast.error'), true);
+        } finally {
+          input.disabled = false;
+          // Cleared so choosing the same file again still fires a change
+          // event -- which is what a retry after a failed upload looks like.
+          input.value = '';
+        }
+      })();
+    });
+
+    // A URL typed or pasted by hand deserves the same thumbnail as an
+    // uploaded one; without this the preview would only ever reflect the upload.
+    url.addEventListener('input', () => show(url.value));
+  }
+
+  return {
+    async settle() {
+      if (!pending) return;
+      if (status) status.textContent = uploadingText;
+      await pending;
+      pending = null;
+    },
+    show,
+    reset() {
+      // form.reset() restores the *initial* value of each field, which for
+      // the photo URL is empty -- but the preview and the status line are not
+      // form fields and would otherwise still show the last record edited.
+      show('');
+      if (status) status.textContent = '';
+      pending = null;
+    },
+  };
+}
+
+let committeePhoto: PhotoField | null = null;
+let speakerPhoto: PhotoField | null = null;
 
 /** An empty field means "no Turkish names at all", which the server accepts;
  * anything else keeps its blanks so the two lists stay aligned by position. */
@@ -1544,19 +1579,16 @@ function setupCommitteeForm(): void {
   function resetForm() {
     form.reset();
     (document.getElementById('symCommitteeEditId') as HTMLInputElement).value = '';
-    // form.reset() restores the *initial* value of each field, which for the
-    // photo URL is empty -- but the preview and the status line are not form
-    // fields and would otherwise still be showing the last member edited.
-    showCommitteePhotoPreview('');
-    (document.getElementById('symCommitteePhotoStatus') as HTMLElement).textContent = '';
-    // The save above already awaited it; clearing here stops the *next* save
-    // waiting on a settled promise from a member already stored.
-    committeePhotoUpload = null;
+    committeePhoto?.reset();
     cancelBtn.classList.add('hidden');
   }
   cancelBtn.addEventListener('click', resetForm);
 
-  setupCommitteePhotoUpload();
+  committeePhoto = setupPhotoUpload(
+    'symCommittee',
+    t('admin.symposium.committee.form.photoUploading'),
+    t('admin.symposium.committee.form.photoUploaded'),
+  );
 
   const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
 
@@ -1569,12 +1601,7 @@ function setupCommitteeForm(): void {
     // Before reading any field: a photograph chosen a second ago may still
     // be uploading, and its URL lands in the form only when it finishes.
     // Saving first is how a member ended up in the database with no photo.
-    if (committeePhotoUpload) {
-      const status = document.getElementById('symCommitteePhotoStatus');
-      if (status) status.textContent = t('admin.symposium.committee.form.photoUploading');
-      await committeePhotoUpload;
-      committeePhotoUpload = null;
-    }
+    await committeePhoto?.settle();
 
     const editId = (document.getElementById('symCommitteeEditId') as HTMLInputElement).value;
     const body = {

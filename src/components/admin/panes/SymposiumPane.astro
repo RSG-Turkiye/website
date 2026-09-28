@@ -129,10 +129,22 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <input id="symSpeakerCompany" type="text" placeholder={t('admin.symposium.speakers.form.companyPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
-        <textarea id="symSpeakerBio" rows="2" placeholder={t('admin.symposium.speakers.form.bioPlaceholder')}
+        <textarea id="symSpeakerBio" rows="6" placeholder={t('admin.symposium.speakers.form.bioPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2"></textarea>
-        <input id="symSpeakerPhoto" type="url" placeholder={t('admin.symposium.speakers.form.photoPlaceholder')}
-          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <!-- The same upload as the committee photo below; see the comment there. -->
+        <div class="sm:col-span-2 flex flex-col gap-2">
+          <label class="text-xs font-medium text-gray-500" for="symSpeakerPhotoFile">
+            {t('admin.symposium.speakers.form.photoLabel')}
+          </label>
+          <div class="flex flex-wrap items-center gap-3">
+            <input id="symSpeakerPhotoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+              class="text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded-xl file:border-0 file:bg-navy file:text-white file:text-sm file:font-medium hover:file:bg-navy-mid file:cursor-pointer" />
+            <img id="symSpeakerPhotoPreview" alt="" class="hidden w-12 h-12 rounded-full object-cover border border-border" />
+            <p id="symSpeakerPhotoStatus" class="text-xs text-gray-500"></p>
+          </div>
+          <input id="symSpeakerPhoto" type="url" placeholder={t('admin.symposium.speakers.form.photoPlaceholder')}
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </div>
         <input id="symSpeakerLinkedin" type="url" placeholder={t('admin.symposium.speakers.form.linkedinPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <div class="sm:col-span-2 flex items-center gap-3">

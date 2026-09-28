@@ -60,6 +60,8 @@ export const ui = {
     "speakers.subtitle": "Meet the researchers and scientists at our symposium.",
     "speakers.filter.all": "All Editions",
     "speakers.none": "Speakers will be announced soon.",
+    "speakers.readMore": "Read full bio",
+    "speakers.close": "Close",
 
     // The wordmark under the logo, two lines by design.
     "brand.wordmark": "Student<br />Symposium",
@@ -222,6 +224,8 @@ export const ui = {
     "speakers.subtitle": "Sempozyumumuzdaki araştırmacı ve bilim insanlarıyla tanışın.",
     "speakers.filter.all": "Tüm Edisyonlar",
     "speakers.none": "Konuşmacılar yakında duyurulacak.",
+    "speakers.readMore": "Biyografinin tamamı",
+    "speakers.close": "Kapat",
 
     "brand.wordmark": "Öğrenci<br />Sempozyumu",
     "schedule.title": "Program",
