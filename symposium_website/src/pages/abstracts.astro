@@ -1,0 +1,83 @@
+---
+/**
+ * The abstract and poster guidelines for the upcoming edition.
+ *
+ * The prose lives in the `guidelines` collection; the facts above it do not.
+ * The deadline comes from the CMS overlay and the dates and theme from the
+ * edition file, so changing a deadline in the admin panel changes this page
+ * with it. The organisers' own document and the site disagreed about when
+ * abstracts were due precisely because the date was typed into the prose.
+ */
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { useTranslations, getLangFromUrl } from "../i18n/ui";
+import { getCurrentEdition } from "../lib/editions-content";
+import { getCurrentContent, withOverlayContent } from "../lib/content";
+import { dateFor, subtitleFor } from "../lib/editions";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+const locale = lang === "tr" ? "tr-TR" : "en-GB";
+
+const { entry: edition } = await getCurrentEdition();
+const content = await getCurrentContent();
+const effective = edition ? withOverlayContent(edition.data, content) : null;
+
+const body = edition
+  ? (await getCollection(lang === "tr" ? "guidelinesTr" : "guidelines")).find((g) => g.data.year === edition.data.year)
+    // A Turkish page with no translation falls back to the English prose,
+    // which is what the edition bodies do and is better than an empty page.
+    ?? (await getCollection("guidelines")).find((g) => g.data.year === edition.data.year)
+  : undefined;
+const Content = body ? (await render(body)).Content : null;
+
+const deadline = effective?.abstractDeadline;
+const submitUrl = effective?.abstractUrl?.trim();
+---
+
+<BaseLayout pageTitle={t("abstracts.title")} description={t("abstracts.subtitle")}>
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("abstracts.title")}</h1>
+      <p class="text-white/70 text-lg">{t("abstracts.subtitle")}</p>
+    </div>
+  </section>
+
+  <section class="max-w-3xl mx-auto px-6 py-12">
+    {edition && (
+      <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 text-sm">
+        <div class="bg-[#F7F7F6] rounded-xl p-4">
+          <dt class="text-gray-500 mb-1">{t("abstracts.deadline")}</dt>
+          <dd class="text-navy font-semibold tabular-nums">
+            {deadline ? deadline.toLocaleDateString(locale) : t("abstracts.deadlineTba")}
+          </dd>
+        </div>
+        <div class="bg-[#F7F7F6] rounded-xl p-4">
+          <dt class="text-gray-500 mb-1">{t("abstracts.dates")}</dt>
+          <dd class="text-navy font-semibold">{dateFor(edition.data, lang)}</dd>
+        </div>
+        <div class="bg-[#F7F7F6] rounded-xl p-4">
+          <dt class="text-gray-500 mb-1">{t("abstracts.theme")}</dt>
+          <dd class="text-navy font-semibold">{subtitleFor(edition.data, lang)}</dd>
+        </div>
+      </dl>
+    )}
+
+    {submitUrl && (
+      <a
+        href={submitUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-block mb-10 px-6 py-3 rounded-lg bg-red text-white font-semibold text-sm hover:bg-red/90 transition-colors"
+      >
+        {t("abstracts.submit")}
+      </a>
+    )}
+
+    {Content ? (
+      <div class="prose-content"><Content /></div>
+    ) : (
+      <p class="text-gray-600">{t("abstracts.soon")}</p>
+    )}
+  </section>
+</BaseLayout>

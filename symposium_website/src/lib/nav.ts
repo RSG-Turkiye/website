@@ -4,6 +4,9 @@ export interface NavState {
   hasSchedule: boolean;
   hasSpeakers: boolean;
   hasCommittee: boolean;
+  /** Whether the upcoming edition has written guidelines. Same rule as the
+   * three above: the item appears when there is something behind it. */
+  hasGuidelines: boolean;
 }
 
 export interface NavItem {
@@ -28,6 +31,9 @@ export function navItemsFor(state: NavState, lang: Lang): NavItem[] {
   ];
   if (state.hasSchedule) items.push({ href: "/schedule/", labelKey: "nav.schedule" });
   if (state.hasSpeakers) items.push({ href: "/speakers/", labelKey: "nav.speakers" });
+  // Before /venue: somebody deciding whether to submit reads this, and they
+  // do that before they care where the building is.
+  if (state.hasGuidelines) items.push({ href: "/abstracts/", labelKey: "nav.abstracts" });
   items.push({ href: "/venue/", labelKey: "nav.venue" });
   if (state.hasCommittee) items.push({ href: "/committee/", labelKey: "nav.committee" });
   items.push({ href: "/sponsors/", labelKey: "nav.sponsors" });

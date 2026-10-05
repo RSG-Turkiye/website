@@ -15,6 +15,7 @@
 import { useTranslations } from "../i18n/ui";
 import { groupByTeam } from "../lib/committee";
 import type { CommitteeMember } from "../lib/content";
+import { drivePhotoUrl } from "../lib/photo-url";
 
 interface Props {
   lang: "en" | "tr";
@@ -49,7 +50,7 @@ const showHeadings = teams.length > 1 || teams[0]?.label != null;
             {team.members.map((m) => (
               <div class="bg-white rounded-xl border border-border p-5 text-center">
                 {m.photo && (
-                  <img src={m.photo} alt={m.name} loading="lazy"
+                  <img src={drivePhotoUrl(m.photo)} alt={m.name} loading="lazy"
                        class="w-24 h-24 rounded-full object-cover mx-auto mb-3" />
                 )}
                 <h3 class="font-semibold text-navy">{m.name}</h3>

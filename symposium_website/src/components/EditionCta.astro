@@ -5,8 +5,13 @@ const now = new Date();
 import { ctaState, openCtas, pendingCtas, type EditionLike } from "../lib/editions";
 import { useTranslations, type Lang } from "../i18n/ui";
 
-interface Props { edition: EditionLike; lang: Lang }
-const { edition, lang } = Astro.props;
+/**
+ * `guidelinesHref` is null when no guidelines have been written for this
+ * edition. Passed in rather than looked up here: this component is given an
+ * edition-shaped object, not a collection entry, so it cannot ask.
+ */
+interface Props { edition: EditionLike; lang: Lang; guidelinesHref?: string | null }
+const { edition, lang, guidelinesHref = null } = Astro.props;
 const t = useTranslations(lang);
 // Three states, not two -- see ctaState. Deciding it there rather than here
 // means the choice is testable without rendering a page.
@@ -50,5 +55,19 @@ const locale = lang === "tr" ? "tr-TR" : "en-GB";
         {t(kind === "registration" ? "cta.register.soon" : "cta.abstract.soon")}
       </p>
     ))}
+    {/*
+      The abstract button opens a form directly, so without this the only
+      route to the word limit, the PDF requirements and the one-submission
+      rule is the nav. Somebody who came to submit reads none of it and
+      submits wrong. Shown whenever guidelines exist, including before the
+      form opens: knowing what to prepare is useful earlier, not later.
+    */}
+    {guidelinesHref && (
+      <p class="text-white/70 text-sm mt-2">
+        <a href={guidelinesHref} class="underline hover:text-white transition-colors">
+          {t("cta.guidelines")}
+        </a>
+      </p>
+    )}
   </Fragment>
 )}

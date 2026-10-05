@@ -38,6 +38,9 @@ const MAP_INTERACTIVE = "https://harita.metu.edu.tr/";
  * position are taken from rather than from a description of the campus that
  * nobody here can check. */
 const HALL_ON_MAP = "https://harita.metu.edu.tr/yer/243/fizik-bolumu-uclu-amfi";
+/** Weekend ring hours differ from weekday ones, so link the live timetable
+ * rather than copy hours that will be stale by the next term. */
+const RING = `https://tim.metu.edu.tr/${lang === "tr" ? "tr" : "en"}/ring-services`;
 
 const directions = [
   { key: "metro", icon: "M" },
@@ -137,6 +140,7 @@ const directions = [
           {[
             [HALL_ON_MAP, t("venue.directions.hallOnMap")],
             [MAP_INTERACTIVE, t("venue.directions.interactiveMap")],
+            [RING, t("venue.directions.ring")],
             [MAP_PDF, t("venue.directions.map")],
             [OFFICIAL, t("venue.directions.official")],
           ].map(([href, label]) => (

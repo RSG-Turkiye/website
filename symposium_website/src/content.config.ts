@@ -124,4 +124,25 @@ const editionsTr = defineCollection({
   schema: z.object({ year: z.number() }),
 });
 
-export const collections = { editions, speakers, sessions, committee, editionsTr };
+/**
+ * The abstract and poster guidelines, keyed by year, in the same shape as the
+ * edition bodies: prose in markdown, and a second collection for the Turkish
+ * translation rather than a `tr/` folder inside the first.
+ *
+ * Deliberately carries no dates. The deadline and the symposium's own dates
+ * are printed above the prose from the edition and the CMS overlay, so
+ * changing a deadline in the admin panel changes this page too. Typing a date
+ * into the prose is how the organisers' own document came to disagree with
+ * the site about when abstracts were due.
+ */
+const guidelines = defineCollection({
+  loader: glob({ pattern: "*.md", base: "./src/content/guidelines" }),
+  schema: z.object({ year: z.number() }),
+});
+
+const guidelinesTr = defineCollection({
+  loader: glob({ pattern: "*.md", base: "./src/content/guidelines-tr" }),
+  schema: z.object({ year: z.number() }),
+});
+
+export const collections = { editions, speakers, sessions, committee, editionsTr, guidelines, guidelinesTr };

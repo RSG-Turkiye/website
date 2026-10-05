@@ -7,6 +7,7 @@
 import { slugify } from './slug';
 import type { Env } from './auth';
 import { parseHttpUrl } from './url';
+import { drivePhotoUrl } from './photo-url';
 
 // The D1 row shapes, mirroring Task 2's CREATE TABLE statements exactly.
 export interface SpeakerRow { id: string; slug: string; year: number; name: string; position: string; company: string; bio: string; photo: string; linkedin: string; sort: number }
@@ -564,7 +565,7 @@ export function rowFromInput(
         position: speaker.position ?? '',
         company: speaker.company ?? '',
         bio: speaker.bio ?? '',
-        photo: parseHttpUrl(speaker.photo, 'speaker photo URL'),
+        photo: drivePhotoUrl(parseHttpUrl(speaker.photo, 'speaker photo URL')),
         linkedin: parseHttpUrl(speaker.linkedin, 'speaker LinkedIn URL'),
       };
     }
@@ -594,7 +595,7 @@ export function rowFromInput(
         role: committee.role ?? '',
         role_tr: committee.roleTr ?? '',
         affiliation: committee.affiliation ?? '',
-        photo: parseHttpUrl(committee.photo, 'committee member photo URL'),
+        photo: drivePhotoUrl(parseHttpUrl(committee.photo, 'committee member photo URL')),
         linkedin: parseHttpUrl(committee.linkedin, 'committee member LinkedIn URL'),
         teams: JSON.stringify(normaliseTeams(committee.teams, committee.teamsTr)),
       };

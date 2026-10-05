@@ -67,3 +67,18 @@ test('every interface string exists in both languages', () => {
   assert.deepEqual(missingTr, [], 'these keys have no Turkish translation');
   assert.deepEqual(missingEn, [], 'these keys exist only in Turkish');
 });
+
+test('every guidelines page has a Turkish body', () => {
+  // The page falls back to the English prose when a translation is missing,
+  // which keeps it working and makes the gap invisible. This is what makes it
+  // visible, the same way the edition bodies are guarded above.
+  const en = years('src/content/guidelines');
+  const tr = years('src/content/guidelines-tr');
+  assert.deepEqual(en.filter((y) => !tr.includes(y)), [], 'guidelines with no Turkish body');
+});
+
+test('no Turkish guidelines are left behind for a year that has none in English', () => {
+  const en = years('src/content/guidelines');
+  const tr = years('src/content/guidelines-tr');
+  assert.deepEqual(tr.filter((y) => !en.includes(y)), []);
+});

@@ -10,7 +10,7 @@ import EventJsonLd from "../components/EventJsonLd.astro";
 import { useTranslations, useFormat, getLangFromUrl } from "../i18n/ui";
 import { getSponsorsByEdition } from "../data/sponsors";
 import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
-import { hasHappened, locationFor, titleFor, subtitleFor, symposiumsHeld , nextEditionHint, ordinalLabel } from "../lib/editions";
+import { hasHappened, locationFor, titleFor, subtitleFor, symposiumsHeld , nextEditionHint, ordinalLabel, dateFor } from "../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 import AnnouncementBanner from "../components/AnnouncementBanner.astro";
 
@@ -42,6 +42,11 @@ const nextUp = nextEditionHint((await getCollection("editions")).map((e) => e.da
 // first one is added. Who has sponsored before is on /sponsors, labelled.
 const currentSponsors = getSponsorsByEdition(upcoming?.data.year ?? new Date().getFullYear());
 const effectiveEdition = upcoming ? withOverlayContent(upcoming.data, upcomingContent) : null;
+// Null unless this edition has guidelines written for it, which is what
+// decides whether the hero offers a link to them. Same rule as the nav item.
+const guidelinesHref = upcoming && (await getCollection("guidelines")).some((g) => g.data.year === upcoming.data.year)
+  ? `${prefix}/abstracts/`
+  : null;
 const heading = upcoming ? titleFor(upcoming.data, lang) : "";
 const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
 const place = effectiveEdition ? locationFor(effectiveEdition, now, lang) : { kind: "hidden" as const };
@@ -73,9 +78,12 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
           <h1 class="text-4xl sm:text-5xl font-bold leading-tight">{heading}</h1>
           {theme && <p class="text-lg text-white/80 leading-relaxed">{theme}</p>}
           <p class="text-white/90 font-medium">
-            {upcoming.data.startDate?.toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB", {
-              day: "numeric", month: "long", year: "numeric",
-            })}
+            {/* dateFor, not a format of startDate alone. Formatting the start
+                date made every multi-day edition read as a single day here,
+                on the most visited page, while /editions, /about and /venue
+                printed the real span from the same file. The hand-written
+                string is the one place a range is expressed. */}
+            {dateFor(upcoming.data, lang)}
             {place.kind === "full" && ` · ${place.venue}, ${place.city}`}
             {place.kind === "withheld" && ` · ${place.city} · ${t("venue.tba")}`}
             {place.kind === "city-only" && ` · ${place.city}`}
@@ -120,7 +128,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
               )}
             </Fragment>
           ) : (
-            <EditionCta edition={effectiveEdition!} lang={lang} />
+            <EditionCta edition={effectiveEdition!} lang={lang} guidelinesHref={guidelinesHref} />
           )}
         </Fragment>
       ) : (

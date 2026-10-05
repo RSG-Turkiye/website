@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { navItemsFor } from '../src/lib/nav';
 
-const EMPTY = { hasSchedule: false, hasSpeakers: false, hasCommittee: false };
-const FULL = { hasSchedule: true, hasSpeakers: true, hasCommittee: true };
+const EMPTY = { hasSchedule: false, hasSpeakers: false, hasCommittee: false, hasGuidelines: false };
+const FULL = { hasSchedule: true, hasSpeakers: true, hasCommittee: true, hasGuidelines: true };
 
 test('home, editions, venue and sponsors are always offered', () => {
   const hrefs = navItemsFor(EMPTY, 'en').map(i => i.href);
@@ -52,8 +52,31 @@ test('schedule and speakers are reachable once filled -- they are built either w
  * checks it stayed that way.
  */
 test('a page carrying only past editions is still linked', () => {
-  const archiveOnly = { hasSchedule: false, hasSpeakers: true, hasCommittee: false };
+  const archiveOnly = { ...EMPTY, hasSpeakers: true };
   const hrefs = navItemsFor(archiveOnly, 'en').map(i => i.href);
   assert.ok(hrefs.includes('/speakers/'), 'speakers has three editions on it and must be reachable');
   assert.ok(!hrefs.includes('/schedule/'), 'schedule is current-edition only and has nothing');
+});
+
+test('/abstracts is not linked until guidelines are written', () => {
+  const hrefs = navItemsFor(EMPTY, 'en').map(i => i.href);
+  assert.ok(!hrefs.includes('/abstracts/'));
+});
+
+test('/abstracts appears on its own once they are', () => {
+  const hrefs = navItemsFor({ ...EMPTY, hasGuidelines: true }, 'en').map(i => i.href);
+  assert.ok(hrefs.includes('/abstracts/'));
+});
+
+test('/abstracts comes before /venue', () => {
+  // Somebody deciding whether to submit reads the guidelines, and they do
+  // that before they care where the building is.
+  const hrefs = navItemsFor(FULL, 'en').map(i => i.href);
+  assert.ok(hrefs.indexOf('/abstracts/') < hrefs.indexOf('/venue/'));
+});
+
+test('the Turkish nav prefixes it too', () => {
+  const hrefs = navItemsFor(FULL, 'tr').map(i => i.href);
+  assert.ok(hrefs.includes('/tr/abstracts/'));
+  assert.ok(!hrefs.includes('/abstracts/'));
 });
