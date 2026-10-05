@@ -9,6 +9,32 @@
       "bio": "Prof. Dr. Tunca Doğan, lisans ve yüksek lisans eğitimini Orta Doğu Teknik Üniversitesi, Mühendislik Fakültesi’nde gerçekleştirmiştir. Ardından biyoenformatik alanında araştırmalar gerçekleştirdiği doktora sürecini İzmir Yüksek Teknoloji Enstitüsü’nde 2013 yılında tamamlamıştır. Doktora sonrası araştırmalarını İngiltere’de Cambridge Üniversitesi’nde ve Avrupa Biyoenformatik Enstitüsü'nde gerçekleştirmiştir. 2016-2019 yılları arasında ODTÜ Enformatik Enstitüsü’nde araştırma grup lideri ve konuk öğretim üyesi olarak çalışmıştır. 2019 yılında Hacettepe Üniversitesi’nde öğretim üyesi olarak göreve başlayan Dr. Doğan, halen Bilgisayar Mühendisliği Bölümü’nde görev yapmaktadır ve Hacettepe Biyolojik Veri Bilimi Laboratuvarı'nı yönetmektedir. Ekibiyle birlikte, bilim için yapay zeka, biyoenformatik, ve kemoenformatik alanlarında bilimsel araştırmalar gerçekleştirmektedir. Bu kapsamda, geniş çaplı heterojen biyolojik veri entegrasyonu, yeni ilaç adayı moleküllerin keşfedilmesi ve tasarlanması, ve biyomoleküllerin işlevlerinin tahmin edilmesi amaçlarıyla veri bilimi ve derin öğrenme odaklı yöntemler ve araçlar geliştirmekte ve bunları bilim dünyasının kullanımına sunmaktadır. Son üç yıldır yoğun olarak üretken yapay zekâ, temsil öğrenmesi ve dil modelleri üzerinde çalışmaktadır. Bilim Akademisi Genç Bilim İnsanı Ödülü (BAGEP), Türkiye Sağlık Enstitüleri Araştırma Teşvik Ödülü, ODTÜ Parlar Vakfı Araştırma Teşvik Ödülü, Hacettepe Araştırma Teşvik Ödülü ve IBG Bilim Madalyası gibi prestijli bilim ödüllerinin sahibidir.",
       "photo": "https://drive.google.com/file/d/1CobUlVv3wmcPikRfqmct_yJPaKrqTdJH/view?usp=sharing",
       "linkedin": "https://www.linkedin.com/in/tuncadogan/"
+    },
+    {
+      "slug": "atakan-ekiz",
+      "name": "Atakan Ekiz",
+      "position": "Dr. Öğretim Üyesi",
+      "company": "İzmir Yüksek Teknoloji Enstitüsü",
+      "bio": "İzmir Yüksek Teknoloji Enstitüsü (İYTE) Moleküler Biyoloji ve Genetik Bölümü’nde öğretim üyesidir. Aynı zamanda Sürdürülebilir Kalkınma İçin Biyoteknoloji ve İnovasyon UNESCO Kürsüsü bünyesinde çalışmalar yürütmektedir.\n\nLisans derecesini İYTE Moleküler Biyoloji ve Genetik Bölümü’nde tamamladıktan sonra, doktora çalışmalarını Fulbright bursuyla gittiği University of Utah / Huntsman Cancer Institute Onkolojik Bilimler programında bitirmiştir. Doktora sonrası araştırmalarını aynı üniversitenin Patoloji Departmanı’nda gerçekleştirmiştir.\nDr. Ekiz’in araştırmaları;\nTümör immünolojisi ve kanser immünoterapisi,\nKodlama yapmayan RNA’ların (miRNA, lncRNA) bağışıklık sistemi ve kanserdeki rolleri,\nYüksek verili transkriptomik veri analizleri ve açık erişimli biyoinformatik araçların geliştirilmesi (TCGEx, CIPR) üzerine odaklanmaktadır.\nAraştırma projeleri EMBO Yerleşim Desteği (Installation Grant) ve TÜBİTAK tarafından desteklenen Dr. Ekiz; BAGEP ve TÜBA-GEBİP ödülleri sahibidir.",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/d7df492c-83dd-493c-be0f-c92aeb238724.jpg",
+      "linkedin": "https://www.linkedin.com/in/atakanekiz/"
+    },
+    {
+      "slug": "melike-donertas",
+      "name": "Melike Dönertaş",
+      "position": "Dr. Öğr. Üyesi",
+      "company": "Orta Doğu Teknik Üniversitesi",
+      "bio": "Melike Dönertaş completed her BSc in Molecular Biology and Genetics at Middle East Technical University (METU), and her master's on the computational biology of ageing, also at METU. She did her PhD on ageing and age-related diseases with Prof. Dame Janet Thornton at the University of Cambridge and the European Bioinformatics Institute (EMBL-EBI). She continued her postdoctoral research at the Max Planck Institute for Biology of Ageing in Cologne and, as an EMBO Fellow, at the Leibniz Institute on Aging (FLI) in Jena, where she then founded her own research group with the support of the Carl Zeiss Foundation. In 2026 she joined the Department of Health Informatics at METU's Graduate School of Informatics as a faculty member, where she leads the Computational Biology of Ageing group; she continues her work at FLI as an Associate Group Leader. With her group, she studies why ageing happens, how it can be measured and how it might be slowed. Bringing together large-scale human data, multi-omics and machine learning, she follows ageing across scales: from cells losing their identity and the gut microbiome of the short-lived turquoise killifish, to proteomic clocks and the shared genetics of age-related diseases in UK Biobank, and the evolution of ageing. Her work has appeared in leading journals of the field, including Nature Aging, Nature Reviews Genetics, Nature Communications, eLife and Aging Cell, and two of her Nature Aging papers (2021 and 2026) were featured on the journal's cover. She was awarded EMBO and Marie Skłodowska-Curie (MSCA) postdoctoral fellowships, and has been a Principal Investigator in the DFG Collaborative Research Centre \"Predictability in Evolution\" (CRC 1310) and an Associated PI in the Cluster of Excellence \"Balance of the Microverse\". She returned to Türkiye with the support of the TÜBİTAK 2232-A International Fellowship for Outstanding Researchers Programme. She chaired RSG-Türkiye in 2017-2018 and the ISCB Global Student Council in 2022.",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/5b6808e2-6d5a-46c4-ac3c-2482383b62e1.jpg",
+      "linkedin": "https://www.linkedin.com/in/melikedonertas/"
+    },
+    {
+      "slug": "burcak-otlu",
+      "name": "Burçak Otlu",
+      "position": "Dr. Öğr. Üyesi",
+      "company": "Orta Doğu Teknik Üniversitesi",
+      "bio": "ODTÜ Enformatik Enstitüsü Sağlık Bilişimi Bölümü'nde öğretim üyesidir.\n\nLisans, yüksek lisans ve doktora derecelerini ODTÜ Bilgisayar Mühendisliği Bölümü'nde tamamlamıştır. Doktora sonrası araştırmalarını University of California San Diego (UCSD)'de Prof. Dr. Ludmil Alexandrov'un laboratuvarında mutasyon imzaları üzerine gerçekleştirmiştir.\n\nDr. Otlu'nun araştırmaları; Kanser genomiği ve mutasyonel imzalar, Mutasyonel süreçlerin genom topografisi ve epigenomik özelliklerle ilişkisi,\nHesaplamalı biyolojide makine öğrenmesi ve derin öğrenme yöntemleri, Açık erişimli biyoinformatik araçların geliştirilmesi (SigProfilerTopography) üzerine odaklanmaktadır.\n\nODTÜ tarafından desteklenen AGEP ve ADEP projelerinin yürütücüsü, Avrupa Birliği tarafından desteklenen EU-DEP SUSA projesinin ise Türkiye yürütücüsüdür.",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/851fc37b-b3dd-448e-b5f9-22c325c0447d.jpg"
     }
   ]
 }
