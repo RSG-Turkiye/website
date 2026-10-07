@@ -72,7 +72,7 @@ async function fetchOverlayRows(year: number, env: Env) {
        FROM symposium_speakers WHERE year = ? ORDER BY sort, id`
     ).bind(year).all<SpeakerRow>(),
     env.DB.prepare(
-      `SELECT id, slug, year, title, type, time, end_time, description, speaker_slugs, sort
+      `SELECT id, slug, year, title, type, time, end_time, description, speaker_slugs, day, title_tr, description_tr, sort
        FROM symposium_sessions WHERE year = ? ORDER BY sort, id`
     ).bind(year).all<SessionRow>(),
     env.DB.prepare(

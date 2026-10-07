@@ -55,7 +55,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
        FROM symposium_speakers WHERE year = ? ORDER BY sort, id`
     ).bind(edition.year).all<SpeakerRow>(),
     env.DB.prepare(
-      `SELECT id, slug, year, title, type, time, end_time, description, speaker_slugs, sort
+      `SELECT id, slug, year, title, type, time, end_time, description, speaker_slugs, day, title_tr, description_tr, sort
        FROM symposium_sessions WHERE year = ? ORDER BY sort, id`
     ).bind(edition.year).all<SessionRow>(),
     env.DB.prepare(
