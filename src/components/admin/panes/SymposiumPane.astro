@@ -183,6 +183,8 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
         <input type="hidden" id="symSessionEditId" value="" />
         <input id="symSessionTitle" type="text" required placeholder={t('admin.symposium.sessions.form.titlePlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        <input id="symSessionTitleTr" type="text" placeholder={t('admin.symposium.sessions.form.titleTrPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <input id="symSessionSlug" type="text" placeholder={t('admin.symposium.sessions.form.slugPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         <label class="flex flex-col gap-1 text-sm text-gray-600">
@@ -194,6 +196,13 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
             ))}
           </select>
         </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.sessions.form.dayLabel')}
+          <select id="symSessionDay"
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
+            {[1, 2, 3, 4, 5].map((d) => <option value={d}>{d}</option>)}
+          </select>
+        </label>
         <div class="grid grid-cols-2 gap-3">
           <input id="symSessionTime" type="text" placeholder={t('admin.symposium.sessions.form.timePlaceholder')}
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 tabular-nums focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
@@ -201,6 +210,8 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 tabular-nums focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         </div>
         <textarea id="symSessionDescription" rows="2" placeholder={t('admin.symposium.sessions.form.descriptionPlaceholder')}
+          class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2"></textarea>
+        <textarea id="symSessionDescriptionTr" rows="2" placeholder={t('admin.symposium.sessions.form.descriptionTrPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2"></textarea>
         <label class="flex flex-col gap-1 text-sm text-gray-600 sm:col-span-2">
           {t('admin.symposium.sessions.form.speakersLabel')}
@@ -225,6 +236,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <tr class="border-b border-border bg-[#F7F7F6]">
             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.title')}</th>
             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.type')}</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.day')}</th>
             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.time')}</th>
             <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
           </tr>

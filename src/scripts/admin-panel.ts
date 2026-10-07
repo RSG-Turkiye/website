@@ -1232,6 +1232,7 @@ function setupSpeakerForm(): void {
 interface SessionItem {
   id: string; sort: number; slug: string; title: string; type: string;
   time: string; endTime: string; description: string; speakerSlugs: string[];
+  day: number; titleTr: string; descriptionTr: string;
 }
 
 function sessionTypeLabel(type: string): string {
@@ -1253,6 +1254,7 @@ function renderSessions(items: SessionItem[]): void {
     <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
       <td class="px-5 py-4 text-navy font-medium">${escapeHtml(s.title)}</td>
       <td class="px-5 py-4 text-gray-500">${escapeHtml(sessionTypeLabel(s.type))}</td>
+      <td class="px-5 py-4 text-gray-500 tabular-nums">${s.day ?? 1}</td>
       <td class="px-5 py-4 text-gray-500 tabular-nums">${escapeHtml(s.time)}${s.endTime ? '–' + escapeHtml(s.endTime) : ''}</td>
       <td class="px-5 py-4 text-right">
         <button data-id="${s.id}" class="edit-session-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.sessions.edit')}</button>
@@ -1267,11 +1269,14 @@ function renderSessions(items: SessionItem[]): void {
       if (!item) return;
       (document.getElementById('symSessionEditId') as HTMLInputElement).value = item.id;
       (document.getElementById('symSessionTitle') as HTMLInputElement).value = item.title;
+      (document.getElementById('symSessionTitleTr') as HTMLInputElement).value = item.titleTr ?? '';
       (document.getElementById('symSessionSlug') as HTMLInputElement).value = item.slug;
       (document.getElementById('symSessionType') as unknown as HTMLSelectElement).value = item.type;
       (document.getElementById('symSessionTime') as HTMLInputElement).value = item.time;
       (document.getElementById('symSessionEndTime') as HTMLInputElement).value = item.endTime;
       (document.getElementById('symSessionDescription') as HTMLTextAreaElement).value = item.description;
+      (document.getElementById('symSessionDescriptionTr') as HTMLTextAreaElement).value = item.descriptionTr ?? '';
+      (document.getElementById('symSessionDay') as unknown as HTMLSelectElement).value = String(item.day ?? 1);
       const select = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
       Array.from(select.options).forEach((o) => { o.selected = item.speakerSlugs.includes(o.value); });
       document.getElementById('symSessionCancelBtn')!.classList.remove('hidden');
@@ -1324,6 +1329,9 @@ function setupSessionForm(): void {
       time: (document.getElementById('symSessionTime') as HTMLInputElement).value,
       endTime: (document.getElementById('symSessionEndTime') as HTMLInputElement).value,
       description: (document.getElementById('symSessionDescription') as HTMLTextAreaElement).value,
+      titleTr: (document.getElementById('symSessionTitleTr') as HTMLInputElement).value,
+      descriptionTr: (document.getElementById('symSessionDescriptionTr') as HTMLTextAreaElement).value,
+      day: Number((document.getElementById('symSessionDay') as unknown as HTMLSelectElement).value),
       speakerSlugs: Array.from(speakersSelect.selectedOptions).map((o) => o.value),
     };
 
