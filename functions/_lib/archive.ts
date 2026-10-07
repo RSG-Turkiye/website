@@ -89,11 +89,14 @@ function sessionToJson(s: OverlaySession) {
   return {
     slug: s.slug,
     title: s.title,
+    titleTr: orAbsent(s.titleTr),
     type: s.type,
     speakerSlugs: s.speakerSlugs,
     description: s.description,
+    descriptionTr: orAbsent(s.descriptionTr),
     time: s.time,
     endTime: orAbsent(s.endTime),
+    day: s.day,
     order: s.order,
   };
 }
