@@ -54,16 +54,16 @@ const isBreak = session.type === "break";
     {
       session.time ? (
         <div class="flex items-baseline gap-2">
-          <span class="text-xs font-medium text-gray-500 shrink-0">
+          <span class="text-xs font-medium text-gray-600 shrink-0">
             {session.time}
             {session.endTime && `–${session.endTime}`}
           </span>
-          <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-500" : "text-navy"]}>
+          <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-600" : "text-navy"]}>
             {text.title}
           </p>
         </div>
       ) : (
-        <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-500" : "text-navy"]}>
+        <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-600" : "text-navy"]}>
           {text.title}
         </p>
       )
