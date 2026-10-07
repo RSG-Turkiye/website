@@ -3,7 +3,7 @@
 const now = new Date();
 
 import BaseLayout from "../layouts/BaseLayout.astro";
-import SessionRow from "../components/SessionRow.astro";
+import ScheduleDays from "../components/ScheduleDays.astro";
 import { useTranslations, getLangFromUrl } from "../i18n/ui";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 import { getCurrentEdition } from "../lib/editions-content";
@@ -74,12 +74,11 @@ const scheduleSpeakers = content?.speakers ?? [];
                   </>
                 );
               })()}
+              <p class="text-sm text-gray-600 mt-1">{t("schedule.language")}</p>
             </div>
 
-            <!-- Sessions list -->
-            <div class="p-4 space-y-2">
-              {sessions.map((session) => <SessionRow session={session} speakers={scheduleSpeakers} />)}
-            </div>
+            <!-- Sessions list, grouped by day -->
+            <ScheduleDays sessions={sessions} speakers={scheduleSpeakers} startDate={edition.data.startDate} />
           </div>
 
           <p class="text-xs text-gray-500 text-center mt-4">
