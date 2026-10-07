@@ -1276,7 +1276,7 @@ function renderSessions(items: SessionItem[]): void {
       (document.getElementById('symSessionEndTime') as HTMLInputElement).value = item.endTime;
       (document.getElementById('symSessionDescription') as HTMLTextAreaElement).value = item.description;
       (document.getElementById('symSessionDescriptionTr') as HTMLTextAreaElement).value = item.descriptionTr ?? '';
-      (document.getElementById('symSessionDay') as unknown as HTMLSelectElement).value = String(item.day ?? 1);
+      (document.getElementById('symSessionDay') as HTMLInputElement).value = String(item.day ?? 1);
       const select = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
       Array.from(select.options).forEach((o) => { o.selected = item.speakerSlugs.includes(o.value); });
       document.getElementById('symSessionCancelBtn')!.classList.remove('hidden');
@@ -1331,7 +1331,7 @@ function setupSessionForm(): void {
       description: (document.getElementById('symSessionDescription') as HTMLTextAreaElement).value,
       titleTr: (document.getElementById('symSessionTitleTr') as HTMLInputElement).value,
       descriptionTr: (document.getElementById('symSessionDescriptionTr') as HTMLTextAreaElement).value,
-      day: Number((document.getElementById('symSessionDay') as unknown as HTMLSelectElement).value),
+      day: Number((document.getElementById('symSessionDay') as HTMLInputElement).value),
       speakerSlugs: Array.from(speakersSelect.selectedOptions).map((o) => o.value),
     };
 

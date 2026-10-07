@@ -198,10 +198,8 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
         </label>
         <label class="flex flex-col gap-1 text-sm text-gray-600">
           {t('admin.symposium.sessions.form.dayLabel')}
-          <select id="symSessionDay"
-            class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
-            {[1, 2, 3, 4, 5].map((d) => <option value={d}>{d}</option>)}
-          </select>
+          <input id="symSessionDay" type="number" min="1" step="1" value="1" required
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 tabular-nums focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         </label>
         <div class="grid grid-cols-2 gap-3">
           <input id="symSessionTime" type="text" placeholder={t('admin.symposium.sessions.form.timePlaceholder')}
