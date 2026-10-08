@@ -51,3 +51,9 @@ test('paths are matched with or without a trailing slash', () => {
   assert.equal(isNoindexPath('/admin/'), true);
   assert.equal(isNoindexPath('/tr/admin'), true);
 });
+
+test('the opportunity board stays out of the index until launch', () => {
+  for (const path of ['/opportunities/', '/tr/firsatlar/', '/tr/firsatlar']) {
+    assert.equal(isNoindexPath(path), true, path + ' must be noindex until launch');
+  }
+});

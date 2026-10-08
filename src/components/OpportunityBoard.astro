@@ -16,16 +16,25 @@ const { lang } = Astro.props;
 const t = useTranslations(lang);
 const prefix = lang === 'tr' ? '/tr' : '';
 const groups = ['funding', 'positions', 'learning', 'events'] as const;
+const levels = ['undergrad', 'msc', 'phd'] as const;
 ---
 
 <section class="bg-white py-12">
   <div class="max-w-4xl mx-auto px-4 sm:px-6">
-    <div id="oppFilters" class="flex flex-wrap gap-2 mb-8" role="group">
+    <div id="oppFilters" class="flex flex-wrap gap-2 mb-3" role="group">
       <button type="button" data-group="all" aria-pressed="true"
         class="opp-filter px-3 py-1.5 rounded border border-navy text-sm font-medium">{t('opps.filter.all')}</button>
       {groups.map((g) => (
         <button type="button" data-group={g} aria-pressed="false"
           class="opp-filter px-3 py-1.5 rounded border border-navy text-sm font-medium">{t(`opps.filter.${g}`)}</button>
+      ))}
+    </div>
+    <div id="oppLevels" class="flex flex-wrap gap-2 mb-8" role="group">
+      <button type="button" data-level="all" aria-pressed="true"
+        class="opp-level px-3 py-1.5 rounded border border-navy text-sm font-medium">{t('opps.level.all')}</button>
+      {levels.map((l) => (
+        <button type="button" data-level={l} aria-pressed="false"
+          class="opp-level px-3 py-1.5 rounded border border-navy text-sm font-medium">{t(`opps.level.${l}`)}</button>
       ))}
     </div>
 
@@ -37,6 +46,9 @@ const groups = ['funding', 'positions', 'learning', 'events'] as const;
     <noscript><p><a href="/api/opportunities/rss.xml" class="text-navy underline">RSS</a></p></noscript>
 
     <p class="text-sm text-gray-600 mt-8">
+      <a href="/api/opportunities/rss.xml" class="text-navy underline">{t('opps.rss')}</a>
+    </p>
+    <p class="text-sm text-gray-600 mt-2">
       <a href={`${prefix}/join/`} class="text-navy underline">{t('opps.slack')}</a>
     </p>
     <p class="text-sm text-gray-600 mt-2">{t('opps.auto')}</p>
@@ -44,14 +56,14 @@ const groups = ['funding', 'positions', 'learning', 'events'] as const;
 </section>
 
 <style>
-  .opp-filter { background: #fff; color: var(--color-navy); }
-  .opp-filter[aria-pressed='true'] { background: var(--color-navy); color: #fff; }
+  .opp-filter, .opp-level { background: #fff; color: var(--color-navy); }
+  .opp-filter[aria-pressed='true'], .opp-level[aria-pressed='true'] { background: var(--color-navy); color: #fff; }
 </style>
 
 <script>
   type Item = {
     url: string; title: string; title_tr: string | null; summary_tr: string | null;
-    type: string; deadline: number | null; online: boolean; cost_note: string | null;
+    type: string; levels?: string[]; deadline: number | null; online: boolean; cost_note: string | null;
   };
   const GROUPS: Record<string, string[]> = {
     funding: ['bursiyer', 'scholarship', 'fellowship'],
@@ -73,8 +85,9 @@ const groups = ['funding', 'positions', 'learning', 'events'] as const;
     return node;
   }
 
-  function render(items: Item[], group: string) {
-    const shown = group === 'all' ? items : items.filter((i) => GROUPS[group]?.includes(i.type));
+  function render(items: Item[], group: string, level: string) {
+    const shown = items.filter((i) =>
+      (group === 'all' || GROUPS[group]?.includes(i.type)) && (level === 'all' || (i.levels ?? []).includes(level)));
     if (shown.length < 1) {
       list.replaceChildren(el('li', 'text-gray-600 py-6', ds.empty));
       return;
@@ -100,11 +113,19 @@ const groups = ['funding', 'positions', 'learning', 'events'] as const;
 
   let items: Item[] = [];
   let group = 'all';
+  let level = 'all';
   document.querySelectorAll<HTMLButtonElement>('.opp-filter').forEach((btn) => {
     btn.addEventListener('click', () => {
       group = btn.dataset.group || 'all';
       document.querySelectorAll('.opp-filter').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-      render(items, group);
+      render(items, group, level);
+    });
+  });
+  document.querySelectorAll<HTMLButtonElement>('.opp-level').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      level = btn.dataset.level || 'all';
+      document.querySelectorAll('.opp-level').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      render(items, group, level);
     });
   });
 
@@ -112,5 +133,5 @@ const groups = ['funding', 'positions', 'learning', 'events'] as const;
     .then((r) => (r.ok ? r.json() : { items: [] }))
     .then((d: { items?: Item[] }) => { items = d.items ?? []; })
     .catch(() => { items = []; })
-    .then(() => render(items, group));
+    .then(() => render(items, group, level));
 </script>

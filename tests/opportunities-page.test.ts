@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ui } from '../src/i18n/ui';
+import { isNoindexPath } from '../src/lib/noindex-routes';
 
 /**
  * The opportunity board's two pages. The list itself is filled in by the
@@ -25,12 +26,23 @@ for (const p of PAGES) {
     const html = readFileSync(join(DIST, p.file), 'utf8');
     assert.match(html, /id="opportunityList"/);
     assert.match(html, /<noscript>[\s\S]*?href="\/api\/opportunities\/rss\.xml"[\s\S]*?<\/noscript>/);
-    assert.match(
-      html,
-      new RegExp(`<link rel="alternate" hreflang="${p.lang === 'en' ? 'tr' : 'en'}" href="https://[^"]+${p.twin.replace(/\//g, '\\/')}"`),
-    );
+    // Pages held out of the index (until launch) carry no hreflang pair: BaseLayout drops it for noindex paths.
+    if (isNoindexPath(p.file.startsWith('tr/') ? '/tr/firsatlar/' : '/opportunities/')) {
+      assert.doesNotMatch(html, /hreflang=/);
+    } else {
+      assert.match(
+        html,
+        new RegExp(`<link rel="alternate" hreflang="${p.lang === 'en' ? 'tr' : 'en'}" href="https://[^"]+${p.twin.replace(/\//g, '\\/')}"`),
+      );
+    }
     assert.ok(html.includes(ui[p.lang]['opps.slack']), 'Slack line missing');
     assert.ok(html.includes(`href="${p.join}"`), `Slack line should link ${p.join}`);
+    assert.match(html, /<link rel="alternate" type="application\/rss\+xml"[^>]*href="\/api\/opportunities\/rss\.xml"/);
+    assert.ok(html.replace(/<noscript>[\s\S]*?<\/noscript>/g, '').includes('href="/api/opportunities/rss.xml" class'), 'visible RSS link missing');
+    for (const l of ['undergrad', 'msc', 'phd']) {
+      assert.ok(html.includes(`data-level="${l}"`), `level filter ${l} missing`);
+    }
+    assert.match(html, /<meta name="robots" content="noindex/);
     for (const g of ['funding', 'positions', 'learning', 'events']) {
       assert.ok(html.includes(`data-group="${g}"`), `filter ${g} missing`);
     }

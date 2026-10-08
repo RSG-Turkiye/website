@@ -9,6 +9,7 @@ const t = useTranslations(lang);
 
 <BaseLayout pageTitle="Fırsatlar - RSG-Türkiye" translationUrl="/opportunities"
   description="Biyoinformatik öğrencileri için burslar, doktora pozisyonları, stajlar, kurslar ve hackathonlar; otomatik olarak toplanır.">
+  <link slot="head" rel="alternate" type="application/rss+xml" title="RSG-Türkiye Fırsatlar RSS" href="/api/opportunities/rss.xml" />
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
       <h1 class="text-3xl font-bold text-white">{t('opps.title')}</h1>

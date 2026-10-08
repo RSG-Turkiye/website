@@ -2,7 +2,14 @@ import type { Env } from '../../../_lib/auth';
 import { getSessionUser, checkCsrf } from '../../../_lib/auth';
 import { verifyRemoval } from '../../../_lib/opportunity';
 
-const page = (body: string) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem">${body}</body>`, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+const page = (body: string) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem">${body}</body>`, {
+  headers: {
+    'Content-Type': 'text/html; charset=utf-8',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy': "frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer',
+  },
+});
 
 // The signed token is its own proof and needs no CSRF check; the admin-session
 // path is cookie-authenticated, so it goes through checkCsrf like other admin POSTs.
@@ -30,7 +37,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const id = String(params.id);
   const who = await authorised(request, env, id, true);
   if (!who) return page('<p>Bu bağlantı geçersiz.</p>');
-  await env.DB.prepare('UPDATE opportunities SET removed_at = ?, removed_by = ? WHERE id = ? AND removed_at IS NULL')
+  const res = await env.DB.prepare('UPDATE opportunities SET removed_at = ?, removed_by = ? WHERE id = ? AND removed_at IS NULL')
     .bind(Math.floor(Date.now() / 1000), who, id).run();
+  if (!res.meta?.changes) return page('<p>Bu ilan zaten kaldırılmış veya bulunamadı.</p>');
   return page('<p>Kaldırıldı. Bir sonraki toplamada geri gelmeyecek.</p>');
 };

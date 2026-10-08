@@ -18,7 +18,10 @@
 // an empty shell with a box in it, and the results are assembled in the
 // browser. There is nothing on it for a crawler to index and nothing a
 // searcher could usefully land on.
-const NOINDEX_PREFIXES = ['/account', '/admin', '/login', '/members', '/search'] as const;
+// /opportunities and /firsatlar (the /tr page) are held back until launch: remove
+// both at launch, see opportunity-collector plan C6 step 6. Listing them here
+// drops them from the sitemap and adds the robots noindex meta in one place.
+const NOINDEX_PREFIXES = ['/account', '/admin', '/login', '/members', '/search', '/opportunities', '/firsatlar'] as const;
 
 /** Strip the /tr language prefix so both copies of a page share one rule. */
 function withoutLangPrefix(pathname: string): string {

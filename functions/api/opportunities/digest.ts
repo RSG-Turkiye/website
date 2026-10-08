@@ -1,7 +1,7 @@
 import type { Env } from '../../_lib/auth';
 import { jsonResponse } from '../../_lib/auth';
 import { signRemoval } from '../../_lib/opportunity';
-import { buildDigest, type DigestItem } from '../../_lib/opportunity-digest';
+import { buildDigest, isDigestSender, type DigestItem } from '../../_lib/opportunity-digest';
 
 const SITE = 'https://rsg-turkiye.iscbsc.org';
 const RECIPIENT = 'turkey.rsg@gmail.com';
@@ -10,6 +10,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const secret = request.headers.get('X-Ingest-Secret');
   if (!env.INGEST_SECRET || secret !== env.INGEST_SECRET) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
   if (!env.OPPORTUNITY_DIGEST_SENDER_ID) return jsonResponse({ error: 'digest sender is not configured', code: 'digest_sender_unset' }, 500);
+
+  const sender = await env.DB.prepare('SELECT is_sender FROM users WHERE id = ?').bind(env.OPPORTUNITY_DIGEST_SENDER_ID).first<{ is_sender: number }>();
+  if (!isDigestSender(sender)) return jsonResponse({ error: 'digest sender is not a mail sender', code: 'digest_sender_not_sender' }, 500);
 
   const now = Math.floor(Date.now() / 1000);
   const items = await env.DB.prepare(
