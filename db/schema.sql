@@ -185,6 +185,11 @@
 --    and confirm on GitHub that each listed pull request actually merged
 --    before running the backfill above.
 --
+-- 8.  The opportunities and opportunity_runs tables below are new and NOT
+--     applied by any deploy step. Run this before deploying the board; every
+--     statement in the file is IF NOT EXISTS, so it is safe to re-run:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql   (adds opportunities + opportunity_runs; every statement is IF NOT EXISTS)
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -635,3 +640,44 @@ CREATE TABLE IF NOT EXISTS symposium_committee (
 -- a different row and keeps its slug.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_speakers_year_slug ON symposium_speakers(year, slug);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_sessions_year_slug ON symposium_sessions(year, slug);
+
+-- Opportunities collected by RSG-Turkiye/opportunity-collector and served on
+-- /opportunities and to the Slack bot. Publish-first: a row is public as soon
+-- as it is ingested with a student level; volunteers remove after the fact.
+-- `removed_at` is final -- ingest never clears it, so a removed item cannot
+-- come back on the next collector run.
+CREATE TABLE IF NOT EXISTS opportunities (
+  id               TEXT PRIMARY KEY,
+  url              TEXT NOT NULL,
+  title            TEXT NOT NULL,
+  title_tr         TEXT NOT NULL DEFAULT '',
+  summary_tr       TEXT NOT NULL DEFAULT '',
+  source           TEXT NOT NULL,
+  type             TEXT NOT NULL,
+  -- JSON array of LEVELS
+  levels           TEXT NOT NULL DEFAULT '[]',
+  deadline         INTEGER,
+  starts_at        INTEGER,
+  country          TEXT NOT NULL DEFAULT '',
+  online           INTEGER NOT NULL DEFAULT 0,
+  cost_note        TEXT NOT NULL DEFAULT '',
+  eligibility_note TEXT NOT NULL DEFAULT '',
+  visibility       TEXT NOT NULL DEFAULT 'public',
+  first_seen       INTEGER NOT NULL,
+  -- NULL for items that are stored but not student level
+  published_at     INTEGER,
+  expires_at       INTEGER NOT NULL,
+  removed_at       INTEGER,
+  removed_by       TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_opportunities_url ON opportunities(url);
+CREATE INDEX IF NOT EXISTS idx_opportunities_live ON opportunities(published_at, expires_at);
+
+-- One row per collector run, for the health table in the weekly digest.
+CREATE TABLE IF NOT EXISTS opportunity_runs (
+  id          TEXT PRIMARY KEY,
+  started_at  INTEGER NOT NULL,
+  finished_at INTEGER NOT NULL,
+  -- JSON object: { "<adapter>": { "fetched": n, "ingested": n, "error": "..." } }
+  sources     TEXT NOT NULL DEFAULT '{}'
+);

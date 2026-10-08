@@ -16,6 +16,9 @@ export interface Env {
    * see functions/api/admin/symposium/archive.ts, gated the same way
    * MAIL_SYNC_SECRET gates /api/mail/dispatch. */
   SYMPOSIUM_ARCHIVE_SECRET: string;
+  /** Shared secret for the opportunity collector (X-Ingest-Secret); also keys the signed removal links. */
+  INGEST_SECRET: string;
+  OPPORTUNITY_DIGEST_SENDER_ID: string;
 }
 
 export interface User {
