@@ -7,6 +7,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.INGEST_SECRET || secret !== env.INGEST_SECRET) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
   let body: { items?: unknown[] };
   try { body = await request.json(); } catch { return jsonResponse({ error: 'invalid JSON', code: 'bad_request' }, 400); }
+  if (!body || typeof body !== 'object') return jsonResponse({ error: 'body must be an object', code: 'bad_request' }, 400);
   const items = Array.isArray(body.items) ? body.items.slice(0, 200) : [];
   const now = Math.floor(Date.now() / 1000);
   const rejected: { index: number; error: string }[] = [];
