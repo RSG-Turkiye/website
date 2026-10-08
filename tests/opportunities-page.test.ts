@@ -44,7 +44,7 @@ test('both languages define every opps key', () => {
 });
 
 test('the page script never uses innerHTML, because titles come from other sites', () => {
-  for (const f of ['pages/opportunities.astro', 'pages/tr/firsatlar.astro']) {
+  for (const f of ['pages/opportunities.astro', 'pages/tr/firsatlar.astro', 'components/OpportunityBoard.astro']) {
     assert.ok(!/innerHTML|insertAdjacentHTML|set:html/.test(readFileSync(join(SRC, f), 'utf8')), f);
   }
 });
