@@ -1,0 +1,116 @@
+---
+/**
+ * The opportunity board's body, shared by /opportunities and /tr/firsatlar.
+ *
+ * The list is filled in by the browser from /api/opportunities, so the page
+ * stays static. Every node is built with createElement and textContent: titles
+ * and summaries come from other people's websites and are never parsed as HTML.
+ */
+import { useTranslations } from '../i18n/ui';
+
+interface Props {
+  lang: 'en' | 'tr';
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const prefix = lang === 'tr' ? '/tr' : '';
+const groups = ['funding', 'positions', 'learning', 'events'] as const;
+---
+
+<section class="bg-white py-12">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6">
+    <div id="oppFilters" class="flex flex-wrap gap-2 mb-8" role="group">
+      <button type="button" data-group="all" aria-pressed="true"
+        class="opp-filter px-3 py-1.5 rounded border border-navy text-sm font-medium">{t('opps.filter.all')}</button>
+      {groups.map((g) => (
+        <button type="button" data-group={g} aria-pressed="false"
+          class="opp-filter px-3 py-1.5 rounded border border-navy text-sm font-medium">{t(`opps.filter.${g}`)}</button>
+      ))}
+    </div>
+
+    <ul id="opportunityList" class="flex flex-col list-none p-0 m-0"
+      data-lang={lang}
+      data-deadline={t('opps.deadline')}
+      data-online={t('opps.online')}
+      data-empty={t('opps.empty')}></ul>
+    <noscript><p><a href="/api/opportunities/rss.xml" class="text-navy underline">RSS</a></p></noscript>
+
+    <p class="text-sm text-gray-600 mt-8">
+      <a href={`${prefix}/join/`} class="text-navy underline">{t('opps.slack')}</a>
+    </p>
+    <p class="text-sm text-gray-600 mt-2">{t('opps.auto')}</p>
+  </div>
+</section>
+
+<style>
+  .opp-filter { background: #fff; color: var(--color-navy); }
+  .opp-filter[aria-pressed='true'] { background: var(--color-navy); color: #fff; }
+</style>
+
+<script>
+  type Item = {
+    url: string; title: string; title_tr: string | null; summary_tr: string | null;
+    type: string; deadline: number | null; online: boolean; cost_note: string | null;
+  };
+  const GROUPS: Record<string, string[]> = {
+    funding: ['bursiyer', 'scholarship', 'fellowship'],
+    positions: ['phd_position', 'internship', 'job'],
+    learning: ['course', 'summer_school'],
+    events: ['hackathon', 'competition', 'event'],
+  };
+
+  const list = document.getElementById('opportunityList') as HTMLUListElement;
+  const ds = list.dataset;
+  const lang = ds.lang === 'tr' ? 'tr' : 'en';
+  const fmt = (s: number) =>
+    new Date(s * 1000).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul' });
+
+  function el(tag: string, cls: string, text?: string): HTMLElement {
+    const node = document.createElement(tag);
+    node.className = cls;
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  function render(items: Item[], group: string) {
+    const shown = group === 'all' ? items : items.filter((i) => GROUPS[group]?.includes(i.type));
+    if (shown.length < 1) {
+      list.replaceChildren(el('li', 'text-gray-600 py-6', ds.empty));
+      return;
+    }
+    list.replaceChildren(...shown.map((item) => {
+      const li = el('li', 'py-5 border-b border-border');
+      const a = document.createElement('a');
+      a.href = item.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.className = 'font-semibold text-navy hover:underline break-words';
+      a.textContent = (lang === 'tr' && item.title_tr) || item.title;
+      li.append(a);
+      if (item.summary_tr) li.append(el('p', 'text-sm text-gray-600 mt-1', item.summary_tr));
+      const meta = el('div', 'flex flex-wrap items-center gap-2 mt-2 text-xs');
+      if (item.deadline) meta.append(el('span', 'font-medium text-navy', `${ds.deadline}: ${fmt(item.deadline)}`));
+      if (item.online) meta.append(el('span', 'px-2 py-0.5 rounded bg-navy-light text-navy-mid font-medium', ds.online));
+      if (item.cost_note) meta.append(el('span', 'text-gray-600', item.cost_note));
+      if (meta.childNodes.length) li.append(meta);
+      return li;
+    }));
+  }
+
+  let items: Item[] = [];
+  let group = 'all';
+  document.querySelectorAll<HTMLButtonElement>('.opp-filter').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      group = btn.dataset.group || 'all';
+      document.querySelectorAll('.opp-filter').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      render(items, group);
+    });
+  });
+
+  fetch('/api/opportunities?limit=200')
+    .then((r) => (r.ok ? r.json() : { items: [] }))
+    .then((d: { items?: Item[] }) => { items = d.items ?? []; })
+    .catch(() => { items = []; })
+    .then(() => render(items, group));
+</script>
