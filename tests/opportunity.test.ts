@@ -78,3 +78,12 @@ test('removal tokens verify only for their own id', async () => {
   assert.equal(await verifyRemoval('id2', t, 'secret'), false);
   assert.equal(await verifyRemoval('id1', t, 'other'), false);
 });
+
+test('a re-ingest that drops the student level unpublishes, and a later one republishes', () => {
+  const d = db();
+  run(d, upsertStatements(base, 100, 'id1'));
+  run(d, upsertStatements({ ...base, levels: ['postdoc'] }, 200, 'id2'));
+  assert.equal((d.prepare(PUBLIC_LIST_SQL).all(300, 0, 50) as unknown[]).length, 0);
+  run(d, upsertStatements({ ...base, levels: ['msc'] }, 400, 'id3'));
+  assert.equal((d.prepare(PUBLIC_LIST_SQL).all(450, 0, 50) as unknown[]).length, 1);
+});

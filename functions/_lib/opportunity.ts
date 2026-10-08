@@ -58,7 +58,8 @@ export function expiryFor(deadline: number | null | undefined, firstSeen: number
 export function upsertStatements(item: IngestItem, now: number, id: string): { sql: string; values: unknown[] } {
   const published = isStudentLevel(item.levels) ? now : null;
   return {
-    // ON CONFLICT keeps id, first_seen and published_at (if already set), and
+    // ON CONFLICT keeps id, first_seen and, while the item stays student level,
+    // its original published_at; a re-ingest that drops the level unpublishes it. It
     // never touches a removed row: the WHERE turns the update into a no-op.
     sql: `INSERT INTO opportunities
             (id, url, title, title_tr, summary_tr, source, type, levels, deadline, starts_at,
@@ -70,7 +71,8 @@ export function upsertStatements(item: IngestItem, now: number, id: string): { s
             starts_at = excluded.starts_at, country = excluded.country, online = excluded.online,
             cost_note = excluded.cost_note, eligibility_note = excluded.eligibility_note,
             visibility = excluded.visibility,
-            published_at = COALESCE(opportunities.published_at, excluded.published_at),
+            published_at = CASE WHEN excluded.published_at IS NULL THEN NULL
+                                 ELSE COALESCE(opportunities.published_at, excluded.published_at) END,
             expires_at = COALESCE(excluded.deadline, opportunities.first_seen + ${DEFAULT_LIFETIME})
           WHERE opportunities.removed_at IS NULL`,
     values: [
