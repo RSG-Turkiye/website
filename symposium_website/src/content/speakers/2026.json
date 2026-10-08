@@ -35,6 +35,22 @@
       "company": "Orta Doğu Teknik Üniversitesi",
       "bio": "ODTÜ Enformatik Enstitüsü Sağlık Bilişimi Bölümü'nde öğretim üyesidir.\n\nLisans, yüksek lisans ve doktora derecelerini ODTÜ Bilgisayar Mühendisliği Bölümü'nde tamamlamıştır. Doktora sonrası araştırmalarını University of California San Diego (UCSD)'de Prof. Dr. Ludmil Alexandrov'un laboratuvarında mutasyon imzaları üzerine gerçekleştirmiştir.\n\nDr. Otlu'nun araştırmaları; Kanser genomiği ve mutasyonel imzalar, Mutasyonel süreçlerin genom topografisi ve epigenomik özelliklerle ilişkisi,\nHesaplamalı biyolojide makine öğrenmesi ve derin öğrenme yöntemleri, Açık erişimli biyoinformatik araçların geliştirilmesi (SigProfilerTopography) üzerine odaklanmaktadır.\n\nODTÜ tarafından desteklenen AGEP ve ADEP projelerinin yürütücüsü, Avrupa Birliği tarafından desteklenen EU-DEP SUSA projesinin ise Türkiye yürütücüsüdür.",
       "photo": "https://rsg-turkiye.iscbsc.org/api/images/851fc37b-b3dd-448e-b5f9-22c325c0447d.jpg"
+    },
+    {
+      "slug": "gokalp-celik",
+      "name": "Gökalp Çelik",
+      "position": "Biyoinformatik Müdürü",
+      "company": "İntergen Genetik Hastalıklar Tanı Merkezi",
+      "bio": "2004 yılında Bilkent Moleküler Biyoloji ve Genetik Bölümünden Mezun oldum. 2004 2008 yılları arasında University of Texas Southwestern Medical Center at Dallas 'ta Gelişim biyolojisi ve Genetik üzerine yüksek lisans tamamladım. Ardından sektörde wetlab da farklı alanlarda çalıştıktan sonra 2013 yılında tekrar Türkiye'ye dönüp önce Tübitak MAM Gen Mühendisliği ve Biyoteknoloji Enstitüsünde proje personeli ardından 2015 de Sentegen Biyoteknolojide ARGE personeli ve en son 2017 de İntergen Ankara'da Biyoinformatik uzmanı olarak çalışmalarıma devam ettim. Bu sürede Ankara Yıldırım Beyazıt Üniversitesi Sağlık Bilimleri Enstitüsünde  Tıbbi Genetik Anabilim Dalında Doktora çalışmalarımı tamamladım. Ayrıca 2023-2025 yılları arasında 2 yıllığına Broad Institute of MIT ve Harvard'da Data Science Platformda GATK takımı içerisinde görev yaptım. 2017 den beri insan genetiği ve nadir hastalıklar üzerine çalışmaktayım ve İntergen ARGE ekibi içerisinde geliştirdiğimiz metodlar ve iş akışları ve özel algoritmalar sayesinde şimdiye kadar 100000'e yakın hastaya hizmet sağladım. Halen İntergen Genetik Hastalıklar Tanı Merkezinde Biyoinformatik Müdürü olarak görev yapmaktayım.  \n",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/97fb5535-efb3-45f0-8f02-3cff207e3ad3.jpg"
+    },
+    {
+      "slug": "ozlen-konu",
+      "name": "Özlen Konu",
+      "position": "Prof. Dr.",
+      "company": "Bilkent Üniversitesi",
+      "bio": "Prof. Dr. Özlen Konu, 2002'den beri Bilkent Üniversitesi Moleküler Biyoloji ve Genetik Bölümü'nde öğretim üyesidir. Doktorasını Texas Tech Üniversitesi'nde tamamlamış, doktora sonrası çalışmalarını Tennessee Üniversitesi'nde yürütmüştür. Araştırma grubu, kanser hücre sinyalizasyonunu, karaciğer hastalıklarını ve zebra balığı ile memeliler arasında korunmuş yolakları karşılaştırmalı transkriptomik ve sistem biyolojisi yaklaşımlarıyla incelemektedir. Laboratuvarının belirgin özelliklerinden biri, serbestçe erişilebilen biyoinformatik araçlar geliştirmesidir. Bunlar arasında ko-ekspresyon kümelerinin anotasyonu ve önceliklendirilmesi için CAP-RNAseq ile TP53 bağımlılığının meta-analizi için TP53-META yer almaktadır. Ayrıca ilaca bağlı karaciğer hasarıyla ilişkili genetik varyantları haritalayan iDILInet gibi etkileşimli kaynaklara katkı sunmaktadır. Grubu, glioma ve NASH modelleri için zebra balığı ksenogreft ve ilaç tarama platformları da geliştirmekte; kendisi Avrupa'daki ProEuroDILINet ağında yer almaktadır. En son çalışmalarından biri, MASLD'de evreye bağlı moleküler programları ağ tabanlı bir meta-analizle ortaya koymaktadır.",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/96e37c1e-9ad7-4c76-9fe4-2b220526251a.jpg"
     }
   ]
 }
