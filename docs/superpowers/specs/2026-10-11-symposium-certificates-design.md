@@ -55,9 +55,16 @@ cron worker    --POST (secret)---------->   /api/admin/symposium/certificates/pu
 
 ## Data
 
-New R2 bucket `rsg-symposium-certificates`, binding `CERTIFICATES`, private
-(no r2.dev, no custom domain: r2.dev is blocked in Türkiye anyway). Object key
-`<uuid>.pdf`.
+Files go in the existing private bucket `rsg-mail-attachments` (binding
+`MAIL_ATTACHMENTS`) under the prefix `certificates/`: key
+`certificates/<uuid>.pdf`. R2's free quota is per account, so a separate
+bucket would cost nothing but would add a binding and a setup step; the
+public `rsg-blog-images` bucket is not used for personal data. Nothing that
+handles mail attachments may list or delete outside its own keys, and nothing
+here touches keys outside `certificates/`.
+
+An R2 lifecycle rule on that prefix deletes objects 31 days after upload, as
+a safety net behind the nightly purge: if the cron stops, the files still go.
 
 D1, added to `db/schema.sql` with migration note 7l:
 
@@ -174,7 +181,8 @@ Under `functions/api/admin/symposium/certificates*`, with the usual prologue
 `X-Archive-Secret` header (same secret the archive endpoint uses). Deletes
 every row with `expires_at <= now` and its R2 object, and lookup rows older
 than a day; returns counts. R2 is deleted first, then the row, so a failure
-leaves a row that the next run retries rather than an orphaned file.
+leaves a row that the next run retries rather than an orphaned file. An
+object the lifecycle rule already removed is not an error.
 
 `workers/symposium-cron` runs it every night: archive -> purge -> rebuild
 symposium site -> rebuild main site. (Builds on the `WEBSITE_DEPLOY_HOOK`
@@ -212,10 +220,10 @@ the build logs a warning and shows no band.
 - R2 reads only happen through the Function, so the daily Functions cap
   bounds them at about 3 M/month, under the 10 M free.
 - Storage: a year's batch is tens of MB and lives 30 days, against 10 GB.
-- **Setup step:** the free plan's one WAF rate-limiting rule goes on path
-  starts with `/api/certificates/`, per IP, so floods are throttled at the
-  edge before they reach the Function. Documented in the README with the
-  bucket, migration and secret steps.
+- **Setup steps**, documented in the README: the D1 migration; the R2
+  lifecycle rule (prefix `certificates/`, delete after 31 days); and the free
+  plan's one WAF rate-limiting rule on path starts with `/api/certificates/`,
+  per IP, so floods are throttled at the edge before they reach the Function.
 
 ## Testing
 
