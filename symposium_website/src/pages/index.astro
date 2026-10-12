@@ -14,6 +14,7 @@ import { getCurrentEdition, getPastEditions } from "../lib/editions-content";
 import { hasHappened, locationFor, titleFor, subtitleFor, symposiumsHeld , nextEditionHint, ordinalLabel, dateFor } from "../lib/editions";
 import { getCurrentContent, withOverlayContent } from "../lib/content";
 import AnnouncementBanner from "../components/AnnouncementBanner.astro";
+import CertificatesBand from "../components/CertificatesBand.astro";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -144,6 +145,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
       )}
     </div>
   </section>
+
+  <CertificatesBand lang={lang} />
 
   <!-- ── About ─────────────────────────────────────────────────── -->
   <section id="about" class="max-w-7xl mx-auto px-6 py-20">
