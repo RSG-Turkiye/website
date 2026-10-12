@@ -1,0 +1,22 @@
+---
+// Build time. Shown while any year has unexpired certificates; the nightly
+// purge + rebuild removes it on the day the last one goes. Independent of the
+// hero's edition state, because that changes the night the symposium ends.
+import { useTranslations, useFormat, type Lang } from "../i18n/ui";
+import { apiBase, bandYear, fetchCertificateStatus } from "../lib/certificates";
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const tf = useFormat(lang);
+const year = bandYear(await fetchCertificateStatus(apiBase()));
+const href = lang === "tr" ? "/tr/certificates/" : "/certificates/";
+---
+{year !== null && (
+  <section class="bg-red/10 border-b border-red/20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
+      <p class="text-navy font-medium">{tf("cert.band.text", { year })}</p>
+      <a href={href} class="px-5 py-2 rounded-lg bg-red text-white text-sm font-semibold hover:bg-red/90 transition-colors">{t("cert.band.button")}</a>
+    </div>
+  </section>
+)}

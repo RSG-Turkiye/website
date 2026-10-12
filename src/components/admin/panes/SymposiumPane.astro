@@ -1,7 +1,8 @@
 ---
 /**
- * The symposium pane: one nav entry, four sections underneath it (edition
- * settings, speakers, sessions, committee). All four write to the D1
+ * The symposium pane: one nav entry, five sections underneath it (edition
+ * settings, speakers, sessions, committee, certificates). The first four
+ * write to the D1
  * overlay that the symposium site merges over its own git content at build
  * time -- see functions/api/admin/symposium/*.ts for the routes this
  * markup drives, and src/scripts/admin-panel.ts for the client logic.
@@ -334,6 +335,89 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
         <tbody id="symCommitteeTableBody"></tbody>
       </table>
       <div id="symCommitteeEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.committee.table.noneYet')}</div>
+    </div>
+  </section>
+
+  <!--
+    Certificates. Unlike the four sections above this is not CMS overlay:
+    the PDFs and emails live on the main site and are deleted 30 days after
+    upload. The CSV is read and the PDFs shrunk in this browser before
+    anything is sent -- see src/scripts/admin-certificates.ts.
+  -->
+  <section id="symCertificates" class="mt-8">
+    <h3 class="text-sm font-semibold text-navy mb-1">{t('admin.symposium.certificates.heading')}</h3>
+    <p class="text-xs text-gray-500 mb-3">{t('admin.symposium.certificates.intro')}</p>
+    <div class="bg-white rounded-2xl border border-border p-4 mb-4">
+      <form id="symCertForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+          {t('admin.symposium.certificates.year')}
+          <input id="symCertYear" type="number" min="2012" max="2100" required
+            class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+        </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600 min-w-0">
+          {t('admin.symposium.certificates.csv')}
+          <input id="symCertCsv" type="file" accept=".csv,text/csv" required
+            class="max-w-full text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded-xl file:border-0 file:bg-navy file:text-white file:text-sm file:font-medium hover:file:bg-navy-mid file:cursor-pointer" />
+        </label>
+        <label class="flex flex-col gap-1 text-sm text-gray-600 min-w-0 sm:col-span-2">
+          {t('admin.symposium.certificates.pdfs')}
+          <input id="symCertPdfs" type="file" accept="application/pdf,.pdf" multiple
+            class="max-w-full text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded-xl file:border-0 file:bg-navy file:text-white file:text-sm file:font-medium hover:file:bg-navy-mid file:cursor-pointer" />
+        </label>
+        <label class="sm:col-span-2 flex items-start gap-2 text-sm text-gray-600">
+          <input id="symCertRasterise" type="checkbox" checked class="mt-1" />
+          <span>{t('admin.symposium.certificates.rasterise')}</span>
+        </label>
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-3">
+          <button id="symCertCheck" type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+            {t('admin.symposium.certificates.check')}
+          </button>
+          <button id="symCertUpload" type="button" class="hidden px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors"></button>
+          <p id="symCertProgress" class="hidden text-xs text-gray-500"></p>
+          <p id="symCertRebuildStatus" class="hidden text-xs text-gray-500"></p>
+        </div>
+        <p id="symCertCsvError" class="hidden sm:col-span-2 text-red-600 text-sm"></p>
+      </form>
+    </div>
+
+    <div id="symCertPreview" class="hidden bg-white rounded-2xl border border-border overflow-x-auto mb-2">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-[#F7F7F6]">
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.email')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.name')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.kind')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.size')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.status')}</th>
+          </tr>
+        </thead>
+        <tbody id="symCertPreviewBody"></tbody>
+      </table>
+    </div>
+    <p id="symCertUnused" class="hidden text-xs text-gray-500 mb-4"></p>
+
+    <p id="symCertSummary" class="text-xs text-gray-500 mt-4 mb-2"></p>
+    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-[#F7F7F6]">
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.email')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.name')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.kind')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.size')}</th>
+            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.expires')}</th>
+            <th class="text-right px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
+          </tr>
+        </thead>
+        <tbody id="symCertListBody"></tbody>
+      </table>
+      <div id="symCertEmpty" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.certificates.none')}</div>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 mt-3">
+      <input id="symCertDeleteAllInput" type="text" inputmode="numeric" autocomplete="off"
+        class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+      <button id="symCertDeleteAll" type="button" disabled
+        class="px-4 py-2 rounded-xl border border-red-600 text-red-600 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"></button>
     </div>
   </section>
 </div>

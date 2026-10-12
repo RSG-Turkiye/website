@@ -397,6 +397,33 @@ To check the whole path end to end, call the endpoint directly with the value
 you just set -- an empty or mismatched secret both fail closed to 403, so a
 403 alone never tells you which one you have.
 
+#### Symposium certificates
+
+After a symposium, organisers upload the certificate PDFs and a CSV in the
+admin panel (Symposium → Certificates). Participants open
+`/certificates/` on the symposium site, enter their email address and view or
+download their PDFs. The files live in the private `rsg-mail-attachments`
+bucket under `certificates/`, the rows in D1; both, email addresses included,
+are deleted 30 days after upload by `POST /api/admin/certificates/purge`,
+which the symposium-cron Worker above calls every night before it rebuilds.
+The symposium home page shows a "certificates are ready" band while any
+year has certificates left. Design:
+`docs/superpowers/specs/2026-10-11-symposium-certificates-design.md`.
+
+Setup, once:
+
+1. Apply the tables: `npx wrangler d1 execute rsg-members --remote --file=db/schema.sql` (note 7l).
+2. R2 lifecycle rule on bucket `rsg-mail-attachments`: Cloudflare dashboard → R2 → `rsg-mail-attachments` → Settings → Object lifecycle rules → Add rule: prefix `certificates/`, delete objects 31 days after upload.
+3. WAF rate limiting (free plan allows one rule): Security → WAF → Rate limiting rules → Create: "URI Path starts with `/api/certificates/`", counting by IP, period 10 seconds, requests 20, action Block/Managed Challenge as offered.
+4. Redeploy the cron Worker so it has `PURGE_URL`: `cd workers/symposium-cron && npx wrangler deploy`.
+5. Organisers: CSV columns `email,name,type,file`; types `participation|workshop|presentation|appreciation` or `katılım|workshop|sunum|teşekkür`; PDFs only; everything is deleted 30 days after upload.
+
+The purge uses the same `SYMPOSIUM_ARCHIVE_SECRET` as the archive call, so no
+new secret is needed. The browser checks live in `tests/browser/` and are run
+by hand: `certificates-admin.mjs` (needs `npm run build && npm run preview`
+running) and `certificates-page.mjs` (builds and serves the symposium site
+itself, against a stub API).
+
 #### How both cron Workers report failure
 
 `workers/mail-cron/` and `workers/symposium-cron/` follow the same two rules,

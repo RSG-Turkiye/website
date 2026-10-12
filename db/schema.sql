@@ -185,6 +185,13 @@
 --    and confirm on GitHub that each listed pull request actually merged
 --    before running the backfill above.
 --
+-- 7l. Symposium certificates. Two new tables, both CREATE IF NOT EXISTS, so
+--    re-applying the whole file is safe:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Without it /api/certificates/* and /api/admin/certificates* answer 500
+--    with "no such table". Files live in the MAIL_ATTACHMENTS bucket under
+--    certificates/; add the R2 lifecycle rule described in README.md.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -635,3 +642,29 @@ CREATE TABLE IF NOT EXISTS symposium_committee (
 -- a different row and keeps its slug.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_speakers_year_slug ON symposium_speakers(year, slug);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_symposium_sessions_year_slug ON symposium_sessions(year, slug);
+
+-- One row per certificate. Deleted 30 days after upload by
+-- /api/admin/certificates/purge, which the symposium-cron Worker calls
+-- nightly; the email address goes with it.
+CREATE TABLE IF NOT EXISTS symposium_certificates (
+  id          TEXT PRIMARY KEY,
+  year        INTEGER NOT NULL,
+  email       TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  kind        TEXT NOT NULL CHECK (kind IN ('participation','workshop','presentation','appreciation')),
+  size_bytes  INTEGER NOT NULL,
+  uploaded_by TEXT NOT NULL,
+  uploaded_at INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cert_year_email_kind ON symposium_certificates(year, email, kind);
+CREATE INDEX IF NOT EXISTS idx_cert_email ON symposium_certificates(email);
+CREATE INDEX IF NOT EXISTS idx_cert_expires ON symposium_certificates(expires_at);
+
+-- Public lookups, for the rate limit only. ip_hash is SHA-256 of the
+-- connecting IP; rows older than a day are purged with the certificates.
+CREATE TABLE IF NOT EXISTS certificate_lookups (
+  ip_hash TEXT NOT NULL,
+  at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cert_lookups ON certificate_lookups(ip_hash, at);

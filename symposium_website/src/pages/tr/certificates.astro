@@ -1,0 +1,17 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import CertificateLookup from "../../components/CertificateLookup.astro";
+import { useTranslations, getLangFromUrl } from "../../i18n/ui";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+---
+<BaseLayout pageTitle={t("cert.title")}>
+  <section class="bg-navy text-white py-16">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("cert.title")}</h1>
+      <p class="text-white/70 text-lg">{t("cert.subtitle")}</p>
+    </div>
+  </section>
+  <CertificateLookup lang={lang} />
+</BaseLayout>

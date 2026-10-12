@@ -171,6 +171,32 @@ export const ui = {
     // alongside real team headings -- with no teams at all the page has no
     // headings to be the odd one out of.
     "committee.noTeam": "Organising Committee",
+
+    // Certificates: /certificates/ and the home page band. The data lives
+    // on the main site and is deleted 30 days after upload.
+    "cert.title": "Certificates",
+    "cert.subtitle": "Enter the email address you registered with.",
+    "cert.email": "Email address",
+    "cert.submit": "Find my certificates",
+    "cert.searching": "Searching…",
+    "cert.none": "No certificate found for this address. It may have passed its 30 days. Write to turkey.rsg@gmail.com and we will send it.",
+    "cert.invalid": "Please enter a valid email address.",
+    "cert.rateLimited": "Too many attempts. Please try again in ten minutes.",
+    "cert.error": "Something went wrong. Please try again later.",
+    "cert.open": "View",
+    "cert.notice.title": "Before you open it",
+    "cert.notice.body": "This certificate and your email address will be deleted from our system on {date}. Please download the PDF. After that date, write to turkey.rsg@gmail.com if you need it.",
+    "cert.notice.ok": "I understand",
+    "cert.notice.cancel": "Cancel",
+    "cert.download": "Download PDF",
+    "cert.viewerTitle": "Certificate",
+    "cert.gone": "This certificate is no longer available. Write to turkey.rsg@gmail.com.",
+    "cert.band.text": "Certificates for the {year} symposium are ready.",
+    "cert.band.button": "View your certificate",
+    "cert.kind.participation": "Participation",
+    "cert.kind.workshop": "Workshop",
+    "cert.kind.presentation": "Presentation",
+    "cert.kind.appreciation": "Appreciation",
   },
 
   tr: {
@@ -318,6 +344,30 @@ export const ui = {
     "committee.subtitle": "Sempozyumun arkasındaki ekip.",
     "committee.tba": "Düzenleme kurulu yakında duyurulacak.",
     "committee.noTeam": "Düzenleme Kurulu",
+
+    "cert.title": "Sertifikalar",
+    "cert.subtitle": "Kayıt olurken kullandığın e-posta adresini gir.",
+    "cert.email": "E-posta adresi",
+    "cert.submit": "Sertifikalarımı bul",
+    "cert.searching": "Aranıyor…",
+    "cert.none": "Bu adrese ait sertifika bulunamadı. 30 günlük süresi dolmuş olabilir. turkey.rsg@gmail.com adresine yaz, sana gönderelim.",
+    "cert.invalid": "Lütfen geçerli bir e-posta adresi gir.",
+    "cert.rateLimited": "Çok fazla deneme yapıldı. Lütfen on dakika sonra tekrar dene.",
+    "cert.error": "Bir sorun oluştu. Lütfen daha sonra tekrar dene.",
+    "cert.open": "Görüntüle",
+    "cert.notice.title": "Açmadan önce",
+    "cert.notice.body": "Bu sertifika ve e-posta adresin {date} tarihinde sistemimizden silinecek. Lütfen PDF'i indir. Bu tarihten sonra ihtiyacın olursa turkey.rsg@gmail.com adresine yaz.",
+    "cert.notice.ok": "Anladım",
+    "cert.notice.cancel": "Vazgeç",
+    "cert.download": "PDF'i indir",
+    "cert.viewerTitle": "Sertifika",
+    "cert.gone": "Bu sertifika artık mevcut değil. turkey.rsg@gmail.com adresine yaz.",
+    "cert.band.text": "{year} sempozyumunun sertifikaları hazır.",
+    "cert.band.button": "Sertifikanı görüntüle",
+    "cert.kind.participation": "Katılım",
+    "cert.kind.workshop": "Workshop",
+    "cert.kind.presentation": "Sunum",
+    "cert.kind.appreciation": "Teşekkür",
   },
 } as const;
 
