@@ -144,7 +144,11 @@ has to change.
    the app must be in **Production**, not *Testing*. Refresh tokens issued by an
    app in Testing **expire after seven days**, after which sending stops working
    with no visible cause. Add the scope
-   `https://www.googleapis.com/auth/gmail.send` — nothing broader. Because
+   `https://www.googleapis.com/auth/gmail.send`. The manual path below needs
+   only that scope. The admin panel's Reconnect button (see [Connections and
+   the status banner](#connections-and-the-status-banner)) needs four on the
+   consent screen: `openid`, `email` (`.../auth/userinfo.email`), `gmail.send`
+   and `gmail.readonly`; configure all four so Reconnect works. Because
    `gmail.send` is a sensitive scope, a published-but-unverified app shows an
    "unverified app" interstitial; only the one person doing step 2 ever sees it.
 
@@ -496,7 +500,10 @@ runs out within 14 days.
 
 ### One-time setup
 
-1. **Generate and set the vault key.** Connection tokens are stored encrypted
+Do these in order. Steps 1 to 3 happen **before** the pull request is merged;
+step 4 happens **after** it is merged and Pages has deployed.
+
+1. **Before merging: generate and set the vault key.** Connection tokens are stored encrypted
    with this key:
 
    ```
@@ -506,7 +513,7 @@ runs out within 14 days.
    Store the same value in the organisation's password manager. If it is lost,
    every stored token must be reconnected, but mail falls back to
    `GMAIL_REFRESH_TOKEN` in the meantime.
-2. **Add the redirect URI in Google Cloud.** In APIs & Services > Credentials,
+2. **Before merging: add the redirect URI and scopes in Google Cloud.** In APIs & Services > Credentials,
    open the OAuth client and add this authorised redirect URI:
 
    ```
@@ -516,10 +523,13 @@ runs out within 14 days.
    Under Data access, make sure `openid` and
    `.../auth/userinfo.email` are listed next to `gmail.send` and
    `gmail.readonly`.
-3. **Run the migrations** listed as 8a, 8b and 8c at the top of
-   `db/schema.sql`, before the deploy that ships this feature.
-4. **Redeploy the daily Worker** so it picks up `AUDIT_PRUNE_URL`, which makes
-   it prune the audit log nightly:
+3. **Before merging: run the migrations** listed as 8a, 8b and 8c at the top
+   of `db/schema.sql`. The new code reads these tables as soon as it deploys.
+
+   Now merge, and wait for the Pages deploy to finish.
+4. **After merging and the deploy: redeploy the daily Worker** so it picks up
+   `AUDIT_PRUNE_URL`. Doing this earlier makes it call an endpoint that does
+   not exist yet. It then prunes the audit log nightly:
 
    ```
    cd workers/symposium-cron && npx wrangler deploy
