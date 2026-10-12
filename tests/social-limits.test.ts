@@ -6,7 +6,7 @@ import {
 
 test('characters are counted as the user sees them', () => {
   assert.equal(countChars('şğüöçı'), 6);
-  assert.equal(countChars('🧬🎓'), 2, 'an emoji is one character, not two UTF-16 units');
+  assert.equal(countChars('🧬🎓'), 4, 'astral emoji count as two units: conservative on purpose');
 });
 
 test('hashtags include Turkish letters and digits', () => {
@@ -18,6 +18,15 @@ test('Instagram gets the link-in-bio line, LinkedIn gets the link itself', () =>
   assert.equal(captionFor(src, 'instagram'), `Sertifikalar yayında\n\n${LINK_IN_BIO_LINE}`);
   assert.equal(captionFor(src, 'linkedin'), 'Sertifikalar yayında\n\nhttps://rsg-turkiye.iscbsc.org/certificates');
   assert.equal(captionFor({ ...src, link: null }, 'instagram'), 'Sertifikalar yayında');
+});
+
+test('the link-in-bio line counts against the Instagram caption limit', () => {
+  const src = { caption: 'a'.repeat(2199), captionOverrides: {}, link: 'https://rsg-turkiye.iscbsc.org/certificates' };
+  const actual = 2199 + 2 + countChars(LINK_IN_BIO_LINE);
+  assert.deepEqual(captionProblems(src, ['instagram'], 'image'), [
+    { code: 'caption_too_long', platform: 'instagram', limit: 2200, actual },
+  ]);
+  assert.equal(captionFor({ caption: '', captionOverrides: {}, link: 'https://example.org/x' }, 'instagram'), LINK_IN_BIO_LINE);
 });
 
 test('a non-empty override replaces the shared caption for that platform only', () => {

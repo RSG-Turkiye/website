@@ -24,9 +24,14 @@ const FEED_MAX_RATIO = 1.91;
 const STORY_RATIO = 9 / 16;
 const RATIO_TOLERANCE = 0.01;
 
-/** Code points, so an emoji or a Turkish letter is one character. */
+/**
+ * Counts UTF-16 code units (string length). An emoji outside the Basic
+ * Multilingual Plane counts as 2, on purpose: we do not know whether the
+ * platforms count code points or code units, and counting units never
+ * under-counts, so the panel never approves a caption the platform rejects.
+ */
 export function countChars(text: string): number {
-  return [...text].length;
+  return text.length;
 }
 
 export function countHashtags(text: string): number {
