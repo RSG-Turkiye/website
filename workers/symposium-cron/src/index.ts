@@ -1,5 +1,8 @@
 export interface Env {
   SYMPOSIUM_DEPLOY_HOOK: string;
+  /** Deploy hook of the main `website` Pages project. Its home page and
+   * /events also decide "upcoming" at build time. */
+  WEBSITE_DEPLOY_HOOK: string;
   /** Same value as the main site's SYMPOSIUM_ARCHIVE_SECRET Pages secret. */
   SYMPOSIUM_ARCHIVE_SECRET: string;
   ARCHIVE_URL: string;
@@ -7,7 +10,7 @@ export interface Env {
 
 /**
  * Rebuilds the symposium site once a day, after first folding any finished
- * edition's CMS overlay into the repo.
+ * edition's CMS overlay into the repo, and rebuilds the main site alongside it.
  *
  * The site is static, and which edition is "upcoming" is derived from the
  * clock at build time. Without a scheduled rebuild the site would keep
@@ -16,6 +19,11 @@ export interface Env {
  * that just finished must land in the repo (as a pull request, pending
  * human review) before the rebuild runs, or the rebuild ships without
  * whatever the CMS overlay was still carrying for it.
+ *
+ * The main site has the same problem on a smaller scale: its home page
+ * "Event" card and /events list a symposium as upcoming until the next build,
+ * and nothing rebuilt it except a push. After the 13th symposium that card
+ * would have gone on announcing it to every visitor.
  */
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -44,7 +52,15 @@ export default {
   async fetch(_request: Request, env: Env): Promise<Response> {
     const body = await tick(env);
     return new Response(
-      JSON.stringify({ archive: parseIfJson(body.archive), rebuild: parseIfJson(body.rebuild) }, null, 2),
+      JSON.stringify(
+        {
+          archive: parseIfJson(body.archive),
+          rebuild: parseIfJson(body.rebuild),
+          websiteRebuild: parseIfJson(body.websiteRebuild),
+        },
+        null,
+        2,
+      ),
       {
         status: failed(body) ? 502 : 200,
         headers: { 'Content-Type': 'application/json' },
@@ -53,7 +69,7 @@ export default {
   },
 };
 
-type Tick = { archive: string; rebuild: string };
+type Tick = { archive: string; rebuild: string; websiteRebuild: string };
 
 async function tick(env: Env): Promise<Tick> {
   // Archive first: a finished edition needs its pull request opened before
@@ -63,20 +79,24 @@ async function tick(env: Env): Promise<Tick> {
   // ran ahead of its archive. Sequential rather than raced, so one failing
   // does not cancel the other's logging.
   const archive = await callArchive(env);
-  const rebuild = await callRebuild(env);
+  const rebuild = await callRebuild('rebuild', env.SYMPOSIUM_DEPLOY_HOOK);
+  const websiteRebuild = await callRebuild('website rebuild', env.WEBSITE_DEPLOY_HOOK);
 
   // Both results are returned rather than raised here: one failing must not
   // stop the other being reported, and the two callers differ on what to do
   // about it -- see `scheduled` and `fetch`.
-  return { archive, rebuild };
+  return { archive, rebuild, websiteRebuild };
 }
 
 function failed(t: Tick): boolean {
-  return t.archive.startsWith('ERROR') || t.rebuild.startsWith('ERROR');
+  return [t.archive, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
 }
 
 function summarise(t: Tick): string {
-  return `tick failed -- archive: ${t.archive.slice(0, 120)} rebuild: ${t.rebuild.slice(0, 120)}`;
+  return (
+    `tick failed -- archive: ${t.archive.slice(0, 120)} rebuild: ${t.rebuild.slice(0, 120)} ` +
+    `website rebuild: ${t.websiteRebuild.slice(0, 120)}`
+  );
 }
 
 /**
@@ -108,17 +128,23 @@ async function callArchive(env: Env): Promise<string> {
   }
 }
 
-async function callRebuild(env: Env): Promise<string> {
+async function callRebuild(label: string, hook: string | undefined): Promise<string> {
+  // A missing hook is an error, not a skip: SYMPOSIUM_DEPLOY_HOOK once went
+  // unset for months and the only sign was a grey "pending" line nobody read.
+  if (!hook) {
+    console.log(`${label}: no deploy hook configured`);
+    return `ERROR: no deploy hook configured for ${label}`;
+  }
   try {
-    const res = await fetch(env.SYMPOSIUM_DEPLOY_HOOK, { method: 'POST' });
+    const res = await fetch(hook, { method: 'POST' });
     const body = await res.text();
 
     // Log all attempts: a silent scheduler is the failure mode this Worker
     // exists to end, so a 4xx or 5xx must be visible in `wrangler tail`.
-    console.log(`rebuild ${res.status}: ${body.slice(0, 300)}`);
+    console.log(`${label} ${res.status}: ${body.slice(0, 300)}`);
     return res.ok ? body : `ERROR ${res.status}: ${body.slice(0, 200)}`;
   } catch (err) {
-    console.log(`rebuild threw: ${String(err).slice(0, 300)}`);
+    console.log(`${label} threw: ${String(err).slice(0, 300)}`);
     return `ERROR: ${String(err).slice(0, 200)}`;
   }
 }

@@ -319,7 +319,7 @@ weeks or months after it ended, until someone happened to push a commit.
 
 A Cloudflare Worker (`workers/symposium-cron/`) runs at 01:17 UTC every day
 (04:17 in Türkiye — after midnight local, so the day flips before the first
-visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
+visitor arrives) and triggers a rebuild of both sites via deploy hooks. To set it up:
 
 1. Create a deploy hook in the `symposium-website` Cloudflare Pages project's
    **Settings → Build, deployments, environment** → **Build settings → Deploy hooks**.
@@ -327,7 +327,15 @@ visitor arrives) and triggers a rebuild via a deploy hook. To set it up:
    ```
    cd workers/symposium-cron && npx wrangler secret put SYMPOSIUM_DEPLOY_HOOK
    ```
-3. Deploy the Worker:
+3. Do the same for the main site: its home page "Event" card and /events
+   also decide "upcoming" at build time. Create a deploy hook on the `website`
+   Pages project (branch `main`) and set it on the Worker:
+   ```
+   cd workers/symposium-cron && npx wrangler secret put WEBSITE_DEPLOY_HOOK
+   ```
+   A missing hook makes the tick fail on purpose, so set both secrets before
+   deploying.
+4. Deploy the Worker:
    ```
    npx wrangler deploy
    ```

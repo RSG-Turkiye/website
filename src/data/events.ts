@@ -80,8 +80,11 @@ export const events: CommunityEvent[] = [
     id: "symposium-2026",
     type: "symposium",
     start: new Date("2026-10-10"),
+    // Two days since the organisers added a workshop on the second; kept in
+    // step with symposium_website/src/content/editions/2026.md by hand.
+    end: new Date("2026-10-11"),
     title: { en: "13th RSG-Türkiye Student Symposium", tr: "13. RSG-Türkiye Öğrenci Sempozyumu" },
-    when: { en: "10 October 2026", tr: "10 Ekim 2026" },
+    when: { en: "10–11 October 2026", tr: "10–11 Ekim 2026" },
     location: { en: "Ankara", tr: "Ankara" },
     description: {
       en: "Our annual symposium, bringing together students and researchers in computational biology and bioinformatics across Türkiye.",
