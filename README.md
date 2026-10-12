@@ -414,7 +414,7 @@ Setup, once:
 
 1. Apply the tables: `npx wrangler d1 execute rsg-members --remote --file=db/schema.sql` (note 7l).
 2. R2 lifecycle rule on bucket `rsg-mail-attachments`: Cloudflare dashboard → R2 → `rsg-mail-attachments` → Settings → Object lifecycle rules → Add rule: prefix `certificates/`, delete objects 31 days after upload.
-3. WAF rate limiting (free plan allows one rule): Security → WAF → Rate limiting rules → Create: "URI Path starts with `/api/certificates/`", counting by IP, period 10 seconds, requests 20, action Block/Managed Challenge as offered.
+3. No WAF rate-limiting rule: on this account's plan the dashboard offers it only as a paid add-on (checked 2026-10-12). The lookup enforces its own limit (20 per 10 minutes per IP, in D1), which is what slows email probing. What an edge rule would add is protection for the Functions quota: a flood could use up the free 100 000 requests/day, and the API would stop until 00:00 UTC -- nothing billed, static pages unaffected. Revisit only if that happens.
 4. Redeploy the cron Worker so it has `PURGE_URL`: `cd workers/symposium-cron && npx wrangler deploy`.
 5. Organisers: CSV columns `email,name,type,file`; types `participation|workshop|presentation|appreciation` or `katılım|workshop|sunum|teşekkür`; PDFs only; everything is deleted 30 days after upload.
 
