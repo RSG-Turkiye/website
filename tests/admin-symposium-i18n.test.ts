@@ -59,6 +59,7 @@ test('the certificates section has a label for every kind and every row problem'
     ...problems.map((p) => `admin.symposium.certificates.problem.${p}`),
     'admin.symposium.certificates.csvError.empty',
     'admin.symposium.certificates.csvError.missing_columns',
+    'admin.symposium.certificates.deleteAllLabel',
   ];
   for (const key of keys) {
     assert.ok(key in ui.en, `en missing ${key}`);

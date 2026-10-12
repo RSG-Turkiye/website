@@ -583,6 +583,7 @@ export const ui = {
     'admin.symposium.certificates.none': "No certificates for this year.",
     'admin.symposium.certificates.deleteAll': "Delete all for {year}",
     'admin.symposium.certificates.deleteAllConfirm': "Type {year} to delete every certificate for that year.",
+    'admin.symposium.certificates.deleteAllLabel': "To delete every certificate for {year}, type {year} in the box. The button unlocks once it matches.",
     'admin.symposium.certificates.delete': "Delete",
     // Shown on the save button itself while the request is in flight. The
     // route writes to D1 and then asks Cloudflare to rebuild, which alone
@@ -1156,6 +1157,7 @@ export const ui = {
     'admin.symposium.certificates.none': "Bu yıl için sertifika yok.",
     'admin.symposium.certificates.deleteAll': "{year} için tümünü sil",
     'admin.symposium.certificates.deleteAllConfirm': "O yılın bütün sertifikalarını silmek için {year} yazın.",
+    'admin.symposium.certificates.deleteAllLabel': "{year} yılının bütün sertifikalarını silmek için kutuya {year} yazın. Yazınca buton açılır.",
     'admin.symposium.certificates.delete': "Sil",
     'admin.symposium.saving': 'Kaydediliyor…',
     'admin.symposium.rebuild.started': 'Kaydedildi. Yeniden yapılandırma başladı.',
