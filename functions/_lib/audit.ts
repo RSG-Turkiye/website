@@ -52,15 +52,22 @@ export function hashRow(row: Omit<AuditRow, 'seq' | 'hash'>): Promise<string> {
 
 const isChainCollision = (err: unknown) => /UNIQUE constraint failed: audit_log\.prev_hash/.test(String(err));
 
-export async function runWithAudit(
+type AuditBase = Omit<AuditRow, 'seq' | 'hash'>;
+
+/**
+ * The retry loop both writers share. Reads the chain head, builds the row that
+ * follows it and hands that row to `batch`. When another writer appended first,
+ * the batch rolls back (UNIQUE prev_hash) and the loop starts again from the new head.
+ */
+async function appendWithRetry<R>(
   db: D1Database,
-  statements: D1PreparedStatement[],
   entry: AuditEntry,
-  now = Math.floor(Date.now() / 1000),
-): Promise<void> {
+  now: number,
+  batch: (base: AuditBase, hash: string) => Promise<R>,
+): Promise<R> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const last = await db.prepare('SELECT hash FROM audit_log ORDER BY seq DESC LIMIT 1').first<{ hash: string }>();
-    const base = {
+    const base: AuditBase = {
       at: now,
       user_id: entry.userId,
       action: entry.action,
@@ -70,12 +77,8 @@ export async function runWithAudit(
       prev_hash: last?.hash ?? GENESIS,
     };
     const hash = await hashRow(base);
-    const insert = db.prepare(
-      'INSERT INTO audit_log (at, user_id, action, target_type, target_id, details, prev_hash, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    ).bind(base.at, base.user_id, base.action, base.target_type, base.target_id, base.details, base.prev_hash, hash);
     try {
-      await db.batch([...statements, insert]);
-      return;
+      return await batch(base, hash);
     } catch (err) {
       if (!isChainCollision(err)) throw err;
     }
@@ -83,11 +86,36 @@ export async function runWithAudit(
   throw new Error(`audit_log: could not append after ${MAX_ATTEMPTS} attempts`);
 }
 
+export function runWithAudit(
+  db: D1Database,
+  statements: D1PreparedStatement[],
+  entry: AuditEntry,
+  now = Math.floor(Date.now() / 1000),
+): Promise<void> {
+  return appendWithRetry(db, entry, now, async (base, hash) => {
+    const insert = db.prepare(
+      'INSERT INTO audit_log (at, user_id, action, target_type, target_id, details, prev_hash, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    ).bind(base.at, base.user_id, base.action, base.target_type, base.target_id, base.details, base.prev_hash, hash);
+    await db.batch([...statements, insert]);
+  });
+}
+
 export function appendAudit(db: D1Database, entry: AuditEntry, now?: number): Promise<void> {
   return runWithAudit(db, [], entry, now);
 }
 
-/** An SQL boolean expression, written in code, that is true only if the guard took effect. */
+/**
+ * An SQL boolean expression, written in code, that is true only if the guard took effect.
+ *
+ * The condition must name something only THIS write produced: a per-write nonce
+ * (for example `EXISTS (SELECT 1 FROM plans WHERE id = ? AND write_nonce = ?)`).
+ * Never use a revision number: a losing writer computes the same next revision,
+ * so the condition would hold for it too, and its audit row and `after`
+ * statements would land while the function returns false.
+ *
+ * Use plain positional `?` placeholders only. The binds are appended after the
+ * eight audit-row binds, so named or numbered placeholders would bind wrongly.
+ */
 export interface AuditProof {
   condition: string;
   binds: unknown[];
@@ -98,11 +126,12 @@ export interface AuditProof {
  * DELETE (for example `WHERE id = ? AND revision = ?`). The guard, the audit
  * row and the `after` statements go in one batch. The audit row is inserted
  * only when `proof` holds afterwards, so a guard that matched nothing leaves
- * no record of a change that did not happen. Each `after` statement must
+ * no record of a change that did not happen. `proof` must follow the rules on
+ * AuditProof: a per-write nonce, never a revision. Each `after` statement must
  * carry the same kind of condition itself. Returns whether the guard changed
  * a row.
  */
-export async function runGuardedWithAudit(
+export function runGuardedWithAudit(
   db: D1Database,
   guard: D1PreparedStatement,
   proof: AuditProof,
@@ -110,31 +139,15 @@ export async function runGuardedWithAudit(
   entry: AuditEntry,
   now = Math.floor(Date.now() / 1000),
 ): Promise<boolean> {
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const last = await db.prepare('SELECT hash FROM audit_log ORDER BY seq DESC LIMIT 1').first<{ hash: string }>();
-    const base = {
-      at: now,
-      user_id: entry.userId,
-      action: entry.action,
-      target_type: entry.targetType ?? null,
-      target_id: entry.targetId ?? null,
-      details: JSON.stringify(entry.details ?? {}),
-      prev_hash: last?.hash ?? GENESIS,
-    };
-    const hash = await hashRow(base);
+  return appendWithRetry(db, entry, now, async (base, hash) => {
     const insert = db.prepare(
       `INSERT INTO audit_log (at, user_id, action, target_type, target_id, details, prev_hash, hash)
        SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${proof.condition}`,
     ).bind(base.at, base.user_id, base.action, base.target_type, base.target_id, base.details, base.prev_hash, hash, ...proof.binds);
-    try {
-      const results = await db.batch([guard, insert, ...after]);
-      const changes = (results[0] as { meta?: { changes?: number } } | undefined)?.meta?.changes ?? 0;
-      return Number(changes) > 0;
-    } catch (err) {
-      if (!isChainCollision(err)) throw err;
-    }
-  }
-  throw new Error(`audit_log: could not append after ${MAX_ATTEMPTS} attempts`);
+    const results = await db.batch([guard, insert, ...after]);
+    const changes = (results[0] as { meta?: { changes?: number } } | undefined)?.meta?.changes ?? 0;
+    return Number(changes) > 0;
+  });
 }
 
 /**
