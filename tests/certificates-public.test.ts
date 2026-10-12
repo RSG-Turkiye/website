@@ -107,6 +107,17 @@ test('a row whose object is already gone (lifecycle rule) is 404, not 500', asyn
   assert.equal(res.status, 404);
 });
 
+test('a HEAD from the symposium page carries CORS, on 200 and on 404, so the page can read the status', async () => {
+  const { env } = setup();
+  const head = (name: string) => call(file.onRequestHead, new Request(`${API}/${name}`, { method: 'HEAD', headers: { Origin: ORIGIN } }), env, { file: name });
+  const found = await head(`${ID1}.pdf`);
+  assert.equal(found.status, 200);
+  assert.equal(found.headers.get('Access-Control-Allow-Origin'), ORIGIN);
+  const gone = await head(`${ID3}.pdf`);
+  assert.equal(gone.status, 404);
+  assert.equal(gone.headers.get('Access-Control-Allow-Origin'), ORIGIN);
+});
+
 test('status lists unexpired years with counts and no personal data', async () => {
   const { env } = setup();
   const res = await call(status.onRequestGet, new Request(`${API}/status`), env);

@@ -1,0 +1,134 @@
+---
+// The /certificates/ page's working part: an email lookup against the main
+// site's API, a notice that the certificate is deleted after 30 days, then a
+// viewer with an always-visible download link (Android Chrome and some iOS
+// views do not render a PDF inside a frame).
+import { useTranslations, type Lang } from "../i18n/ui";
+import { apiBase } from "../lib/certificates";
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const strings = {
+  searching: t("cert.searching"), none: t("cert.none"), invalid: t("cert.invalid"),
+  rateLimited: t("cert.rateLimited"), error: t("cert.error"), open: t("cert.open"),
+  noticeBody: t("cert.notice.body"), download: t("cert.download"), gone: t("cert.gone"),
+  submit: t("cert.submit"),
+  kinds: {
+    participation: t("cert.kind.participation"), workshop: t("cert.kind.workshop"),
+    presentation: t("cert.kind.presentation"), appreciation: t("cert.kind.appreciation"),
+  },
+};
+---
+<section class="max-w-3xl mx-auto px-4 sm:px-6 py-12" id="certRoot"
+  data-api={apiBase()} data-lang={lang} data-strings={JSON.stringify(strings)}>
+  <form id="certForm" class="flex flex-col sm:flex-row gap-3" novalidate>
+    <label for="certEmail" class="sr-only">{t("cert.email")}</label>
+    <input id="certEmail" type="email" autocomplete="email" required placeholder={t("cert.email")}
+      class="flex-1 min-w-0 px-4 py-3 rounded-lg border border-gray-300 text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-navy" />
+    <button id="certSubmit" type="submit" class="px-6 py-3 rounded-lg bg-red text-white font-semibold hover:bg-red/90">{t("cert.submit")}</button>
+  </form>
+  <p id="certMessage" class="mt-4 text-sm text-gray-700 hidden" role="status" aria-live="polite"></p>
+  <ul id="certResults" class="mt-6 grid gap-3"></ul>
+
+  <div id="certViewer" class="mt-8 hidden">
+    <a id="certDownload" class="inline-block mb-3 px-5 py-2 rounded-lg bg-navy text-white text-sm font-semibold" href="#">{t("cert.download")}</a>
+    <iframe id="certFrame" title={t("cert.viewerTitle")} class="w-full h-[75vh] rounded-lg border border-gray-200 bg-white"></iframe>
+  </div>
+
+  <dialog id="certNotice" class="rounded-xl p-6 max-w-md w-[calc(100%-2rem)] backdrop:bg-black/50">
+    <h2 class="text-lg font-semibold text-navy mb-3">{t("cert.notice.title")}</h2>
+    <p id="certNoticeBody" class="text-sm text-gray-700 mb-5"></p>
+    <form method="dialog" class="flex justify-end gap-3">
+      <button value="cancel" class="px-4 py-2 rounded-lg border border-gray-300 text-sm">{t("cert.notice.cancel")}</button>
+      <button value="ok" id="certNoticeOk" class="px-4 py-2 rounded-lg bg-red text-white text-sm font-semibold">{t("cert.notice.ok")}</button>
+    </form>
+  </dialog>
+</section>
+
+<script>
+  type Cert = { id: string; year: number; kind: string; name: string; expiresAt: number; url: string };
+  const root = document.getElementById("certRoot")!;
+  const api = root.dataset.api!;
+  const lang = root.dataset.lang === "tr" ? "tr" : "en";
+  const s = JSON.parse(root.dataset.strings!) as Record<string, string> & { kinds: Record<string, string> };
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const message = $("certMessage"), results = $("certResults"), viewer = $("certViewer");
+  const notice = $<HTMLDialogElement>("certNotice");
+  let pending: Cert | null = null;
+
+  const say = (text: string) => { message.textContent = text; message.classList.toggle("hidden", !text); };
+  const expiry = (ts: number) => new Date(ts * 1000).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-GB",
+    { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Istanbul" });
+
+  function render(certs: Cert[]) {
+    results.replaceChildren();
+    for (const c of certs) {
+      const li = document.createElement("li");
+      li.className = "flex items-center justify-between gap-3 p-4 rounded-lg border border-gray-200";
+      const text = document.createElement("div");
+      text.className = "min-w-0";
+      const title = document.createElement("p");
+      title.className = "font-semibold text-navy";
+      title.textContent = `${c.year} · ${s.kinds[c.kind] ?? c.kind}`;
+      const who = document.createElement("p");
+      who.className = "text-sm text-gray-600 break-words";
+      who.textContent = c.name;
+      text.append(title, who);
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "shrink-0 px-4 py-2 rounded-lg bg-navy text-white text-sm font-semibold";
+      open.textContent = s.open;
+      open.addEventListener("click", () => {
+        pending = c;
+        $("certNoticeBody").textContent = s.noticeBody.replace("{date}", expiry(c.expiresAt));
+        notice.showModal();
+      });
+      li.append(text, open);
+      results.append(li);
+    }
+  }
+
+  notice.addEventListener("close", async () => {
+    if (notice.returnValue !== "ok" || !pending) return;
+    const c = pending;
+    // The certificate may have expired since the lookup (a page left open
+    // overnight): check before framing, or the iframe shows a bare 404.
+    const head = await fetch(c.url, { method: "HEAD" }).catch(() => null);
+    if (!head || !head.ok) { viewer.classList.add("hidden"); say(s.gone); return; }
+    say("");
+    $<HTMLAnchorElement>("certDownload").href = `${c.url}?download=1`;
+    $<HTMLIFrameElement>("certFrame").src = c.url;
+    viewer.classList.remove("hidden");
+    viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  $("certForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $<HTMLInputElement>("certEmail").value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { say(s.invalid); return; }
+    const button = $<HTMLButtonElement>("certSubmit");
+    button.disabled = true;
+    button.textContent = s.searching;
+    viewer.classList.add("hidden");
+    results.replaceChildren();
+    try {
+      // text/plain keeps this a "simple" request: no CORS preflight, so one
+      // Function invocation per lookup instead of two.
+      const res = await fetch(`${api}/api/certificates/lookup`, {
+        method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ email }),
+      });
+      if (res.status === 429) { say(s.rateLimited); return; }
+      if (res.status === 400) { say(s.invalid); return; }
+      if (!res.ok) { say(s.error); return; }
+      const { certificates } = (await res.json()) as { certificates: Cert[] };
+      say(certificates.length ? "" : s.none);
+      render(certificates);
+    } catch {
+      say(s.error);
+    } finally {
+      button.disabled = false;
+      button.textContent = s.submit;
+    }
+  });
+</script>
