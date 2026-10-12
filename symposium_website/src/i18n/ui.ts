@@ -80,6 +80,7 @@ export const ui = {
     "session.type.networking": "Networking",
     "session.type.break": "Break",
     "session.type.closing": "Closing",
+    "schedule.language": "Event language: English",
     "schedule.none": "Schedule will be announced soon.",
     // The finished state: after an edition ends, its programme stays up as a
     // record rather than reverting to "will be announced soon" about an event
@@ -241,6 +242,7 @@ export const ui = {
     "session.type.networking": "Tanışma",
     "session.type.break": "Ara",
     "session.type.closing": "Kapanış",
+    "schedule.language": "Etkinlik dili: İngilizce",
     "schedule.none": "Program yakında duyurulacak.",
     "schedule.past.note": "Sempozyumun gerçekleşen programı.",
     "schedule.past.none": "Bu edisyon için program kaydı yok.",

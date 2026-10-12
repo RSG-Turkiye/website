@@ -155,6 +155,9 @@
 --     lives only in D1. Run this BEFORE the code deploys. ALTER TABLE ADD
 --     COLUMN is NOT idempotent -- do not re-run this one:
 --       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_committee ADD COLUMN teams TEXT NOT NULL DEFAULT '[]'"
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_sessions ADD COLUMN day INTEGER NOT NULL DEFAULT 1"
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_sessions ADD COLUMN title_tr TEXT NOT NULL DEFAULT ''"
+--       wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_sessions ADD COLUMN description_tr TEXT NOT NULL DEFAULT ''"
 --
 -- 7k. functions/api/symposium.ts and the two admin symposium routes now
 --    filter on archived_at; deploying without this first makes every one of
@@ -595,6 +598,13 @@ CREATE TABLE IF NOT EXISTS symposium_sessions (
   description   TEXT NOT NULL DEFAULT '',
   -- JSON array of speaker *slugs*, matching src/data/sessions.ts's speakerSlugs.
   speaker_slugs TEXT NOT NULL DEFAULT '[]',
+  -- Which day of the symposium, 1-based. The schedule page derives the
+  -- heading's date from the edition's startDate, so this is never a date.
+  day           INTEGER NOT NULL DEFAULT 1,
+  -- Turkish translations. title/description are English and canonical; an
+  -- empty translation falls back to English on the Turkish pages.
+  title_tr      TEXT NOT NULL DEFAULT '',
+  description_tr TEXT NOT NULL DEFAULT '',
   sort          INTEGER NOT NULL DEFAULT 0
 );
 

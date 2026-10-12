@@ -16,6 +16,9 @@ export interface Speaker {
 export interface Session {
   slug: string; title: string; type: SessionType; speakerSlugs: string[];
   description: string; time: string; endTime?: string; order: number;
+  /** Optional because the overlay is `.passthrough()` and an older payload has
+   * none of these. A missing `day` means 1; missing Tr text falls back to English. */
+  titleTr?: string; descriptionTr?: string; day?: number;
 }
 
 /** A team label in both languages; `tr` empty means "no Turkish name given",

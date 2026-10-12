@@ -1,0 +1,22 @@
+---
+import type { Session, Speaker } from "../lib/content";
+import SessionRow from "./SessionRow.astro";
+import { groupByDay } from "../lib/schedule-days";
+import { getLangFromUrl } from "../i18n/ui";
+
+interface Props { sessions: Session[]; speakers: Speaker[]; startDate?: Date }
+const { sessions, speakers, startDate } = Astro.props;
+const groups = groupByDay(sessions, startDate, getLangFromUrl(Astro.url));
+---
+<div class="p-4 space-y-6">
+  {groups.map((g) => (
+    <section class="space-y-2" aria-labelledby={g.heading ? `day-${g.day}` : undefined}>
+      {g.heading && (
+        <h3 id={`day-${g.day}`} class="text-xs font-semibold uppercase tracking-wider text-navy-mid border-b border-border pb-1.5">
+          {g.heading}
+        </h3>
+      )}
+      {g.sessions.map((session) => <SessionRow session={session} speakers={speakers} />)}
+    </section>
+  ))}
+</div>

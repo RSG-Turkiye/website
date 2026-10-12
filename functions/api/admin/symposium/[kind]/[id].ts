@@ -26,7 +26,7 @@ function isKnownKind(value: string): value is SymposiumKind {
 
 const ROW_COLUMNS: Record<SymposiumKind, string> = {
   speakers: 'id, slug, year, name, position, company, bio, photo, linkedin, sort',
-  sessions: 'id, slug, year, title, type, time, end_time, description, speaker_slugs, sort',
+  sessions: 'id, slug, year, title, type, time, end_time, description, speaker_slugs, day, title_tr, description_tr, sort',
   committee: 'id, year, name, role, role_tr, affiliation, photo, linkedin, teams, sort',
 };
 
@@ -61,9 +61,9 @@ function updateStatement(
       const r = row as Omit<SessionRow, 'id' | 'sort'>;
       return {
         sql: `UPDATE symposium_sessions
-              SET slug = ?, title = ?, type = ?, time = ?, end_time = ?, description = ?, speaker_slugs = ?
+              SET slug = ?, title = ?, type = ?, time = ?, end_time = ?, description = ?, speaker_slugs = ?, day = ?, title_tr = ?, description_tr = ?
               WHERE id = ?`,
-        values: [r.slug, r.title, r.type, r.time, r.end_time, r.description, r.speaker_slugs, id],
+        values: [r.slug, r.title, r.type, r.time, r.end_time, r.description, r.speaker_slugs, r.day, r.title_tr, r.description_tr, id],
       };
     }
     case 'committee': {

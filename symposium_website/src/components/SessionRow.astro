@@ -1,6 +1,7 @@
 ---
 import type { Session, SessionType, Speaker } from "../lib/content";
 import { getLangFromUrl, useTranslations } from "../i18n/ui";
+import { sessionText } from "../lib/schedule-days";
 
 const sessionTypeColors: Record<SessionType, string> = {
   opening: "bg-navy text-white",
@@ -24,7 +25,10 @@ const { session, speakers: allSpeakers } = Astro.props;
 const sessionSpeakers = allSpeakers.filter((s) =>
   session.speakerSlugs.includes(s.slug)
 );
-const t = useTranslations(getLangFromUrl(Astro.url));
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+// Each page shows its own language; Turkish falls back to English per field.
+const text = sessionText(session, lang);
 const colorClass = sessionTypeColors[session.type];
 const isBreak = session.type === "break";
 ---
@@ -50,24 +54,24 @@ const isBreak = session.type === "break";
     {
       session.time ? (
         <div class="flex items-baseline gap-2">
-          <span class="text-xs font-medium text-gray-500 shrink-0">
+          <span class="text-xs font-medium text-gray-600 shrink-0">
             {session.time}
             {session.endTime && `–${session.endTime}`}
           </span>
-          <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-500" : "text-navy"]}>
-            {session.title}
+          <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-600" : "text-navy"]}>
+            {text.title}
           </p>
         </div>
       ) : (
-        <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-500" : "text-navy"]}>
-          {session.title}
+        <p class:list={["font-medium text-sm leading-snug", isBreak ? "text-gray-600" : "text-navy"]}>
+          {text.title}
         </p>
       )
     }
 
     {
-      session.description && (
-        <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{session.description}</p>
+      text.description && (
+        <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{text.description}</p>
       )
     }
 

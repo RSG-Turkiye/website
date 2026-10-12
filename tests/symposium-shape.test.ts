@@ -214,15 +214,40 @@ test('every session field round trips to itself, not to its neighbour', () => {
     id: 'se1', slug: 'opening-keynote', year: 2026, title: 'Opening Keynote', type: 'keynote',
     time: '09:00', end_time: '10:00', description: 'Welcome remarks from the organizers.',
     speaker_slugs: '["jane-doe","john-roe"]', sort: 1,
+    day: 2, title_tr: 'Açılış Konuşması', description_tr: 'Düzenleyicilerden hoş geldiniz.',
   };
   const input = rowToInput('sessions', row);
   assert.deepEqual(input, {
     id: row.id, sort: row.sort, slug: row.slug, title: row.title, type: row.type,
     time: row.time, endTime: row.end_time, description: row.description,
     speakerSlugs: ['jane-doe', 'john-roe'],
+    day: 2, titleTr: row.title_tr, descriptionTr: row.description_tr,
   });
   const { id, sort, ...expectedRow } = row;
   assert.deepEqual(rowFromInput('sessions', input, row.year), expectedRow);
+});
+
+test('a session with no day is on day 1, and no translation is empty', () => {
+  const row = rowFromInput('sessions', { title: 'Keynote', type: 'keynote' }, 2026);
+  assert.equal(row.day, 1);
+  assert.equal(row.title_tr, '');
+  assert.equal(row.description_tr, '');
+});
+
+test('a day that is not a positive whole number is rejected', () => {
+  for (const day of [0, -1, 1.5, Number.NaN]) {
+    assert.throws(() => rowFromInput('sessions', { title: 'X', type: 'talk', day }, 2026), /day/);
+  }
+});
+
+test('the overlay carries a session day and its translations', () => {
+  const o = rowsToOverlay(editionRow, [], [{
+    id: 's', slug: 'w', year: 2026, title: 'Workshop', type: 'workshop', time: '13:00', end_time: '',
+    description: 'Hands-on', speaker_slugs: '[]', sort: 0, day: 2, title_tr: 'Atölye', description_tr: 'Uygulamalı',
+  }], [], []);
+  assert.equal(o.sessions[0].day, 2);
+  assert.equal(o.sessions[0].titleTr, 'Atölye');
+  assert.equal(o.sessions[0].descriptionTr, 'Uygulamalı');
 });
 
 test('every committee field round trips to itself, not to its neighbour', () => {

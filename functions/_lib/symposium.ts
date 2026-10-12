@@ -11,7 +11,7 @@ import { drivePhotoUrl } from './photo-url';
 
 // The D1 row shapes, mirroring Task 2's CREATE TABLE statements exactly.
 export interface SpeakerRow { id: string; slug: string; year: number; name: string; position: string; company: string; bio: string; photo: string; linkedin: string; sort: number }
-export interface SessionRow { id: string; slug: string; year: number; title: string; type: string; time: string; end_time: string; description: string; speaker_slugs: string; sort: number }
+export interface SessionRow { id: string; slug: string; year: number; title: string; type: string; time: string; end_time: string; description: string; speaker_slugs: string; day: number; title_tr: string; description_tr: string; sort: number }
 export interface CommitteeRow { id: string; year: number; name: string; role: string; role_tr: string; affiliation: string; photo: string; linkedin: string; teams: string; sort: number }
 export interface AnnouncementRow { id: string; title: string; description: string; button_text: string; button_url: string; show_as_popup: number; expires_at: number }
 export interface EditionRow { year: number; registration_url: string; registration_deadline: number | null; abstract_url: string; abstract_deadline: number | null; venue_public: number | null; city_public: number | null }
@@ -19,7 +19,7 @@ export interface EditionRow { year: number; registration_url: string; registrati
 // What the public endpoint serves and the build consumes. Booleans, not 0/1.
 export interface EditionOverlay { registrationUrl: string; registrationDeadline: number | null; abstractUrl: string; abstractDeadline: number | null; venuePublic: boolean | null; cityPublic: boolean | null }
 export interface OverlaySpeaker { slug: string; name: string; position: string; company: string; bio: string; photo: string; linkedin?: string }
-export interface OverlaySession { slug: string; title: string; type: string; speakerSlugs: string[]; description: string; time: string; endTime?: string; order: number }
+export interface OverlaySession { slug: string; title: string; titleTr: string; type: string; speakerSlugs: string[]; description: string; descriptionTr: string; time: string; endTime?: string; day: number; order: number }
 /** A team label in both languages. `tr` may be empty: a team named only in
  * English is shown in English on both sites, the way an untranslated role
  * already is. */
@@ -234,11 +234,14 @@ export function rowsToOverlay(
     sessions: bySortThenId(sessions).map((s) => ({
       slug: s.slug,
       title: s.title,
+      titleTr: s.title_tr,
       type: s.type,
       speakerSlugs: parseSpeakerSlugs(s.speaker_slugs),
       description: s.description,
+      descriptionTr: s.description_tr,
       time: s.time,
       endTime: s.end_time,
+      day: s.day,
       order: s.sort,
     })),
     committee: bySortThenId(committee).map((c) => ({
@@ -510,6 +513,9 @@ export interface SessionInput {
   endTime?: string;
   description?: string;
   speakerSlugs?: string[];
+  day?: number;
+  titleTr?: string;
+  descriptionTr?: string;
 }
 
 export interface CommitteeInput {
@@ -575,6 +581,8 @@ export function rowFromInput(
       if (!SESSION_TYPES.has(session.type)) {
         throw new Error(`session type must be one of ${[...SESSION_TYPES].join(', ')}, got: ${session.type}`);
       }
+      const day = session.day ?? 1;
+      if (!Number.isInteger(day) || day < 1) throw new Error(`session day must be a whole number from 1, got: ${session.day}`);
       return {
         slug: slugify(session.slug || session.title),
         year,
@@ -584,6 +592,9 @@ export function rowFromInput(
         end_time: session.endTime ?? '',
         description: session.description ?? '',
         speaker_slugs: JSON.stringify((session.speakerSlugs ?? []).map((s) => slugify(s))),
+        day,
+        title_tr: session.titleTr ?? '',
+        description_tr: session.descriptionTr ?? '',
       };
     }
     case 'committee': {
@@ -632,6 +643,7 @@ export function rowToInput(
         id: r.id, sort: r.sort, slug: r.slug, title: r.title, type: r.type,
         time: r.time, endTime: r.end_time, description: r.description,
         speakerSlugs: parseSpeakerSlugs(r.speaker_slugs),
+        day: r.day, titleTr: r.title_tr, descriptionTr: r.description_tr,
       };
     }
     case 'committee': {

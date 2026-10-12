@@ -73,11 +73,16 @@ const sessions = defineCollection({
     items: z.array(z.object({
       slug: z.string(),
       title: z.string(),
+      // The archived JSON omits an empty translation, so default it here.
+      titleTr: z.string().default(""),
       type: z.enum(["opening","keynote","workshop","panel","talk","company","poster","networking","break","closing"]),
       speakerSlugs: z.array(z.string()).default([]),
       description: z.string().default(""),
+      descriptionTr: z.string().default(""),
       time: z.string().default(""),
       endTime: z.string().optional(),
+      // Which programme day; times restart each day. Older editions are day 1.
+      day: z.number().int().min(1).default(1),
       order: z.number(),
     })),
   }),

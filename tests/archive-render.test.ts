@@ -6,7 +6,7 @@ const overlay = {
   year: 2026,
   edition: { registrationUrl: 'https://forms.gle/reg', venuePublic: true, cityPublic: true },
   speakers: [{ slug: 'ada-lovelace', name: 'Ada Lovelace', position: '', company: '', bio: '', photo: '' }],
-  sessions: [{ slug: 'keynote', title: 'Keynote', type: 'keynote', speakerSlugs: ['ada-lovelace'], description: '', time: '09:30', order: 1 }],
+  sessions: [{ slug: 'keynote', title: 'Keynote', titleTr: 'Açılış', type: 'keynote', speakerSlugs: ['ada-lovelace'], description: '', descriptionTr: '', time: '09:30', day: 2, order: 1 }],
   committee: [],
   announcements: [],
 } as never;
@@ -74,4 +74,12 @@ test('no dates in the frontmatter is undated, not "already over"', () => {
 
 test('no frontmatter at all is undated, not "already over"', () => {
   assert.equal(endOfEventFromMarkdown('Just a body, no frontmatter.'), null);
+});
+
+test('the session archives its day and Turkish title, and omits an empty translation', () => {
+  const sessions = renderArchive(overlay).find((f) => f.path.includes('sessions'))!;
+  const item = JSON.parse(sessions.content).items[0];
+  assert.equal(item.day, 2);
+  assert.equal(item.titleTr, 'Açılış');
+  assert.equal('descriptionTr' in item, false);
 });
