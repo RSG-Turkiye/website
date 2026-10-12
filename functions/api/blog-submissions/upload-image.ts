@@ -1,5 +1,5 @@
 import type { Env } from '../../_lib/auth';
-import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../_lib/auth';
+import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium, canSocialEdit } from '../../_lib/auth';
 import { imageSize } from '../../_lib/images';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
@@ -32,8 +32,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // size, type and dimension checks below -- a second copy is a second place
   // for one of them to be forgotten. The bucket is shared, which is fine:
   // both are public images on the same two sites, published by people who
-  // can already publish to them.
-  if (user.is_writer !== 1 && !canManageSymposium(user)) {
+  // can already publish to them. Social editors upload post images here too
+  // (spec §3).
+  if (user.is_writer !== 1 && !canManageSymposium(user) && !canSocialEdit(user)) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
@@ -70,5 +71,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const key = `${crypto.randomUUID()}.${extension}`;
   await env.BLOG_IMAGES.put(key, bytes, { httpMetadata: { contentType } });
 
-  return jsonResponse({ url: `${env.PUBLIC_BLOG_IMAGES_URL}/${key}` });
+  // The social panel checks a post's aspect ratio against this record rather
+  // than whatever the browser claims. Wrapped: a blog upload must not fail
+  // because the social tables have not been migrated yet.
+  try {
+    await env.DB.prepare(
+      'INSERT INTO social_media (key, width, height, content_type, size_bytes, uploaded_by, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).bind(key, size.width, size.height, contentType, bytes.byteLength, user.id, Math.floor(Date.now() / 1000)).run();
+  } catch (err) {
+    console.error('social_media insert failed', err);
+  }
+
+  return jsonResponse({ url: `${env.PUBLIC_BLOG_IMAGES_URL}/${key}`, key, width: size.width, height: size.height });
 };

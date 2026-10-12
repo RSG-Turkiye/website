@@ -18,7 +18,8 @@
 # rebuilds, so the symposium home page drops its certificates band the same night.
 #
 # It also prunes the admin audit log to one year (functions/api/admin/audit/prune.ts),
-# with the same secret.
+# with the same secret. It also emails reminders for social media plans still empty
+# 48 hours ahead (functions/api/admin/social/plan-reminders.ts).
 
 name = "rsg-symposium-cron"
 main = "src/index.ts"
@@ -43,3 +44,4 @@ crons = ["17 1 * * *"]
 ARCHIVE_URL = "https://rsg-turkiye.iscbsc.org/api/admin/symposium/archive"
 PURGE_URL = "https://rsg-turkiye.iscbsc.org/api/admin/certificates/purge"
 AUDIT_PRUNE_URL = "https://rsg-turkiye.iscbsc.org/api/admin/audit/prune"
+SOCIAL_REMINDERS_URL = "https://rsg-turkiye.iscbsc.org/api/admin/social/plan-reminders"

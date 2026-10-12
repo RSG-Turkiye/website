@@ -1,4 +1,8 @@
 import type { Env } from '../../_lib/auth';
+import { IMAGE_KEY } from '../../_lib/images';
+
+// Re-exported so existing importers keep working.
+export { IMAGE_KEY };
 
 /**
  * Serves an uploaded image from R2 through this site's own domain.
@@ -18,12 +22,6 @@ import type { Env } from '../../_lib/auth';
  * `Content-Type` and the rest come off the object, so an image stored as
  * WebP is served as WebP even though the key says .jpg is possible.
  */
-
-/** Exactly what upload-image.ts writes: a v4 UUID plus one known extension.
- * Anything else is refused without touching the bucket -- this is the only
- * user-controlled value in the request, and it must never be able to name
- * an object it was not meant to. */
-export const IMAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp|gif)$/;
 
 /** A year, immutable: the key contains a UUID minted per upload, so a given
  * key's bytes never change. Without this every view is a Function

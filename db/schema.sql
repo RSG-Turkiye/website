@@ -215,6 +215,14 @@
 --    banner have nothing to read, and "Reconnect Gmail" answers 500.
 --
 
+-- 8d. Social media content tables (social_media, social_plans, social_posts,
+--    social_post_targets, social_event_modes). New tables, IF NOT EXISTS:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Run it before deploying. Without social_media, image uploads still work
+--    (the insert is wrapped) but every social post reads as unknown_media;
+--    without the others, /api/social/* answers 500.
+--
+
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   google_id     TEXT UNIQUE NOT NULL,
@@ -743,4 +751,92 @@ CREATE TABLE IF NOT EXISTS oauth_states (
   user_id     TEXT NOT NULL,
   return_to   TEXT NOT NULL,
   expires_at  INTEGER NOT NULL
+);
+
+-- Social media content (spec §3). Dimensions of every uploaded image are
+-- recorded here by /api/blog-submissions/upload-image, so a post's ratio
+-- check reads the server's own measurement, never the browser's claim.
+CREATE TABLE IF NOT EXISTS social_media (
+  key           TEXT PRIMARY KEY,
+  width         INTEGER NOT NULL,
+  height        INTEGER NOT NULL,
+  content_type  TEXT NOT NULL,
+  size_bytes    INTEGER NOT NULL,
+  uploaded_by   TEXT NOT NULL,
+  uploaded_at   INTEGER NOT NULL
+);
+
+-- A slot on the calendar before its content exists. post_id is set when a
+-- post is attached, and cleared again if that post is deleted or cancelled.
+CREATE TABLE IF NOT EXISTS social_plans (
+  id            TEXT PRIMARY KEY,
+  title         TEXT NOT NULL,
+  scheduled_at  INTEGER NOT NULL,
+  platforms     TEXT NOT NULL DEFAULT '["instagram"]',
+  post_type     TEXT NOT NULL DEFAULT 'image' CHECK (post_type IN ('image','carousel','story')),
+  assignee_id   TEXT,
+  note          TEXT NOT NULL DEFAULT '',
+  post_id       TEXT,
+  reminded_at   INTEGER,
+  created_by    TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_social_plans_at ON social_plans(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_social_plans_post ON social_plans(post_id);
+
+-- revision rises on every change; each write names the revision it read, so
+-- two people acting at once cannot both win. write_nonce is a random value each
+-- write stores, so the statements that follow a write can prove that THIS
+-- write landed (functions/_lib/social-posts.ts).
+CREATE TABLE IF NOT EXISTS social_posts (
+  id                 TEXT PRIMARY KEY,
+  type               TEXT NOT NULL CHECK (type IN ('image','carousel','story')),
+  caption            TEXT NOT NULL DEFAULT '',
+  caption_overrides  TEXT NOT NULL DEFAULT '{}',
+  link               TEXT,
+  media              TEXT NOT NULL DEFAULT '[]',
+  platforms          TEXT NOT NULL DEFAULT '[]',
+  scheduled_at       INTEGER,
+  status             TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','pending_approval','scheduled','published','partially_published','failed','rejected','cancelled')),
+  revision           INTEGER NOT NULL DEFAULT 0,
+  write_nonce        TEXT,
+  created_by         TEXT NOT NULL,
+  approved_by        TEXT,
+  approved_at        INTEGER,
+  review_note        TEXT,
+  event_mode_id      TEXT,
+  created_at         INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_social_posts_at ON social_posts(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_social_posts_status ON social_posts(status);
+
+-- One row per post per platform: the unit phase 3's dispatcher publishes.
+CREATE TABLE IF NOT EXISTS social_post_targets (
+  post_id         TEXT NOT NULL,
+  platform        TEXT NOT NULL CHECK (platform IN ('instagram','linkedin','x')),
+  status          TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','waiting_connection','needs_confirmation','publishing','published','failed','skipped')),
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  first_tried_at  INTEGER,
+  claimed_at      INTEGER,
+  last_error      TEXT,
+  container_id    TEXT,
+  remote_id       TEXT,
+  permalink       TEXT,
+  published_at    INTEGER,
+  PRIMARY KEY (post_id, platform)
+);
+
+-- A time-boxed window in which named editors' stories skip approval (spec §1).
+CREATE TABLE IF NOT EXISTS social_event_modes (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  starts_at   INTEGER NOT NULL,
+  ends_at     INTEGER NOT NULL,
+  editor_ids  TEXT NOT NULL DEFAULT '[]',
+  opened_by   TEXT NOT NULL,
+  closed_by   TEXT,
+  closed_at   INTEGER,
+  created_at  INTEGER NOT NULL
 );

@@ -10,6 +10,8 @@ export interface Env {
   PURGE_URL: string;
   /** Main site's audit-log retention endpoint; same secret as archive. */
   AUDIT_PRUNE_URL: string;
+  /** Main site's social plan reminders; same secret as archive. */
+  SOCIAL_REMINDERS_URL: string;
 }
 
 /**
@@ -61,6 +63,7 @@ export default {
           archive: parseIfJson(body.archive),
           purge: parseIfJson(body.purge),
           auditPrune: parseIfJson(body.auditPrune),
+          socialReminders: parseIfJson(body.socialReminders),
           rebuild: parseIfJson(body.rebuild),
           websiteRebuild: parseIfJson(body.websiteRebuild),
         },
@@ -75,7 +78,7 @@ export default {
   },
 };
 
-type Tick = { archive: string; purge: string; auditPrune: string; rebuild: string; websiteRebuild: string };
+type Tick = { archive: string; purge: string; auditPrune: string; socialReminders: string; rebuild: string; websiteRebuild: string };
 
 async function tick(env: Env): Promise<Tick> {
   // Archive first: a finished edition needs its pull request opened before
@@ -89,22 +92,24 @@ async function tick(env: Env): Promise<Tick> {
   // its certificates band the same night.
   const purge = await callSecretPost('purge', env.PURGE_URL, env);
   const auditPrune = await callSecretPost('audit prune', env.AUDIT_PRUNE_URL, env);
+  const socialReminders = await callSecretPost('social reminders', env.SOCIAL_REMINDERS_URL, env);
   const rebuild = await callRebuild('rebuild', env.SYMPOSIUM_DEPLOY_HOOK);
   const websiteRebuild = await callRebuild('website rebuild', env.WEBSITE_DEPLOY_HOOK);
 
   // Both results are returned rather than raised here: one failing must not
   // stop the other being reported, and the two callers differ on what to do
   // about it -- see `scheduled` and `fetch`.
-  return { archive, purge, auditPrune, rebuild, websiteRebuild };
+  return { archive, purge, auditPrune, socialReminders, rebuild, websiteRebuild };
 }
 
 function failed(t: Tick): boolean {
-  return [t.archive, t.purge, t.auditPrune, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
+  return [t.archive, t.purge, t.auditPrune, t.socialReminders, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
 }
 
 function summarise(t: Tick): string {
   return (
     `tick failed -- archive: ${t.archive.slice(0, 120)} purge: ${t.purge.slice(0, 120)} audit prune: ${t.auditPrune.slice(0, 120)} ` +
+    `social reminders: ${t.socialReminders.slice(0, 120)} ` +
     `rebuild: ${t.rebuild.slice(0, 120)} website rebuild: ${t.websiteRebuild.slice(0, 120)}`
   );
 }
