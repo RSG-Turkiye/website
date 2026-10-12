@@ -207,6 +207,13 @@
 --      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_social INTEGER NOT NULL DEFAULT 0"
 --      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_social_publisher INTEGER NOT NULL DEFAULT 0"
 --
+-- 8c. platform_connections and oauth_states (below). New tables, IF NOT
+--    EXISTS: re-apply the file before deploying:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Without them mail is unaffected (the Gmail path falls back to the
+--    GMAIL_REFRESH_TOKEN secret), but the Connections pane and the status
+--    banner have nothing to read, and "Reconnect Gmail" answers 500.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -706,3 +713,34 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, at);
+
+-- One row per external account the site talks to. Tokens are AES-GCM
+-- ciphertext (functions/_lib/token-vault.ts), never plaintext. A row may
+-- exist with no tokens at all: Gmail's health (last_ok_at / last_error) is
+-- recorded here even while the refresh token still comes from the
+-- GMAIL_REFRESH_TOKEN secret. Status is derived on read, never stored.
+CREATE TABLE IF NOT EXISTS platform_connections (
+  platform            TEXT PRIMARY KEY CHECK (platform IN ('gmail','instagram','linkedin','x')),
+  account_id          TEXT,
+  account_name        TEXT,
+  access_token_enc    TEXT,
+  refresh_token_enc   TEXT,
+  scopes              TEXT,
+  expires_at          INTEGER,
+  refresh_expires_at  INTEGER,
+  connected_by        TEXT,
+  connected_at        INTEGER,
+  last_ok_at          INTEGER,
+  last_error          TEXT,
+  last_error_at       INTEGER
+);
+
+-- Single-use OAuth state, ten minutes. Consumed with DELETE ... RETURNING so
+-- a reloaded or replayed callback finds nothing.
+CREATE TABLE IF NOT EXISTS oauth_states (
+  state       TEXT PRIMARY KEY,
+  platform    TEXT NOT NULL,
+  user_id     TEXT NOT NULL,
+  return_to   TEXT NOT NULL,
+  expires_at  INTEGER NOT NULL
+);
