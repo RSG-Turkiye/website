@@ -192,6 +192,13 @@
 --    with "no such table". Files live in the MAIL_ATTACHMENTS bucket under
 --    certificates/; add the R2 lifecycle rule described in README.md.
 --
+-- 8a. The audit log (audit_log, below). New table, IF NOT EXISTS, so
+--    re-applying the file is safe:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Run it BEFORE deploying. Role changes are written together with their
+--    audit row and fail closed: without the table, granting or removing any
+--    role answers 500 instead of happening unlogged.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -668,3 +675,24 @@ CREATE TABLE IF NOT EXISTS certificate_lookups (
   at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_cert_lookups ON certificate_lookups(ip_hash, at);
+
+-- Who did what in the admin panel, kept a year. Each row carries the hash of
+-- the row before it, so a row changed or removed after the fact breaks the
+-- chain and /api/admin/audit/verify says where. prev_hash is UNIQUE: two
+-- writers that read the same last row cannot both append after it, so the
+-- chain cannot fork -- the loser retries (functions/_lib/audit.ts).
+-- user_id has no foreign key on purpose: system rows have none, and deleting
+-- a user must not delete the record of what they did.
+CREATE TABLE IF NOT EXISTS audit_log (
+  seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+  at           INTEGER NOT NULL,
+  user_id      TEXT,
+  action       TEXT NOT NULL,
+  target_type  TEXT,
+  target_id    TEXT,
+  details      TEXT NOT NULL DEFAULT '{}',
+  prev_hash    TEXT NOT NULL UNIQUE,
+  hash         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at);
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, at);
