@@ -540,6 +540,60 @@ step 4 happens **after** it is merged and Pages has deployed.
    cd workers/symposium-cron && npx wrangler deploy
    ```
 
+## Social media content (phase 2a)
+
+The content backend for the social media panel is in place. Plans, posts and
+the approval flow live under `/api/social/*` (plans, posts with submit,
+approve, reject and cancel, event modes, editors).
+
+### What exists now
+
+- Plans and posts, including drafts and plan slots.
+- The approval flow: submit, approve, reject, cancel.
+- Event modes, which publishers open and close.
+- Email notifications for the flow.
+- Nightly plan reminders: `/api/admin/social/plan-reminders`, called by
+  `workers/symposium-cron` through `SOCIAL_REMINDERS_URL`. It mails about
+  plans that are still empty two days out.
+
+### What does not exist yet
+
+Nothing is published to Instagram or LinkedIn yet (phase 3), and the panel
+screens come in plan 2b. Until then the API is the only way in.
+
+Caption length is counted conservatively on purpose: an emoji outside the
+basic plane counts as two characters, so a post that passes here will not be
+cut off by the platform.
+
+### Roles
+
+- **Editors** plan and draft, and submit for approval.
+- **Publishers** schedule directly, approve or send back with a note, cancel,
+  and open event windows. Admins count as publishers.
+- An editor's story skips approval only inside an open event window that
+  names them.
+
+### Before deploying
+
+1. **Before merging: run migration 8d** (see the top of `db/schema.sql`):
+
+   ```
+   wrangler d1 execute rsg-members --remote --file=db/schema.sql
+   ```
+2. **Merge and wait for the Pages deploy to finish.**
+3. **After the deploy: redeploy the daily Worker** so it calls
+   `SOCIAL_REMINDERS_URL`. Doing this before the merge makes the Worker call
+   an endpoint that does not exist yet, and it gets a 404:
+
+   ```
+   cd workers/symposium-cron && npx wrangler deploy
+   ```
+
+### Notifications
+
+Notification mail goes out from `RSG_MAIL_FROM` and is not recorded in sent
+mail. When Gmail is broken they pause, and the status banner already says so.
+
 ## Yearly handover
 
 When the committee changes:
