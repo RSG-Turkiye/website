@@ -12,6 +12,10 @@
 # shared with GitHub Actions -- see README.md. This Worker holds nothing else; the
 # archiving and rebuild logic itself lives in the main site
 # (functions/api/admin/symposium/archive.ts).
+#
+# It also purges symposium certificates past their 30 days
+# (functions/api/admin/certificates/purge.ts), after archiving and before the
+# rebuilds, so the symposium home page drops its certificates band the same night.
 
 name = "rsg-symposium-cron"
 main = "src/index.ts"
@@ -34,3 +38,4 @@ crons = ["17 1 * * *"]
 
 [vars]
 ARCHIVE_URL = "https://rsg-turkiye.iscbsc.org/api/admin/symposium/archive"
+PURGE_URL = "https://rsg-turkiye.iscbsc.org/api/admin/certificates/purge"

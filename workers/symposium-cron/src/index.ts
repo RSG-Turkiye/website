@@ -6,6 +6,8 @@ export interface Env {
   /** Same value as the main site's SYMPOSIUM_ARCHIVE_SECRET Pages secret. */
   SYMPOSIUM_ARCHIVE_SECRET: string;
   ARCHIVE_URL: string;
+  /** Main site's certificate retention endpoint; same secret as archive. */
+  PURGE_URL: string;
 }
 
 /**
@@ -55,6 +57,7 @@ export default {
       JSON.stringify(
         {
           archive: parseIfJson(body.archive),
+          purge: parseIfJson(body.purge),
           rebuild: parseIfJson(body.rebuild),
           websiteRebuild: parseIfJson(body.websiteRebuild),
         },
@@ -69,7 +72,7 @@ export default {
   },
 };
 
-type Tick = { archive: string; rebuild: string; websiteRebuild: string };
+type Tick = { archive: string; purge: string; rebuild: string; websiteRebuild: string };
 
 async function tick(env: Env): Promise<Tick> {
   // Archive first: a finished edition needs its pull request opened before
@@ -79,22 +82,23 @@ async function tick(env: Env): Promise<Tick> {
   // ran ahead of its archive. Sequential rather than raced, so one failing
   // does not cancel the other's logging.
   const archive = await callArchive(env);
+  const purge = await callPurge(env);
   const rebuild = await callRebuild('rebuild', env.SYMPOSIUM_DEPLOY_HOOK);
   const websiteRebuild = await callRebuild('website rebuild', env.WEBSITE_DEPLOY_HOOK);
 
   // Both results are returned rather than raised here: one failing must not
   // stop the other being reported, and the two callers differ on what to do
   // about it -- see `scheduled` and `fetch`.
-  return { archive, rebuild, websiteRebuild };
+  return { archive, purge, rebuild, websiteRebuild };
 }
 
 function failed(t: Tick): boolean {
-  return [t.archive, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
+  return [t.archive, t.purge, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
 }
 
 function summarise(t: Tick): string {
   return (
-    `tick failed -- archive: ${t.archive.slice(0, 120)} rebuild: ${t.rebuild.slice(0, 120)} ` +
+    `tick failed -- archive: ${t.archive.slice(0, 120)} purge: ${t.purge.slice(0, 120)} rebuild: ${t.rebuild.slice(0, 120)} ` +
     `website rebuild: ${t.websiteRebuild.slice(0, 120)}`
   );
 }
@@ -124,6 +128,23 @@ async function callArchive(env: Env): Promise<string> {
     return res.ok ? body : `ERROR ${res.status}: ${body.slice(0, 200)}`;
   } catch (err) {
     console.log(`archive threw: ${String(err).slice(0, 300)}`);
+    return `ERROR: ${String(err).slice(0, 200)}`;
+  }
+}
+
+/** Deletes certificates past their 30 days. Before the rebuilds, so the
+ * symposium home page loses its certificates band the same night. */
+async function callPurge(env: Env): Promise<string> {
+  try {
+    const res = await fetch(env.PURGE_URL, {
+      method: 'POST',
+      headers: { 'X-Archive-Secret': env.SYMPOSIUM_ARCHIVE_SECRET },
+    });
+    const body = await res.text();
+    console.log(`purge ${res.status}: ${body.slice(0, 300)}`);
+    return res.ok ? body : `ERROR ${res.status}: ${body.slice(0, 200)}`;
+  } catch (err) {
+    console.log(`purge threw: ${String(err).slice(0, 300)}`);
     return `ERROR: ${String(err).slice(0, 200)}`;
   }
 }
