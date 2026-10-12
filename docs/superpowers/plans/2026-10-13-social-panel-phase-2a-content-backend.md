@@ -11,7 +11,7 @@
   - `social-events.ts`: event-mode coverage.
   - `social-plans.ts`: plan input parsing.
 - **Endpoints** under `functions/api/social/` are thin handlers over those rules.
-- **Concurrency.** Every post mutation is guarded by a `revision` column. It is written in one D1 batch with its audit row, using a new `runGuardedWithAudit`. Two publishers acting at once cannot both win, and nothing changes without a log row.
+- **Concurrency.** Every post mutation is guarded by a `revision` column, and proves it landed with a per-write `write_nonce`. It is written in one D1 batch with its audit row, using a new `runGuardedWithAudit`. Two publishers acting at once cannot both win, and nothing changes without a log row.
 - **Notifications.** System email goes through `buildMime` + `sendMail`, as `notifyThreadOwner` already does. It is fired with `waitUntil` and can never fail the request.
 
 **Tech Stack:** Cloudflare Pages Functions, D1, R2, Workers cron, `node:test` with in-memory `node:sqlite`.
@@ -51,7 +51,7 @@
 
 ## Review Focus
 
-1. **Two publishers act on one pending post at the same moment** (approve and reject, or approve twice). Expected: one wins; the other gets 409 `post_changed` and changes nothing, writing no audit row and sending no email. Pinned in Task 7.
+1. **Two publishers act on one pending post at the same moment** (approve and reject, or approve twice). Expected: one wins; the other gets 409 `post_changed` and changes nothing, writing no audit row and sending no email. The proof is the per-write `write_nonce`, never the revision number. Pinned in Task 1 (generic) and Task 7 (posts).
 2. **A publisher approves a request whose time has already passed.** Expected: 422 with problem `schedule_in_past`; the post stays pending. Pinned in Task 7.
 3. **An editor edits a post that is already scheduled.** Expected: it returns to `pending_approval` and its queued targets are removed. A publisher's edit keeps it scheduled and rebuilds the targets. An event-mode story keeps `scheduled` only while a window still covers the editor. Pinned in Task 6.
 4. **Gmail is broken, or a recipient list is empty, when a notification is due.** Expected: the request still succeeds, and the failure is only logged to the console. Pinned in Task 4 and Task 7.
@@ -113,21 +113,19 @@ const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathnam
 function setup() {
   const db = new DatabaseSync(':memory:');
   db.exec(SCHEMA);
-  db.exec(`CREATE TABLE t (id TEXT PRIMARY KEY, rev INTEGER NOT NULL, note TEXT)`);
+  db.exec(`CREATE TABLE t (id TEXT PRIMARY KEY, rev INTEGER NOT NULL, nonce TEXT, note TEXT)`);
   db.prepare(`INSERT INTO t (id, rev) VALUES ('a', 0)`).run();
   return { db, DB: d1(db) as never as D1Database };
 }
-const PROOF = (rev: number) => ({ condition: 'EXISTS (SELECT 1 FROM t WHERE id = ? AND rev = ?)', binds: ['a', rev] });
+// The proof names something only this writer wrote (its nonce): a revision
+// number would also be true for a loser that computed the same next revision.
+const PROOF = (nonce: string) => ({ condition: 'EXISTS (SELECT 1 FROM t WHERE id = ? AND nonce = ?)', binds: ['a', nonce] });
+const GUARD = (DB: D1Database, rev: number, nonce: string) => DB.prepare('UPDATE t SET rev = rev + 1, nonce = ? WHERE id = ? AND rev = ?').bind(nonce, 'a', rev);
+const AFTER = (DB: D1Database, nonce: string) => DB.prepare(`UPDATE t SET note = 'after' WHERE id = ? AND EXISTS (SELECT 1 FROM t WHERE id = ? AND nonce = ?)`).bind('a', 'a', nonce);
 
 test('when the guard applies, the audit row and the after-statements land', async () => {
   const { db, DB } = setup();
-  const ok = await runGuardedWithAudit(
-    DB,
-    DB.prepare('UPDATE t SET rev = rev + 1 WHERE id = ? AND rev = ?').bind('a', 0),
-    PROOF(1),
-    [DB.prepare(`UPDATE t SET note = 'after' WHERE id = ? AND EXISTS (SELECT 1 FROM t WHERE id = ? AND rev = ?)`).bind('a', 'a', 1)],
-    { userId: 'u1', action: 'x.change' }, 100,
-  );
+  const ok = await runGuardedWithAudit(DB, GUARD(DB, 0, 'n1'), PROOF('n1'), [AFTER(DB, 'n1')], { userId: 'u1', action: 'x.change' }, 100);
   assert.equal(ok, true);
   assert.deepEqual({ ...db.prepare('SELECT rev, note FROM t').get() as object }, { rev: 1, note: 'after' });
   const rows = db.prepare('SELECT * FROM audit_log').all() as unknown as AuditRow[];
@@ -137,27 +135,22 @@ test('when the guard applies, the audit row and the after-statements land', asyn
 
 test('when the guard matches nothing, nothing is written and false comes back', async () => {
   const { db, DB } = setup();
-  const ok = await runGuardedWithAudit(
-    DB,
-    DB.prepare('UPDATE t SET rev = rev + 1 WHERE id = ? AND rev = ?').bind('a', 7),
-    PROOF(8),
-    [DB.prepare(`UPDATE t SET note = 'after' WHERE id = ? AND EXISTS (SELECT 1 FROM t WHERE id = ? AND rev = ?)`).bind('a', 'a', 8)],
-    { userId: 'u1', action: 'x.change' }, 100,
-  );
+  const ok = await runGuardedWithAudit(DB, GUARD(DB, 7, 'n1'), PROOF('n1'), [AFTER(DB, 'n1')], { userId: 'u1', action: 'x.change' }, 100);
   assert.equal(ok, false);
   assert.deepEqual({ ...db.prepare('SELECT rev, note FROM t').get() as object }, { rev: 0, note: null });
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
 });
 
-test('two writers racing on one revision: exactly one wins', async () => {
+test('two writers racing on one revision: exactly one wins, and only the winner is logged', async () => {
   const { db, DB } = setup();
-  const attempt = () => runGuardedWithAudit(
-    DB, DB.prepare('UPDATE t SET rev = rev + 1 WHERE id = ? AND rev = ?').bind('a', 0), PROOF(1), [],
-    { userId: 'u1', action: 'x.change' }, 100,
+  const attempt = (nonce: string) => runGuardedWithAudit(
+    DB, GUARD(DB, 0, nonce), PROOF(nonce), [AFTER(DB, nonce)], { userId: 'u1', action: `x.${nonce}` }, 100,
   );
-  const results = await Promise.all([attempt(), attempt()]);
-  assert.deepEqual(results.sort(), [false, true]);
-  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 1);
+  const results = await Promise.all([attempt('n1'), attempt('n2')]);
+  assert.deepEqual([...results].sort(), [false, true]);
+  const logged = (db.prepare('SELECT action FROM audit_log').all() as { action: string }[]).map((r) => r.action);
+  const winner = results[0] ? 'x.n1' : 'x.n2';
+  assert.deepEqual(logged, [winner]);
 });
 ```
 
@@ -426,7 +419,7 @@ git commit -m "Social limits: one way to count captions and check ratios"
 - Consumes:
   - Task 2's constants and functions.
   - `validateScheduledAt(value, now)` from `functions/_lib/schedule.ts`: codes `invalid_schedule_time`, `schedule_in_past`, `schedule_too_far`.
-  - `IMAGE_KEY` from `functions/api/images/[key].ts`.
+  - `IMAGE_KEY`, moved by this task from `functions/api/images/[key].ts` into `functions/_lib/images.ts` (a lib must not import a route).
   - `canSocialEdit` from auth.
 - Produces (social-posts.ts):
   - `type PostStatus = 'draft' | 'pending_approval' | 'scheduled' | 'published' | 'partially_published' | 'failed' | 'rejected' | 'cancelled'`
@@ -447,10 +440,11 @@ git commit -m "Social limits: one way to count captions and check ratios"
   - `interface PostRow` (the DB row: `id, type, caption, caption_overrides, link, media, platforms, scheduled_at, status, revision, created_by, approved_by, approved_at, review_note, event_mode_id, created_at, updated_at`)
   - `rowToDraft(row: PostRow): DraftInput`
   - `type PostColumn` (union of writable column names)
-  - `POST_PROOF: string`, which is `'EXISTS (SELECT 1 FROM social_posts WHERE id = ? AND revision = ?)'`
-  - `updatePostGuarded(db: D1Database, id: string, revision: number, fields: Partial<Record<PostColumn, unknown>>, now: number, statusIn?: PostStatus[]): D1PreparedStatement`
-  - `targetStatements(db: D1Database, postId: string, newRevision: number, platforms: SocialPlatform[] | null): D1PreparedStatement[]`
-  - `unlinkPlanStatement(db: D1Database, postId: string, newRevision: number): D1PreparedStatement`
+  - `POST_PROOF: string`, which is `'EXISTS (SELECT 1 FROM social_posts WHERE id = ? AND write_nonce = ?)'`. Bind `[postId, nonce]`.
+  - `updatePostGuarded(db: D1Database, id: string, revision: number, nonce: string, fields: Partial<Record<PostColumn, unknown>>, now: number, statusIn?: PostStatus[]): D1PreparedStatement`
+  - `targetStatements(db: D1Database, postId: string, nonce: string, platforms: SocialPlatform[] | null): D1PreparedStatement[]`
+  - `unlinkPlanStatement(db: D1Database, postId: string, nonce: string): D1PreparedStatement`
+  - Every caller makes `const nonce = crypto.randomUUID()` per write. A revision number cannot serve as the proof: two writers that read the same revision compute the same next one, so the loser's follow-up statements and audit row would pass too.
   - `draftColumns(d: DraftInput): Partial<Record<PostColumn, unknown>>`
 - Produces (social-events.ts):
   - `interface EventModeRow { id: string; name: string; starts_at: number; ends_at: number; editor_ids: string; opened_by: string; closed_by: string | null; closed_at: number | null; created_at: number }`
@@ -495,7 +489,9 @@ CREATE INDEX IF NOT EXISTS idx_social_plans_at ON social_plans(scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_social_plans_post ON social_plans(post_id);
 
 -- revision rises on every change; each write names the revision it read, so
--- two people acting at once cannot both win (functions/_lib/social-posts.ts).
+-- two people acting at once cannot both win. write_nonce is a random value each
+-- write stores, so the statements that follow a write can prove that THIS
+-- write landed (functions/_lib/social-posts.ts).
 CREATE TABLE IF NOT EXISTS social_posts (
   id                 TEXT PRIMARY KEY,
   type               TEXT NOT NULL CHECK (type IN ('image','carousel','story')),
@@ -507,6 +503,7 @@ CREATE TABLE IF NOT EXISTS social_posts (
   scheduled_at       INTEGER,
   status             TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','pending_approval','scheduled','published','partially_published','failed','rejected','cancelled')),
   revision           INTEGER NOT NULL DEFAULT 0,
+  write_nonce        TEXT,
   created_by         TEXT NOT NULL,
   approved_by        TEXT,
   approved_at        INTEGER,
@@ -739,18 +736,21 @@ test('coveringEvent finds the open window for this editor', async () => {
   assert.equal(await coveringEvent(d1(db) as never, 'other', NOW), null);
 });
 
-test('guarded update and targets only act on the expected revision', async () => {
+test('guarded update and targets act only when this write landed', async () => {
   const db = new DatabaseSync(':memory:');
   db.exec(SCHEMA);
   db.prepare(`INSERT INTO social_posts (id, type, created_by, created_at, updated_at) VALUES ('p','image','ed',1,1)`).run();
   const DB = d1(db) as never as D1Database;
-  const stale = await DB.batch([updatePostGuarded(DB, 'p', 5, { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 6, ['instagram'])]);
+  const stale = await DB.batch([updatePostGuarded(DB, 'p', 5, 'n-stale', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-stale', ['instagram'])]);
   assert.equal((stale[0] as { meta: { changes: number } }).meta.changes, 0);
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 0);
-  await DB.batch([updatePostGuarded(DB, 'p', 0, { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 1, ['instagram', 'linkedin'])]);
-  assert.deepEqual({ ...db.prepare('SELECT status, revision FROM social_posts').get() as object }, { status: 'scheduled', revision: 1 });
+  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-win', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-win', ['instagram', 'linkedin'])]);
+  assert.deepEqual({ ...db.prepare('SELECT status, revision, write_nonce FROM social_posts').get() as object }, { status: 'scheduled', revision: 1, write_nonce: 'n-win' });
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 2);
-  assert.match(POST_PROOF, /revision = \?/);
+  // A loser that read revision 0 too, arriving after: its guard misses and its targets do not overwrite the winner's.
+  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-lose', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-lose', ['linkedin'])]);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 2);
+  assert.match(POST_PROOF, /write_nonce = \?/);
 });
 ```
 
@@ -782,6 +782,8 @@ Expected: FAIL, modules not found, and the upload test gets 403.
 
   return jsonResponse({ url: `${env.PUBLIC_BLOG_IMAGES_URL}/${key}`, key, width: size.width, height: size.height });
 ```
+
+- [ ] **Step 4b: Move `IMAGE_KEY` into the lib.** Cut the `export const IMAGE_KEY = /.../;` line (and its comment) from `functions/api/images/[key].ts` and paste it, unchanged, into `functions/_lib/images.ts` as an export. In the route, add `import { IMAGE_KEY } from '../../_lib/images';` and re-export it with `export { IMAGE_KEY };` so existing importers (`tests/image-key.test.ts` and any other) keep working. Run `node --import tsx --test tests/image-key.test.ts tests/images.test.ts`. Expected: PASS.
 
 - [ ] **Step 5: `functions/_lib/social-events.ts`**
 
@@ -836,7 +838,7 @@ import {
   ratioOk, captionProblems, type PostType, type SocialPlatform,
 } from './social-limits';
 import { validateScheduledAt } from './schedule';
-import { IMAGE_KEY } from '../api/images/[key]';
+import { IMAGE_KEY } from './images';
 
 export type PostStatus =
   | 'draft' | 'pending_approval' | 'scheduled' | 'published' | 'partially_published' | 'failed' | 'rejected' | 'cancelled';
@@ -1037,37 +1039,42 @@ export function draftColumns(d: DraftInput): Partial<Record<PostColumn, unknown>
   };
 }
 
-/** True after a guarded update took effect: the row carries the revision that update wrote. */
-export const POST_PROOF = 'EXISTS (SELECT 1 FROM social_posts WHERE id = ? AND revision = ?)';
+/**
+ * True after a guarded update took effect: the row carries the nonce THIS
+ * write stored. (A revision number would not do: two writers that read the
+ * same revision compute the same next one, and the loser's statements would
+ * pass too.)
+ */
+export const POST_PROOF = 'EXISTS (SELECT 1 FROM social_posts WHERE id = ? AND write_nonce = ?)';
 
 /** Column names come from the PostColumn union, never from a request. */
 export function updatePostGuarded(
-  db: D1Database, id: string, revision: number, fields: Partial<Record<PostColumn, unknown>>, now: number, statusIn?: PostStatus[],
+  db: D1Database, id: string, revision: number, nonce: string, fields: Partial<Record<PostColumn, unknown>>, now: number, statusIn?: PostStatus[],
 ): D1PreparedStatement {
   const cols = Object.keys(fields) as PostColumn[];
   const sets = cols.map((c) => `${c} = ?, `).join('');
   const statusClause = statusIn && statusIn.length ? ` AND status IN (${statusIn.map(() => '?').join(', ')})` : '';
   return db.prepare(
-    `UPDATE social_posts SET ${sets}revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ?${statusClause}`,
-  ).bind(...cols.map((c) => fields[c]), now, id, revision, ...(statusIn ?? []));
+    `UPDATE social_posts SET ${sets}revision = revision + 1, write_nonce = ?, updated_at = ? WHERE id = ? AND revision = ?${statusClause}`,
+  ).bind(...cols.map((c) => fields[c]), nonce, now, id, revision, ...(statusIn ?? []));
 }
 
-/** Replaces a post's queued targets (null: removes them), only if the guarded update landed. */
-export function targetStatements(db: D1Database, postId: string, newRevision: number, platforms: SocialPlatform[] | null): D1PreparedStatement[] {
+/** Replaces a post's queued targets (null: removes them), only if this write's guarded update landed. */
+export function targetStatements(db: D1Database, postId: string, nonce: string, platforms: SocialPlatform[] | null): D1PreparedStatement[] {
   const statements = [
-    db.prepare(`DELETE FROM social_post_targets WHERE post_id = ? AND ${POST_PROOF}`).bind(postId, postId, newRevision),
+    db.prepare(`DELETE FROM social_post_targets WHERE post_id = ? AND ${POST_PROOF}`).bind(postId, postId, nonce),
   ];
   for (const platform of platforms ?? []) {
     statements.push(db.prepare(
       `INSERT INTO social_post_targets (post_id, platform, status) SELECT ?, ?, 'queued' WHERE ${POST_PROOF}`,
-    ).bind(postId, platform, postId, newRevision));
+    ).bind(postId, platform, postId, nonce));
   }
   return statements;
 }
 
-/** Frees the plan slot a deleted or cancelled post was filling. */
-export function unlinkPlanStatement(db: D1Database, postId: string, newRevision: number): D1PreparedStatement {
-  return db.prepare(`UPDATE social_plans SET post_id = NULL WHERE post_id = ? AND ${POST_PROOF}`).bind(postId, postId, newRevision);
+/** Frees the plan slot a cancelled post was filling. */
+export function unlinkPlanStatement(db: D1Database, postId: string, nonce: string): D1PreparedStatement {
+  return db.prepare(`UPDATE social_plans SET post_id = NULL WHERE post_id = ? AND ${POST_PROOF}`).bind(postId, postId, nonce);
 }
 ```
 
@@ -1198,6 +1205,8 @@ export function stubMail() {
   return { sent, fail: () => { failing = true; }, restore: () => { globalThis.fetch = original; resetAccessToken(); } };
 }
 ```
+
+- [ ] **Step 1b: Check the Subject decoder against real output.** `stubMail` decodes `Subject:` as one line holding one `=?UTF-8?B?...?=` word. Build a message with `buildMime` whose subject is a 60+ character Turkish string, such as `notificationText('submitted', ...)`'s, and look at the raw header. If `encodeHeader` folds it into several encoded words or continuation lines, change the decoder in `tests/lib/social.ts`: join the header's continuation lines, then decode and concatenate every `=?UTF-8?B?...?=` word. The subject assertions in Tasks 4, 7 and 9 depend on this.
 
 - [ ] **Step 2: Failing test** `tests/social-notify.test.ts`
 
@@ -2090,14 +2099,15 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
       .map((k) => [k, { from: before[k], to: next[k] }]),
   );
   const newRevision = revision + 1;
+  const nonce = crypto.randomUUID();
   const fields = { ...draftColumns(next), status };
   const targets = status === 'scheduled'
-    ? targetStatements(env.DB, id, newRevision, next.platforms)
-    : row.status === 'scheduled' ? targetStatements(env.DB, id, newRevision, null) : [];
+    ? targetStatements(env.DB, id, nonce, next.platforms)
+    : row.status === 'scheduled' ? targetStatements(env.DB, id, nonce, null) : [];
   const done = await runGuardedWithAudit(
     env.DB,
-    updatePostGuarded(env.DB, id, revision, fields, now),
-    { condition: POST_PROOF, binds: [id, newRevision] },
+    updatePostGuarded(env.DB, id, revision, nonce, fields, now),
+    { condition: POST_PROOF, binds: [id, nonce] },
     targets,
     { userId: gate.user.id, action: 'social.post.update', targetType: 'social_post', targetId: id, details: { changed, status: { from: row.status, to: status } } },
     now,
@@ -2121,6 +2131,8 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const body = await readBody(request);
   const revision = body ? revisionOf(body) : null;
   if (revision === null) return malformed();
+  // Known minor: two people deleting the same draft at once can both pass this
+  // proof, logging the delete twice. Nothing else is affected.
   const gone = 'NOT EXISTS (SELECT 1 FROM social_posts WHERE id = ?)';
   const done = await runGuardedWithAudit(
     env.DB,
@@ -2409,14 +2421,15 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const event = draft.type === 'story' && !gate.actor.isPublisher ? await coveringEvent(env.DB, gate.user.id, now) : null;
   const status = statusOnSubmit(gate.actor, Boolean(event));
   const newRevision = revision + 1;
+  const nonce = crypto.randomUUID();
   const fields = status === 'scheduled'
     ? { status, approved_by: gate.user.id, approved_at: now, event_mode_id: event?.id ?? null, review_note: null }
     : { status, review_note: null };
   const done = await runGuardedWithAudit(
     env.DB,
-    updatePostGuarded(env.DB, id, revision, fields, now, ['draft', 'rejected']),
-    { condition: POST_PROOF, binds: [id, newRevision] },
-    status === 'scheduled' ? targetStatements(env.DB, id, newRevision, draft.platforms) : [],
+    updatePostGuarded(env.DB, id, revision, nonce, fields, now, ['draft', 'rejected']),
+    { condition: POST_PROOF, binds: [id, nonce] },
+    status === 'scheduled' ? targetStatements(env.DB, id, nonce, draft.platforms) : [],
     { userId: gate.user.id, action: 'social.post.submit', targetType: 'social_post', targetId: id, details: { status, eventModeId: event?.id ?? null } },
     now,
   );
@@ -2448,11 +2461,12 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   if (problems.length) return jsonResponse({ error: 'Not ready', code: 'not_ready', problems }, 422);
 
   const newRevision = revision + 1;
+  const nonce = crypto.randomUUID();
   const done = await runGuardedWithAudit(
     env.DB,
-    updatePostGuarded(env.DB, id, revision, { status: 'scheduled', approved_by: gate.user.id, approved_at: now, review_note: null }, now, ['pending_approval']),
-    { condition: POST_PROOF, binds: [id, newRevision] },
-    targetStatements(env.DB, id, newRevision, draft.platforms),
+    updatePostGuarded(env.DB, id, revision, nonce, { status: 'scheduled', approved_by: gate.user.id, approved_at: now, review_note: null }, now, ['pending_approval']),
+    { condition: POST_PROOF, binds: [id, nonce] },
+    targetStatements(env.DB, id, nonce, draft.platforms),
     { userId: gate.user.id, action: 'social.post.approve', targetType: 'social_post', targetId: id },
     now,
   );
@@ -2481,10 +2495,11 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   if (note.length < 1 || note.length > 500) return jsonResponse({ error: 'A note of 1-500 characters is required', code: 'invalid_note' }, 400);
   if (row.status !== 'pending_approval') return lostRace();
   const newRevision = revision + 1;
+  const nonce = crypto.randomUUID();
   const done = await runGuardedWithAudit(
     env.DB,
-    updatePostGuarded(env.DB, id, revision, { status: 'rejected', review_note: note }, now, ['pending_approval']),
-    { condition: POST_PROOF, binds: [id, newRevision] },
+    updatePostGuarded(env.DB, id, revision, nonce, { status: 'rejected', review_note: note }, now, ['pending_approval']),
+    { condition: POST_PROOF, binds: [id, nonce] },
     [],
     { userId: gate.user.id, action: 'social.post.reject', targetType: 'social_post', targetId: id, details: { note } },
     now,
@@ -2515,11 +2530,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       : jsonResponse({ error: 'You cannot cancel this post', code: 'not_allowed' }, 403);
   }
   const newRevision = revision + 1;
+  const nonce = crypto.randomUUID();
   const done = await runGuardedWithAudit(
     env.DB,
-    updatePostGuarded(env.DB, id, revision, { status: 'cancelled' }, now, ['pending_approval', 'scheduled']),
-    { condition: POST_PROOF, binds: [id, newRevision] },
-    [...targetStatements(env.DB, id, newRevision, null), unlinkPlanStatement(env.DB, id, newRevision)],
+    updatePostGuarded(env.DB, id, revision, nonce, { status: 'cancelled' }, now, ['pending_approval', 'scheduled']),
+    { condition: POST_PROOF, binds: [id, nonce] },
+    [...targetStatements(env.DB, id, nonce, null), unlinkPlanStatement(env.DB, id, nonce)],
     { userId: gate.user.id, action: 'social.post.cancel', targetType: 'social_post', targetId: id, details: { from: row.status } },
     now,
   );
