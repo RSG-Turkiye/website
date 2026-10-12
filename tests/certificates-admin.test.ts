@@ -137,6 +137,29 @@ test('delete one removes the object and the row; unknown id is 404', async () =>
   assert.equal((await del(id)).status, 404);
 });
 
+test('deleting the last certificate of a year rebuilds the symposium site, so its home page band goes', async () => {
+  const { env } = setup();
+  (env as { SYMPOSIUM_DEPLOY_HOOK: string }).SYMPOSIUM_DEPLOY_HOOK = 'https://hooks.example/symposium';
+  const hooks: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => { hooks.push(String(input)); return new Response('{}'); }) as typeof fetch;
+  try {
+    const a = await (await upload(env, {})).json() as { id: string };
+    const b = await (await upload(env, { 'X-Cert-Type': 'workshop' })).json() as { id: string };
+    const del = (x: string) => call(one.onRequestDelete, new Request(`${BASE}/${x}`, { method: 'DELETE', headers: cookie }), env, { id: x });
+
+    const first = await (await del(a.id)).json() as { rebuild?: unknown };
+    assert.equal(hooks.length, 0, 'one certificate is left: no rebuild');
+    assert.equal(first.rebuild, undefined);
+
+    const last = await (await del(b.id)).json() as { rebuild?: { state: string } };
+    assert.deepEqual(hooks, ['https://hooks.example/symposium'], 'the year is now empty: one rebuild');
+    assert.equal(last.rebuild?.state, 'started');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
 test('delete all for a year leaves other years alone', async () => {
   const { env, r2 } = setup();
   await upload(env, {});

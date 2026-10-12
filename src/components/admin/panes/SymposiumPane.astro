@@ -413,7 +413,10 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </table>
       <div id="symCertEmpty" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.certificates.none')}</div>
     </div>
-    <div class="flex flex-wrap items-center gap-3 mt-3">
+    <!-- Typed confirmation rather than confirm(): the label says what unlocks
+         the button, because a greyed-out button alone reads as "broken". -->
+    <label id="symCertDeleteAllLabel" for="symCertDeleteAllInput" class="block text-xs text-gray-500 mt-4"></label>
+    <div class="flex flex-wrap items-center gap-3 mt-2">
       <input id="symCertDeleteAllInput" type="text" inputmode="numeric" autocomplete="off"
         class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
       <button id="symCertDeleteAll" type="button" disabled

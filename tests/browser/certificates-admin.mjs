@@ -156,6 +156,34 @@ async function run(viewport) {
   ok(/missing columns: type, file/.test(afterError.error), `CSV error shown (${afterError.error})`);
   ok(afterError.uploadHidden && afterError.previewHidden, 'the previous batch is not offered again');
 
+  // Deleting the last certificate of the year one row at a time: the API
+  // rebuilds the site, and the panel says so, as it does after a batch.
+  await page.unroute('**/api/admin/certificates?year=*');
+  let listed = [{ id: 'c1', email: 'a@example.org', name: 'Ayşe Yılmaz', kind: 'participation', size_bytes: 877, expires_at: 1794415522 }];
+  await page.route('**/api/admin/certificates?year=*', (r) => r.fulfill({
+    contentType: 'application/json', body: JSON.stringify({ certificates: listed, totalBytes: 877 * listed.length }) }));
+  await page.route('**/api/admin/certificates/c1', (r) => {
+    listed = [];
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, rebuild: { state: 'started', detail: 'rebuild started' } }) });
+  });
+  await page.evaluate(() => {
+    document.getElementById('symCertRebuildStatus').classList.add('hidden');
+    document.getElementById('symCertYear').dispatchEvent(new Event('change'));
+  });
+  await page.waitForSelector('#symCertListBody tr');
+  await page.click('#symCertListBody tr button');
+  await page.waitForTimeout(500);
+  const afterDelete = await page.evaluate(() => ({
+    rows: document.querySelectorAll('#symCertListBody tr').length,
+    rebuildShown: !document.getElementById('symCertRebuildStatus').classList.contains('hidden'),
+    rebuildText: document.getElementById('symCertRebuildStatus').textContent,
+    label: document.querySelector('label[for=symCertDeleteAllInput]')?.textContent?.trim() ?? '',
+  }));
+  console.log('   ', JSON.stringify(afterDelete));
+  ok(afterDelete.rows === 0, 'the deleted row is gone');
+  ok(afterDelete.rebuildShown && afterDelete.rebuildText.length > 0, 'the rebuild after deleting the last one is reported');
+  ok(/2026/.test(afterDelete.label), `the delete-all box has a visible label naming the year (${afterDelete.label})`);
+
   if (viewport.width <= 400) {
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     ok(width <= viewport.width, `no horizontal page scroll at ${viewport.width}px (scrollWidth ${width})`);

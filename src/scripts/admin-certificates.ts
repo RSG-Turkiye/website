@@ -202,8 +202,12 @@ export async function loadCertificates(): Promise<void> {
     del.textContent = deps.t('admin.symposium.certificates.delete');
     del.addEventListener('click', async () => {
       const r = await fetch(`/api/admin/certificates/${c.id}`, { method: 'DELETE' });
-      if (r.ok) { deps.showToast(deps.t('admin.toast.deleted')); await loadCertificates(); }
-      else deps.showToast(`HTTP ${r.status}`, true);
+      if (!r.ok) { deps.showToast(`HTTP ${r.status}`, true); return; }
+      deps.showToast(deps.t('admin.toast.deleted'));
+      // The API rebuilds the site when this was the year's last certificate.
+      const { rebuild } = (await r.json().catch(() => ({}))) as { rebuild?: { state: 'started' | 'queued' | 'failed'; detail: string } };
+      if (rebuild) deps.showRebuildStatus('symCertRebuildStatus', rebuild);
+      await loadCertificates();
     });
     actions.appendChild(del);
     appendAll(tr, [cell(c.email), cell(c.name), cell(deps.t(`admin.symposium.certificates.kind.${c.kind}`)),
@@ -213,6 +217,7 @@ export async function loadCertificates(): Promise<void> {
   $('symCertEmpty').classList.toggle('hidden', certificates.length > 0);
   $('symCertSummary').textContent = deps.tf('admin.symposium.certificates.stored', { count: certificates.length, size: mb(totalBytes) });
   $('symCertDeleteAll').textContent = deps.tf('admin.symposium.certificates.deleteAll', { year: year() });
+  $('symCertDeleteAllLabel').textContent = deps.tf('admin.symposium.certificates.deleteAllLabel', { year: year() });
   $<HTMLInputElement>('symCertDeleteAllInput').placeholder = deps.tf('admin.symposium.certificates.deleteAllConfirm', { year: year() });
 }
 
