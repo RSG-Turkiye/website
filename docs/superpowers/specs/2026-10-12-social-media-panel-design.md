@@ -44,6 +44,9 @@ because the panel depends on them:
    says what is affected, and can be fixed from the panel without code.
 6. A detailed, exportable, tamper-evident audit log of who did what.
 7. Replace Linktree with a site-hosted `/links` page that updates itself.
+8. At an event, a team member signed in on a phone posts a photo or video
+   story in a few taps, without the Instagram password, and without waiting
+   for approval while an event window covers them.
 
 ## Out of scope for the first implementation
 
@@ -51,8 +54,10 @@ because the panel depends on them:
   and the free Web Intent route needs the poster logged into the account,
   which conflicts with goal 2. X is a disabled third adapter; the data model
   and adapter interface already account for it (§4).
-- **Video** (reels, video stories). Media items carry a `type` so video slots
-  in later without a schema change (§3).
+- **Video outside stories** (reels, video in feed posts and carousels). Video
+  is in scope only for stories, through the mobile quick story (§2). Media
+  items carry a `type`, so feed video and reels slot in later without a schema
+  change (§3).
 - **Templates and post duplication.** Designs arrive finished; the site's job
   is to publish them on time.
 - **Comments, DMs, analytics.** Read-only insights can come later.
@@ -80,6 +85,16 @@ because the panel depends on them:
   - The organisation agreed to switch to Business, accepting the narrower reels
     music library; it rarely posts reels.
   - The switch happens when stories are first tested.
+- **The Instagram API cannot delete published media.** A post or story that
+  should not have gone out has to be removed in the Instagram app. Stories
+  expire after 24 hours on their own. This is why event mode (§1) is
+  time-boxed and limited to named editors.
+- **Instagram story video:** up to 60 seconds, MP4 or MOV as phones record
+  them, uploaded to the public bucket and fetched by Meta like images. Video
+  containers take a minute or two to process before they can be published.
+  Pages Functions accept request bodies up to 100 MB, which covers a
+  60-second phone video; this is checked against a real recording in
+  implementation.
 - **Instagram captions never render links as clickable.** This is a platform
   rule, not an API one. Link stickers on stories are not available through the
   API either.
@@ -104,11 +119,11 @@ because the panel depends on them:
 
 Two new flags on `users`, following `is_announcer` / `is_symposium`:
 
-| Flag | Name in UI | Can |
-|---|---|---|
-| `is_social` | Editor | See the Social tab; create plans and drafts; submit for approval; edit or withdraw own unapproved posts |
-| `is_social_publisher` | Publisher | Everything an editor can; schedule or publish directly; approve or reject (with a note) others' posts; cancel any queued post; manage `/links` |
-| `is_admin` | Admin | Everything a publisher can; connect, disconnect and reconnect accounts (Instagram, LinkedIn, X, Gmail); view and export the audit log |
+| Flag                  | Name in UI | Can                                                                                                                                            |
+| --------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `is_social`           | Editor     | See the Social tab; create plans and drafts; submit for approval; edit or withdraw own unapproved posts                                        |
+| `is_social_publisher` | Publisher  | Everything an editor can; schedule or publish directly; approve or reject (with a note) others' posts; cancel any queued post; manage `/links` |
+| `is_admin`            | Admin      | Everything a publisher can; connect, disconnect and reconnect accounts (Instagram, LinkedIn, X, Gmail); view and export the audit log          |
 
 - Granting publisher also sets editor. Removing editor also removes publisher.
 - Roles are granted in the existing Users pane through new
@@ -118,6 +133,20 @@ Two new flags on `users`, following `is_announcer` / `is_symposium`:
   `canSocialEdit(user)` and `canSocialPublish(user)`.
 - Every endpoint enforces them server side. Pane hiding in `admin-panel.ts` is
   presentation only.
+
+**Event mode.** A publisher can open an event window for live coverage, for
+example during the symposium:
+
+- It has a name, a start and an end, and a list of editors it covers.
+- While it is open, those editors' **stories** publish without approval. Posts
+  and carousels still go through approval.
+- It closes itself at the end time; a publisher can close it early.
+- Every story published under it is logged with the event name, and
+  publishers see a live list of them.
+- Because the API cannot delete published media, the panel says so when the
+  mode is opened, and suggests keeping it short and to trusted editors.
+- Checked in one helper, `canPublishStoryDirectly(user, now)`, which is true
+  for publishers and for editors covered by an open event window.
 
 ## 2. Interface
 
@@ -161,6 +190,25 @@ button; other roles see "the admin has been notified".
   when, last successful use, and Connect / Reconnect / Disconnect.
 - **Log** (admin). A searchable table with Export (CSV, JSON) and
   Verify integrity.
+
+**Mobile quick story.** On a phone-sized screen, signing in opens a simple
+screen instead of the full admin panel, with a link to switch to the
+desktop panel. It has four steps:
+
+1. **Start.** An event-mode strip when one is open, a large "Quick story"
+   button that opens the camera or gallery (`<input type="file"
+   accept="image/*,video/*" capture>`), and today's stories with their status.
+2. **Preview.** The photo or video in a 9:16 frame with Fit / Fill, and a
+   one-line description that is required (the quick-story form of alt text).
+3. **Upload.** A progress bar. Once the file is uploaded, publishing continues
+   on the server, so closing the screen is safe. Video processing at Instagram
+   is shown as "processing" rather than as an error.
+4. **Done.** "Story published" with a link to it, or "Sent for approval" when
+   event mode does not cover the user. "Another one" returns to step 1.
+
+Photos are converted to JPEG and fitted to 1080x1920 in the browser. Videos
+are uploaded as recorded; anything over 60 seconds or the size limit is
+refused before upload with a plain-language reason.
 
 **Composer.** It opens from "+ Post" or from a plan's "Upload content", which
 pre-fills the time and platforms.
@@ -232,7 +280,8 @@ assignee user id, note, `created_by`, `post_id` (set when content is attached).
 - `type` (`image | carousel | story`) and `caption`.
 - `caption_overrides` (JSON keyed by platform) and `link`.
 - `media` (JSON array of `{type: 'image', key, width, height, alt}`, ordered).
-  Video adds `type: 'video'` later.
+  Stories may hold one `{type: 'video', key, durationSec, ...}` item; feed
+  video uses the same shape later.
 - `platforms` (JSON) and `scheduled_at`.
 - `status`: `draft | pending_approval | scheduled | published | partially_published | failed | rejected | cancelled`.
 - People and timestamps: `created_by`, `approved_by`, `approved_at`,
@@ -245,6 +294,9 @@ dispatcher works on.
 - Queue fields: `attempts`, `first_tried_at`, `claimed_at`, `last_error`.
 - Platform state: `container_id` (Instagram's in-flight state), `remote_id`,
   `permalink`, `published_at`.
+
+**`social_event_modes`**: name, `starts_at`, `ends_at`, editor user ids
+(JSON), `opened_by`, `closed_by`, `closed_at`.
 
 **`social_links`**: pinned links (title, subtitle, url, sort, hidden).
 
@@ -261,8 +313,10 @@ dispatcher works on.
 **Media storage.** Images go to the existing public `BLOG_IMAGES` bucket with
 UUID keys and are served by `/api/images/<key>`. That gives the public HTTPS
 URL Meta fetches from, on the site's own domain (`r2.dev` is blocked in
-Türkiye). The upload endpoint accepts the social roles and `image/jpeg` for
-social uploads.
+Türkiye). The upload endpoint accepts the social roles, `image/jpeg` for
+social images, and `video/mp4` / `video/quicktime` for story videos. Video
+keys get their own pattern in `/api/images/<key>`, served with range support
+(already implemented for images) so Meta can fetch them.
 
 ## 4. Connections and token storage
 
@@ -422,7 +476,10 @@ Testing uses the existing `node:test` setup: in-memory SQLite loaded from
 
 **Handler and lifecycle**, with `fetch` stubbed per provider:
 
-- an Instagram publish spread over two ticks;
+- an Instagram publish spread over two ticks, and a story video that stays
+  `IN_PROGRESS` for several ticks before publishing;
+- an editor's story publishes directly inside an open event window, waits for
+  approval outside it, and a closed or expired window stops it;
 - a crash after publish produces no duplicate;
 - an auth error moves the target to `waiting_connection`, and a reconnect
   re-queues it;
@@ -453,12 +510,13 @@ Each phase is its own PR and is useful on its own.
    checklist, approval flow, notifications. Nothing publishes yet; posts can
    be planned and approved.
 3. **Instagram.** Adapter, dispatcher, daily token refresh. Image, carousel
-   and story. Test account first, then @rsgturkey (switched to Business).
+   and image story, then the mobile quick story with video stories and event
+   mode. Test account first, then @rsgturkey (switched to Business).
 4. **`/links`.** Page, pinned links, auto-added post links, click counter. The
    Instagram bio link moves to it.
 5. **LinkedIn.** Adapter and connect flow, once page admin access and
    Community Management API approval exist.
-6. **Later.** The X adapter; video and reels.
+6. **Later.** The X adapter; reels and feed video.
 
 ## 9. Operations and handover
 
@@ -484,3 +542,7 @@ Every banner line links to its paragraph.
   decides between silent refresh and reminders.
 - Current Instagram carousel item limit (10 at the time of writing).
 - Exact story behaviour after the switch to Business.
+- Upload of a real 60-second phone video (iPhone MOV/HEVC and Android MP4)
+  through a Pages Function, and whether Meta accepts it as recorded.
+- Whether iOS Safari hands over HEIC photos as JPEG on upload; if not, the
+  browser conversion step covers it.
