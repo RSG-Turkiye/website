@@ -1,6 +1,7 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
 import { isRank, awardRank, MANUAL_REASON } from '../../_lib/rank';
+import { runWithAudit, appendAudit } from '../../_lib/audit';
 import { grantSender, revokeSender } from './senders';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -14,7 +15,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   let query = `
     SELECT
-      u.id, u.email, u.is_member, u.is_admin, u.is_announcer, u.is_writer, u.is_sender, u.is_symposium, u.created_at, u.last_login,
+      u.id, u.email, u.is_member, u.is_admin, u.is_announcer, u.is_writer, u.is_sender, u.is_symposium, u.is_social, u.is_social_publisher, u.created_at, u.last_login,
       p.username, p.display_name, p.institution, p.is_public,
       COALESCE(
         (SELECT rank FROM rank_history rh WHERE rh.user_id = u.id
@@ -50,6 +51,35 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   ).all();
 
   return jsonResponse({ users: result.results, badge_catalog: badgeCatalog.results });
+};
+
+/**
+ * Every action that sets a role flag. They are table rows rather than switch
+ * cases so that each one is written together with its audit row -- see
+ * runWithAudit. `role` and `value` are what the log records.
+ */
+const ROLE_UPDATES: Record<string, { sql: string; role: string; value: 0 | 1 }> = {
+  verify:                  { sql: 'UPDATE users SET is_member = 1 WHERE id = ?', role: 'is_member', value: 1 },
+  unverify:                { sql: 'UPDATE users SET is_member = 0 WHERE id = ?', role: 'is_member', value: 0 },
+  make_admin:              { sql: 'UPDATE users SET is_admin = 1 WHERE id = ?', role: 'is_admin', value: 1 },
+  remove_admin:            { sql: 'UPDATE users SET is_admin = 0 WHERE id = ?', role: 'is_admin', value: 0 },
+  make_announcer:          { sql: 'UPDATE users SET is_announcer = 1 WHERE id = ?', role: 'is_announcer', value: 1 },
+  remove_announcer:        { sql: 'UPDATE users SET is_announcer = 0 WHERE id = ?', role: 'is_announcer', value: 0 },
+  // The symposium role could only be granted by hand, with a wrangler
+  // command in a comment in db/schema.sql, so in practice only full admins
+  // ever had it -- which is the wrong shape for a role whose whole point is
+  // to let an organiser edit the programme without being an admin of
+  // everything.
+  make_symposium:          { sql: 'UPDATE users SET is_symposium = 1 WHERE id = ?', role: 'is_symposium', value: 1 },
+  remove_symposium:        { sql: 'UPDATE users SET is_symposium = 0 WHERE id = ?', role: 'is_symposium', value: 0 },
+  make_writer:             { sql: 'UPDATE users SET is_writer = 1 WHERE id = ?', role: 'is_writer', value: 1 },
+  remove_writer:           { sql: 'UPDATE users SET is_writer = 0 WHERE id = ?', role: 'is_writer', value: 0 },
+  // Publisher implies editor in both directions: granting publisher sets
+  // both, removing editor clears both.
+  make_social:             { sql: 'UPDATE users SET is_social = 1 WHERE id = ?', role: 'is_social', value: 1 },
+  remove_social:           { sql: 'UPDATE users SET is_social = 0, is_social_publisher = 0 WHERE id = ?', role: 'is_social', value: 0 },
+  make_social_publisher:   { sql: 'UPDATE users SET is_social = 1, is_social_publisher = 1 WHERE id = ?', role: 'is_social_publisher', value: 1 },
+  remove_social_publisher: { sql: 'UPDATE users SET is_social_publisher = 0 WHERE id = ?', role: 'is_social_publisher', value: 0 },
 };
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
@@ -95,42 +125,18 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ error: 'Cannot remove your own admin status' }, 400);
   }
 
+  const roleUpdate = ROLE_UPDATES[body.action];
+  if (roleUpdate) {
+    const target = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(body.user_id).first<{ email: string }>();
+    if (!target) return jsonResponse({ error: 'Unknown user' }, 404);
+    await runWithAudit(env.DB, [env.DB.prepare(roleUpdate.sql).bind(body.user_id)], {
+      userId: user.id, action: 'role.change', targetType: 'user', targetId: body.user_id,
+      details: { role: roleUpdate.role, value: roleUpdate.value, email: target.email },
+    });
+    return jsonResponse({ ok: true });
+  }
+
   switch (body.action) {
-    case 'verify':
-      await env.DB.prepare('UPDATE users SET is_member = 1 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'unverify':
-      await env.DB.prepare('UPDATE users SET is_member = 0 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'make_admin':
-      await env.DB.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'remove_admin':
-      await env.DB.prepare('UPDATE users SET is_admin = 0 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'make_announcer':
-      await env.DB.prepare('UPDATE users SET is_announcer = 1 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'remove_announcer':
-      await env.DB.prepare('UPDATE users SET is_announcer = 0 WHERE id = ?').bind(body.user_id).run();
-      break;
-    // The symposium role could only be granted by hand, with a wrangler
-    // command in a comment in db/schema.sql, so in practice only full admins
-    // ever had it -- which is the wrong shape for a role whose whole point is
-    // to let an organiser edit the programme without being an admin of
-    // everything.
-    case 'make_symposium':
-      await env.DB.prepare('UPDATE users SET is_symposium = 1 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'remove_symposium':
-      await env.DB.prepare('UPDATE users SET is_symposium = 0 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'make_writer':
-      await env.DB.prepare('UPDATE users SET is_writer = 1 WHERE id = ?').bind(body.user_id).run();
-      break;
-    case 'remove_writer':
-      await env.DB.prepare('UPDATE users SET is_writer = 0 WHERE id = ?').bind(body.user_id).run();
-      break;
     case 'make_private':
       await env.DB.prepare('UPDATE profiles SET is_public = 0 WHERE user_id = ?').bind(body.user_id).run();
       break;
@@ -168,13 +174,21 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     }
     case 'make_sender':
       await grantSender(env, body.user_id, body.value?.trim() || null, user.id);
+      await appendAudit(env.DB, { userId: user.id, action: 'role.change', targetType: 'user', targetId: body.user_id, details: { role: 'is_sender', value: 1 } });
       break;
     case 'remove_sender':
       await revokeSender(env, body.user_id, user.id);
+      await appendAudit(env.DB, { userId: user.id, action: 'role.change', targetType: 'user', targetId: body.user_id, details: { role: 'is_sender', value: 0 } });
       break;
     default:
       return jsonResponse({ error: 'Unknown action' }, 400);
   }
 
+  if (body.action !== 'make_sender' && body.action !== 'remove_sender') {
+    await appendAudit(env.DB, {
+      userId: user.id, action: `user.${body.action}`, targetType: 'user', targetId: body.user_id,
+      details: { value: body.value ?? null },
+    });
+  }
   return jsonResponse({ ok: true });
 };

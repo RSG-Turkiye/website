@@ -199,6 +199,14 @@
 --    audit row and fail closed: without the table, granting or removing any
 --    role answers 500 instead of happening unlogged.
 --
+-- 8b. Social media roles. Deploying without these does NOT throw --
+--    getSessionUser does SELECT *, so the columns are simply absent and both
+--    roles read as false -- but functions/api/admin/users.ts SELECTs them by
+--    name and the admin user list 500s. ALTER TABLE ADD COLUMN is NOT
+--    idempotent -- do not re-run:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_social INTEGER NOT NULL DEFAULT 0"
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_social_publisher INTEGER NOT NULL DEFAULT 0"
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -210,6 +218,8 @@ CREATE TABLE IF NOT EXISTS users (
   is_writer     INTEGER NOT NULL DEFAULT 0,
   is_sender     INTEGER NOT NULL DEFAULT 0,
   is_symposium  INTEGER NOT NULL DEFAULT 0,
+  is_social           INTEGER NOT NULL DEFAULT 0,
+  is_social_publisher INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL,
   last_login    INTEGER NOT NULL
 );
