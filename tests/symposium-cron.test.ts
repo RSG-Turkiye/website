@@ -6,6 +6,7 @@ const ENV = {
   ARCHIVE_URL: 'https://main/archive',
   PURGE_URL: 'https://main/purge',
   AUDIT_PRUNE_URL: 'https://main/audit-prune',
+  SOCIAL_REMINDERS_URL: 'https://main/social-reminders',
   SYMPOSIUM_ARCHIVE_SECRET: 's',
   SYMPOSIUM_DEPLOY_HOOK: 'https://hooks/symposium',
   WEBSITE_DEPLOY_HOOK: 'https://hooks/website',
@@ -17,7 +18,7 @@ function stubFetch(fail: string | null = null) {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     calls.push(url);
-    if (url.includes('/purge') || url.includes('/archive') || url.includes('/audit-prune')) {
+    if (url.includes('/purge') || url.includes('/archive') || url.includes('/audit-prune') || url.includes('/social-reminders')) {
       assert.equal(new Headers(init?.headers).get('X-Archive-Secret'), 's');
     }
     if (url === fail) return new Response('down', { status: 500 });
@@ -31,7 +32,7 @@ test('the tick runs archive, purge, audit prune, then both rebuilds, in that ord
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 200);
-    assert.deepEqual(f.calls, [ENV.ARCHIVE_URL, ENV.PURGE_URL, ENV.AUDIT_PRUNE_URL, ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls, [ENV.ARCHIVE_URL, ENV.PURGE_URL, ENV.AUDIT_PRUNE_URL, ENV.SOCIAL_REMINDERS_URL, ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
   } finally { f.restore(); }
 });
 
@@ -40,7 +41,7 @@ test('a failing purge still lets both rebuilds run, and the tick reports failure
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 502);
-    assert.deepEqual(f.calls.slice(3), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls.slice(4), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
     const body = await res.json() as { purge: string };
     assert.match(String(body.purge), /^ERROR 500/);
   } finally { f.restore(); }
@@ -51,7 +52,17 @@ test('a failing audit prune is reported but stops nothing', async () => {
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 502);
-    assert.deepEqual(f.calls.slice(3), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls.slice(4), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
     assert.match(String((await res.json() as { auditPrune: string }).auditPrune), /^ERROR 500/);
+  } finally { f.restore(); }
+});
+
+test('a failing reminder run is reported but stops nothing', async () => {
+  const f = stubFetch(ENV.SOCIAL_REMINDERS_URL);
+  try {
+    const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
+    assert.equal(res.status, 502);
+    assert.deepEqual(f.calls.slice(4), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.match(String((await res.json() as { socialReminders: string }).socialReminders), /^ERROR 500/);
   } finally { f.restore(); }
 });
