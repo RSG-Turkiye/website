@@ -224,9 +224,10 @@ the build logs a warning and shows no band.
   bounds them at about 3 M/month, under the 10 M free.
 - Storage: a year's batch is tens of MB and lives 30 days, against 10 GB.
 - **Setup steps**, documented in the README: the D1 migration; the R2
-  lifecycle rule (prefix `certificates/`, delete after 31 days); and the free
-  plan's one WAF rate-limiting rule on path starts with `/api/certificates/`,
-  per IP, so floods are throttled at the edge before they reach the Function.
+  lifecycle rule (prefix `certificates/`, delete after 31 days). A WAF
+  rate-limiting rule was planned here, but the account's plan offers it only
+  as a paid add-on (2026-10-12), so there is none: the lookup's own per-IP
+  limit stands alone, and a flood can exhaust the daily Functions quota.
 
 ## Testing
 
