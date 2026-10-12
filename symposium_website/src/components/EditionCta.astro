@@ -22,52 +22,59 @@ const pending = state === "open" ? pendingCtas(edition) : [];
 const locale = lang === "tr" ? "tr-TR" : "en-GB";
 ---
 
-{state === "soon" ? (
-  <p class="text-white/70 text-sm mt-2">{t("cta.soon")}</p>
-) : state === "closed" ? (
-  <p class="text-white/70 text-sm mt-2">{t("cta.closed")}</p>
-) : (
-  <Fragment>
-    <div class="flex flex-wrap justify-center gap-4 mt-2">
-      {open.map((cta) => (
-        <a
-          href={cta.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class:list={[
-            "px-6 py-3 rounded-lg font-semibold text-sm transition-colors",
-            cta.kind === "registration"
-              ? "bg-red text-white hover:bg-red/90"
-              : "bg-white text-navy hover:bg-navy-light",
-          ]}
-        >
-          {t(cta.kind === "registration" ? "cta.register" : "cta.abstract")}
-          {cta.deadline && (
-            <span class="block text-xs font-normal opacity-80">
-              {t("cta.deadline").replace("{date}", cta.deadline.toLocaleDateString(locale))}
-            </span>
-          )}
-        </a>
+{/*
+  `contents` keeps the wrapper out of the hero's flex layout. The attribute
+  is for tests/guidelines-reachable.test.ts, which only applies while the
+  call to action is open.
+*/}
+<div class="contents" data-cta-state={state}>
+  {state === "soon" ? (
+    <p class="text-white/70 text-sm mt-2">{t("cta.soon")}</p>
+  ) : state === "closed" ? (
+    <p class="text-white/70 text-sm mt-2">{t("cta.closed")}</p>
+  ) : (
+    <Fragment>
+      <div class="flex flex-wrap justify-center gap-4 mt-2">
+        {open.map((cta) => (
+          <a
+            href={cta.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class:list={[
+              "px-6 py-3 rounded-lg font-semibold text-sm transition-colors",
+              cta.kind === "registration"
+                ? "bg-red text-white hover:bg-red/90"
+                : "bg-white text-navy hover:bg-navy-light",
+            ]}
+          >
+            {t(cta.kind === "registration" ? "cta.register" : "cta.abstract")}
+            {cta.deadline && (
+              <span class="block text-xs font-normal opacity-80">
+                {t("cta.deadline").replace("{date}", cta.deadline.toLocaleDateString(locale))}
+              </span>
+            )}
+          </a>
+        ))}
+      </div>
+      {pending.map((kind) => (
+        <p class="text-white/70 text-sm mt-2">
+          {t(kind === "registration" ? "cta.register.soon" : "cta.abstract.soon")}
+        </p>
       ))}
-    </div>
-    {pending.map((kind) => (
-      <p class="text-white/70 text-sm mt-2">
-        {t(kind === "registration" ? "cta.register.soon" : "cta.abstract.soon")}
-      </p>
-    ))}
-    {/*
-      The abstract button opens a form directly, so without this the only
-      route to the word limit, the PDF requirements and the one-submission
-      rule is the nav. Somebody who came to submit reads none of it and
-      submits wrong. Shown whenever guidelines exist, including before the
-      form opens: knowing what to prepare is useful earlier, not later.
-    */}
-    {guidelinesHref && (
-      <p class="text-white/70 text-sm mt-2">
-        <a href={guidelinesHref} class="underline hover:text-white transition-colors">
-          {t("cta.guidelines")}
-        </a>
-      </p>
-    )}
-  </Fragment>
-)}
+      {/*
+        The abstract button opens a form directly, so without this the only
+        route to the word limit, the PDF requirements and the one-submission
+        rule is the nav. Somebody who came to submit reads none of it and
+        submits wrong. Shown whenever guidelines exist, including before the
+        form opens: knowing what to prepare is useful earlier, not later.
+      */}
+      {guidelinesHref && (
+        <p class="text-white/70 text-sm mt-2">
+          <a href={guidelinesHref} class="underline hover:text-white transition-colors">
+            {t("cta.guidelines")}
+          </a>
+        </p>
+      )}
+    </Fragment>
+  )}
+</div>

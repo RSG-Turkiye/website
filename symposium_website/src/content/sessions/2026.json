@@ -1,0 +1,248 @@
+{
+  "year": 2026,
+  "items": [
+    {
+      "slug": "kayit",
+      "title": "Registration & Welcome",
+      "titleTr": "Kayıt & Karşılama",
+      "type": "opening",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "09:00",
+      "endTime": "09:30",
+      "day": 1,
+      "order": 0
+    },
+    {
+      "slug": "acilis",
+      "title": "Opening Remarks",
+      "titleTr": "Açılış Konuşması",
+      "type": "opening",
+      "speakerSlugs": [
+        "melike-donertas"
+      ],
+      "description": "",
+      "time": "09:30",
+      "endTime": "09:45",
+      "day": 1,
+      "order": 1
+    },
+    {
+      "slug": "davetli-ates-kara",
+      "title": "Invited Talk",
+      "titleTr": "Davetli Konuşma",
+      "type": "keynote",
+      "speakerSlugs": [
+        "ates-kara"
+      ],
+      "description": "Session 1: Recent Advances in Immunoinformatics and mRNA Therapeutics",
+      "descriptionTr": "1. Oturum: İmmünoinformatik ve mRNA Terapötiklerinde Güncel Gelişmeler",
+      "time": "09:45",
+      "endTime": "10:25",
+      "day": 1,
+      "order": 2
+    },
+    {
+      "slug": "mola-1",
+      "title": "Coffee & Tea Break / Poster Viewing",
+      "titleTr": "Kahve & Çay Molası / Poster Ziyareti",
+      "type": "break",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "10:25",
+      "endTime": "10:40",
+      "day": 1,
+      "order": 3
+    },
+    {
+      "slug": "davetli-atakan-ekiz",
+      "title": "Understanding the Tumour Microenvironment through Transcriptomic Data, and the Functions of Non-coding RNAs in Cancer",
+      "titleTr": "Transkriptomik veriler üzerinden tümör mikroçevresini daha iyi anlama ve kanserde kodlamayan RNA'ların fonksiyonları",
+      "type": "keynote",
+      "speakerSlugs": [
+        "atakan-ekiz"
+      ],
+      "description": "Session 1: Recent Advances in Immunoinformatics and mRNA Therapeutics",
+      "descriptionTr": "1. Oturum: İmmünoinformatik ve mRNA Terapötiklerinde Güncel Gelişmeler",
+      "time": "10:40",
+      "endTime": "11:20",
+      "day": 1,
+      "order": 4
+    },
+    {
+      "slug": "mola-2",
+      "title": "Coffee & Tea Break / Poster Viewing",
+      "titleTr": "Kahve & Çay Molası / Poster Ziyareti",
+      "type": "break",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "11:20",
+      "endTime": "11:35",
+      "day": 1,
+      "order": 5
+    },
+    {
+      "slug": "davetli-burcak-otlu",
+      "title": "Invited Talk",
+      "titleTr": "Davetli Konuşma",
+      "type": "keynote",
+      "speakerSlugs": [
+        "burcak-otlu"
+      ],
+      "description": "Session 1: Recent Advances in Immunoinformatics and mRNA Therapeutics",
+      "descriptionTr": "1. Oturum: İmmünoinformatik ve mRNA Terapötiklerinde Güncel Gelişmeler",
+      "time": "11:35",
+      "endTime": "12:15",
+      "day": 1,
+      "order": 6
+    },
+    {
+      "slug": "ogle-arasi",
+      "title": "Lunch & Networking",
+      "titleTr": "Öğle Arası & Networking",
+      "type": "networking",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "12:15",
+      "endTime": "13:15",
+      "day": 1,
+      "order": 7
+    },
+    {
+      "slug": "kariyer-paneli",
+      "title": "Careers in Bioinformatics across Academia, Industry and Entrepreneurship",
+      "titleTr": "Akademi, Sanayi ve Girişimcilik Ekseninde Biyoinformatikte Kariyer",
+      "type": "panel",
+      "speakerSlugs": [
+        "gokalp-celik"
+      ],
+      "description": "Special Session: Careers in Bioinformatics Panel / Conversation",
+      "descriptionTr": "Özel Oturum: Biyoinformatikte Kariyer Paneli/Söyleşisi",
+      "time": "13:15",
+      "endTime": "14:00",
+      "day": 1,
+      "order": 8
+    },
+    {
+      "slug": "davetli-tunca-dogan",
+      "title": "Invited Talk",
+      "titleTr": "Davetli Konuşma",
+      "type": "keynote",
+      "speakerSlugs": [
+        "tunca-dogan"
+      ],
+      "description": "Session 2: Computational Biology: Biostatistics, Omics Data Analysis and Therapeutic Design",
+      "descriptionTr": "2. Oturum: Hesaplamalı Biyoloji: Biyoistatistik, Omik Veri Analizi ve Terapötik Tasarım",
+      "time": "14:00",
+      "endTime": "14:40",
+      "day": 1,
+      "order": 9
+    },
+    {
+      "slug": "mola-3",
+      "title": "Coffee & Tea Break / Poster Viewing",
+      "titleTr": "Kahve & Çay Molası / Poster Ziyareti",
+      "type": "break",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "14:40",
+      "endTime": "14:55",
+      "day": 1,
+      "order": 10
+    },
+    {
+      "slug": "davetli-melike-donertas",
+      "title": "Measuring Ageing Across Scales",
+      "type": "keynote",
+      "speakerSlugs": [
+        "melike-donertas"
+      ],
+      "description": "Session 2: Computational Biology: Biostatistics, Omics Data Analysis and Therapeutic Design",
+      "descriptionTr": "2. Oturum: Hesaplamalı Biyoloji: Biyoistatistik, Omik Veri Analizi ve Terapötik Tasarım",
+      "time": "14:55",
+      "endTime": "15:35",
+      "day": 1,
+      "order": 11
+    },
+    {
+      "slug": "mola-4",
+      "title": "Coffee & Tea Break / Poster Viewing",
+      "titleTr": "Kahve & Çay Molası / Poster Ziyareti",
+      "type": "break",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "15:35",
+      "endTime": "15:50",
+      "day": 1,
+      "order": 12
+    },
+    {
+      "slug": "davetli-ozlen-konu",
+      "title": "Shiny Applications for Bioinformatics",
+      "type": "keynote",
+      "speakerSlugs": [
+        "ozlen-konu"
+      ],
+      "description": "Session 2: Computational Biology: Biostatistics, Omics Data Analysis and Therapeutic Design",
+      "descriptionTr": "2. Oturum: Hesaplamalı Biyoloji: Biyoistatistik, Omik Veri Analizi ve Terapötik Tasarım",
+      "time": "15:50",
+      "endTime": "16:30",
+      "day": 1,
+      "order": 13
+    },
+    {
+      "slug": "kapanis",
+      "title": "Closing, Best Oral/Poster Presentation Awards & Group Photo",
+      "titleTr": "Kapanış, En İyi Sözlü/Poster Sunum Ödülleri & Toplu Fotoğraf",
+      "type": "closing",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "16:30",
+      "endTime": "17:00",
+      "day": 1,
+      "order": 14
+    },
+    {
+      "slug": "atolye-1",
+      "title": "Hands-on Workshop (Part I): Tumour Immune Transcriptomics with TCGEx",
+      "titleTr": "Uygulamalı Atölye (I. Kısım): TCGEx ile Tümör İmmün Transkriptomiği Analizi",
+      "type": "workshop",
+      "speakerSlugs": [
+        "atakan-ekiz"
+      ],
+      "description": "Workshop: Tumour Immune Transcriptomics and Cohort Analyses: Exploratory Analyses, Subtype Expression Profiles and Dimensionality Reduction (PCA & Clustering)",
+      "descriptionTr": "Atölye: Tümör İmmün Transkriptomiği ve Kohort Analizleri: Keşifsel Analizler, Alt Tip Ekspresyon Profilleri ve Boyut İndirgeme (PCA & Kümeleme)",
+      "time": "13:00",
+      "endTime": "14:15",
+      "day": 2,
+      "order": 15
+    },
+    {
+      "slug": "mola-5",
+      "title": "Coffee & Tea Break",
+      "titleTr": "Kahve & Çay Molası",
+      "type": "break",
+      "speakerSlugs": [],
+      "description": "",
+      "time": "14:15",
+      "endTime": "14:30",
+      "day": 2,
+      "order": 16
+    },
+    {
+      "slug": "atolye-2",
+      "title": "Hands-on Workshop (Part II): Survival and Biomarker Modelling",
+      "titleTr": "Uygulamalı Atölye (II. Kısım): Sağkalım Modellemesi ve Biyobelirteç Modellemesi",
+      "type": "workshop",
+      "speakerSlugs": [
+        "atakan-ekiz"
+      ],
+      "description": "Survival Modelling (Kaplan-Meier & Cox), Functional Enrichment (GSEA) and Biomarker Modelling with Machine Learning (Lasso/Ridge/Elastic-Net) + Q&A",
+      "descriptionTr": "Sağkalım Modellemesi (Kaplan-Meier & Cox), Fonksiyonel Zenginleştirme (GSEA) ve Makine Öğrenmesi ile Biyobelirteç Modellemesi (Lasso/Ridge/Elastic-Net) + S&C",
+      "time": "14:30",
+      "endTime": "15:45",
+      "day": 2,
+      "order": 17
+    }
+  ]
+}
