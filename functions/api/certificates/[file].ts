@@ -36,8 +36,20 @@ const serve: PagesFunction<Env> = async ({ params, env, request }) => {
   headers.set('Cache-Control', 'private, max-age=3600');
   headers.set('etag', object.httpEtag);
 
-  const ranged = 'range' in object && object.range !== undefined && request.headers.has('Range');
-  return new Response(object.body, { status: ranged ? 206 : 200, headers });
+  headers.set('Accept-Ranges', 'bytes');
+
+  // A 206 must say which bytes it carries (RFC 9110), or a resumed download
+  // or a range-reading viewer cannot place them.
+  const range = request.headers.has('Range') && 'range' in object ? (object.range as R2Range | undefined) : undefined;
+  if (range) {
+    const offset = 'suffix' in range ? object.size - range.suffix : (range.offset ?? 0);
+    const length = 'suffix' in range ? range.suffix : (range.length ?? object.size - offset);
+    headers.set('Content-Range', `bytes ${offset}-${offset + length - 1}/${object.size}`);
+    headers.set('Content-Length', String(length));
+    return new Response(object.body, { status: 206, headers });
+  }
+  headers.set('Content-Length', String(object.size));
+  return new Response(object.body, { status: 200, headers });
 };
 
 export const onRequestGet = serve;

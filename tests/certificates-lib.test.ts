@@ -17,6 +17,10 @@ test('emails are trimmed and lowercased, including a Turkish dotted capital', ()
   assert.equal(normaliseEmail('İLKER@example.org'), 'ilker@example.org');
 });
 
+test('a dotless ı from Turkish-locale lowercasing folds to i, so INFO@ lowercased by Excel-TR still matches', () => {
+  assert.equal(normaliseEmail('ınfo@example.org'), 'info@example.org');
+});
+
 test('malformed emails are refused', () => {
   for (const bad of ['', 'no-at', 'a@b', 'a b@example.org', 'a@@example.org', `${'x'.repeat(250)}@example.org`]) {
     assert.equal(normaliseEmail(bad), null, bad);

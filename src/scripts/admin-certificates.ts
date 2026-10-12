@@ -2,7 +2,7 @@
  * The Certificates section of the symposium pane. Kept out of admin-panel.ts
  * (already 1600+ lines); that file hands in its helpers through CertDeps.
  */
-import { parseCsv, planUpload, type PlannedRow } from '../lib/certificate-csv';
+import { decodeCsv, parseCsv, planUpload, type PlannedRow } from '../lib/certificate-csv';
 import { compressPdf, type Method } from './pdf-compress';
 
 export interface CertDeps {
@@ -21,6 +21,10 @@ type Prepared = PlannedRow & {
 
 let deps: CertDeps;
 let prepared: Prepared[] = [];
+// One check or upload at a time: a second click on either would run a second
+// loop over the same rows (two uploads per certificate) or swap the rows out
+// from under an upload that is still going.
+let busy = false;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(n < 1024 * 1024 ? 2 : 1)} MB`;
 const year = () => Number($<HTMLInputElement>('symCertYear').value);
@@ -71,8 +75,30 @@ function renderPreview(unused: string[]): void {
   const ready = uploadable().length;
   const button = $<HTMLButtonElement>('symCertUpload');
   button.textContent = deps.tf('admin.symposium.certificates.upload', { count: ready });
-  button.classList.toggle('hidden', ready === 0);
+  // Hidden while a check or an upload is running, not only when nothing is
+  // ready: offering "Upload 3" halfway through compressing ten files invites
+  // an upload of the first three.
+  button.classList.toggle('hidden', ready === 0 || busy);
 }
+
+/** Runs one check or upload, with both buttons locked for its duration. */
+async function exclusive(work: () => Promise<void>): Promise<void> {
+  if (busy) return;
+  busy = true;
+  const check = $<HTMLButtonElement>('symCertCheck');
+  const upload = $<HTMLButtonElement>('symCertUpload');
+  check.disabled = upload.disabled = true;
+  upload.classList.add('hidden');
+  try {
+    await work();
+  } finally {
+    busy = false;
+    check.disabled = upload.disabled = false;
+    if (prepared.length) renderPreview(lastUnused);
+  }
+}
+
+let lastUnused: string[] = [];
 
 const uploadable = () => prepared.filter((r) => r.problems.length === 0 && !r.fileProblem && r.bytes && !r.uploaded);
 
@@ -82,7 +108,7 @@ async function check(): Promise<void> {
   const errorEl = $('symCertCsvError');
   errorEl.classList.add('hidden');
   if (!csvFile) return;
-  const parsed = parseCsv(await csvFile.text());
+  const parsed = parseCsv(decodeCsv(await csvFile.arrayBuffer()));
   if ('error' in parsed) {
     errorEl.textContent = parsed.error === 'missing_columns'
       ? deps.tf('admin.symposium.certificates.csvError.missing_columns', { columns: (parsed.missing ?? []).join(', ') })
@@ -94,6 +120,7 @@ async function check(): Promise<void> {
   const byName = new Map(pdfs.map((f) => [f.name, f]));
   const rasterise = $<HTMLInputElement>('symCertRasterise').checked;
   prepared = plan.rows.map((r) => ({ ...r }));
+  lastUnused = plan.unusedFiles;
   renderPreview(plan.unusedFiles);
   for (const r of prepared) {
     if (r.problems.length) continue;
@@ -126,7 +153,7 @@ async function upload(): Promise<void> {
         headers: {
           'Content-Type': 'application/pdf',
           'X-Cert-Year': String(year()),
-          'X-Cert-Email': r.email,
+          'X-Cert-Email': encodeURIComponent(r.email),
           'X-Cert-Name': encodeURIComponent(r.name),
           'X-Cert-Type': r.kind!,
         },
@@ -138,7 +165,7 @@ async function upload(): Promise<void> {
       r.uploadError = String(err).slice(0, 80);
       failed++;
     }
-    renderPreview([]);
+    renderPreview(lastUnused);
   }
   progress.textContent = deps.tf('admin.symposium.certificates.done', { ok, failed });
   if (ok > 0) await rebuild();
@@ -186,8 +213,8 @@ export async function loadCertificates(): Promise<void> {
 export function setupCertificates(d: CertDeps): void {
   deps = d;
   $<HTMLInputElement>('symCertYear').value = String(new Date().getFullYear());
-  $('symCertForm').addEventListener('submit', (e) => { e.preventDefault(); void check(); });
-  $('symCertUpload').addEventListener('click', () => void upload());
+  $('symCertForm').addEventListener('submit', (e) => { e.preventDefault(); void exclusive(check); });
+  $('symCertUpload').addEventListener('click', () => void exclusive(upload));
   $('symCertYear').addEventListener('change', () => void loadCertificates());
   const confirmInput = $<HTMLInputElement>('symCertDeleteAllInput');
   const deleteAll = $<HTMLButtonElement>('symCertDeleteAll');

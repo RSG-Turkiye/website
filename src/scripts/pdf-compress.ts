@@ -19,7 +19,10 @@ export async function compressPdf(
   let error: string | undefined;
   try {
     const { PDFDocument } = await import('pdf-lib');
-    const doc = await PDFDocument.load(original);
+    // throwOnInvalidObject: by default pdf-lib drops an object it cannot
+    // parse and saves the rest -- a smaller file with a page missing, which
+    // "smallest wins" would then pick. A damaged file goes up as it is.
+    const doc = await PDFDocument.load(original, { throwOnInvalidObject: true });
     const saved = await doc.save({ useObjectStreams: true });
     if (saved.length < best.bytes.length) best = { bytes: saved, method: 'lossless' };
   } catch (err) {

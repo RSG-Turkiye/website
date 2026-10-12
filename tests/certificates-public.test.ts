@@ -86,6 +86,18 @@ test('file route serves an unexpired PDF inline, framable only by the symposium 
   assert.equal(await res.text(), '%PDF-1.7 x');
 });
 
+test('a range request is a well-formed 206, and a whole file says its length', async () => {
+  const { env } = setup();
+  const part = await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf`, { headers: { Range: 'bytes=0-3' } }), env, { file: `${ID1}.pdf` });
+  assert.equal(part.status, 206);
+  assert.equal(part.headers.get('Content-Range'), 'bytes 0-3/10');
+  assert.equal(part.headers.get('Content-Length'), '4');
+  assert.equal(await part.text(), '%PDF');
+  const whole = await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf`), env, { file: `${ID1}.pdf` });
+  assert.equal(whole.headers.get('Content-Length'), '10');
+  assert.equal(whole.headers.get('Accept-Ranges'), 'bytes');
+});
+
 test('?download=1 makes it an attachment', async () => {
   const { env } = setup();
   const res = await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf?download=1`), env, { file: `${ID1}.pdf` });

@@ -15,12 +15,13 @@ export interface PlannedRow extends CsvRow { kind: CsvKind | null; problems: Row
 const COLUMNS = ['email', 'name', 'type', 'file'] as const;
 
 /** Turkish-aware lowercase: I -> ı would be right for Turkish words but
- * wrong for emails and English labels, so both I and İ fold to i. */
-const fold = (s: string) => s.trim().replace(/İ/g, 'i').replace(/I/g, 'i').toLowerCase();
+ * wrong for emails and English labels, so I, İ and ı all fold to i -- the
+ * same rule as normaliseEmail on the server. */
+const fold = (s: string) => s.trim().replace(/[İIı]/g, 'i').toLowerCase();
 
 const LABELS: Record<string, CsvKind> = {
-  participation: 'participation', 'katılım': 'participation', katilim: 'participation',
-  workshop: 'workshop', 'çalıştay': 'workshop',
+  participation: 'participation', katilim: 'participation',
+  workshop: 'workshop', 'çalistay': 'workshop',
   presentation: 'presentation', sunum: 'presentation',
   appreciation: 'appreciation', 'teşekkür': 'appreciation', tesekkur: 'appreciation',
 };
@@ -50,6 +51,17 @@ function splitRecords(text: string, delimiter: string): { line: number; fields: 
   fields.push(field);
   out.push({ line: start, fields });
   return out.filter((r) => r.fields.some((f) => f.trim() !== ''));
+}
+
+/** The file's text. UTF-8 when it is valid UTF-8; otherwise windows-1254,
+ * which is what Turkish Excel's plain "CSV" and "MS-DOS" formats write --
+ * read as UTF-8 those names would reach the certificate holders as "�ule". */
+export function decodeCsv(bytes: ArrayBuffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1254').decode(bytes);
+  }
 }
 
 export function parseCsv(text: string): { rows: CsvRow[] } | { error: CsvError; missing?: string[] } {

@@ -59,6 +59,22 @@ test('re-uploading the same person and kind replaces the file and the row', asyn
   assert.deepEqual(rows.map((r) => r.name), ['Ayşe Yılmaz Kaya']);
 });
 
+test('an email with Turkish letters arrives URI-encoded (headers are Latin-1) and is stored decoded', async () => {
+  const { env, db } = setup();
+  const res = await upload(env, { 'X-Cert-Email': encodeURIComponent('Şule@Örnek.com.tr') });
+  assert.equal(res.status, 200);
+  const row = db.prepare('SELECT email FROM symposium_certificates').get() as { email: string };
+  assert.equal(row.email, 'şule@örnek.com.tr');
+});
+
+test('two overlapping uploads of the same person and kind leave one row, one object, and a 409 for the loser', async () => {
+  const { env, r2, db } = setup();
+  const [a, b] = await Promise.all([upload(env, {}), upload(env, {})]);
+  assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM symposium_certificates').get() as { n: number }).n, 1);
+  assert.equal(r2.store.size, 1, 'the losing upload removed its own object');
+});
+
 test('a second kind for the same person is a second certificate', async () => {
   const { env, db } = setup();
   await upload(env, {});

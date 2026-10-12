@@ -19,10 +19,11 @@ export const CERT_FILE =
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Lowercased with Turkish-aware folding of the dotted capital, so İ and I
- * both become i: "İLKER@" typed on a Turkish keyboard must find "ilker@". */
+/** Lowercased with Turkish-aware folding: İ, I and ı all become i. "İLKER@"
+ * typed on a Turkish keyboard must find "ilker@", and so must "ınfo@" -- what
+ * a Turkish-locale LOWER() in Excel makes of "INFO@". */
 export function normaliseEmail(raw: string): string | null {
-  const email = raw.trim().replace(/İ/g, 'i').replace(/I/g, 'i').toLowerCase();
+  const email = raw.trim().replace(/[İIı]/g, 'i').toLowerCase();
   if (email.length > 254 || !EMAIL.test(email)) return null;
   return email;
 }

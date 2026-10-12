@@ -65,7 +65,7 @@ writeFileSync(join(dir, 'broken.pdf'), '%PDF-1.7\n' + 'garbage '.repeat(200));
 writeFileSync(join(dir, 'notpdf.pdf'), '<html></html>');
 writeFileSync(join(dir, 'list.csv'), '﻿' + [
   'email;name;type;file',
-  'a@example.org;Ayşe Yılmaz;katılım;small.pdf',
+  'A@Example.org;Ayşe Yılmaz;katılım;small.pdf',
   'b@example.org;Ali;workshop;big.pdf',
   'c@example.org;Can;sunum;broken.pdf',
   'd@example.org;Deniz;teşekkür;notpdf.pdf',
@@ -132,7 +132,8 @@ async function run(viewport) {
   ok((await page.textContent('#symCertUpload')).trim() === 'Upload 3 certificates', 'upload button counts the ready rows');
   ok(/notpdf|small|big|broken/.test(await page.textContent('#symCertUnused')) === false, 'no PDF reported unused');
 
-  await page.click('#symCertUpload');
+  // A double click: the panel must not run two upload loops over the same rows.
+  await page.dblclick('#symCertUpload');
   await page.waitForFunction(() => /Uploaded \d+, failed \d+/.test(document.getElementById('symCertProgress')?.textContent ?? ''), null, { timeout: 15000 }).catch(() => {});
   console.log('   ', JSON.stringify(posts), 'rebuilds:', rebuilds);
   ok(posts.length === 3, 'three uploads');

@@ -170,8 +170,9 @@ Under `functions/api/admin/certificates*`, with the usual prologue
 `/api/admin/symposium/`: there they would compete with the existing dynamic
 `[kind].ts` route.
 
-- `POST` raw PDF body; headers `X-Cert-Year`, `X-Cert-Email`,
-  `X-Cert-Name` (URI-encoded), `X-Cert-Type`. Re-validates everything the
+- `POST` raw PDF body; headers `X-Cert-Year`, `X-Cert-Email`
+  (URI-encoded), `X-Cert-Name` (URI-encoded), `X-Cert-Type`. Two uploads
+  racing for the same (year, email, kind) leave one; the other gets 409. Re-validates everything the
   pane checked, including `%PDF-` and the 10 MB cap.
 - `GET ?year=` the list. `DELETE /<id>` one. `DELETE ?year=` all of a year.
 - `POST .../rebuild` fires `triggerRebuild` once after a batch or a

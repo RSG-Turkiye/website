@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCsv, kindFromLabel, planUpload, PLAN_KINDS } from '../src/lib/certificate-csv';
+import { parseCsv, kindFromLabel, planUpload, PLAN_KINDS, decodeCsv } from '../src/lib/certificate-csv';
 import { KINDS } from '../functions/_lib/certificates';
 
 test('the panel and the API agree on the four kinds', () => {
@@ -18,6 +18,16 @@ test('Excel-TR: semicolons, BOM, CRLF, header in another order and case', () => 
   assert.ok('rows' in r);
   assert.equal(r.rows.length, 1, 'blank line ignored');
   assert.equal(r.rows[0].type, 'Katılım');
+});
+
+test('a CSV saved by Turkish Excel in its default ANSI format (windows-1254) reads with its Turkish letters', () => {
+  // "Şule Öztürk;Katılım" in windows-1254: Ş=DE Ö=D6 ü=FC ı=FD.
+  const cp1254 = new Uint8Array([0xDE, 0x75, 0x6C, 0x65, 0x20, 0xD6, 0x7A, 0x74, 0xFC, 0x72, 0x6B, 0x3B, 0x4B, 0x61, 0x74, 0xFD, 0x6C, 0xFD, 0x6D]);
+  assert.equal(decodeCsv(cp1254.buffer), 'Şule Öztürk;Katılım');
+});
+
+test('a UTF-8 CSV is read as UTF-8', () => {
+  assert.equal(decodeCsv(new TextEncoder().encode('Şule Öztürk;Katılım').buffer), 'Şule Öztürk;Katılım');
 });
 
 test('a doubled quote inside a quoted field is one quote', () => {
@@ -38,6 +48,11 @@ test('Turkish and English kind labels, any case', () => {
   assert.equal(kindFromLabel('TEŞEKKÜR'), 'appreciation');
   assert.equal(kindFromLabel('Workshop'), 'workshop');
   assert.equal(kindFromLabel('poster'), null);
+});
+
+test('the planner folds a dotless ı in emails the same way the API does', () => {
+  const plan = planUpload([{ line: 2, email: 'INFO@example.org'.toLocaleLowerCase('tr'), name: 'A', type: 'katılım', file: 'a.pdf' }], ['a.pdf']);
+  assert.equal(plan.rows[0].email, 'info@example.org');
 });
 
 test('planning flags each problem and lists unused files', () => {

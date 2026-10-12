@@ -43,7 +43,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const year = yearParam(request.headers.get('X-Cert-Year'));
   if (year === null) return bad('invalid_year', 'Invalid year');
-  const email = normaliseEmail(request.headers.get('X-Cert-Email') ?? '');
+  // URI-encoded like the name: header values are Latin-1, and an address
+  // with Turkish letters would not survive the trip raw.
+  let email: string | null;
+  try {
+    email = normaliseEmail(decodeURIComponent(request.headers.get('X-Cert-Email') ?? ''));
+  } catch {
+    email = null;
+  }
   if (!email) return bad('invalid_email', 'Invalid email');
   let name: string;
   try {
@@ -75,15 +82,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     `INSERT INTO symposium_certificates (id, year, email, name, kind, size_bytes, uploaded_by, uploaded_at, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(id, year, email, name, kind, bytes.byteLength, user.id, now, expiresAt);
-  if (previous) {
-    await env.DB.batch([
-      env.DB.prepare('DELETE FROM symposium_certificates WHERE id = ?').bind(previous.id),
-      insert,
-    ]);
-    await env.MAIL_ATTACHMENTS.delete(certKey(previous.id));
-  } else {
-    await insert.run();
+  try {
+    if (previous) {
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM symposium_certificates WHERE id = ?').bind(previous.id),
+        insert,
+      ]);
+    } else {
+      await insert.run();
+    }
+  } catch (err) {
+    // Another upload for the same person and kind won the race (a double
+    // click, two organisers at once). Take back this object so nothing is
+    // left in R2 that no row -- and so no purge -- will ever find.
+    await env.MAIL_ATTACHMENTS.delete(certKey(id));
+    if (String(err).includes('UNIQUE')) {
+      return jsonResponse({ error: 'Uploaded twice at once; the other upload was kept', code: 'conflict' }, 409);
+    }
+    throw err;
   }
+  if (previous) await env.MAIL_ATTACHMENTS.delete(certKey(previous.id));
   return jsonResponse({ ok: true, id, expiresAt, replaced: Boolean(previous) });
 };
 
