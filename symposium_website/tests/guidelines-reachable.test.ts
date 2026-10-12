@@ -37,9 +37,35 @@ function ctaArea(html: string): string {
 
 const haveGuidelines = existsSync(GUIDELINES) && readdirSync(GUIDELINES).some((f) => f.endsWith('.md'));
 
-test('the home page links to the guidelines', {
-  skip: (!existsSync(DIST) && 'run `npm run build` first') || (!haveGuidelines && 'no guidelines written'),
+/**
+ * The guidelines link sits beside the registration and abstract buttons, so
+ * it is only rendered while the call to action is open. Before that, after
+ * the deadlines, and between editions the hero has no buttons to stand
+ * beside, and these tests used to fail the build on every pull request from
+ * the day the deadlines passed. Read off the built page, the same source the
+ * assertions use, so the two cannot disagree about the date.
+ */
+function homeCtaState(): string | null {
+  const page = join(DIST, 'index.html');
+  if (!existsSync(page)) return null;
+  return /data-cta-state="(\w+)"/.exec(readFileSync(page, 'utf8'))?.[1] ?? null;
+}
+
+const skipUnlessOpen =
+  (!existsSync(DIST) && 'run `npm run build` first') ||
+  (!haveGuidelines && 'no guidelines written') ||
+  (homeCtaState() !== 'open' && `the call to action is not open (${homeCtaState() ?? 'no edition in the hero'})`);
+
+test('the hero says what state its call to action is in whenever it has one', {
+  skip: !existsSync(DIST) && 'run `npm run build` first',
 }, () => {
+  // Without this the two tests below would skip forever, silently, if the
+  // attribute were ever dropped from EditionCta.
+  const en = readFileSync(join(DIST, 'index.html'), 'utf8');
+  if (en.includes('id="countdown"')) assert.match(en, /data-cta-state="(soon|closed|open)"/);
+});
+
+test('the home page links to the guidelines', { skip: skipUnlessOpen }, () => {
   const en = readFileSync(join(DIST, 'index.html'), 'utf8');
   const tr = readFileSync(join(DIST, 'tr/index.html'), 'utf8');
 
@@ -55,9 +81,7 @@ test('the home page links to the guidelines', {
   assert.ok(heroTr.includes('href="/tr/abstracts/"'), 'the Turkish hero offers no route to the guidelines');
 });
 
-test('each language links to its own guidelines page', {
-  skip: (!existsSync(DIST) && 'run `npm run build` first') || (!haveGuidelines && 'no guidelines written'),
-}, () => {
+test('each language links to its own guidelines page', { skip: skipUnlessOpen }, () => {
   const tr = readFileSync(join(DIST, 'tr/index.html'), 'utf8');
   const heroTr = ctaArea(tr);
   assert.ok(!heroTr.includes('href="/abstracts/"'), 'the Turkish hero links to the English page');
