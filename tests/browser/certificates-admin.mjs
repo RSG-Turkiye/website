@@ -142,6 +142,20 @@ async function run(viewport) {
   ok(posts[1]?.size > 0 && posts[1]?.size < bigSize, 'the shrunk bytes were sent for big.pdf');
   ok(rebuilds === 1, 'one rebuild after the batch');
 
+  // A CSV with a missing column after a batch: the old rows must not come
+  // back with an Upload button beside the error.
+  writeFileSync(join(dir, 'broken.csv'), 'email,name\na@example.org,A\n');
+  await page.setInputFiles('#symCertCsv', join(dir, 'broken.csv'));
+  await page.click('#symCertCheck');
+  await page.waitForTimeout(300);
+  const afterError = await page.evaluate(() => ({
+    error: document.getElementById('symCertCsvError').textContent,
+    uploadHidden: document.getElementById('symCertUpload').classList.contains('hidden'),
+    previewHidden: document.getElementById('symCertPreview').classList.contains('hidden'),
+  }));
+  ok(/missing columns: type, file/.test(afterError.error), `CSV error shown (${afterError.error})`);
+  ok(afterError.uploadHidden && afterError.previewHidden, 'the previous batch is not offered again');
+
   if (viewport.width <= 400) {
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     ok(width <= viewport.width, `no horizontal page scroll at ${viewport.width}px (scrollWidth ${width})`);

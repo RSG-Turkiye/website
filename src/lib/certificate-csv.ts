@@ -21,7 +21,7 @@ const fold = (s: string) => s.trim().replace(/[İIı]/g, 'i').toLowerCase();
 
 const LABELS: Record<string, CsvKind> = {
   participation: 'participation', katilim: 'participation',
-  workshop: 'workshop', 'çalistay': 'workshop',
+  workshop: 'workshop', 'çaliştay': 'workshop',
   presentation: 'presentation', sunum: 'presentation',
   appreciation: 'appreciation', 'teşekkür': 'appreciation', tesekkur: 'appreciation',
 };

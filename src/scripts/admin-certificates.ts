@@ -107,6 +107,12 @@ async function check(): Promise<void> {
   const pdfs = [...($<HTMLInputElement>('symCertPdfs').files ?? [])];
   const errorEl = $('symCertCsvError');
   errorEl.classList.add('hidden');
+  // A new check starts from nothing: a CSV that fails to parse must not leave
+  // the previous batch on screen with an Upload button beside the error.
+  prepared = [];
+  lastUnused = [];
+  $('symCertPreview').classList.add('hidden');
+  $('symCertUnused').classList.add('hidden');
   if (!csvFile) return;
   const parsed = parseCsv(decodeCsv(await csvFile.arrayBuffer()));
   if ('error' in parsed) {

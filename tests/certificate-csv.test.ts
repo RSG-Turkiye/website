@@ -47,6 +47,8 @@ test('Turkish and English kind labels, any case', () => {
   assert.equal(kindFromLabel('Sunum'), 'presentation');
   assert.equal(kindFromLabel('TEŞEKKÜR'), 'appreciation');
   assert.equal(kindFromLabel('Workshop'), 'workshop');
+  assert.equal(kindFromLabel('çalıştay'), 'workshop');
+  assert.equal(kindFromLabel('ÇALIŞTAY'), 'workshop');
   assert.equal(kindFromLabel('poster'), null);
 });
 
