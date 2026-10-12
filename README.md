@@ -146,9 +146,9 @@ has to change.
    with no visible cause. Add the scope
    `https://www.googleapis.com/auth/gmail.send`. The manual path below needs
    only that scope. The admin panel's Reconnect button (see [Connections and
-   the status banner](#connections-and-the-status-banner)) needs four on the
-   consent screen: `openid`, `email` (`.../auth/userinfo.email`), `gmail.send`
-   and `gmail.readonly`; configure all four so Reconnect works. Because
+   the status banner](#connections-and-the-status-banner)) requests four at
+   sign-in: `openid`, `email`, `gmail.send` and `gmail.readonly`. They do not
+   have to be listed under Data access while the app is unverified. Because
    `gmail.send` is a sensitive scope, a published-but-unverified app shows an
    "unverified app" interstitial; only the one person doing step 2 ever sees it.
 
@@ -522,9 +522,12 @@ step 4 happens **after** it is merged and Pages has deployed.
    https://rsg-turkiye.iscbsc.org/api/admin/connections/gmail/callback
    ```
 
-   Under Data access, make sure `openid` and
-   `.../auth/userinfo.email` are listed next to `gmail.send` and
-   `gmail.readonly`.
+   Nothing has to change under Data access. While the app is unverified,
+   Google grants the scopes the site asks for at sign-in (`openid`, `email`,
+   `gmail.send`, `gmail.readonly`) whether or not they are listed there;
+   the list only feeds Google's verification review. Adding a restricted
+   scope to it starts asking for a justification and a demo video, so leave
+   it as it is.
 3. **Before merging: run the migrations** listed as 8a, 8b and 8c at the top
    of `db/schema.sql`. The new code reads these tables as soon as it deploys.
 
