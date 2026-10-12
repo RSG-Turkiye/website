@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { getAccessToken, resetAccessToken } from '../functions/_lib/gmail';
-import { connectionUpsert, getConnection } from '../functions/_lib/connections';
+import { connectionUpsert, getConnection, connectionStatus } from '../functions/_lib/connections';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
 const KEY = Buffer.alloc(32, 5).toString('base64');
@@ -28,6 +28,7 @@ function stubToken(respond: (refresh: string) => Response) {
 }
 const ok = () => new Response(JSON.stringify({ access_token: 'at', expires_in: 3600 }), { status: 200 });
 
+const nowS = () => Math.floor(Date.now() / 1000);
 beforeEach(() => resetAccessToken());
 
 test('with no stored connection, the secret is used and success is recorded', async () => {
@@ -78,7 +79,22 @@ test('an unreadable stored token (key rotated) falls back to the secret and says
   try {
     assert.equal(await getAccessToken(rotated as never), 'at');
     assert.deepEqual(f.seen, ['secret-token']);
-    assert.match((await getConnection(env.DB, 'gmail'))!.last_error!, /could not be read/);
+    const row = (await getConnection(env.DB, 'gmail'))!;
+    assert.match(row.last_error!, /could not be read/);
+    assert.ok(!row.last_ok_at || row.last_ok_at <= 1, 'no markOk after the fallback');
+    assert.equal(connectionStatus(row, nowS(), true), 'broken');
+  } finally { f.restore(); }
+});
+
+test('a missing TOKEN_ENC_KEY with a stored row: secret still works and status is broken', async () => {
+  const { env } = setup();
+  await (await connectionUpsert(env, 'gmail', { accountId: null, accountName: 'a', accessToken: null, refreshToken: 'stored', scopes: '', expiresAt: null, refreshExpiresAt: null }, 'u1', 1)).run();
+  const noKey = { ...env, TOKEN_ENC_KEY: undefined };
+  const f = stubToken(ok);
+  try {
+    assert.equal(await getAccessToken(noKey as never), 'at');
+    assert.deepEqual(f.seen, ['secret-token']);
+    assert.equal(connectionStatus((await getConnection(env.DB, 'gmail'))!, nowS(), true), 'broken');
   } finally { f.restore(); }
 });
 

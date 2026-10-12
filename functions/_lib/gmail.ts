@@ -427,19 +427,22 @@ async function quietly(work: () => Promise<void>): Promise<void> {
  * with the stored one -- no table yet, no TOKEN_ENC_KEY, a rotated key --
  * falls through to the secret rather than stopping mail.
  */
-async function refreshTokenFor(env: Env): Promise<string> {
+async function refreshTokenFor(env: Env): Promise<{ token: string; degraded: boolean }> {
   // env.DB is absent in some unit tests' env objects; getConnection would throw synchronously.
   let row = null;
   try { row = env.DB ? await getConnection(env.DB, 'gmail') : null; } catch { /* no table yet, or D1 unavailable: use the secret */ }
+  let degraded = false;
   if (row?.refresh_token_enc) {
     try {
       const stored = await readRefreshToken(env, row);
-      if (stored) return stored;
+      if (stored) return { token: stored, degraded: false };
     } catch {
+      degraded = true;
       await quietly(() => markBroken(env.DB, 'gmail', 'The stored Gmail token could not be read (TOKEN_ENC_KEY missing or changed). Reconnect Gmail.', nowSeconds()));
     }
   }
-  if (env.GMAIL_REFRESH_TOKEN) return env.GMAIL_REFRESH_TOKEN;
+  // degraded: a stored token exists but was unreadable, so the secret is carrying mail.
+  if (env.GMAIL_REFRESH_TOKEN) return { token: env.GMAIL_REFRESH_TOKEN, degraded };
   throw new GmailError('GMAIL_REFRESH_TOKEN is not configured');
 }
 
@@ -453,7 +456,7 @@ export async function getAccessToken(env: Env): Promise<string> {
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now + 60_000) return cachedToken.token;
 
-  const refreshToken = await refreshTokenFor(env);
+  const { token: refreshToken, degraded } = await refreshTokenFor(env);
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -477,7 +480,8 @@ export async function getAccessToken(env: Env): Promise<string> {
 
   const data = await res.json<{ access_token: string; expires_in: number }>();
   cachedToken = { token: data.access_token, expiresAt: now + data.expires_in * 1000 };
-  await quietly(() => markOk(env.DB, 'gmail', nowSeconds()));
+  // Not when degraded: a markOk would newer-than the error and hide that the reconnect is being ignored.
+  if (!degraded) await quietly(() => markOk(env.DB, 'gmail', nowSeconds()));
   return data.access_token;
 }
 
