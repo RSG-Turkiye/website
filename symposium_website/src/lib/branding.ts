@@ -7,3 +7,10 @@
  */
 export const SYMPOSIUM_BANNER =
   "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
+
+/**
+ * The home page hero: the group photo from the most recent symposium, served
+ * from this site's own domain. Cropped to the band where people stand, 2000px
+ * wide, camera metadata stripped. Replace it after each edition.
+ */
+export const HOME_HERO_PHOTO = "/images/symposium-2026-group.jpg";

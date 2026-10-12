@@ -2,6 +2,7 @@
 // Build time. These pages are rebuilt nightly, so "now" is at worst a day old.
 const now = new Date();
 
+import { HOME_HERO_PHOTO } from "../../lib/branding";
 import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SponsorLogo from "../../components/SponsorLogo.astro";
@@ -50,12 +51,14 @@ const theme = upcoming ? subtitleFor(upcoming.data, lang) : "";
 const place = effectiveEdition ? locationFor(effectiveEdition, now, lang) : { kind: "hidden" as const };
 const startsAt = upcoming?.data.startDate?.toISOString() ?? "";
 
-const BANNER = "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_1600/v1774606559/rsgturkey/symposium/2021/05/RSG_symposium_banner-scaled.jpg";
+const BANNER = HOME_HERO_PHOTO;
+// og:image has to be absolute; the background can stay relative.
+const BANNER_ABSOLUTE = new URL(HOME_HERO_PHOTO, Astro.site).href;
 
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 ---
 
-<BaseLayout pageTitle={t("nav.home")} image={BANNER}>
+<BaseLayout pageTitle={t("nav.home")} image={BANNER_ABSOLUTE}>
   {effectiveEdition && <EventJsonLd edition={effectiveEdition} url={canonical} lang={lang} finished={finished} speakers={upcomingContent?.speakers ?? []} />}
   <AnnouncementBanner announcements={upcomingContent?.announcements ?? []} />
 
