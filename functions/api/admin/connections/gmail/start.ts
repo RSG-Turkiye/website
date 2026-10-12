@@ -12,6 +12,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const now = Math.floor(Date.now() / 1000);
   const returnTo = new URL(request.url).searchParams.get('lang') === 'tr' ? '/tr/admin' : '/admin';
+  // A grant we cannot seal would be issued by Google and then thrown away.
+  if (!env.TOKEN_ENC_KEY) return redirectResponse(`${getBaseUrl(request)}${returnTo}?connection_error=store_failed`);
   const state = await createState(env.DB, 'gmail', user.id, returnTo, now);
   await appendAudit(env.DB, { userId: user.id, action: 'connection.start', targetType: 'connection', targetId: 'gmail' }, now);
   return redirectResponse(gmailAuthUrl(env, getBaseUrl(request), state));

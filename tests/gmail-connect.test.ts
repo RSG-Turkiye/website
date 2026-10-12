@@ -126,6 +126,59 @@ test('the wrong Google account is refused, revoked, and the working connection i
   } finally { g.restore(); }
 });
 
+test('a failed userinfo call or a missing email is wrong_account, revoked, nothing stored', async () => {
+  for (const mode of ['not-ok', 'no-email'] as const) {
+    const { env } = setup();
+    const state = (await begin(env)).searchParams.get('state')!;
+    const g = stubGoogle();
+    const inner = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith('https://openidconnect.googleapis.com/v1/userinfo')) {
+        return mode === 'not-ok' ? new Response('no', { status: 500 }) : Response.json({});
+      }
+      return inner(input, init);
+    }) as typeof fetch;
+    try {
+      const res = await get(callback, `${BASE}/api/admin/connections/gmail/callback?code=c&state=${state}`, env);
+      assert.equal(res.headers.get('Location'), `${BASE}/admin?connection_error=wrong_account`, mode);
+      assert.equal(await getConnection(env.DB, 'gmail'), null, mode);
+      assert.ok(g.calls.some((u) => u.startsWith('https://oauth2.googleapis.com/revoke')), mode);
+    } finally { g.restore(); }
+  }
+});
+
+test('the account check ignores letter case', async () => {
+  const { env } = setup();
+  const state = (await begin(env)).searchParams.get('state')!;
+  const g = stubGoogle({ email: 'Turkey.RSG@gmail.com' });
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/gmail/callback?code=c&state=${state}`, env);
+    assert.equal(res.headers.get('Location'), `${BASE}/admin?connected=gmail`);
+  } finally { g.restore(); }
+});
+
+test('a grant that cannot be stored is revoked, audited and reported as store_failed', async () => {
+  const { env, db } = setup();
+  const state = (await begin(env)).searchParams.get('state')!;
+  const broken = { ...env, TOKEN_ENC_KEY: undefined };
+  const g = stubGoogle();
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/gmail/callback?code=c&state=${state}`, broken);
+    assert.equal(res.headers.get('Location'), `${BASE}/admin?connection_error=store_failed`);
+    assert.equal(await getConnection(env.DB, 'gmail'), null);
+    assert.ok(g.calls.some((u) => u.startsWith('https://oauth2.googleapis.com/revoke')));
+    const last = db.prepare('SELECT action, details FROM audit_log ORDER BY seq DESC LIMIT 1').get() as { action: string; details: string };
+    assert.equal(last.action, 'connection.rejected');
+    assert.equal(JSON.parse(last.details).reason, 'store_failed');
+  } finally { g.restore(); }
+});
+
+test('start without TOKEN_ENC_KEY goes back to the panel and never reaches Google', async () => {
+  const { env } = setup();
+  const res = await get(start, `${BASE}/api/admin/connections/gmail/start?lang=tr`, { ...env, TOKEN_ENC_KEY: undefined });
+  assert.equal(res.headers.get('Location'), `${BASE}/tr/admin?connection_error=store_failed`);
+});
+
 test('no refresh token, missing scope, failed exchange and a cancelled consent each say why', async () => {
   const cases: [Parameters<typeof stubGoogle>[0], string, string][] = [
     [{ refresh: false }, 'code=c', 'no_refresh_token'],

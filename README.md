@@ -476,7 +476,7 @@ documented by Cloudflare, so prefer it unless you have checked.
 ## Connections and the status banner
 
 The admin panel (`/admin`) shows a banner when something the site depends on is
-broken, and a **Connections** pane (admins and social roles only) listing each
+broken, and a **Connections** pane (admins only) listing each
 outside account the site uses. Every connection change, role change, audit
 export and pane view is written to the **Log** pane, kept for a year.
 
@@ -484,10 +484,12 @@ export and pane view is written to the **Log** pane, kept for a year.
 
 - **Gmail needs to be reconnected.** The stored Gmail token was rejected, or has
   expired. Open Connections > Gmail > Reconnect and sign in as
-  `turkey.rsg@gmail.com`. Any other account is refused. Until then mail falls
-  back to the `GMAIL_REFRESH_TOKEN` secret (see [Sending mail as
-  RSG](#sending-mail-as-rsg--required-setup)), so it may keep working, but the
-  banner stays until the stored token is healthy.
+  `turkey.rsg@gmail.com`. Any other account is refused. The
+  `GMAIL_REFRESH_TOKEN` secret (see [Sending mail as
+  RSG](#sending-mail-as-rsg--required-setup)) is only a fallback for when the
+  stored token cannot be read at all, for example `TOKEN_ENC_KEY` is missing or
+  was changed. After a password change Google revokes the grant, so mail stops
+  until someone reconnects.
 - **The scheduler is not running.** The mail dispatcher has not checked in for
   more than 10 minutes. In Cloudflare > Workers, open `rsg-mail-cron` and check
   that its cron trigger is enabled and look at its last invocations. If the

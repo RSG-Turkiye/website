@@ -68,20 +68,27 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   });
   const info = infoRes.ok ? await infoRes.json<{ email?: string }>() : {};
   const account = (info.email ?? '').toLowerCase();
-  if (account !== expectedGmailAccount(env)) {
+  if (!account || account !== expectedGmailAccount(env)) {
     await revokeGrant(tokens.refresh_token);
     await audit('connection.rejected', { reason: 'wrong_account', account });
     return back(returnTo, 'connection_error=wrong_account');
   }
 
-  const upsert = await connectionUpsert(env, 'gmail', {
-    accountId: null, accountName: account, accessToken: null, refreshToken: tokens.refresh_token,
-    scopes: scope, expiresAt: null, refreshExpiresAt: null,
-  }, user.id, now);
-  await runWithAudit(env.DB, [upsert], {
-    userId: user.id, action: 'connection.connect', targetType: 'connection', targetId: 'gmail',
-    details: { account, scopes: scope.split(' ') },
-  }, now);
+  try {
+    const upsert = await connectionUpsert(env, 'gmail', {
+      accountId: null, accountName: account, accessToken: null, refreshToken: tokens.refresh_token,
+      scopes: scope, expiresAt: null, refreshExpiresAt: null,
+    }, user.id, now);
+    await runWithAudit(env.DB, [upsert], {
+      userId: user.id, action: 'connection.connect', targetType: 'connection', targetId: 'gmail',
+      details: { account, scopes: scope.split(' ') },
+    }, now);
+  } catch {
+    // Google already issued the grant. Without a stored copy nobody can use it, so drop it.
+    await revokeGrant(tokens.refresh_token);
+    try { await audit('connection.rejected', { reason: 'store_failed' }); } catch { /* the redirect matters more */ }
+    return back(returnTo, 'connection_error=store_failed');
+  }
   resetAccessToken();
   return back(returnTo, 'connected=gmail');
 };

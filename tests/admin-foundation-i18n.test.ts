@@ -24,7 +24,7 @@ test('every key the new scripts look up exists', () => {
 });
 
 test('each connection error code the callback can send has a sentence', () => {
-  for (const code of ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'unknown']) {
+  for (const code of ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'store_failed', 'unknown']) {
     assert.ok(`admin.connections.error.${code}` in ui.en, code);
     assert.ok(`admin.connections.error.${code}` in ui.tr, code);
   }

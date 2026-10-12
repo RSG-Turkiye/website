@@ -724,12 +724,36 @@ function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean
   setupPaneSwitching(preferred && allowed.includes(preferred) ? preferred : allowed[0]);
 }
 
+/**
+ * Data that should load the first time a pane is shown, not on every page
+ * load: each load is a read the audit log records, so loading unseen panes
+ * would fill the log with reads nobody asked for.
+ */
+const paneLoaders = new Map<string, () => Promise<void>>();
+const paneLoaded = new Set<string>();
+let currentPane = '';
+
+function runPaneLoader(pane: string): void {
+  const loader = paneLoaders.get(pane);
+  if (!loader || paneLoaded.has(pane)) return;
+  paneLoaded.add(pane);
+  loader().catch(() => showToast(t((pane === 'audit' ? 'admin.audit.loadFailed' : 'admin.connections.loadFailed') as never), true));
+}
+
+/** Registers a loader; runs it now if its pane is already the one on screen. */
+function registerPaneLoader(pane: string, loader: () => Promise<void>): void {
+  paneLoaders.set(pane, loader);
+  if (currentPane === pane) runPaneLoader(pane);
+}
+
 /** Shows one pane at a time and marks its nav entry as current. */
 function setupPaneSwitching(initial: string): void {
   const items = document.querySelectorAll<HTMLButtonElement>('.admin-nav-item');
   const panes = document.querySelectorAll<HTMLElement>('[data-pane]');
 
   function show(target: string): void {
+    currentPane = target;
+    runPaneLoader(target);
     panes.forEach((p) => p.classList.toggle('hidden', p.dataset.pane !== target));
     items.forEach((i) => {
       const current = i.dataset.target === target;
@@ -787,10 +811,11 @@ function setupPaneSwitching(initial: string): void {
   if (isFullAdmin) {
     setupConnections({ t: t as (k: string) => string, showToast, lang });
     setupAudit({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, showToast, lang });
-    await Promise.all([loadConnections(), loadAudit()]);
+    registerPaneLoader('connections', loadConnections);
+    registerPaneLoader('audit', () => loadAudit());
   }
   if (connected || connectionError) {
-    const known = ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account'];
+    const known = ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'store_failed'];
     if (connected) showToast(tf('admin.connections.connected', { platform: t(`admin.connections.platform.${connected}` as never) }));
     else showToast(t(`admin.connections.error.${known.includes(connectionError!) ? connectionError : 'unknown'}` as never), true);
     history.replaceState(null, '', location.pathname);

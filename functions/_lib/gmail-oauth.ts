@@ -11,7 +11,7 @@ const REQUIRED = ['https://www.googleapis.com/auth/gmail.send', 'https://www.goo
 
 export const gmailRedirectUri = (base: string) => `${base}/api/admin/connections/gmail/callback`;
 export const expectedGmailAccount = (env: Pick<Env, 'GMAIL_ACCOUNT' | 'RSG_MAIL_FROM'>) =>
-  (env.GMAIL_ACCOUNT || env.RSG_MAIL_FROM).trim().toLowerCase();
+  (env.GMAIL_ACCOUNT || env.RSG_MAIL_FROM || '').trim().toLowerCase();
 
 export function gmailAuthUrl(env: Pick<Env, 'GOOGLE_CLIENT_ID' | 'GMAIL_ACCOUNT' | 'RSG_MAIL_FROM'>, base: string, state: string): string {
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
