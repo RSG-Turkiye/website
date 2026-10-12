@@ -49,8 +49,8 @@ symposium site (static)                      main site (Pages Functions)
                <--[{id, kind, name, ...}]--
 <iframe>       --GET-------------------->   /api/certificates/<id>.pdf   R2
 build time     --GET-------------------->   /api/certificates/status     D1
-admin pane     --POST pdf + headers----->   /api/admin/symposium/certificates
-cron worker    --POST (secret)---------->   /api/admin/symposium/certificates/purge
+admin pane     --POST pdf + headers----->   /api/admin/certificates
+cron worker    --POST (secret)---------->   /api/admin/certificates/purge
 ```
 
 ## Data
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS symposium_certificates (
   name TEXT NOT NULL,             -- as printed, for the result card
   kind TEXT NOT NULL CHECK (kind IN ('participation','workshop','presentation','appreciation')),
   size_bytes INTEGER NOT NULL,
-  uploaded_by INTEGER NOT NULL,
+  uploaded_by TEXT NOT NULL,     -- users.id is a UUID string
   uploaded_at INTEGER NOT NULL,   -- epoch seconds
   expires_at INTEGER NOT NULL     -- uploaded_at + 30 days
 );
@@ -165,8 +165,10 @@ site: `{years: [{year, count, expiresAt}]}` for unexpired certificates,
 
 ## Admin API (main site)
 
-Under `functions/api/admin/symposium/certificates*`, with the usual prologue
-(`checkCsrf` -> `getSessionUser` -> `canManageSymposium`).
+Under `functions/api/admin/certificates*`, with the usual prologue
+(`checkCsrf` -> `getSessionUser` -> `canManageSymposium`). Not under
+`/api/admin/symposium/`: there they would compete with the existing dynamic
+`[kind].ts` route.
 
 - `POST` raw PDF body; headers `X-Cert-Year`, `X-Cert-Email`,
   `X-Cert-Name` (URI-encoded), `X-Cert-Type`. Re-validates everything the
@@ -177,7 +179,7 @@ Under `functions/api/admin/symposium/certificates*`, with the usual prologue
 
 ## Retention
 
-`POST /api/admin/symposium/certificates/purge`, authorised by the
+`POST /api/admin/certificates/purge`, authorised by the
 `X-Archive-Secret` header (same secret the archive endpoint uses). Deletes
 every row with `expires_at <= now` and its R2 object, and lookup rows older
 than a day; returns counts. R2 is deleted first, then the row, so a failure
