@@ -99,3 +99,11 @@ test('a non-admin cannot grant roles', async () => {
   assert.equal((await patch(env, { user_id: 'u2', action: 'make_social' })).status, 403);
   assert.deepEqual({ ...flags(db) }, { is_social: 0, is_social_publisher: 0 });
 });
+
+test('inherited object keys are not actions', async () => {
+  const { db, env } = setup();
+  for (const action of ['constructor', 'toString', '__proto__']) {
+    assert.equal((await patch(env, { user_id: 'u2', action })).status, 400, action);
+  }
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
+});

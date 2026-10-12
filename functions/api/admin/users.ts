@@ -125,7 +125,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ error: 'Cannot remove your own admin status' }, 400);
   }
 
-  const roleUpdate = ROLE_UPDATES[body.action];
+  // Own keys only: "constructor" or "__proto__" must fall through to Unknown action.
+  const roleUpdate = Object.hasOwn(ROLE_UPDATES, body.action) ? ROLE_UPDATES[body.action] : undefined;
   if (roleUpdate) {
     const target = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(body.user_id).first<{ email: string }>();
     if (!target) return jsonResponse({ error: 'Unknown user' }, 404);
