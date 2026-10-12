@@ -31,6 +31,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   if (!body) return malformed();
   const revision = revisionOf(body);
   if (revision === null) return malformed();
+  if (revision !== row.revision) return jsonResponse({ error: 'Someone changed this post in the meantime', code: 'post_changed' }, 409);
   const parsed = parseDraft(body);
   if (!parsed.ok) return jsonResponse({ error: 'Invalid post', code: parsed.code }, 400);
   const next = parsed.value;
@@ -82,6 +83,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const body = await readBody(request);
   const revision = body ? revisionOf(body) : null;
   if (revision === null) return malformed();
+  if (revision !== row.revision) return jsonResponse({ error: 'Someone changed this post in the meantime', code: 'post_changed' }, 409);
   // Known minor: two people deleting the same draft at once can both pass this
   // proof, logging the delete twice. Nothing else is affected.
   const gone = 'NOT EXISTS (SELECT 1 FROM social_posts WHERE id = ?)';

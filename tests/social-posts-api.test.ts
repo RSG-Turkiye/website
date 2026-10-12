@@ -104,3 +104,19 @@ test('list: a date range, pending posts, and undated drafts', async () => {
   assert.deepEqual(all.posts.map((p) => p.id), [b]);
   assert.equal((await call(posts.onRequestGet, 'GET', '/api/social/posts?status=toString', { env, as: 'pub' })).status, 400);
 });
+
+test('a revision that does not match the row read is refused before any decision, in both directions', async () => {
+  const { env, db } = setupSocial();
+  const { json } = await create(env, 'ed');
+  db.prepare(`UPDATE social_posts SET status = 'scheduled', revision = 2 WHERE id = ?`).run(json.id);
+  for (const revision of [1, 3]) {
+    const res = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { ...draft, caption: 'Eski', revision } });
+    assert.equal(res.status, 409);
+    assert.equal((await res.json() as { code: string }).code, 'post_changed');
+  }
+  const del = await call(post.onRequestDelete, 'DELETE', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { revision: 1 } });
+  assert.equal(del.status, 409);
+  const row = db.prepare('SELECT caption, status, revision FROM social_posts WHERE id = ?').get(json.id) as { caption: string; status: string; revision: number };
+  assert.deepEqual([row.caption, row.status, row.revision], ['Merhaba', 'scheduled', 2]);
+  assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE action LIKE 'social.post.%'`).get() as { n: number }).n, 1, 'only the create is logged');
+});
