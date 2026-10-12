@@ -69,6 +69,8 @@ const t = useTranslations(lang);
         <!-- Toast -->
         <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
 
+        <div id="healthBanner" role="status" class="hidden mb-6 rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]"></div>
+
         <div class="flex flex-col lg:flex-row gap-6 items-start">
           <AdminNav lang={lang} />
 
@@ -233,6 +235,57 @@ const t = useTranslations(lang);
             <div id="allSendsList" class="flex flex-col gap-2"></div>
             <p id="allSendsEmpty" class="hidden text-sm text-gray-500">{t('admin.mail.allSends.empty')}</p>
           </div>
+        </div>
+
+        <div data-pane="connections">
+          <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.connections.heading')}</h2>
+          <p class="text-sm text-gray-500 mb-4">{t('admin.connections.intro')}</p>
+          <div class="bg-white rounded-2xl border border-border overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-[#F7F7F6]">
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.connections.col.account')}</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.connections.col.status')}</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.connections.col.connectedBy')}</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.connections.col.lastOk')}</th>
+                  <th class="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody id="connectionsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div data-pane="audit">
+          <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.audit.heading')}</h2>
+          <p class="text-sm text-gray-500 mb-4">{t('admin.audit.intro')}</p>
+          <form id="auditFilter" class="bg-white rounded-2xl border border-border p-4 mb-4 flex flex-wrap items-end gap-3">
+            <label class="text-xs text-gray-500">{t('admin.audit.filter.user')}<input id="auditUser" type="text" class="block mt-1 px-3 py-2 rounded-xl border border-border text-sm text-navy" /></label>
+            <label class="text-xs text-gray-500">{t('admin.audit.filter.action')}<input id="auditAction" type="text" class="block mt-1 px-3 py-2 rounded-xl border border-border text-sm text-navy" /></label>
+            <label class="text-xs text-gray-500">{t('admin.audit.filter.from')}<input id="auditFrom" type="date" class="block mt-1 px-3 py-2 rounded-xl border border-border text-sm text-navy" /></label>
+            <label class="text-xs text-gray-500">{t('admin.audit.filter.to')}<input id="auditTo" type="date" class="block mt-1 px-3 py-2 rounded-xl border border-border text-sm text-navy" /></label>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium">{t('admin.audit.apply')}</button>
+            <span class="flex-1"></span>
+            <button type="button" id="auditExportCsv" class="px-4 py-2 rounded-xl border border-navy text-navy text-sm font-medium">{t('admin.audit.exportCsv')}</button>
+            <button type="button" id="auditExportJson" class="px-4 py-2 rounded-xl border border-navy text-navy text-sm font-medium">{t('admin.audit.exportJson')}</button>
+            <button type="button" id="auditVerify" class="px-4 py-2 rounded-xl border border-navy text-navy text-sm font-medium">{t('admin.audit.verify')}</button>
+          </form>
+          <p id="auditVerifyResult" class="text-sm"></p>
+          <div class="bg-white rounded-2xl border border-border overflow-x-auto mt-2">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-[#F7F7F6]">
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.audit.col.time')}</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.audit.col.person')}</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.audit.col.action')}</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.audit.col.target')}</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.audit.col.details')}</th>
+                </tr>
+              </thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+          <button type="button" id="auditMore" class="hidden mt-3 px-4 py-2 rounded-xl border border-border text-sm text-navy">{t('admin.audit.more')}</button>
         </div></div></div></div>
 
       </div>
