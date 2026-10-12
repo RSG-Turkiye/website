@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
+import { videoJsonLd } from '../../lib/video-jsonld';
 import { counterpartSlug } from '../../lib/translations';
 
 export async function getStaticPaths() {
@@ -26,6 +27,7 @@ const videoId = youtubeUrl
 ---
 
 <BaseLayout pageTitle={title} description={description} translationUrl={twinSlug ? `/tr/webinars/${twinSlug}` : '/tr/webinars'} translationExists={twinSlug !== null}>
+  {videoId && <script type="application/ld+json" set:html={JSON.stringify(videoJsonLd({ videoId, title, description, date }))} slot="head" />}
   <div class="py-10 pb-16">
     <div class="max-w-7xl mx-auto px-6">
 
