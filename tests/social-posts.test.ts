@@ -134,3 +134,14 @@ test('guarded update and targets act only when this write landed', async () => {
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 2);
   assert.match(POST_PROOF, /write_nonce = \?/);
 });
+
+test('updatePostGuarded refuses a column outside the allow-list and an undefined value', () => {
+  const db = { prepare: () => ({ bind: () => ({}) }) } as never;
+  assert.throws(() => updatePostGuarded(db, 'i', 0, 'n', { 'caption = 1, status': 'x' } as never, 1), /unknown column/);
+  assert.throws(() => updatePostGuarded(db, 'i', 0, 'n', { caption: undefined }, 1), /undefined value/);
+  assert.doesNotThrow(() => updatePostGuarded(db, 'i', 0, 'n', { caption: 'ok', review_note: null }, 1));
+});
+
+test('parseDraft refuses a scheduledAt beyond the safe integers', () => {
+  assert.deepEqual(parseDraft({ type: 'image', scheduledAt: 2 ** 60 }), { ok: false, code: 'invalid_schedule' });
+});

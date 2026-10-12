@@ -77,3 +77,17 @@ test('the editors list holds exactly the people who can be assigned', async () =
   const { editors: list } = await (await call(editors.onRequestGet, 'GET', '/api/social/editors', { env, as: 'ed' })).json() as { editors: { id: string; isPublisher: boolean }[] };
   assert.deepEqual(list.map((e) => [e.id, e.isPublisher]).sort(), [['admin', true], ['ed', false], ['ed2', false], ['pub', true]]);
 });
+
+test('a plan whose date has passed still takes a new title, and a demoted assignee echoed back does not block it', async () => {
+  const { env, db } = setupSocial();
+  const { id } = await (await call(plans.onRequestPost, 'POST', '/api/social/plans', { env, as: 'ed', body: valid })).json() as { id: string };
+  db.prepare('UPDATE social_plans SET scheduled_at = ? WHERE id = ?').run(NOW - 86400, id);
+  db.prepare(`UPDATE users SET is_social = 0 WHERE id = 'ed'`).run();
+  const res = await call(plan.onRequestPatch, 'PATCH', `/api/social/plans/${id}`, { env, as: 'ed2', params: { id }, body: { ...valid, title: 'Yeni başlık', scheduledAt: NOW - 86400 } });
+  assert.equal(res.status, 200);
+  assert.equal((db.prepare('SELECT title FROM social_plans WHERE id = ?').get(id) as { title: string }).title, 'Yeni başlık');
+  const moved = await call(plan.onRequestPatch, 'PATCH', `/api/social/plans/${id}`, { env, as: 'ed2', params: { id }, body: { scheduledAt: NOW - 5 } });
+  assert.equal((await moved.json() as { code: string }).code, 'schedule_in_past');
+  const other = await call(plan.onRequestPatch, 'PATCH', `/api/social/plans/${id}`, { env, as: 'ed2', params: { id }, body: { assigneeId: 'mem' } });
+  assert.equal((await other.json() as { code: string }).code, 'invalid_assignee');
+});

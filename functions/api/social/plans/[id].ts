@@ -24,11 +24,11 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const row = await env.DB.prepare('SELECT * FROM social_plans WHERE id = ?').bind(id).first<Row>();
-  if (!row) return jsonResponse({ error: 'Not found' }, 404);
+  if (!row) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   const body = await readBody(request);
   if (!body) return malformed();
   const now = nowSeconds();
-  const parsed = await parsePlanInput(body, true, now, (uid) => isSocialEditor(env.DB, uid));
+  const parsed = await parsePlanInput(body, true, now, (uid) => isSocialEditor(env.DB, uid), { scheduledAt: row.scheduled_at, assigneeId: row.assignee_id });
   if (!parsed.ok) return jsonResponse({ error: 'Invalid plan', code: parsed.code }, 400);
 
   const before = current(row);
@@ -57,7 +57,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const row = await env.DB.prepare('SELECT * FROM social_plans WHERE id = ?').bind(id).first<Row>();
-  if (!row) return jsonResponse({ error: 'Not found' }, 404);
+  if (!row) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   if (row.post_id) return jsonResponse({ error: 'This plan already has a post', code: 'plan_has_post' }, 409);
   const done = await runGuardedWithAudit(
     env.DB,

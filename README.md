@@ -567,7 +567,8 @@ cut off by the platform.
 
 ### Roles
 
-- **Editors** plan and draft, and submit for approval.
+- **Editors** plan and draft, submit for approval, and edit and cancel their
+  own posts.
 - **Publishers** schedule directly, approve or send back with a note, cancel,
   and open event windows. Admins count as publishers.
 - An editor's story skips approval only inside an open event window that

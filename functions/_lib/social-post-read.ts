@@ -27,10 +27,11 @@ export type PostResponse = ReturnType<typeof respond>;
 export async function loadPosts(db: D1Database, env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, where: string, binds: unknown[]): Promise<PostResponse[]> {
   const rows = (await db.prepare(`${SELECT} WHERE ${where} ORDER BY p.scheduled_at, p.created_at`).bind(...binds).all<Joined>()).results;
   if (rows.length === 0) return [];
-  const ids = rows.map((r) => r.id);
+  // One join with the same filter: binding every post id would hit D1's 100-parameter cap.
   const targets = (await db.prepare(
-    `SELECT post_id, platform, status, permalink, last_error FROM social_post_targets WHERE post_id IN (${ids.map(() => '?').join(',')})`,
-  ).bind(...ids).all<TargetRow>()).results;
+    `SELECT t.post_id, t.platform, t.status, t.permalink, t.last_error
+       FROM social_post_targets t JOIN social_posts p ON p.id = t.post_id WHERE ${where}`,
+  ).bind(...binds).all<TargetRow>()).results;
   return rows.map((r) => respond(env, r, targets));
 }
 

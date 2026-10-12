@@ -20,9 +20,14 @@ export interface PlanInput {
 
 const fail = (code: string): { ok: false; code: string } => ({ ok: false, code });
 
-/** `partial` for PATCH: absent fields stay absent. A plan's date must still be in the future. */
+/**
+ * `partial` for PATCH: absent fields stay absent. A new date must be in the
+ * future and a new assignee a social editor; `stored` (PATCH) is what the plan
+ * holds now, and a value sent back unchanged is not checked again.
+ */
 export async function parsePlanInput(
   body: Record<string, unknown>, partial: boolean, now: number, isEditorId: (id: string) => Promise<boolean>,
+  stored?: { scheduledAt: number; assigneeId: string | null },
 ): Promise<Parsed<PlanInput>> {
   const out: PlanInput = {};
   const has = (k: string) => Object.hasOwn(body, k);
@@ -33,9 +38,12 @@ export async function parsePlanInput(
     out.title = t.trim();
   }
   if (has('scheduledAt') || !partial) {
-    const v = validateScheduledAt(body.scheduledAt, now);
-    if (!v.ok) return fail(v.code);
-    out.scheduledAt = v.scheduledAt;
+    if (stored && body.scheduledAt === stored.scheduledAt) out.scheduledAt = stored.scheduledAt;
+    else {
+      const v = validateScheduledAt(body.scheduledAt, now);
+      if (!v.ok) return fail(v.code);
+      out.scheduledAt = v.scheduledAt;
+    }
   }
   if (has('platforms') || !partial) {
     const p = body.platforms;
@@ -51,7 +59,9 @@ export async function parsePlanInput(
   if (has('assigneeId')) {
     const a = body.assigneeId;
     if (a === null || a === '') out.assigneeId = null;
-    else if (typeof a !== 'string' || !(await isEditorId(a))) return fail('invalid_assignee');
+    else if (typeof a !== 'string') return fail('invalid_assignee');
+    else if (stored && a === stored.assigneeId) out.assigneeId = a;
+    else if (!(await isEditorId(a))) return fail('invalid_assignee');
     else out.assigneeId = a;
   }
   if (has('note')) {

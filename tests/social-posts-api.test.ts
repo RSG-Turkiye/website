@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { setupSocial, call, KEYS } from './lib/social';
+import { setupSocial, call, settle, stubMail, KEYS } from './lib/social';
 import * as posts from '../functions/api/social/posts/index';
 import * as post from '../functions/api/social/posts/[id]';
 import * as plans from '../functions/api/social/plans/index';
@@ -57,12 +57,15 @@ test('another editor cannot edit my draft; a publisher can', async () => {
 });
 
 test('an editor editing a scheduled post sends it back for approval and removes its targets', async () => {
-  const { env, db } = setupSocial();
+  const mail = stubMail();
+  const { env, db, waits } = setupSocial();
   const { json } = await create(env, 'ed');
   db.prepare(`UPDATE social_posts SET status = 'scheduled', revision = 3 WHERE id = ?`).run(json.id);
   db.prepare(`INSERT INTO social_post_targets (post_id, platform) VALUES (?, 'instagram')`).run(json.id);
-  const res = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { ...draft, caption: 'Değişti', revision: 3 } });
+  const res = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { ...draft, caption: 'Değişti', revision: 3 }, waits });
   assert.deepEqual(await res.json(), { ok: true, revision: 4, status: 'pending_approval' });
+  await settle(waits);
+  mail.restore();
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 0);
 });
 
@@ -119,4 +122,64 @@ test('a revision that does not match the row read is refused before any decision
   const row = db.prepare('SELECT caption, status, revision FROM social_posts WHERE id = ?').get(json.id) as { caption: string; status: string; revision: number };
   assert.deepEqual([row.caption, row.status, row.revision], ['Merhaba', 'scheduled', 2]);
   assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE action LIKE 'social.post.%'`).get() as { n: number }).n, 1, 'only the create is logged');
+});
+
+test('an editor editing a scheduled post mails the publishers and clears the old approval', async () => {
+  const mail = stubMail();
+  try {
+    const { env, db, waits } = setupSocial();
+    const { json } = await create(env, 'ed');
+    db.prepare(`INSERT INTO social_event_modes (id, name, starts_at, ends_at, editor_ids, opened_by, created_at) VALUES ('e','S',1,2,'[]','pub',1)`).run();
+    db.prepare(`UPDATE social_posts SET status = 'scheduled', approved_by = 'pub', approved_at = 5, event_mode_id = 'e' WHERE id = ?`).run(json.id);
+    const res = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { ...draft, caption: 'Yeni', revision: 0 }, waits });
+    assert.equal((await res.json() as { status: string }).status, 'pending_approval');
+    await settle(waits);
+    assert.ok(mail.sent.some((m) => m.to === 'pub@example.org'));
+    assert.ok(!mail.sent.some((m) => m.to === 'ed@example.org'));
+    const row = db.prepare('SELECT approved_by, approved_at, event_mode_id FROM social_posts WHERE id = ?').get(json.id);
+    assert.deepEqual({ ...row }, { approved_by: null, approved_at: null, event_mode_id: null });
+  } finally { mail.restore(); }
+});
+
+test('a rejected post edited back to a draft loses its review note', async () => {
+  const { env, db } = setupSocial();
+  const { json } = await create(env, 'ed');
+  db.prepare(`UPDATE social_posts SET status = 'rejected', review_note = 'Düzelt' WHERE id = ?`).run(json.id);
+  const res = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { ...draft, revision: 0 } });
+  assert.equal((await res.json() as { status: string }).status, 'draft');
+  assert.equal((db.prepare('SELECT review_note FROM social_posts WHERE id = ?').get(json.id) as { review_note: string | null }).review_note, null);
+});
+
+test('120 posts in range list with every target, and no query binds more than D1 allows', async () => {
+  const { env, db, bindLog } = setupSocial();
+  const ins = db.prepare(`INSERT INTO social_posts (id, type, caption, caption_overrides, media, platforms, scheduled_at, status, revision, created_by, created_at, updated_at) VALUES (?, 'image', 'c', '{}', '[]', '["instagram"]', ?, 'draft', 0, 'ed', 1, 1)`);
+  const tgt = db.prepare(`INSERT INTO social_post_targets (post_id, platform) VALUES (?, 'instagram')`);
+  for (let i = 0; i < 120; i++) { ins.run(`p${i}`, NOW + 100 + i); tgt.run(`p${i}`); }
+  bindLog.length = 0;
+  const res = await call(posts.onRequestGet, 'GET', `/api/social/posts?from=${NOW}&to=${NOW + 86400}`, { env, as: 'ed' });
+  const list = (await res.json() as { posts: { targets: unknown[] }[] }).posts;
+  assert.equal(list.length, 120);
+  assert.ok(list.every((p) => p.targets.length === 1));
+  assert.ok(bindLog.length > 0 && Math.max(...bindLog.map((b) => b.count)) <= 100);
+});
+
+test('an editor\'s story counts as covered only when it goes out before the window closes', async () => {
+  const { env, db } = setupSocial();
+  db.prepare(`INSERT INTO social_event_modes (id, name, starts_at, ends_at, editor_ids, opened_by, created_at) VALUES ('e','S',?,?,'["ed"]','pub',1)`).run(NOW - 60, NOW + 3600);
+  const story = { type: 'story', caption: '', media: [{ key: KEYS.story, alt: 'Sahne' }], platforms: ['instagram'] };
+  const { json } = await create(env, 'ed', { ...story, scheduledAt: NOW + 600 });
+  db.prepare(`UPDATE social_posts SET status = 'scheduled' WHERE id = ?`).run(json.id);
+  const inside = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { ...story, scheduledAt: NOW + 900, revision: 0 } });
+  assert.equal((await inside.json() as { status: string }).status, 'scheduled');
+  assert.equal((db.prepare('SELECT event_mode_id FROM social_posts WHERE id = ?').get(json.id) as { event_mode_id: string }).event_mode_id, 'e');
+  const after = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'ed', params: { id: json.id }, body: { ...story, scheduledAt: NOW + 7200, revision: 1 } });
+  assert.equal((await after.json() as { status: string }).status, 'pending_approval');
+  assert.equal((db.prepare('SELECT event_mode_id FROM social_posts WHERE id = ?').get(json.id) as { event_mode_id: string | null }).event_mode_id, null);
+});
+
+test('a missing post is a 404 with a code', async () => {
+  const { env } = setupSocial();
+  const res = await call(post.onRequestGet, 'GET', '/api/social/posts/nope', { env, as: 'ed', params: { id: 'nope' } });
+  assert.equal(res.status, 404);
+  assert.equal((await res.json() as { code: string }).code, 'not_found');
 });

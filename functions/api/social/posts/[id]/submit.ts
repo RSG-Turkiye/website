@@ -18,7 +18,9 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const problems = readinessProblems(draft, await mediaDims(env.DB, draft.media.map((m) => m.key)), now);
   if (problems.length) return jsonResponse({ error: 'Not ready', code: 'not_ready', problems }, 422);
 
-  const event = draft.type === 'story' && !gate.actor.isPublisher ? await coveringEvent(env.DB, gate.user.id, now) : null;
+  const window = draft.type === 'story' && !gate.actor.isPublisher ? await coveringEvent(env.DB, gate.user.id, now) : null;
+  // Covered only when the story goes out before the window closes.
+  const event = window && draft.scheduledAt !== null && draft.scheduledAt < window.ends_at ? window : null;
   const status = statusOnSubmit(gate.actor, Boolean(event));
   const newRevision = revision + 1;
   const nonce = crypto.randomUUID();

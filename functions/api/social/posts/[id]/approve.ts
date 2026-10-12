@@ -11,7 +11,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const prep = await prepareAction(request, env, id, 'publish');
   if (!prep.ok) return prep.response;
   const { gate, row, revision, now } = prep.value;
-  if (row.status !== 'pending_approval') return lostRace();
+  if (row.status !== 'pending_approval') return jsonResponse({ error: 'This post is not waiting for approval', code: 'not_pending' }, 409);
   const draft = rowToDraft(row);
   const problems = readinessProblems(draft, await mediaDims(env.DB, draft.media.map((m) => m.key)), now);
   if (problems.length) return jsonResponse({ error: 'Not ready', code: 'not_ready', problems }, 422);

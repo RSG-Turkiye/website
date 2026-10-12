@@ -14,7 +14,7 @@ export async function prepareAction(
   const gate = await socialGate(request, env, need, true);
   if (!gate.ok) return gate;
   const found = await loadPost(env.DB, env, id);
-  if (!found) return { ok: false, response: jsonResponse({ error: 'Not found' }, 404) };
+  if (!found) return { ok: false, response: jsonResponse({ error: 'Not found', code: 'not_found' }, 404) };
   const body = await readBody(request);
   if (!body) return { ok: false, response: malformed() };
   const revision = body.revision;

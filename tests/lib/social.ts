@@ -34,11 +34,12 @@ export function setupSocial() {
   addMedia(db, KEYS.story, 1080, 1920);
   addMedia(db, KEYS.square, 1080, 1080);
   const waits: Promise<unknown>[] = [];
+  const bindLog: { sql: string; count: number }[] = [];
   const env = {
-    DB: d1(db), RSG_MAIL_FROM: 'turkey.rsg@gmail.com', GMAIL_REFRESH_TOKEN: 'r', GOOGLE_CLIENT_ID: 'c', GOOGLE_CLIENT_SECRET: 's',
+    DB: d1(db, (sql, count) => bindLog.push({ sql, count })), RSG_MAIL_FROM: 'turkey.rsg@gmail.com', GMAIL_REFRESH_TOKEN: 'r', GOOGLE_CLIENT_ID: 'c', GOOGLE_CLIENT_SECRET: 's',
     PUBLIC_BLOG_IMAGES_URL: `${BASE}/api/images`, SYMPOSIUM_ARCHIVE_SECRET: 'cron-secret',
   };
-  return { db, env: env as never, waits };
+  return { db, env: env as never, waits, bindLog };
 }
 
 export async function call(

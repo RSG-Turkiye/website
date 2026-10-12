@@ -160,3 +160,23 @@ test('a revision ahead of the row is a 409 and writes nothing', async () => {
   assert.deepEqual({ ...status(db, id) }, { status: 'draft', revision: 0 });
   assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE action = 'social.post.submit'`).get() as { n: number }).n, 0);
 });
+
+test('a story scheduled after the window closes is not covered at submit', async () => {
+  const { env, db } = setupSocial();
+  db.prepare(`INSERT INTO social_event_modes (id, name, starts_at, ends_at, editor_ids, opened_by, created_at) VALUES ('e','S',?,?,'["ed"]','pub',1)`).run(NOW - 60, NOW + 3600);
+  const late = await newPost(env, 'ed', { type: 'story', media: [{ key: KEYS.story, alt: 'Sahne' }], platforms: ['instagram'], scheduledAt: NOW + 7200 });
+  assert.equal((await (await act(submit.onRequestPost, 'submit', env, 'ed', late, { revision: 0 })).json() as { status: string }).status, 'pending_approval');
+});
+
+test('approve or reject on a post that is not pending is 409 not_pending', async () => {
+  const { env } = setupSocial();
+  const id = await newPost(env);
+  for (const [h, p, body] of [[approve.onRequestPost, 'approve', { revision: 0 }], [reject.onRequestPost, 'reject', { revision: 0, note: 'x' }]] as const) {
+    const res = await act(h, p, env, 'pub', id, body);
+    assert.equal(res.status, 409);
+    assert.equal((await res.json() as { code: string }).code, 'not_pending');
+  }
+  const gone = await act(approve.onRequestPost, 'approve', env, 'pub', 'nope', { revision: 0 });
+  assert.equal(gone.status, 404);
+  assert.equal((await gone.json() as { code: string }).code, 'not_found');
+});

@@ -76,7 +76,7 @@ export function parseDraft(body: Record<string, unknown>): Parsed<DraftInput> {
   }
 
   const scheduledAt = body.scheduledAt ?? null;
-  if (scheduledAt !== null && (typeof scheduledAt !== 'number' || !Number.isInteger(scheduledAt) || scheduledAt < 0)) {
+  if (scheduledAt !== null && (typeof scheduledAt !== 'number' || !Number.isSafeInteger(scheduledAt) || scheduledAt < 0)) {
     return fail('invalid_schedule');
   }
 
@@ -198,6 +198,12 @@ export type PostColumn =
   | 'type' | 'caption' | 'caption_overrides' | 'link' | 'media' | 'platforms' | 'scheduled_at'
   | 'status' | 'approved_by' | 'approved_at' | 'review_note' | 'event_mode_id';
 
+/** Every column a guarded update may write. A key outside this list is a bug, never a request. */
+export const POST_COLUMNS: PostColumn[] = [
+  'type', 'caption', 'caption_overrides', 'link', 'media', 'platforms', 'scheduled_at',
+  'status', 'approved_by', 'approved_at', 'review_note', 'event_mode_id',
+];
+
 export function draftColumns(d: DraftInput): Partial<Record<PostColumn, unknown>> {
   return {
     type: d.type,
@@ -218,11 +224,15 @@ export function draftColumns(d: DraftInput): Partial<Record<PostColumn, unknown>
  */
 export const POST_PROOF = 'EXISTS (SELECT 1 FROM social_posts WHERE id = ? AND write_nonce = ?)';
 
-/** Column names come from the PostColumn union, never from a request. */
+/** Column names are checked against POST_COLUMNS at run time, never taken from a request. */
 export function updatePostGuarded(
   db: D1Database, id: string, revision: number, nonce: string, fields: Partial<Record<PostColumn, unknown>>, now: number, statusIn?: PostStatus[],
 ): D1PreparedStatement {
   const cols = Object.keys(fields) as PostColumn[];
+  for (const c of cols) {
+    if (!POST_COLUMNS.includes(c)) throw new Error(`updatePostGuarded: unknown column ${c}`);
+    if (fields[c] === undefined) throw new Error(`updatePostGuarded: undefined value for ${c}`);
+  }
   const sets = cols.map((c) => `${c} = ?, `).join('');
   const statusClause = statusIn && statusIn.length ? ` AND status IN (${statusIn.map(() => '?').join(', ')})` : '';
   return db.prepare(

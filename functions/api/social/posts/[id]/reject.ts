@@ -12,7 +12,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const { gate, row, body, revision, now } = prep.value;
   const note = typeof body.note === 'string' ? body.note.trim() : '';
   if (note.length < 1 || note.length > 500) return jsonResponse({ error: 'A note of 1-500 characters is required', code: 'invalid_note' }, 400);
-  if (row.status !== 'pending_approval') return lostRace();
+  if (row.status !== 'pending_approval') return jsonResponse({ error: 'This post is not waiting for approval', code: 'not_pending' }, 409);
   const newRevision = revision + 1;
   const nonce = crypto.randomUUID();
   const done = await runGuardedWithAudit(
