@@ -87,6 +87,56 @@ export function appendAudit(db: D1Database, entry: AuditEntry, now?: number): Pr
   return runWithAudit(db, [], entry, now);
 }
 
+/** An SQL boolean expression, written in code, that is true only if the guard took effect. */
+export interface AuditProof {
+  condition: string;
+  binds: unknown[];
+}
+
+/**
+ * For changes that may lose a race: the guard is a conditional UPDATE or
+ * DELETE (for example `WHERE id = ? AND revision = ?`). The guard, the audit
+ * row and the `after` statements go in one batch. The audit row is inserted
+ * only when `proof` holds afterwards, so a guard that matched nothing leaves
+ * no record of a change that did not happen. Each `after` statement must
+ * carry the same kind of condition itself. Returns whether the guard changed
+ * a row.
+ */
+export async function runGuardedWithAudit(
+  db: D1Database,
+  guard: D1PreparedStatement,
+  proof: AuditProof,
+  after: D1PreparedStatement[],
+  entry: AuditEntry,
+  now = Math.floor(Date.now() / 1000),
+): Promise<boolean> {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const last = await db.prepare('SELECT hash FROM audit_log ORDER BY seq DESC LIMIT 1').first<{ hash: string }>();
+    const base = {
+      at: now,
+      user_id: entry.userId,
+      action: entry.action,
+      target_type: entry.targetType ?? null,
+      target_id: entry.targetId ?? null,
+      details: JSON.stringify(entry.details ?? {}),
+      prev_hash: last?.hash ?? GENESIS,
+    };
+    const hash = await hashRow(base);
+    const insert = db.prepare(
+      `INSERT INTO audit_log (at, user_id, action, target_type, target_id, details, prev_hash, hash)
+       SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${proof.condition}`,
+    ).bind(base.at, base.user_id, base.action, base.target_type, base.target_id, base.details, base.prev_hash, hash, ...proof.binds);
+    try {
+      const results = await db.batch([guard, insert, ...after]);
+      const changes = (results[0] as { meta?: { changes?: number } } | undefined)?.meta?.changes ?? 0;
+      return Number(changes) > 0;
+    } catch (err) {
+      if (!isChainCollision(err)) throw err;
+    }
+  }
+  throw new Error(`audit_log: could not append after ${MAX_ATTEMPTS} attempts`);
+}
+
 /**
  * Rows in seq order. The first row may link to a pruned row rather than
  * GENESIS; that is accepted and reported, because the daily prune removes
