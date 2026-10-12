@@ -37,6 +37,7 @@
   - Connection is "expiring" within 14 days (`EXPIRING_WINDOW_SECONDS = 14 * 86400`).
 - **Gmail OAuth scopes:** `openid email https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly`.
 - **Gmail redirect URI:** `https://rsg-turkiye.iscbsc.org/api/admin/connections/gmail/callback`, which must be added in Google Cloud (Task 10).
+- **Audit boundary for this phase:** Phase 1 audits role changes and every other Members action, connections, audit operations, and pane views. Mutations inside the existing panes (announcements, blog review, symposium, mail) are not yet audited; that is a follow-up task, not part of this plan.
 - **Run all tests with** `npm test`. **Build with** `npm run build`.
 
 ## Review Focus
@@ -228,10 +229,10 @@ test('a chain whose first row is not GENESIS-linked verifies, flagged as pruned'
 });
 
 test('CSV quotes what needs quoting and defuses spreadsheet formulas', () => {
-  const csv = toCsv([{ seq: 1, at: 0, user_id: 'u1', user_email: '=cmd@example.org', action: 'x', target_type: null, target_id: 'a,b', details: '{"q":"say \\"hi\\""}', prev_hash: 'p', hash: 'h' }]);
+  const csv = toCsv([{ seq: 1, at: 0, user_id: 'u1', user_email: '=cmd@example.org', action: 'x', target_type: null, target_id: 'a,b', details: '{"q":"x,y"}', prev_hash: 'p', hash: 'h' }]);
   const [header, line] = csv.trimEnd().split('\r\n');
   assert.equal(header, 'seq,at,user_email,action,target_type,target_id,details,prev_hash,hash');
-  assert.equal(line, `1,1970-01-01T00:00:00.000Z,'=cmd@example.org,x,,"a,b","{""q"":""say \\""hi\\""""}",p,h`);
+  assert.equal(line, `1,1970-01-01T00:00:00.000Z,'=cmd@example.org,x,,"a,b","{""q"":""x,y""}",p,h`);
 });
 ```
 
@@ -505,6 +506,14 @@ test('existing role actions are logged too', async () => {
   assert.deepEqual(JSON.parse(row.details), { role: 'is_symposium', value: 1, email: 'new@example.org' });
 });
 
+test('the other member actions are logged as well', async () => {
+  const { db, env } = setup();
+  db.prepare(`INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES ('u2','new','New',1)`).run();
+  assert.equal((await patch(env, { user_id: 'u2', action: 'clear_bio' })).status, 200);
+  const row = db.prepare('SELECT action, target_id FROM audit_log').get() as { action: string; target_id: string };
+  assert.deepEqual({ ...row }, { action: 'user.clear_bio', target_id: 'u2' });
+});
+
 test('an unknown user is a 404 and nothing is logged', async () => {
   const { db, env } = setup();
   assert.equal((await patch(env, { user_id: 'nobody', action: 'make_social' })).status, 404);
@@ -639,6 +648,18 @@ Replace the `make_sender` / `remove_sender` cases with:
 ```
 
 (Senders keep their own `sender_grants` history; the audit row is appended after it rather than batched, because `grantSender` runs its own statements.)
+
+Every remaining action in the switch (`make_private`, `clear_bio`, `set_rank`, `award_badge`, `revoke_badge`) is logged too. After the switch, replace the final `return jsonResponse({ ok: true });` with:
+
+```ts
+  if (body.action !== 'make_sender' && body.action !== 'remove_sender') {
+    await appendAudit(env.DB, {
+      userId: user.id, action: `user.${body.action}`, targetType: 'user', targetId: body.user_id,
+      details: { value: body.value ?? null },
+    });
+  }
+  return jsonResponse({ ok: true });
+```
 
 - [ ] **Step 7: Run the tests**
 
