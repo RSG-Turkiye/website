@@ -13,7 +13,9 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.15",
     "@astrojs/sitemap": "^3.7.0",
-    "astro": "^5.13.2"
+    "astro": "^5.13.2",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "4.10.38"
   },
   "engines": {
     "node": ">=22"

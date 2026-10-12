@@ -48,6 +48,25 @@ test('the ten session types each have a label in both languages', () => {
   }
 });
 
+test('the certificates section has a label for every kind and every row problem', () => {
+  // admin-certificates.ts builds these keys from data, so a missing one
+  // would only show up as a raw key in the panel.
+  const kinds = ['participation', 'workshop', 'presentation', 'appreciation'];
+  const problems = ['invalid_email', 'invalid_kind', 'missing_name', 'missing_file', 'duplicate', 'not_pdf', 'too_large'];
+  const keys = [
+    'admin.symposium.certificates.heading',
+    ...kinds.map((k) => `admin.symposium.certificates.kind.${k}`),
+    ...problems.map((p) => `admin.symposium.certificates.problem.${p}`),
+    'admin.symposium.certificates.csvError.empty',
+    'admin.symposium.certificates.csvError.missing_columns',
+  ];
+  for (const key of keys) {
+    assert.ok(key in ui.en, `en missing ${key}`);
+    assert.ok(key in ui.tr, `tr missing ${key}`);
+  }
+  assert.notEqual(ui.tr['admin.symposium.certificates.heading' as keyof typeof ui.tr], ui.en['admin.symposium.certificates.heading' as keyof typeof ui.en]);
+});
+
 test('the Turkish symposium heading is not the English word', () => {
   // A cheap tripwire for the exact failure mode the shared shell was built
   // to end: a pane whose Turkish copy is quietly still English.

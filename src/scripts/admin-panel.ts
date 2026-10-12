@@ -16,6 +16,7 @@ import { RANK_LABELS, type Rank } from '../lib/badges';
 import { escapeHtml } from './escape-html';
 import { uploadImage } from './image-upload';
 import { drivePhotoUrl } from '../../functions/_lib/photo-url';
+import { setupCertificates, loadCertificates } from './admin-certificates';
 
 type Lang = 'en' | 'tr';
 
@@ -763,10 +764,16 @@ function setupPaneSwitching(initial: string): void {
     setupSpeakerForm();
     setupSessionForm();
     setupCommitteeForm();
+    setupCertificates({
+      t: t as (k: string) => string,
+      tf: tf as (k: string, v: Record<string, string | number>) => string,
+      showToast, showRebuildStatus, formatDate,
+    });
     await loadEdition();
     await loadSpeakers();
     await loadSessions();
     await loadCommittee();
+    await loadCertificates();
   }
 
   // The filter buttons and the search box belong to the users pane, which
