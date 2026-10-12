@@ -8,6 +8,8 @@ export interface Env {
   ARCHIVE_URL: string;
   /** Main site's certificate retention endpoint; same secret as archive. */
   PURGE_URL: string;
+  /** Main site's audit-log retention endpoint; same secret as archive. */
+  AUDIT_PRUNE_URL: string;
 }
 
 /**
@@ -58,6 +60,7 @@ export default {
         {
           archive: parseIfJson(body.archive),
           purge: parseIfJson(body.purge),
+          auditPrune: parseIfJson(body.auditPrune),
           rebuild: parseIfJson(body.rebuild),
           websiteRebuild: parseIfJson(body.websiteRebuild),
         },
@@ -72,7 +75,7 @@ export default {
   },
 };
 
-type Tick = { archive: string; purge: string; rebuild: string; websiteRebuild: string };
+type Tick = { archive: string; purge: string; auditPrune: string; rebuild: string; websiteRebuild: string };
 
 async function tick(env: Env): Promise<Tick> {
   // Archive first: a finished edition needs its pull request opened before
@@ -82,24 +85,27 @@ async function tick(env: Env): Promise<Tick> {
   // ran ahead of its archive. Sequential rather than raced, so one failing
   // does not cancel the other's logging.
   const archive = await callArchive(env);
-  const purge = await callPurge(env);
+  // Certificate purge before the rebuilds, so the symposium home page loses
+  // its certificates band the same night.
+  const purge = await callSecretPost('purge', env.PURGE_URL, env);
+  const auditPrune = await callSecretPost('audit prune', env.AUDIT_PRUNE_URL, env);
   const rebuild = await callRebuild('rebuild', env.SYMPOSIUM_DEPLOY_HOOK);
   const websiteRebuild = await callRebuild('website rebuild', env.WEBSITE_DEPLOY_HOOK);
 
   // Both results are returned rather than raised here: one failing must not
   // stop the other being reported, and the two callers differ on what to do
   // about it -- see `scheduled` and `fetch`.
-  return { archive, purge, rebuild, websiteRebuild };
+  return { archive, purge, auditPrune, rebuild, websiteRebuild };
 }
 
 function failed(t: Tick): boolean {
-  return [t.archive, t.purge, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
+  return [t.archive, t.purge, t.auditPrune, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
 }
 
 function summarise(t: Tick): string {
   return (
-    `tick failed -- archive: ${t.archive.slice(0, 120)} purge: ${t.purge.slice(0, 120)} rebuild: ${t.rebuild.slice(0, 120)} ` +
-    `website rebuild: ${t.websiteRebuild.slice(0, 120)}`
+    `tick failed -- archive: ${t.archive.slice(0, 120)} purge: ${t.purge.slice(0, 120)} audit prune: ${t.auditPrune.slice(0, 120)} ` +
+    `rebuild: ${t.rebuild.slice(0, 120)} website rebuild: ${t.websiteRebuild.slice(0, 120)}`
   );
 }
 
@@ -132,19 +138,18 @@ async function callArchive(env: Env): Promise<string> {
   }
 }
 
-/** Deletes certificates past their 30 days. Before the rebuilds, so the
- * symposium home page loses its certificates band the same night. */
-async function callPurge(env: Env): Promise<string> {
+/** POSTs to one of the main site's secret-gated maintenance endpoints. */
+async function callSecretPost(label: string, url: string, env: Env): Promise<string> {
   try {
-    const res = await fetch(env.PURGE_URL, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'X-Archive-Secret': env.SYMPOSIUM_ARCHIVE_SECRET },
     });
     const body = await res.text();
-    console.log(`purge ${res.status}: ${body.slice(0, 300)}`);
+    console.log(`${label} ${res.status}: ${body.slice(0, 300)}`);
     return res.ok ? body : `ERROR ${res.status}: ${body.slice(0, 200)}`;
   } catch (err) {
-    console.log(`purge threw: ${String(err).slice(0, 300)}`);
+    console.log(`${label} threw: ${String(err).slice(0, 300)}`);
     return `ERROR: ${String(err).slice(0, 200)}`;
   }
 }
