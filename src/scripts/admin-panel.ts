@@ -17,6 +17,9 @@ import { escapeHtml } from './escape-html';
 import { uploadImage } from './image-upload';
 import { drivePhotoUrl } from '../../functions/_lib/photo-url';
 import { setupCertificates, loadCertificates } from './admin-certificates';
+import { loadHealth } from './admin-health';
+import { setupConnections, loadConnections } from './admin-connections';
+import { setupAudit, loadAudit } from './admin-audit';
 
 type Lang = 'en' | 'tr';
 
@@ -261,6 +264,11 @@ function renderUsers(users: any[]) {
     const symposiumBadge = u.is_symposium
       ? `<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">${t('admin.badge.symposium')}</span>`
       : '';
+    const socialBadge = u.is_social_publisher
+      ? `<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">${t('admin.badge.socialPublisher')}</span>`
+      : u.is_social
+        ? `<span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-light text-navy">${t('admin.badge.social')}</span>`
+        : '';
     const senderBadge = u.is_sender
       ? `<span class="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ml-1">${t('admin.badge.mail')}</span>`
       : '';
@@ -313,6 +321,12 @@ function renderUsers(users: any[]) {
             ? `<button data-id="${u.id}" data-action="remove_symposium" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeSymposium')}</button>`
             : `<button data-id="${u.id}" data-action="make_symposium" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeSymposium')}</button>`
           }
+          ${u.is_social_publisher
+            ? `<button data-id="${u.id}" data-action="remove_social_publisher" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeSocialPublisher')}</button>`
+            : `<button data-id="${u.id}" data-action="make_social_publisher" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeSocialPublisher')}</button>`}
+          ${u.is_social || u.is_social_publisher
+            ? `<button data-id="${u.id}" data-action="remove_social" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeSocial')}</button>`
+            : `<button data-id="${u.id}" data-action="make_social" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeSocial')}</button>`}
           ${u.is_sender
             ? `<button data-id="${u.id}" data-action="remove_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.removeSender')}</button>`
             : `<button data-id="${u.id}" data-action="make_sender" class="action-btn block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.action.makeSender')}</button>`
@@ -330,7 +344,7 @@ function renderUsers(users: any[]) {
           ${institution}
         </td>
         <td class="px-5 py-4 text-gray-500"><span class="block max-w-[28ch] truncate" title="${escapeHtml(u.email)}">${escapeHtml(u.email)}</span></td>
-        <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${writerBadge}${symposiumBadge}${senderBadge}${privateBadge}</td>
+        <td class="px-5 py-4">${memberBadge}${adminBadge}${announcerBadge}${writerBadge}${symposiumBadge}${socialBadge}${senderBadge}${privateBadge}</td>
         <td class="px-5 py-4">${rankSelect}</td>
         <td class="px-5 py-4"><div class="flex flex-wrap gap-1 max-w-[220px]">${badgeChips}</div></td>
         <td class="px-5 py-4 text-gray-500 tabular-nums">${formatDate(u.created_at)}</td>
@@ -683,9 +697,9 @@ async function loadAllSends() {
  * The nav is hidden entirely when only one pane is available, since a
  * switcher with one option is furniture.
  */
-function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean; isSymposium: boolean }): void {
+function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean; isSymposium: boolean }, preferred?: string): void {
   const allowed = roles.isFullAdmin
-    ? ['members', 'announcements', 'blog', 'symposium', 'mail-grant', 'mail-senders', 'mail-files', 'mail-sent']
+    ? ['members', 'announcements', 'blog', 'symposium', 'connections', 'audit', 'mail-grant', 'mail-senders', 'mail-files', 'mail-sent']
     : [
         ...(roles.isAnnouncer ? ['announcements'] : []),
         ...(roles.isSymposium ? ['symposium'] : []),
@@ -707,7 +721,29 @@ function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean
   const nav = document.getElementById('adminNav');
   if (nav && allowed.length < 2) nav.classList.add('hidden');
 
-  setupPaneSwitching(allowed[0]);
+  setupPaneSwitching(preferred && allowed.includes(preferred) ? preferred : allowed[0]);
+}
+
+/**
+ * Data that should load the first time a pane is shown, not on every page
+ * load: each load is a read the audit log records, so loading unseen panes
+ * would fill the log with reads nobody asked for.
+ */
+const paneLoaders = new Map<string, () => Promise<void>>();
+const paneLoaded = new Set<string>();
+let currentPane = '';
+
+function runPaneLoader(pane: string): void {
+  const loader = paneLoaders.get(pane);
+  if (!loader || paneLoaded.has(pane)) return;
+  paneLoaded.add(pane);
+  loader().catch(() => showToast(t((pane === 'audit' ? 'admin.audit.loadFailed' : 'admin.connections.loadFailed') as never), true));
+}
+
+/** Registers a loader; runs it now if its pane is already the one on screen. */
+function registerPaneLoader(pane: string, loader: () => Promise<void>): void {
+  paneLoaders.set(pane, loader);
+  if (currentPane === pane) runPaneLoader(pane);
 }
 
 /** Shows one pane at a time and marks its nav entry as current. */
@@ -716,6 +752,8 @@ function setupPaneSwitching(initial: string): void {
   const panes = document.querySelectorAll<HTMLElement>('[data-pane]');
 
   function show(target: string): void {
+    currentPane = target;
+    runPaneLoader(target);
     panes.forEach((p) => p.classList.toggle('hidden', p.dataset.pane !== target));
     items.forEach((i) => {
       const current = i.dataset.target === target;
@@ -724,6 +762,12 @@ function setupPaneSwitching(initial: string): void {
       i.classList.toggle('font-medium', current);
       i.setAttribute('aria-current', current ? 'page' : 'false');
     });
+    // The audit log records which panes each person opened (spec §6).
+    // keepalive so a view right before leaving the page is still sent.
+    void fetch('/api/audit/view', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pane: target }), keepalive: true,
+    }).catch(() => {});
   }
 
   items.forEach((i) => i.addEventListener('click', () => show(i.dataset.target!)));
@@ -747,7 +791,12 @@ function setupPaneSwitching(initial: string): void {
   const isSymposium = data.user.is_symposium === true;
   canManageAnnouncements = isFullAdmin || isAnnouncer;
   const canEditSymposium = isFullAdmin || isSymposium;
-  applyRoleVisibility({ isFullAdmin, isAnnouncer, isSymposium });
+  // Back from a Gmail reconnect: open Connections and say how it went.
+  const params = new URLSearchParams(location.search);
+  const connected = params.get('connected');
+  const connectionError = params.get('connection_error');
+  applyRoleVisibility({ isFullAdmin, isAnnouncer, isSymposium }, connected || connectionError ? 'connections' : undefined);
+  void loadHealth({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, lang });
   if (canManageAnnouncements) {
     await loadAnnouncements();
     setupAnnouncementForm();
@@ -758,6 +807,18 @@ function setupPaneSwitching(initial: string): void {
     setupBulkGrant();
     setupAttachmentUpload();
     await Promise.all([loadSenders(), loadAdminAttachments(), loadAllSends()]);
+  }
+  if (isFullAdmin) {
+    setupConnections({ t: t as (k: string) => string, showToast, lang });
+    setupAudit({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, showToast, lang });
+    registerPaneLoader('connections', loadConnections);
+    registerPaneLoader('audit', () => loadAudit());
+  }
+  if (connected || connectionError) {
+    const known = ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'store_failed'];
+    if (connected) showToast(tf('admin.connections.connected', { platform: t(`admin.connections.platform.${connected}` as never) }));
+    else showToast(t(`admin.connections.error.${known.includes(connectionError!) ? connectionError : 'unknown'}` as never), true);
+    history.replaceState(null, '', location.pathname);
   }
   if (canEditSymposium) {
     setupEditionForm();

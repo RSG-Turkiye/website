@@ -16,6 +16,10 @@ export interface Env {
    * see functions/api/admin/symposium/archive.ts, gated the same way
    * MAIL_SYNC_SECRET gates /api/mail/dispatch. */
   SYMPOSIUM_ARCHIVE_SECRET: string;
+  /** 32 random bytes, base64. Encrypts platform tokens in D1 -- see token-vault.ts. */
+  TOKEN_ENC_KEY?: string;
+  /** The Gmail account the site sends from, when RSG_MAIL_FROM is a send-as alias of it. Defaults to RSG_MAIL_FROM. */
+  GMAIL_ACCOUNT?: string;
 }
 
 export interface User {
@@ -28,6 +32,8 @@ export interface User {
   is_writer: number;
   is_sender: number;
   is_symposium: number;
+  is_social: number;
+  is_social_publisher: number;
   created_at: number;
   last_login: number;
 }
@@ -138,6 +144,26 @@ export function canManageAnnouncements(user: Pick<User, 'is_admin' | 'is_announc
  */
 export function canManageSymposium(user: Pick<User, 'is_admin' | 'is_symposium'>): boolean {
   return user.is_admin === 1 || user.is_symposium === 1;
+}
+
+/**
+ * Social media roles. A publisher is always an editor as well, even if
+ * is_social was never set on the row: publish is the larger permission and
+ * must not depend on the smaller flag having been set in the same request.
+ */
+export function canSocialEdit(user: Pick<User, 'is_admin' | 'is_social' | 'is_social_publisher'>): boolean {
+  return user.is_admin === 1 || user.is_social === 1 || user.is_social_publisher === 1;
+}
+
+export function canSocialPublish(user: Pick<User, 'is_admin' | 'is_social_publisher'>): boolean {
+  return user.is_admin === 1 || user.is_social_publisher === 1;
+}
+
+/** Anyone with a pane in /admin. Used by endpoints every panel user needs, like the status banner. */
+export function canSeeAdminPanel(
+  user: Pick<User, 'is_admin' | 'is_announcer' | 'is_symposium' | 'is_social' | 'is_social_publisher'>,
+): boolean {
+  return user.is_admin === 1 || user.is_announcer === 1 || user.is_symposium === 1 || canSocialEdit(user);
 }
 
 const ALLOWED_ORIGINS = new Set([

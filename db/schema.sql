@@ -192,6 +192,28 @@
 --    with "no such table". Files live in the MAIL_ATTACHMENTS bucket under
 --    certificates/; add the R2 lifecycle rule described in README.md.
 --
+-- 8a. The audit log (audit_log, below). New table, IF NOT EXISTS, so
+--    re-applying the file is safe:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Run it BEFORE deploying. Role changes are written together with their
+--    audit row and fail closed: without the table, granting or removing any
+--    role answers 500 instead of happening unlogged.
+--
+-- 8b. Social media roles. Deploying without these does NOT throw --
+--    getSessionUser does SELECT *, so the columns are simply absent and both
+--    roles read as false -- but functions/api/admin/users.ts SELECTs them by
+--    name and the admin user list 500s. ALTER TABLE ADD COLUMN is NOT
+--    idempotent -- do not re-run:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_social INTEGER NOT NULL DEFAULT 0"
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE users ADD COLUMN is_social_publisher INTEGER NOT NULL DEFAULT 0"
+--
+-- 8c. platform_connections and oauth_states (below). New tables, IF NOT
+--    EXISTS: re-apply the file before deploying:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Without them mail is unaffected (the Gmail path falls back to the
+--    GMAIL_REFRESH_TOKEN secret), but the Connections pane and the status
+--    banner have nothing to read, and "Reconnect Gmail" answers 500.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -203,6 +225,8 @@ CREATE TABLE IF NOT EXISTS users (
   is_writer     INTEGER NOT NULL DEFAULT 0,
   is_sender     INTEGER NOT NULL DEFAULT 0,
   is_symposium  INTEGER NOT NULL DEFAULT 0,
+  is_social           INTEGER NOT NULL DEFAULT 0,
+  is_social_publisher INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL,
   last_login    INTEGER NOT NULL
 );
@@ -668,3 +692,55 @@ CREATE TABLE IF NOT EXISTS certificate_lookups (
   at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_cert_lookups ON certificate_lookups(ip_hash, at);
+
+-- Who did what in the admin panel, kept a year. Each row carries the hash of
+-- the row before it, so a row changed or removed after the fact breaks the
+-- chain and /api/admin/audit/verify says where. prev_hash is UNIQUE: two
+-- writers that read the same last row cannot both append after it, so the
+-- chain cannot fork -- the loser retries (functions/_lib/audit.ts).
+-- user_id has no foreign key on purpose: system rows have none, and deleting
+-- a user must not delete the record of what they did.
+CREATE TABLE IF NOT EXISTS audit_log (
+  seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+  at           INTEGER NOT NULL,
+  user_id      TEXT,
+  action       TEXT NOT NULL,
+  target_type  TEXT,
+  target_id    TEXT,
+  details      TEXT NOT NULL DEFAULT '{}',
+  prev_hash    TEXT NOT NULL UNIQUE,
+  hash         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at);
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, at);
+
+-- One row per external account the site talks to. Tokens are AES-GCM
+-- ciphertext (functions/_lib/token-vault.ts), never plaintext. A row may
+-- exist with no tokens at all: Gmail's health (last_ok_at / last_error) is
+-- recorded here even while the refresh token still comes from the
+-- GMAIL_REFRESH_TOKEN secret. Status is derived on read, never stored.
+CREATE TABLE IF NOT EXISTS platform_connections (
+  platform            TEXT PRIMARY KEY CHECK (platform IN ('gmail','instagram','linkedin','x')),
+  account_id          TEXT,
+  account_name        TEXT,
+  access_token_enc    TEXT,
+  refresh_token_enc   TEXT,
+  scopes              TEXT,
+  expires_at          INTEGER,
+  refresh_expires_at  INTEGER,
+  connected_by        TEXT,
+  connected_at        INTEGER,
+  last_ok_at          INTEGER,
+  last_error          TEXT,
+  last_error_at       INTEGER
+);
+
+-- Single-use OAuth state, ten minutes. Consumed with DELETE ... RETURNING so
+-- a reloaded or replayed callback finds nothing.
+CREATE TABLE IF NOT EXISTS oauth_states (
+  state       TEXT PRIMARY KEY,
+  platform    TEXT NOT NULL,
+  user_id     TEXT NOT NULL,
+  return_to   TEXT NOT NULL,
+  expires_at  INTEGER NOT NULL
+);

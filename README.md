@@ -144,7 +144,11 @@ has to change.
    the app must be in **Production**, not *Testing*. Refresh tokens issued by an
    app in Testing **expire after seven days**, after which sending stops working
    with no visible cause. Add the scope
-   `https://www.googleapis.com/auth/gmail.send` — nothing broader. Because
+   `https://www.googleapis.com/auth/gmail.send`. The manual path below needs
+   only that scope. The admin panel's Reconnect button (see [Connections and
+   the status banner](#connections-and-the-status-banner)) requests four at
+   sign-in: `openid`, `email`, `gmail.send` and `gmail.readonly`. They do not
+   have to be listed under Data access while the app is unverified. Because
    `gmail.send` is a sensitive scope, a published-but-unverified app shows an
    "unverified app" interstitial; only the one person doing step 2 ever sees it.
 
@@ -171,6 +175,13 @@ has to change.
    ```
 
    Keep the `refresh_token` from the response.
+
+   **Shortcut once the admin panel is set up.** Doing this by hand is only
+   needed for the very first token. After that, the admin panel's
+   **Connections > Gmail > Reconnect** runs the same consent flow for you,
+   stores the new token encrypted, and refuses any account other than
+   `turkey.rsg@gmail.com`. See [Connections and the status
+   banner](#connections-and-the-status-banner).
 
    **Where to get the client secret:** The OAuth client secret lives in [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials), under the same OAuth 2.0 Client ID. If Google will not display it (the console stopped showing secrets for newly created clients except at creation time), the only way forward is to add a new secret on that client in the Credentials UI. **This invalidates the existing secret — the same secret that member sign-in (`functions/auth/callback.ts`) also uses.** If you rotate it, you must immediately run `wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name website` with the new value in the same sitting, or login will break for everyone.
 
@@ -461,6 +472,85 @@ The Cloudflare dashboard may also offer a way to fire a Cron Trigger on
 demand. If it does, it invokes the same `scheduled` handler as the schedule
 does and is unaffected by `workers_dev` — but the local route above is the one
 documented by Cloudflare, so prefer it unless you have checked.
+
+## Connections and the status banner
+
+The admin panel (`/admin`) shows a banner when something the site depends on is
+broken, and a **Connections** pane (admins only) listing each
+outside account the site uses. Every connection change, role change, audit
+export and pane view is written to the **Log** pane, kept for a year.
+
+### What each banner line means
+
+- **Gmail needs to be reconnected.** The stored Gmail token was rejected, or has
+  expired. Open Connections > Gmail > Reconnect and sign in as
+  `turkey.rsg@gmail.com`. Any other account is refused. The
+  `GMAIL_REFRESH_TOKEN` secret (see [Sending mail as
+  RSG](#sending-mail-as-rsg--required-setup)) is only a fallback for when the
+  stored token cannot be read at all, for example `TOKEN_ENC_KEY` is missing or
+  was changed. After a password change Google revokes the grant, so mail stops
+  until someone reconnects.
+- **The scheduler is not running.** The mail dispatcher has not checked in for
+  more than 10 minutes. In Cloudflare > Workers, open `rsg-mail-cron` and check
+  that its cron trigger is enabled and look at its last invocations. If the
+  Worker was deleted, redeploy it:
+  `cd workers/mail-cron && npx wrangler deploy`. See [How both cron Workers
+  report failure](#how-both-cron-workers-report-failure).
+
+A connection also shows as "expiring" in the Connections pane when its token
+runs out within 14 days.
+
+### One-time setup
+
+Do these in order. Steps 1 to 3 happen **before** the pull request is merged;
+step 4 happens **after** it is merged and Pages has deployed.
+
+1. **Before merging: generate and set the vault key.** Connection tokens are stored encrypted
+   with this key:
+
+   ```
+   openssl rand -base64 32 | npx wrangler pages secret put TOKEN_ENC_KEY --project-name website
+   ```
+
+   Store the same value in the organisation's password manager. If it is lost,
+   every stored token must be reconnected, but mail falls back to
+   `GMAIL_REFRESH_TOKEN` in the meantime.
+2. **Before merging: add the redirect URI and scopes in Google Cloud.** In APIs & Services > Credentials,
+   open the OAuth client and add this authorised redirect URI:
+
+   ```
+   https://rsg-turkiye.iscbsc.org/api/admin/connections/gmail/callback
+   ```
+
+   Nothing has to change under Data access. While the app is unverified,
+   Google grants the scopes the site asks for at sign-in (`openid`, `email`,
+   `gmail.send`, `gmail.readonly`) whether or not they are listed there;
+   the list only feeds Google's verification review. Adding a restricted
+   scope to it starts asking for a justification and a demo video, so leave
+   it as it is.
+3. **Before merging: run the migrations** listed as 8a, 8b and 8c at the top
+   of `db/schema.sql`. The new code reads these tables as soon as it deploys.
+
+   Now merge, and wait for the Pages deploy to finish.
+4. **After merging and the deploy: redeploy the daily Worker** so it picks up
+   `AUDIT_PRUNE_URL`. Doing this earlier makes it call an endpoint that does
+   not exist yet. It then prunes the audit log nightly:
+
+   ```
+   cd workers/symposium-cron && npx wrangler deploy
+   ```
+
+## Yearly handover
+
+When the committee changes:
+
+- After changing the Gmail password, go to admin panel > Connections > Gmail >
+  Reconnect.
+- Grant the incoming team their roles in Members, and remove the outgoing
+  team's.
+- Make sure at least two people are admins.
+- Export the Log (JSON) from the Log pane and keep it with the year's records.
+  The panel only keeps a year of history.
 
 ---
 

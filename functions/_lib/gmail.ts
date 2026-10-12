@@ -1,4 +1,5 @@
 import type { Env } from './auth';
+import { getConnection, readRefreshToken, markOk, markBroken } from './connections';
 
 /**
  * Sending mail as RSG.
@@ -412,13 +413,50 @@ export function resetAccessToken(): void {
   cachedToken = null;
 }
 
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+/** Health bookkeeping must never be the reason a mail fails. */
+async function quietly(work: () => Promise<void>): Promise<void> {
+  try { await work(); } catch { /* recorded nowhere, on purpose: see the comment on getAccessToken */ }
+}
+
+/**
+ * Which refresh token to use. A token stored from the admin panel's
+ * "Reconnect Gmail" wins; the GMAIL_REFRESH_TOKEN secret is the fallback, so
+ * deploying this changed nothing until the first reconnect. Anything wrong
+ * with the stored one -- no table yet, no TOKEN_ENC_KEY, a rotated key --
+ * falls through to the secret rather than stopping mail.
+ */
+async function refreshTokenFor(env: Env): Promise<{ token: string; degraded: boolean }> {
+  // env.DB is absent in some unit tests' env objects; getConnection would throw synchronously.
+  let row = null;
+  try { row = env.DB ? await getConnection(env.DB, 'gmail') : null; } catch { /* no table yet, or D1 unavailable: use the secret */ }
+  let degraded = false;
+  if (row?.refresh_token_enc) {
+    try {
+      const stored = await readRefreshToken(env, row);
+      if (stored) return { token: stored, degraded: false };
+    } catch {
+      degraded = true;
+      await quietly(() => markBroken(env.DB, 'gmail', 'The stored Gmail token could not be read (TOKEN_ENC_KEY missing or changed). Reconnect Gmail.', nowSeconds()));
+    }
+  }
+  // degraded: a stored token exists but was unreadable, so the secret is carrying mail.
+  if (env.GMAIL_REFRESH_TOKEN) return { token: env.GMAIL_REFRESH_TOKEN, degraded };
+  throw new GmailError('GMAIL_REFRESH_TOKEN is not configured');
+}
+
+/**
+ * Refreshes at most once an hour per isolate. A refused grant is recorded on
+ * the Gmail connection so the admin panel's banner can say so: Google revokes
+ * Gmail grants when the account password changes, which happens every year,
+ * and until now that stopped mail with nothing visible anywhere.
+ */
 export async function getAccessToken(env: Env): Promise<string> {
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now + 60_000) return cachedToken.token;
 
-  if (!env.GMAIL_REFRESH_TOKEN) {
-    throw new GmailError('GMAIL_REFRESH_TOKEN is not configured');
-  }
+  const { token: refreshToken, degraded } = await refreshTokenFor(env);
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -426,7 +464,7 @@ export async function getAccessToken(env: Env): Promise<string> {
     body: new URLSearchParams({
       client_id: env.GOOGLE_CLIENT_ID,
       client_secret: env.GOOGLE_CLIENT_SECRET,
-      refresh_token: env.GMAIL_REFRESH_TOKEN,
+      refresh_token: refreshToken,
       grant_type: 'refresh_token',
     }),
   });
@@ -434,11 +472,16 @@ export async function getAccessToken(env: Env): Promise<string> {
   if (!res.ok) {
     cachedToken = null;
     const detail = (await res.text()).slice(0, 300);
+    if ((res.status === 400 || res.status === 401) && detail.includes('invalid_grant')) {
+      await quietly(() => markBroken(env.DB, 'gmail', `Google refused the grant (invalid_grant). Usually the account password changed. Reconnect Gmail. ${detail}`, nowSeconds()));
+    }
     throw new GmailError(`Token refresh failed (${res.status}): ${detail}`);
   }
 
   const data = await res.json<{ access_token: string; expires_in: number }>();
   cachedToken = { token: data.access_token, expiresAt: now + data.expires_in * 1000 };
+  // Not when degraded: a markOk would newer-than the error and hide that the reconnect is being ignored.
+  if (!degraded) await quietly(() => markOk(env.DB, 'gmail', nowSeconds()));
   return data.access_token;
 }
 
