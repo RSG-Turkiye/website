@@ -16,6 +16,10 @@ export interface Env {
    * see functions/api/admin/symposium/archive.ts, gated the same way
    * MAIL_SYNC_SECRET gates /api/mail/dispatch. */
   SYMPOSIUM_ARCHIVE_SECRET: string;
+  /** 32 random bytes, base64. Encrypts platform tokens in D1 -- see token-vault.ts. */
+  TOKEN_ENC_KEY?: string;
+  /** The Gmail account the site sends from, when RSG_MAIL_FROM is a send-as alias of it. Defaults to RSG_MAIL_FROM. */
+  GMAIL_ACCOUNT?: string;
 }
 
 export interface User {
