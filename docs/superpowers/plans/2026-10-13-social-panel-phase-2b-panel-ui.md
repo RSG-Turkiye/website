@@ -43,7 +43,7 @@ The approved mockups (calendar-first layout with a board toggle, side panel, com
   - A post that belongs to someone else opens read-only for an editor.
   - Locked posts (published, partially published, failed, cancelled) are read-only for everyone.
 - **Times** are Türkiye time. New items default to 18:00. Weeks start on Monday.
-- **Images:** social uploads are JPEG, at most 2000px on the longest side, with transparency filled white.
+- **Images:** the picker accepts only JPEG and PNG (the user's ruling, 2026-10-13); any other type is refused in the browser with a sentence. Every upload is stored as JPEG (Instagram's publishing API accepts nothing else), at most 2000px on the longest side, with transparency filled white. PNGs are encoded at quality 0.92 so text on posters stays sharp.
 - **Autosave rules:**
   - Only drafts autosave.
   - Saves are serialised, never two in flight.
@@ -662,10 +662,11 @@ export class AutosaveQueue {
 'admin.social.composer.platforms': 'Where to post',
 'admin.social.composer.xLater': 'X (not connected)',
 'admin.social.composer.images': 'Images',
-'admin.social.composer.imagesHint': 'The first image is the cover. Up to 10 for a carousel.',
+'admin.social.composer.imagesHint': 'JPEG or PNG. The first image is the cover. Up to 10 for a carousel.',
 'admin.social.composer.addImages': '+ Add images',
 'admin.social.composer.uploading': 'Uploading...',
 'admin.social.composer.uploadFailed': 'Upload failed: {detail}',
+'admin.social.composer.wrongType': '{name} was not added: only JPEG and PNG images are accepted.',
 'admin.social.composer.alt': 'Alt text (required): what is in the image?',
 'admin.social.composer.moveUp': 'Move earlier',
 'admin.social.composer.moveDown': 'Move later',
@@ -848,10 +849,11 @@ export class AutosaveQueue {
 'admin.social.composer.platforms': 'Nerede paylaşılsın',
 'admin.social.composer.xLater': 'X (bağlı değil)',
 'admin.social.composer.images': 'Görseller',
-'admin.social.composer.imagesHint': "İlk görsel kapak olur. Carousel'de en fazla 10.",
+'admin.social.composer.imagesHint': "JPEG ya da PNG. İlk görsel kapak olur. Carousel'de en fazla 10.",
 'admin.social.composer.addImages': '+ Görsel ekle',
 'admin.social.composer.uploading': 'Yükleniyor...',
 'admin.social.composer.uploadFailed': 'Yükleme başarısız: {detail}',
+'admin.social.composer.wrongType': '{name} eklenmedi: yalnızca JPEG ve PNG görseller kabul ediliyor.',
 'admin.social.composer.alt': 'Alt metin (zorunlu): görselde ne var?',
 'admin.social.composer.moveUp': 'Öne al',
 'admin.social.composer.moveDown': 'Geri al',
@@ -976,7 +978,8 @@ git commit -m "Social panel groundwork: calendar math, API client, messages, aut
 - Consumes: Task 1.
 - Produces:
   - `setupSocial(d: SocialDeps): void`, `loadSocial(): Promise<void>`
-  - `uploadSocialImage(file: File): Promise<{ url: string; key: string; width: number; height: number }>`
+  - `uploadSocialImage(file: File): Promise<{ url: string; key: string; width: number; height: number }>`: throws `UnsupportedImageType` for anything but JPEG and PNG.
+  - `SOCIAL_IMAGE_TYPES = ['image/jpeg', 'image/png']`, `class UnsupportedImageType extends Error`
   - Element ids in the pane: `socialTabs`, `socialPendingCount`, `socialCalendar`, `socialSide`, `socialMonth`, `socialPrev`, `socialNext`, `socialToday`, `socialViewCalendar`, `socialViewBoard`, `socialNewPlan`, `socialNewPost`, `socialPendingList`, `socialDraftList`, `socialEventList`, `socialEventForm`, `socialOverlay`.
   - Attributes: `data-social-tab="calendar|pending|drafts|events"` and `data-social-view` (same names). `data-publisher-only` marks elements editors must not see.
 
@@ -1053,6 +1056,13 @@ const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover
 ```ts
 export interface SocialUpload { url: string; key: string; width: number; height: number }
 
+/** The picker's accept list and the check behind it: JPEG and PNG only. */
+export const SOCIAL_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+/** Higher than QUALITY: PNG posters carry text that 0.85 visibly blurs. */
+const SOCIAL_QUALITY = 0.92;
+
+export class UnsupportedImageType extends Error {}
+
 /**
  * For social posts: always JPEG (Instagram accepts nothing else), longest
  * side at most 2000px, transparent areas filled white so a PNG logo does not
@@ -1060,6 +1070,7 @@ export interface SocialUpload { url: string; key: string; width: number; height:
  * composer's ratio check uses it and the server re-checks on submit.
  */
 export async function uploadSocialImage(file: File): Promise<SocialUpload> {
+  if (!SOCIAL_IMAGE_TYPES.includes(file.type)) throw new UnsupportedImageType(file.type || file.name);
   let body: Blob = file;
   try {
     const bitmap = await createImageBitmap(file);
@@ -1072,7 +1083,7 @@ export async function uploadSocialImage(file: File): Promise<SocialUpload> {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const jpeg = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', QUALITY));
+      const jpeg = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', SOCIAL_QUALITY));
       if (jpeg && jpeg.size > 0) body = jpeg;
     }
     bitmap.close();
@@ -1748,7 +1759,7 @@ import { errorText, problemText } from './messages';
 import { esc, button, overlay, closeOverlay } from './ui';
 import { AutosaveQueue } from './autosave';
 import { renderPreview, type PreviewKind } from './preview';
-import { uploadSocialImage } from '../image-upload';
+import { uploadSocialImage, SOCIAL_IMAGE_TYPES, UnsupportedImageType } from '../image-upload';
 import { readinessProblems } from '../../../functions/_lib/social-posts';
 import {
   captionFor, countChars, countHashtags, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
@@ -1981,7 +1992,7 @@ function renderMedia(): void {
     </div>`).join('')
     + (editable && state.media.length < CAROUSEL_MAX_ITEMS
       ? `<label class="w-40 min-h-40 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-500 cursor-pointer text-center p-2">
-          <span data-upload-label>${esc(t('admin.social.composer.addImages'))}</span><input data-files type="file" accept="image/*" ${state.type === 'carousel' ? 'multiple' : ''} class="sr-only"></label>` : '');
+          <span data-upload-label>${esc(t('admin.social.composer.addImages'))}</span><input data-files type="file" accept="${SOCIAL_IMAGE_TYPES.join(',')}" ${state.type === 'carousel' ? 'multiple' : ''} class="sr-only"></label>` : '');
   if (!editable) return;
   box.querySelectorAll<HTMLTextAreaElement>('[data-alt]').forEach((a) => a.addEventListener('input', () => {
     state.media[Number(a.dataset.alt)].alt = a.value;
@@ -2008,7 +2019,9 @@ function renderMedia(): void {
           const up = await uploadSocialImage(file);
           state.media.push({ key: up.key, url: up.url, alt: '', width: up.width, height: up.height });
         } catch (err) {
-          showToast(tf('admin.social.composer.uploadFailed', { detail: err instanceof Error ? err.message : '' }), true);
+          showToast(err instanceof UnsupportedImageType
+            ? tf('admin.social.composer.wrongType', { name: file.name })
+            : tf('admin.social.composer.uploadFailed', { detail: err instanceof Error ? err.message : '' }), true);
         }
       }
       dirty = true; autosave?.touch(); renderMedia(); renderChecks(); renderPreviewPane();
