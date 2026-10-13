@@ -109,3 +109,43 @@ test('errors become steps: expired token, ratio, 5xx, network', async () => {
     try { assert.equal((await step(single)).kind, kind, String(kind)); } finally { g.restore(); }
   }
 });
+
+test('FINISHED then publish fails with an expired-class error or a lost response: retry, container kept', async () => {
+  const fin = (c: GraphCall) => (c.path === '/c1' ? Response.json({ status_code: 'FINISHED' }) : undefined);
+  const expired = await withGraph((c) => fin(c) ?? (c.path === `/${IG}/media_publish` ? err(24, 2207008, 'expired') : undefined), () => step(single, 'c1'));
+  assert.equal(expired.result.kind, 'retry');
+  assert.equal('clearContainer' in expired.result, false);
+  const g = stubGraph((c) => { if (c.path === `/${IG}/media_publish`) throw new TypeError('lost'); return fin(c); });
+  try {
+    const lost = await step(single, 'c1');
+    assert.equal(lost.kind, 'retry');
+    assert.equal('clearContainer' in lost, false);
+  } finally { g.restore(); }
+});
+
+test('a 2xx without usable JSON or without an id is transient and never yields "undefined"', async () => {
+  const oops = await withGraph((c) => (c.path === '/c1' ? new Response('oops', { status: 200 }) : undefined), () => step(single, 'c1'));
+  assert.equal(oops.result.kind, 'retry');
+  const pub = await withGraph((c) => {
+    if (c.path === '/c1') return Response.json({ status_code: 'FINISHED' });
+    if (c.path === `/${IG}/media_publish`) return Response.json({});
+    return undefined;
+  }, () => step(single, 'c1'));
+  assert.deepEqual(pub.result, { kind: 'retry', reason: 'unavailable: response without id' });
+  const create = await withGraph((c) => (c.path === `/${IG}/media` ? Response.json({}) : undefined), () => step(single));
+  assert.deepEqual(create.result, { kind: 'retry', reason: 'unavailable: response without id' });
+});
+
+test('carousel: once alt_text is refused, later children skip it, and the note appears once', async () => {
+  const post: PostForPlatform = { type: 'carousel', caption: 'c', media: [img(1), img(2), img(3)] };
+  let n = 0;
+  const { result, calls } = await withGraph((c) => {
+    if (c.path !== `/${IG}/media`) return undefined;
+    if (c.params.get('media_type') === 'CAROUSEL') return Response.json({ id: 'parent' });
+    if (n++ === 0) return err(100, undefined, 'Invalid parameter alt_text');
+    return Response.json({ id: `child${n}` });
+  }, () => step(post));
+  assert.deepEqual(result, { kind: 'pending', containerId: 'parent', notes: ['alt_text_dropped'] });
+  assert.equal(calls.filter((c) => c.params.has('is_carousel_item')).length, 4);
+  assert.equal(calls.slice(1, 4).some((c) => c.params.has('alt_text')), false);
+});

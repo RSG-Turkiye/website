@@ -6,7 +6,7 @@
  */
 import type { Env } from '../auth';
 import type { PublishStep, PostForPlatform, TargetState } from './types';
-import { stepFromError, classifyGraphError, type GraphError } from './instagram-errors';
+import { stepFromError, classifyGraphError, graphReason, type GraphError } from './instagram-errors';
 
 export const IG_GRAPH = 'https://graph.instagram.com/v25.0';
 export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish'];
@@ -131,9 +131,15 @@ async function graph(method: 'GET' | 'POST', path: string, token: string, params
     return { ok: false, status: 0, error: null };
   }
   const body = await res.json().catch(() => null) as Record<string, unknown> | null;
+  // A 2xx that is not a JSON object (a proxy page, a cut-off body) is a transient fault, not a refusal of the content.
+  if (res.ok && (!body || typeof body !== 'object' || Array.isArray(body))) return { ok: false, status: 0, error: null };
   if (!res.ok || !body || body.error) return { ok: false, status: res.status, error: (body?.error as GraphError | undefined) ?? null };
   return { ok: true, data: body };
 }
+
+const NO_ID = { kind: 'retry', reason: 'unavailable: response without id' } as const;
+/** The id of a successful response, or null; never the string 'undefined'. */
+const idOf = (data: Record<string, unknown>) => (typeof data.id === 'string' && data.id) || (typeof data.id === 'number' ? String(data.id) : null);
 
 const fromFailure = (r: Extract<GraphResult, { ok: false }>) => stepFromError(r.status, r.error);
 
@@ -152,7 +158,17 @@ async function createContainer(igUserId: string, token: string, params: Record<s
  * (children first for a carousel) and returns pending. With a container it
  * reads its status: still processing waits; finished publishes; already
  * PUBLISHED means a previous tick published and died before recording it,
- * so the result is recorded and nothing is published twice.
+ * so the result is recorded and nothing is published twice. That recovery
+ * records remoteId and permalink as null on purpose: the media id cannot be
+ * read back from the container.
+ *
+ * Only a status read that returns EXPIRED may clear a container, because it is
+ * the only proof nothing was published. A media_publish error of any kind, or
+ * a lost response, keeps the container, so the next tick reads its status
+ * (PUBLISHED if the publish actually went through).
+ *
+ * A carousel that fails part-way recreates all its children next tick; the
+ * orphans expire on their own and cost only container quota.
  */
 export async function instagramPublishStep(input: { igUserId: string; token: string; post: PostForPlatform; state: TargetState }): Promise<PublishStep> {
   const { igUserId, token, post, state } = input;
@@ -169,9 +185,13 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
       case 'FINISHED': {
         const p = await graph('POST', `${igUserId}/media_publish`, token, { creation_id: state.containerId });
         if (!p.ok) {
-          return classifyGraphError(p.status, p.error) === 'pending' ? { kind: 'pending', containerId: state.containerId } : fromFailure(p);
+          const cls = classifyGraphError(p.status, p.error);
+          if (cls === 'pending') return { kind: 'pending', containerId: state.containerId };
+          if (cls === 'expired' || cls === 'transient') return { kind: 'retry', reason: graphReason(p.status, p.error) };
+          return fromFailure(p);
         }
-        const remoteId = String(p.data.id);
+        const remoteId = idOf(p.data);
+        if (!remoteId) return NO_ID;
         const link = await graph('GET', remoteId, token, { fields: 'permalink' });
         const permalink = link.ok && typeof link.data.permalink === 'string' ? link.data.permalink : null;
         return { kind: 'done', remoteId, permalink };
@@ -188,14 +208,18 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
   } else if (post.type === 'carousel') {
     const children: string[] = [];
     for (const m of post.media) {
-      const child = await createContainer(igUserId, token, { image_url: m.url, is_carousel_item: 'true' }, m.alt, notes);
+      const child = await createContainer(igUserId, token, { image_url: m.url, is_carousel_item: 'true' }, notes.includes('alt_text_dropped') ? '' : m.alt, notes);
       if (!child.ok) return fromFailure(child);
-      children.push(String(child.data.id));
+      const childId = idOf(child.data);
+      if (!childId) return NO_ID;
+      children.push(childId);
     }
     created = await graph('POST', `${igUserId}/media`, token, { media_type: 'CAROUSEL', children: children.join(','), caption: post.caption });
   } else {
     created = await createContainer(igUserId, token, { image_url: post.media[0].url, caption: post.caption }, post.media[0].alt, notes);
   }
   if (!created.ok) return fromFailure(created);
-  return { kind: 'pending', containerId: String(created.data.id), notes };
+  const containerId = idOf(created.data);
+  if (!containerId) return NO_ID;
+  return { kind: 'pending', containerId, notes };
 }
