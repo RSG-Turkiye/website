@@ -126,12 +126,16 @@ function decodeState(raw: string | null): LiState | null {
   } catch { return null; }
 }
 
+/** LinkedIn's author finder can lag behind a post it just created. */
+const RECOVERY_SETTLE_SECONDS = 120;
+
 const message = (body: Record<string, unknown> | null, status: number) => String(body?.message ?? `HTTP ${status}`).slice(0, 250);
 
 /**
- * What a non-2xx answer means. `sent` is true for the create call: a timeout
- * or 5xx there may still have created the post, so it is retried with the
- * attempt kept and the next tick looks before creating again.
+ * Maps a failed LinkedIn answer (status 0 = no answer) to a step: 401/403 is
+ * an auth problem, 429 and 5xx are retried, anything else is a refusal that
+ * clears the container. Callers that may already have created the post must
+ * not use it for the refusal cases (see the recovery branch).
  */
 function fromFailure(status: number, body: Record<string, unknown> | null): PublishStep {
   const m = message(body, status);
@@ -193,9 +197,13 @@ export async function linkedinPublishStep(input: PublishInput): Promise<PublishS
   if (st.attempt !== null) {
     const q = new URLSearchParams({ q: 'author', author: org, count: '20', sortBy: 'CREATED', viewContext: 'AUTHOR' });
     const found = await call(`${LI_API}/posts?${q}`, { headers: headers(token, { 'X-RestLi-Method': 'FINDER' }) });
-    if (!found.res?.ok || !Array.isArray(found.body?.elements)) return fromFailure(found.res?.status ?? 0, found.body);
+    const fs = found.res?.status ?? 0;
+    if (fs === 401 || fs === 403 || fs === 429) return fromFailure(fs, found.body);
+    // Never clear the attempt on a failed read: it is the only record that a create call was sent.
+    if (!found.res?.ok || !Array.isArray(found.body?.elements)) return { kind: 'retry', reason: `uncertain: ${message(found.body, fs)}` };
     const mine = (found.body!.elements as Record<string, unknown>[]).find((p) => usesImage(p, st.images[0]));
     if (mine && typeof mine.id === 'string') return { kind: 'done', remoteId: mine.id, permalink: permalink(mine.id), notes: ['recovered_published'] };
+    if (now - st.attempt < RECOVERY_SETTLE_SECONDS) return { kind: 'pending', containerId: input.state.containerId! };
     return { kind: 'pending', containerId: encodeState({ ...st, attempt: null }) };
   }
 
@@ -224,5 +232,6 @@ export async function linkedinPublishStep(input: PublishInput): Promise<PublishS
     const urn = created.res.headers.get('x-restli-id');
     return urn ? { kind: 'done', remoteId: urn, permalink: permalink(urn) } : { kind: 'done', remoteId: null, permalink: null };
   }
+  if (created.res?.ok) return { kind: 'retry', reason: `uncertain: unexpected ${created.res.status} from LinkedIn` };
   return fromFailure(created.res?.status ?? 0, created.body);
 }

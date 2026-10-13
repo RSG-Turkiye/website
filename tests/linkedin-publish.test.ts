@@ -113,11 +113,41 @@ test('a lost response after the create call: the next tick finds the post by its
 
 test('a lost response, and the post is not there: the attempt is cleared so the next tick creates it', async () => {
   const st = state(['urn:li:image:A'], 1_800_000_000);
-  const { result } = await run((c) => (c.method === 'GET' && c.url.pathname === '/rest/posts' ? Response.json({ elements: [] }) : undefined), input(single, st));
+  const late = input(single, st);
+  late.now = 1_800_000_000 + 120;
+  const { result } = await run((c) => (c.method === 'GET' && c.url.pathname === '/rest/posts' ? Response.json({ elements: [] }) : undefined), late);
   assert.deepEqual(result, { kind: 'pending', containerId: state(['urn:li:image:A'], null) });
 });
 
-test('a create call that never answered is retried later with the attempt kept', async () => {
+test('a miss within the settle window keeps the attempt', async () => {
+  const st = state(['urn:li:image:A'], 1_800_000_000);
+  const early = input(single, st);
+  early.now = 1_800_000_000 + 119;
+  const { result } = await run((c) => (c.method === 'GET' && c.url.pathname === '/rest/posts' ? Response.json({ elements: [] }) : undefined), early);
+  assert.deepEqual(result, { kind: 'pending', containerId: st });
+});
+
+test('a failed or odd finder read never clears the attempt: retried as uncertain', async () => {
+  const st = state(['urn:li:image:A'], 1_800_000_000);
+  for (const res of [() => Response.json({ message: 'bad finder' }, { status: 400 }), () => Response.json({ paging: {} })]) {
+    const { result } = await run((c) => (c.method === 'GET' && c.url.pathname === '/rest/posts' ? res() : undefined), input(single, st));
+    assert.equal(result.kind, 'retry');
+    assert.match((result as { reason: string }).reason, /^uncertain: /);
+    assert.equal('clearContainer' in result, false);
+  }
+});
+
+test('a 2xx other than 201 on the create call is uncertain, not a failure', async () => {
+  const st = state(['urn:li:image:A'], null);
+  const { result } = await run((c) => {
+    if (c.method === 'GET') return Response.json({ results: { 'urn:li:image:A': { status: 'AVAILABLE' } } });
+    if (c.url.pathname === '/rest/posts') return new Response(null, { status: 202 });
+    return undefined;
+  }, input(single, st));
+  assert.deepEqual(result, { kind: 'retry', reason: 'uncertain: unexpected 202 from LinkedIn' });
+});
+
+test('a 503 on the create call is retried as unavailable, never cleared (the attempt stays recorded)', async () => {
   const st = state(['urn:li:image:A'], null);
   const { result } = await run((c) => {
     if (c.method === 'GET') return Response.json({ results: { 'urn:li:image:A': { status: 'AVAILABLE' } } });
@@ -126,6 +156,7 @@ test('a create call that never answered is retried later with the attempt kept',
   }, input(single, st));
   assert.equal(result.kind, 'retry');
   assert.match((result as { reason: string }).reason, /^unavailable: /);
+  assert.equal('clearContainer' in result, false);
 });
 
 test('LinkedIn refusing the post outright: failed, and the images are let go so the post can be edited', async () => {
