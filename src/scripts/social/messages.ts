@@ -1,6 +1,7 @@
 /** Server codes to sentences. Every code here has an admin.social.* key in both languages (tests/admin-social-i18n.test.ts). */
 import { ApiError, type Problem } from './api';
 import { deps } from './context';
+import { PUBLISH_REASON_KEYS } from '../../../functions/_lib/social/instagram-errors';
 
 export const PROBLEM_CODES = [
   'no_platform', 'platform_unavailable', 'story_instagram_only', 'media_count', 'missing_alt', 'unknown_media', 'bad_ratio', 'not_jpeg',
@@ -8,7 +9,7 @@ export const PROBLEM_CODES = [
 ] as const;
 
 export const ERROR_CODES = [
-  'post_changed', 'not_ready', 'not_pending', 'not_found', 'not_allowed', 'not_submittable', 'not_deletable', 'not_cancellable', 'publishing_started',
+  'post_changed', 'not_ready', 'not_pending', 'not_found', 'not_allowed', 'not_submittable', 'not_deletable', 'not_cancellable', 'not_requeueable', 'publishing_started',
   'plan_taken', 'plan_has_post', 'already_closed', 'invalid_plan', 'invalid_title', 'invalid_platforms', 'invalid_post_type',
   'invalid_assignee', 'invalid_note', 'invalid_name', 'invalid_window', 'window_too_long', 'invalid_editors', 'invalid_range',
   'schedule_in_past', 'schedule_too_far', 'invalid_schedule_time', 'invalid_type', 'invalid_caption', 'invalid_overrides',
@@ -32,4 +33,14 @@ export function problemText(p: Problem): string {
 export function errorText(err: unknown): string {
   const code = err instanceof ApiError ? known(ERROR_CODES, err.code) : 'unknown';
   return deps().t(`admin.social.error.${code}`);
+}
+
+export const TARGET_STATUS_KEYS = ['queued', 'waiting_connection', 'needs_confirmation', 'publishing', 'published', 'failed', 'skipped'] as const;
+
+/** last_error is "<key>: <provider detail>"; the key becomes a sentence, the detail stays for whoever needs it. */
+export function publishErrorText(lastError: string | null): string {
+  if (!lastError) return '';
+  const at = lastError.indexOf(': ');
+  const key = at > 0 ? lastError.slice(0, at) : lastError;
+  return deps().t(`admin.social.publishError.${(PUBLISH_REASON_KEYS as readonly string[]).includes(key) ? key : 'unknown'}`);
 }

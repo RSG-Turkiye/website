@@ -200,7 +200,7 @@ function render(): void {
           </div></div>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.platforms'))}</p>
           <div class="flex flex-wrap gap-4 mt-1 text-sm">
-            ${ENABLED_PLATFORMS.map((p) => `<label><input type="checkbox" data-platform="${p}" ${dis} ${state.platforms.includes(p) ? 'checked' : ''}> ${esc(t(`admin.connections.platform.${p}`))}</label>`).join('')}
+            ${ENABLED_PLATFORMS.map((p) => `<label><input type="checkbox" data-platform="${p}" ${dis} ${state.platforms.includes(p) ? 'checked' : ''}> ${p === 'linkedin' ? `${esc(t('admin.connections.platform.linkedin'))} <span class="text-xs text-gray-500">${esc(t('admin.social.composer.linkedinLater'))}</span>` : esc(t(`admin.connections.platform.${p}`))}</label>`).join('')}
             <label class="text-gray-500"><input type="checkbox" disabled> ${esc(t('admin.social.composer.xLater'))}</label>
           </div></div>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.images'))} <span class="font-normal text-gray-500">${esc(t('admin.social.composer.imagesHint'))}</span></p>

@@ -5,6 +5,7 @@ import { errorText, problemText } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { bgImage } from './preview';
 import { openComposer } from './composer';
+import { targetLines } from './side-panel';
 import { dayKey, timeOf } from '../../lib/social-calendar';
 
 const STALE_CODES = ['post_changed', 'not_found', 'not_pending', 'plan_taken', 'plan_has_post'];
@@ -88,4 +89,12 @@ export async function loadDrafts(): Promise<void> {
     el.querySelector('[data-act="open"]')!.addEventListener('click', () => void openComposer({ postId: p.id }));
     armConfirm(el.querySelector<HTMLButtonElement>('[data-act="delete"]')!, () => act(() => api.deletePost(p.id, p.revision), 'admin.social.done.deleted'));
   }
+}
+
+export async function loadPublished(): Promise<void> {
+  const { t } = deps();
+  const list = document.getElementById('socialPublishedList');
+  if (!list) return;
+  const posts = await api.done();
+  list.innerHTML = posts.map((p) => card(p, targetLines(p))).join('') || `<p class="text-sm text-gray-500">${esc(t('admin.social.empty'))}</p>`;
 }

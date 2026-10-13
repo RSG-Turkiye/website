@@ -1,7 +1,7 @@
 /** Details and actions for the item clicked on the calendar or board. */
 import { api, ApiError, type Plan, type Post } from './api';
 import { deps, changed } from './context';
-import { errorText, problemText } from './messages';
+import { errorText, problemText, publishErrorText } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { dayKey, timeOf, planDue } from '../../lib/social-calendar';
 import { findPlan, findPost } from './calendar-view';
@@ -82,6 +82,16 @@ function renderPlan(p: Plan): void {
   armConfirm(side().querySelector<HTMLButtonElement>('[data-act="delete"]')!, () => run(() => api.deletePlan(p.id), 'admin.social.done.deleted'));
 }
 
+/** One line per platform: what happened, a link when there is one, and why when it did not work. */
+export function targetLines(p: Post): string {
+  const { t } = deps();
+  if (!p.targets.length) return '';
+  return `<div class="mt-3"><p class="text-xs text-gray-500">${esc(t('admin.social.side.targets'))}</p>${p.targets.map((x) => `
+    <p class="text-sm text-navy mt-1"><strong>${esc(t(`admin.connections.platform.${x.platform}`))}</strong>: ${esc(t(`admin.social.target.${x.status}`))}
+      ${x.permalink ? ` · <a href="${esc(x.permalink)}" target="_blank" rel="noopener" class="underline">${esc(t('admin.social.side.viewPost'))}</a>` : ''}</p>
+    ${x.lastError && x.status !== 'published' ? `<p class="text-xs text-red">${esc(publishErrorText(x.lastError))}</p><p class="text-xs text-gray-500 break-words">${esc(x.lastError.slice(x.lastError.indexOf(': ') + 2))}</p>` : ''}`).join('')}</div>`;
+}
+
 function renderPost(p: Post): void {
   const { t, me } = deps();
   const mine = p.createdBy === me.id;
@@ -99,6 +109,11 @@ function renderPost(p: Post): void {
   if ((me.isPublisher || mine) && (p.status === 'pending_approval' || p.status === 'scheduled')) {
     actions.push(button(t('admin.social.action.cancel'), 'data-act="cancel"', 'danger'));
   }
+  const held = p.targets.some((x) => x.status === 'needs_confirmation');
+  const failedAny = p.targets.some((x) => x.status === 'failed');
+  if (me.isPublisher && (held || failedAny) && ['scheduled', 'failed', 'partially_published'].includes(p.status)) {
+    actions.push(button(t(held ? 'admin.social.action.publishAnyway' : 'admin.social.action.retry'), 'data-act="requeue"', 'ok'));
+  }
   frame(p.planTitle || t(`admin.social.type.${p.type}`), `
     <p class="mt-1 text-xs font-semibold">${esc(t(`admin.social.status.${p.status}`))}</p>
     ${!canEdit && !LOCKED.includes(p.status) ? `<p class="mt-2 text-xs text-gray-500">${esc(t('admin.social.side.readOnly'))}</p>` : ''}
@@ -106,6 +121,7 @@ function renderPost(p: Post): void {
     ${row(t('admin.social.side.platforms'), esc(p.platforms.map((x) => t(`admin.connections.platform.${x}`)).join(', ')))}
     ${row(t('admin.social.side.author'), esc(p.authorEmail ?? ''))}
     ${p.reviewNote ? row(t('admin.social.side.reviewNote'), esc(p.reviewNote)) : ''}
+    ${targetLines(p)}
     ${p.media[0] ? `<img src="${esc(p.media[0].url)}" alt="${esc(p.media[0].alt)}" class="mt-3 w-full max-h-48 object-cover rounded-lg">` : ''}
     <div class="flex flex-wrap gap-2 mt-4">${actions.join('')}</div>
     <div data-reject class="hidden mt-3"><textarea rows="3" maxlength="500" class="w-full px-2 py-1 rounded-lg border border-border text-sm" placeholder="${esc(t('admin.social.rejectNote'))}"></textarea>
@@ -116,6 +132,7 @@ function renderPost(p: Post): void {
   q('submit')?.addEventListener('click', (e) => void run(() => api.action(p.id, 'submit', { revision: p.revision }),
     me.isPublisher ? 'admin.social.done.scheduled' : 'admin.social.done.submitted', e.currentTarget as HTMLButtonElement));
   q('approve')?.addEventListener('click', (e) => void run(() => api.action(p.id, 'approve', { revision: p.revision }), 'admin.social.done.approved', e.currentTarget as HTMLButtonElement));
+  q('requeue')?.addEventListener('click', (e) => void run(() => api.requeue(p.id, p.revision), 'admin.social.done.requeued', e.currentTarget as HTMLButtonElement));
   q('reject')?.addEventListener('click', () => side().querySelector('[data-reject]')!.classList.remove('hidden'));
   q('rejectSend')?.addEventListener('click', (e) => {
     const note = side().querySelector<HTMLTextAreaElement>('[data-reject] textarea')!.value.trim();

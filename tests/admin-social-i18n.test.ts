@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { ui } from '../src/i18n/ui';
-import { PROBLEM_CODES, ERROR_CODES, STATUS_KEYS } from '../src/scripts/social/messages';
+import { PROBLEM_CODES, ERROR_CODES, STATUS_KEYS, TARGET_STATUS_KEYS } from '../src/scripts/social/messages';
+import { PUBLISH_REASON_KEYS } from '../functions/_lib/social/instagram-errors';
 
 const keys = (lang: 'en' | 'tr') => Object.keys(ui[lang]).filter((k) => k.startsWith('admin.social.'));
 const has = (k: string) => k in ui.en && k in ui.tr;
@@ -26,5 +27,7 @@ test('every problem, error and status the API can return has a sentence', () => 
   for (const c of [...PROBLEM_CODES, 'unknown']) assert.ok(has(`admin.social.problem.${c}`), c);
   for (const c of [...ERROR_CODES, 'unknown']) assert.ok(has(`admin.social.error.${c}`), c);
   for (const s of STATUS_KEYS) assert.ok(has(`admin.social.status.${s}`), s);
+  for (const s of TARGET_STATUS_KEYS) assert.ok(has(`admin.social.target.${s}`), s);
+  for (const k of PUBLISH_REASON_KEYS) assert.ok(has(`admin.social.publishError.${k}`), k);
   for (const t of ['image', 'carousel', 'story']) assert.ok(has(`admin.social.type.${t}`), t);
 });
