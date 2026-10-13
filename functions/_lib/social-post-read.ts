@@ -17,6 +17,7 @@ function respond(env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, row: Joined, targets:
       ...m,
       url: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.key}`,
       ...(m.source ? { sourceUrl: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.source.key}` } : {}),
+      ...(m.base ? { baseUrl: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.base}` } : {}),
     })),
     platforms: d.platforms, scheduledAt: d.scheduledAt, status: row.status, revision: row.revision,
     createdBy: row.created_by, authorEmail: row.author_email, approvedBy: row.approved_by, approvedAt: row.approved_at,

@@ -175,3 +175,23 @@ test('a failed post can be fixed: it is no longer locked, and an editor\'s edit 
   assert.equal(statusAfterEdit({ id: 'pub', isPublisher: true }, 'failed', false), 'scheduled');
   assert.equal(statusAfterEdit({ id: 'ed', isPublisher: false }, 'failed', false), 'pending_approval');
 });
+
+test('parseDraft keeps text overlays and the base image, and refuses a malformed overlay', () => {
+  const o = { text: 'Kayıtlar açık!', x: 0.5, y: 0.8, size: 0.06, color: 'white', box: 'shade', align: 'center' };
+  const ok = parseDraft({ type: 'story', media: [{ key: KEY_A, alt: 'x', base: KEY_B, overlays: [{ ...o, extra: 1 }] }] });
+  assert.deepEqual(ok.ok && ok.value.media, [{ key: KEY_A, alt: 'x', base: KEY_B, overlays: [o] }]);
+  const bad = [
+    { overlays: Array.from({ length: 6 }, () => o), base: KEY_B },
+    { overlays: [{ ...o, text: '   ' }], base: KEY_B },
+    { overlays: [{ ...o, text: 'x'.repeat(201) }], base: KEY_B },
+    { overlays: [{ ...o, x: 2 }], base: KEY_B },
+    { overlays: [{ ...o, size: 0.5 }], base: KEY_B },
+    { overlays: [{ ...o, color: 'pink' }], base: KEY_B },
+    { overlays: [{ ...o, box: 'glow' }], base: KEY_B },
+    { overlays: [o] },                          // overlays need a base
+    { overlays: [o], base: '../x' },
+  ];
+  for (const extra of bad) {
+    assert.deepEqual(parseDraft({ type: 'image', media: [{ key: KEY_A, alt: '', ...extra }] }), { ok: false, code: 'invalid_media' }, JSON.stringify(extra).slice(0, 60));
+  }
+});
