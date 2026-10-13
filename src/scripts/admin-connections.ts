@@ -1,6 +1,6 @@
 /**
- * The Connections pane (admins only). One row per platform; Gmail and Instagram
- * can be connected so far. Reconnect is a plain link: the browser goes to
+ * The Connections pane (admins only). One row per platform; Gmail, Instagram, LinkedIn and X
+ * can be connected. Reconnect is a plain link: the browser goes to
  * /api/admin/connections/<platform>/start and on to the provider, and comes
  * back to /admin?connected=<platform>.
  */
@@ -37,7 +37,6 @@ export function setupConnections(d: ConnDeps): void {
 }
 
 function actions(c: Conn): string {
-  if (c.platform !== 'gmail' && c.platform !== 'instagram') return `<span class="text-xs text-gray-500">${escapeHtml(deps.t('admin.connections.later'))}</span>`;
   const urgent = c.status === 'broken' || c.status === 'expiring';
   const label = deps.t(c.status === 'unused' ? 'admin.connections.connect' : 'admin.connections.reconnect');
   const connect = `<a href="/api/admin/connections/${c.platform}/start?lang=${deps.lang}" class="${BUTTON} ${urgent ? 'bg-red text-white hover:bg-red-hover' : 'border border-navy text-navy hover:bg-navy-light'}">${escapeHtml(label)}</a>`;
@@ -50,7 +49,7 @@ function actions(c: Conn): string {
 function row(c: Conn): string {
   const note = c.status === 'broken' && c.lastError ? c.lastError : c.usesLegacySecret ? deps.t('admin.connections.legacy') : '';
   return `<tr class="border-b border-border last:border-0">
-    <td class="px-5 py-3"><p class="font-medium text-navy">${escapeHtml(deps.t(`admin.connections.platform.${c.platform}`))}</p><p class="text-xs text-gray-500">${escapeHtml(c.accountName ? (c.platform === 'instagram' ? `@${c.accountName}` : c.accountName) : '')}</p></td>
+    <td class="px-5 py-3"><p class="font-medium text-navy">${escapeHtml(deps.t(`admin.connections.platform.${c.platform}`))}</p><p class="text-xs text-gray-500">${escapeHtml(c.accountName ? (c.platform === 'instagram' || c.platform === 'x' ? `@${c.accountName}` : c.accountName) : '')}</p></td>
     <td class="px-5 py-3"><span class="font-medium ${STATUS_CLASS[c.status]}">● ${escapeHtml(deps.t(`admin.connections.status.${c.status}`))}</span>${note ? `<p class="text-xs text-gray-500 mt-0.5 max-w-md">${escapeHtml(note)}</p>` : ''}</td>
     <td class="px-5 py-3 text-gray-500">${escapeHtml(c.connectedBy ?? '')}${c.connectedAt ? `<br><span class="text-xs">${escapeHtml(formatDateTime(c.connectedAt, deps.lang))}</span>` : ''}</td>
     <td class="px-5 py-3 text-gray-500">${c.lastOkAt ? escapeHtml(formatDateTime(c.lastOkAt, deps.lang)) : ''}</td>
