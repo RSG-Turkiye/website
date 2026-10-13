@@ -8,7 +8,7 @@ import { deps, changed } from './context';
 import { errorText, problemText } from './messages';
 import { esc, button, overlay, closeOverlay } from './ui';
 import { AutosaveQueue } from './autosave';
-import { renderPreview, type PreviewKind } from './preview';
+import { renderPreview, bgImage, type PreviewKind } from './preview';
 import { uploadSocialImage, SOCIAL_IMAGE_TYPES, UnsupportedImageType } from '../image-upload';
 import { readinessProblems } from '../../../functions/_lib/social-posts';
 import {
@@ -64,6 +64,8 @@ let autosave: AutosaveQueue | null = null;
 let savedAt = '';
 let stopped = false;
 let lastSaveError: unknown = null;
+/** True while an explicit save or submit runs; Save and Submit are disabled and a second click is ignored. */
+let busy = false;
 
 /** Existing media carry no size; measure them in the browser for the preview checklist (the server re-checks). */
 function measure(m: MediaItem): Promise<void> {
@@ -80,6 +82,7 @@ export async function openComposer(opts: { postId?: string; plan?: Plan; date?: 
   const { me, showToast } = deps();
   stopped = false;
   lastSaveError = null;
+  busy = false;
   dirty = false;
   savedAt = '';
   capTab = 'shared';
@@ -133,12 +136,14 @@ async function saveDraft(): Promise<void> {
       deps().showToast(deps().t('admin.social.composer.planTakenNow'), true);
       state.planId = null;
       state.planTitle = null;
+      overlay().querySelector('[data-plan]')?.remove();
       return saveDraft();
     }
     // Only a revision clash is final; anything else (network, 5xx) is remembered and reported honestly.
     lastSaveError = err;
     if (err instanceof ApiError && err.code === 'post_changed') stopped = true;
     renderStatusLine();
+    renderActions();
     throw err;
   }
 }
@@ -165,7 +170,7 @@ function render(): void {
   overlay().innerHTML = `<div class="max-w-6xl mx-auto my-6 bg-white rounded-2xl border border-border p-5">
     <div class="flex justify-between items-start gap-3 mb-3">
       <div><h3 class="text-lg font-semibold text-navy">${esc(t(title))}</h3>
-        ${state.planTitle ? `<p class="text-sm text-gray-500">${esc(tf('admin.social.composer.fromPlan', { title: state.planTitle }))}</p>` : ''}</div>
+        ${state.planTitle ? `<p data-plan class="text-sm text-gray-500">${esc(tf('admin.social.composer.fromPlan', { title: state.planTitle }))}</p>` : ''}</div>
       ${button(t('admin.social.composer.close'), 'data-close')}
     </div>
     ${warn}
@@ -211,9 +216,19 @@ function wireForm(): void {
   const { t } = deps();
   o.querySelector('[data-close]')!.addEventListener('click', (e) => {
     const b = e.currentTarget as HTMLButtonElement;
-    const needsConfirm = dirty && !autosave && editable;
-    if (needsConfirm && b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = t('admin.social.composer.closeConfirm'); return; }
-    void (async () => { await autosave?.flush().catch(() => {}); autosave?.stop(); closeOverlay(); changed(); })();
+    const arm = () => { b.dataset.armed = '1'; b.textContent = t('admin.social.composer.closeConfirm'); };
+    if (b.dataset.armed === '1') { autosave?.stop(); closeOverlay(); changed(); return; }
+    if (dirty && !autosave && editable) { arm(); return; }
+    void (async () => {
+      await autosave?.flush();
+      // Edits the queue could not save: say so and ask again instead of closing on them silently.
+      if (editable && dirty && (autosave?.stopped || lastSaveError !== null)) {
+        deps().showToast(stopped ? t('admin.social.composer.autosaveStopped') : errorText(lastSaveError), true);
+        arm();
+        return;
+      }
+      autosave?.stop(); closeOverlay(); changed();
+    })();
   });
   if (!editable) return;
   o.querySelectorAll<HTMLButtonElement>('[data-type]').forEach((b) => b.addEventListener('click', () => {
@@ -237,7 +252,7 @@ function renderMedia(): void {
   const box = overlay().querySelector<HTMLElement>('[data-media]')!;
   const dis = editable ? '' : 'disabled';
   box.innerHTML = state.media.map((m, i) => `<div class="w-40 border border-border rounded-lg p-1.5 text-xs">
-      <div class="h-32 rounded bg-gray-200 bg-center bg-cover" style="background-image:url('${esc(m.url)}')"></div>
+      <div class="h-32 rounded bg-gray-200 bg-center bg-cover" style="${bgImage(m.url)}"></div>
       <p class="text-gray-500 mt-1">${m.width && m.height ? `${m.width}x${m.height}` : ''}</p>
       <textarea data-alt="${i}" ${dis} rows="3" maxlength="1000" class="w-full mt-1 px-1.5 py-1 rounded border ${m.alt.trim() ? 'border-border' : 'border-red bg-red-tint'}" placeholder="${esc(t('admin.social.composer.alt'))}">${esc(m.alt)}</textarea>
       ${editable ? `<div class="flex gap-1 mt-1">
@@ -268,17 +283,19 @@ function renderMedia(): void {
     const files = [...((e.target as HTMLInputElement).files ?? [])].slice(0, CAROUSEL_MAX_ITEMS - state.media.length);
     const label = box.querySelector<HTMLElement>('[data-upload-label]');
     if (label) label.textContent = t('admin.social.composer.uploading');
+    const s = state;
     void (async () => {
       for (const file of files) {
         try {
           const up = await uploadSocialImage(file);
-          state.media.push({ key: up.key, url: up.url, alt: '', width: up.width, height: up.height });
+          s.media.push({ key: up.key, url: up.url, alt: '', width: up.width, height: up.height });
         } catch (err) {
           showToast(err instanceof UnsupportedImageType
             ? tf('admin.social.composer.wrongType', { name: file.name })
             : tf('admin.social.composer.uploadFailed', { detail: err instanceof Error ? err.message : '' }), true);
         }
       }
+      if (state !== s || !overlay().contains(box)) return;
       dirty = true; autosave?.touch(); renderMedia(); renderChecks(); renderPreviewPane();
     })();
   });
@@ -359,9 +376,9 @@ function renderActions(): void {
   const ready = problems().length === 0;
   const isDraftish = state.status === 'draft' || state.status === 'rejected';
   box.innerHTML = (isDraftish
-    ? button(t('admin.social.composer.saveDraft'), `data-save ${stopped ? 'disabled' : ''}`)
-      + `<button type="button" data-submit ${ready && !stopped ? '' : 'disabled'} class="px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40">${esc(t(me.isPublisher ? 'admin.social.action.schedule' : 'admin.social.action.submit'))}</button>`
-    : `<button type="button" data-save ${stopped ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40">${esc(t('admin.social.composer.save'))}</button>`)
+    ? button(t('admin.social.composer.saveDraft'), `data-save ${stopped || busy ? 'disabled' : ''}`)
+      + `<button type="button" data-submit ${ready && !stopped && !busy ? '' : 'disabled'} class="px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40">${esc(t(me.isPublisher ? 'admin.social.action.schedule' : 'admin.social.action.submit'))}</button>`
+    : `<button type="button" data-save ${stopped || busy ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40">${esc(t('admin.social.composer.save'))}</button>`)
     + `<span data-saved class="text-xs text-gray-500"></span>`;
   renderStatusLine();
   box.querySelector('[data-save]')?.addEventListener('click', () => void saveExplicit());
@@ -376,8 +393,6 @@ function renderActions(): void {
 async function persist(force: boolean): Promise<void> {
   if (autosave && autosave.stopped && !stopped) {
     autosave = new AutosaveQueue(saveDraft, 3000);
-    await saveDraft();
-    return;
   }
   if (autosave) {
     autosave.touch();
@@ -399,8 +414,12 @@ function noteStale(err: unknown): void {
   }
 }
 
+function setBusy(v: boolean): void { busy = v; renderActions(); }
+
 async function saveExplicit(): Promise<void> {
+  if (busy) return;
   const { t, showToast } = deps();
+  setBusy(true);
   try {
     await persist(true);
     showToast(t('admin.social.done.saved'));
@@ -408,11 +427,15 @@ async function saveExplicit(): Promise<void> {
   } catch (err) {
     noteStale(err);
     showToast(errorText(err), true);
+  } finally {
+    setBusy(false);
   }
 }
 
 async function submit(): Promise<void> {
+  if (busy) return;
   const { t, showToast } = deps();
+  setBusy(true);
   try {
     await persist(false);
     const r = await api.action(state.id!, 'submit', { revision: state.revision });
@@ -427,5 +450,7 @@ async function submit(): Promise<void> {
     }
     noteStale(err);
     showToast(errorText(err), true);
+  } finally {
+    setBusy(false);
   }
 }

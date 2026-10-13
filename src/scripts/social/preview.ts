@@ -10,11 +10,16 @@ function source(s: ComposerState) {
   return { caption: s.caption, captionOverrides: s.overrides, link: s.link.trim() || null };
 }
 
+/** A style attribute value: the URL is percent-encoded (no quote can survive) and quoted, then escaped for the attribute. */
+export function bgImage(url: string): string {
+  return esc(`background-image:url("${encodeURI(url)}")`);
+}
+
 export function renderPreview(s: ComposerState, which: PreviewKind): string {
   const { t } = deps();
   const img = s.media[0];
   const picture = (ratio: string) => img
-    ? `<div class="w-full ${ratio} bg-gray-200 bg-center bg-cover" style="background-image:url('${esc(img.url)}')" role="img" aria-label="${esc(img.alt)}"></div>`
+    ? `<div class="w-full ${ratio} bg-gray-200 bg-center bg-cover" style="${bgImage(img.url)}" role="img" aria-label="${esc(img.alt)}"></div>`
     : `<div class="w-full ${ratio} bg-gray-100 flex items-center justify-center text-xs text-gray-500">${esc(t('admin.social.composer.noImage'))}</div>`;
   if (which === 'story') {
     return `<div class="w-56 mx-auto rounded-xl overflow-hidden bg-gray-800">${picture('aspect-[9/16]')}</div>
