@@ -45,11 +45,19 @@ export function afterStep(step: PublishStep, t: TargetNow, now: number): Transit
         next: { ...t, status: 'published', remote_id: step.remoteId, permalink: step.permalink, published_at: now, last_error: null },
         notify: null, audit: 'social.target.published',
       };
-    case 'pending':
+    case 'pending': {
+      const first = t.first_tried_at ?? now;
+      if (now - first >= RETRY_WINDOW_SECONDS) {
+        return {
+          next: { ...t, status: 'failed', container_id: step.containerId, first_tried_at: first, last_error: 'processing: still processing after 2 hours' },
+          notify: 'failed', audit: 'social.target.failed',
+        };
+      }
       return {
-        next: { ...t, status: 'publishing', container_id: step.containerId, first_tried_at: t.first_tried_at ?? now },
+        next: { ...t, status: 'publishing', container_id: step.containerId, first_tried_at: first },
         notify: null, audit: t.container_id === null ? 'social.target.container' : null,
       };
+    }
     case 'retry': {
       const first = t.first_tried_at ?? now;
       const tried = { ...t, attempts: t.attempts + 1, first_tried_at: first, last_error: step.reason };

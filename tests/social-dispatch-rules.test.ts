@@ -76,3 +76,20 @@ test('reasons carry a key the panel can translate, then the provider text', () =
   assert.equal(stepFromError(400, { code: 190 }).kind, 'auth');
   assert.deepEqual(stepFromError(400, { code: 24, error_subcode: 2207008, message: 'gone' }), { kind: 'retry', reason: 'expired: gone', clearContainer: true });
 });
+
+test('a container still processing after the retry window fails the target instead of polling forever', () => {
+  const p = afterStep({ kind: 'pending', containerId: 'c1' }, { ...fresh, status: 'publishing', container_id: 'c1', first_tried_at: T0 }, T0 + RETRY_WINDOW_SECONDS);
+  assert.deepEqual([p.next.status, p.notify, p.audit], ['failed', 'failed', 'social.target.failed']);
+  assert.ok(p.next.last_error?.startsWith('processing: '));
+});
+
+test('spam and account restriction are terminal content errors, even with a transient code', () => {
+  assert.equal(classifyGraphError(400, { code: 4, error_subcode: 2207051 }), 'content');
+  assert.equal(graphReason(400, { code: 4, error_subcode: 2207051, message: 'spam' }), 'spam: spam');
+  assert.equal(classifyGraphError(400, { code: 25, error_subcode: 2207050 }), 'content');
+});
+
+test('HTTP 429 without a body is a rate limit', () => {
+  assert.equal(graphReason(429, null), 'rate_limited: HTTP 429');
+  assert.equal(classifyGraphError(429, null), 'transient');
+});

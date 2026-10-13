@@ -12,6 +12,7 @@ const PENDING_SUBCODES = new Set([2207027]);
 const EXPIRED_SUBCODES = new Set([2207006, 2207008, 2207020]);
 const TRANSIENT_SUBCODES = new Set([2207001, 2207003, 2207032, 2207042, 2207052]);
 const TRANSIENT_CODES = new Set([1, 2, -1, -2, 4, 9, 17, 32, 341, 368, 613]);
+const CONTENT_SUBCODES = new Set([2207050, 2207051]);
 const NOT_BUSINESS = /not an instagram business/i;
 
 export function classifyGraphError(httpStatus: number, err: GraphError | null): ErrorClass {
@@ -20,6 +21,7 @@ export function classifyGraphError(httpStatus: number, err: GraphError | null): 
   const sub = err.error_subcode ?? 0;
   if (code === 190 || (code >= 200 && code <= 299)) return 'auth';
   if (code === 10) return NOT_BUSINESS.test(err.message ?? '') ? 'content' : 'auth';
+  if (CONTENT_SUBCODES.has(sub)) return 'content';
   if (code === 9007 || PENDING_SUBCODES.has(sub)) return 'pending';
   if (EXPIRED_SUBCODES.has(sub)) return 'expired';
   if (TRANSIENT_SUBCODES.has(sub) || TRANSIENT_CODES.has(code)) return 'transient';
@@ -31,11 +33,14 @@ export function classifyGraphError(httpStatus: number, err: GraphError | null): 
 export const PUBLISH_REASON_KEYS = [
   'auth', 'needs_business', 'image_too_large', 'image_format', 'bad_ratio', 'caption_rejected', 'carousel_count',
   'account_restricted', 'spam', 'media_unreachable', 'rate_limited', 'daily_limit', 'expired', 'container_error',
-  'unavailable', 'not_available', 'unknown',
+  'unavailable', 'not_available', 'unknown', 'processing',
 ] as const;
 
 function reasonKey(httpStatus: number, err: GraphError | null): (typeof PUBLISH_REASON_KEYS)[number] {
-  if (!err) return httpStatus === 0 || httpStatus >= 500 ? 'unavailable' : 'unknown';
+  if (!err) {
+    if (httpStatus === 429) return 'rate_limited';
+    return httpStatus === 0 || httpStatus >= 500 ? 'unavailable' : 'unknown';
+  }
   const code = err.code ?? 0;
   const sub = err.error_subcode ?? 0;
   if (code === 10 && NOT_BUSINESS.test(err.message ?? '')) return 'needs_business';
