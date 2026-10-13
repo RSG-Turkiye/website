@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { setupSocial, call, KEYS } from './lib/social';
+import { setupSocial, call, settle, stubMail, KEYS } from './lib/social';
 import { onRequestPatch as patch } from '../functions/api/social/posts/[id]';
 import { onRequestPost as cancel } from '../functions/api/social/posts/[id]/cancel';
 import { targetStatements } from '../functions/_lib/social-posts';
@@ -41,4 +41,39 @@ test('re-writing targets keeps the ones already started and replaces the rest', 
   await raw.batch(targetStatements(raw, 'p1', 'n0', ['instagram', 'linkedin']));
   const rows = db.prepare(`SELECT platform, status FROM social_post_targets ORDER BY platform`).all();
   assert.deepEqual(rows.map((r) => ({ ...r })), [{ platform: 'instagram', status: 'published' }, { platform: 'linkedin', status: 'queued' }]);
+});
+
+function seedFailed(db: import('node:sqlite').DatabaseSync) {
+  db.prepare(`INSERT INTO social_posts (id, type, caption, media, platforms, scheduled_at, status, revision, write_nonce, created_by, approved_by, approved_at, event_mode_id, created_at, updated_at)
+              VALUES ('p1','image','Merhaba',?, '["instagram"]', ?, 'failed', 3, 'n0', 'ed', 'pub', 5, 'ev1', 1, 1)`)
+    .run(JSON.stringify([{ key: KEYS.feed, alt: 'Afiş' }]), AT);
+  db.prepare(`INSERT INTO social_post_targets (post_id, platform, status) VALUES ('p1', 'instagram', 'failed')`).run();
+}
+
+test('an editor fixing a failed post sends it back for approval: approval cleared, publishers mailed', async () => {
+  const mail = stubMail();
+  try {
+    const { env, db, waits } = setupSocial();
+    db.exec('PRAGMA foreign_keys = OFF');
+    seedFailed(db);
+    const res = await call(patch, 'PATCH', '/api/social/posts/p1', { env, as: 'ed', params: { id: 'p1' }, body, waits });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json() as { status: string }).status, 'pending_approval');
+    const row = db.prepare(`SELECT status, approved_by, approved_at, event_mode_id FROM social_posts WHERE id = 'p1'`).get() as Record<string, unknown>;
+    assert.deepEqual({ ...row }, { status: 'pending_approval', approved_by: null, approved_at: null, event_mode_id: null });
+    await settle(waits);
+    assert.deepEqual(mail.sent.map((m) => m.to).sort(), ['admin@example.org', 'pub@example.org']);
+    assert.match(mail.sent[0].subject, /Onay bekleyen gönderi/);
+  } finally { mail.restore(); }
+});
+
+test('a publisher fixing a failed post reschedules it with fresh queued targets', async () => {
+  const { env, db } = setupSocial();
+  db.exec('PRAGMA foreign_keys = OFF');
+  seedFailed(db);
+  const res = await call(patch, 'PATCH', '/api/social/posts/p1', { env, as: 'pub', params: { id: 'p1' }, body: { ...body, platforms: ['instagram', 'linkedin'] } });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json() as { status: string }).status, 'scheduled');
+  const rows = db.prepare(`SELECT platform, status FROM social_post_targets ORDER BY platform`).all();
+  assert.deepEqual(rows.map((r) => ({ ...r })), [{ platform: 'instagram', status: 'queued' }, { platform: 'linkedin', status: 'queued' }]);
 });

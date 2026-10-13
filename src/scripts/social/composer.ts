@@ -183,7 +183,7 @@ function render(): void {
   const title = !editable ? 'admin.social.composer.viewTitle' : state.id ? 'admin.social.composer.editTitle' : 'admin.social.composer.newTitle';
   const dis = editable ? '' : 'disabled';
   const field = 'mt-1 w-full px-3 py-2 rounded-xl border border-border text-sm text-navy';
-  const warn = editable && state.status === 'scheduled' && !me.isPublisher
+  const warn = editable && (state.status === 'scheduled' || state.status === 'failed') && !me.isPublisher
     ? `<p class="mb-3 p-2 rounded-lg bg-amber-50 text-amber-900 text-sm">${esc(t('admin.social.composer.backToApproval'))}</p>` : '';
   overlay().innerHTML = `<div class="max-w-6xl mx-auto my-6 bg-white rounded-2xl border border-border p-5">
     <div class="flex justify-between items-start gap-3 mb-3">

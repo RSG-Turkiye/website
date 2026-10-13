@@ -61,7 +61,7 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   const fields: Partial<Record<PostColumn, unknown>> = { ...draftColumns(next), status };
   if (status === 'scheduled' && event) fields.event_mode_id = event.id;
   // Approval belongs to the version that was approved; a re-submission starts clean.
-  if (row.status === 'scheduled' && status === 'pending_approval') Object.assign(fields, { approved_by: null, approved_at: null, event_mode_id: null });
+  if ((row.status === 'scheduled' || row.status === 'failed') && status === 'pending_approval') Object.assign(fields, { approved_by: null, approved_at: null, event_mode_id: null });
   if (row.status === 'rejected' && status === 'draft') fields.review_note = null;
   const targets = status === 'scheduled'
     ? targetStatements(env.DB, id, nonce, next.platforms)
@@ -75,7 +75,7 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
     now,
   );
   if (!done) return jsonResponse({ error: 'Someone changed this post in the meantime', code: 'post_changed' }, 409);
-  if (row.status === 'scheduled' && status === 'pending_approval') {
+  if ((row.status === 'scheduled' || row.status === 'failed') && status === 'pending_approval') {
     notifyLater(ctx, env, request, 'submitted', { ...row, caption: next.caption, scheduled_at: next.scheduledAt } as Parameters<typeof notifyLater>[4], 'publishers', { actor: (row as { author_email?: string | null }).author_email ?? '' });
   }
   return jsonResponse({ ok: true, revision: newRevision, status });
