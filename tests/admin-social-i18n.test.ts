@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { ui } from '../src/i18n/ui';
 import { PROBLEM_CODES, ERROR_CODES, STATUS_KEYS, TARGET_STATUS_KEYS } from '../src/scripts/social/messages';
-import { PUBLISH_REASON_KEYS } from '../functions/_lib/social/instagram-errors';
+import { PUBLISH_REASON_KEYS } from '../functions/_lib/social/reasons';
 
 const keys = (lang: 'en' | 'tr') => Object.keys(ui[lang]).filter((k) => k.startsWith('admin.social.'));
 const has = (k: string) => k in ui.en && k in ui.tr;

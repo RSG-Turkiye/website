@@ -66,7 +66,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       accountId: me.userId, accountName: me.username, accessToken: long.token, refreshToken: null,
       scopes: short.permissions.join(','), expiresAt: now + long.expiresIn, refreshExpiresAt: null,
     }, user.id, now);
-    const requeue = requeueWaitingStatement(env.DB);
+    const requeue = requeueWaitingStatement(env.DB, 'instagram');
     await runWithAudit(env.DB, [upsert, requeue], {
       userId: user.id, action: 'connection.connect', targetType: 'connection', targetId: 'instagram',
       details: { account: me.username, accountType: me.accountType, scopes: short.permissions },

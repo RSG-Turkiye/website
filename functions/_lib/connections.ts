@@ -27,6 +27,15 @@ export interface ConnectionRow {
 export type ConnectionStatus = 'connected' | 'expiring' | 'broken' | 'unused';
 
 /**
+ * When the connection stops working by itself, or null if it has no known end.
+ * A refresh token with no known end keeps the connection alive past each short
+ * access token (X: two hours; Gmail): only a refresh failure breaks it.
+ */
+export function connectionExpiry(row: Pick<ConnectionRow, 'refresh_expires_at' | 'refresh_token_enc' | 'expires_at'> | null): number | null {
+  return row?.refresh_expires_at ?? (row?.refresh_token_enc ? null : row?.expires_at ?? null);
+}
+
+/**
  * Derived, never stored, so it cannot go stale. An error newer than the last
  * success means broken; a later success clears it. `hasLegacyToken` covers
  * Gmail while its refresh token still lives in the GMAIL_REFRESH_TOKEN secret.
@@ -35,7 +44,7 @@ export function connectionStatus(row: ConnectionRow | null, now: number, hasLega
   const hasToken = Boolean(row?.refresh_token_enc || row?.access_token_enc) || hasLegacyToken;
   if (!hasToken) return 'unused';
   if (row?.last_error_at != null && (row.last_ok_at == null || row.last_error_at >= row.last_ok_at)) return 'broken';
-  const expiry = row?.refresh_expires_at ?? row?.expires_at ?? null;
+  const expiry = connectionExpiry(row);
   if (expiry !== null && expiry <= now) return 'broken';
   if (expiry !== null && expiry - now <= EXPIRING_WINDOW_SECONDS) return 'expiring';
   return 'connected';
@@ -90,17 +99,18 @@ export function disconnectStatement(db: D1Database, platform: Platform): D1Prepa
 }
 
 /**
- * Puts every Instagram target that was waiting for a working connection back
- * in the queue, with a clean retry clock (a long wait must not make its first
+ * Puts every target of one platform that was waiting for a working connection
+ * back in the queue, with a clean retry clock (a long wait must not make its first
  * transient error fatal) and no confirmation (a target that waited days is
  * held by the lateness rule again unless a publisher confirms it). Used by a
- * reconnect, a token refresh, and each tick that finds the token usable.
+ * reconnect, a token refresh, and each tick that finds the platform's token
+ * usable.
  */
-export function requeueWaitingStatement(db: D1Database): D1PreparedStatement {
+export function requeueWaitingStatement(db: D1Database, platform: Exclude<Platform, 'gmail'>): D1PreparedStatement {
   return db.prepare(
     `UPDATE social_post_targets SET status = 'queued', claimed_at = NULL, first_tried_at = NULL, attempts = 0, last_error = NULL, confirmed_at = NULL
-      WHERE platform = 'instagram' AND status = 'waiting_connection'`,
-  );
+      WHERE platform = ? AND status = 'waiting_connection'`,
+  ).bind(platform);
 }
 
 export async function markOk(db: D1Database, platform: Platform, now: number): Promise<void> {

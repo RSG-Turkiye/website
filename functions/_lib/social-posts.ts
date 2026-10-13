@@ -5,8 +5,8 @@
  * record of image sizes.
  */
 import {
-  ALL_PLATFORMS, ENABLED_PLATFORMS, POST_TYPES, CAROUSEL_MIN_ITEMS, CAROUSEL_MAX_ITEMS, MAX_ALT_LENGTH,
-  ratioOk, captionProblems, type PostType, type SocialPlatform,
+  ALL_PLATFORMS, ENABLED_PLATFORMS, POST_TYPES, CAROUSEL_MIN_ITEMS, CAROUSEL_MAX_ITEMS, MAX_ALT_LENGTH, X_MAX_IMAGES,
+  ratioOk, captionProblems, captionFor, type PostType, type SocialPlatform,
 } from './social-limits';
 import { validateScheduledAt } from './schedule';
 import { IMAGE_KEY } from './images';
@@ -177,6 +177,7 @@ export function readinessProblems(post: DraftInput, dims: Map<string, { width: n
   const n = post.media.length;
   const countOk = post.type === 'carousel' ? n >= CAROUSEL_MIN_ITEMS && n <= CAROUSEL_MAX_ITEMS : n === 1;
   if (!countOk) problems.push({ code: 'media_count', actual: n });
+  if (post.platforms.includes('x') && n > X_MAX_IMAGES) problems.push({ code: 'x_too_many_images', platform: 'x', limit: X_MAX_IMAGES, actual: n });
 
   post.media.forEach((m, index) => {
     if (m.alt.trim() === '') problems.push({ code: 'missing_alt', index });
@@ -185,6 +186,9 @@ export function readinessProblems(post: DraftInput, dims: Map<string, { width: n
     if (!d) problems.push({ code: 'unknown_media', index });
     else if (!ratioOk(post.type, d.width, d.height)) problems.push({ code: 'bad_ratio', index });
   });
+
+  // X recovery re-sends the create and relies on X's duplicate check; with no text there is nothing to call a duplicate.
+  if (post.platforms.includes('x') && post.type !== 'story' && captionFor(post, 'x').trim() === '') problems.push({ code: 'x_needs_text', platform: 'x' });
 
   const enabled = post.platforms.filter((p) => ENABLED_PLATFORMS.includes(p));
   for (const p of captionProblems(post, enabled, post.type)) problems.push(p);

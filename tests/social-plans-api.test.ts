@@ -25,7 +25,7 @@ test('bad plans are refused with a code', async () => {
     [{ ...valid, title: 'x'.repeat(121) }, 'invalid_title'],
     [{ ...valid, scheduledAt: NOW - 10 }, 'schedule_in_past'],
     [{ ...valid, platforms: [] }, 'invalid_platforms'],
-    [{ ...valid, platforms: ['x'] }, 'invalid_platforms'],
+    [{ ...valid, platforms: ['mastodon'] }, 'invalid_platforms'],
     [{ ...valid, postType: 'reel' }, 'invalid_post_type'],
     [{ ...valid, assigneeId: 'mem' }, 'invalid_assignee'],
     [{ ...valid, note: 'n'.repeat(501) }, 'invalid_note'],
