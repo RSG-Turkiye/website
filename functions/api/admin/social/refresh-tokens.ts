@@ -6,6 +6,7 @@ import { seal } from '../../../_lib/token-vault';
 import { appendAudit } from '../../../_lib/audit';
 import { refreshInstagramToken, needsRefresh } from '../../../_lib/social/instagram';
 import { refreshLinkedinToken } from '../../../_lib/social/linkedin';
+import { refreshXOnUse } from '../../../_lib/social/x';
 import { notificationText, notifyEach, adminEmails } from '../../../_lib/social-notify';
 
 /**
@@ -99,6 +100,25 @@ async function refreshLinkedin(env: Env, now: number, panelUrl: string): Promise
   return refreshed ? 'refreshed' : 'reminded';
 }
 
+/**
+ * X: renew the access token every day, even when it is still fresh, so the
+ * refresh token stays in use on days nothing is posted. A refusal marks X
+ * broken (refreshXOnUse does that) and mails the admins.
+ */
+async function keepXAlive(env: Env, now: number, panelUrl: string): Promise<'refreshed' | 'none'> {
+  const row = await getConnection(env.DB, 'x');
+  if (!row?.refresh_token_enc || !row.account_id || connectionStatus(row, now) === 'broken') return 'none';
+  const u = await refreshXOnUse(env, row, now);
+  if (u.ok) {
+    await requeueWaitingStatement(env.DB, 'x').run();
+    return 'refreshed';
+  }
+  if (u.why === 'broken' && u.justBroke) {
+    await notifyEach(env, await adminEmails(env.DB), notificationText('connection_broken', { label: 'X', when: null, note: u.reason ?? '', panelUrl, platform: 'X' }));
+  }
+  return 'none';
+}
+
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!safeEqual(request.headers.get('X-Archive-Secret'), env.SYMPOSIUM_ARCHIVE_SECRET)) {
     return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
@@ -108,5 +128,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // One platform's failure must not hide another's result or fail the cron call.
   const refreshed = await refreshInstagram(env, now, panelUrl).catch((err) => { console.error('instagram refresh failed', err); return false; });
   const linkedin = await refreshLinkedin(env, now, panelUrl).catch((err) => { console.error('linkedin refresh failed', err); return 'none' as const; });
-  return jsonResponse({ ok: true, refreshed, linkedin, x: 'none' });
+  const x = await keepXAlive(env, now, panelUrl).catch((err) => { console.error('x refresh failed', err); return 'none' as const; });
+  return jsonResponse({ ok: true, refreshed, linkedin, x });
 };

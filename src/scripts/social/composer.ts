@@ -255,7 +255,7 @@ function render(): void {
       </div>
       <div class="lg:sticky lg:top-4 self-start">
         <p class="text-xs font-semibold text-navy mb-2">${esc(t('admin.social.composer.preview'))}</p>
-        <div class="flex gap-1 mb-2">${(['instagram', 'story', 'linkedin'] as const).map((k) => `<button type="button" data-pv="${k}" class="flex-1 px-2 py-1 rounded-lg border text-xs ${previewKind === k ? 'border-navy text-navy font-semibold' : 'border-border text-gray-500'}">${esc(t(`admin.social.composer.preview${k === 'instagram' ? 'Instagram' : k === 'story' ? 'Story' : 'Linkedin'}`))}</button>`).join('')}</div>
+        <div class="flex gap-1 mb-2">${(['instagram', 'story', 'linkedin', 'x'] as const).map((k) => `<button type="button" data-pv="${k}" class="flex-1 px-2 py-1 rounded-lg border text-xs ${previewKind === k ? 'border-navy text-navy font-semibold' : 'border-border text-gray-500'}">${esc(t(`admin.social.composer.preview${k === 'instagram' ? 'Instagram' : k === 'story' ? 'Story' : k === 'linkedin' ? 'Linkedin' : 'X'}`))}</button>`).join('')}</div>
         <div data-preview></div>
       </div>
     </div></div>`;

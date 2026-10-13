@@ -1,4 +1,4 @@
-import { PLATFORMS, connectionStatus, type ConnectionRow, type Platform } from './connections';
+import { PLATFORMS, connectionStatus, connectionExpiry, type ConnectionRow, type Platform } from './connections';
 
 /** The mail cron ticks every minute and writes dispatch_runs every tick, held or not. */
 export const SCHEDULER_STALE_SECONDS = 10 * 60;
@@ -22,7 +22,7 @@ export function healthIssues(input: {
     if (status === 'broken' || status === 'expiring') {
       issues.push({
         kind: 'connection', platform, status,
-        expiresAt: row?.refresh_expires_at ?? row?.expires_at ?? null,
+        expiresAt: connectionExpiry(row),
         lastError: row?.last_error ?? null,
       });
     }

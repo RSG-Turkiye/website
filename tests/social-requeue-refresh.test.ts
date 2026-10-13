@@ -245,3 +245,21 @@ test('one platform throwing does not hide the other: LinkedIn lookup fails, Inst
     assert.deepEqual(await res.json(), { ok: true, refreshed: true, linkedin: 'none', x: 'none' });
   } finally { g.restore(); console.error = quiet; }
 });
+
+test('daily: a connected X account is renewed so its refresh token never goes idle', async () => {
+  const { env } = world('scheduled', 'queued');
+  const now = Math.floor(Date.now() / 1000);
+  await (await connectionUpsert(env as never, 'x', { accountId: '77', accountName: 'rsgturkey', accessToken: 'a', refreshToken: 'r', scopes: 'x', expiresAt: now - 60, refreshExpiresAt: null }, 'admin', now - 86400)).run();
+  const g = stubHttp(['api.x.com'], () => Response.json({ access_token: 'a2', refresh_token: 'r2', expires_in: 7200 }));
+  try { assert.equal((await (await cron(env)).json() as Record<string, unknown>).x, 'refreshed'); } finally { g.restore(); }
+});
+
+test('daily: no X connection reports none, and a throwing X renewal does not fail the call', async () => {
+  const { env } = world('scheduled', 'queued');
+  assert.equal((await (await cron(env)).json() as Record<string, unknown>).x, 'none');
+  const now = Math.floor(Date.now() / 1000);
+  await (await connectionUpsert(env as never, 'x', { accountId: '77', accountName: 'rsgturkey', accessToken: 'a', refreshToken: 'r', scopes: 'x', expiresAt: now - 60, refreshExpiresAt: null }, 'admin', now - 86400)).run();
+  const g = stubHttp(['api.x.com'], () => { throw new Error('boom'); });
+  const log = console.error; console.error = () => {};
+  try { const res = await cron(env); assert.equal(res.status, 200); assert.equal((await res.json() as Record<string, unknown>).x, 'none'); } finally { g.restore(); console.error = log; }
+});

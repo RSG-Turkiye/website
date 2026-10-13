@@ -84,3 +84,14 @@ test('health before the migration answers with no issues instead of failing', as
   assert.equal(res.status, 200);
   assert.deepEqual((await res.json() as { issues: unknown[] }).issues, []);
 });
+
+test('an X-shaped row (refresh token, two-hour access expiry, no refresh end) reports no expiry', async () => {
+  const { env } = setup();
+  const now = Math.floor(Date.now() / 1000);
+  await (await connectionUpsert(env, 'x', { accountId: '77', accountName: 'rsgturkey', accessToken: 'a', refreshToken: 'r', scopes: 'x', expiresAt: now + 7200, refreshExpiresAt: null }, 'u1', now)).run();
+  const res = await call(list.onRequestGet, 'GET', '/api/admin/connections', env);
+  const { connections } = await res.json() as { connections: { platform: string; status: string; expiresAt: number | null }[] };
+  const x = connections.find((c) => c.platform === 'x')!;
+  assert.equal(x.status, 'connected');
+  assert.equal(x.expiresAt, null);
+});
