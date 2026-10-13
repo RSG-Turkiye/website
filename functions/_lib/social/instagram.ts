@@ -174,7 +174,11 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
   const { igUserId, token, post, state } = input;
   if (state.containerId) {
     const s = await graph('GET', state.containerId, token, { fields: 'status_code,status' });
-    if (!s.ok) return fromFailure(s);
+    if (!s.ok) {
+      // An expired-class error on the read is not proof nothing was published: keep the container.
+      if (classifyGraphError(s.status, s.error) === 'expired') return { kind: 'retry', reason: graphReason(s.status, s.error) };
+      return fromFailure(s);
+    }
     switch (s.data.status_code) {
       case 'PUBLISHED':
         return { kind: 'done', remoteId: null, permalink: null, notes: ['recovered_published_container'] };

@@ -149,3 +149,9 @@ test('carousel: once alt_text is refused, later children skip it, and the note a
   assert.equal(calls.filter((c) => c.params.has('is_carousel_item')).length, 4);
   assert.equal(calls.slice(1, 4).some((c) => c.params.has('alt_text')), false);
 });
+
+test('a status read that fails with an expired-class error keeps the container', async () => {
+  const { result } = await withGraph((c) => (c.path === '/c1' ? err(24, 2207008, 'gone') : undefined), () => step(single, 'c1'));
+  assert.equal(result.kind, 'retry');
+  assert.equal('clearContainer' in result, false);
+});
