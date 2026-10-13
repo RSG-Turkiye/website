@@ -34,7 +34,7 @@ export interface ComposerState {
   time: string;
 }
 
-const LOCKED: PostStatus[] = ['published', 'partially_published', 'failed', 'cancelled'];
+const LOCKED: PostStatus[] = ['published', 'partially_published', 'cancelled'];
 const OVERRIDE_ORDER: Platform[] = ['instagram', 'linkedin'];
 
 /** Pure: what the API receives. Overrides in a fixed order and only when written, so autosave logs no phantom changes. */

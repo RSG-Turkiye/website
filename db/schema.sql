@@ -223,6 +223,16 @@
 --    without the others, /api/social/* answers 500.
 --
 
+-- 8e. Instagram publishing (phase 3a). Two columns on existing tables and an
+--    index. ALTER TABLE ADD COLUMN is NOT idempotent -- run each once:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE social_post_targets ADD COLUMN confirmed_at INTEGER"
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE dispatch_runs ADD COLUMN kind TEXT NOT NULL DEFAULT 'mail'"
+--      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS idx_social_targets_status ON social_post_targets(status)"
+--    Run them BEFORE deploying: the dispatcher writes confirmed_at and the
+--    banner reads dispatch_runs.kind (it falls back to the old query, but the
+--    social tick's run rows would fail to insert).
+--
+
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   google_id     TEXT UNIQUE NOT NULL,
@@ -521,7 +531,8 @@ CREATE TABLE IF NOT EXISTS dispatch_runs (
   already_sent  INTEGER,
   held          TEXT,
   error         TEXT,
-  phase         TEXT
+  phase         TEXT,
+  kind          TEXT NOT NULL DEFAULT 'mail'
 );
 CREATE INDEX IF NOT EXISTS idx_dispatch_runs_started ON dispatch_runs(started_at);
 
@@ -825,8 +836,10 @@ CREATE TABLE IF NOT EXISTS social_post_targets (
   remote_id       TEXT,
   permalink       TEXT,
   published_at    INTEGER,
+  confirmed_at    INTEGER,
   PRIMARY KEY (post_id, platform)
 );
+CREATE INDEX IF NOT EXISTS idx_social_targets_status ON social_post_targets(status);
 
 -- A time-boxed window in which named editors' stories skip approval (spec §1).
 CREATE TABLE IF NOT EXISTS social_event_modes (

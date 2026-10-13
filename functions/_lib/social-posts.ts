@@ -13,8 +13,8 @@ import { IMAGE_KEY } from './images';
 
 export type PostStatus =
   | 'draft' | 'pending_approval' | 'scheduled' | 'published' | 'partially_published' | 'failed' | 'rejected' | 'cancelled';
-/** Nobody edits these: they record what already happened, or what was abandoned. */
-export const LOCKED_STATUSES: PostStatus[] = ['published', 'partially_published', 'failed', 'cancelled'];
+/** Nobody edits these: they record what already happened, or what was abandoned. A failed post can be fixed and retried. */
+export const LOCKED_STATUSES: PostStatus[] = ['published', 'partially_published', 'cancelled'];
 
 const MAX_CAPTION_STORED = 5000;
 const MAX_LINK = 2048;
@@ -138,6 +138,7 @@ export function readinessProblems(post: DraftInput, dims: Map<string, { width: n
 
   post.media.forEach((m, index) => {
     if (m.alt.trim() === '') problems.push({ code: 'missing_alt', index });
+    if (!m.key.endsWith('.jpg')) problems.push({ code: 'not_jpeg', index });
     const d = dims.get(m.key);
     if (!d) problems.push({ code: 'unknown_media', index });
     else if (!ratioOk(post.type, d.width, d.height)) problems.push({ code: 'bad_ratio', index });
@@ -173,12 +174,14 @@ export function canCancelPost(actor: Actor, post: Owned): boolean {
 /**
  * An editor changing a post that was approved sends it back for approval;
  * a publisher's change, or a story inside an event window that covers the
- * editor, keeps it scheduled. A rejected post becomes a draft again.
+ * editor, keeps it scheduled. A rejected post becomes a draft again. A failed
+ * post is fixed like a scheduled one.
  */
 export function statusAfterEdit(actor: Actor, current: PostStatus, storyCovered: boolean): PostStatus {
   if (current === 'rejected') return 'draft';
-  if (current === 'scheduled' && !actor.isPublisher && !storyCovered) return 'pending_approval';
-  return current;
+  const from = current === 'failed' ? 'scheduled' : current;
+  if (from === 'scheduled' && !actor.isPublisher && !storyCovered) return 'pending_approval';
+  return from;
 }
 
 export function statusOnSubmit(actor: Actor, storyCovered: boolean): 'scheduled' | 'pending_approval' {
@@ -267,17 +270,30 @@ export function updatePostGuarded(
   ).bind(...cols.map((c) => fields[c]), nonce, now, id, revision, ...(statusIn ?? []));
 }
 
-/** Replaces a post's queued targets (null: removes them), only if this write's guarded update landed. */
+/**
+ * Replaces a post's not-yet-started targets (null: removes them), only if
+ * this write's guarded update landed. A target already publishing or
+ * published is left alone: deleting it and queueing it again would publish
+ * the post twice.
+ */
 export function targetStatements(db: D1Database, postId: string, nonce: string, platforms: SocialPlatform[] | null): D1PreparedStatement[] {
   const statements = [
-    db.prepare(`DELETE FROM social_post_targets WHERE post_id = ? AND ${POST_PROOF}`).bind(postId, postId, nonce),
+    db.prepare(`DELETE FROM social_post_targets WHERE post_id = ? AND status NOT IN ('publishing','published') AND ${POST_PROOF}`)
+      .bind(postId, postId, nonce),
   ];
   for (const platform of platforms ?? []) {
     statements.push(db.prepare(
-      `INSERT INTO social_post_targets (post_id, platform, status) SELECT ?, ?, 'queued' WHERE ${POST_PROOF}`,
+      `INSERT OR IGNORE INTO social_post_targets (post_id, platform, status) SELECT ?, ?, 'queued' WHERE ${POST_PROOF}`,
     ).bind(postId, platform, postId, nonce));
   }
   return statements;
+}
+
+/** How many of a post's targets have started publishing; an edit or cancel after that would publish twice or leave a stray post. */
+export async function startedTargets(db: D1Database, postId: string): Promise<number> {
+  const r = await db.prepare(`SELECT COUNT(*) AS n FROM social_post_targets WHERE post_id = ? AND status IN ('publishing','published')`)
+    .bind(postId).first<{ n: number }>();
+  return r?.n ?? 0;
 }
 
 /** Frees the plan slot a cancelled post was filling. */

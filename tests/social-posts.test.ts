@@ -97,7 +97,7 @@ test('who may edit, delete and cancel', () => {
   assert.equal(canEditPost(editor, own('scheduled')), true);
   assert.equal(canEditPost(editor, other('draft')), false);
   assert.equal(canEditPost(publisher, other('scheduled')), true);
-  for (const s of ['published', 'partially_published', 'failed', 'cancelled']) assert.equal(canEditPost(publisher, other(s)), false, s);
+  for (const s of ['published', 'partially_published', 'cancelled']) assert.equal(canEditPost(publisher, other(s)), false, s);
   assert.equal(canDeletePost(editor, own('draft')), true);
   assert.equal(canDeletePost(editor, own('pending_approval')), false);
   assert.equal(canDeletePost(publisher, other('rejected')), true);
@@ -161,4 +161,17 @@ test('updatePostGuarded refuses a column outside the allow-list and an undefined
 
 test('parseDraft refuses a scheduledAt beyond the safe integers', () => {
   assert.deepEqual(parseDraft({ type: 'image', scheduledAt: 2 ** 60 }), { ok: false, code: 'invalid_schedule' });
+});
+
+test('readiness refuses a non-JPEG image: Instagram publishes JPEG only', () => {
+  const png = '33333333-3333-4333-8333-333333333333.png';
+  const d = new Map([[png, { width: 1080, height: 1350 }]]);
+  assert.deepEqual(readinessProblems(ready({ media: [{ key: png, alt: 'x' }] }), d, NOW).map((p) => [p.code, p.index]), [['not_jpeg', 0]]);
+});
+
+test('a failed post can be fixed: it is no longer locked, and an editor\'s edit goes back for approval', () => {
+  assert.equal(canEditPost({ id: 'ed', isPublisher: false }, { status: 'failed', created_by: 'ed' }), true);
+  assert.equal(canEditPost({ id: 'ed', isPublisher: false }, { status: 'partially_published', created_by: 'ed' }), false);
+  assert.equal(statusAfterEdit({ id: 'pub', isPublisher: true }, 'failed', false), 'scheduled');
+  assert.equal(statusAfterEdit({ id: 'ed', isPublisher: false }, 'failed', false), 'pending_approval');
 });

@@ -3,12 +3,12 @@ import { ApiError, type Problem } from './api';
 import { deps } from './context';
 
 export const PROBLEM_CODES = [
-  'no_platform', 'platform_unavailable', 'story_instagram_only', 'media_count', 'missing_alt', 'unknown_media', 'bad_ratio',
+  'no_platform', 'platform_unavailable', 'story_instagram_only', 'media_count', 'missing_alt', 'unknown_media', 'bad_ratio', 'not_jpeg',
   'caption_too_long', 'too_many_hashtags', 'no_schedule', 'schedule_in_past', 'schedule_too_far', 'invalid_schedule_time',
 ] as const;
 
 export const ERROR_CODES = [
-  'post_changed', 'not_ready', 'not_pending', 'not_found', 'not_allowed', 'not_submittable', 'not_deletable', 'not_cancellable',
+  'post_changed', 'not_ready', 'not_pending', 'not_found', 'not_allowed', 'not_submittable', 'not_deletable', 'not_cancellable', 'publishing_started',
   'plan_taken', 'plan_has_post', 'already_closed', 'invalid_plan', 'invalid_title', 'invalid_platforms', 'invalid_post_type',
   'invalid_assignee', 'invalid_note', 'invalid_name', 'invalid_window', 'window_too_long', 'invalid_editors', 'invalid_range',
   'schedule_in_past', 'schedule_too_far', 'invalid_schedule_time', 'invalid_type', 'invalid_caption', 'invalid_overrides',

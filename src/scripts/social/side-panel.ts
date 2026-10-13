@@ -11,7 +11,7 @@ import { openComposer } from './composer';
 const side = () => document.getElementById('socialSide')!;
 const when = (e: number | null) => (e ? `${dayKey(e)} ${timeOf(e)}` : '-');
 const row = (label: string, value: string) => `<p class="text-xs text-gray-500 mt-2">${esc(label)}</p><p class="text-sm text-navy">${value}</p>`;
-const LOCKED = ['published', 'partially_published', 'failed', 'cancelled'];
+const LOCKED = ['published', 'partially_published', 'cancelled'];
 const STALE_CODES = ['post_changed', 'not_found', 'not_pending', 'plan_taken', 'plan_has_post'];
 
 /** What the panel shows, so it can be redrawn from fresh data after an edit elsewhere. */

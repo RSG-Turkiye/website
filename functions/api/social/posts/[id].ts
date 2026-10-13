@@ -3,7 +3,7 @@ import { jsonResponse } from '../../../_lib/auth';
 import { socialGate, readBody, malformed, nowSeconds } from '../../../_lib/social-api';
 import {
   parseDraft, draftColumns, rowToDraft, canEditPost, canDeletePost, statusAfterEdit, readinessProblems, mediaDims,
-  updatePostGuarded, targetStatements, POST_PROOF, type PostColumn,
+  updatePostGuarded, targetStatements, startedTargets, POST_PROOF, type PostColumn,
 } from '../../../_lib/social-posts';
 import { coveringEvent } from '../../../_lib/social-events';
 import { loadPost } from '../../../_lib/social-post-read';
@@ -29,6 +29,7 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   if (!found) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   const { row } = found;
   if (!canEditPost(gate.actor, row)) return jsonResponse({ error: 'You cannot edit this post', code: 'not_allowed' }, 403);
+  if (await startedTargets(env.DB, id)) return jsonResponse({ error: 'Publishing has started', code: 'publishing_started' }, 409);
   const body = await readBody(request);
   if (!body) return malformed();
   const revision = revisionOf(body);
