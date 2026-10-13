@@ -631,7 +631,9 @@ Do these in order. Steps 1 to 3 happen **before** the pull request is merged.
    ```
 2. **Set the two Pages secrets** (`TOKEN_ENC_KEY` already exists). The social
    tick reuses `MAIL_SYNC_SECRET` and the daily refresh reuses
-   `SYMPOSIUM_ARCHIVE_SECRET`, so nothing else is new:
+   `SYMPOSIUM_ARCHIVE_SECRET`, so there are no other new secrets. There are two
+   new Worker vars, `SOCIAL_DISPATCH_URL` and `SOCIAL_REFRESH_URL`; they are in
+   the Workers' `wrangler.toml` and arrive with the redeploy in step 6:
 
    ```
    npx wrangler pages secret put INSTAGRAM_APP_ID --project-name website
@@ -640,7 +642,14 @@ Do these in order. Steps 1 to 3 happen **before** the pull request is merged.
 3. **Run migration 8e**, the three commands at the top of `db/schema.sql`.
    Each `ALTER TABLE` runs once.
 4. **Merge** and wait for the Pages deploy to finish.
-5. **Redeploy both Workers** after the deploy, so they pick up
+5. **Clear out old scheduled posts.** Open the Scheduled list (calendar or
+   board) and cancel or reschedule every test or stale post before the next
+   step. From the first tick, every scheduled post with Instagram goes out, to
+   whichever account is connected at the time. Each one already past its time
+   is held instead, and emails the publishers once with a "needs a decision"
+   mail. Do the test-account run in step 7 when no real post is due, or with
+   the real posts unscheduled until it is done.
+6. **Redeploy both Workers** after the deploy, so they pick up
    `SOCIAL_DISPATCH_URL` (`workers/mail-cron`) and `SOCIAL_REFRESH_URL`
    (`workers/symposium-cron`):
 
@@ -649,9 +658,9 @@ Do these in order. Steps 1 to 3 happen **before** the pull request is merged.
    cd workers/symposium-cron && npx wrangler deploy
    ```
 
-   Between the Pages deploy and the `mail-cron` redeploy the banner's
-   scheduler line shows "(expected)".
-6. **Test first.** Connect a **test** Business account added as an Instagram
+   The banner's scheduler line will show until the `mail-cron` Worker is
+   redeployed; mail is still going out.
+7. **Test first.** Connect a **test** Business account added as an Instagram
    Tester and publish one of each type to it. Only then connect @rsgturkey.
 
 Connections > Instagram can show these error codes after a failed connect:
@@ -663,19 +672,27 @@ Connections > Instagram can show these error codes after a failed connect:
 - A tick runs every minute (`mail-cron`, authenticated with
   `MAIL_SYNC_SECRET`). It picks up due targets: first it creates the Instagram
   container, then publishes it.
-- **Lateness.** A target that was never tried and is more than 2 hours past
-  its time is not sent. It waits as `needs_confirmation` until a publisher
-  presses **Publish anyway**. A target already retrying is not held to this: it
-  runs out its own 2-hour retry window.
-- **Retries.** A failed attempt is retried for 2 hours. A target still
-  "processing" at Instagram after 2 hours fails with a sentence saying so.
+- **Lateness.** A queued target more than 2 hours past its time is not sent.
+  That includes one put back in the queue after waiting for the connection,
+  even if it kept its container. It waits as `needs_confirmation` until a
+  publisher presses **Publish anyway**. A target already retrying is not held
+  to this: it runs out its own 2-hour retry window.
+- **Retries.** A failed attempt is retried every minute for 2 hours. A target
+  still retrying when that window ends fails, and the author and publishers
+  get a mail. A target still "processing" at Instagram after 2 hours fails with
+  a sentence saying so.
 - **Never twice.** The Instagram container is kept between attempts. Only a
-  successful status read of `EXPIRED` recreates it; any other failure keeps it,
-  so a post is never published twice.
+  successful status read of `EXPIRED` recreates it, and only `ERROR` lets a
+  failed target drop it; any other failure keeps it, so a post is never
+  published twice. While a target holds a container, or a tick is working on
+  it, the post cannot be edited or cancelled (`publishing_started`): use
+  **Retry** (or **Publish anyway** for a late one), which re-reads the
+  container.
 - **Retry and Publish anyway** are publisher actions, in the side panel and on
   the Published tab. They keep the container and re-read its status.
 - **`waiting_connection`.** If the connection is broken, targets wait. A
-  successful token refresh or a reconnect puts them back in the queue.
+  successful token refresh or a reconnect puts them back in the queue, and so
+  does any tick that finds the connection working.
 - **Stories need a Business account.** A Creator token is refused with
   "(#10) The user is not an Instagram Business". Feed posts and carousels work
   with Creator.
