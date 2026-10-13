@@ -69,3 +69,51 @@ export async function uploadImage(file: File): Promise<string> {
   }
   return ((await res.json()) as { url: string }).url;
 }
+
+export interface SocialUpload { url: string; key: string; width: number; height: number }
+
+/** The picker's accept list and the check behind it: JPEG and PNG only. */
+export const SOCIAL_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+/** Higher than QUALITY: PNG posters carry text that 0.85 visibly blurs. */
+const SOCIAL_QUALITY = 0.92;
+
+export class UnsupportedImageType extends Error {}
+
+/**
+ * For social posts: always JPEG (Instagram accepts nothing else), longest
+ * side at most 2000px, transparent areas filled white so a PNG logo does not
+ * turn black. Returns the server-measured size along with the key; the
+ * composer's ratio check uses it and the server re-checks on submit.
+ */
+export async function uploadSocialImage(file: File): Promise<SocialUpload> {
+  if (!SOCIAL_IMAGE_TYPES.includes(file.type)) throw new UnsupportedImageType(file.type || file.name);
+  let body: Blob = file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const jpeg = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', SOCIAL_QUALITY));
+      if (jpeg && jpeg.size > 0) body = jpeg;
+    }
+    bitmap.close();
+  } catch {
+    // Not decodable in this browser: send it as is and let the server judge.
+  }
+  const res = await fetch('/api/blog-submissions/upload-image', {
+    method: 'POST',
+    headers: { 'Content-Type': body.type || file.type },
+    body,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(detail?.error ?? `Upload failed (${res.status})`);
+  }
+  return (await res.json()) as SocialUpload;
+}

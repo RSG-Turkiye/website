@@ -26,6 +26,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminNav from './AdminNav.astro';
 import SymposiumPane from './panes/SymposiumPane.astro';
+import SocialPane from './panes/SocialPane.astro';
 import { useTranslations } from '../../i18n/ui';
 
 interface Props {
@@ -186,6 +187,7 @@ const t = useTranslations(lang);
         </div>
 
         <SymposiumPane lang={lang} />
+        <SocialPane lang={lang} />
 
         <!-- Send as RSG -->
         <div id="rsgMailSection">

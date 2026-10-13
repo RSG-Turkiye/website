@@ -558,8 +558,9 @@ approve, reject and cancel, event modes, editors).
 
 ### What does not exist yet
 
-Nothing is published to Instagram or LinkedIn yet (phase 3), and the panel
-screens come in plan 2b. Until then the API is the only way in.
+Nothing is published to Instagram or LinkedIn yet (phase 3). The phone quick
+story (phase 3), `/links` (phase 4) and LinkedIn connect (phase 5) are still
+to come.
 
 Caption length is counted conservatively on purpose: an emoji outside the
 basic plane counts as two characters, so a post that passes here will not be
@@ -573,6 +574,24 @@ cut off by the platform.
   and open event windows. Admins count as publishers.
 - An editor's story skips approval only inside an open event window that
   names them.
+
+### Using the panel
+
+The panel is at `/admin` → Social media. Editors, publishers and admins see
+it; nobody else does.
+
+- **Calendar and board.** A plan slot is a dashed box. An empty slot due
+  within two days turns red.
+- **Composer.** Alt text is required on every image. Images must be JPEG or
+  PNG and are stored as JPEG. Counters are shown per platform and count
+  conservatively (UTF-16 units). The checklist uses the server's own
+  readiness rule, so it matches the server exactly. Drafts autosave. Autosave
+  stops if someone else changes the post, and pauses after any failed save
+  until you press Save.
+- **Editors** see only their own posts as editable; others' posts are
+  read-only. Editing a scheduled post as an editor sends it back to approval.
+- **Publishers** approve, send back with a note, cancel, and open or close
+  event windows.
 
 ### Before deploying
 
