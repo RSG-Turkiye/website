@@ -4,6 +4,8 @@
  * and live responses do not always agree on which one carries the meaning.
  */
 import type { PublishStep } from './types';
+import { PUBLISH_REASON_KEYS } from './reasons';
+export { PUBLISH_REASON_KEYS };
 
 export interface GraphError { code?: number; error_subcode?: number; message?: string; type?: string }
 export type ErrorClass = 'auth' | 'pending' | 'expired' | 'content' | 'transient';
@@ -28,13 +30,6 @@ export function classifyGraphError(httpStatus: number, err: GraphError | null): 
   if (httpStatus >= 500) return 'transient';
   return 'content';
 }
-
-/** Keys the panel turns into a sentence (admin.social.publishError.<key>). */
-export const PUBLISH_REASON_KEYS = [
-  'auth', 'needs_business', 'image_too_large', 'image_format', 'bad_ratio', 'caption_rejected', 'carousel_count',
-  'account_restricted', 'spam', 'media_unreachable', 'rate_limited', 'daily_limit', 'expired', 'container_error',
-  'unavailable', 'not_available', 'unknown', 'processing',
-] as const;
 
 function reasonKey(httpStatus: number, err: GraphError | null): (typeof PUBLISH_REASON_KEYS)[number] {
   if (!err) {

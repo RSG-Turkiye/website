@@ -7,8 +7,7 @@ export type SocialPlatform = 'instagram' | 'linkedin' | 'x';
 export type PostType = 'image' | 'carousel' | 'story';
 
 export const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'linkedin', 'x'];
-/** X is modelled but not offered until its own phase. */
-export const ENABLED_PLATFORMS: SocialPlatform[] = ['instagram', 'linkedin'];
+export const ENABLED_PLATFORMS: SocialPlatform[] = ALL_PLATFORMS;
 export const POST_TYPES: PostType[] = ['image', 'carousel', 'story'];
 
 export const CAPTION_LIMITS: Record<SocialPlatform, number> = { instagram: 2200, linkedin: 3000, x: 280 };
@@ -16,6 +15,11 @@ export const INSTAGRAM_MAX_HASHTAGS = 30;
 export const CAROUSEL_MIN_ITEMS = 2;
 export const CAROUSEL_MAX_ITEMS = 10;
 export const MAX_ALT_LENGTH = 1000;
+/** X takes up to four photos in one post. */
+export const X_MAX_IMAGES = 4;
+/** X shortens every link to t.co and counts it as 23 characters, however long it is. */
+export const X_URL_LENGTH = 23;
+const URL_PATTERN = /https?:\/\/\S+/g;
 /** Instagram never makes caption links clickable; the link goes to /links instead. */
 export const LINK_IN_BIO_LINE = '🔗 Link profilde';
 
@@ -32,6 +36,12 @@ const RATIO_TOLERANCE = 0.01;
  */
 export function countChars(text: string): number {
   return text.length;
+}
+
+/** Characters as the platform counts them: countChars, except that X weighs each link as X_URL_LENGTH. */
+export function countFor(platform: SocialPlatform, text: string): number {
+  if (platform !== 'x') return countChars(text);
+  return countChars(text.replace(URL_PATTERN, 'x'.repeat(X_URL_LENGTH)));
 }
 
 export function countHashtags(text: string): number {
@@ -73,7 +83,7 @@ export function captionProblems(src: CaptionSource, platforms: SocialPlatform[],
   const problems: CaptionProblem[] = [];
   for (const platform of platforms) {
     const text = captionFor(src, platform);
-    const chars = countChars(text);
+    const chars = countFor(platform, text);
     if (chars > CAPTION_LIMITS[platform]) {
       problems.push({ code: 'caption_too_long', platform, limit: CAPTION_LIMITS[platform], actual: chars });
     }

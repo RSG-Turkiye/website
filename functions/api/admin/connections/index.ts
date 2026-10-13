@@ -1,6 +1,6 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse } from '../../../_lib/auth';
-import { PLATFORMS, connectionStatus, type ConnectionRow } from '../../../_lib/connections';
+import { PLATFORMS, connectionStatus, connectionExpiry, type ConnectionRow } from '../../../_lib/connections';
 import { appendAudit } from '../../../_lib/audit';
 
 type Row = ConnectionRow & { connected_by_email: string | null; connected_by_name: string | null };
@@ -30,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       connectedAt: row?.connected_at ?? null,
       lastOkAt: row?.last_ok_at ?? null,
       lastError: row?.last_error ?? null,
-      expiresAt: row?.refresh_expires_at ?? row?.expires_at ?? null,
+      expiresAt: connectionExpiry(row),
       usesLegacySecret: platform === 'gmail' && legacyGmail && !hasStoredToken,
       hasStoredToken,
     };

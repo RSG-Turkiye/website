@@ -113,3 +113,12 @@ test('the scheduler line appears when either tick has gone quiet', () => {
   assert.deepEqual(healthIssues({ ...base, lastRunAt: now - 60, lastSocialRunAt: null }), [{ kind: 'scheduler', lastRunAt: now - 60 }]);
   assert.deepEqual(healthIssues({ ...base, lastRunAt: now - 60, lastSocialRunAt: undefined }), [], 'before migration 8e only mail is measured');
 });
+
+test('with a refresh token and no known refresh expiry, a short-lived access token does not make the connection look broken', () => {
+  const row = {
+    platform: 'x', account_id: '1', account_name: 'rsg', access_token_enc: 'a', refresh_token_enc: 'r', scopes: '',
+    expires_at: 1000, refresh_expires_at: null, connected_by: 'admin', connected_at: 1, last_ok_at: 1, last_error: null, last_error_at: null,
+  } as const;
+  assert.equal(connectionStatus(row as never, 5000), 'connected');
+  assert.equal(connectionStatus({ ...row, refresh_token_enc: null } as never, 5000), 'broken', 'without one, the access expiry is the expiry');
+});

@@ -89,7 +89,7 @@ export function targetLines(p: Post): string {
   return `<div class="mt-3"><p class="text-xs text-gray-500">${esc(t('admin.social.side.targets'))}</p>${p.targets.map((x) => `
     <p class="text-sm text-navy mt-1"><strong>${esc(t(`admin.connections.platform.${x.platform}`))}</strong>: ${esc(t(`admin.social.target.${x.status}`))}
       ${x.permalink?.startsWith('https://') ? ` · <a href="${esc(x.permalink)}" target="_blank" rel="noopener" class="underline">${esc(t('admin.social.side.viewPost'))}</a>` : ''}</p>
-    ${x.lastError && x.status !== 'published' ? `<p class="text-xs text-red">${esc(publishErrorText(x.lastError))}</p>${splitPublishError(x.lastError).detail ? `<p class="text-xs text-gray-500 break-words">${esc(splitPublishError(x.lastError).detail)}</p>` : ''}` : ''}`).join('')}</div>`;
+    ${x.lastError && x.status !== 'published' ? `<p class="text-xs text-red">${esc(publishErrorText(x.lastError, x.platform))}</p>${splitPublishError(x.lastError).detail ? `<p class="text-xs text-gray-500 break-words">${esc(splitPublishError(x.lastError).detail)}</p>` : ''}` : ''}`).join('')}</div>`;
 }
 
 function renderPost(p: Post): void {

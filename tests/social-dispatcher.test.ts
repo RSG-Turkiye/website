@@ -135,15 +135,27 @@ test('transient errors retry each tick and fail after the window', async () => {
   assert.equal(target(db).status, 'failed');
 });
 
-test('LinkedIn is skipped until phase 5; the Instagram half still makes the post published', async () => {
+// Stands in a publisher for LinkedIn so these tests exercise the dispatcher alone.
+async function withLinkedinPublisher<T>(run: () => Promise<T>): Promise<T> {
+  const { PUBLISHERS } = await import('../functions/_lib/social/registry');
+  const before = PUBLISHERS.linkedin;
+  PUBLISHERS.linkedin = async () => ({ kind: 'fail', reason: 'unknown: the stand-in publisher must not be reached' });
+  try { return await run(); } finally { PUBLISHERS.linkedin = before; }
+}
+
+test('a platform never connected (LinkedIn awaiting approval) is skipped; Instagram alone makes the post published', async () => {
   const { env, db } = world({ platforms: ['instagram', 'linkedin'] });
   await connect(env);
   const g = stubGraph(graphFlow(['FINISHED']));
   try {
-    await dispatchSocial(env, T0 + 30, ORIGIN);
-    await dispatchSocial(env, T0 + 90, ORIGIN);
+    await withLinkedinPublisher(async () => {
+      await dispatchSocial(env, T0 + 30, ORIGIN);
+      await dispatchSocial(env, T0 + 90, ORIGIN);
+    });
   } finally { g.restore(); }
-  assert.equal((db.prepare(`SELECT status, last_error FROM social_post_targets WHERE platform = 'linkedin'`).get() as { status: string }).status, 'skipped');
+  const li = db.prepare(`SELECT status, last_error FROM social_post_targets WHERE platform = 'linkedin'`).get() as { status: string; last_error: string };
+  assert.equal(li.status, 'skipped');
+  assert.match(li.last_error, /^not_connected: LinkedIn/);
   assert.equal(postStatus(db), 'published');
 });
 
@@ -303,4 +315,49 @@ test('waiting targets stay put while there is no usable connection', async () =>
   await dispatchSocial(env, T0 + 30, ORIGIN);
   assert.equal(target(db).status, 'waiting_connection');
   assert.equal(actions(db).includes('social.target.requeued'), false);
+});
+
+test('a connected platform whose connection broke waits; Instagram is not held by it', async () => {
+  const { env, db } = world({ platforms: ['instagram', 'linkedin'] });
+  await connect(env);
+  const li = await connectionUpsert(env as never, 'linkedin', {
+    accountId: '1234', accountName: 'RSG', accessToken: 'li-tok', refreshToken: null, scopes: 'x', expiresAt: T0 + 50 * 86400, refreshExpiresAt: null,
+  }, 'admin', T0 - 86400);
+  await li.run();
+  db.prepare(`UPDATE platform_connections SET last_error = 'revoked', last_error_at = ? WHERE platform = 'linkedin'`).run(T0);
+  const g = stubGraph(graphFlow(['FINISHED']));
+  try {
+    await withLinkedinPublisher(async () => {
+      await dispatchSocial(env, T0 + 30, ORIGIN);
+      await dispatchSocial(env, T0 + 90, ORIGIN);
+    });
+  } finally { g.restore(); }
+  assert.equal((db.prepare(`SELECT status FROM social_post_targets WHERE platform = 'linkedin'`).get() as { status: string }).status, 'waiting_connection');
+  assert.equal(target(db).status, 'published');
+  assert.equal(postStatus(db), 'scheduled', 'the post settles when LinkedIn does');
+});
+
+test('an adapter checkpoint is written under the lease and survives into the target written after the step', async () => {
+  const { PUBLISHERS } = await import('../functions/_lib/social/registry');
+  const before = PUBLISHERS.instagram;
+  const seen: string[] = [];
+  PUBLISHERS.instagram = async (i) => {
+    seen.push(String(await i.checkpoint('{"attempt":1}')));
+    return { kind: 'retry', reason: 'unavailable: lost response' };
+  };
+  const { env, db } = world();
+  await connect(env);
+  try { await dispatchSocial(env, T0 + 30, ORIGIN); } finally { PUBLISHERS.instagram = before; }
+  assert.deepEqual(seen, ['true']);
+  assert.equal(target(db).container_id, '{"attempt":1}', 'a retry keeps what the checkpoint recorded');
+});
+
+test('a waiting target of one platform is healed only by that platform\'s working connection', async () => {
+  const { env, db } = world({ platforms: ['instagram', 'linkedin'] });
+  await connect(env);
+  db.prepare(`UPDATE social_post_targets SET status = 'waiting_connection'`).run();
+  db.prepare(`UPDATE social_posts SET scheduled_at = ?`).run(T0 + 3600);
+  await dispatchSocial(env, T0 + 30, ORIGIN);
+  const rows = db.prepare(`SELECT platform, status FROM social_post_targets ORDER BY platform`).all() as { platform: string; status: string }[];
+  assert.deepEqual(rows.map((r) => [r.platform, r.status]), [['instagram', 'queued'], ['linkedin', 'waiting_connection']]);
 });

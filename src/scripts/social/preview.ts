@@ -1,10 +1,10 @@
 /** What the post will look like on each platform (spec §2: live preview). */
-import { captionFor } from '../../../functions/_lib/social-limits';
+import { captionFor, countFor, CAPTION_LIMITS } from '../../../functions/_lib/social-limits';
 import type { ComposerState } from './composer';
 import { deps } from './context';
 import { esc } from './ui';
 
-export type PreviewKind = 'instagram' | 'story' | 'linkedin';
+export type PreviewKind = 'instagram' | 'story' | 'linkedin' | 'x';
 
 function source(s: ComposerState) {
   return { caption: s.caption, captionOverrides: s.overrides, link: s.link.trim() || null };
@@ -24,6 +24,15 @@ export function renderPreview(s: ComposerState, which: PreviewKind): string {
   if (which === 'story') {
     return `<div class="w-56 mx-auto rounded-xl overflow-hidden bg-gray-800">${picture('aspect-[9/16]')}</div>
       <p class="text-xs text-gray-500 mt-2">${esc(t('admin.social.composer.storyNoCaption'))}</p>`;
+  }
+  if (which === 'x') {
+    const text = captionFor(source(s), 'x');
+    const grid = s.media.slice(0, 4).map((m) => `<div class="aspect-square bg-gray-200 bg-center bg-cover" style="${bgImage(m.url)}" role="img" aria-label="${esc(m.alt)}"></div>`).join('');
+    return `<div class="rounded-2xl border border-gray-200 bg-white text-sm p-3">
+      <div class="font-semibold text-navy">RSG-Türkiye <span class="font-normal text-gray-500">@rsgturkey</span></div>
+      <div class="mt-1 whitespace-pre-wrap break-words">${esc(text)}</div>
+      ${grid ? `<div class="mt-2 grid ${s.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-0.5 rounded-xl overflow-hidden">${grid}</div>` : picture('aspect-[16/9]')}
+      <p class="text-xs text-gray-500 mt-1">${esc(`${countFor('x', text)} / ${CAPTION_LIMITS.x}`)}</p></div>`;
   }
   if (which === 'linkedin') {
     const text = captionFor(source(s), 'linkedin');

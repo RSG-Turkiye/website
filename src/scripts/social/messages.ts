@@ -1,11 +1,11 @@
 /** Server codes to sentences. Every code here has an admin.social.* key in both languages (tests/admin-social-i18n.test.ts). */
-import { ApiError, type Problem, type Post } from './api';
+import { ApiError, type Problem, type Post, type Platform } from './api';
 import { deps } from './context';
-import { PUBLISH_REASON_KEYS } from '../../../functions/_lib/social/instagram-errors';
+import { PUBLISH_REASON_KEYS } from '../../../functions/_lib/social/reasons';
 
 export const PROBLEM_CODES = [
   'no_platform', 'platform_unavailable', 'story_instagram_only', 'media_count', 'missing_alt', 'unknown_media', 'bad_ratio', 'not_jpeg',
-  'caption_too_long', 'too_many_hashtags', 'no_schedule', 'schedule_in_past', 'schedule_too_far', 'invalid_schedule_time',
+  'caption_too_long', 'too_many_hashtags', 'x_too_many_images', 'x_needs_text', 'no_schedule', 'schedule_in_past', 'schedule_too_far', 'invalid_schedule_time',
 ] as const;
 
 export const ERROR_CODES = [
@@ -44,10 +44,12 @@ export function splitPublishError(lastError: string): { key: string; detail: str
   return { key: lastError.slice(0, at), detail: lastError.slice(at + 2).trim() };
 }
 
-export function publishErrorText(lastError: string | null): string {
+export function publishErrorText(lastError: string | null, platform: Platform): string {
   if (!lastError) return '';
+  const { t, tf } = deps();
   const { key } = splitPublishError(lastError);
-  return deps().t(`admin.social.publishError.${(PUBLISH_REASON_KEYS as readonly string[]).includes(key) ? key : 'unknown'}`);
+  const known = (PUBLISH_REASON_KEYS as readonly string[]).includes(key) ? key : 'unknown';
+  return tf(`admin.social.publishError.${known}`, { platform: t(`admin.connections.platform.${platform}`) });
 }
 
 /** The label key of the requeue button for this post, or null when there is nothing to requeue. Held posts get "Publish anyway", failed ones "Retry". */

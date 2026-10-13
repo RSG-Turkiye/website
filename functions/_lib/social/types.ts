@@ -16,7 +16,25 @@ export type PublishStep =
 export interface PostForPlatform {
   type: 'image' | 'carousel' | 'story';
   caption: string;
-  media: { key: string; url: string; alt: string }[];
+  /** url: public address (Instagram fetches it). load: the bytes from R2 (LinkedIn and X upload them). */
+  media: { key: string; url: string; alt: string; load?: () => Promise<Uint8Array | null> }[];
 }
 
 export interface TargetState { containerId: string | null }
+
+export interface PublishInput {
+  account: { id: string; name: string | null };
+  token: string;
+  post: PostForPlatform;
+  state: TargetState;
+  now: number;
+  /**
+   * Records containerId on the target now, under this tick's lease, before
+   * the adapter makes a call that creates something. True when written; false
+   * when the lease was lost (make no further calls then). A step that follows
+   * a successful checkpoint is applied on top of it, so a retry keeps it.
+   */
+  checkpoint: (containerId: string) => Promise<boolean>;
+}
+
+export type PublishStepFn = (input: PublishInput) => Promise<PublishStep>;
