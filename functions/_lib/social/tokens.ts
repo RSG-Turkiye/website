@@ -7,6 +7,7 @@
 import type { ConnectionRow } from '../connections';
 import { getConnection, connectionStatus, readAccessToken } from '../connections';
 import type { SocialPlatform } from '../social-limits';
+import { refreshXOnUse } from './x';
 
 export type TokenEnv = { DB: D1Database; TOKEN_ENC_KEY?: string; X_CLIENT_ID?: string; X_CLIENT_SECRET?: string };
 
@@ -21,6 +22,9 @@ export type Usable =
 export type Refresher = (env: TokenEnv, row: ConnectionRow, now: number) => Promise<Usable>;
 
 export const REFRESH_ON_USE: Partial<Record<SocialPlatform, { within: number; refresh: Refresher }>> = {};
+
+/** X access tokens last two hours; renew one that has under five minutes left. */
+REFRESH_ON_USE.x = { within: 300, refresh: refreshXOnUse };
 
 export async function usableToken(env: TokenEnv, platform: SocialPlatform, now: number): Promise<Usable> {
   const row = await getConnection(env.DB, platform);

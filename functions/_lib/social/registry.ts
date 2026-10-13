@@ -7,6 +7,7 @@ import type { SocialPlatform } from '../social-limits';
 import type { PublishStepFn } from './types';
 import { instagramPublishStep } from './instagram';
 import { linkedinPublishStep } from './linkedin';
+import { xPublishStep } from './x';
 
 export const PLATFORM_LABEL: Record<SocialPlatform, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', x: 'X' };
 
@@ -20,4 +21,5 @@ export const SKIP_WHEN_UNCONNECTED: ReadonlySet<SocialPlatform> = new Set<Social
 export const PUBLISHERS: Partial<Record<SocialPlatform, PublishStepFn>> = {
   instagram: (i) => instagramPublishStep({ igUserId: i.account.id, token: i.token, post: i.post, state: i.state }),
   linkedin: linkedinPublishStep,
+  x: xPublishStep,
 };
