@@ -76,4 +76,41 @@ test('callback refuses a token missing a scope', async () => {
   let res: Response;
   try { res = await call(callback, 'GET', `/api/admin/connections/linkedin/callback?code=abc&state=${state}`, { env, as: 'admin' }); } finally { g.restore(); }
   assert.match(res!.headers.get('Location')!, /connection_error=missing_scope/);
+  assert.equal(await getConnection((env as { DB: D1Database }).DB, 'linkedin'), null);
+});
+
+const DBOF = (env: unknown) => (env as { DB: D1Database }).DB;
+const stateFor = (env: unknown, user: string) => createState(DBOF(env), 'linkedin', user, '/admin', Math.floor(Date.now() / 1000));
+async function finish(env: unknown, as: string, query: string, stub = linkedin()) {
+  try { return (await call(callback, 'GET', `/api/admin/connections/linkedin/callback?${query}`, { env, as })).headers.get('Location')!; } finally { stub.restore(); }
+}
+
+test('callback: a state created for another user, or a non-admin session, is refused and stores nothing', async () => {
+  const { env } = world();
+  assert.match(await finish(env, 'admin', `code=abc&state=${await stateFor(env, 'pub')}`), /connection_error=not_admin/);
+  assert.match(await finish(env, 'pub', `code=abc&state=${await stateFor(env, 'pub')}`), /connection_error=not_admin/);
+  assert.match(await finish(env, 'ed', `code=abc&state=${await stateFor(env, 'ed')}`), /connection_error=not_admin/);
+  assert.equal(await getConnection(DBOF(env), 'linkedin'), null);
+});
+
+test('callback: a state works once; a replayed or unknown state is bad_state', async () => {
+  const { env } = world();
+  const state = await stateFor(env, 'admin');
+  assert.match(await finish(env, 'admin', `code=abc&state=${state}`), /connected=linkedin$/);
+  assert.match(await finish(env, 'admin', `code=abc&state=${state}`), /connection_error=bad_state/);
+  assert.match(await finish(env, 'admin', 'code=abc&state=never-issued'), /connection_error=bad_state/);
+  assert.match(await finish(env, 'admin', 'code=abc'), /connection_error=bad_state/);
+});
+
+test('callback: the member declining at LinkedIn is cancelled, and nothing is stored', async () => {
+  const { env } = world();
+  assert.match(await finish(env, 'admin', `error=access_denied&state=${await stateFor(env, 'admin')}`), /connection_error=cancelled/);
+  assert.equal(await getConnection(DBOF(env), 'linkedin'), null);
+});
+
+test('callback: a failed token exchange is token_exchange, and nothing is stored', async () => {
+  const { env } = world();
+  const failing = stubHttp(HOSTS, (c) => (c.url.pathname === '/oauth/v2/accessToken' ? new Response('bad', { status: 400 }) : undefined));
+  assert.match(await finish(env, 'admin', `code=abc&state=${await stateFor(env, 'admin')}`, failing), /connection_error=token_exchange/);
+  assert.equal(await getConnection(DBOF(env), 'linkedin'), null);
 });

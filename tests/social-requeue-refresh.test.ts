@@ -138,3 +138,110 @@ test('daily: a LinkedIn token with a refresh token is renewed inside 20 days; wi
   db.prepare(`UPDATE platform_connections SET expires_at = ? WHERE platform = 'linkedin'`).run(now + 9 * 86400);
   assert.equal((await (await cron(env)).json() as Record<string, unknown>).linkedin, 'none', 'no mail on other days');
 });
+
+// LinkedIn failure paths and reminders
+const D = 86400;
+async function liConnected(env: unknown, expiresIn: number, refreshEndsIn: number | null) {
+  const now = Math.floor(Date.now() / 1000);
+  await (await connectionUpsert(env as never, 'linkedin', {
+    accountId: '424242', accountName: 'RSG', accessToken: 'old', refreshToken: refreshEndsIn === null ? null : 'li-refresh', scopes: 'x',
+    expiresAt: now + expiresIn, refreshExpiresAt: refreshEndsIn === null ? null : now + refreshEndsIn,
+  }, 'admin', now - 50 * D)).run();
+}
+const liStub = (status: number) => stubHttp(['www.linkedin.com'], (c) => (c.url.pathname === '/oauth/v2/accessToken'
+  ? (status === 200 ? Response.json({ access_token: 'new', expires_in: 5184000, refresh_token: 'li-refresh', refresh_token_expires_in: 25920000 }) : new Response('no', { status }))
+  : undefined));
+const liRow = (db: import('node:sqlite').DatabaseSync) => db.prepare(`SELECT last_error_at FROM platform_connections WHERE platform = 'linkedin'`).get() as { last_error_at: number | null };
+const body = async (env: unknown) => await (await cron(env)).json() as Record<string, unknown>;
+const liMails = (re: RegExp) => mail.sent.filter((m) => /LinkedIn/.test(m.subject) && re.test(m.subject)).length;
+
+test('LinkedIn: a refused refresh marks it broken and mails admins once, not again while still broken', async () => {
+  const { env, db } = world('scheduled', 'queued');
+  await liConnected(env, 10 * D, 300 * D);
+  const g = liStub(400);
+  try {
+    assert.equal((await body(env)).linkedin, 'none');
+    assert.ok(liRow(db).last_error_at);
+    const broken = liMails(/koptu/);
+    assert.ok(broken >= 1);
+    await body(env);
+    assert.equal(liMails(/koptu/), broken, 'no second mail');
+  } finally { g.restore(); }
+});
+
+test('LinkedIn: a transient failure with time left leaves it alone; with under 3 days left it marks broken', async () => {
+  const a = world('scheduled', 'queued');
+  await liConnected(a.env, 10 * D, 300 * D);
+  let g = liStub(503);
+  try { await body(a.env); } finally { g.restore(); }
+  assert.equal(liRow(a.db).last_error_at, null);
+  assert.equal(mail.sent.length, 0);
+  const b = world('scheduled', 'queued');
+  await liConnected(b.env, 2 * D, 300 * D);
+  g = liStub(503);
+  try { await body(b.env); } finally { g.restore(); }
+  assert.ok(liRow(b.db).last_error_at);
+  assert.ok(liMails(/koptu/) >= 1);
+});
+
+test('LinkedIn: an unreadable stored refresh token is treated as a refusal', async () => {
+  const { env, db } = world('scheduled', 'queued');
+  await liConnected(env, 10 * D, 300 * D);
+  db.prepare(`UPDATE platform_connections SET refresh_token_enc = 'garbage' WHERE platform = 'linkedin'`).run();
+  assert.equal((await body(env)).linkedin, 'none');
+  assert.ok(liRow(db).last_error_at);
+  assert.ok(liMails(/koptu/) >= 1);
+});
+
+test('LinkedIn: a successful refresh re-queues LinkedIn targets waiting on the connection', async () => {
+  const { env, db } = world('scheduled', 'queued');
+  db.prepare(`INSERT INTO social_post_targets (post_id, platform, status, attempts, first_tried_at, last_error) VALUES ('p1','linkedin','waiting_connection', 3, 50, 'x')`).run();
+  await liConnected(env, 10 * D, 300 * D);
+  const g = liStub(200);
+  try { assert.equal((await body(env)).linkedin, 'refreshed'); } finally { g.restore(); }
+  const r = db.prepare(`SELECT status, attempts, first_tried_at, last_error FROM social_post_targets WHERE platform = 'linkedin'`).get() as Record<string, unknown>;
+  assert.deepEqual({ ...r }, { status: 'queued', attempts: 0, first_tried_at: null, last_error: null });
+});
+
+test('LinkedIn: without a refresh token, reminders go out on days 14, 7, 3 and 1 only', async () => {
+  for (const [days, mailed] of [[14, true], [7, true], [3, true], [1, true], [10, false], [2, false]] as const) {
+    const { env } = world('scheduled', 'queued');
+    mail.sent.length = 0;
+    await liConnected(env, days * D - 60, null);
+    assert.equal((await body(env)).linkedin, mailed ? 'reminded' : 'none', `day ${days}`);
+    assert.equal(mail.sent.some((m) => /LinkedIn/.test(m.subject)), mailed, `mail on day ${days}`);
+  }
+});
+
+test('LinkedIn: a refresh-token reminder day that coincides with an access-token refresh still mails', async () => {
+  const { env } = world('scheduled', 'queued');
+  await liConnected(env, 10 * D, 7 * D - 60);
+  // the provider keeps the old refresh-token lifetime (no new refresh_token_expires_in)
+  const g = stubHttp(['www.linkedin.com'], (c) => (c.url.pathname === '/oauth/v2/accessToken' ? Response.json({ access_token: 'new', expires_in: 5184000 }) : undefined));
+  try { assert.equal((await body(env)).linkedin, 'refreshed'); } finally { g.restore(); }
+  assert.ok(liMails(/doluyor/) >= 1, 'the reminder was mailed');
+});
+
+test('one platform throwing does not hide the other: LinkedIn lookup fails, Instagram result still reported', async () => {
+  const { env } = world('scheduled', 'queued');
+  const now = Math.floor(Date.now() / 1000);
+  await connected(env, now - 45 * 86400, now + 10 * 86400);
+  const real = (env as { DB: D1Database }).DB;
+  const failing = {
+    ...real,
+    prepare: (sql: string) => {
+      const st = real.prepare(sql);
+      return sql.startsWith('SELECT * FROM platform_connections WHERE platform')
+        ? { ...st, bind: (...a: unknown[]) => { if (a[0] === 'linkedin') throw new Error('d1 down'); return st.bind(...a); } }
+        : st;
+    },
+    batch: real.batch.bind(real),
+  };
+  const g = stubGraph((c) => (c.path === '/refresh_access_token' ? Response.json({ access_token: 'new', token_type: 'bearer', expires_in: 5184000 }) : undefined));
+  const quiet = console.error; console.error = () => {};
+  try {
+    const res = await cron({ ...(env as object), DB: failing });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true, refreshed: true, linkedin: 'none', x: 'none' });
+  } finally { g.restore(); console.error = quiet; }
+});

@@ -61,6 +61,8 @@ async function refreshLinkedin(env: Env, now: number, panelUrl: string): Promise
   const mailAdmins = async (kind: 'connection_expiring' | 'connection_broken', note: string) =>
     notifyEach(env, await adminEmails(env.DB), notificationText(kind, { label: 'LinkedIn', when: null, note, panelUrl, platform: 'LinkedIn' }));
 
+  let refreshed = false;
+  let refreshEnd = row.refresh_expires_at;
   if (row.refresh_token_enc && row.expires_at - now < LINKEDIN_REFRESH_BEFORE) {
     let refresh: string | null = null;
     try { refresh = await readRefreshToken(env, row); } catch { refresh = null; }
@@ -74,24 +76,27 @@ async function refreshLinkedin(env: Env, now: number, panelUrl: string): Promise
       ).bind(access, newRefresh, now + result.expiresIn, result.refreshExpiresIn ? now + result.refreshExpiresIn : null, now).run();
       await requeueWaitingStatement(env.DB, 'linkedin').run();
       await appendAudit(env.DB, { userId: null, action: 'connection.refresh', targetType: 'connection', targetId: 'linkedin', details: { expiresAt: now + result.expiresIn } }, now);
-      return 'refreshed';
+      refreshed = true;
+      if (result.refreshExpiresIn) refreshEnd = now + result.refreshExpiresIn;
+    } else {
+      await appendAudit(env.DB, { userId: null, action: 'connection.refresh_failed', targetType: 'connection', targetId: 'linkedin', details: { status: result.status, reason: result.reason, transient: !result.auth } }, now);
+      if (result.auth || row.expires_at - now < 3 * 86400) {
+        const wasBroken = connectionStatus(row, now) === 'broken';
+        await markBroken(env.DB, 'linkedin', `refresh: ${result.reason}`, now);
+        if (!wasBroken) await mailAdmins('connection_broken', result.reason);
+        return 'none';
+      }
     }
-    await appendAudit(env.DB, { userId: null, action: 'connection.refresh_failed', targetType: 'connection', targetId: 'linkedin', details: { status: result.status, reason: result.reason, transient: !result.auth } }, now);
-    if (result.auth || row.expires_at - now < 3 * 86400) {
-      const wasBroken = connectionStatus(row, now) === 'broken';
-      await markBroken(env.DB, 'linkedin', `refresh: ${result.reason}`, now);
-      if (!wasBroken) await mailAdmins('connection_broken', result.reason);
-    }
-    return 'none';
   }
 
-  const end = row.refresh_token_enc ? row.refresh_expires_at : row.expires_at;
-  if (end === null) return 'none';
+  // Independent of the refresh above: a refresh-token end that falls on a reminder day still mails.
+  const end = row.refresh_token_enc ? refreshEnd : row.expires_at;
+  if (end === null) return refreshed ? 'refreshed' : 'none';
   const daysLeft = Math.ceil((end - now) / 86400);
-  if (!REMIND_DAYS.includes(daysLeft)) return 'none';
+  if (!REMIND_DAYS.includes(daysLeft)) return refreshed ? 'refreshed' : 'none';
   await mailAdmins('connection_expiring', String(daysLeft));
   await appendAudit(env.DB, { userId: null, action: 'connection.expiry_reminder', targetType: 'connection', targetId: 'linkedin', details: { daysLeft } }, now);
-  return 'reminded';
+  return refreshed ? 'refreshed' : 'reminded';
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -100,7 +105,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
   const now = Math.floor(Date.now() / 1000);
   const panelUrl = `${new URL(request.url).origin}/admin`;
-  const refreshed = await refreshInstagram(env, now, panelUrl);
-  const linkedin = await refreshLinkedin(env, now, panelUrl);
+  // One platform's failure must not hide another's result or fail the cron call.
+  const refreshed = await refreshInstagram(env, now, panelUrl).catch((err) => { console.error('instagram refresh failed', err); return false; });
+  const linkedin = await refreshLinkedin(env, now, panelUrl).catch((err) => { console.error('linkedin refresh failed', err); return 'none' as const; });
   return jsonResponse({ ok: true, refreshed, linkedin, x: 'none' });
 };
