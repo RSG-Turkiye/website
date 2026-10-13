@@ -6,7 +6,7 @@
  */
 import {
   ALL_PLATFORMS, ENABLED_PLATFORMS, POST_TYPES, CAROUSEL_MIN_ITEMS, CAROUSEL_MAX_ITEMS, MAX_ALT_LENGTH, X_MAX_IMAGES,
-  ratioOk, captionProblems, type PostType, type SocialPlatform,
+  ratioOk, captionProblems, captionFor, type PostType, type SocialPlatform,
 } from './social-limits';
 import { validateScheduledAt } from './schedule';
 import { IMAGE_KEY } from './images';
@@ -186,6 +186,9 @@ export function readinessProblems(post: DraftInput, dims: Map<string, { width: n
     if (!d) problems.push({ code: 'unknown_media', index });
     else if (!ratioOk(post.type, d.width, d.height)) problems.push({ code: 'bad_ratio', index });
   });
+
+  // X recovery re-sends the create and relies on X's duplicate check; with no text there is nothing to call a duplicate.
+  if (post.platforms.includes('x') && post.type !== 'story' && captionFor(post, 'x').trim() === '') problems.push({ code: 'x_needs_text', platform: 'x' });
 
   const enabled = post.platforms.filter((p) => ENABLED_PLATFORMS.includes(p));
   for (const p of captionProblems(post, enabled, post.type)) problems.push(p);

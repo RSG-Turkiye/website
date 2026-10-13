@@ -135,7 +135,7 @@ test('transient errors retry each tick and fail after the window', async () => {
   assert.equal(target(db).status, 'failed');
 });
 
-// LinkedIn gets its real publisher in Task 3; until then these tests stand one in, so they test the dispatcher alone.
+// Stands in a publisher for LinkedIn so these tests exercise the dispatcher alone.
 async function withLinkedinPublisher<T>(run: () => Promise<T>): Promise<T> {
   const { PUBLISHERS } = await import('../functions/_lib/social/registry');
   const before = PUBLISHERS.linkedin;

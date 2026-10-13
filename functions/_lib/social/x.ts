@@ -117,6 +117,8 @@ export async function refreshXOnUse(env: TokenEnv, row: ConnectionRow, now: numb
   if (current && current.refresh_token_enc !== row.refresh_token_enc) return fromStored(env, now, current);
   if (r.auth) {
     // Conditional on the refresh token this call spent: if someone rotated it since the re-read, theirs is the live pair.
+    // Rare race left: the daily job and a tick renew at once and the loser's break lands before the winner stores. One false
+    // "broken" mail goes out, and the winner's write (which clears last_error) heals the connection.
     const broke = await env.DB.prepare(
       `UPDATE platform_connections SET last_error = ?, last_error_at = ? WHERE platform = 'x' AND refresh_token_enc = ?`,
     ).bind(`refresh: ${r.reason}`.slice(0, 300), now, row.refresh_token_enc).run();
@@ -205,6 +207,8 @@ export async function xPublishStep(input: PublishInput): Promise<PublishStep> {
   }
 
   const recovering = st.attempt !== null;
+  // Recovery relies on X's duplicate check, which needs text to compare. The panel requires text for X; this is the backstop.
+  if (recovering && post.caption.trim() === '') return { kind: 'retry', reason: 'uncertain: no text to detect a duplicate by' };
   if (!recovering && !await checkpoint(encodeState({ ...st, attempt: now }))) return { kind: 'pending', containerId: input.state.containerId! };
   const created = await call(`${X_API}/tweets`, {
     method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },

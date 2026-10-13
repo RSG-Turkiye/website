@@ -263,3 +263,19 @@ test('daily: no X connection reports none, and a throwing X renewal does not fai
   const log = console.error; console.error = () => {};
   try { const res = await cron(env); assert.equal(res.status, 200); assert.equal((await res.json() as Record<string, unknown>).x, 'none'); } finally { g.restore(); console.error = log; }
 });
+
+test('daily: an unreadable stored X token marks X broken and mails admins once', async () => {
+  const { env, db } = world('scheduled', 'queued');
+  const now = Math.floor(Date.now() / 1000);
+  await (await connectionUpsert(env as never, 'x', { accountId: '77', accountName: 'rsgturkey', accessToken: 'a', refreshToken: 'r', scopes: 'x', expiresAt: now + 3600, refreshExpiresAt: null }, 'admin', now - 86400)).run();
+  db.prepare(`UPDATE platform_connections SET refresh_token_enc = 'garbage' WHERE platform = 'x'`).run();
+  assert.equal((await (await cron(env)).json() as Record<string, unknown>).x, 'none');
+  const row = db.prepare(`SELECT last_error, last_error_at FROM platform_connections WHERE platform = 'x'`).get() as { last_error: string; last_error_at: number | null };
+  assert.ok(row.last_error_at);
+  assert.match(row.last_error, /unreadable/);
+  const xMails = () => mail.sent.filter((m) => /koptu/.test(m.subject) && /X/.test(m.subject)).length;
+  assert.ok(xMails() >= 1);
+  const first = xMails();
+  await cron(env);
+  assert.equal(xMails(), first, 'no second mail while still broken');
+});

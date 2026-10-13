@@ -44,3 +44,10 @@ test('one list of publish reasons, shared by every adapter', () => {
   assert.equal(FROM_INSTAGRAM, PUBLISH_REASON_KEYS);
   for (const k of ['duplicate', 'uncertain', 'no_api_access', 'not_connected']) assert.ok((PUBLISH_REASON_KEYS as readonly string[]).includes(k), k);
 });
+
+test('a post to X needs some text: empty is a problem, a link counts, other platforms are unaffected', () => {
+  const needs = (p: ReturnType<typeof post>) => readinessProblems(p, dims(1), 1_900_000_000).filter((x) => x.code === 'x_needs_text');
+  assert.deepEqual(needs(post(['x'], 1, '  ')), [{ code: 'x_needs_text', platform: 'x' }]);
+  assert.deepEqual(needs({ ...post(['x'], 1, ''), link: 'https://example.org/a' }), []);
+  assert.deepEqual(needs(post(['instagram', 'linkedin'], 1, '')), []);
+});

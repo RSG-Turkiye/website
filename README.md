@@ -786,10 +786,16 @@ post means the balance ran out.
 
 ### If a post's answer is lost
 
-If a create call's answer is lost (a timeout, say), the next tick checks the
-account before posting again, so nothing goes out twice. A target that cannot
-be confirmed ends `failed` with "uncertain" after two hours. Someone should
-look at the LinkedIn Page or the X account before pressing Retry.
+If a create call's answer is lost (a timeout, say), the next tick deals with it
+before posting again. LinkedIn reads the Page's recent posts to find it. X
+sends the post again and X's duplicate check stops a second copy; that is safe
+while the text is unchanged (the panel requires text for X). A target that
+cannot be confirmed ends `failed` with "uncertain" after two hours. Someone
+should look at the LinkedIn Page or the X account before pressing Retry. If
+the text of an "uncertain" X target was edited before Retry, check the X
+account first. X media uploaded for a post expires after about a day, so an
+"uncertain" X target held longer than that cannot succeed on Retry; check the
+account and, if it did not go out, create the post again.
 
 ### Yearly upkeep
 

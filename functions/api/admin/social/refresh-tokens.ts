@@ -113,6 +113,12 @@ async function keepXAlive(env: Env, now: number, panelUrl: string): Promise<'ref
     await requeueWaitingStatement(env.DB, 'x').run();
     return 'refreshed';
   }
+  if (u.why === 'unreadable') {
+    const wasBroken = connectionStatus(row, now) === 'broken';
+    await markBroken(env.DB, 'x', 'stored token unreadable', now);
+    if (!wasBroken) await notifyEach(env, await adminEmails(env.DB), notificationText('connection_broken', { label: 'X', when: null, note: 'stored token unreadable', panelUrl, platform: 'X' }));
+    return 'none';
+  }
   if (u.why === 'broken' && u.justBroke) {
     await notifyEach(env, await adminEmails(env.DB), notificationText('connection_broken', { label: 'X', when: null, note: u.reason ?? '', panelUrl, platform: 'X' }));
   }

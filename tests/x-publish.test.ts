@@ -231,3 +231,9 @@ test('both renewals succeed at X: the loser\'s write changes nothing and it uses
   assert.deepEqual(u, { ok: true, token: 'winner-access', account: { id: '77', name: 'rsgturkey' } });
   assert.equal(await readRefreshToken(env, (await getConnection(env.DB, 'x'))!), 'rt-2');
 });
+
+test('recovering with no text is uncertain and makes no request', async () => {
+  const { result, calls } = await run(() => Response.json({ data: { id: '9' } }, { status: 201 }), input({ ...single, caption: '  ' }, state(['1'], 1_800_000_000)));
+  assert.deepEqual(result, { kind: 'retry', reason: 'uncertain: no text to detect a duplicate by' });
+  assert.equal(calls.length, 0);
+});
