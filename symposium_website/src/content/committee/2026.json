@@ -206,6 +206,45 @@
       ]
     },
     {
+      "name": "Büşra Palaz",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/a9068552-708b-4091-b308-976e60296a3a.jpg",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        }
+      ]
+    },
+    {
+      "name": "Ahsen Ceren Erten",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/096f7805-f631-468f-a35d-5dc667e50713.jpg",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        }
+      ]
+    },
+    {
+      "name": "Ömer Faruk Yücel",
+      "role": "",
+      "roleTr": "",
+      "affiliation": "",
+      "photo": "https://rsg-turkiye.iscbsc.org/api/images/b43ef0b0-85f5-44c6-8a75-b784d688b10f.jpg",
+      "teams": [
+        {
+          "en": "Scientific Program",
+          "tr": "Bilimsel Program"
+        }
+      ]
+    },
+    {
       "name": "Muhammed Mahsum Tunç",
       "role": "Member",
       "roleTr": "Üye",
