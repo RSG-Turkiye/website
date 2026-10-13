@@ -558,7 +558,7 @@ approve, reject and cancel, event modes, editors).
 
 ### What does not exist yet
 
-Nothing is published to Instagram or LinkedIn yet (phase 3). The phone quick
+Phase 2a published nothing; Instagram arrives in phase 3a (below). The phone quick
 story (phase 3), `/links` (phase 4) and LinkedIn connect (phase 5) are still
 to come.
 
@@ -613,6 +613,108 @@ it; nobody else does.
 
 Notification mail goes out from `RSG_MAIL_FROM` and is not recorded in sent
 mail. When Gmail is broken they pause, and the status banner already says so.
+
+## Social media publishing (phase 3a)
+
+Instagram posts (feed, carousel, story) now go out from the panel. LinkedIn is
+skipped until phase 5, so a LinkedIn target is not attempted.
+
+### One-time setup
+
+Do these in order. Steps 1 to 3 happen **before** the pull request is merged.
+
+1. **Meta app.** Under Instagram > API setup with Instagram login, add this
+   redirect URI and note the Instagram app ID and secret:
+
+   ```
+   https://rsg-turkiye.iscbsc.org/api/admin/connections/instagram/callback
+   ```
+2. **Set the two Pages secrets** (`TOKEN_ENC_KEY` already exists). The social
+   tick reuses `MAIL_SYNC_SECRET` and the daily refresh reuses
+   `SYMPOSIUM_ARCHIVE_SECRET`, so there are no other new secrets. There are two
+   new Worker vars, `SOCIAL_DISPATCH_URL` and `SOCIAL_REFRESH_URL`; they are in
+   the Workers' `wrangler.toml` and arrive with the redeploy in step 6:
+
+   ```
+   npx wrangler pages secret put INSTAGRAM_APP_ID --project-name website
+   npx wrangler pages secret put INSTAGRAM_APP_SECRET --project-name website
+   ```
+3. **Run migration 8e**, the three commands at the top of `db/schema.sql`.
+   Each `ALTER TABLE` runs once.
+4. **Merge** and wait for the Pages deploy to finish.
+5. **Clear out old scheduled posts.** Open the Scheduled list (calendar or
+   board) and cancel or reschedule every test or stale post before the next
+   step. From the first tick, every scheduled post with Instagram goes out, to
+   whichever account is connected at the time. Each one already past its time
+   is held instead, and emails the publishers once with a "needs a decision"
+   mail. Do the test-account run in step 7 when no real post is due, or with
+   the real posts unscheduled until it is done.
+6. **Redeploy both Workers** after the deploy, so they pick up
+   `SOCIAL_DISPATCH_URL` (`workers/mail-cron`) and `SOCIAL_REFRESH_URL`
+   (`workers/symposium-cron`):
+
+   ```
+   cd workers/mail-cron && npx wrangler deploy
+   cd workers/symposium-cron && npx wrangler deploy
+   ```
+
+   The banner's scheduler line will show until the `mail-cron` Worker is
+   redeployed; mail is still going out.
+7. **Test first.** Connect a **test** Business account added as an Instagram
+   Tester and publish one of each type to it. Only then connect @rsgturkey.
+
+Connections > Instagram can show these error codes after a failed connect:
+`not_configured`, `not_professional`, `cancelled`, `token_exchange`,
+`missing_scope`, `store_failed`, `bad_state`, `not_admin`.
+
+### How a post goes out
+
+- A tick runs every minute (`mail-cron`, authenticated with
+  `MAIL_SYNC_SECRET`). It picks up due targets: first it creates the Instagram
+  container, then publishes it.
+- **Lateness.** A queued target more than 2 hours past its time is not sent.
+  That includes one put back in the queue after waiting for the connection,
+  even if it kept its container. It waits as `needs_confirmation` until a
+  publisher presses **Publish anyway**. A target already retrying is not held
+  to this: it runs out its own 2-hour retry window.
+- **Retries.** A failed attempt is retried every minute for 2 hours. A target
+  still retrying when that window ends fails, and the author and publishers
+  get a mail. A target still "processing" at Instagram after 2 hours fails with
+  a sentence saying so.
+- **Never twice.** The Instagram container is kept between attempts. Only a
+  successful status read of `EXPIRED` recreates it, and only `ERROR` lets a
+  failed target drop it; any other failure keeps it, so a post is never
+  published twice. While a target holds a container, or a tick is working on
+  it, the post cannot be edited or cancelled (`publishing_started`): use
+  **Retry** (or **Publish anyway** for a late one), which re-reads the
+  container.
+- **Retry and Publish anyway** are publisher actions, in the side panel and on
+  the Published tab. They keep the container and re-read its status.
+- **`waiting_connection`.** If the connection is broken, targets wait. A
+  successful token refresh or a reconnect puts them back in the queue, and so
+  does any tick that finds the connection working.
+- **Stories need a Business account.** A Creator token is refused with
+  "(#10) The user is not an Instagram Business". Feed posts and carousels work
+  with Creator.
+- The API cannot delete a published post. Remove it in Instagram.
+
+### Banner lines and what to press
+
+- **Instagram connection broken.** Open Connections > Instagram > Reconnect.
+  Posts that were waiting are queued again.
+- **Instagram expiring.** The token is near its end. The daily refresh
+  normally handles it. If the line stays, reconnect.
+- **The scheduler is not running.** The line now covers both the mail tick and
+  the social tick (`dispatch_runs.kind`). Before migration 8e only mail is
+  measured. Check `rsg-mail-cron` as described under [What each banner line
+  means](#what-each-banner-line-means).
+
+### Token
+
+The Instagram token lasts 60 days. `symposium-cron` refreshes it daily once
+fewer than 20 days are left. Only an Instagram auth refusal, or any failure
+within 3 days of expiry, marks the connection broken and emails admins. A
+temporary failure is logged and tried again the next day.
 
 ## Yearly handover
 

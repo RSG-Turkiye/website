@@ -20,6 +20,9 @@ export interface Env {
   TOKEN_ENC_KEY?: string;
   /** The Gmail account the site sends from, when RSG_MAIL_FROM is a send-as alias of it. Defaults to RSG_MAIL_FROM. */
   GMAIL_ACCOUNT?: string;
+  /** Instagram app (Meta dashboard, Instagram > API setup with Instagram login). Both are Pages secrets. */
+  INSTAGRAM_APP_ID?: string;
+  INSTAGRAM_APP_SECRET?: string;
 }
 
 export interface User {

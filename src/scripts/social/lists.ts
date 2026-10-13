@@ -1,10 +1,11 @@
 /** The approval queue (publishers) and the undated drafts list. */
 import { api, ApiError, type Post } from './api';
 import { deps, changed } from './context';
-import { errorText, problemText } from './messages';
+import { errorText, problemText, requeueLabelKey } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { bgImage } from './preview';
 import { openComposer } from './composer';
+import { targetLines } from './side-panel';
 import { dayKey, timeOf } from '../../lib/social-calendar';
 
 const STALE_CODES = ['post_changed', 'not_found', 'not_pending', 'plan_taken', 'plan_has_post'];
@@ -87,5 +88,23 @@ export async function loadDrafts(): Promise<void> {
     const el = list.querySelector<HTMLElement>(`[data-post="${CSS.escape(p.id)}"]`)!;
     el.querySelector('[data-act="open"]')!.addEventListener('click', () => void openComposer({ postId: p.id }));
     armConfirm(el.querySelector<HTMLButtonElement>('[data-act="delete"]')!, () => act(() => api.deletePost(p.id, p.revision), 'admin.social.done.deleted'));
+  }
+}
+
+export async function loadPublished(): Promise<void> {
+  const { t } = deps();
+  const list = document.getElementById('socialPublishedList');
+  if (!list) return;
+  const posts = await api.done();
+  const publisher = deps().me.isPublisher;
+  const key = (p: Post) => (publisher ? requeueLabelKey(p) : null);
+  list.innerHTML = posts.map((p) => {
+    const k = key(p);
+    return card(p, targetLines(p) + (k ? button(t(k), 'data-act="requeue"', 'ok') : ''));
+  }).join('') || `<p class="text-sm text-gray-500">${esc(t('admin.social.empty'))}</p>`;
+  for (const p of posts) {
+    if (!key(p)) continue;
+    const el = list.querySelector<HTMLElement>(`[data-post="${CSS.escape(p.id)}"]`);
+    el?.querySelector('[data-act="requeue"]')?.addEventListener('click', (e) => void act(() => api.requeue(p.id, p.revision), 'admin.social.done.requeued', e.currentTarget as HTMLButtonElement));
   }
 }

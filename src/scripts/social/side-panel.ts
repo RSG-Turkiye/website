@@ -1,7 +1,7 @@
 /** Details and actions for the item clicked on the calendar or board. */
 import { api, ApiError, type Plan, type Post } from './api';
 import { deps, changed } from './context';
-import { errorText, problemText } from './messages';
+import { errorText, problemText, publishErrorText, splitPublishError, requeueLabelKey } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { dayKey, timeOf, planDue } from '../../lib/social-calendar';
 import { findPlan, findPost } from './calendar-view';
@@ -11,7 +11,7 @@ import { openComposer } from './composer';
 const side = () => document.getElementById('socialSide')!;
 const when = (e: number | null) => (e ? `${dayKey(e)} ${timeOf(e)}` : '-');
 const row = (label: string, value: string) => `<p class="text-xs text-gray-500 mt-2">${esc(label)}</p><p class="text-sm text-navy">${value}</p>`;
-const LOCKED = ['published', 'partially_published', 'failed', 'cancelled'];
+const LOCKED = ['published', 'partially_published', 'cancelled'];
 const STALE_CODES = ['post_changed', 'not_found', 'not_pending', 'plan_taken', 'plan_has_post'];
 
 /** What the panel shows, so it can be redrawn from fresh data after an edit elsewhere. */
@@ -82,6 +82,16 @@ function renderPlan(p: Plan): void {
   armConfirm(side().querySelector<HTMLButtonElement>('[data-act="delete"]')!, () => run(() => api.deletePlan(p.id), 'admin.social.done.deleted'));
 }
 
+/** One line per platform: what happened, a link when there is one, and why when it did not work. */
+export function targetLines(p: Post): string {
+  const { t } = deps();
+  if (!p.targets.length) return '';
+  return `<div class="mt-3"><p class="text-xs text-gray-500">${esc(t('admin.social.side.targets'))}</p>${p.targets.map((x) => `
+    <p class="text-sm text-navy mt-1"><strong>${esc(t(`admin.connections.platform.${x.platform}`))}</strong>: ${esc(t(`admin.social.target.${x.status}`))}
+      ${x.permalink?.startsWith('https://') ? ` · <a href="${esc(x.permalink)}" target="_blank" rel="noopener" class="underline">${esc(t('admin.social.side.viewPost'))}</a>` : ''}</p>
+    ${x.lastError && x.status !== 'published' ? `<p class="text-xs text-red">${esc(publishErrorText(x.lastError))}</p>${splitPublishError(x.lastError).detail ? `<p class="text-xs text-gray-500 break-words">${esc(splitPublishError(x.lastError).detail)}</p>` : ''}` : ''}`).join('')}</div>`;
+}
+
 function renderPost(p: Post): void {
   const { t, me } = deps();
   const mine = p.createdBy === me.id;
@@ -99,6 +109,8 @@ function renderPost(p: Post): void {
   if ((me.isPublisher || mine) && (p.status === 'pending_approval' || p.status === 'scheduled')) {
     actions.push(button(t('admin.social.action.cancel'), 'data-act="cancel"', 'danger'));
   }
+  const requeueKey = requeueLabelKey(p);
+  if (me.isPublisher && requeueKey) actions.push(button(t(requeueKey), 'data-act="requeue"', 'ok'));
   frame(p.planTitle || t(`admin.social.type.${p.type}`), `
     <p class="mt-1 text-xs font-semibold">${esc(t(`admin.social.status.${p.status}`))}</p>
     ${!canEdit && !LOCKED.includes(p.status) ? `<p class="mt-2 text-xs text-gray-500">${esc(t('admin.social.side.readOnly'))}</p>` : ''}
@@ -106,6 +118,7 @@ function renderPost(p: Post): void {
     ${row(t('admin.social.side.platforms'), esc(p.platforms.map((x) => t(`admin.connections.platform.${x}`)).join(', ')))}
     ${row(t('admin.social.side.author'), esc(p.authorEmail ?? ''))}
     ${p.reviewNote ? row(t('admin.social.side.reviewNote'), esc(p.reviewNote)) : ''}
+    ${targetLines(p)}
     ${p.media[0] ? `<img src="${esc(p.media[0].url)}" alt="${esc(p.media[0].alt)}" class="mt-3 w-full max-h-48 object-cover rounded-lg">` : ''}
     <div class="flex flex-wrap gap-2 mt-4">${actions.join('')}</div>
     <div data-reject class="hidden mt-3"><textarea rows="3" maxlength="500" class="w-full px-2 py-1 rounded-lg border border-border text-sm" placeholder="${esc(t('admin.social.rejectNote'))}"></textarea>
@@ -116,6 +129,7 @@ function renderPost(p: Post): void {
   q('submit')?.addEventListener('click', (e) => void run(() => api.action(p.id, 'submit', { revision: p.revision }),
     me.isPublisher ? 'admin.social.done.scheduled' : 'admin.social.done.submitted', e.currentTarget as HTMLButtonElement));
   q('approve')?.addEventListener('click', (e) => void run(() => api.action(p.id, 'approve', { revision: p.revision }), 'admin.social.done.approved', e.currentTarget as HTMLButtonElement));
+  q('requeue')?.addEventListener('click', (e) => void run(() => api.requeue(p.id, p.revision), 'admin.social.done.requeued', e.currentTarget as HTMLButtonElement));
   q('reject')?.addEventListener('click', () => side().querySelector('[data-reject]')!.classList.remove('hidden'));
   q('rejectSend')?.addEventListener('click', (e) => {
     const note = side().querySelector<HTMLTextAreaElement>('[data-reject] textarea')!.value.trim();

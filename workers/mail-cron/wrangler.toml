@@ -38,3 +38,4 @@ crons = ["* * * * *"]
 [vars]
 DISPATCH_URL = "https://rsg-turkiye.iscbsc.org/api/mail/dispatch"
 SYNC_URL = "https://rsg-turkiye.iscbsc.org/api/mail/sync"
+SOCIAL_DISPATCH_URL = "https://rsg-turkiye.iscbsc.org/api/social/dispatch"

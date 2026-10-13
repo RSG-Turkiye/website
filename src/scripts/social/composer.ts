@@ -34,7 +34,7 @@ export interface ComposerState {
   time: string;
 }
 
-const LOCKED: PostStatus[] = ['published', 'partially_published', 'failed', 'cancelled'];
+const LOCKED: PostStatus[] = ['published', 'partially_published', 'cancelled'];
 const OVERRIDE_ORDER: Platform[] = ['instagram', 'linkedin'];
 
 /** Pure: what the API receives. Overrides in a fixed order and only when written, so autosave logs no phantom changes. */
@@ -183,7 +183,7 @@ function render(): void {
   const title = !editable ? 'admin.social.composer.viewTitle' : state.id ? 'admin.social.composer.editTitle' : 'admin.social.composer.newTitle';
   const dis = editable ? '' : 'disabled';
   const field = 'mt-1 w-full px-3 py-2 rounded-xl border border-border text-sm text-navy';
-  const warn = editable && state.status === 'scheduled' && !me.isPublisher
+  const warn = editable && (state.status === 'scheduled' || state.status === 'failed') && !me.isPublisher
     ? `<p class="mb-3 p-2 rounded-lg bg-amber-50 text-amber-900 text-sm">${esc(t('admin.social.composer.backToApproval'))}</p>` : '';
   overlay().innerHTML = `<div class="max-w-6xl mx-auto my-6 bg-white rounded-2xl border border-border p-5">
     <div class="flex justify-between items-start gap-3 mb-3">
@@ -200,7 +200,7 @@ function render(): void {
           </div></div>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.platforms'))}</p>
           <div class="flex flex-wrap gap-4 mt-1 text-sm">
-            ${ENABLED_PLATFORMS.map((p) => `<label><input type="checkbox" data-platform="${p}" ${dis} ${state.platforms.includes(p) ? 'checked' : ''}> ${esc(t(`admin.connections.platform.${p}`))}</label>`).join('')}
+            ${ENABLED_PLATFORMS.map((p) => `<label><input type="checkbox" data-platform="${p}" ${dis} ${state.platforms.includes(p) ? 'checked' : ''}> ${p === 'linkedin' ? `${esc(t('admin.connections.platform.linkedin'))} <span class="text-xs text-gray-500">${esc(t('admin.social.composer.linkedinLater'))}</span>` : esc(t(`admin.connections.platform.${p}`))}</label>`).join('')}
             <label class="text-gray-500"><input type="checkbox" disabled> ${esc(t('admin.social.composer.xLater'))}</label>
           </div></div>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.images'))} <span class="font-normal text-gray-500">${esc(t('admin.social.composer.imagesHint'))}</span></p>

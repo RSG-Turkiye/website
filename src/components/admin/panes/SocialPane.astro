@@ -21,6 +21,7 @@ const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover
       {t('admin.social.tab.pending')} <span id="socialPendingCount" class="hidden ml-1 inline-block min-w-5 px-1.5 rounded-full bg-red text-white text-xs text-center"></span>
     </button>
     <button type="button" data-social-tab="drafts" class={tabClass}>{t('admin.social.tab.drafts')}</button>
+    <button type="button" data-social-tab="published" class={tabClass}>{t('admin.social.tab.published')}</button>
     <button type="button" data-social-tab="events" class={tabClass}>{t('admin.social.tab.events')}</button>
   </div>
 
@@ -49,6 +50,7 @@ const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover
 
   <section data-social-view="pending" class="hidden"><div id="socialPendingList"></div></section>
   <section data-social-view="drafts" class="hidden"><div id="socialDraftList"></div></section>
+  <section data-social-view="published" class="hidden"><div id="socialPublishedList"></div></section>
   <section data-social-view="events" class="hidden">
     <p class="text-sm text-gray-500 mb-3">{t('admin.social.events.intro')}</p>
     <div id="socialEventList" class="mb-6"></div>

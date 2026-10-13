@@ -3,6 +3,8 @@ export interface Env {
   MAIL_SYNC_SECRET: string;
   DISPATCH_URL: string;
   SYNC_URL: string;
+  /** Social publishing tick; same secret as dispatch. */
+  SOCIAL_DISPATCH_URL: string;
 }
 
 export default {
@@ -31,7 +33,7 @@ export default {
   async fetch(_request: Request, env: Env): Promise<Response> {
     const body = await tick(env);
     return new Response(
-      JSON.stringify({ dispatch: parseIfJson(body.dispatch), sync: parseIfJson(body.sync) }, null, 2),
+      JSON.stringify({ dispatch: parseIfJson(body.dispatch), sync: parseIfJson(body.sync), social: parseIfJson(body.social) }, null, 2),
       {
         status: failed(body) ? 502 : 200,
         headers: { 'Content-Type': 'application/json' },
@@ -46,21 +48,22 @@ async function tick(env: Env): Promise<Tick> {
   // raced, so one failing does not cancel the other's logging.
   const dispatch = await call(env, 'dispatch', env.DISPATCH_URL);
   const sync = await call(env, 'sync', env.SYNC_URL);
+  const social = await call(env, 'social', env.SOCIAL_DISPATCH_URL);
 
   // Both results are returned rather than raised here: one failing must not
   // stop the other being reported, and the two callers differ on what to do
   // about it -- see `scheduled` and `fetch`.
-  return { dispatch, sync };
+  return { dispatch, sync, social };
 }
 
-type Tick = { dispatch: string; sync: string };
+type Tick = { dispatch: string; sync: string; social: string };
 
 function failed(t: Tick): boolean {
-  return t.dispatch.startsWith('ERROR') || t.sync.startsWith('ERROR');
+  return t.dispatch.startsWith('ERROR') || t.sync.startsWith('ERROR') || t.social.startsWith('ERROR');
 }
 
 function summarise(t: Tick): string {
-  return `tick failed -- dispatch: ${t.dispatch.slice(0, 120)} sync: ${t.sync.slice(0, 120)}`;
+  return `tick failed -- dispatch: ${t.dispatch.slice(0, 120)} sync: ${t.sync.slice(0, 120)} social: ${t.social.slice(0, 120)}`;
 }
 
 /**

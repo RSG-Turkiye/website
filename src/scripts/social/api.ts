@@ -72,6 +72,8 @@ export const api = {
   deletePost: (postId: string, revision: number) => call<{ ok: true }>('DELETE', `/api/social/posts/${id(postId)}`, { revision }),
   action: (postId: string, action: 'submit' | 'approve' | 'reject' | 'cancel', body: { revision: number; note?: string }) =>
     call<Result>('POST', `/api/social/posts/${id(postId)}/${action}`, body),
+  requeue: (postId: string, revision: number) => call<Result>('POST', `/api/social/posts/${id(postId)}/requeue`, { revision }),
+  done: () => call<{ posts: Post[] }>('GET', '/api/social/posts?done=1').then((r) => r.posts),
   editors: () => call<{ editors: Editor[] }>('GET', '/api/social/editors').then((r) => r.editors),
   events: () => call<{ modes: EventMode[] }>('GET', '/api/social/event-modes').then((r) => r.modes),
   openEvent: (body: { name: string; startsAt: number; endsAt: number; editorIds: string[] }) => call<{ id: string }>('POST', '/api/social/event-modes', body),

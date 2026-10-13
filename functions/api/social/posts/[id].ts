@@ -3,7 +3,7 @@ import { jsonResponse } from '../../../_lib/auth';
 import { socialGate, readBody, malformed, nowSeconds } from '../../../_lib/social-api';
 import {
   parseDraft, draftColumns, rowToDraft, canEditPost, canDeletePost, statusAfterEdit, readinessProblems, mediaDims,
-  updatePostGuarded, targetStatements, POST_PROOF, type PostColumn,
+  updatePostGuarded, targetStatements, startedTargets, POST_PROOF, type PostColumn,
 } from '../../../_lib/social-posts';
 import { coveringEvent } from '../../../_lib/social-events';
 import { loadPost } from '../../../_lib/social-post-read';
@@ -29,6 +29,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   if (!found) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   const { row } = found;
   if (!canEditPost(gate.actor, row)) return jsonResponse({ error: 'You cannot edit this post', code: 'not_allowed' }, 403);
+  const now = nowSeconds();
+  if (await startedTargets(env.DB, id, now)) return jsonResponse({ error: 'Publishing has started', code: 'publishing_started' }, 409);
   const body = await readBody(request);
   if (!body) return malformed();
   const revision = revisionOf(body);
@@ -37,7 +39,6 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   const parsed = parseDraft(body);
   if (!parsed.ok) return jsonResponse({ error: 'Invalid post', code: parsed.code }, 400);
   const next = parsed.value;
-  const now = nowSeconds();
 
   // A story is covered only by a window that is still open at the time it is scheduled for.
   const window = next.type === 'story' && !gate.actor.isPublisher ? await coveringEvent(env.DB, gate.user.id, now) : null;
@@ -60,11 +61,11 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   const fields: Partial<Record<PostColumn, unknown>> = { ...draftColumns(next), status };
   if (status === 'scheduled' && event) fields.event_mode_id = event.id;
   // Approval belongs to the version that was approved; a re-submission starts clean.
-  if (row.status === 'scheduled' && status === 'pending_approval') Object.assign(fields, { approved_by: null, approved_at: null, event_mode_id: null });
+  if ((row.status === 'scheduled' || row.status === 'failed') && status === 'pending_approval') Object.assign(fields, { approved_by: null, approved_at: null, event_mode_id: null });
   if (row.status === 'rejected' && status === 'draft') fields.review_note = null;
   const targets = status === 'scheduled'
-    ? targetStatements(env.DB, id, nonce, next.platforms)
-    : row.status === 'scheduled' ? targetStatements(env.DB, id, nonce, null) : [];
+    ? targetStatements(env.DB, id, nonce, next.platforms, now)
+    : row.status === 'scheduled' ? targetStatements(env.DB, id, nonce, null, now) : [];
   const done = await runGuardedWithAudit(
     env.DB,
     updatePostGuarded(env.DB, id, revision, nonce, fields, now),
@@ -74,7 +75,7 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
     now,
   );
   if (!done) return jsonResponse({ error: 'Someone changed this post in the meantime', code: 'post_changed' }, 409);
-  if (row.status === 'scheduled' && status === 'pending_approval') {
+  if ((row.status === 'scheduled' || row.status === 'failed') && status === 'pending_approval') {
     notifyLater(ctx, env, request, 'submitted', { ...row, caption: next.caption, scheduled_at: next.scheduledAt } as Parameters<typeof notifyLater>[4], 'publishers', { actor: (row as { author_email?: string | null }).author_email ?? '' });
   }
   return jsonResponse({ ok: true, revision: newRevision, status });

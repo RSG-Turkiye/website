@@ -11,6 +11,8 @@ export function healthIssues(input: {
   connections: ConnectionRow[];
   legacyGmail: boolean;
   lastRunAt: number | null;
+  /** undefined = not measured (before migration 8e); null = never ran. */
+  lastSocialRunAt: number | null | undefined;
   now: number;
 }): HealthIssue[] {
   const issues: HealthIssue[] = [];
@@ -25,8 +27,11 @@ export function healthIssues(input: {
       });
     }
   }
-  if (input.lastRunAt === null || input.now - input.lastRunAt > SCHEDULER_STALE_SECONDS) {
-    issues.push({ kind: 'scheduler', lastRunAt: input.lastRunAt });
+  const runs = input.lastSocialRunAt === undefined ? [input.lastRunAt] : [input.lastRunAt, input.lastSocialRunAt];
+  const stale = runs.some((t) => t === null || input.now - t > SCHEDULER_STALE_SECONDS);
+  if (stale) {
+    const seen = runs.filter((t): t is number => t !== null);
+    issues.push({ kind: 'scheduler', lastRunAt: seen.length ? Math.min(...seen) : null });
   }
   return issues;
 }

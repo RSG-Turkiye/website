@@ -97,7 +97,7 @@ test('who may edit, delete and cancel', () => {
   assert.equal(canEditPost(editor, own('scheduled')), true);
   assert.equal(canEditPost(editor, other('draft')), false);
   assert.equal(canEditPost(publisher, other('scheduled')), true);
-  for (const s of ['published', 'partially_published', 'failed', 'cancelled']) assert.equal(canEditPost(publisher, other(s)), false, s);
+  for (const s of ['published', 'partially_published', 'cancelled']) assert.equal(canEditPost(publisher, other(s)), false, s);
   assert.equal(canDeletePost(editor, own('draft')), true);
   assert.equal(canDeletePost(editor, own('pending_approval')), false);
   assert.equal(canDeletePost(publisher, other('rejected')), true);
@@ -140,14 +140,14 @@ test('guarded update and targets act only when this write landed', async () => {
   db.exec(SCHEMA);
   db.prepare(`INSERT INTO social_posts (id, type, created_by, created_at, updated_at) VALUES ('p','image','ed',1,1)`).run();
   const DB = d1(db) as never as D1Database;
-  const stale = await DB.batch([updatePostGuarded(DB, 'p', 5, 'n-stale', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-stale', ['instagram'])]);
+  const stale = await DB.batch([updatePostGuarded(DB, 'p', 5, 'n-stale', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-stale', ['instagram'], NOW)]);
   assert.equal((stale[0] as { meta: { changes: number } }).meta.changes, 0);
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 0);
-  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-win', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-win', ['instagram', 'linkedin'])]);
+  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-win', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-win', ['instagram', 'linkedin'], NOW)]);
   assert.deepEqual({ ...db.prepare('SELECT status, revision, write_nonce FROM social_posts').get() as object }, { status: 'scheduled', revision: 1, write_nonce: 'n-win' });
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 2);
   // A loser that read revision 0 too, arriving after: its guard misses and its targets do not overwrite the winner's.
-  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-lose', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-lose', ['linkedin'])]);
+  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-lose', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-lose', ['linkedin'], NOW)]);
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 2);
   assert.match(POST_PROOF, /write_nonce = \?/);
 });
@@ -161,4 +161,17 @@ test('updatePostGuarded refuses a column outside the allow-list and an undefined
 
 test('parseDraft refuses a scheduledAt beyond the safe integers', () => {
   assert.deepEqual(parseDraft({ type: 'image', scheduledAt: 2 ** 60 }), { ok: false, code: 'invalid_schedule' });
+});
+
+test('readiness refuses a non-JPEG image: Instagram publishes JPEG only', () => {
+  const png = '33333333-3333-4333-8333-333333333333.png';
+  const d = new Map([[png, { width: 1080, height: 1350 }]]);
+  assert.deepEqual(readinessProblems(ready({ media: [{ key: png, alt: 'x' }] }), d, NOW).map((p) => [p.code, p.index]), [['not_jpeg', 0]]);
+});
+
+test('a failed post can be fixed: it is no longer locked, and an editor\'s edit goes back for approval', () => {
+  assert.equal(canEditPost({ id: 'ed', isPublisher: false }, { status: 'failed', created_by: 'ed' }), true);
+  assert.equal(canEditPost({ id: 'ed', isPublisher: false }, { status: 'partially_published', created_by: 'ed' }), false);
+  assert.equal(statusAfterEdit({ id: 'pub', isPublisher: true }, 'failed', false), 'scheduled');
+  assert.equal(statusAfterEdit({ id: 'ed', isPublisher: false }, 'failed', false), 'pending_approval');
 });

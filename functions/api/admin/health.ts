@@ -19,9 +19,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const now = Math.floor(Date.now() / 1000);
     const [connections, lastRun] = await Promise.all([
       listConnections(env.DB),
-      env.DB.prepare('SELECT MAX(started_at) AS t FROM dispatch_runs').first<{ t: number | null }>(),
+      lastRuns(env.DB),
     ]);
-    const issues = healthIssues({ connections, legacyGmail: Boolean(env.GMAIL_REFRESH_TOKEN), lastRunAt: lastRun?.t ?? null, now })
+    const issues = healthIssues({ connections, legacyGmail: Boolean(env.GMAIL_REFRESH_TOKEN), lastRunAt: lastRun.mail, lastSocialRunAt: lastRun.social, now })
       .map((i) => (i.kind === 'connection' && !canFix ? { ...i, lastError: null } : i));
     return jsonResponse({ issues, canFix });
   } catch (err) {
@@ -29,3 +29,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ issues: [], canFix });
   }
 };
+
+/** Mail and social ticks separately; before migration 8e there is no kind column, so only mail is measured. */
+async function lastRuns(db: D1Database): Promise<{ mail: number | null; social: number | null | undefined }> {
+  try {
+    const r = await db.prepare(
+      `SELECT MAX(CASE WHEN kind = 'mail' THEN started_at END) AS mail, MAX(CASE WHEN kind = 'social' THEN started_at END) AS social FROM dispatch_runs`,
+    ).first<{ mail: number | null; social: number | null }>();
+    return { mail: r?.mail ?? null, social: r?.social ?? null };
+  } catch {
+    const r = await db.prepare('SELECT MAX(started_at) AS t FROM dispatch_runs').first<{ t: number | null }>();
+    return { mail: r?.t ?? null, social: undefined };
+  }
+}

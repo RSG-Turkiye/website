@@ -38,6 +38,10 @@ export async function publisherEmails(db: D1Database): Promise<string[]> {
     .results.map((r) => r.email);
 }
 
+export async function adminEmails(db: D1Database): Promise<string[]> {
+  return (await db.prepare('SELECT email FROM users WHERE is_admin = 1').all<{ email: string }>()).results.map((r) => r.email);
+}
+
 export function postLabel(caption: string, planTitle: string | null): string {
   if (planTitle && planTitle.trim()) return planTitle.trim();
   const text = caption.trim().replace(/\s+/g, ' ');
@@ -51,7 +55,7 @@ const when = (epoch: number | null, locale: 'tr-TR' | 'en-GB') =>
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul',
   });
 
-export type NotifyKind = 'submitted' | 'approved' | 'rejected' | 'plan_due';
+export type NotifyKind = 'submitted' | 'approved' | 'rejected' | 'plan_due' | 'publish_failed' | 'waiting_connection' | 'needs_confirmation' | 'connection_broken';
 
 /** Turkish first, then English, in one message: the reader's language is not known. */
 export function notificationText(
@@ -82,6 +86,26 @@ export function notificationText(
       return {
         subject: `İçeriği bekleyen plan / Plan waiting for content: ${ctx.label}`,
         text: `${tr} tarihindeki **${ctx.label}** planına henüz içerik yüklenmedi.\n\n${ctx.panelUrl}\n\n---\n\nThe plan **${ctx.label}** for ${en} has no content yet.\n\n${ctx.panelUrl}`,
+      };
+    case 'publish_failed':
+      return {
+        subject: `Gönderi yayınlanamadı / Post could not be published: ${ctx.label}`,
+        text: `**${ctx.label}** (${tr}) Instagram'da yayınlanamadı. Neden:${note}\n\nPanelden düzeltip yeniden deneyebilirsin: ${ctx.panelUrl}\n\n---\n\n**${ctx.label}** (${en}) could not be published to Instagram. Reason:${note}\n\nFix it and retry in the panel: ${ctx.panelUrl}`,
+      };
+    case 'waiting_connection':
+      return {
+        subject: `Gönderi bağlantı bekliyor / Post waiting for a connection: ${ctx.label}`,
+        text: `**${ctx.label}** (${tr}) yayınlanamıyor çünkü Instagram bağlantısı çalışmıyor. Bir admin Bağlantılar sekmesinden yeniden bağladığında gönderi sıraya döner.\n\n${ctx.panelUrl}\n\n---\n\n**${ctx.label}** (${en}) cannot go out because the Instagram connection is not working. Once an admin reconnects it in Connections, the post is queued again.\n\n${ctx.panelUrl}`,
+      };
+    case 'needs_confirmation':
+      return {
+        subject: `Geciken gönderi onay bekliyor / Late post needs a decision: ${ctx.label}`,
+        text: `**${ctx.label}** ${tr} için zamanlanmıştı ve iki saatten fazla gecikti. Kendiliğinden yayınlanmayacak: panelden "Yine de yayınla" ya da "İptal et" seç.\n\n${ctx.panelUrl}\n\n---\n\n**${ctx.label}** was scheduled for ${en} and is more than two hours late. It will not go out on its own: choose "Publish anyway" or "Cancel" in the panel.\n\n${ctx.panelUrl}`,
+      };
+    case 'connection_broken':
+      return {
+        subject: `Instagram bağlantısı koptu / Instagram connection broken`,
+        text: `Instagram bağlantısı artık çalışmıyor. Neden:${note}\n\nBağlantılar sekmesinden yeniden bağla; bekleyen gönderiler sıraya döner: ${ctx.panelUrl}\n\n---\n\nThe Instagram connection no longer works. Reason:${note}\n\nReconnect it in Connections; waiting posts are queued again: ${ctx.panelUrl}`,
       };
   }
 }

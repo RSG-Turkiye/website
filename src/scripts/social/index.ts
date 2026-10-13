@@ -5,15 +5,16 @@
  */
 import { setDeps, deps, onChange, type SocialDeps } from './context';
 import { loadCalendar } from './calendar-view';
-import { loadPending, loadDrafts, refreshPendingCount as refreshPendingCountView } from './lists';
+import { loadPending, loadDrafts, loadPublished, refreshPendingCount as refreshPendingCountView } from './lists';
 import { loadEvents } from './events';
 
-type Tab = 'calendar' | 'pending' | 'drafts' | 'events';
-const TABS: Tab[] = ['calendar', 'pending', 'drafts', 'events'];
+type Tab = 'calendar' | 'pending' | 'drafts' | 'published' | 'events';
+const TABS: Tab[] = ['calendar', 'pending', 'drafts', 'published', 'events'];
 const loaders: Record<Tab, () => Promise<void>> = {
   calendar: async () => {},
   pending: async () => {},
   drafts: async () => {},
+  published: async () => {},
   events: async () => {},
 };
 let current: Tab = 'calendar';
@@ -61,6 +62,7 @@ export function setupSocial(d: SocialDeps): void {
   registerView('calendar', loadCalendar);
   registerView('pending', loadPending);
   registerView('drafts', loadDrafts);
+  registerView('published', loadPublished);
   registerView('events', loadEvents);
   registerPendingCount(refreshPendingCountView);
 }
