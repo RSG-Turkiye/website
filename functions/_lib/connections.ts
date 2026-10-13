@@ -89,6 +89,20 @@ export function disconnectStatement(db: D1Database, platform: Platform): D1Prepa
   return db.prepare('DELETE FROM platform_connections WHERE platform = ?').bind(platform);
 }
 
+/**
+ * Puts every Instagram target that was waiting for a working connection back
+ * in the queue, with a clean retry clock (a long wait must not make its first
+ * transient error fatal) and no confirmation (a target that waited days is
+ * held by the lateness rule again unless a publisher confirms it). Used by a
+ * reconnect, a token refresh, and each tick that finds the token usable.
+ */
+export function requeueWaitingStatement(db: D1Database): D1PreparedStatement {
+  return db.prepare(
+    `UPDATE social_post_targets SET status = 'queued', claimed_at = NULL, first_tried_at = NULL, attempts = 0, last_error = NULL, confirmed_at = NULL
+      WHERE platform = 'instagram' AND status = 'waiting_connection'`,
+  );
+}
+
 export async function markOk(db: D1Database, platform: Platform, now: number): Promise<void> {
   await db.prepare(
     'INSERT INTO platform_connections (platform, last_ok_at) VALUES (?, ?) ON CONFLICT(platform) DO UPDATE SET last_ok_at = excluded.last_ok_at',

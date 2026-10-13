@@ -1,7 +1,7 @@
 import type { Env } from '../../../../_lib/auth';
 import { getSessionUser, redirectResponse, getBaseUrl } from '../../../../_lib/auth';
 import { consumeState } from '../../../../_lib/oauth-state';
-import { connectionUpsert } from '../../../../_lib/connections';
+import { connectionUpsert, requeueWaitingStatement } from '../../../../_lib/connections';
 import { runWithAudit, appendAudit } from '../../../../_lib/audit';
 import { exchangeInstagramCode, longLivedInstagramToken, instagramMe, isProfessional, IG_SCOPES } from '../../../../_lib/social/instagram';
 
@@ -10,8 +10,9 @@ import { exchangeInstagramCode, longLivedInstagramToken, instagramMe, isProfessi
  * panel with ?connected=instagram or ?connection_error=<code>. Nothing is
  * stored unless every check passes. A successful connect re-queues every
  * target that was waiting for one; the dispatcher's lateness rule decides
- * whether each still goes out on its own. Each also gets a clean retry
- * clock, so a long wait does not make its first transient error fatal.
+ * whether each still goes out on its own (an earlier confirmation is
+ * cleared). Each also gets a clean retry clock, so a long wait does not make
+ * its first transient error fatal.
  */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const base = getBaseUrl(request);
@@ -65,9 +66,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       accountId: me.userId, accountName: me.username, accessToken: long.token, refreshToken: null,
       scopes: short.permissions.join(','), expiresAt: now + long.expiresIn, refreshExpiresAt: null,
     }, user.id, now);
-    const requeue = env.DB.prepare(
-      `UPDATE social_post_targets SET status = 'queued', claimed_at = NULL, first_tried_at = NULL, attempts = 0, last_error = NULL WHERE platform = 'instagram' AND status = 'waiting_connection'`,
-    );
+    const requeue = requeueWaitingStatement(env.DB);
     await runWithAudit(env.DB, [upsert, requeue], {
       userId: user.id, action: 'connection.connect', targetType: 'connection', targetId: 'instagram',
       details: { account: me.username, accountType: me.accountType, scopes: short.permissions },

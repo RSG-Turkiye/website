@@ -62,7 +62,7 @@ test('start without the app credentials says so instead of failing at Instagram'
 test('callback stores a sealed long-lived token under the account id from /me, and re-queues waiting targets', async () => {
   const { env, db } = setup();
   db.prepare(`INSERT INTO social_posts (id, type, created_by, created_at, updated_at, status) VALUES ('p1','image','u1',1,1,'scheduled')`).run();
-  db.prepare(`INSERT INTO social_post_targets (post_id, platform, status, claimed_at, first_tried_at, attempts, last_error) VALUES ('p1','instagram','waiting_connection', 5, 5, 3, 'auth: x')`).run();
+  db.prepare(`INSERT INTO social_post_targets (post_id, platform, status, claimed_at, first_tried_at, attempts, last_error, confirmed_at) VALUES ('p1','instagram','waiting_connection', 5, 5, 3, 'auth: x', 4)`).run();
   const state = (await begin(env)).searchParams.get('state')!;
   const ig = instagram();
   try {
@@ -77,7 +77,11 @@ test('callback stores a sealed long-lived token under the account id from /me, a
   assert.ok(row.expires_at! > Math.floor(Date.now() / 1000) + 59 * 86400);
   assert.equal(await readAccessToken(env, row), 'long-1');
   assert.notEqual(row.access_token_enc, 'long-1');
-  assert.deepEqual({ ...db.prepare(`SELECT status, claimed_at, first_tried_at, attempts, last_error FROM social_post_targets`).get() as object }, { status: 'queued', claimed_at: null, first_tried_at: null, attempts: 0, last_error: null });
+  assert.deepEqual(
+    { ...db.prepare(`SELECT status, claimed_at, first_tried_at, attempts, last_error, confirmed_at FROM social_post_targets`).get() as object },
+    { status: 'queued', claimed_at: null, first_tried_at: null, attempts: 0, last_error: null, confirmed_at: null },
+    'an old confirmation does not let a target that waited days go out unattended',
+  );
   assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE action = 'connection.connect'`).get() as { n: number }).n, 1);
 });
 

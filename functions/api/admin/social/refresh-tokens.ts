@@ -1,7 +1,7 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { safeEqual } from '../../../_lib/secret';
-import { getConnection, readAccessToken, markBroken, connectionStatus, tokenContext } from '../../../_lib/connections';
+import { getConnection, readAccessToken, markBroken, connectionStatus, tokenContext, requeueWaitingStatement } from '../../../_lib/connections';
 import { seal } from '../../../_lib/token-vault';
 import { appendAudit } from '../../../_lib/audit';
 import { refreshInstagramToken, needsRefresh } from '../../../_lib/social/instagram';
@@ -27,9 +27,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     await env.DB.prepare(
       `UPDATE platform_connections SET access_token_enc = ?, expires_at = ?, last_ok_at = ?, last_error = NULL, last_error_at = NULL WHERE platform = 'instagram'`,
     ).bind(sealed, now + result.expiresIn, now).run();
-    await env.DB.prepare(
-      `UPDATE social_post_targets SET status = 'queued', claimed_at = NULL, first_tried_at = NULL, attempts = 0, last_error = NULL WHERE platform = 'instagram' AND status = 'waiting_connection'`,
-    ).run();
+    await requeueWaitingStatement(env.DB).run();
     await appendAudit(env.DB, { userId: null, action: 'connection.refresh', targetType: 'connection', targetId: 'instagram', details: { expiresAt: now + result.expiresIn } }, now);
     return jsonResponse({ ok: true, refreshed: true });
   }

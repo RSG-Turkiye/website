@@ -107,11 +107,12 @@ test('a transient refresh failure with under 3 days left marks broken and tells 
   assert.ok(mail.sent.some((m) => /bağlantısı koptu/.test(m.subject)));
 });
 
-test('a successful refresh re-queues targets waiting on the connection', async () => {
+test('a successful refresh re-queues targets waiting on the connection, with a clean clock and no confirmation', async () => {
   const { env, db } = world('scheduled', 'waiting_connection');
+  db.prepare(`UPDATE social_post_targets SET confirmed_at = 7`).run();
   const now = Math.floor(Date.now() / 1000);
   await connected(env, now - 45 * 86400, now + 10 * 86400);
   const g = stubGraph((c) => (c.path === '/refresh_access_token' ? Response.json({ access_token: 'new', token_type: 'bearer', expires_in: 5184000 }) : undefined));
   try { await cron(env); } finally { g.restore(); }
-  assert.equal(t(db).status, 'queued');
+  assert.deepEqual([t(db).status, t(db).confirmed_at, t(db).attempts, t(db).first_tried_at, t(db).last_error, t(db).container_id], ['queued', null, 0, null, null, 'c9']);
 });

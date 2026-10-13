@@ -248,3 +248,59 @@ test('a container Instagram reports as ERROR fails the target and lets go of it,
   assert.deepEqual([target(db).status, target(db).container_id, target(db).last_error], ['failed', null, 'container_error: Error: unsupported']);
   assert.equal(postStatus(db), 'failed');
 });
+
+test('a step that outlives its lease writes nothing: no settle, audit, or mail for this tick', async () => {
+  const { env, db, waits } = world();
+  await connect(env);
+  const other = T0 + 30 + 1;
+  const g = stubGraph((c) => {
+    if (c.method === 'POST' && c.path === `/${IG}/media`) {
+      // Another tick took the target over while this one was waiting on Instagram.
+      db.prepare(`UPDATE social_post_targets SET claimed_at = ?`).run(other);
+      return Response.json({ error: { code: 36003, error_subcode: 2207009, message: 'ratio' } }, { status: 400 });
+    }
+    return undefined;
+  });
+  let summary: Awaited<ReturnType<typeof dispatchSocial>> | undefined;
+  try { summary = await dispatchSocial(env, T0 + 30, ORIGIN); } finally { g.restore(); }
+  await Promise.allSettled(waits);
+  assert.deepEqual([target(db).status, target(db).claimed_at, target(db).last_error], ['queued', other, null], 'the other tick still owns the row');
+  assert.equal(postStatus(db), 'scheduled');
+  assert.equal(actions(db).some((a) => a.startsWith('social.target.') || a.startsWith('social.post.')), false);
+  assert.equal(mail.sent.length, 0);
+  assert.equal(summary!.failed, 0);
+});
+
+test('a target retrying a transient error does not starve a newer due post', async () => {
+  const { env, db } = world();
+  await connect(env);
+  for (const id of ['old1', 'old2']) {
+    db.prepare(`INSERT INTO social_posts (id, type, caption, media, platforms, scheduled_at, status, revision, created_by, created_at, updated_at)
+                VALUES (?, 'image', 'Eski', ?, '["instagram"]', ?, 'scheduled', 2, 'ed', 1, 1)`)
+      .run(id, JSON.stringify([{ key: KEYS.feed, alt: 'Afiş' }]), T0 - 600);
+    db.prepare(`INSERT INTO social_post_targets (post_id, platform, status, attempts, first_tried_at, last_error) VALUES (?, 'instagram', 'queued', 5, ?, 'transient: 5xx')`).run(id, T0 - 300);
+  }
+  const g = stubGraph(graphFlow(['FINISHED']));
+  try { await dispatchSocial(env, T0 + 30, ORIGIN); } finally { g.restore(); }
+  const fresh = { ...db.prepare(`SELECT status, container_id FROM social_post_targets WHERE post_id = 'p1'`).get() as object };
+  assert.deepEqual(fresh, { status: 'publishing', container_id: 'c1' }, 'the fresh post went first');
+});
+
+test('a target left waiting while the connection works is put back by the next tick, unconfirmed', async () => {
+  const { env, db } = world();
+  await connect(env);
+  db.prepare(`UPDATE social_post_targets SET status = 'waiting_connection', confirmed_at = ?, attempts = 2, first_tried_at = ?, last_error = 'auth: x'`).run(T0 - 60, T0 - 60);
+  const g = stubGraph(graphFlow(['FINISHED']));
+  try { await dispatchSocial(env, T0 + 30, ORIGIN); } finally { g.restore(); }
+  const row = { ...db.prepare(`SELECT status, container_id, confirmed_at, attempts FROM social_post_targets`).get() as object };
+  assert.deepEqual(row, { status: 'publishing', container_id: 'c1', confirmed_at: null, attempts: 0 });
+  assert.ok(actions(db).includes('social.target.requeued'));
+});
+
+test('waiting targets stay put while there is no usable connection', async () => {
+  const { env, db } = world();
+  db.prepare(`UPDATE social_post_targets SET status = 'waiting_connection'`).run();
+  await dispatchSocial(env, T0 + 30, ORIGIN);
+  assert.equal(target(db).status, 'waiting_connection');
+  assert.equal(actions(db).includes('social.target.requeued'), false);
+});

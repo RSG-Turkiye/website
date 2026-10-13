@@ -6,7 +6,7 @@
  * its targets. Every change is audited as the system (userId null).
  */
 import type { Env } from './auth';
-import { getConnection, connectionStatus, readAccessToken, markOk, markBroken } from './connections';
+import { getConnection, connectionStatus, readAccessToken, markOk, markBroken, requeueWaitingStatement } from './connections';
 import { rowToDraft, type PostRow } from './social-posts';
 import { captionFor } from './social-limits';
 import { afterStep, derivePostStatus, isLate, CLAIM_LEASE_SECONDS, type TargetNow, type TargetStatus } from './social-dispatch';
@@ -26,6 +26,28 @@ type Due = PostRow & {
 export async function dispatchSocial(env: Env, now: number, origin: string) {
   const db = env.DB;
   const summary = { candidates: 0, claimed: 0, published: 0, failed: 0, waiting: 0 };
+  const panelUrl = `${origin}/admin`;
+
+  // The token is read once per tick; an auth failure clears it so the rest of the batch waits instead of failing the same way.
+  const conn = await getConnection(db, 'instagram');
+  const usable = conn && conn.account_id && ['connected', 'expiring'].includes(connectionStatus(conn, now));
+  let token = usable ? await readAccessToken(env, conn!) : null;
+  if (usable && !token) {
+    await markBroken(db, 'instagram', 'stored token unreadable', now);
+    await notifyEach(env, await adminEmails(db), notificationText('connection_broken', { label: '', when: null, note: 'stored token unreadable', panelUrl }));
+  }
+  // A target can be left waiting with the connection working again (a tick
+  // that wrote waiting_connection just after a reconnect re-queued): put it
+  // back, exactly as a reconnect would. This runs before the due query, since
+  // waiting targets are not due and a tick with none due would never get here.
+  if (token) {
+    const healed = await requeueWaitingStatement(db).run();
+    if (healed.meta.changes > 0) {
+      await appendAudit(db, { userId: null, action: 'social.target.requeued', targetType: 'connection', targetId: 'instagram', details: { targets: healed.meta.changes } }, now);
+    }
+  }
+
+  // Fewest attempts first: a target retrying a transient error must not starve newer due posts.
   const due = (await db.prepare(
     `SELECT p.*, t.platform, t.status AS target_status, t.attempts, t.first_tried_at, t.container_id, t.remote_id, t.permalink,
             t.published_at, t.last_error, t.confirmed_at, u.email AS author_email, pl.title AS plan_title
@@ -35,7 +57,7 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
        LEFT JOIN social_plans pl ON pl.post_id = p.id
       WHERE t.status IN ('queued','publishing') AND p.status = 'scheduled' AND p.scheduled_at <= ?
         AND (t.claimed_at IS NULL OR t.claimed_at <= ?)
-      ORDER BY p.scheduled_at
+      ORDER BY t.attempts, p.scheduled_at
       LIMIT ?`,
   ).bind(now, now - CLAIM_LEASE_SECONDS, TICK_BATCH).all<Due>()).results;
   summary.candidates = due.length;
@@ -50,16 +72,6 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
   ).all<{ id: string }>()).results;
   for (const o of orphans) await settlePost(db, o.id, now);
   if (due.length === 0) return summary;
-
-  const panelUrl = `${origin}/admin`;
-  // The token is read once per tick; an auth failure clears it so the rest of the batch waits instead of failing the same way.
-  const conn = await getConnection(db, 'instagram');
-  const usable = conn && conn.account_id && ['connected', 'expiring'].includes(connectionStatus(conn, now));
-  let token = usable ? await readAccessToken(env, conn!) : null;
-  if (usable && !token) {
-    await markBroken(db, 'instagram', 'stored token unreadable', now);
-    await notifyEach(env, await adminEmails(db), notificationText('connection_broken', { label: '', when: null, note: 'stored token unreadable', panelUrl }));
-  }
 
   for (const row of due) {
     const claim = await db.prepare(
@@ -80,7 +92,7 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
 
     // Platforms without an adapter yet (LinkedIn until phase 5): settled, not counted.
     if (row.platform !== 'instagram') {
-      await write(db, row, { ...t, status: 'skipped', last_error: 'not_available: no adapter yet' }, now);
+      if (!await write(db, row, { ...t, status: 'skipped', last_error: 'not_available: no adapter yet' }, now)) continue;
       await settlePost(db, row.id, now);
       await appendAudit(db, { userId: null, action: 'social.target.skipped', targetType: 'social_post', targetId: row.id, details: { platform: row.platform } }, now);
       continue;
@@ -88,14 +100,14 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
     // Queued with no attempt in its current run (a transient retry has already started and runs out its own window) and more than two hours late: a person decides (spec §5, lateness rule).
     // A container kept from before a wait does not exempt it: reconnect, refresh and requeue all reset first_tried_at, and a held target keeps its container for the status read after confirmation.
     if (row.target_status === 'queued' && row.first_tried_at === null && isLate(row.scheduled_at!, now, row.confirmed_at)) {
-      await write(db, row, { ...t, status: 'needs_confirmation' }, now);
+      if (!await write(db, row, { ...t, status: 'needs_confirmation' }, now)) continue;
       await settlePost(db, row.id, now);
       await appendAudit(db, { userId: null, action: 'social.target.late', targetType: 'social_post', targetId: row.id, details: { platform: row.platform, scheduledAt: row.scheduled_at } }, now);
       await tell('needs_confirmation', await publisherEmails(db));
       continue;
     }
     if (!token) {
-      await write(db, row, { ...t, status: 'waiting_connection', last_error: 'auth: no working Instagram connection' }, now);
+      if (!await write(db, row, { ...t, status: 'waiting_connection', last_error: 'auth: no working Instagram connection' }, now)) continue;
       await settlePost(db, row.id, now);
       await appendAudit(db, { userId: null, action: 'social.target.waiting', targetType: 'social_post', targetId: row.id, details: { platform: row.platform } }, now);
       await tell('waiting_connection', [row.author_email ?? '', ...await publisherEmails(db)]);
@@ -113,7 +125,8 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
       state: { containerId: row.container_id },
     });
     const tr = afterStep(step, t, now);
-    await write(db, row, tr.next, now);
+    // Lost the lease (the step outlived it and another tick took over): that tick owns the target now; record nothing.
+    if (!await write(db, row, tr.next, now)) continue;
     await settlePost(db, row.id, now);
     if (tr.audit) {
       await appendAudit(db, {
@@ -136,14 +149,19 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
   return summary;
 }
 
-/** Writes a target's next state and releases this tick's lease, so a pending container is polled again next minute. */
-async function write(db: D1Database, row: Due, n: TargetNow, now: number): Promise<void> {
-  await db.prepare(
+/**
+ * Writes a target's next state and releases this tick's lease, so a pending
+ * container is polled again next minute. False when the lease was lost: the
+ * row is no longer this tick's to write, so the caller stops there.
+ */
+async function write(db: D1Database, row: Due, n: TargetNow, now: number): Promise<boolean> {
+  const res = await db.prepare(
     `UPDATE social_post_targets
         SET status = ?, attempts = ?, first_tried_at = ?, container_id = ?, remote_id = ?, permalink = ?, published_at = ?,
             last_error = ?, claimed_at = NULL
       WHERE post_id = ? AND platform = ? AND claimed_at = ?`,
   ).bind(n.status, n.attempts, n.first_tried_at, n.container_id, n.remote_id, n.permalink, n.published_at, n.last_error, row.id, row.platform, now).run();
+  return res.meta.changes === 1;
 }
 
 /** Moves the post to published / partially_published / failed once every target has settled. */
