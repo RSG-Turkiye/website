@@ -105,3 +105,13 @@ export async function markBroken(db: D1Database, platform: Platform, error: stri
 export async function readRefreshToken(env: { TOKEN_ENC_KEY?: string }, row: ConnectionRow): Promise<string | null> {
   return row.refresh_token_enc ? unseal(env.TOKEN_ENC_KEY, row.refresh_token_enc, tokenContext(row.platform, 'refresh')) : null;
 }
+
+/** The stored access token, or null when there is none or it cannot be opened (wrong key, tampered row). */
+export async function readAccessToken(env: { TOKEN_ENC_KEY?: string }, row: ConnectionRow): Promise<string | null> {
+  if (!row.access_token_enc) return null;
+  try {
+    return await unseal(env.TOKEN_ENC_KEY, row.access_token_enc, tokenContext(row.platform, 'access'));
+  } catch {
+    return null;
+  }
+}
