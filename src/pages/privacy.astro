@@ -1,0 +1,11 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PrivacyPolicy from '../components/PrivacyPolicy.astro';
+import { PRIVACY } from '../data/privacy';
+
+const notice = PRIVACY.en;
+---
+
+<BaseLayout pageTitle={`${notice.title} - RSG-Turkiye`} description={notice.description}>
+  <PrivacyPolicy lang="en" />
+</BaseLayout>
