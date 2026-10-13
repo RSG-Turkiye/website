@@ -13,7 +13,7 @@ const VARIANTS = {
 } as const;
 
 export function button(label: string, attrs: string, variant: keyof typeof VARIANTS = 'plain'): string {
-  return `<button type="button" ${attrs} class="px-3 py-1.5 rounded-lg text-sm font-medium ${VARIANTS[variant]} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${esc(label)}</button>`;
+  return `<button type="button" ${attrs} class="px-3 py-1.5 rounded-lg text-sm font-medium ${VARIANTS[variant]} disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${esc(label)}</button>`;
 }
 
 /** Colour per status; plans use 'plan' and 'due'. Looked up, never interpolated from the server. */

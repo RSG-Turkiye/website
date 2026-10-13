@@ -1,7 +1,7 @@
 /** Details and actions for the item clicked on the calendar or board. */
 import { api, ApiError, type Plan, type Post } from './api';
 import { deps, changed } from './context';
-import { errorText } from './messages';
+import { errorText, problemText } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { dayKey, timeOf, planDue } from '../../lib/social-calendar';
 import { findPlan, findPost } from './calendar-view';
@@ -14,27 +14,43 @@ const row = (label: string, value: string) => `<p class="text-xs text-gray-500 m
 const LOCKED = ['published', 'partially_published', 'failed', 'cancelled'];
 const STALE_CODES = ['post_changed', 'not_found', 'not_pending', 'plan_taken', 'plan_has_post'];
 
-export function hideSide(): void { side().classList.add('hidden'); side().replaceChildren(); }
+/** What the panel shows, so it can be redrawn from fresh data after an edit elsewhere. */
+let shown: { kind: 'plan' | 'post'; id: string } | null = null;
+
+export function hideSide(): void { shown = null; side().classList.add('hidden'); side().replaceChildren(); }
 
 export function showSide(kind: 'plan' | 'post', id: string): void {
-  if (kind === 'plan') { const p = findPlan(id); if (p) renderPlan(p); }
-  else { const p = findPost(id); if (p) renderPost(p); }
+  if (kind === 'plan') { const p = findPlan(id); if (p) { shown = { kind, id }; renderPlan(p); } }
+  else { const p = findPost(id); if (p) { shown = { kind, id }; renderPost(p); } }
 }
 
-async function run(work: () => Promise<unknown>, doneKey: string): Promise<void> {
+/** After the calendar reloads: redraw the open panel from the new data (a stale revision gives false conflicts), or close it if the item is gone. */
+export function refreshSide(): void {
+  if (!shown || side().classList.contains('hidden')) return;
+  const plan = shown.kind === 'plan' ? findPlan(shown.id) : undefined;
+  const post = shown.kind === 'post' ? findPost(shown.id) : undefined;
+  if (plan) renderPlan(plan); else if (post) renderPost(post); else hideSide();
+}
+
+async function run(work: () => Promise<unknown>, doneKey: string, btn?: HTMLButtonElement): Promise<void> {
   const { t, showToast } = deps();
+  if (btn) btn.disabled = true;
   try {
     await work();
     showToast(t(doneKey));
     hideSide();
     changed();
   } catch (err) {
-    showToast(errorText(err), true);
+    showToast(err instanceof ApiError && err.code === 'not_ready' && err.problems.length
+      ? err.problems.map(problemText).join(' ') : errorText(err), true);
     // The panel's revision or plan link is stale: close it and reload so retries do not hit the same conflict.
     if (err instanceof ApiError && STALE_CODES.includes(err.code)) {
       hideSide();
       changed();
     }
+  } finally {
+    // The panel may have been re-rendered; a detached button is harmless.
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -97,13 +113,13 @@ function renderPost(p: Post): void {
 
   const q = (s: string) => side().querySelector<HTMLButtonElement>(`[data-act="${s}"]`);
   q('open')?.addEventListener('click', () => void openComposer({ postId: p.id }));
-  q('submit')?.addEventListener('click', () => void run(() => api.action(p.id, 'submit', { revision: p.revision }),
-    me.isPublisher ? 'admin.social.done.scheduled' : 'admin.social.done.submitted'));
-  q('approve')?.addEventListener('click', () => void run(() => api.action(p.id, 'approve', { revision: p.revision }), 'admin.social.done.approved'));
+  q('submit')?.addEventListener('click', (e) => void run(() => api.action(p.id, 'submit', { revision: p.revision }),
+    me.isPublisher ? 'admin.social.done.scheduled' : 'admin.social.done.submitted', e.currentTarget as HTMLButtonElement));
+  q('approve')?.addEventListener('click', (e) => void run(() => api.action(p.id, 'approve', { revision: p.revision }), 'admin.social.done.approved', e.currentTarget as HTMLButtonElement));
   q('reject')?.addEventListener('click', () => side().querySelector('[data-reject]')!.classList.remove('hidden'));
-  q('rejectSend')?.addEventListener('click', () => {
+  q('rejectSend')?.addEventListener('click', (e) => {
     const note = side().querySelector<HTMLTextAreaElement>('[data-reject] textarea')!.value.trim();
-    void run(() => api.action(p.id, 'reject', { revision: p.revision, note }), 'admin.social.done.rejected');
+    void run(() => api.action(p.id, 'reject', { revision: p.revision, note }), 'admin.social.done.rejected', e.currentTarget as HTMLButtonElement);
   });
   const del = q('delete'); if (del) armConfirm(del, () => run(() => api.deletePost(p.id, p.revision), 'admin.social.done.deleted'));
   const cancel = q('cancel'); if (cancel) armConfirm(cancel, () => run(() => api.action(p.id, 'cancel', { revision: p.revision }), 'admin.social.done.cancelled'));

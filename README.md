@@ -577,16 +577,17 @@ cut off by the platform.
 
 ### Using the panel
 
-The panel is at `/admin` → Social media. Editors and publishers see it;
-nobody else does.
+The panel is at `/admin` → Social media. Editors, publishers and admins see
+it; nobody else does.
 
 - **Calendar and board.** A plan slot is a dashed box. An empty slot due
   within two days turns red.
 - **Composer.** Alt text is required on every image. Images must be JPEG or
   PNG and are stored as JPEG. Counters are shown per platform and count
   conservatively (UTF-16 units). The checklist uses the server's own
-  readiness rule, so it matches the server exactly. Drafts autosave, and
-  autosave stops if someone else changes the post.
+  readiness rule, so it matches the server exactly. Drafts autosave. Autosave
+  stops if someone else changes the post, and pauses after any failed save
+  until you press Save.
 - **Editors** see only their own posts as editable; others' posts are
   read-only. Editing a scheduled post as an editor sends it back to approval.
 - **Publishers** approve, send back with a note, cancel, and open or close

@@ -3,7 +3,7 @@ import { api, type Plan, type Post } from './api';
 import { deps } from './context';
 import { esc, statusClass } from './ui';
 import { monthGrid, gridRange, bucketByDay, dayKey, timeOf, shiftMonth, monthOf, planDue } from '../../lib/social-calendar';
-import { showSide } from './side-panel';
+import { showSide, refreshSide } from './side-panel';
 import { openPlanDialog } from './plan-dialog';
 import { openComposer } from './composer';
 
@@ -73,6 +73,7 @@ function render(): void {
     b.setAttribute('aria-pressed', String(on));
   }
   el.innerHTML = view === 'calendar' ? grid() : board();
+  refreshSide();
 
   function grid(): string {
     const days = monthGrid(year, month);

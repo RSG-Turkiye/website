@@ -118,6 +118,8 @@ export async function openComposer(opts: { postId?: string; plan?: Plan; date?: 
 async function saveDraft(): Promise<void> {
   try {
     if (!state.id) {
+      // A new draft with nothing in it is not worth a post.
+      if (!state.media.length && !state.caption.trim() && !state.link.trim() && !state.date) { dirty = false; return; }
       const r = await api.createPost(toDraftBody(state, true));
       state.id = r.id;
       state.revision = r.revision;
@@ -131,8 +133,8 @@ async function saveDraft(): Promise<void> {
     savedAt = timeOf(Math.floor(Date.now() / 1000));
     renderStatusLine();
   } catch (err) {
-    if (err instanceof ApiError && err.code === 'plan_taken') {
-      // Someone filled the slot first: keep the work as a plain draft.
+    if (err instanceof ApiError && !state.id && state.planId && (err.code === 'plan_taken' || err.code === 'invalid_plan')) {
+      // Someone filled the slot first, or it was deleted: keep the work as a plain draft.
       deps().showToast(deps().t('admin.social.composer.planTakenNow'), true);
       state.planId = null;
       state.planTitle = null;
@@ -230,6 +232,8 @@ function wireForm(): void {
       autosave?.stop(); closeOverlay(); changed();
     })();
   });
+  // Preview tabs work in the read-only view too.
+  o.querySelectorAll<HTMLButtonElement>('[data-pv]').forEach((b) => b.addEventListener('click', () => { previewKind = b.dataset.pv as PreviewKind; render(); }));
   if (!editable) return;
   o.querySelectorAll<HTMLButtonElement>('[data-type]').forEach((b) => b.addEventListener('click', () => {
     state.type = b.dataset.type as PostType;
@@ -244,7 +248,6 @@ function wireForm(): void {
   o.querySelector<HTMLInputElement>('[data-link]')!.addEventListener('input', (e) => { state.link = (e.target as HTMLInputElement).value; touch(); });
   o.querySelector<HTMLInputElement>('[data-date]')!.addEventListener('input', (e) => { state.date = (e.target as HTMLInputElement).value; touch(); });
   o.querySelector<HTMLInputElement>('[data-time]')!.addEventListener('input', (e) => { state.time = (e.target as HTMLInputElement).value; touch(); });
-  o.querySelectorAll<HTMLButtonElement>('[data-pv]').forEach((b) => b.addEventListener('click', () => { previewKind = b.dataset.pv as PreviewKind; render(); }));
 }
 
 function renderMedia(): void {
@@ -295,7 +298,8 @@ function renderMedia(): void {
             : tf('admin.social.composer.uploadFailed', { detail: err instanceof Error ? err.message : '' }), true);
         }
       }
-      if (state !== s || !overlay().contains(box)) return;
+      // The composer may have re-rendered during the upload; the render functions re-query the current DOM.
+      if (state !== s) return;
       dirty = true; autosave?.touch(); renderMedia(); renderChecks(); renderPreviewPane();
     })();
   });

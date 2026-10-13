@@ -41,7 +41,7 @@ export async function openPlanDialog(opts: { plan?: Plan; date?: string }): Prom
       ${people.map((e) => `<option value="${esc(e.id)}" ${plan?.assigneeId === e.id ? 'selected' : ''}>${esc(e.name ? `${e.name} (${e.email})` : e.email)}</option>`).join('')}</select></label>
     <label class="block text-xs text-gray-500">${esc(t('admin.social.plan.note'))}<textarea name="note" maxlength="500" rows="2" class="${input}">${esc(plan?.note ?? '')}</textarea></label>
     <div class="flex gap-2 justify-end">${button(t('admin.social.plan.cancel'), 'data-close')}
-      <button type="submit" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white">${esc(t('admin.social.plan.save'))}</button></div>
+      <button type="submit" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40 disabled:cursor-not-allowed">${esc(t('admin.social.plan.save'))}</button></div>
   </form>`;
   o.classList.remove('hidden');
   o.querySelector('[data-close]')!.addEventListener('click', closeOverlay);
@@ -58,6 +58,8 @@ export async function openPlanDialog(opts: { plan?: Plan; date?: string }): Prom
       assigneeId: String(f.get('assignee')) || null,
       note: String(f.get('note')),
     };
+    const submitBtn = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
+    submitBtn.disabled = true;
     void (async () => {
       try {
         if (plan) await api.updatePlan(plan.id, body); else await api.createPlan(body);
@@ -66,6 +68,8 @@ export async function openPlanDialog(opts: { plan?: Plan; date?: string }): Prom
         changed();
       } catch (err) {
         showToast(errorText(err), true);
+      } finally {
+        submitBtn.disabled = false;
       }
     })();
   });

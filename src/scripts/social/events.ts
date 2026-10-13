@@ -36,8 +36,8 @@ export async function loadEvents(): Promise<void> {
         changed();
       } catch (err) {
         showToast(errorText(err), true);
-        // Already closed or removed elsewhere: reload so the list shows the current state.
-        if (err instanceof ApiError && CLOSE_STALE_CODES.includes(err.code)) changed();
+        // Already closed or removed elsewhere (a server 404 carries no code): reload so the list shows the current state.
+        if (err instanceof ApiError && (err.status === 404 || CLOSE_STALE_CODES.includes(err.code))) changed();
       }
     });
   });
@@ -61,7 +61,7 @@ async function renderForm(): Promise<void> {
     <fieldset class="mt-2 text-xs text-gray-500">${esc(t('admin.social.events.pickEditors'))}<div class="flex flex-wrap gap-3 mt-1">
       ${people.filter((p) => !p.isPublisher).map((p) => `<label class="text-sm text-navy"><input type="checkbox" name="editor" value="${esc(p.id)}"> ${esc(p.name ?? p.email)}</label>`).join('')}
     </div></fieldset>
-    <button type="submit" class="mt-3 px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white">${esc(t('admin.social.events.open'))}</button>`;
+    <button type="submit" class="mt-3 px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40 disabled:cursor-not-allowed">${esc(t('admin.social.events.open'))}</button>`;
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const f = new FormData(form);
@@ -71,8 +71,10 @@ async function renderForm(): Promise<void> {
       endsAt: istanbulInputToEpoch(String(f.get('end'))) ?? -1,
       editorIds: f.getAll('editor').map(String),
     };
+    const submitBtn = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
+    submitBtn.disabled = true;
     void (async () => {
-      try { await api.openEvent(body); showToast(t('admin.social.events.opened')); form.reset(); changed(); } catch (err) { showToast(errorText(err), true); }
+      try { await api.openEvent(body); showToast(t('admin.social.events.opened')); form.reset(); changed(); } catch (err) { showToast(errorText(err), true); } finally { submitBtn.disabled = false; }
     })();
   });
 }
