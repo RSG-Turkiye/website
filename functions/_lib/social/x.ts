@@ -9,7 +9,7 @@
  */
 import type { Env } from '../auth';
 import type { ConnectionRow } from '../connections';
-import { getConnection, readAccessToken, readRefreshToken, markBroken, tokenContext } from '../connections';
+import { getConnection, readAccessToken, readRefreshToken, connectionStatus, tokenContext } from '../connections';
 import { seal } from '../token-vault';
 import type { PublishInput, PublishStep } from './types';
 import type { TokenEnv, Usable } from './tokens';
@@ -88,6 +88,7 @@ export async function xMe(token: string): Promise<{ ok: true; id: string; userna
 
 async function fromStored(env: TokenEnv, now: number, row?: ConnectionRow | null): Promise<Usable> {
   const current = row ?? await getConnection(env.DB, 'x');
+  if (connectionStatus(current ?? null, now) === 'broken') return { ok: false, why: 'broken' };
   const token = current?.account_id && current.expires_at !== null && current.expires_at > now ? await readAccessToken(env, current) : null;
   return token ? { ok: true, token, account: { id: current!.account_id!, name: current!.account_name } } : { ok: false, why: 'transient', reason: 'unavailable: X token renewal did not finish' };
 }
@@ -115,7 +116,11 @@ export async function refreshXOnUse(env: TokenEnv, row: ConnectionRow, now: numb
   const current = await getConnection(env.DB, 'x');
   if (current && current.refresh_token_enc !== row.refresh_token_enc) return fromStored(env, now, current);
   if (r.auth) {
-    await markBroken(env.DB, 'x', `refresh: ${r.reason}`, now);
+    // Conditional on the refresh token this call spent: if someone rotated it since the re-read, theirs is the live pair.
+    const broke = await env.DB.prepare(
+      `UPDATE platform_connections SET last_error = ?, last_error_at = ? WHERE platform = 'x' AND refresh_token_enc = ?`,
+    ).bind(`refresh: ${r.reason}`.slice(0, 300), now, row.refresh_token_enc).run();
+    if (broke.meta.changes !== 1) return fromStored(env, now);
     return { ok: false, why: 'broken', justBroke: true, reason: r.reason };
   }
   if (row.expires_at !== null && row.expires_at > now) return fromStored(env, now, row);
@@ -164,7 +169,7 @@ async function call(url: string, init: RequestInit): Promise<{ status: number; b
  * whose first create was lost, is recorded as published. Both together are
  * rare enough.) While recovering, no answer other than success, duplicate,
  * auth or rate limit is taken as proof that nothing went out, so none of
- * them clears the attempt.)
+ * them clears the attempt.
  */
 export async function xPublishStep(input: PublishInput): Promise<PublishStep> {
   const { account, token, post, now, checkpoint } = input;
@@ -180,7 +185,7 @@ export async function xPublishStep(input: PublishInput): Promise<PublishStep> {
       const data = m.load ? await m.load() : null;
       if (!data) return { kind: 'retry', reason: `media_unreachable: ${m.key}` };
       const form = new FormData();
-      form.set('media', new Blob([data as BlobPart],{ type: 'image/jpeg' }), m.key);
+      form.set('media', new Blob([data as BlobPart], { type: 'image/jpeg' }), m.key);
       form.set('media_category', 'tweet_image');
       const up = await call(`${X_API}/media/upload`, { method: 'POST', headers: auth, body: form });
       const id = (up.body?.data as { id?: string } | undefined)?.id;
@@ -207,7 +212,7 @@ export async function xPublishStep(input: PublishInput): Promise<PublishStep> {
   });
   if (created.status === 201 || created.status === 200) {
     const id = (created.body?.data as { id?: string } | undefined)?.id;
-    if (!id) return { kind: 'retry', reason: 'uncertain: unexpected ' + created.status + ' from X' };
+    if (!id) return { kind: 'retry', reason: `uncertain: unexpected ${created.status} from X` };
     return { kind: 'done', remoteId: id, permalink: `https://x.com/${account.name || 'i/web'}/status/${id}` };
   }
   if (isDuplicate(created.status, created.body)) {

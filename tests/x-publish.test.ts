@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { stubHttp, type HttpCall } from './lib/http';
 import { setupSocial } from './lib/social';
-import { xPublishStep, pkceVerifier, pkceChallenge } from '../functions/_lib/social/x';
+import { seal } from '../functions/_lib/token-vault';
+import { xPublishStep, pkceVerifier, pkceChallenge, refreshXOnUse } from '../functions/_lib/social/x';
 import { usableToken } from '../functions/_lib/social/tokens';
 import { connectionUpsert, getConnection, readRefreshToken } from '../functions/_lib/connections';
 import type { PostForPlatform, PublishInput } from '../functions/_lib/social/types';
@@ -175,4 +176,58 @@ test('a 2xx that is not 200/201, or a 201 without an id, is uncertain, not done'
   assert.deepEqual(a.result, { kind: 'retry', reason: 'uncertain: unexpected 202 from X' });
   const b = await run(() => Response.json({}, { status: 201 }), input(single, state(['1'], null)));
   assert.deepEqual(b.result, { kind: 'retry', reason: 'uncertain: unexpected 201 from X' });
+});
+
+async function winnerRenews(env: ReturnType<typeof xWorld>['env'], now: number) {
+  const g = stubHttp(['api.x.com'], () => Response.json({ access_token: 'winner-access', refresh_token: 'rt-2', expires_in: 7200 }));
+  try { await usableToken(env, 'x', now); } finally { g.restore(); }
+}
+
+test('the winner stores its tokens after the loser re-read the row but before the loser breaks X: X is not broken, the winner\'s token is used', async () => {
+  const { env, db } = xWorld();
+  const now = 1_800_000_000;
+  await connectX(env, now + 60);
+  const stale = (await getConnection(env.DB, 'x'))!;
+  let armed = false;
+  // The loser's re-read returns the old row; the winner's write lands right after it.
+  const racing = { ...env, DB: { prepare(sql: string) {
+    const st = env.DB.prepare(sql);
+    if (!armed || !sql.startsWith('SELECT * FROM platform_connections')) return st;
+    return { bind: (...a: unknown[]) => { const b = st.bind(...a); return { first: async () => {
+      const r = await b.first(); armed = false;
+      db.prepare(`UPDATE platform_connections SET access_token_enc = ?, refresh_token_enc = ?, expires_at = ? WHERE platform = 'x'`)
+        .run(await seal(KEY, 'winner-access', 'x:access'), await seal(KEY, 'rt-2', 'x:refresh'), now + 7200);
+      return r;
+    } }; } };
+  } } } as never as typeof env;
+  const g = stubHttp(['api.x.com'], () => { armed = true; return Response.json({ error: 'invalid_request' }, { status: 400 }); });
+  let u;
+  try { u = await refreshXOnUse(racing, stale, now); } finally { g.restore(); }
+  assert.deepEqual(u, { ok: true, token: 'winner-access', account: { id: '77', name: 'rsgturkey' } });
+  assert.equal((db.prepare(`SELECT last_error FROM platform_connections WHERE platform = 'x'`).get() as { last_error: string | null }).last_error, null);
+});
+
+test('a re-read that finds X already broken reports broken without claiming it just broke', async () => {
+  const { env, db } = xWorld();
+  const now = 1_800_000_000;
+  await connectX(env, now + 60);
+  const stale = (await getConnection(env.DB, 'x'))!;
+  db.prepare(`UPDATE platform_connections SET refresh_token_enc = ?, last_error = 'e', last_error_at = ?, last_ok_at = NULL WHERE platform = 'x'`).run(await seal(KEY, 'rt-9', 'x:refresh'), now);
+  const g = stubHttp(['api.x.com'], () => Response.json({ error: 'invalid_request' }, { status: 400 }));
+  let u;
+  try { u = await refreshXOnUse(env, stale, now); } finally { g.restore(); }
+  assert.deepEqual(u, { ok: false, why: 'broken' });
+});
+
+test('both renewals succeed at X: the loser\'s write changes nothing and it uses the stored winner\'s token', async () => {
+  const { env } = xWorld();
+  const now = 1_800_000_000;
+  await connectX(env, now + 60);
+  const stale = (await getConnection(env.DB, 'x'))!;
+  await winnerRenews(env, now);
+  const g = stubHttp(['api.x.com'], () => Response.json({ access_token: 'loser-access', refresh_token: 'rt-3', expires_in: 7200 }));
+  let u;
+  try { u = await refreshXOnUse(env, stale, now); } finally { g.restore(); }
+  assert.deepEqual(u, { ok: true, token: 'winner-access', account: { id: '77', name: 'rsgturkey' } });
+  assert.equal(await readRefreshToken(env, (await getConnection(env.DB, 'x'))!), 'rt-2');
 });
