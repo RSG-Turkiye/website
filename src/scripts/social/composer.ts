@@ -12,7 +12,7 @@ import { renderPreview, bgImage, type PreviewKind } from './preview';
 import { uploadSocialImage, uploadSocialBlob, SOCIAL_IMAGE_TYPES, UnsupportedImageType, type SocialUpload } from '../image-upload';
 import { readinessProblems, linkOk } from '../../../functions/_lib/social-posts';
 import {
-  captionFor, countChars, countHashtags, ratioOk, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
+  captionFor, countChars, countHashtags, ratioOk, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, MAX_ALT_LENGTH, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
 } from '../../../functions/_lib/social-limits';
 import { DEFAULT_TIME, dayKey, timeOf, epochAt } from '../../lib/social-calendar';
 import { nearestRatio } from '../../lib/image-crop';
@@ -350,7 +350,8 @@ function renderMedia(): void {
   box.querySelectorAll<HTMLButtonElement>('[data-altadd]').forEach((b) => b.addEventListener('click', () => {
     const m = state.media[Number(b.dataset.altadd)];
     const add = (m.overlays ?? []).map((ov) => ov.text.trim()).filter((x) => x && !m.alt.toLowerCase().includes(x.slice(0, 20).toLowerCase()));
-    m.alt = [m.alt.trim(), ...add].filter(Boolean).join('. ');
+    const head = m.alt.trim().replace(/[.\s]+$/, '');
+    m.alt = [head, ...add].filter(Boolean).join('. ').slice(0, MAX_ALT_LENGTH);
     touch(); renderMedia();
   }));
   box.querySelectorAll<HTMLButtonElement>('[data-text]').forEach((b) => b.addEventListener('click', () => {
@@ -358,9 +359,12 @@ function renderMedia(): void {
     const m = state.media[i];
     const s = state;
     void (async () => {
+      const label = b.textContent;
       try {
         const result = await openTextEditor({ src: sameOrigin(m.baseUrl ?? m.url), overlays: m.overlays ?? [] });
         if (!result || state !== s || s.media[i] !== m) return;
+        b.disabled = true;
+        b.textContent = t('admin.social.text.applying');
         const up = result.overlays.length ? await renderAndUpload(m.baseUrl ?? m.url, result.overlays) : null;
         if (state !== s || s.media[i] !== m) return;
         s.media[i] = withOverlays(m, result.overlays, up);
@@ -368,6 +372,9 @@ function renderMedia(): void {
         if (!s.media[i].width) void measure(s.media[i]).then(() => { if (state === s) { renderMedia(); renderChecks(); } });
       } catch (err) {
         showToast(tf('admin.social.text.failed', { detail: err instanceof Error ? err.message : '' }), true);
+      } finally {
+        b.disabled = false;
+        b.textContent = label;
       }
     })();
   }));
@@ -389,7 +396,9 @@ function renderMedia(): void {
     const start: CropStart | undefined = m.source && m.width && m.height
       ? { mode: m.source.mode, rect: { x: m.source.x, y: m.source.y, w: m.source.w, h: m.source.h }, ratio: nearestRatio(m.width, m.height, s.type).value }
       : undefined;
+    const textBtn = b.parentElement?.querySelector<HTMLButtonElement>('[data-text]') ?? null;
     void (async () => {
+      const label = textBtn?.textContent ?? '';
       try {
         // With text, the pictures without text are the ones to crop from: m.url has the text drawn in.
         const original = m.sourceUrl ?? m.baseUrl ?? m.url;
@@ -400,6 +409,7 @@ function renderMedia(): void {
         const sourceUrl = m.sourceUrl ?? m.baseUrl ?? m.url;
         if (m.overlays?.length) {
           // The text follows the crop: draw it again on the new picture.
+          if (textBtn) { textBtn.disabled = true; textBtn.textContent = t('admin.social.text.applying'); }
           const textUp = await renderAndUpload(up.url, m.overlays);
           if (state !== s || s.media[i] !== m) return;
           s.media[i] = {
@@ -412,6 +422,8 @@ function renderMedia(): void {
         queueSave(); renderMedia(); renderChecks(); renderPreviewPane();
       } catch (err) {
         showToast(tf('admin.social.crop.failed', { detail: err instanceof Error ? err.message : '' }), true);
+      } finally {
+        if (textBtn) { textBtn.disabled = false; textBtn.textContent = label; }
       }
     })();
   }));

@@ -27,6 +27,8 @@ test('parseDraft refuses wrong shapes with a code', () => {
     [{ type: 'image', captionOverrides: { constructor: 'x' } }, 'invalid_overrides'],
     [{ type: 'image', link: 'http://example.org' }, 'invalid_link'],
     [{ type: 'image', media: [{ key: '../etc/passwd', alt: '' }] }, 'invalid_media'],
+    [{ type: 'image', media: [{ key: KEY_A, alt: '', base: KEY_B }] }, 'invalid_media'],
+    [{ type: 'image', media: [{ key: KEY_A, alt: '', base: KEY_A, overlays: [{ text: 'x', x: 0.5, y: 0.5, size: 0.06, color: 'white', box: 'none', align: 'center' }] }] }, 'invalid_media'],
     [{ type: 'image', media: Array.from({ length: 11 }, () => ({ key: KEY_A, alt: 'x' })) }, 'too_many_items'],
     [{ type: 'image', platforms: ['instagram', 'instagram'] }, 'invalid_platforms'],
     [{ type: 'image', platforms: ['toString'] }, 'invalid_platforms'],

@@ -50,6 +50,21 @@ export function layoutBox(o: { x: number; y: number; size: number }, lines: stri
   return { box: { x: o.x * W - w / 2, y: o.y * H - h / 2, w, h }, lineHeight, pad };
 }
 
+/**
+ * The largest size, reduced in 5% steps from `size` down to MIN_SIZE, at which
+ * the wrapped box fits the image. `measureBox` gives the box's width and height
+ * (in pixels) for a size, and `W` x `H` is the image. Returns MIN_SIZE if none fits.
+ */
+export function fitSize(size: number, measureBox: (size: number) => { w: number; h: number }, W: number, H: number): number {
+  let s = size;
+  for (;;) {
+    const b = measureBox(s);
+    if (b.w <= W && b.h <= H) return s;
+    if (s <= MIN_SIZE) return MIN_SIZE;
+    s = Math.max(MIN_SIZE, Math.round(s * 0.95 * 1e4) / 1e4);
+  }
+}
+
 /** The centre, as fractions, that keeps a w x h box inside a W x H image. */
 export function clampCenter(cx: number, cy: number, w: number, h: number, W: number, H: number): { x: number; y: number } {
   const fx = w >= W ? W / 2 : Math.min(Math.max(cx, w / 2), W - w / 2);

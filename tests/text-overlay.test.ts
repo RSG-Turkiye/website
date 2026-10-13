@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { wrapLines, layoutBox, clampCenter, hitTest, pinchSize, boxFill } from '../src/lib/text-overlay';
+import { wrapLines, layoutBox, clampCenter, hitTest, pinchSize, boxFill, fitSize, MIN_SIZE } from '../src/lib/text-overlay';
 
 const mono: (t: string) => number = (t) => t.length * 10; // every character 10 px wide
 
@@ -47,4 +47,12 @@ test('a solid box contrasts with its text; shade is translucent; none has no box
   assert.equal(boxFill({ color: 'navy', box: 'solid' }), '#ffffff');
   assert.equal(boxFill({ color: 'red', box: 'shade' }), 'rgba(0,0,0,0.45)');
   assert.equal(boxFill({ color: 'black', box: 'none' }), null);
+});
+
+test('fitSize keeps a size that fits and shrinks in 5% steps until the box fits', () => {
+  const box = (s: number) => ({ w: s * 1000, h: s * 2000 }); // 100 x 100 image below
+  assert.equal(fitSize(0.04, box, 100, 100), 0.04);
+  const s = fitSize(0.1, box, 100, 100); // needs h <= 100, so s <= 0.05
+  assert.ok(s <= 0.05 && s > 0.05 * 0.95 - 1e-9, String(s));
+  assert.equal(fitSize(0.1, () => ({ w: 1e9, h: 1e9 }), 100, 100), MIN_SIZE);
 });

@@ -9,12 +9,17 @@ import { deps } from './context';
 import { esc, button } from './ui';
 import { canvasToSocialJpeg } from '../image-upload';
 import type { TextOverlay } from './api';
+import { MAX_OVERLAYS } from '../../../functions/_lib/social-posts';
 import {
-  wrapLines, layoutBox, clampCenter, hitTest, pinchSize, boxFill, OVERLAY_COLORS, MAX_LINE_FRACTION, MIN_SIZE, MAX_SIZE, type Box,
+  wrapLines, layoutBox, clampCenter, hitTest, pinchSize, boxFill, fitSize, OVERLAY_COLORS, MAX_LINE_FRACTION, MIN_SIZE, MAX_SIZE, type Box,
 } from '../../lib/text-overlay';
 
-const MAX_OVERLAYS = 5;
 const FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/** The load must name the text: ı ş ğ İ are in Inter's latin-ext file, which a bare load does not fetch. A failure draws the fallback font. */
+function loadFont(text: string): Promise<unknown> {
+  return document.fonts.load('700 40px Inter', text || 'A').catch(() => {});
+}
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -45,11 +50,15 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, overlays: TextOverla
   const boxes: Box[] = [];
   overlays.forEach((o) => {
     ctx.save();
-    ctx.font = `700 ${o.size * W}px ${FONT_FAMILY}`;
     ctx.textBaseline = 'top';
     const measure = (s: string) => ctx.measureText(s).width;
-    const pad0 = Math.round(o.size * W * 0.3);
-    const lines = wrapLines(o.text, MAX_LINE_FRACTION * W - 2 * pad0, measure);
+    const wrapAt = (size: number) => {
+      ctx.font = `700 ${size * W}px ${FONT_FAMILY}`;
+      return wrapLines(o.text, MAX_LINE_FRACTION * W - 2 * Math.round(size * W * 0.3), measure);
+    };
+    // A text never gets cut off: too big for the image, it shrinks (and the smaller size is kept).
+    o.size = fitSize(o.size, (size) => layoutBox({ ...o, size }, wrapAt(size), measure, W, H).box, W, H);
+    const lines = wrapAt(o.size);
     let laid = layoutBox(o, lines, measure, W, H);
     const c = clampCenter(laid.box.x + laid.box.w / 2, laid.box.y + laid.box.h / 2, laid.box.w, laid.box.h, W, H);
     o.x = c.x;
@@ -94,7 +103,7 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, overlays: TextOverla
 
 /** The base image and its text at the image's own size, as the JPEG that gets uploaded. */
 export async function renderWithText(img: HTMLImageElement, overlays: TextOverlay[]): Promise<Blob> {
-  try { await document.fonts.load('700 40px Inter'); } catch { /* draw with the fallback font */ }
+  await loadFont(overlays.map((o) => o.text).join(''));
   const W = img.naturalWidth;
   const H = img.naturalHeight;
   const canvas = document.createElement('canvas');
@@ -116,7 +125,7 @@ const ALIGN_KEYS = [['left', 'alignLeft'], ['center', 'alignCenter'], ['right', 
 export async function openTextEditor(opts: { src: string; overlays: TextOverlay[] }): Promise<{ overlays: TextOverlay[] } | null> {
   const { t } = deps();
   const img = await loadImage(opts.src);
-  try { await document.fonts.load('700 40px Inter'); } catch { /* draw with the fallback font */ }
+  await loadFont(opts.overlays.map((o) => o.text).join('') + 'ıİşŞğĞüÜöÖçÇ');
   const W = img.naturalWidth;
   const H = img.naturalHeight;
   const overlays: TextOverlay[] = opts.overlays.map((o) => ({ ...o }));
@@ -127,6 +136,7 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
   root.className = 'fixed inset-0 z-50 bg-black/50 overflow-y-auto p-4';
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-labelledby', 'text-editor-title');
   document.body.appendChild(root);
 
   return new Promise<{ overlays: TextOverlay[] } | null>((resolve) => {
@@ -149,7 +159,7 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       const opt = <K extends string>(attr: string, pairs: readonly (readonly [K, string])[], current: K, swatch = false) => pairs.map(([v, key]) =>
         `<button type="button" ${attr}="${v}" aria-pressed="${current === v}" class="px-3 py-1.5 text-sm ${toggle(current === v)} focus-visible:outline-2 focus-visible:outline-navy-mid">${swatch ? `<span aria-hidden="true" class="inline-block w-3 h-3 rounded-full border border-border mr-1 align-middle" style="background:${OVERLAY_COLORS[v as keyof typeof OVERLAY_COLORS]}"></span>` : ''}${esc(t(`admin.social.text.${key}`))}</button>`).join('');
       return `${add}
-        <textarea data-text maxlength="200" rows="3" class="w-full rounded-lg border border-border p-2 text-sm text-navy focus-visible:outline-2 focus-visible:outline-navy-mid"></textarea>
+        <textarea data-text aria-label="${esc(t('admin.social.text.label'))}" maxlength="200" rows="3" class="w-full rounded-lg border border-border p-2 text-sm text-navy focus-visible:outline-2 focus-visible:outline-navy-mid"></textarea>
         <label class="flex items-center gap-2 text-xs text-gray-500">${esc(t('admin.social.text.size'))}
           <input data-size type="range" min="${MIN_SIZE}" max="${MAX_SIZE}" step="0.005" value="${o.size}" class="flex-1"></label>
         ${group(t('admin.social.text.color'), opt('data-color', COLOR_KEYS, o.color, true))}
@@ -180,7 +190,7 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
         draw();
       });
       if (!o) return;
-      panel.querySelector<HTMLTextAreaElement>('[data-text]')!.addEventListener('input', (e) => { o.text = (e.target as HTMLTextAreaElement).value; draw(); });
+      panel.querySelector<HTMLTextAreaElement>('[data-text]')!.addEventListener('input', (e) => { o.text = (e.target as HTMLTextAreaElement).value; draw(); void loadFont(o.text).then(() => draw()); });
       panel.querySelector<HTMLInputElement>('[data-size]')!.addEventListener('input', (e) => { o.size = Number((e.target as HTMLInputElement).value); draw(); });
       panel.querySelectorAll<HTMLButtonElement>('[data-color]').forEach((b) => b.addEventListener('click', () => { o.color = b.dataset.color as TextOverlay['color']; renderPanel(false, `[data-color="${o.color}"]`); draw(); }));
       panel.querySelectorAll<HTMLButtonElement>('[data-box]').forEach((b) => b.addEventListener('click', () => { o.box = b.dataset.box as TextOverlay['box']; renderPanel(false, `[data-box="${o.box}"]`); draw(); }));
@@ -320,7 +330,7 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
     };
 
     root.innerHTML = `<div class="max-w-3xl mx-auto mt-6 bg-white rounded-2xl border border-border p-5 space-y-3">
-      <h3 class="font-semibold text-navy">${esc(t('admin.social.text.title'))}</h3>
+      <h3 id="text-editor-title" class="font-semibold text-navy">${esc(t('admin.social.text.title'))}</h3>
       <p class="text-xs text-gray-500">${esc(t('admin.social.text.hint'))}</p>
       <div class="flex flex-col md:flex-row gap-4 items-start">
         <canvas data-stage tabindex="0" aria-label="${esc(t('admin.social.text.stage'))}" class="block mx-auto md:mx-0 shrink-0 rounded ring-1 ring-border cursor-move touch-none focus-visible:outline-2 focus-visible:outline-navy-mid"></canvas>

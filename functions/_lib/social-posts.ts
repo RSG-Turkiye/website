@@ -130,6 +130,7 @@ export function parseDraft(body: Record<string, unknown>): Parsed<DraftInput> {
     const overlays = parseOverlays(rawOverlays);
     if (overlays === null) return fail('invalid_media');
     if (overlays && typeof base !== 'string') return fail('invalid_media');
+    if (typeof base === 'string' && (!overlays || base === key)) return fail('invalid_media');
     media.push({
       key, alt,
       ...(source ? { source } : {}),
