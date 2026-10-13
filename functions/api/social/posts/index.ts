@@ -16,6 +16,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     if (!LISTABLE_STATUSES.includes(status)) return jsonResponse({ error: 'Unknown status', code: 'invalid_status' }, 400);
     return jsonResponse({ posts: await loadPosts(env.DB, env, 'p.status = ?', [status]) });
   }
+  if (url.searchParams.get('done') === '1') {
+    const since = Math.floor(Date.now() / 1000) - 60 * 86400;
+    const posts = await loadPosts(env.DB, env, `p.status IN ('published','partially_published','failed') AND p.scheduled_at >= ?`, [since]);
+    return jsonResponse({ posts: posts.reverse() });
+  }
   if (url.searchParams.get('drafts') === '1') {
     return gate.actor.isPublisher
       ? jsonResponse({ posts: await loadPosts(env.DB, env, `p.status = 'draft' AND p.scheduled_at IS NULL`, []) })
