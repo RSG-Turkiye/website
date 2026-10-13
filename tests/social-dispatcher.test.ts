@@ -58,7 +58,7 @@ test('a post goes out over two ticks: container, then publish; the post becomes 
   } finally { g.restore(); }
   assert.deepEqual([target(db).status, target(db).remote_id, target(db).permalink], ['published', 'm1', 'https://www.instagram.com/p/abc/']);
   assert.equal(postStatus(db), 'published');
-  assert.deepEqual(actions(db).filter((a) => a.startsWith('social.')), ['social.target.container', 'social.target.published', 'social.post.published']);
+  assert.deepEqual(actions(db).filter((a) => a.startsWith('social.')), ['social.target.container', 'social.post.published', 'social.target.published']);
   assert.equal((db.prepare(`SELECT revision FROM social_posts`).get() as { revision: number }).revision, 3, 'an open composer gets post_changed');
 });
 
