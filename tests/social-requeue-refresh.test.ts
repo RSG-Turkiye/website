@@ -82,3 +82,36 @@ test('a refused refresh marks the connection broken and tells admins; a wrong se
   assert.ok((db.prepare(`SELECT last_error_at FROM platform_connections`).get() as { last_error_at: number | null }).last_error_at);
   assert.ok(mail.sent.some((m) => /bağlantısı koptu/.test(m.subject)));
 });
+
+const audits = (db: import('node:sqlite').DatabaseSync, action: string) =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE action = ?`).get(action) as { n: number }).n;
+
+test('a transient refresh failure with time left leaves the connection alone', async () => {
+  const { env, db } = world('scheduled', 'queued');
+  const now = Math.floor(Date.now() / 1000);
+  await connected(env, now - 45 * 86400, now + 10 * 86400);
+  const g = stubGraph(() => new Response('down', { status: 503 }));
+  try { assert.deepEqual(await (await cron(env)).json(), { ok: true, refreshed: false }); } finally { g.restore(); }
+  assert.equal((db.prepare(`SELECT last_error_at FROM platform_connections`).get() as { last_error_at: number | null }).last_error_at, null);
+  assert.equal(mail.sent.length, 0);
+  assert.equal(audits(db, 'connection.refresh_failed'), 1);
+});
+
+test('a transient refresh failure with under 3 days left marks broken and tells admins', async () => {
+  const { env, db } = world('scheduled', 'queued');
+  const now = Math.floor(Date.now() / 1000);
+  await connected(env, now - 58 * 86400, now + 2 * 86400);
+  const g = stubGraph(() => new Response('down', { status: 503 }));
+  try { await cron(env); } finally { g.restore(); }
+  assert.ok((db.prepare(`SELECT last_error_at FROM platform_connections`).get() as { last_error_at: number | null }).last_error_at);
+  assert.ok(mail.sent.some((m) => /bağlantısı koptu/.test(m.subject)));
+});
+
+test('a successful refresh re-queues targets waiting on the connection', async () => {
+  const { env, db } = world('scheduled', 'waiting_connection');
+  const now = Math.floor(Date.now() / 1000);
+  await connected(env, now - 45 * 86400, now + 10 * 86400);
+  const g = stubGraph((c) => (c.path === '/refresh_access_token' ? Response.json({ access_token: 'new', token_type: 'bearer', expires_in: 5184000 }) : undefined));
+  try { await cron(env); } finally { g.restore(); }
+  assert.equal(t(db).status, 'queued');
+});

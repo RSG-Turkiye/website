@@ -36,7 +36,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
           SET status = 'queued', confirmed_at = ?, claimed_at = NULL, attempts = 0, first_tried_at = NULL, last_error = NULL
         WHERE post_id = ? AND status IN ('needs_confirmation','failed') AND ${POST_PROOF}`,
     ).bind(now, id, id, nonce)],
-    { userId: gate.user.id, action: 'social.post.requeue', targetType: 'social_post', targetId: id, details: { from: row.status } },
+    { userId: gate.user.id, action: 'social.post.requeue', targetType: 'social_post', targetId: id, details: { from: row.status, targets: waiting.n } },
     now,
   );
   if (!done) return lostRace();

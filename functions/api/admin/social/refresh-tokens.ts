@@ -27,12 +27,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     await env.DB.prepare(
       `UPDATE platform_connections SET access_token_enc = ?, expires_at = ?, last_ok_at = ?, last_error = NULL, last_error_at = NULL WHERE platform = 'instagram'`,
     ).bind(sealed, now + result.expiresIn, now).run();
+    await env.DB.prepare(
+      `UPDATE social_post_targets SET status = 'queued', claimed_at = NULL, first_tried_at = NULL, attempts = 0, last_error = NULL WHERE platform = 'instagram' AND status = 'waiting_connection'`,
+    ).run();
     await appendAudit(env.DB, { userId: null, action: 'connection.refresh', targetType: 'connection', targetId: 'instagram', details: { expiresAt: now + result.expiresIn } }, now);
     return jsonResponse({ ok: true, refreshed: true });
   }
+  // A transient failure (network, 5xx) must not stop publishing for a day: leave
+  // the connection alone and let tomorrow's run retry, unless the token is about
+  // to become unrefreshable.
+  const transient = !result.auth;
+  if (transient) {
+    await appendAudit(env.DB, { userId: null, action: 'connection.refresh_failed', targetType: 'connection', targetId: 'instagram', details: { status: result.status, reason: result.reason, transient: true } }, now);
+    if (row.expires_at === null || row.expires_at - now >= 3 * 86400) return jsonResponse({ ok: true, refreshed: false });
+  }
   const wasBroken = connectionStatus(row, now) === 'broken';
   await markBroken(env.DB, 'instagram', `refresh: ${result.reason}`, now);
-  await appendAudit(env.DB, { userId: null, action: 'connection.refresh_failed', targetType: 'connection', targetId: 'instagram', details: { status: result.status, reason: result.reason } }, now);
+  if (!transient) await appendAudit(env.DB, { userId: null, action: 'connection.refresh_failed', targetType: 'connection', targetId: 'instagram', details: { status: result.status, reason: result.reason } }, now);
   if (!wasBroken) {
     const panelUrl = `${new URL(request.url).origin}/admin`;
     await notifyEach(env, await adminEmails(env.DB), notificationText('connection_broken', { label: 'Instagram', when: null, note: result.reason, panelUrl }));
