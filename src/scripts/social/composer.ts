@@ -12,7 +12,7 @@ import { renderPreview, bgImage, type PreviewKind } from './preview';
 import { uploadSocialImage, uploadSocialBlob, SOCIAL_IMAGE_TYPES, UnsupportedImageType, type SocialUpload } from '../image-upload';
 import { readinessProblems, linkOk } from '../../../functions/_lib/social-posts';
 import {
-  captionFor, countChars, countHashtags, ratioOk, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, MAX_ALT_LENGTH, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
+  captionFor, countFor, countHashtags, ratioOk, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, MAX_ALT_LENGTH, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
 } from '../../../functions/_lib/social-limits';
 import { DEFAULT_TIME, dayKey, timeOf, epochAt } from '../../lib/social-calendar';
 import { nearestRatio } from '../../lib/image-crop';
@@ -37,7 +37,7 @@ export interface ComposerState {
 }
 
 const LOCKED: PostStatus[] = ['published', 'partially_published', 'cancelled'];
-const OVERRIDE_ORDER: Platform[] = ['instagram', 'linkedin'];
+const OVERRIDE_ORDER: Platform[] = ['instagram', 'linkedin', 'x'];
 
 /** Pure: what the API receives. Overrides in a fixed order and only when written, so autosave logs no phantom changes. */
 export function toDraftBody(s: ComposerState, creating = false): DraftBody {
@@ -238,8 +238,7 @@ function render(): void {
           </div></div>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.platforms'))}</p>
           <div class="flex flex-wrap gap-4 mt-1 text-sm">
-            ${ENABLED_PLATFORMS.map((p) => `<label><input type="checkbox" data-platform="${p}" ${dis} ${state.platforms.includes(p) ? 'checked' : ''}> ${p === 'linkedin' ? `${esc(t('admin.connections.platform.linkedin'))} <span class="text-xs text-gray-500">${esc(t('admin.social.composer.linkedinLater'))}</span>` : esc(t(`admin.connections.platform.${p}`))}</label>`).join('')}
-            <label class="text-gray-500"><input type="checkbox" disabled> ${esc(t('admin.social.composer.xLater'))}</label>
+            ${ENABLED_PLATFORMS.map((p) => `<label><input type="checkbox" data-platform="${p}" ${dis} ${state.platforms.includes(p) ? 'checked' : ''}> ${esc(t(`admin.connections.platform.${p}`))}</label>`).join('')}
           </div></div>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.images'))} <span class="font-normal text-gray-500">${esc(t('admin.social.composer.imagesHint'))}</span></p>
           <div data-media class="flex flex-wrap gap-3 mt-2"></div></div>
@@ -494,7 +493,7 @@ function renderCounts(): void {
   const src = { caption: state.caption, captionOverrides: state.overrides, link: state.link.trim() || null };
   box.innerHTML = state.platforms.filter((p) => ENABLED_PLATFORMS.includes(p)).map((p) => {
     const text = captionFor(src, p);
-    const chars = countChars(text);
+    const chars = countFor(p, text);
     const over = chars > CAPTION_LIMITS[p];
     const tags = p === 'instagram' ? countHashtags(text) : 0;
     return `<span class="${over ? 'text-red font-semibold' : ''}">${esc(tf('admin.social.composer.count', { platform: t(`admin.connections.platform.${p}`), chars, limit: CAPTION_LIMITS[p] }))}</span>`

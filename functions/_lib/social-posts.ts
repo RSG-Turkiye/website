@@ -5,7 +5,7 @@
  * record of image sizes.
  */
 import {
-  ALL_PLATFORMS, ENABLED_PLATFORMS, POST_TYPES, CAROUSEL_MIN_ITEMS, CAROUSEL_MAX_ITEMS, MAX_ALT_LENGTH,
+  ALL_PLATFORMS, ENABLED_PLATFORMS, POST_TYPES, CAROUSEL_MIN_ITEMS, CAROUSEL_MAX_ITEMS, MAX_ALT_LENGTH, X_MAX_IMAGES,
   ratioOk, captionProblems, type PostType, type SocialPlatform,
 } from './social-limits';
 import { validateScheduledAt } from './schedule';
@@ -177,6 +177,7 @@ export function readinessProblems(post: DraftInput, dims: Map<string, { width: n
   const n = post.media.length;
   const countOk = post.type === 'carousel' ? n >= CAROUSEL_MIN_ITEMS && n <= CAROUSEL_MAX_ITEMS : n === 1;
   if (!countOk) problems.push({ code: 'media_count', actual: n });
+  if (post.platforms.includes('x') && n > X_MAX_IMAGES) problems.push({ code: 'x_too_many_images', platform: 'x', limit: X_MAX_IMAGES, actual: n });
 
   post.media.forEach((m, index) => {
     if (m.alt.trim() === '') problems.push({ code: 'missing_alt', index });

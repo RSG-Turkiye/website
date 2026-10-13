@@ -11,7 +11,7 @@ export async function editorsCache(): Promise<Editor[]> {
   return editors;
 }
 
-const PLATFORMS: Platform[] = ['instagram', 'linkedin'];
+const PLATFORMS: Platform[] = ['instagram', 'linkedin', 'x'];
 const TYPES: PostType[] = ['image', 'carousel', 'story'];
 const input = 'mt-1 w-full px-3 py-2 rounded-xl border border-border text-sm text-navy';
 
