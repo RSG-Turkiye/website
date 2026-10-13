@@ -4,6 +4,7 @@
  * loaders), and again on every changed() signal.
  */
 import { setDeps, deps, onChange, type SocialDeps } from './context';
+import { loadCalendar } from './calendar-view';
 
 type Tab = 'calendar' | 'pending' | 'drafts' | 'events';
 const TABS: Tab[] = ['calendar', 'pending', 'drafts', 'events'];
@@ -55,6 +56,7 @@ export function setupSocial(d: SocialDeps): void {
     });
   });
   onChange(() => { void reloadCurrent(); void refreshPendingCount().catch(() => {}); });
+  registerView('calendar', loadCalendar);
 }
 
 export async function loadSocial(): Promise<void> {

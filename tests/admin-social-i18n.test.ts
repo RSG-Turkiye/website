@@ -18,8 +18,7 @@ test('every key the social scripts look up exists', () => {
     const src = readFileSync(new URL(f, dir), 'utf8');
     for (const m of src.matchAll(/'(admin\.social\.[\w.]+)'/g)) used.add(m[1]);
   }
-  // raised to > 40 in Task 3, when the views exist
-  assert.ok(used.size >= 0);
+  assert.ok(used.size > 40);
   for (const k of used) assert.ok(has(k), `missing ${k}`);
 });
 
