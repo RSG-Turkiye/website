@@ -67,7 +67,7 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, overlays: TextOverla
       }
       if (o.box === 'none') {
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 0.08 * o.size * W;
+        ctx.shadowBlur = 0.08 * o.size * W * (ctx.getTransform().a || 1); // shadowBlur ignores the transform
       }
       ctx.fillStyle = OVERLAY_COLORS[o.color];
       ctx.textAlign = o.align;
@@ -130,7 +130,7 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
   document.body.appendChild(root);
 
   return new Promise<{ overlays: TextOverlay[] } | null>((resolve) => {
-    const close = () => { document.removeEventListener('keydown', onKey); window.removeEventListener('resize', draw); root.remove(); };
+    const close = () => { document.removeEventListener('keydown', onKey); window.removeEventListener('resize', sizeStage); root.remove(); };
     const finish = (r: { overlays: TextOverlay[] } | null) => { close(); resolve(r); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') finish(null); };
     document.addEventListener('keydown', onKey);
@@ -158,13 +158,14 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
         <div>${button(t('admin.social.text.remove'), 'data-remove', 'danger')}</div>`;
     };
 
-    const renderPanel = (focusText = false) => {
+    const renderPanel = (focusText = false, focusSel = '') => {
       const panel = root.querySelector<HTMLElement>('[data-panel]')!;
       panel.innerHTML = panelHtml();
       const o = overlays[selected];
       const ta = panel.querySelector<HTMLTextAreaElement>('[data-text]');
       if (ta && o) { ta.value = o.text; if (focusText) { ta.focus(); ta.select(); } }
       wirePanel(panel);
+      if (focusSel) panel.querySelector<HTMLElement>(focusSel)?.focus();
     };
 
     const select = (i: number) => { selected = i; renderPanel(); draw(); };
@@ -181,9 +182,9 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       if (!o) return;
       panel.querySelector<HTMLTextAreaElement>('[data-text]')!.addEventListener('input', (e) => { o.text = (e.target as HTMLTextAreaElement).value; draw(); });
       panel.querySelector<HTMLInputElement>('[data-size]')!.addEventListener('input', (e) => { o.size = Number((e.target as HTMLInputElement).value); draw(); });
-      panel.querySelectorAll<HTMLButtonElement>('[data-color]').forEach((b) => b.addEventListener('click', () => { o.color = b.dataset.color as TextOverlay['color']; renderPanel(); draw(); }));
-      panel.querySelectorAll<HTMLButtonElement>('[data-box]').forEach((b) => b.addEventListener('click', () => { o.box = b.dataset.box as TextOverlay['box']; renderPanel(); draw(); }));
-      panel.querySelectorAll<HTMLButtonElement>('[data-align]').forEach((b) => b.addEventListener('click', () => { o.align = b.dataset.align as TextOverlay['align']; renderPanel(); draw(); }));
+      panel.querySelectorAll<HTMLButtonElement>('[data-color]').forEach((b) => b.addEventListener('click', () => { o.color = b.dataset.color as TextOverlay['color']; renderPanel(false, `[data-color="${o.color}"]`); draw(); }));
+      panel.querySelectorAll<HTMLButtonElement>('[data-box]').forEach((b) => b.addEventListener('click', () => { o.box = b.dataset.box as TextOverlay['box']; renderPanel(false, `[data-box="${o.box}"]`); draw(); }));
+      panel.querySelectorAll<HTMLButtonElement>('[data-align]').forEach((b) => b.addEventListener('click', () => { o.align = b.dataset.align as TextOverlay['align']; renderPanel(false, `[data-align="${o.align}"]`); draw(); }));
       panel.querySelector('[data-remove]')!.addEventListener('click', removeSelected);
     };
 
@@ -193,12 +194,12 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       selected = -1;
       renderPanel();
       draw();
+      (overlays.length ? stage() : root.querySelector<HTMLElement>('[data-add]') ?? stage()).focus();
     };
 
     /** Fits the preview in the window: at most 480px wide and 60% of the window high. */
-    function draw(): void {
+    function sizeStage(): void {
       const c = stage();
-      if (!c) return;
       const cssW = Math.max(120, Math.min(480, root.clientWidth - 72, window.innerHeight * 0.6 * W / H));
       const cssH = cssW * H / W;
       const dpr = window.devicePixelRatio || 1;
@@ -206,6 +207,12 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       c.style.height = `${cssH}px`;
       c.width = Math.round(cssW * dpr);
       c.height = Math.round(cssH * dpr);
+      draw();
+    }
+
+    function draw(): void {
+      const c = stage();
+      if (!c || !c.width) return;
       const ctx = c.getContext('2d')!;
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
@@ -279,8 +286,18 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       c.addEventListener('pointercancel', end);
 
       c.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' && overlays.length) {
+          e.preventDefault();
+          select((selected + (e.shiftKey ? -1 : 1) + overlays.length) % overlays.length);
+          return;
+        }
         if (selected < 0) return;
-        if (e.key === 'Delete' && document.activeElement === c) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          root.querySelector<HTMLTextAreaElement>('[data-text]')?.focus();
+          return;
+        }
+        if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement === c) {
           e.preventDefault();
           removeSelected();
           return;
@@ -301,7 +318,7 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       <h3 class="font-semibold text-navy">${esc(t('admin.social.text.title'))}</h3>
       <p class="text-xs text-gray-500">${esc(t('admin.social.text.hint'))}</p>
       <div class="flex flex-col md:flex-row gap-4 items-start">
-        <canvas data-stage tabindex="0" aria-label="${esc(t('admin.social.text.stage'))}" class="block mx-auto md:mx-0 shrink-0 rounded border border-border cursor-move touch-none focus-visible:outline-2 focus-visible:outline-navy-mid"></canvas>
+        <canvas data-stage tabindex="0" aria-label="${esc(t('admin.social.text.stage'))}" class="block mx-auto md:mx-0 shrink-0 rounded ring-1 ring-border cursor-move touch-none focus-visible:outline-2 focus-visible:outline-navy-mid"></canvas>
         <div data-panel class="flex-1 min-w-0 w-full space-y-3"></div>
       </div>
       <div class="flex justify-end gap-2">
@@ -313,9 +330,11 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       const out = overlays.map((o) => ({ ...o, text: o.text.trim() })).filter((o) => o.text.length > 0);
       finish({ overlays: out });
     });
-    window.addEventListener('resize', draw);
+    window.addEventListener('resize', sizeStage);
     wireStage();
+    selected = overlays.length ? 0 : -1;
     renderPanel();
-    draw();
+    sizeStage();
+    stage().focus();
   });
 }
