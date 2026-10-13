@@ -147,7 +147,7 @@ test('LinkedIn is skipped until phase 5; the Instagram half still makes the post
   assert.equal(postStatus(db), 'published');
 });
 
-test('a post in the future, a cancelled post, and a claimed target are left alone', async () => {
+test('a post in the future and a cancelled post are left alone', async () => {
   const { env, db } = world({ at: T0 + 3600 });
   await connect(env);
   const g = stubGraph(graphFlow(['FINISHED']));
@@ -166,4 +166,53 @@ test('the endpoint refuses a wrong secret and records its run as social', async 
   const ok = await (endpoint as (c: unknown) => Promise<Response>)({ request: new Request(`${ORIGIN}/api/social/dispatch`, { method: 'POST', headers: { 'X-Dispatch-Secret': 'tick' } }), env });
   assert.equal(ok.status, 200);
   assert.equal((db.prepare(`SELECT kind FROM dispatch_runs`).get() as { kind: string }).kind, 'social');
+});
+
+test('a target under a live lease is not claimed', async () => {
+  const { env, db } = world();
+  await connect(env);
+  db.prepare(`UPDATE social_post_targets SET claimed_at = ?`).run(T0 + 30 - 60);
+  const g = stubGraph(graphFlow(['FINISHED']));
+  try { await dispatchSocial(env, T0 + 30, ORIGIN); } finally { g.restore(); }
+  assert.equal(g.calls.length, 0);
+  assert.equal(target(db).claimed_at, T0 + 30 - 60);
+});
+
+test('an expired lease with a container is reclaimed and recorded as published without publishing again', async () => {
+  const { env, db } = world();
+  await connect(env);
+  db.prepare(`UPDATE social_post_targets SET status = 'publishing', container_id = 'c1', claimed_at = ?`).run(T0 + 30 - 601);
+  const g = stubGraph(graphFlow(['PUBLISHED']));
+  try { await dispatchSocial(env, T0 + 30, ORIGIN); } finally { g.restore(); }
+  assert.equal(target(db).status, 'published');
+  assert.equal(target(db).claimed_at, null);
+  assert.equal(g.calls.some((c) => c.path.endsWith('/media_publish')), false);
+  assert.equal(postStatus(db), 'published');
+});
+
+test('a reclaimed target ends in this tick result, with its lease released', async () => {
+  const { env, db } = world();
+  await connect(env);
+  db.prepare(`UPDATE social_post_targets SET claimed_at = ?`).run(T0 + 30 - 601);
+  const g = stubGraph(graphFlow(['FINISHED']));
+  try { await dispatchSocial(env, T0 + 30, ORIGIN); } finally { g.restore(); }
+  assert.deepEqual([target(db).status, target(db).container_id, target(db).claimed_at], ['publishing', 'c1', null]);
+});
+
+test('a post whose targets all settled but is still scheduled is settled by the next tick', async () => {
+  const { env, db } = world();
+  db.prepare(`UPDATE social_post_targets SET status = 'published', remote_id = 'm1'`).run();
+  await dispatchSocial(env, T0 + 30, ORIGIN);
+  assert.equal(postStatus(db), 'published');
+  assert.ok(actions(db).includes('social.post.published'));
+});
+
+test('an unreadable stored token marks the connection broken and tells admins once', async () => {
+  const { env, db } = world();
+  await connect(env);
+  const bad = { ...(env as object), TOKEN_ENC_KEY: Buffer.alloc(32, 9).toString('base64') } as never as Parameters<typeof dispatchSocial>[0];
+  await dispatchSocial(bad, T0 + 30, ORIGIN);
+  assert.equal(target(db).status, 'waiting_connection');
+  assert.equal(mail.sent.filter((m) => /bağlantısı koptu/.test(m.subject) && m.to === 'admin@example.org').length, 1);
+  assert.ok((db.prepare(`SELECT last_error_at FROM platform_connections WHERE platform = 'instagram'`).get() as { last_error_at: number | null }).last_error_at);
 });

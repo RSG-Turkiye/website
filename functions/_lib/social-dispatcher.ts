@@ -39,6 +39,16 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
       LIMIT ?`,
   ).bind(now, now - CLAIM_LEASE_SECONDS, TICK_BATCH).all<Due>()).results;
   summary.candidates = due.length;
+
+  // A tick that died between a target's write and its post's settle leaves a post 'scheduled' with every target settled; no claim would ever touch it again.
+  const orphans = (await db.prepare(
+    `SELECT p.id FROM social_posts p
+      WHERE p.status = 'scheduled'
+        AND EXISTS (SELECT 1 FROM social_post_targets t WHERE t.post_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM social_post_targets t WHERE t.post_id = p.id AND t.status IN ('queued','publishing','waiting_connection','needs_confirmation'))
+      LIMIT 10`,
+  ).all<{ id: string }>()).results;
+  for (const o of orphans) await settlePost(db, o.id, now);
   if (due.length === 0) return summary;
 
   const panelUrl = `${origin}/admin`;
@@ -46,12 +56,17 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
   const conn = await getConnection(db, 'instagram');
   const usable = conn && conn.account_id && ['connected', 'expiring'].includes(connectionStatus(conn, now));
   let token = usable ? await readAccessToken(env, conn!) : null;
+  if (usable && !token) {
+    await markBroken(db, 'instagram', 'stored token unreadable', now);
+    await notifyEach(env, await adminEmails(db), notificationText('connection_broken', { label: '', when: null, note: 'stored token unreadable', panelUrl }));
+  }
 
   for (const row of due) {
     const claim = await db.prepare(
       `UPDATE social_post_targets SET claimed_at = ?
-        WHERE post_id = ? AND platform = ? AND status IN ('queued','publishing') AND (claimed_at IS NULL OR claimed_at <= ?)`,
-    ).bind(now, row.id, row.platform, now - CLAIM_LEASE_SECONDS).run();
+        WHERE post_id = ? AND platform = ? AND status IN ('queued','publishing') AND (claimed_at IS NULL OR claimed_at <= ?)
+          AND status = ? AND container_id IS ?`,
+    ).bind(now, row.id, row.platform, now - CLAIM_LEASE_SECONDS, row.target_status, row.container_id).run();
     if (claim.meta.changes !== 1) continue;
     summary.claimed++;
 
@@ -66,19 +81,21 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
     // Platforms without an adapter yet (LinkedIn until phase 5): settled, not counted.
     if (row.platform !== 'instagram') {
       await write(db, row, { ...t, status: 'skipped', last_error: 'not_available: no adapter yet' }, now);
-      await appendAudit(db, { userId: null, action: 'social.target.skipped', targetType: 'social_post', targetId: row.id, details: { platform: row.platform } }, now);
       await settlePost(db, row.id, now);
+      await appendAudit(db, { userId: null, action: 'social.target.skipped', targetType: 'social_post', targetId: row.id, details: { platform: row.platform } }, now);
       continue;
     }
     // Never tried (no container, no attempt: a transient retry has already started and runs out its own window) and more than two hours late: a person decides (spec §5, lateness rule).
     if (row.target_status === 'queued' && row.container_id === null && row.first_tried_at === null && isLate(row.scheduled_at!, now, row.confirmed_at)) {
       await write(db, row, { ...t, status: 'needs_confirmation' }, now);
+      await settlePost(db, row.id, now);
       await appendAudit(db, { userId: null, action: 'social.target.late', targetType: 'social_post', targetId: row.id, details: { platform: row.platform, scheduledAt: row.scheduled_at } }, now);
       await tell('needs_confirmation', await publisherEmails(db));
       continue;
     }
     if (!token) {
       await write(db, row, { ...t, status: 'waiting_connection', last_error: 'auth: no working Instagram connection' }, now);
+      await settlePost(db, row.id, now);
       await appendAudit(db, { userId: null, action: 'social.target.waiting', targetType: 'social_post', targetId: row.id, details: { platform: row.platform } }, now);
       await tell('waiting_connection', [row.author_email ?? '', ...await publisherEmails(db)]);
       summary.waiting++;
@@ -96,6 +113,7 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
     });
     const tr = afterStep(step, t, now);
     await write(db, row, tr.next, now);
+    await settlePost(db, row.id, now);
     if (tr.audit) {
       await appendAudit(db, {
         userId: null, action: tr.audit, targetType: 'social_post', targetId: row.id,
@@ -113,7 +131,6 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
     }
     if (tr.notify === 'failed') await tell('publish_failed', [row.author_email ?? '', ...await publisherEmails(db)], tr.next.last_error ?? '');
     if (tr.notify === 'waiting_connection') await tell('waiting_connection', [row.author_email ?? '', ...await publisherEmails(db)]);
-    await settlePost(db, row.id, now);
   }
   return summary;
 }
