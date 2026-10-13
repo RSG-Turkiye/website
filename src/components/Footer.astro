@@ -59,6 +59,7 @@ const buildYear = new Date().getFullYear();
 
     <div class="border-t border-white/10 mt-10 pt-6 text-center">
       <p class="text-xs text-white/60">{t('footer.copyright').replace('{year}', String(buildYear))}</p>
+      <p class="mt-2 text-xs"><a href={`${prefix}/privacy/`} class="text-white/60 hover:text-white transition-colors">{t('footer.privacy')}</a></p>
     </div>
   </div>
 </footer>
