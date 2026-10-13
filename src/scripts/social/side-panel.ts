@@ -1,5 +1,5 @@
 /** Details and actions for the item clicked on the calendar or board. */
-import { api, type Plan, type Post } from './api';
+import { api, ApiError, type Plan, type Post } from './api';
 import { deps, changed } from './context';
 import { errorText } from './messages';
 import { esc, button, armConfirm } from './ui';
@@ -12,6 +12,7 @@ const side = () => document.getElementById('socialSide')!;
 const when = (e: number | null) => (e ? `${dayKey(e)} ${timeOf(e)}` : '-');
 const row = (label: string, value: string) => `<p class="text-xs text-gray-500 mt-2">${esc(label)}</p><p class="text-sm text-navy">${value}</p>`;
 const LOCKED = ['published', 'partially_published', 'failed', 'cancelled'];
+const STALE_CODES = ['post_changed', 'not_found', 'not_pending', 'plan_taken', 'plan_has_post'];
 
 export function hideSide(): void { side().classList.add('hidden'); side().replaceChildren(); }
 
@@ -29,6 +30,11 @@ async function run(work: () => Promise<unknown>, doneKey: string): Promise<void>
     changed();
   } catch (err) {
     showToast(errorText(err), true);
+    // The panel's revision or plan link is stale: close it and reload so retries do not hit the same conflict.
+    if (err instanceof ApiError && STALE_CODES.includes(err.code)) {
+      hideSide();
+      changed();
+    }
   }
 }
 

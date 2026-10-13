@@ -22,16 +22,18 @@ function writeView(v: 'calendar' | 'board'): void {
   try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode: not remembered */ }
 }
 const now = () => Math.floor(Date.now() / 1000);
+/** User-triggered reloads: a failed fetch becomes a toast, not an unhandled rejection. */
+const reload = () => loadCalendar().catch(() => deps().showToast(deps().t('admin.social.loadFailed'), true));
 
 function wire(): void {
   if (wired) return;
   wired = true;
   ({ year, month } = monthOf(now()));
   view = readView();
-  const go = (delta: number) => { ({ year, month } = shiftMonth(year, month, delta)); void loadCalendar(); };
+  const go = (delta: number) => { ({ year, month } = shiftMonth(year, month, delta)); void reload(); };
   document.getElementById('socialPrev')!.addEventListener('click', () => go(-1));
   document.getElementById('socialNext')!.addEventListener('click', () => go(1));
-  document.getElementById('socialToday')!.addEventListener('click', () => { ({ year, month } = monthOf(now())); void loadCalendar(); });
+  document.getElementById('socialToday')!.addEventListener('click', () => { ({ year, month } = monthOf(now())); void reload(); });
   document.getElementById('socialViewCalendar')!.addEventListener('click', () => { view = 'calendar'; writeView(view); render(); });
   document.getElementById('socialViewBoard')!.addEventListener('click', () => { view = 'board'; writeView(view); render(); });
   document.getElementById('socialNewPlan')!.addEventListener('click', () => void openPlanDialog({}));
