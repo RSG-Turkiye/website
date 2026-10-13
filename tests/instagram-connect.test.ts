@@ -5,9 +5,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { stubGraph } from './lib/instagram';
 import { onRequestGet as start } from '../functions/api/admin/connections/instagram/start';
+import { onRequestGet as gmailStart } from '../functions/api/admin/connections/gmail/start';
 import { onRequestGet as callback } from '../functions/api/admin/connections/instagram/callback';
 import { getConnection, readAccessToken } from '../functions/_lib/connections';
-import { needsRefresh } from '../functions/_lib/social/instagram';
+import { needsRefresh, instagramMe, refreshInstagramToken } from '../functions/_lib/social/instagram';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
 const BASE = 'https://rsg-turkiye.iscbsc.org';
@@ -108,6 +109,51 @@ test('a cancelled authorisation stores nothing', async () => {
   const state = (await begin(env)).searchParams.get('state')!;
   const res = await get(callback, `${BASE}/api/admin/connections/instagram/callback?error=access_denied&state=${state}`, env);
   assert.match(res.headers.get('Location')!, /connection_error=cancelled/);
+  assert.equal(await getConnection(env.DB as never, 'instagram'), null);
+});
+
+test('a Gmail state presented at the Instagram callback is refused and stores nothing', async () => {
+  const { env } = setup();
+  const g = await get(gmailStart, `${BASE}/api/admin/connections/gmail/start`, env);
+  const state = new URL(g.headers.get('Location')!).searchParams.get('state')!;
+  const ig = instagram();
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/instagram/callback?code=abc&state=${state}`, env);
+    assert.match(res.headers.get('Location')!, /connection_error=bad_state/);
+    assert.equal(ig.calls.length, 0);
+  } finally { ig.restore(); }
+  assert.equal(await getConnection(env.DB as never, 'instagram'), null);
+});
+
+test('/me failing after a good exchange stores nothing', async () => {
+  const { env } = setup();
+  const state = (await begin(env)).searchParams.get('state')!;
+  const ig = stubGraph((c) => {
+    if (c.path === '/oauth/access_token') return Response.json({ data: [{ access_token: 'short', user_id: 111, permissions: 'instagram_business_basic,instagram_business_content_publish' }] });
+    if (c.path === '/access_token') return Response.json({ access_token: 'long-1', expires_in: 5184000 });
+    if (c.path === '/me') return new Response('{}', { status: 500 });
+    return undefined;
+  });
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/instagram/callback?code=abc&state=${state}`, env);
+    assert.match(res.headers.get('Location')!, /connection_error=token_exchange/);
+  } finally { ig.restore(); }
+  assert.equal(await getConnection(env.DB as never, 'instagram'), null);
+});
+
+test('instagramMe refuses a user_id too large for a JSON number', async () => {
+  const ig = stubGraph((c) => c.path === '/me' ? new Response('{"user_id":17841400000000000123,"username":"x","account_type":"CREATOR"}') : undefined);
+  try { assert.deepEqual(await instagramMe('t'), { ok: false, status: 200, auth: false }); } finally { ig.restore(); }
+});
+
+test('a refresh network error does not leak the token', async () => {
+  const before = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new Error('boom https://graph.instagram.com/x?access_token=SECRET'); }) as typeof fetch;
+  try {
+    const r = await refreshInstagramToken('SECRET');
+    assert.equal(r.ok, false);
+    assert.ok(!r.ok && r.reason === 'network');
+  } finally { globalThis.fetch = before; }
 });
 
 test('a token is refreshed when under 20 days are left and it is at least a day old', () => {

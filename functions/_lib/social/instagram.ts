@@ -76,7 +76,7 @@ export async function refreshInstagramToken(token: string):
   u.searchParams.set('grant_type', 'ig_refresh_token');
   u.searchParams.set('access_token', token);
   let res: Response;
-  try { res = await fetch(u); } catch (err) { return { ok: false, status: 0, auth: false, reason: String(err).slice(0, 200) }; }
+  try { res = await fetch(u); } catch { return { ok: false, status: 0, auth: false, reason: 'network' }; }
   const body = await json(res);
   if (!res.ok || typeof body?.access_token !== 'string') {
     const message = (body?.error as { message?: string } | undefined)?.message ?? `HTTP ${res.status}`;
@@ -94,6 +94,8 @@ export async function instagramMe(token: string):
   try { res = await fetch(u); } catch { return { ok: false, status: 0, auth: false }; }
   const body = await json(res);
   // user_id is the professional account's id, the one /<IG>/media takes; `id` is app-scoped.
+  // A JSON number past 2^53 has already been rounded: it would name the wrong account.
+  if (typeof body?.user_id === 'number' && !Number.isSafeInteger(body.user_id)) return { ok: false, status: res.status, auth: false };
   if (!res.ok || body?.user_id === undefined) return { ok: false, status: res.status, auth: isAuthError(body) };
   return { ok: true, userId: String(body.user_id), username: String(body.username ?? ''), accountType: String(body.account_type ?? '') };
 }

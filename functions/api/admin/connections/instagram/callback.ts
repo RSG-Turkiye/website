@@ -74,7 +74,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     }, now);
   } catch (err) {
     console.error('instagram connection store failed', err);
-    await audit('connection.rejected', { reason: 'store_failed' });
+    try { await audit('connection.rejected', { reason: 'store_failed' }); } catch { /* the redirect matters more */ }
     return back(returnTo, 'connection_error=store_failed');
   }
   return back(returnTo, 'connected=instagram');
