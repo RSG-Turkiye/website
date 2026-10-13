@@ -65,6 +65,7 @@ test('health is open to any panel role and hides error detail from non-admins', 
   const { env, db } = setup({ is_announcer: 1 });
   await markBroken(env.DB, 'gmail', 'invalid_grant secret detail', Math.floor(Date.now() / 1000));
   db.prepare('INSERT INTO dispatch_runs (id, started_at) VALUES (?, ?)').run('r1', Math.floor(Date.now() / 1000));
+  db.prepare(`INSERT INTO dispatch_runs (id, started_at, kind) VALUES (?, ?, 'social')`).run('r2', Math.floor(Date.now() / 1000));
   const body = await (await call(health.onRequestGet, 'GET', '/api/admin/health', env)).json() as { issues: { lastError: string | null }[]; canFix: boolean };
   assert.equal(body.canFix, false);
   assert.equal(body.issues.length, 1);

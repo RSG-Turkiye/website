@@ -91,6 +91,7 @@ test('health lists broken and expiring connections and a stale scheduler', () =>
     ],
     legacyGmail: true,
     lastRunAt: NOW - SCHEDULER_STALE_SECONDS - 1,
+    lastSocialRunAt: undefined,
     now: NOW,
   });
   assert.deepEqual(issues, [
@@ -101,5 +102,14 @@ test('health lists broken and expiring connections and a stale scheduler', () =>
 });
 
 test('a healthy system has no issues', () => {
-  assert.deepEqual(healthIssues({ connections: [], legacyGmail: true, lastRunAt: NOW - 30, now: NOW }), []);
+  assert.deepEqual(healthIssues({ connections: [], legacyGmail: true, lastRunAt: NOW - 30, lastSocialRunAt: undefined, now: NOW }), []);
+});
+
+test('the scheduler line appears when either tick has gone quiet', () => {
+  const now = 1_800_000_000;
+  const base = { connections: [], legacyGmail: false, now };
+  assert.deepEqual(healthIssues({ ...base, lastRunAt: now - 60, lastSocialRunAt: now - 60 }), []);
+  assert.deepEqual(healthIssues({ ...base, lastRunAt: now - 60, lastSocialRunAt: now - 3600 }), [{ kind: 'scheduler', lastRunAt: now - 3600 }]);
+  assert.deepEqual(healthIssues({ ...base, lastRunAt: now - 60, lastSocialRunAt: null }), [{ kind: 'scheduler', lastRunAt: now - 60 }]);
+  assert.deepEqual(healthIssues({ ...base, lastRunAt: now - 60, lastSocialRunAt: undefined }), [], 'before migration 8e only mail is measured');
 });
