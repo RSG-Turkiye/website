@@ -55,13 +55,14 @@ const when = (epoch: number | null, locale: 'tr-TR' | 'en-GB') =>
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul',
   });
 
-export type NotifyKind = 'submitted' | 'approved' | 'rejected' | 'plan_due' | 'publish_failed' | 'waiting_connection' | 'needs_confirmation' | 'connection_broken';
+export type NotifyKind = 'submitted' | 'approved' | 'rejected' | 'plan_due' | 'publish_failed' | 'waiting_connection' | 'needs_confirmation' | 'connection_broken' | 'connection_expiring';
 
 /** Turkish first, then English, in one message: the reader's language is not known. */
 export function notificationText(
   kind: NotifyKind,
-  ctx: { label: string; when: number | null; actor?: string; note?: string; panelUrl: string },
+  ctx: { label: string; when: number | null; actor?: string; note?: string; panelUrl: string; platform?: string },
 ): { subject: string; text: string } {
+  const p = ctx.platform ?? 'Instagram';
   const tr = when(ctx.when, 'tr-TR');
   const en = when(ctx.when, 'en-GB');
   const who = ctx.actor ?? '';
@@ -90,12 +91,12 @@ export function notificationText(
     case 'publish_failed':
       return {
         subject: `Gönderi yayınlanamadı / Post could not be published: ${ctx.label}`,
-        text: `**${ctx.label}** (${tr}) Instagram'da yayınlanamadı. Neden:${note}\n\nPanelden düzeltip yeniden deneyebilirsin: ${ctx.panelUrl}\n\n---\n\n**${ctx.label}** (${en}) could not be published to Instagram. Reason:${note}\n\nFix it and retry in the panel: ${ctx.panelUrl}`,
+        text: `**${ctx.label}** (${tr}) ${p}'da yayınlanamadı. Neden:${note}\n\nPanelden düzeltip yeniden deneyebilirsin: ${ctx.panelUrl}\n\n---\n\n**${ctx.label}** (${en}) could not be published to ${p}. Reason:${note}\n\nFix it and retry in the panel: ${ctx.panelUrl}`,
       };
     case 'waiting_connection':
       return {
         subject: `Gönderi bağlantı bekliyor / Post waiting for a connection: ${ctx.label}`,
-        text: `**${ctx.label}** (${tr}) yayınlanamıyor çünkü Instagram bağlantısı çalışmıyor. Bir admin Bağlantılar sekmesinden yeniden bağladığında gönderi sıraya döner.\n\n${ctx.panelUrl}\n\n---\n\n**${ctx.label}** (${en}) cannot go out because the Instagram connection is not working. Once an admin reconnects it in Connections, the post is queued again.\n\n${ctx.panelUrl}`,
+        text: `**${ctx.label}** (${tr}) yayınlanamıyor çünkü ${p} bağlantısı çalışmıyor. Bir admin Bağlantılar sekmesinden yeniden bağladığında gönderi sıraya döner.\n\n${ctx.panelUrl}\n\n---\n\n**${ctx.label}** (${en}) cannot go out because the ${p} connection is not working. Once an admin reconnects it in Connections, the post is queued again.\n\n${ctx.panelUrl}`,
       };
     case 'needs_confirmation':
       return {
@@ -104,8 +105,13 @@ export function notificationText(
       };
     case 'connection_broken':
       return {
-        subject: `Instagram bağlantısı koptu / Instagram connection broken`,
-        text: `Instagram bağlantısı artık çalışmıyor. Neden:${note}\n\nBağlantılar sekmesinden yeniden bağla; bekleyen gönderiler sıraya döner: ${ctx.panelUrl}\n\n---\n\nThe Instagram connection no longer works. Reason:${note}\n\nReconnect it in Connections; waiting posts are queued again: ${ctx.panelUrl}`,
+        subject: `${p} bağlantısı koptu / ${p} connection broken`,
+        text: `${p} bağlantısı artık çalışmıyor. Neden:${note}\n\nBağlantılar sekmesinden yeniden bağla; bekleyen gönderiler sıraya döner: ${ctx.panelUrl}\n\n---\n\nThe ${p} connection no longer works. Reason:${note}\n\nReconnect it in Connections; waiting posts are queued again: ${ctx.panelUrl}`,
+      };
+    case 'connection_expiring':
+      return {
+        subject: `${p} bağlantısının süresi doluyor / ${p} connection expiring`,
+        text: `${p} bağlantısının süresi ${ctx.note ?? ''} gün içinde doluyor ve kendiliğinden yenilenemiyor. Süre dolmadan Bağlantılar sekmesinden yeniden bağla: ${ctx.panelUrl}\n\n---\n\nThe ${p} connection expires in ${ctx.note ?? ''} days and cannot renew itself. Reconnect it in Connections before then: ${ctx.panelUrl}`,
       };
   }
 }

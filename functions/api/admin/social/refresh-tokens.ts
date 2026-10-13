@@ -27,7 +27,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     await env.DB.prepare(
       `UPDATE platform_connections SET access_token_enc = ?, expires_at = ?, last_ok_at = ?, last_error = NULL, last_error_at = NULL WHERE platform = 'instagram'`,
     ).bind(sealed, now + result.expiresIn, now).run();
-    await requeueWaitingStatement(env.DB).run();
+    await requeueWaitingStatement(env.DB, 'instagram').run();
     await appendAudit(env.DB, { userId: null, action: 'connection.refresh', targetType: 'connection', targetId: 'instagram', details: { expiresAt: now + result.expiresIn } }, now);
     return jsonResponse({ ok: true, refreshed: true });
   }
