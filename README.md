@@ -558,9 +558,9 @@ approve, reject and cancel, event modes, editors).
 
 ### What does not exist yet
 
-Phase 2a published nothing; Instagram arrives in phase 3a (below). The phone quick
-story (phase 3), `/links` (phase 4) and LinkedIn connect (phase 5) are still
-to come.
+Phase 2a published nothing; Instagram arrives in phase 3a and LinkedIn and X
+follow it (below). The phone quick story (phase 3) and `/links` (phase 4) are
+still to come.
 
 Caption length is counted conservatively on purpose: an emoji outside the
 basic plane counts as two characters, so a post that passes here will not be
@@ -624,8 +624,11 @@ mail. When Gmail is broken they pause, and the status banner already says so.
 
 ## Social media publishing (phase 3a)
 
-Instagram posts (feed, carousel, story) now go out from the panel. LinkedIn is
-skipped until phase 5, so a LinkedIn target is not attempted.
+Instagram posts (feed, carousel, story) go out from the panel. LinkedIn and X
+publish too, once connected (sections below). A platform that was never
+connected is skipped (target `skipped`, reason `not_connected`), so Instagram
+still publishes. A connected platform whose connection is broken waits for a
+reconnect.
 
 ### One-time setup
 
@@ -729,6 +732,73 @@ The Instagram token lasts 60 days. `symposium-cron` refreshes it daily once
 fewer than 20 days are left. Only an Instagram auth refusal, or any failure
 within 3 days of expiry, marks the connection broken and emails admins. A
 temporary failure is logged and tried again the next day.
+
+### LinkedIn
+
+Posts go out as the RSG Page through LinkedIn's Community Management API.
+Access is granted per app on application; the app is "RSG-Turkiye Social"
+at developer.linkedin.com, verified by the Page.
+
+Setup, once access is approved:
+
+1. Products tab: Community Management API shows as granted. Auth tab: the
+   redirect URL
+   `https://rsg-turkiye.iscbsc.org/api/admin/connections/linkedin/callback`
+   is listed, and the scopes `w_organization_social`, `r_organization_social`
+   and `rw_organization_admin` appear under "OAuth 2.0 scopes". If LinkedIn
+   names them differently, change `LI_SCOPES` in
+   `functions/_lib/social/linkedin.ts`.
+2. Pages secrets, entered in a separate terminal so they never reach a
+   transcript:
+   `npx wrangler pages secret put LINKEDIN_CLIENT_ID --project-name website`
+   and the same for `LINKEDIN_CLIENT_SECRET`. Then redeploy (Pages secrets
+   apply only to new deployments).
+3. `LINKEDIN_ORGANIZATION` in `wrangler.toml` is the Page's vanity name
+   (`linkedin.com/company/<this>`).
+4. Connections, Connect LinkedIn, signed in as a Page Super admin.
+
+Tokens last 60 days. The daily refresh (`symposium-cron`) renews the access
+token inside its last 20 days when LinkedIn issued a refresh token; the
+refresh token lasts a year from the connect. Either way the admins get a mail
+14, 7, 3 and 1 days before a reconnect is needed.
+
+### X
+
+Posts go out as @rsgturkey through the X API, which is pay per use: about
+$0.015 per post, $0.20 for a post with a link (October 2026 prices). Credits
+are bought in advance at console.x.com; saving a card there gives a one-off
+credit, and a spending limit per billing cycle can be set.
+
+Setup:
+
+1. console.x.com, the project's app, "User authentication settings": OAuth
+   2.0, type "Web App" (confidential client), permissions "Read and write",
+   callback URL
+   `https://rsg-turkiye.iscbsc.org/api/admin/connections/x/callback`,
+   website `https://rsg-turkiye.iscbsc.org`.
+2. Pages secrets `X_CLIENT_ID` and `X_CLIENT_SECRET` (OAuth 2.0 Client ID
+   and Secret, not the API key pair), entered as above; redeploy.
+3. Connections, Connect X, signed in as @rsgturkey.
+
+The access token lasts two hours and is renewed when a post needs it and once
+a day; each renewal replaces the refresh token. "No API credits" on a failed
+post means the balance ran out.
+
+### If a post's answer is lost
+
+If a create call's answer is lost (a timeout, say), the next tick checks the
+account before posting again, so nothing goes out twice. A target that cannot
+be confirmed ends `failed` with "uncertain" after two hours. Someone should
+look at the LinkedIn Page or the X account before pressing Retry.
+
+### Yearly upkeep
+
+- LinkedIn retires each API version about a year after release: bump
+  `LI_VERSION` in `functions/_lib/social/linkedin.ts` to a current `YYYYMM`
+  once a year.
+- At handover: reconnect LinkedIn as one of the incoming Page Super admins,
+  reconnect X if the account's password changed, and keep the X card or
+  credits with the incoming lead.
 
 ## Yearly handover
 
