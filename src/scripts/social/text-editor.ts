@@ -286,17 +286,22 @@ export async function openTextEditor(opts: { src: string; overlays: TextOverlay[
       c.addEventListener('pointercancel', end);
 
       c.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab' && overlays.length) {
+        if (e.key === 'Tab') {
+          // Walk the texts; past the first or last one, focus leaves the stage normally.
+          const next = selected < 0 ? (e.shiftKey ? overlays.length - 1 : 0) : selected + (e.shiftKey ? -1 : 1);
+          if (next < 0 || next >= overlays.length) return;
           e.preventDefault();
-          select((selected + (e.shiftKey ? -1 : 1) + overlays.length) % overlays.length);
+          select(next);
           return;
         }
-        if (selected < 0) return;
         if (e.key === 'Enter') {
+          if (selected < 0 && overlays.length) select(0);
+          if (selected < 0) return;
           e.preventDefault();
           root.querySelector<HTMLTextAreaElement>('[data-text]')?.focus();
           return;
         }
+        if (selected < 0) return;
         if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement === c) {
           e.preventDefault();
           removeSelected();
