@@ -8,8 +8,8 @@ export type PublishStep =
   | { kind: 'pending'; containerId: string; notes?: string[] }
   /** Transient: try again next tick, within the retry window. */
   | { kind: 'retry'; reason: string; clearContainer?: boolean }
-  /** The content itself was refused; a person has to change something. */
-  | { kind: 'fail'; reason: string }
+  /** The content itself was refused; a person has to change something. clearContainer: Instagram reported the container ERROR, so nothing was published. */
+  | { kind: 'fail'; reason: string; clearContainer?: boolean }
   /** The token no longer works; the target waits for a reconnect. */
   | { kind: 'auth'; reason: string };
 

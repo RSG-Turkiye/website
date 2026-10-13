@@ -140,14 +140,14 @@ test('guarded update and targets act only when this write landed', async () => {
   db.exec(SCHEMA);
   db.prepare(`INSERT INTO social_posts (id, type, created_by, created_at, updated_at) VALUES ('p','image','ed',1,1)`).run();
   const DB = d1(db) as never as D1Database;
-  const stale = await DB.batch([updatePostGuarded(DB, 'p', 5, 'n-stale', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-stale', ['instagram'])]);
+  const stale = await DB.batch([updatePostGuarded(DB, 'p', 5, 'n-stale', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-stale', ['instagram'], NOW)]);
   assert.equal((stale[0] as { meta: { changes: number } }).meta.changes, 0);
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 0);
-  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-win', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-win', ['instagram', 'linkedin'])]);
+  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-win', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-win', ['instagram', 'linkedin'], NOW)]);
   assert.deepEqual({ ...db.prepare('SELECT status, revision, write_nonce FROM social_posts').get() as object }, { status: 'scheduled', revision: 1, write_nonce: 'n-win' });
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 2);
   // A loser that read revision 0 too, arriving after: its guard misses and its targets do not overwrite the winner's.
-  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-lose', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-lose', ['linkedin'])]);
+  await DB.batch([updatePostGuarded(DB, 'p', 0, 'n-lose', { status: 'scheduled' }, NOW), ...targetStatements(DB, 'p', 'n-lose', ['linkedin'], NOW)]);
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_post_targets').get() as { n: number }).n, 2);
   assert.match(POST_PROOF, /write_nonce = \?/);
 });

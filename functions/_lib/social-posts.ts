@@ -10,6 +10,7 @@ import {
 } from './social-limits';
 import { validateScheduledAt } from './schedule';
 import { IMAGE_KEY } from './images';
+import { CLAIM_LEASE_SECONDS } from './social-dispatch';
 
 export type PostStatus =
   | 'draft' | 'pending_approval' | 'scheduled' | 'published' | 'partially_published' | 'failed' | 'rejected' | 'cancelled';
@@ -271,15 +272,26 @@ export function updatePostGuarded(
 }
 
 /**
- * Replaces a post's not-yet-started targets (null: removes them), only if
- * this write's guarded update landed. A target already publishing or
- * published is left alone: deleting it and queueing it again would publish
- * the post twice.
+ * A target that may own a container Instagram already published: it is
+ * publishing or published, it holds a container (a failed or re-queued one
+ * too: a lost media_publish response looks like a failure), or a tick holds a
+ * live claim on it (it may be creating one right now). Binds: now minus the
+ * claim lease. Only a status read of EXPIRED or ERROR lets a target drop its
+ * container (social-dispatch.ts afterStep), and only then can it be replaced.
  */
-export function targetStatements(db: D1Database, postId: string, nonce: string, platforms: SocialPlatform[] | null): D1PreparedStatement[] {
+const STARTED = `(status IN ('publishing','published') OR container_id IS NOT NULL OR (claimed_at IS NOT NULL AND claimed_at > ?))`;
+
+/**
+ * Replaces a post's not-yet-started targets (null: removes them), only if
+ * this write's guarded update landed. A started target (see STARTED) is left
+ * alone: deleting it and queueing it again would publish the post twice.
+ */
+export function targetStatements(
+  db: D1Database, postId: string, nonce: string, platforms: SocialPlatform[] | null, now: number,
+): D1PreparedStatement[] {
   const statements = [
-    db.prepare(`DELETE FROM social_post_targets WHERE post_id = ? AND status NOT IN ('publishing','published') AND ${POST_PROOF}`)
-      .bind(postId, postId, nonce),
+    db.prepare(`DELETE FROM social_post_targets WHERE post_id = ? AND NOT ${STARTED} AND ${POST_PROOF}`)
+      .bind(postId, now - CLAIM_LEASE_SECONDS, postId, nonce),
   ];
   for (const platform of platforms ?? []) {
     statements.push(db.prepare(
@@ -289,10 +301,14 @@ export function targetStatements(db: D1Database, postId: string, nonce: string, 
   return statements;
 }
 
-/** How many of a post's targets have started publishing; an edit or cancel after that would publish twice or leave a stray post. */
-export async function startedTargets(db: D1Database, postId: string): Promise<number> {
-  const r = await db.prepare(`SELECT COUNT(*) AS n FROM social_post_targets WHERE post_id = ? AND status IN ('publishing','published')`)
-    .bind(postId).first<{ n: number }>();
+/**
+ * How many of a post's targets have started (see STARTED); an edit or cancel
+ * after that would publish twice or leave a stray post. Retry, which re-reads
+ * the container, is the way forward then.
+ */
+export async function startedTargets(db: D1Database, postId: string, now: number): Promise<number> {
+  const r = await db.prepare(`SELECT COUNT(*) AS n FROM social_post_targets WHERE post_id = ? AND ${STARTED}`)
+    .bind(postId, now - CLAIM_LEASE_SECONDS).first<{ n: number }>();
   return r?.n ?? 0;
 }
 

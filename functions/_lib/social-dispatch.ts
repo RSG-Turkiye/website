@@ -9,6 +9,8 @@ import type { PublishStep } from './social/types';
 export const LATE_SECONDS = 2 * 3600;
 /** Transient failures are retried every tick for this long from the first attempt. */
 export const RETRY_WINDOW_SECONDS = 2 * 3600;
+/** How long a tick's claim on a target holds; a claim older than this is taken over. */
+export const CLAIM_LEASE_SECONDS = 10 * 60;
 
 export type TargetStatus = 'queued' | 'waiting_connection' | 'needs_confirmation' | 'publishing' | 'published' | 'failed' | 'skipped';
 const UNSETTLED: TargetStatus[] = ['queued', 'publishing', 'waiting_connection', 'needs_confirmation'];
@@ -67,7 +69,11 @@ export function afterStep(step: PublishStep, t: TargetNow, now: number): Transit
         : { next: tried, notify: null, audit: null };
     }
     case 'fail':
-      return { next: { ...t, status: 'failed', last_error: step.reason }, notify: 'failed', audit: 'social.target.failed' };
+      // The container is dropped only when Instagram said it could not process it (proof nothing went out), so the post can be edited.
+      return {
+        next: { ...t, status: 'failed', container_id: step.clearContainer ? null : t.container_id, last_error: step.reason },
+        notify: 'failed', audit: 'social.target.failed',
+      };
     case 'auth':
       return { next: { ...t, status: 'waiting_connection', last_error: step.reason }, notify: 'waiting_connection', audit: 'social.target.waiting' };
   }

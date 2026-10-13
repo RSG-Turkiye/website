@@ -9,13 +9,13 @@ import type { Env } from './auth';
 import { getConnection, connectionStatus, readAccessToken, markOk, markBroken } from './connections';
 import { rowToDraft, type PostRow } from './social-posts';
 import { captionFor } from './social-limits';
-import { afterStep, derivePostStatus, isLate, type TargetNow, type TargetStatus } from './social-dispatch';
+import { afterStep, derivePostStatus, isLate, CLAIM_LEASE_SECONDS, type TargetNow, type TargetStatus } from './social-dispatch';
 import { instagramPublishStep } from './social/instagram';
 import { appendAudit } from './audit';
 import { notificationText, notifyEach, publisherEmails, adminEmails, postLabel, type NotifyKind } from './social-notify';
 
 export const TICK_BATCH = 2;
-export const CLAIM_LEASE_SECONDS = 10 * 60;
+export { CLAIM_LEASE_SECONDS };
 
 type Due = PostRow & {
   target_status: TargetStatus; platform: string; attempts: number; first_tried_at: number | null; container_id: string | null;
@@ -85,8 +85,9 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
       await appendAudit(db, { userId: null, action: 'social.target.skipped', targetType: 'social_post', targetId: row.id, details: { platform: row.platform } }, now);
       continue;
     }
-    // Never tried (no container, no attempt: a transient retry has already started and runs out its own window) and more than two hours late: a person decides (spec §5, lateness rule).
-    if (row.target_status === 'queued' && row.container_id === null && row.first_tried_at === null && isLate(row.scheduled_at!, now, row.confirmed_at)) {
+    // Queued with no attempt in its current run (a transient retry has already started and runs out its own window) and more than two hours late: a person decides (spec §5, lateness rule).
+    // A container kept from before a wait does not exempt it: reconnect, refresh and requeue all reset first_tried_at, and a held target keeps its container for the status read after confirmation.
+    if (row.target_status === 'queued' && row.first_tried_at === null && isLate(row.scheduled_at!, now, row.confirmed_at)) {
       await write(db, row, { ...t, status: 'needs_confirmation' }, now);
       await settlePost(db, row.id, now);
       await appendAudit(db, { userId: null, action: 'social.target.late', targetType: 'social_post', targetId: row.id, details: { platform: row.platform, scheduledAt: row.scheduled_at } }, now);

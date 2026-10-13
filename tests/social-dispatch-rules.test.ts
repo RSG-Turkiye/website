@@ -51,6 +51,10 @@ test('retry counts, keeps the container unless told to clear it, and gives up af
 test('fail and auth settle at once, with a notification', () => {
   const f = afterStep({ kind: 'fail', reason: 'bad_ratio: x' }, fresh, T0);
   assert.deepEqual([f.next.status, f.next.last_error, f.notify, f.audit], ['failed', 'bad_ratio: x', 'failed', 'social.target.failed']);
+  const kept = afterStep({ kind: 'fail', reason: 'bad_ratio: x' }, { ...fresh, status: 'publishing', container_id: 'c1' }, T0);
+  assert.equal(kept.next.container_id, 'c1', 'a refused publish may still have gone out: the container stays');
+  const cleared = afterStep({ kind: 'fail', reason: 'container_error: ERROR', clearContainer: true }, { ...fresh, status: 'publishing', container_id: 'c1' }, T0);
+  assert.deepEqual([cleared.next.status, cleared.next.container_id, cleared.notify], ['failed', null, 'failed']);
   const a = afterStep({ kind: 'auth', reason: 'auth: expired' }, fresh, T0);
   assert.deepEqual([a.next.status, a.notify, a.audit], ['waiting_connection', 'waiting_connection', 'social.target.waiting']);
 });

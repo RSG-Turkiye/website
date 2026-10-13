@@ -200,11 +200,16 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
         const permalink = link.ok && typeof link.data.permalink === 'string' ? link.data.permalink : null;
         return { kind: 'done', remoteId, permalink };
       }
+      case 'ERROR':
+        // Instagram could not process it, so it was never published: the target may let go of it.
+        return { kind: 'fail', reason: `container_error: ${String(s.data.status ?? 'ERROR')}`.slice(0, 300), clearContainer: true };
       default:
+        // An unknown state proves nothing either way: keep the container.
         return { kind: 'fail', reason: `container_error: ${String(s.data.status ?? s.data.status_code ?? 'unknown')}`.slice(0, 300) };
     }
   }
 
+  if (post.media.length === 0) return { kind: 'fail', reason: 'unknown: post has no images' };
   const notes: string[] = [];
   let created: GraphResult;
   if (post.type === 'story') {

@@ -29,7 +29,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   if (!found) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   const { row } = found;
   if (!canEditPost(gate.actor, row)) return jsonResponse({ error: 'You cannot edit this post', code: 'not_allowed' }, 403);
-  if (await startedTargets(env.DB, id)) return jsonResponse({ error: 'Publishing has started', code: 'publishing_started' }, 409);
+  const now = nowSeconds();
+  if (await startedTargets(env.DB, id, now)) return jsonResponse({ error: 'Publishing has started', code: 'publishing_started' }, 409);
   const body = await readBody(request);
   if (!body) return malformed();
   const revision = revisionOf(body);
@@ -38,7 +39,6 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   const parsed = parseDraft(body);
   if (!parsed.ok) return jsonResponse({ error: 'Invalid post', code: parsed.code }, 400);
   const next = parsed.value;
-  const now = nowSeconds();
 
   // A story is covered only by a window that is still open at the time it is scheduled for.
   const window = next.type === 'story' && !gate.actor.isPublisher ? await coveringEvent(env.DB, gate.user.id, now) : null;
@@ -64,8 +64,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   if ((row.status === 'scheduled' || row.status === 'failed') && status === 'pending_approval') Object.assign(fields, { approved_by: null, approved_at: null, event_mode_id: null });
   if (row.status === 'rejected' && status === 'draft') fields.review_note = null;
   const targets = status === 'scheduled'
-    ? targetStatements(env.DB, id, nonce, next.platforms)
-    : row.status === 'scheduled' ? targetStatements(env.DB, id, nonce, null) : [];
+    ? targetStatements(env.DB, id, nonce, next.platforms, now)
+    : row.status === 'scheduled' ? targetStatements(env.DB, id, nonce, null, now) : [];
   const done = await runGuardedWithAudit(
     env.DB,
     updatePostGuarded(env.DB, id, revision, nonce, fields, now),

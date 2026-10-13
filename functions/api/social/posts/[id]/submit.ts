@@ -31,7 +31,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     env.DB,
     updatePostGuarded(env.DB, id, revision, nonce, fields, now, ['draft', 'rejected']),
     { condition: POST_PROOF, binds: [id, nonce] },
-    status === 'scheduled' ? targetStatements(env.DB, id, nonce, draft.platforms) : [],
+    status === 'scheduled' ? targetStatements(env.DB, id, nonce, draft.platforms, now) : [],
     { userId: gate.user.id, action: 'social.post.submit', targetType: 'social_post', targetId: id, details: { status, eventModeId: event?.id ?? null } },
     now,
   );

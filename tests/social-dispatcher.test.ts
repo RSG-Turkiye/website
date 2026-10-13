@@ -216,3 +216,35 @@ test('an unreadable stored token marks the connection broken and tells admins on
   assert.equal(mail.sent.filter((m) => /bağlantısı koptu/.test(m.subject) && m.to === 'admin@example.org').length, 1);
   assert.ok((db.prepare(`SELECT last_error_at FROM platform_connections WHERE platform = 'instagram'`).get() as { last_error_at: number | null }).last_error_at);
 });
+
+test('a target re-queued with its container after a long wait is held by lateness; once confirmed, the status read records it published', async () => {
+  const { env, db, waits } = world({ at: T0 - 2 * 86400 });
+  await connect(env);
+  // As after a reconnect: queued, retry clock reset, the container from before the wait kept.
+  db.prepare(`UPDATE social_post_targets SET container_id = 'c1', first_tried_at = NULL, attempts = 0`).run();
+  const g = stubGraph(graphFlow(['PUBLISHED']));
+  try { await dispatchSocial(env, T0, ORIGIN); } finally { g.restore(); }
+  await Promise.allSettled(waits);
+  assert.equal(g.calls.length, 0, 'no Graph call while a person has not decided');
+  assert.deepEqual([target(db).status, target(db).container_id], ['needs_confirmation', 'c1'], 'the container is kept for the status read');
+  assert.ok(mail.sent.some((m) => m.to === 'pub@example.org'));
+
+  // Publish anyway: queued again, confirmed.
+  db.prepare(`UPDATE social_post_targets SET status = 'queued', confirmed_at = ?`).run(T0 + 60);
+  const g2 = stubGraph(graphFlow(['PUBLISHED']));
+  try { await dispatchSocial(env, T0 + 90, ORIGIN); } finally { g2.restore(); }
+  assert.equal(target(db).status, 'published');
+  assert.equal(g2.calls.some((c) => c.path.endsWith('/media_publish')), false, 'never published a second time');
+  assert.equal(g2.calls.some((c) => c.method === 'POST'), false, 'no new container either');
+  assert.equal(postStatus(db), 'published');
+});
+
+test('a container Instagram reports as ERROR fails the target and lets go of it, so the post can be fixed', async () => {
+  const { env, db } = world();
+  await connect(env);
+  db.prepare(`UPDATE social_post_targets SET status = 'publishing', container_id = 'c1', first_tried_at = ?`).run(T0);
+  const g = stubGraph((c) => (c.path === '/c1' ? Response.json({ status_code: 'ERROR', status: 'Error: unsupported' }) : undefined));
+  try { await dispatchSocial(env, T0 + 90, ORIGIN); } finally { g.restore(); }
+  assert.deepEqual([target(db).status, target(db).container_id, target(db).last_error], ['failed', null, 'container_error: Error: unsupported']);
+  assert.equal(postStatus(db), 'failed');
+});

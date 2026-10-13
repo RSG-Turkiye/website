@@ -76,11 +76,25 @@ test('a container already PUBLISHED (crash after publishing) is recorded, never 
   assert.equal(calls.some((c) => c.path.endsWith('/media_publish')), false);
 });
 
-test('an expired container is recreated; an errored one fails with its status', async () => {
+test('an expired container is recreated; an errored one fails with its status and lets go of the container', async () => {
   const expired = await withGraph((c) => (c.path === '/c1' ? Response.json({ status_code: 'EXPIRED' }) : undefined), () => step(single, 'c1'));
   assert.deepEqual(expired.result, { kind: 'retry', reason: 'expired: container expired', clearContainer: true });
   const broken = await withGraph((c) => (c.path === '/c1' ? Response.json({ status_code: 'ERROR', status: 'Error: unsupported' }) : undefined), () => step(single, 'c1'));
-  assert.deepEqual(broken.result, { kind: 'fail', reason: 'container_error: Error: unsupported' });
+  assert.deepEqual(broken.result, { kind: 'fail', reason: 'container_error: Error: unsupported', clearContainer: true });
+  assert.equal(broken.calls.some((c) => c.path.endsWith('/media_publish')), false);
+});
+
+test('an unknown container status fails but keeps the container: it proves nothing either way', async () => {
+  const odd = await withGraph((c) => (c.path === '/c1' ? Response.json({ status_code: 'SOMETHING_NEW' }) : undefined), () => step(single, 'c1'));
+  assert.deepEqual(odd.result, { kind: 'fail', reason: 'container_error: SOMETHING_NEW' });
+});
+
+test('a post with no images fails without a Graph call instead of aborting the tick', async () => {
+  for (const type of ['image', 'carousel', 'story'] as const) {
+    const { result, calls } = await withGraph(() => Response.json({ id: 'c1' }), () => step({ type, caption: 'x', media: [] }));
+    assert.deepEqual(result, { kind: 'fail', reason: 'unknown: post has no images' }, type);
+    assert.equal(calls.length, 0, type);
+  }
 });
 
 test('publish says "not ready yet": keep polling the same container', async () => {
