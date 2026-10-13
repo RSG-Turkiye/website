@@ -17,6 +17,12 @@ test('the body sends trimmed alt text, no blank link, and only non-empty overrid
   assert.equal('planId' in b, false, 'planId only on create');
 });
 
+test('a cropped image carries its original and crop area to the server, and nothing else', () => {
+  const source = { key: 'orig.jpg', mode: 'crop' as const, x: 0, y: 495, w: 1080, h: 1350 };
+  const b = toDraftBody({ ...base, media: [{ key: 'k.jpg', alt: 'Afiş', url: 'u', sourceUrl: 'su', width: 1080, height: 1350, source }] });
+  assert.deepEqual(b.media, [{ key: 'k.jpg', alt: 'Afiş', source }]);
+});
+
 test('overrides keep instagram before linkedin whatever order they were typed in', () => {
   const b = toDraftBody({ ...base, overrides: { linkedin: 'LI', instagram: 'IG' } });
   assert.deepEqual(Object.keys(b.captionOverrides), ['instagram', 'linkedin']);

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import {
-  parseDraft, readinessProblems, mediaDims, canEditPost, canDeletePost, canCancelPost, statusAfterEdit, statusOnSubmit,
+  parseDraft, linkOk, readinessProblems, mediaDims, canEditPost, canDeletePost, canCancelPost, statusAfterEdit, statusOnSubmit,
   updatePostGuarded, targetStatements, POST_PROOF, type DraftInput,
 } from '../functions/_lib/social-posts';
 import { eventCovers, coveringEvent, type EventModeRow } from '../functions/_lib/social-events';
@@ -33,6 +33,23 @@ test('parseDraft refuses wrong shapes with a code', () => {
     [{ type: 'image', scheduledAt: 1.5 }, 'invalid_schedule'],
   ];
   for (const [body, code] of bad) assert.deepEqual(parseDraft(body), { ok: false, code }, code);
+});
+
+test('linkOk: a whole https address only, so a half-typed one is never saved', () => {
+  assert.equal(linkOk('https://rsg-turkiye.iscbsc.org'), true);
+  assert.equal(linkOk('https://example.org/a?b=c'), true);
+  for (const half of ['h', 'https', 'https:/', 'https://', 'http://example.org']) assert.equal(linkOk(half), false, half);
+});
+
+test('parseDraft keeps a cropped image\'s original and crop area, and refuses a malformed one', () => {
+  const source = { key: KEY_B, mode: 'crop', x: 0, y: 120, w: 1080, h: 1350 };
+  const r = parseDraft({ type: 'image', media: [{ key: KEY_A, alt: 'Afiş', source: { ...source, extra: 'dropped' } }] });
+  assert.deepEqual(r.ok && r.value.media, [{ key: KEY_A, alt: 'Afiş', source }]);
+  for (const bad of [
+    { ...source, key: '../x' }, { ...source, mode: 'stretch' }, { ...source, w: 0 }, { ...source, x: -1 }, { ...source, y: 1.5 }, 'x',
+  ]) {
+    assert.deepEqual(parseDraft({ type: 'image', media: [{ key: KEY_A, alt: '', source: bad }] }), { ok: false, code: 'invalid_media' }, JSON.stringify(bad));
+  }
 });
 
 const ready = (over: Partial<DraftInput> = {}): DraftInput => ({

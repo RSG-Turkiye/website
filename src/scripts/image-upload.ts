@@ -106,9 +106,15 @@ export async function uploadSocialImage(file: File): Promise<SocialUpload> {
   } catch {
     // Not decodable in this browser: send it as is and let the server judge.
   }
+  // Either the JPEG or the original file, whose type was checked above.
+  return uploadSocialBlob(body);
+}
+
+/** Sends an image the panel already prepared (the cropper's JPEG). */
+export async function uploadSocialBlob(body: Blob): Promise<SocialUpload> {
   const res = await fetch('/api/blog-submissions/upload-image', {
     method: 'POST',
-    headers: { 'Content-Type': body.type || file.type },
+    headers: { 'Content-Type': body.type },
     body,
   });
   if (!res.ok) {
@@ -116,4 +122,11 @@ export async function uploadSocialImage(file: File): Promise<SocialUpload> {
     throw new Error(detail?.error ?? `Upload failed (${res.status})`);
   }
   return (await res.json()) as SocialUpload;
+}
+
+/** Encodes a canvas the way every social upload is stored. */
+export function canvasToSocialJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => canvas.toBlob(
+    (b) => (b && b.size > 0 ? resolve(b) : reject(new Error('encode failed'))), 'image/jpeg', SOCIAL_QUALITY,
+  ));
 }
