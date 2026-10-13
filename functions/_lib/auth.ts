@@ -23,6 +23,14 @@ export interface Env {
   /** Instagram app (Meta dashboard, Instagram > API setup with Instagram login). Both are Pages secrets. */
   INSTAGRAM_APP_ID?: string;
   INSTAGRAM_APP_SECRET?: string;
+  /** LinkedIn app (developer.linkedin.com, Community Management API). Pages secrets. */
+  LINKEDIN_CLIENT_ID?: string;
+  LINKEDIN_CLIENT_SECRET?: string;
+  /** The Page's public vanity name (linkedin.com/company/<this>); a [vars] entry. */
+  LINKEDIN_ORGANIZATION?: string;
+  /** X app (console.x.com, OAuth 2.0, confidential client). Pages secrets. */
+  X_CLIENT_ID?: string;
+  X_CLIENT_SECRET?: string;
 }
 
 export interface User {
