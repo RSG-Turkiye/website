@@ -1,7 +1,7 @@
 /** Details and actions for the item clicked on the calendar or board. */
 import { api, ApiError, type Plan, type Post } from './api';
 import { deps, changed } from './context';
-import { errorText, problemText, publishErrorText } from './messages';
+import { errorText, problemText, publishErrorText, splitPublishError, requeueLabelKey } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { dayKey, timeOf, planDue } from '../../lib/social-calendar';
 import { findPlan, findPost } from './calendar-view';
@@ -88,8 +88,8 @@ export function targetLines(p: Post): string {
   if (!p.targets.length) return '';
   return `<div class="mt-3"><p class="text-xs text-gray-500">${esc(t('admin.social.side.targets'))}</p>${p.targets.map((x) => `
     <p class="text-sm text-navy mt-1"><strong>${esc(t(`admin.connections.platform.${x.platform}`))}</strong>: ${esc(t(`admin.social.target.${x.status}`))}
-      ${x.permalink ? ` · <a href="${esc(x.permalink)}" target="_blank" rel="noopener" class="underline">${esc(t('admin.social.side.viewPost'))}</a>` : ''}</p>
-    ${x.lastError && x.status !== 'published' ? `<p class="text-xs text-red">${esc(publishErrorText(x.lastError))}</p><p class="text-xs text-gray-500 break-words">${esc(x.lastError.slice(x.lastError.indexOf(': ') + 2))}</p>` : ''}`).join('')}</div>`;
+      ${x.permalink?.startsWith('https://') ? ` · <a href="${esc(x.permalink)}" target="_blank" rel="noopener" class="underline">${esc(t('admin.social.side.viewPost'))}</a>` : ''}</p>
+    ${x.lastError && x.status !== 'published' ? `<p class="text-xs text-red">${esc(publishErrorText(x.lastError))}</p>${splitPublishError(x.lastError).detail ? `<p class="text-xs text-gray-500 break-words">${esc(splitPublishError(x.lastError).detail)}</p>` : ''}` : ''}`).join('')}</div>`;
 }
 
 function renderPost(p: Post): void {
@@ -109,11 +109,8 @@ function renderPost(p: Post): void {
   if ((me.isPublisher || mine) && (p.status === 'pending_approval' || p.status === 'scheduled')) {
     actions.push(button(t('admin.social.action.cancel'), 'data-act="cancel"', 'danger'));
   }
-  const held = p.targets.some((x) => x.status === 'needs_confirmation');
-  const failedAny = p.targets.some((x) => x.status === 'failed');
-  if (me.isPublisher && (held || failedAny) && ['scheduled', 'failed', 'partially_published'].includes(p.status)) {
-    actions.push(button(t(held ? 'admin.social.action.publishAnyway' : 'admin.social.action.retry'), 'data-act="requeue"', 'ok'));
-  }
+  const requeueKey = requeueLabelKey(p);
+  if (me.isPublisher && requeueKey) actions.push(button(t(requeueKey), 'data-act="requeue"', 'ok'));
   frame(p.planTitle || t(`admin.social.type.${p.type}`), `
     <p class="mt-1 text-xs font-semibold">${esc(t(`admin.social.status.${p.status}`))}</p>
     ${!canEdit && !LOCKED.includes(p.status) ? `<p class="mt-2 text-xs text-gray-500">${esc(t('admin.social.side.readOnly'))}</p>` : ''}

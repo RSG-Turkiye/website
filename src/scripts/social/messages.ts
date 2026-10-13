@@ -1,5 +1,5 @@
 /** Server codes to sentences. Every code here has an admin.social.* key in both languages (tests/admin-social-i18n.test.ts). */
-import { ApiError, type Problem } from './api';
+import { ApiError, type Problem, type Post } from './api';
 import { deps } from './context';
 import { PUBLISH_REASON_KEYS } from '../../../functions/_lib/social/instagram-errors';
 
@@ -38,9 +38,22 @@ export function errorText(err: unknown): string {
 export const TARGET_STATUS_KEYS = ['queued', 'waiting_connection', 'needs_confirmation', 'publishing', 'published', 'failed', 'skipped'] as const;
 
 /** last_error is "<key>: <provider detail>"; the key becomes a sentence, the detail stays for whoever needs it. */
+export function splitPublishError(lastError: string): { key: string; detail: string } {
+  const at = lastError.indexOf(': ');
+  if (at <= 0) return { key: lastError, detail: '' };
+  return { key: lastError.slice(0, at), detail: lastError.slice(at + 2).trim() };
+}
+
 export function publishErrorText(lastError: string | null): string {
   if (!lastError) return '';
-  const at = lastError.indexOf(': ');
-  const key = at > 0 ? lastError.slice(0, at) : lastError;
+  const { key } = splitPublishError(lastError);
   return deps().t(`admin.social.publishError.${(PUBLISH_REASON_KEYS as readonly string[]).includes(key) ? key : 'unknown'}`);
+}
+
+/** The label key of the requeue button for this post, or null when there is nothing to requeue. Held posts get "Publish anyway", failed ones "Retry". */
+export function requeueLabelKey(p: Post): string | null {
+  const held = p.targets.some((x) => x.status === 'needs_confirmation');
+  const failedAny = p.targets.some((x) => x.status === 'failed');
+  if (!(held || failedAny) || !['scheduled', 'failed', 'partially_published'].includes(p.status)) return null;
+  return held ? 'admin.social.action.publishAnyway' : 'admin.social.action.retry';
 }

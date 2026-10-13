@@ -1,7 +1,7 @@
 /** The approval queue (publishers) and the undated drafts list. */
 import { api, ApiError, type Post } from './api';
 import { deps, changed } from './context';
-import { errorText, problemText } from './messages';
+import { errorText, problemText, requeueLabelKey } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { bgImage } from './preview';
 import { openComposer } from './composer';
@@ -96,5 +96,15 @@ export async function loadPublished(): Promise<void> {
   const list = document.getElementById('socialPublishedList');
   if (!list) return;
   const posts = await api.done();
-  list.innerHTML = posts.map((p) => card(p, targetLines(p))).join('') || `<p class="text-sm text-gray-500">${esc(t('admin.social.empty'))}</p>`;
+  const publisher = deps().me.isPublisher;
+  const key = (p: Post) => (publisher ? requeueLabelKey(p) : null);
+  list.innerHTML = posts.map((p) => {
+    const k = key(p);
+    return card(p, targetLines(p) + (k ? button(t(k), 'data-act="requeue"', 'ok') : ''));
+  }).join('') || `<p class="text-sm text-gray-500">${esc(t('admin.social.empty'))}</p>`;
+  for (const p of posts) {
+    if (!key(p)) continue;
+    const el = list.querySelector<HTMLElement>(`[data-post="${CSS.escape(p.id)}"]`);
+    el?.querySelector('[data-act="requeue"]')?.addEventListener('click', (e) => void act(() => api.requeue(p.id, p.revision), 'admin.social.done.requeued', e.currentTarget as HTMLButtonElement));
+  }
 }
