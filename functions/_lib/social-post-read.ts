@@ -13,7 +13,11 @@ function respond(env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, row: Joined, targets:
   const d = rowToDraft(row);
   return {
     id: row.id, type: d.type, caption: d.caption, captionOverrides: d.captionOverrides, link: d.link,
-    media: d.media.map((m) => ({ ...m, url: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.key}` })),
+    media: d.media.map((m) => ({
+      ...m,
+      url: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.key}`,
+      ...(m.source ? { sourceUrl: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.source.key}` } : {}),
+    })),
     platforms: d.platforms, scheduledAt: d.scheduledAt, status: row.status, revision: row.revision,
     createdBy: row.created_by, authorEmail: row.author_email, approvedBy: row.approved_by, approvedAt: row.approved_at,
     reviewNote: row.review_note, planId: row.plan_id, planTitle: row.plan_title, eventModeId: row.event_mode_id,

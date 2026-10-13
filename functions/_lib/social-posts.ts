@@ -19,7 +19,33 @@ export const LOCKED_STATUSES: PostStatus[] = ['published', 'partially_published'
 const MAX_CAPTION_STORED = 5000;
 const MAX_LINK = 2048;
 
-export interface MediaRef { key: string; alt: string }
+/**
+ * Where an image came from when it was cropped or fitted in the panel: the
+ * uploaded original and the area of it that was used (original pixels). The
+ * panel re-opens the cropper from the original, so a crop can be undone later.
+ */
+export interface MediaSource { key: string; mode: 'crop' | 'fit'; x: number; y: number; w: number; h: number }
+export interface MediaRef { key: string; alt: string; source?: MediaSource }
+
+/** Larger than any upload (the client shrinks to 2000px); a bound, not a rule. */
+const MAX_SOURCE_PX = 20000;
+
+/** The one link rule, shared with the panel so it can hold autosave until a link is whole. */
+export function linkOk(link: string): boolean {
+  if (link.length > MAX_LINK || !link.startsWith('https://')) return false;
+  try { new URL(link); return true; } catch { return false; }
+}
+
+function parseSource(v: unknown): MediaSource | null | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v !== 'object' || Array.isArray(v)) return null;
+  const { key, mode, x, y, w, h } = v as Record<string, unknown>;
+  if (typeof key !== 'string' || !IMAGE_KEY.test(key)) return null;
+  if (mode !== 'crop' && mode !== 'fit') return null;
+  const px = (n: unknown, min: number) => typeof n === 'number' && Number.isSafeInteger(n) && n >= min && n <= MAX_SOURCE_PX;
+  if (!px(x, 0) || !px(y, 0) || !px(w, 1) || !px(h, 1)) return null;
+  return { key, mode, x: x as number, y: y as number, w: w as number, h: h as number };
+}
 
 export interface DraftInput {
   type: PostType;
@@ -53,8 +79,7 @@ export function parseDraft(body: Record<string, unknown>): Parsed<DraftInput> {
 
   let link: string | null = null;
   if (body.link !== undefined && body.link !== null && body.link !== '') {
-    if (typeof body.link !== 'string' || body.link.length > MAX_LINK || !body.link.startsWith('https://')) return fail('invalid_link');
-    try { new URL(body.link); } catch { return fail('invalid_link'); }
+    if (typeof body.link !== 'string' || !linkOk(body.link)) return fail('invalid_link');
     link = body.link;
   }
 
@@ -64,10 +89,12 @@ export function parseDraft(body: Record<string, unknown>): Parsed<DraftInput> {
   const media: MediaRef[] = [];
   for (const m of rawMedia) {
     if (m === null || typeof m !== 'object') return fail('invalid_media');
-    const { key, alt } = m as { key?: unknown; alt?: unknown };
+    const { key, alt, source: rawSource } = m as { key?: unknown; alt?: unknown; source?: unknown };
     if (typeof key !== 'string' || !IMAGE_KEY.test(key)) return fail('invalid_media');
     if (typeof alt !== 'string' || alt.length > MAX_ALT_LENGTH) return fail('invalid_media');
-    media.push({ key, alt });
+    const source = parseSource(rawSource);
+    if (source === null) return fail('invalid_media');
+    media.push(source ? { key, alt, source } : { key, alt });
   }
 
   const rawPlatforms = body.platforms ?? [];

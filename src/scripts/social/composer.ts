@@ -9,12 +9,14 @@ import { errorText, problemText } from './messages';
 import { esc, button, overlay, closeOverlay } from './ui';
 import { AutosaveQueue } from './autosave';
 import { renderPreview, bgImage, type PreviewKind } from './preview';
-import { uploadSocialImage, SOCIAL_IMAGE_TYPES, UnsupportedImageType } from '../image-upload';
-import { readinessProblems } from '../../../functions/_lib/social-posts';
+import { uploadSocialImage, uploadSocialBlob, SOCIAL_IMAGE_TYPES, UnsupportedImageType, type SocialUpload } from '../image-upload';
+import { readinessProblems, linkOk } from '../../../functions/_lib/social-posts';
 import {
-  captionFor, countChars, countHashtags, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
+  captionFor, countChars, countHashtags, ratioOk, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
 } from '../../../functions/_lib/social-limits';
 import { DEFAULT_TIME, dayKey, timeOf, epochAt } from '../../lib/social-calendar';
+import { nearestRatio } from '../../lib/image-crop';
+import { openCropper, sameOrigin, type CropResult, type CropStart } from './cropper';
 
 export interface ComposerState {
   id: string | null;
@@ -47,7 +49,7 @@ export function toDraftBody(s: ComposerState, creating = false): DraftBody {
     caption: s.caption,
     captionOverrides,
     link: s.link.trim() || null,
-    media: s.media.map((m) => ({ key: m.key, alt: m.alt.trim() })),
+    media: s.media.map((m) => (m.source ? { key: m.key, alt: m.alt.trim(), source: m.source } : { key: m.key, alt: m.alt.trim() })),
     platforms: s.platforms,
     scheduledAt: s.date ? epochAt(s.date, s.time || DEFAULT_TIME) : null,
   };
@@ -150,9 +152,23 @@ async function saveDraft(): Promise<void> {
   }
 }
 
-function touch(): void {
+/** A link being typed is not saved half-way: the server would refuse it. */
+const linkValid = () => !state.link.trim() || linkOk(state.link.trim());
+
+/**
+ * Every edit asks for a save through here. A queue that died on a refused or
+ * dropped request is replaced, so one bad save does not end autosave; only a
+ * revision clash (stopped) does.
+ */
+function queueSave(): void {
   dirty = true;
+  if (!linkValid()) return;
+  if (autosave && autosave.stopped && !stopped) autosave = new AutosaveQueue(saveDraft, 3000);
   autosave?.touch();
+}
+
+function touch(): void {
+  queueSave();
   renderChecks();
   renderPreviewPane();
 }
@@ -192,6 +208,7 @@ function render(): void {
         <div data-caption></div>
         <label class="block text-xs font-semibold text-navy">${esc(t('admin.social.composer.link'))}
           <input data-link type="url" ${dis} class="${field}" value="${esc(state.link)}" placeholder="https://"></label>
+        <p data-link-error class="hidden text-xs text-red -mt-2">${esc(t('admin.social.error.invalid_link'))}</p>
         <p class="text-xs text-gray-500 -mt-2">${esc(t('admin.social.composer.linkHint'))}</p>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.when'))} <span class="font-normal text-gray-500">${esc(t('admin.social.composer.timeHint'))}</span></p>
           <div class="flex gap-2 mt-1"><input data-date type="date" ${dis} class="px-3 py-2 rounded-xl border border-border text-sm" value="${esc(state.date)}">
@@ -206,6 +223,7 @@ function render(): void {
       </div>
     </div></div>`;
   wireForm();
+  renderLinkError();
   renderMedia();
   renderCaption();
   renderChecks();
@@ -224,8 +242,9 @@ function wireForm(): void {
     void (async () => {
       await autosave?.flush();
       // Edits the queue could not save: say so and ask again instead of closing on them silently.
-      if (editable && dirty && (autosave?.stopped || lastSaveError !== null)) {
-        deps().showToast(stopped ? t('admin.social.composer.autosaveStopped') : errorText(lastSaveError), true);
+      if (editable && dirty && (autosave?.stopped || lastSaveError !== null || !linkValid())) {
+        deps().showToast(stopped ? t('admin.social.composer.autosaveStopped')
+          : !linkValid() ? t('admin.social.error.invalid_link') : errorText(lastSaveError), true);
         arm();
         return;
       }
@@ -238,16 +257,31 @@ function wireForm(): void {
   o.querySelectorAll<HTMLButtonElement>('[data-type]').forEach((b) => b.addEventListener('click', () => {
     state.type = b.dataset.type as PostType;
     if (state.type === 'story') state.platforms = ['instagram'];
-    dirty = true; autosave?.touch(); render();
+    queueSave(); render();
   }));
   o.querySelectorAll<HTMLInputElement>('[data-platform]').forEach((c) => c.addEventListener('change', () => {
     const p = c.dataset.platform as Platform;
     state.platforms = c.checked ? [...new Set([...state.platforms, p])] : state.platforms.filter((x) => x !== p);
     touch();
   }));
-  o.querySelector<HTMLInputElement>('[data-link]')!.addEventListener('input', (e) => { state.link = (e.target as HTMLInputElement).value; touch(); });
+  o.querySelector<HTMLInputElement>('[data-link]')!.addEventListener('input', (e) => {
+    state.link = (e.target as HTMLInputElement).value;
+    renderLinkError();
+    touch();
+  });
   o.querySelector<HTMLInputElement>('[data-date]')!.addEventListener('input', (e) => { state.date = (e.target as HTMLInputElement).value; touch(); });
   o.querySelector<HTMLInputElement>('[data-time]')!.addEventListener('input', (e) => { state.time = (e.target as HTMLInputElement).value; touch(); });
+}
+
+function renderLinkError(): void {
+  overlay().querySelector('[data-link-error]')?.classList.toggle('hidden', linkValid());
+}
+
+/** Opens the cropper on an uploaded image and uploads the result. Null when the person cancels. */
+async function cropAndUpload(src: string, type: PostType, start?: CropStart): Promise<{ result: CropResult; up: SocialUpload } | null> {
+  const result = await openCropper({ src: sameOrigin(src), type, start });
+  if (!result) return null;
+  return { result, up: await uploadSocialBlob(result.blob) };
 }
 
 function renderMedia(): void {
@@ -261,6 +295,7 @@ function renderMedia(): void {
       ${editable ? `<div class="flex gap-1 mt-1">
         <button type="button" data-up="${i}" aria-label="${esc(t('admin.social.composer.moveUp'))}" class="px-1.5 border rounded">‹</button>
         <button type="button" data-down="${i}" aria-label="${esc(t('admin.social.composer.moveDown'))}" class="px-1.5 border rounded">›</button>
+        <button type="button" data-crop="${i}" class="px-1.5 border rounded ${m.width && m.height && !ratioOk(state.type, m.width, m.height) ? 'border-red text-red font-semibold' : ''}">${esc(t('admin.social.crop.edit'))}</button>
         <button type="button" data-remove="${i}" class="ml-auto px-1.5 border rounded text-red">${esc(t('admin.social.composer.remove'))}</button></div>` : ''}
     </div>`).join('')
     + (editable && state.media.length < CAROUSEL_MAX_ITEMS
@@ -275,12 +310,35 @@ function renderMedia(): void {
   const move = (i: number, d: number) => {
     const j = i + d; if (j < 0 || j >= state.media.length) return;
     [state.media[i], state.media[j]] = [state.media[j], state.media[i]];
-    dirty = true; autosave?.touch(); renderMedia(); renderChecks(); renderPreviewPane();
+    queueSave(); renderMedia(); renderChecks(); renderPreviewPane();
   };
   box.querySelectorAll<HTMLButtonElement>('[data-up]').forEach((b) => b.addEventListener('click', () => move(Number(b.dataset.up), -1)));
   box.querySelectorAll<HTMLButtonElement>('[data-down]').forEach((b) => b.addEventListener('click', () => move(Number(b.dataset.down), 1)));
   box.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((b) => b.addEventListener('click', () => {
-    state.media.splice(Number(b.dataset.remove), 1); dirty = true; autosave?.touch(); renderMedia(); renderChecks(); renderPreviewPane();
+    state.media.splice(Number(b.dataset.remove), 1); queueSave(); renderMedia(); renderChecks(); renderPreviewPane();
+  }));
+  box.querySelectorAll<HTMLButtonElement>('[data-crop]').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.crop);
+    const m = state.media[i];
+    const s = state;
+    // Always start from the original, so a tighter crop can be undone.
+    const start: CropStart | undefined = m.source && m.width && m.height
+      ? { mode: m.source.mode, rect: { x: m.source.x, y: m.source.y, w: m.source.w, h: m.source.h }, ratio: nearestRatio(m.width, m.height, s.type).value }
+      : undefined;
+    void (async () => {
+      try {
+        const done = await cropAndUpload(m.sourceUrl ?? m.url, s.type, start);
+        if (!done || state !== s || s.media[i] !== m) return;
+        const { result, up } = done;
+        s.media[i] = {
+          key: up.key, url: up.url, alt: m.alt, width: up.width, height: up.height,
+          source: { key: m.source?.key ?? m.key, mode: result.mode, ...result.rect }, sourceUrl: m.sourceUrl ?? m.url,
+        };
+        queueSave(); renderMedia(); renderChecks(); renderPreviewPane();
+      } catch (err) {
+        showToast(tf('admin.social.crop.failed', { detail: err instanceof Error ? err.message : '' }), true);
+      }
+    })();
   }));
   box.querySelector<HTMLInputElement>('[data-files]')?.addEventListener('change', (e) => {
     const files = [...((e.target as HTMLInputElement).files ?? [])].slice(0, CAROUSEL_MAX_ITEMS - state.media.length);
@@ -291,7 +349,19 @@ function renderMedia(): void {
       for (const file of files) {
         try {
           const up = await uploadSocialImage(file);
-          s.media.push({ key: up.key, url: up.url, alt: '', width: up.width, height: up.height });
+          const original: MediaItem = { key: up.key, url: up.url, alt: '', width: up.width, height: up.height };
+          // The original goes in first, so a cancelled or failed crop still keeps the upload (to crop later).
+          s.media.push(original);
+          if (!ratioOk(s.type, up.width, up.height)) {
+            const done = await cropAndUpload(up.url, s.type);
+            const at = s.media.indexOf(original);
+            if (done && at !== -1) {
+              s.media[at] = {
+                key: done.up.key, url: done.up.url, alt: original.alt, width: done.up.width, height: done.up.height,
+                source: { key: up.key, mode: done.result.mode, ...done.result.rect }, sourceUrl: up.url,
+              };
+            }
+          }
         } catch (err) {
           showToast(err instanceof UnsupportedImageType
             ? tf('admin.social.composer.wrongType', { name: file.name })
@@ -300,7 +370,7 @@ function renderMedia(): void {
       }
       // The composer may have re-rendered during the upload; the render functions re-query the current DOM.
       if (state !== s) return;
-      dirty = true; autosave?.touch(); renderMedia(); renderChecks(); renderPreviewPane();
+      queueSave(); renderMedia(); renderChecks(); renderPreviewPane();
     })();
   });
 }
@@ -395,6 +465,7 @@ function renderActions(): void {
  * replaced with a fresh one, so one dropped request does not end saving.
  */
 async function persist(force: boolean): Promise<void> {
+  if (!linkValid()) throw new ApiError(400, 'invalid_link');
   if (autosave && autosave.stopped && !stopped) {
     autosave = new AutosaveQueue(saveDraft, 3000);
   }

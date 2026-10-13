@@ -3,12 +3,15 @@
  * becomes an ApiError carrying the server's code, so every caller can turn it
  * into a sentence (messages.ts) instead of a generic failure.
  */
+import type { MediaSource } from '../../../functions/_lib/social-posts';
+
+export type { MediaSource };
 export type Platform = 'instagram' | 'linkedin' | 'x';
 export type PostType = 'image' | 'carousel' | 'story';
 export type PostStatus =
   | 'draft' | 'pending_approval' | 'scheduled' | 'published' | 'partially_published' | 'failed' | 'rejected' | 'cancelled';
 
-export interface MediaItem { key: string; alt: string; url: string; width?: number; height?: number }
+export interface MediaItem { key: string; alt: string; url: string; width?: number; height?: number; source?: MediaSource; sourceUrl?: string }
 export interface Post {
   id: string; type: PostType; caption: string; captionOverrides: Partial<Record<Platform, string>>; link: string | null;
   media: MediaItem[]; platforms: Platform[]; scheduledAt: number | null; status: PostStatus; revision: number;
@@ -29,7 +32,7 @@ export interface Problem { code: string; index?: number; platform?: Platform; li
 
 export interface DraftBody {
   type: PostType; caption: string; captionOverrides: Partial<Record<Platform, string>>; link: string | null;
-  media: { key: string; alt: string }[]; platforms: Platform[]; scheduledAt: number | null; planId?: string;
+  media: { key: string; alt: string; source?: MediaSource }[]; platforms: Platform[]; scheduledAt: number | null; planId?: string;
 }
 export interface PlanBody {
   title: string; scheduledAt: number; platforms: Platform[]; postType: PostType; assigneeId: string | null; note: string;
