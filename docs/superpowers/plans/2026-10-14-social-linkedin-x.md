@@ -1210,7 +1210,8 @@ export async function linkedinPublishStep(input: PublishInput): Promise<PublishS
   }
 
   const ids = st.images.map(encodeURIComponent).join(',');
-  const status = await call(`${LI_API}/images?ids=List(${ids})`, { headers: headers(token) });
+  // The Posts docs require BATCH_GET for ids=List(...); the Images sample omits it. Sending it is harmless either way.
+  const status = await call(`${LI_API}/images?ids=List(${ids})`, { headers: headers(token, { 'X-RestLi-Method': 'BATCH_GET' }) });
   if (!status.res?.ok) return fromFailure(status.res?.status ?? 0, status.body);
   const results = (status.body?.results ?? {}) as Record<string, { status?: string }>;
   const states = st.images.map((id) => results[id]?.status);
