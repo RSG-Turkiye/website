@@ -20,6 +20,7 @@ import { setupCertificates, loadCertificates } from './admin-certificates';
 import { loadHealth } from './admin-health';
 import { setupConnections, loadConnections } from './admin-connections';
 import { setupAudit, loadAudit } from './admin-audit';
+import { setupSocial, loadSocial } from './social';
 
 type Lang = 'en' | 'tr';
 
@@ -697,12 +698,13 @@ async function loadAllSends() {
  * The nav is hidden entirely when only one pane is available, since a
  * switcher with one option is furniture.
  */
-function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean; isSymposium: boolean }, preferred?: string): void {
+function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean; isSymposium: boolean; isSocial: boolean }, preferred?: string): void {
   const allowed = roles.isFullAdmin
-    ? ['members', 'announcements', 'blog', 'symposium', 'connections', 'audit', 'mail-grant', 'mail-senders', 'mail-files', 'mail-sent']
+    ? ['members', 'announcements', 'blog', 'symposium', 'social', 'connections', 'audit', 'mail-grant', 'mail-senders', 'mail-files', 'mail-sent']
     : [
         ...(roles.isAnnouncer ? ['announcements'] : []),
         ...(roles.isSymposium ? ['symposium'] : []),
+        ...(roles.isSocial ? ['social'] : []),
       ];
 
   document.querySelectorAll<HTMLElement>('[data-pane]').forEach((pane) => {
@@ -733,11 +735,17 @@ const paneLoaders = new Map<string, () => Promise<void>>();
 const paneLoaded = new Set<string>();
 let currentPane = '';
 
+const LOAD_FAILED: Record<string, string> = {
+  audit: 'admin.audit.loadFailed',
+  connections: 'admin.connections.loadFailed',
+  social: 'admin.social.loadFailed',
+};
+
 function runPaneLoader(pane: string): void {
   const loader = paneLoaders.get(pane);
   if (!loader || paneLoaded.has(pane)) return;
   paneLoaded.add(pane);
-  loader().catch(() => showToast(t((pane === 'audit' ? 'admin.audit.loadFailed' : 'admin.connections.loadFailed') as never), true));
+  loader().catch(() => showToast(t((Object.hasOwn(LOAD_FAILED, pane) ? LOAD_FAILED[pane] : 'admin.social.loadFailed') as never), true));
 }
 
 /** Registers a loader; runs it now if its pane is already the one on screen. */
@@ -780,7 +788,7 @@ function setupPaneSwitching(initial: string): void {
 
   document.getElementById('loadingState')!.classList.add('hidden');
 
-  if (!data.user || (!data.user.is_admin && !data.user.is_announcer && !data.user.is_symposium)) {
+  if (!data.user || (!data.user.is_admin && !data.user.is_announcer && !data.user.is_symposium && !data.user.is_social && !data.user.is_social_publisher)) {
     document.getElementById('notAuth')!.classList.remove('hidden');
     return;
   }
@@ -789,13 +797,15 @@ function setupPaneSwitching(initial: string): void {
   const isFullAdmin = data.user.is_admin === true;
   const isAnnouncer = data.user.is_announcer === true;
   const isSymposium = data.user.is_symposium === true;
+  const isSocial = data.user.is_social === true || data.user.is_social_publisher === true;
+  const isSocialPublisher = isFullAdmin || data.user.is_social_publisher === true;
   canManageAnnouncements = isFullAdmin || isAnnouncer;
   const canEditSymposium = isFullAdmin || isSymposium;
   // Back from a Gmail reconnect: open Connections and say how it went.
   const params = new URLSearchParams(location.search);
   const connected = params.get('connected');
   const connectionError = params.get('connection_error');
-  applyRoleVisibility({ isFullAdmin, isAnnouncer, isSymposium }, connected || connectionError ? 'connections' : undefined);
+  applyRoleVisibility({ isFullAdmin, isAnnouncer, isSymposium, isSocial }, connected || connectionError ? 'connections' : undefined);
   void loadHealth({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, lang });
   if (canManageAnnouncements) {
     await loadAnnouncements();
@@ -813,6 +823,14 @@ function setupPaneSwitching(initial: string): void {
     setupAudit({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, showToast, lang });
     registerPaneLoader('connections', loadConnections);
     registerPaneLoader('audit', () => loadAudit());
+  }
+  if (isFullAdmin || isSocial) {
+    setupSocial({
+      t: t as (k: string) => string,
+      tf: tf as (k: string, v: Record<string, string | number>) => string,
+      showToast, lang, me: { id: data.user.id, isPublisher: isSocialPublisher },
+    });
+    registerPaneLoader('social', loadSocial);
   }
   if (connected || connectionError) {
     const known = ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'store_failed'];
