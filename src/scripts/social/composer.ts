@@ -242,8 +242,9 @@ function wireForm(): void {
     void (async () => {
       await autosave?.flush();
       // Edits the queue could not save: say so and ask again instead of closing on them silently.
-      if (editable && dirty && (autosave?.stopped || lastSaveError !== null)) {
-        deps().showToast(stopped ? t('admin.social.composer.autosaveStopped') : errorText(lastSaveError), true);
+      if (editable && dirty && (autosave?.stopped || lastSaveError !== null || !linkValid())) {
+        deps().showToast(stopped ? t('admin.social.composer.autosaveStopped')
+          : !linkValid() ? t('admin.social.error.invalid_link') : errorText(lastSaveError), true);
         arm();
         return;
       }
@@ -348,14 +349,19 @@ function renderMedia(): void {
       for (const file of files) {
         try {
           const up = await uploadSocialImage(file);
-          // A shape Instagram refuses opens the cropper; cancelling keeps the original, to crop later.
-          const done = ratioOk(s.type, up.width, up.height) ? null : await cropAndUpload(up.url, s.type);
-          s.media.push(done
-            ? {
-              key: done.up.key, url: done.up.url, alt: '', width: done.up.width, height: done.up.height,
-              source: { key: up.key, mode: done.result.mode, ...done.result.rect }, sourceUrl: up.url,
+          const original: MediaItem = { key: up.key, url: up.url, alt: '', width: up.width, height: up.height };
+          // The original goes in first, so a cancelled or failed crop still keeps the upload (to crop later).
+          s.media.push(original);
+          if (!ratioOk(s.type, up.width, up.height)) {
+            const done = await cropAndUpload(up.url, s.type);
+            const at = s.media.indexOf(original);
+            if (done && at !== -1) {
+              s.media[at] = {
+                key: done.up.key, url: done.up.url, alt: original.alt, width: done.up.width, height: done.up.height,
+                source: { key: up.key, mode: done.result.mode, ...done.result.rect }, sourceUrl: up.url,
+              };
             }
-            : { key: up.key, url: up.url, alt: '', width: up.width, height: up.height });
+          }
         } catch (err) {
           showToast(err instanceof UnsupportedImageType
             ? tf('admin.social.composer.wrongType', { name: file.name })
