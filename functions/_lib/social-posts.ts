@@ -26,7 +26,11 @@ const MAX_LINK = 2048;
  * panel re-opens the cropper from the original, so a crop can be undone later.
  */
 export interface MediaSource { key: string; mode: 'crop' | 'fit'; x: number; y: number; w: number; h: number }
-export interface MediaRef { key: string; alt: string; source?: MediaSource }
+export type OverlayColor = 'white' | 'black' | 'navy' | 'red';
+/** Text drawn into the image by the panel; kept so the text can be edited again. Centre and size are fractions of the image. */
+export interface TextOverlay { text: string; x: number; y: number; size: number; color: OverlayColor; box: 'none' | 'solid' | 'shade'; align: 'left' | 'center' | 'right' }
+export const MAX_OVERLAYS = 5;
+export interface MediaRef { key: string; alt: string; source?: MediaSource; base?: string; overlays?: TextOverlay[] }
 
 /** Larger than any upload (the client shrinks to 2000px); a bound, not a rule. */
 const MAX_SOURCE_PX = 20000;
@@ -46,6 +50,33 @@ function parseSource(v: unknown): MediaSource | null | undefined {
   const px = (n: unknown, min: number) => typeof n === 'number' && Number.isSafeInteger(n) && n >= min && n <= MAX_SOURCE_PX;
   if (!px(x, 0) || !px(y, 0) || !px(w, 1) || !px(h, 1)) return null;
   return { key, mode, x: x as number, y: y as number, w: w as number, h: h as number };
+}
+
+const OVERLAY_COLOR_NAMES: string[] = ['white', 'black', 'navy', 'red'];
+const OVERLAY_BOXES: string[] = ['none', 'solid', 'shade'];
+const OVERLAY_ALIGNS: string[] = ['left', 'center', 'right'];
+const MAX_OVERLAY_TEXT = 200;
+
+/** undefined: absent. null: malformed. Otherwise only the seven known fields survive. */
+function parseOverlays(v: unknown): TextOverlay[] | null | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (!Array.isArray(v) || v.length < 1 || v.length > MAX_OVERLAYS) return null;
+  const out: TextOverlay[] = [];
+  for (const item of v) {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) return null;
+    const { text, x, y, size, color, box, align } = item as Record<string, unknown>;
+    if (typeof text !== 'string') return null;
+    const t = text.trim();
+    if (t.length < 1 || t.length > MAX_OVERLAY_TEXT) return null;
+    const frac = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1;
+    if (!frac(x) || !frac(y)) return null;
+    if (typeof size !== 'number' || !Number.isFinite(size) || size < 0.02 || size > 0.2) return null;
+    if (typeof color !== 'string' || !OVERLAY_COLOR_NAMES.includes(color)) return null;
+    if (typeof box !== 'string' || !OVERLAY_BOXES.includes(box)) return null;
+    if (typeof align !== 'string' || !OVERLAY_ALIGNS.includes(align)) return null;
+    out.push({ text: t, x: x as number, y: y as number, size, color: color as OverlayColor, box: box as TextOverlay['box'], align: align as TextOverlay['align'] });
+  }
+  return out;
 }
 
 export interface DraftInput {
@@ -90,12 +121,22 @@ export function parseDraft(body: Record<string, unknown>): Parsed<DraftInput> {
   const media: MediaRef[] = [];
   for (const m of rawMedia) {
     if (m === null || typeof m !== 'object') return fail('invalid_media');
-    const { key, alt, source: rawSource } = m as { key?: unknown; alt?: unknown; source?: unknown };
+    const { key, alt, source: rawSource, base, overlays: rawOverlays } = m as { key?: unknown; alt?: unknown; source?: unknown; base?: unknown; overlays?: unknown };
     if (typeof key !== 'string' || !IMAGE_KEY.test(key)) return fail('invalid_media');
     if (typeof alt !== 'string' || alt.length > MAX_ALT_LENGTH) return fail('invalid_media');
     const source = parseSource(rawSource);
     if (source === null) return fail('invalid_media');
-    media.push(source ? { key, alt, source } : { key, alt });
+    if (base !== undefined && base !== null && (typeof base !== 'string' || !IMAGE_KEY.test(base))) return fail('invalid_media');
+    const overlays = parseOverlays(rawOverlays);
+    if (overlays === null) return fail('invalid_media');
+    if (overlays && typeof base !== 'string') return fail('invalid_media');
+    if (typeof base === 'string' && (!overlays || base === key)) return fail('invalid_media');
+    media.push({
+      key, alt,
+      ...(source ? { source } : {}),
+      ...(typeof base === 'string' ? { base } : {}),
+      ...(overlays ? { overlays } : {}),
+    });
   }
 
   const rawPlatforms = body.platforms ?? [];

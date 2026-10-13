@@ -27,6 +27,8 @@ test('parseDraft refuses wrong shapes with a code', () => {
     [{ type: 'image', captionOverrides: { constructor: 'x' } }, 'invalid_overrides'],
     [{ type: 'image', link: 'http://example.org' }, 'invalid_link'],
     [{ type: 'image', media: [{ key: '../etc/passwd', alt: '' }] }, 'invalid_media'],
+    [{ type: 'image', media: [{ key: KEY_A, alt: '', base: KEY_B }] }, 'invalid_media'],
+    [{ type: 'image', media: [{ key: KEY_A, alt: '', base: KEY_A, overlays: [{ text: 'x', x: 0.5, y: 0.5, size: 0.06, color: 'white', box: 'none', align: 'center' }] }] }, 'invalid_media'],
     [{ type: 'image', media: Array.from({ length: 11 }, () => ({ key: KEY_A, alt: 'x' })) }, 'too_many_items'],
     [{ type: 'image', platforms: ['instagram', 'instagram'] }, 'invalid_platforms'],
     [{ type: 'image', platforms: ['toString'] }, 'invalid_platforms'],
@@ -174,4 +176,24 @@ test('a failed post can be fixed: it is no longer locked, and an editor\'s edit 
   assert.equal(canEditPost({ id: 'ed', isPublisher: false }, { status: 'partially_published', created_by: 'ed' }), false);
   assert.equal(statusAfterEdit({ id: 'pub', isPublisher: true }, 'failed', false), 'scheduled');
   assert.equal(statusAfterEdit({ id: 'ed', isPublisher: false }, 'failed', false), 'pending_approval');
+});
+
+test('parseDraft keeps text overlays and the base image, and refuses a malformed overlay', () => {
+  const o = { text: 'Kayıtlar açık!', x: 0.5, y: 0.8, size: 0.06, color: 'white', box: 'shade', align: 'center' };
+  const ok = parseDraft({ type: 'story', media: [{ key: KEY_A, alt: 'x', base: KEY_B, overlays: [{ ...o, extra: 1 }] }] });
+  assert.deepEqual(ok.ok && ok.value.media, [{ key: KEY_A, alt: 'x', base: KEY_B, overlays: [o] }]);
+  const bad = [
+    { overlays: Array.from({ length: 6 }, () => o), base: KEY_B },
+    { overlays: [{ ...o, text: '   ' }], base: KEY_B },
+    { overlays: [{ ...o, text: 'x'.repeat(201) }], base: KEY_B },
+    { overlays: [{ ...o, x: 2 }], base: KEY_B },
+    { overlays: [{ ...o, size: 0.5 }], base: KEY_B },
+    { overlays: [{ ...o, color: 'pink' }], base: KEY_B },
+    { overlays: [{ ...o, box: 'glow' }], base: KEY_B },
+    { overlays: [o] },                          // overlays need a base
+    { overlays: [o], base: '../x' },
+  ];
+  for (const extra of bad) {
+    assert.deepEqual(parseDraft({ type: 'image', media: [{ key: KEY_A, alt: '', ...extra }] }), { ok: false, code: 'invalid_media' }, JSON.stringify(extra).slice(0, 60));
+  }
 });

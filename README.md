@@ -588,6 +588,14 @@ it; nobody else does.
   readiness rule, so it matches the server exactly. Drafts autosave. Autosave
   stops if someone else changes the post, and pauses after any failed save
   until you press Save.
+- **Text on images.** Every image card has a **Text** button. It opens an
+  editor where you add up to five texts, drag them into place, resize them
+  (pinch or slider) and pick colour, background and alignment. The text is
+  drawn into the image itself, because Instagram does not let the panel add its
+  own text stickers. The image without text is kept, so you can press **Text**
+  again and edit or remove it, and **Crop** keeps the text on the new crop.
+  Since the text is now part of the picture, the card suggests adding it to
+  the alt text.
 - **Editors** see only their own posts as editable; others' posts are
   read-only. Editing a scheduled post as an editor sends it back to approval.
 - **Publishers** approve, send back with a note, cancel, and open or close
@@ -639,6 +647,12 @@ Do these in order. Steps 1 to 3 happen **before** the pull request is merged.
    npx wrangler pages secret put INSTAGRAM_APP_ID --project-name website
    npx wrangler pages secret put INSTAGRAM_APP_SECRET --project-name website
    ```
+
+   Pages reads secrets only when it deploys. After adding or changing a Pages
+   secret, redeploy (Cloudflare dashboard > Workers & Pages > website >
+   Deployments > latest production > Retry deployment), or the running site
+   keeps the old values. Connecting or reconnecting an account in the panel
+   needs no redeploy: tokens live in D1.
 3. **Run migration 8e**, the three commands at the top of `db/schema.sql`.
    Each `ALTER TABLE` runs once.
 4. **Merge** and wait for the Pages deploy to finish.

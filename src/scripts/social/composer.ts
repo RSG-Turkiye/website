@@ -12,11 +12,13 @@ import { renderPreview, bgImage, type PreviewKind } from './preview';
 import { uploadSocialImage, uploadSocialBlob, SOCIAL_IMAGE_TYPES, UnsupportedImageType, type SocialUpload } from '../image-upload';
 import { readinessProblems, linkOk } from '../../../functions/_lib/social-posts';
 import {
-  captionFor, countChars, countHashtags, ratioOk, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
+  captionFor, countChars, countHashtags, ratioOk, CAPTION_LIMITS, INSTAGRAM_MAX_HASHTAGS, MAX_ALT_LENGTH, ENABLED_PLATFORMS, CAROUSEL_MAX_ITEMS,
 } from '../../../functions/_lib/social-limits';
 import { DEFAULT_TIME, dayKey, timeOf, epochAt } from '../../lib/social-calendar';
 import { nearestRatio } from '../../lib/image-crop';
 import { openCropper, sameOrigin, type CropResult, type CropStart } from './cropper';
+import { openTextEditor, renderWithText, loadImage } from './text-editor';
+import type { TextOverlay } from './api';
 
 export interface ComposerState {
   id: string | null;
@@ -49,12 +51,48 @@ export function toDraftBody(s: ComposerState, creating = false): DraftBody {
     caption: s.caption,
     captionOverrides,
     link: s.link.trim() || null,
-    media: s.media.map((m) => (m.source ? { key: m.key, alt: m.alt.trim(), source: m.source } : { key: m.key, alt: m.alt.trim() })),
+    media: s.media.map((m) => ({
+      key: m.key,
+      alt: m.alt.trim(),
+      ...(m.source ? { source: m.source } : {}),
+      ...(m.base ? { base: m.base } : {}),
+      ...(m.overlays?.length ? { overlays: m.overlays } : {}),
+    })),
     platforms: s.platforms,
     scheduledAt: s.date ? epochAt(s.date, s.time || DEFAULT_TIME) : null,
   };
   if (creating && s.planId) body.planId = s.planId;
   return body;
+}
+
+/**
+ * Pure: the media item for a new text state. With text, the picture is the
+ * rendered upload and the image without text is kept as `base`. With none, the
+ * item goes back to its base and the text fields disappear (size is re-measured).
+ */
+export function withOverlays(
+  m: MediaItem,
+  overlays: TextOverlay[],
+  up: { key: string; url: string; width: number; height: number } | null,
+): MediaItem {
+  const { base, baseUrl, overlays: _old, ...rest } = m;
+  if (overlays.length && up) {
+    return { ...rest, key: up.key, url: up.url, width: up.width, height: up.height, base: base ?? m.key, baseUrl: baseUrl ?? m.url, overlays };
+  }
+  return { ...rest, key: base ?? m.key, url: baseUrl ?? m.url, width: undefined, height: undefined };
+}
+
+/** Draws the text on the image at `baseUrl` and uploads the result. */
+async function renderAndUpload(baseUrl: string, overlays: TextOverlay[]): Promise<SocialUpload> {
+  const img = await loadImage(sameOrigin(baseUrl));
+  return uploadSocialBlob(await renderWithText(img, overlays));
+}
+
+/** True when the image has text that the alt text does not mention yet. */
+function altMissesText(m: MediaItem): boolean {
+  if (!m.overlays?.length) return false;
+  const alt = m.alt.toLowerCase();
+  return m.overlays.some((ov) => !alt.includes(ov.text.trim().slice(0, 20).toLowerCase()));
 }
 
 let state: ComposerState;
@@ -292,10 +330,12 @@ function renderMedia(): void {
       <div class="h-32 rounded bg-gray-200 bg-center bg-cover" style="${bgImage(m.url)}"></div>
       <p class="text-gray-500 mt-1">${m.width && m.height ? `${m.width}x${m.height}` : ''}</p>
       <textarea data-alt="${i}" ${dis} rows="3" maxlength="1000" class="w-full mt-1 px-1.5 py-1 rounded border ${m.alt.trim() ? 'border-border' : 'border-red bg-red-tint'}" placeholder="${esc(t('admin.social.composer.alt'))}">${esc(m.alt)}</textarea>
-      ${editable ? `<div class="flex gap-1 mt-1">
+      ${editable && altMissesText(m) ? `<p class="mt-1 text-gray-600">${esc(t('admin.social.text.altHint'))} <button type="button" data-altadd="${i}" class="underline text-navy">${esc(t('admin.social.text.altAdd'))}</button></p>` : ''}
+      ${editable ? `<div class="flex flex-wrap gap-1 mt-1">
         <button type="button" data-up="${i}" aria-label="${esc(t('admin.social.composer.moveUp'))}" class="px-1.5 border rounded">‹</button>
         <button type="button" data-down="${i}" aria-label="${esc(t('admin.social.composer.moveDown'))}" class="px-1.5 border rounded">›</button>
         <button type="button" data-crop="${i}" class="px-1.5 border rounded ${m.width && m.height && !ratioOk(state.type, m.width, m.height) ? 'border-red text-red font-semibold' : ''}">${esc(t('admin.social.crop.edit'))}</button>
+        <button type="button" data-text="${i}" class="px-1.5 border rounded">${esc(t('admin.social.text.edit'))}</button>
         <button type="button" data-remove="${i}" class="ml-auto px-1.5 border rounded text-red">${esc(t('admin.social.composer.remove'))}</button></div>` : ''}
     </div>`).join('')
     + (editable && state.media.length < CAROUSEL_MAX_ITEMS
@@ -306,6 +346,37 @@ function renderMedia(): void {
     state.media[Number(a.dataset.alt)].alt = a.value;
     a.classList.toggle('border-red', !a.value.trim()); a.classList.toggle('bg-red-tint', !a.value.trim());
     touch();
+  }));
+  box.querySelectorAll<HTMLButtonElement>('[data-altadd]').forEach((b) => b.addEventListener('click', () => {
+    const m = state.media[Number(b.dataset.altadd)];
+    const add = (m.overlays ?? []).map((ov) => ov.text.trim()).filter((x) => x && !m.alt.toLowerCase().includes(x.slice(0, 20).toLowerCase()));
+    const head = m.alt.trim().replace(/[.\s]+$/, '');
+    m.alt = [head, ...add].filter(Boolean).join('. ').slice(0, MAX_ALT_LENGTH);
+    touch(); renderMedia();
+  }));
+  box.querySelectorAll<HTMLButtonElement>('[data-text]').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.text);
+    const m = state.media[i];
+    const s = state;
+    void (async () => {
+      const label = b.textContent;
+      try {
+        const result = await openTextEditor({ src: sameOrigin(m.baseUrl ?? m.url), overlays: m.overlays ?? [] });
+        if (!result || state !== s || s.media[i] !== m) return;
+        b.disabled = true;
+        b.textContent = t('admin.social.text.applying');
+        const up = result.overlays.length ? await renderAndUpload(m.baseUrl ?? m.url, result.overlays) : null;
+        if (state !== s || s.media[i] !== m) return;
+        s.media[i] = withOverlays(m, result.overlays, up);
+        queueSave(); renderMedia(); renderChecks(); renderPreviewPane();
+        if (!s.media[i].width) void measure(s.media[i]).then(() => { if (state === s) { renderMedia(); renderChecks(); } });
+      } catch (err) {
+        showToast(tf('admin.social.text.failed', { detail: err instanceof Error ? err.message : '' }), true);
+      } finally {
+        b.disabled = false;
+        b.textContent = label;
+      }
+    })();
   }));
   const move = (i: number, d: number) => {
     const j = i + d; if (j < 0 || j >= state.media.length) return;
@@ -325,18 +396,34 @@ function renderMedia(): void {
     const start: CropStart | undefined = m.source && m.width && m.height
       ? { mode: m.source.mode, rect: { x: m.source.x, y: m.source.y, w: m.source.w, h: m.source.h }, ratio: nearestRatio(m.width, m.height, s.type).value }
       : undefined;
+    const textBtn = b.parentElement?.querySelector<HTMLButtonElement>('[data-text]') ?? null;
     void (async () => {
+      const label = textBtn?.textContent ?? '';
       try {
-        const done = await cropAndUpload(m.sourceUrl ?? m.url, s.type, start);
+        // With text, the pictures without text are the ones to crop from: m.url has the text drawn in.
+        const original = m.sourceUrl ?? m.baseUrl ?? m.url;
+        const done = await cropAndUpload(original, s.type, start);
         if (!done || state !== s || s.media[i] !== m) return;
         const { result, up } = done;
-        s.media[i] = {
-          key: up.key, url: up.url, alt: m.alt, width: up.width, height: up.height,
-          source: { key: m.source?.key ?? m.key, mode: result.mode, ...result.rect }, sourceUrl: m.sourceUrl ?? m.url,
-        };
+        const source = { key: m.source?.key ?? m.base ?? m.key, mode: result.mode, ...result.rect };
+        const sourceUrl = m.sourceUrl ?? m.baseUrl ?? m.url;
+        if (m.overlays?.length) {
+          // The text follows the crop: draw it again on the new picture.
+          if (textBtn) { textBtn.disabled = true; textBtn.textContent = t('admin.social.text.applying'); }
+          const textUp = await renderAndUpload(up.url, m.overlays);
+          if (state !== s || s.media[i] !== m) return;
+          s.media[i] = {
+            key: textUp.key, url: textUp.url, alt: m.alt, width: textUp.width, height: textUp.height,
+            base: up.key, baseUrl: up.url, overlays: m.overlays, source, sourceUrl,
+          };
+        } else {
+          s.media[i] = { key: up.key, url: up.url, alt: m.alt, width: up.width, height: up.height, source, sourceUrl };
+        }
         queueSave(); renderMedia(); renderChecks(); renderPreviewPane();
       } catch (err) {
         showToast(tf('admin.social.crop.failed', { detail: err instanceof Error ? err.message : '' }), true);
+      } finally {
+        if (textBtn) { textBtn.disabled = false; textBtn.textContent = label; }
       }
     })();
   }));
