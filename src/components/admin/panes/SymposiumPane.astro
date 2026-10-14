@@ -31,6 +31,10 @@ const btn = {
   secondary: `${BTN_BASE} border border-navy text-navy hover:bg-navy-light`,
   danger: `${BTN_BASE} border border-red text-red hover:bg-red-tint`,
 };
+// A button that starts hidden carries `hidden` without `inline-flex`: in the
+// built CSS `.inline-flex` wins over `.hidden`, so with both it always shows.
+// The scripts add `inline-flex` back when they show it (showInlineFlex).
+const startHidden = (cls: string) => `hidden ${cls.replace('inline-flex ', '')}`;
 
 const SESSION_TYPE_VALUES = [
   'opening', 'keynote', 'workshop', 'panel', 'talk', 'company', 'poster',
@@ -161,7 +165,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <button type="submit" class={btn.primary}>
             {t('admin.symposium.speakers.form.save')}
           </button>
-          <button type="button" id="symSpeakerCancelBtn" class={`hidden ${btn.secondary}`}>
+          <button type="button" id="symSpeakerCancelBtn" class={startHidden(btn.secondary)}>
             {t('admin.symposium.speakers.form.cancelEdit')}
           </button>
           <p id="symSpeakerStatus" class="hidden text-xs text-gray-500"></p>
@@ -220,7 +224,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <button type="submit" class={btn.primary}>
             {t('admin.symposium.sessions.form.save')}
           </button>
-          <button type="button" id="symSessionCancelBtn" class={`hidden ${btn.secondary}`}>
+          <button type="button" id="symSessionCancelBtn" class={startHidden(btn.secondary)}>
             {t('admin.symposium.sessions.form.cancelEdit')}
           </button>
           <p id="symSessionStatus" class="hidden text-xs text-gray-500"></p>
@@ -301,7 +305,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <button type="submit" class={btn.primary}>
             {t('admin.symposium.committee.form.save')}
           </button>
-          <button type="button" id="symCommitteeCancelBtn" class={`hidden ${btn.secondary}`}>
+          <button type="button" id="symCommitteeCancelBtn" class={startHidden(btn.secondary)}>
             {t('admin.symposium.committee.form.cancelEdit')}
           </button>
           <p id="symCommitteeStatus" class="hidden text-xs text-gray-500"></p>
@@ -349,7 +353,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <button id="symCertCheck" type="submit" class={btn.primary}>
             {t('admin.symposium.certificates.check')}
           </button>
-          <button id="symCertUpload" type="button" class={`hidden ${btn.primary}`}></button>
+          <button id="symCertUpload" type="button" class={startHidden(btn.primary)}></button>
           <p id="symCertProgress" class="hidden text-xs text-gray-500"></p>
           <p id="symCertRebuildStatus" class="hidden text-xs text-gray-500"></p>
         </div>

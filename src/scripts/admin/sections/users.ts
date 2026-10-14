@@ -29,17 +29,16 @@ const CONFIRM = () => t('admin.users.detail.confirm');
 let currentFilter = 'all';
 let searchTimer: ReturnType<typeof setTimeout>;
 let badgeCatalog: Array<{ code: string; name_en: string; name_tr: string }> = [];
-/** The users the list last showed (before the client-side "has a role" filter). */
+/** The users the list last showed. */
 let listed: User[] = [];
 let selectedId: string | null = null;
 let meId: string | null = null;
 /** Null until the Roles tab is first opened; after that it is kept fresh. */
 let rolesUsers: User[] | null = null;
 
-// English-only: the Turkish admin page never rendered rank management, so
-// there is no Turkish wording to move here.
-// Ranks come from lib/badges.ts, which is what renders a member's actual
-// badge, so the dropdown cannot drift from what the member sees.
+// Ranks and their labels in both languages come from lib/badges.ts, which is
+// what renders a member's actual badge, so the dropdown cannot drift from
+// what the member sees.
 const RANK_EMOJI: Record<Rank, string> = {
   seed: '🌱', sprout: '🌿', sapling: '🌳', legacy_tree: '🌲',
 };
@@ -48,26 +47,34 @@ const RANKS = (Object.keys(RANK_LABELS) as Rank[]).map((value) => ({
   label: `${RANK_EMOJI[value]} ${RANK_LABELS[value][lang]}`,
 }));
 
-/** The signed-in admin, so that taking admin from oneself asks twice. */
+/**
+ * The signed-in admin. The server refuses removing one's own admin role, so
+ * their own Admin switch is shown locked and the Admin card has no × for them.
+ */
 export function setCurrentUserId(id: string | null): void {
   meId = id;
 }
 
-const hasRole = (u: User) => ROLE_SWITCHES.some((r) => !!u[r.flag]);
+const isSelfAdmin = (userId: string, flag: string) => flag === 'is_admin' && userId === meId;
 const displayName = (u: User): string => u.display_name || u.email;
 
+/** True on success. A refusal or a network failure says so in a toast and returns false. */
 async function patchUser(userId: string, action: string, value?: string): Promise<boolean> {
-  const res = await fetch('/api/admin/users', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: userId, action, value }),
-  });
-  if (res.ok) {
-    showToast(t('admin.toast.done'));
-    return true;
+  try {
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, action, value }),
+    });
+    if (res.ok) {
+      showToast(t('admin.toast.done'));
+      return true;
+    }
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    showToast(err.error || t('admin.toast.error'), true);
+  } catch {
+    showToast(t('admin.toast.error'), true);
   }
-  const err = await res.json().catch(() => ({})) as { error?: string };
-  showToast(err.error || t('admin.toast.error'), true);
   return false;
 }
 
@@ -101,11 +108,10 @@ function rowChips(u: User): string {
 
 export function renderUsers(users: User[]) {
   listed = users;
-  const shown = currentFilter === 'roles' ? users.filter(hasRole) : users;
   const box = document.getElementById('usersList')!;
-  document.getElementById('emptyState')!.classList.toggle('hidden', shown.length > 0);
+  document.getElementById('emptyState')!.classList.toggle('hidden', users.length > 0);
 
-  box.innerHTML = shown.map((u) => row({
+  box.innerHTML = users.map((u) => row({
     title: displayName(u),
     subtitle: u.email,
     chips: rowChips(u),
@@ -124,7 +130,7 @@ export function renderUsers(users: User[]) {
     });
   });
 
-  const current = shown.find((u) => u.id === selectedId);
+  const current = users.find((u) => u.id === selectedId);
   if (current) {
     renderDetail(current);
   } else {
@@ -163,25 +169,6 @@ function closeDetail(): void {
 const heading = (key: Parameters<typeof t>[0]) =>
   `<h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-5 mb-2">${t(key)}</h4>`;
 
-/** armConfirm's two clicks, for a switch: the hint says "click again" and the first flip is undone. */
-function armSwitch(sw: HTMLInputElement): void {
-  const hint = sw.parentElement!.querySelector('label span:last-child')!;
-  const original = hint.textContent;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  sw.addEventListener('click', (e) => {
-    if (sw.dataset.armed === '1') {
-      if (timer) clearTimeout(timer);
-      sw.dataset.armed = '';
-      hint.textContent = original;
-      return;
-    }
-    e.preventDefault();
-    sw.dataset.armed = '1';
-    hint.textContent = CONFIRM();
-    timer = setTimeout(() => { sw.dataset.armed = ''; hint.textContent = original; }, 4000);
-  });
-}
-
 function renderDetail(u: User | null): void {
   const box = document.getElementById('userDetail')!;
   if (!u) {
@@ -213,13 +200,16 @@ function renderDetail(u: User | null): void {
     </div>
 
     ${heading('admin.users.detail.roles')}
-    <div>${ROLE_SWITCHES.map((r) => switchControl({
-      id: `role-${r.flag}`,
-      checked: !!u[r.flag],
-      label: t(r.label),
-      hint: t(r.hint),
-      attrs: `data-flag="${r.flag}" data-action-on="${r.on}" data-action-off="${r.off}"`,
-    })).join('')}</div>
+    <div>${ROLE_SWITCHES.map((r) => {
+      const locked = isSelfAdmin(id, r.flag);
+      return switchControl({
+        id: `role-${r.flag}`,
+        checked: !!u[r.flag],
+        label: t(r.label),
+        hint: t(locked ? 'admin.roles.adminSelfHint' : r.hint),
+        attrs: `data-flag="${r.flag}" data-action-on="${r.on}" data-action-off="${r.off}"${locked ? ' disabled' : ''}`,
+      });
+    }).join('')}</div>
 
     ${heading('admin.users.detail.profile')}
     <div class="flex flex-wrap items-center gap-2">
@@ -247,8 +237,6 @@ function renderDetail(u: User | null): void {
   }
 
   box.querySelectorAll<HTMLInputElement>('input[role="switch"]').forEach((sw) => {
-    // The server allows it; this only stops a slip.
-    if (sw.dataset.flag === 'is_admin' && id === meId && sw.checked) armSwitch(sw);
     sw.addEventListener('change', () => doAction(id, sw.checked ? sw.dataset.actionOn! : sw.dataset.actionOff!, sw));
   });
 
@@ -262,8 +250,8 @@ function renderDetail(u: User | null): void {
 
 export async function loadUsers() {
   const search = (document.getElementById('searchInput') as HTMLInputElement).value.trim();
-  // "Has a role" is filtered here, from everyone the server returns.
-  const params = new URLSearchParams({ filter: currentFilter === 'roles' ? 'all' : currentFilter });
+  // "Has a role" is filter=roles, filtered by the server before its 100-row cap.
+  const params = new URLSearchParams({ filter: currentFilter });
   if (search) params.set('search', search);
 
   const res = await fetch(`/api/admin/users?${params}`);
@@ -291,9 +279,9 @@ export function setupUsersFilters(): void {
 
 // Roles tab
 
-/** Everyone the server lists (its 100-row cap applies), for the role cards. */
+/** Everyone who holds a role, for the role cards; the server filters before its 100-row cap. */
 export async function loadRolesView(): Promise<void> {
-  const res = await fetch('/api/admin/users?filter=all');
+  const res = await fetch('/api/admin/users?filter=roles');
   if (!res.ok) return;
   const data = await res.json() as { users: User[] };
   renderRolesView(data.users);
@@ -301,11 +289,25 @@ export async function loadRolesView(): Promise<void> {
 
 function personChip(u: User, r: RoleSwitch): string {
   const name = escapeHtml(displayName(u));
-  return `<span data-person="${escapeHtml(String(u.id))}" class="inline-flex items-center gap-1 max-w-full pl-3 rounded-full bg-gray-100 text-xs text-gray-600">
-    <span class="truncate" title="${escapeHtml(u.email)}">${name}</span>
+  // No × on one's own Admin chip: the server refuses it (see setCurrentUserId).
+  const remove = isSelfAdmin(String(u.id), r.flag) ? '' : `
     <button type="button" data-remove="${r.off}" aria-label="${escapeHtml(tf('admin.roles.removePerson', { name: displayName(u) }))}"
-      class="shrink-0 min-w-11 min-h-11 lg:min-w-7 lg:min-h-7 px-2 inline-flex items-center justify-center rounded-full text-gray-500 hover:text-red ${FOCUS}">×</button>
+      class="shrink-0 min-w-11 min-h-11 lg:min-w-7 lg:min-h-7 px-2 inline-flex items-center justify-center rounded-full text-gray-500 hover:text-red ${FOCUS}">×</button>`;
+  return `<span data-person="${escapeHtml(String(u.id))}" class="inline-flex items-center gap-1 max-w-full pl-3 ${remove ? '' : 'pr-3 min-h-11 lg:min-h-7'} rounded-full bg-gray-100 text-xs text-gray-600">
+    <span class="truncate" title="${escapeHtml(u.email)}">${name}</span>${remove}
   </span>`;
+}
+
+/** People who match `q` on the server (not only the role holders loaded) and lack the role. */
+async function searchToAdd(q: string, r: RoleSwitch): Promise<User[]> {
+  try {
+    const res = await fetch(`/api/admin/users?${new URLSearchParams({ filter: 'all', search: q })}`);
+    if (!res.ok) return [];
+    const data = await res.json() as { users: User[] };
+    return data.users.filter((u) => !u[r.flag]).slice(0, 8);
+  } catch {
+    return [];
+  }
 }
 
 export function renderRolesView(users: User[]): void {
@@ -333,8 +335,8 @@ export function renderRolesView(users: User[]): void {
   for (const r of ROLE_SWITCHES) {
     const card = box.querySelector<HTMLElement>(`[data-role-card="${r.flag}"]`)!;
     card.querySelectorAll<HTMLElement>('[data-person]').forEach((p) => {
-      const btn = p.querySelector('button') as HTMLButtonElement;
-      armConfirm(btn, CONFIRM(), () => doAction(p.dataset.person!, r.off, btn));
+      const btn = p.querySelector('button');
+      if (btn) armConfirm(btn, CONFIRM(), () => doAction(p.dataset.person!, r.off, btn));
     });
 
     const toggle = card.querySelector('[data-add-role]') as HTMLButtonElement;
@@ -346,11 +348,12 @@ export function renderRolesView(users: User[]): void {
       toggle.setAttribute('aria-expanded', String(open));
       if (open) input.focus();
     });
-    input.addEventListener('input', () => {
-      const q = input.value.trim().toLocaleLowerCase(lang);
-      const matches = q
-        ? users.filter((u) => !u[r.flag] && `${u.display_name ?? ''} ${u.email}`.toLocaleLowerCase(lang).includes(q)).slice(0, 8)
-        : [];
+    let timer: ReturnType<typeof setTimeout>;
+    let latest = '';
+    const showMatches = async (q: string) => {
+      latest = q;
+      const matches = q ? await searchToAdd(q, r) : [];
+      if (q !== latest) return; // a newer search has started
       results.innerHTML = matches.map((u) => `<button type="button" data-add-user="${escapeHtml(String(u.id))}"
         class="text-left min-h-11 lg:min-h-9 px-3 py-1 rounded-xl border border-border hover:border-navy-mid min-w-0 ${FOCUS}">
         <span class="block text-sm text-navy truncate">${escapeHtml(displayName(u))}</span>
@@ -359,6 +362,10 @@ export function renderRolesView(users: User[]): void {
       results.querySelectorAll<HTMLButtonElement>('[data-add-user]').forEach((b) => {
         b.addEventListener('click', () => doAction(b.dataset.addUser!, r.on, b));
       });
+    };
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => void showMatches(input.value.trim()), 350);
     });
   }
 }

@@ -3,6 +3,7 @@
  * scrolls sideways on a phone; every control is at least 44 px tall there.
  */
 import { escapeHtml } from '../escape-html';
+import { useTranslations } from '../../i18n/ui';
 import { registerNavigationGuard } from './nav-guard';
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
@@ -22,6 +23,16 @@ const TONES = {
   navy: 'bg-navy-light text-navy',
   red: 'bg-red-tint text-red',
 } as const;
+
+/**
+ * Shows or hides a button that starts out hidden. Its markup carries
+ * `hidden` without `inline-flex`: in the built CSS `.inline-flex` comes after
+ * `.hidden` and wins, so carrying both would keep it always visible.
+ */
+export function showInlineFlex(el: HTMLElement, show: boolean): void {
+  el.classList.toggle('hidden', !show);
+  el.classList.toggle('inline-flex', show);
+}
 
 export function chip(text: string, tone: keyof typeof TONES = 'neutral'): string {
   return `<span class="inline-flex items-center max-w-full min-w-0 break-all px-2 py-0.5 rounded-full text-xs font-medium ${TONES[tone]}">${escapeHtml(text)}</span>`;
@@ -45,7 +56,7 @@ export function switchControl(o: { id: string; checked: boolean; label: string; 
       ${o.hint ? `<span class="block text-xs text-gray-500">${escapeHtml(o.hint)}</span>` : ''}
     </label>
     <input id="${escapeHtml(o.id)}" type="checkbox" role="switch" ${o.checked ? 'checked' : ''} ${o.attrs ?? ''}
-      class="appearance-none w-11 h-6 rounded-full bg-gray-300 checked:bg-navy relative cursor-pointer transition-colors
+      class="appearance-none w-11 h-6 rounded-full bg-gray-300 checked:bg-navy relative cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed
         after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:transition-all
         checked:after:left-[1.375rem] ${FOCUS}" />
   </div>`;
@@ -91,8 +102,10 @@ export function toast(message: string, isError = false): void {
 
 /**
  * Warns before unsaved form changes are lost: on closing the tab (the
- * browser's own prompt) and on moving to another section (an inline notice
- * with Keep editing / Discard, never window.confirm).
+ * browser's own prompt) and on moving away from `sectionHash` (an inline
+ * notice with Keep editing / Discard, never window.confirm). A form on a
+ * sub-page passes that sub-page's hash (`#sempozyum/komite`), so moving to a
+ * sibling sub-page is guarded too and the notice is on screen when it shows.
  */
 export function guardUnsaved(form: HTMLFormElement, sectionHash: string, onDiscard?: () => void): { reset(): void } {
   let dirty = false;
@@ -100,13 +113,11 @@ export function guardUnsaved(form: HTMLFormElement, sectionHash: string, onDisca
   notice.className = 'hidden mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800';
   notice.innerHTML = `<span class="flex-1 min-w-0" data-msg></span><button type="button" data-keep class="${BTN.secondary}"></button><button type="button" data-discard class="${BTN.danger}"></button>`;
   form.parentNode!.insertBefore(notice, form);
-  const lang = document.documentElement.lang === 'tr' ? 'tr' : 'en';
-  const text = lang === 'tr'
-    ? { msg: 'Kaydedilmemiş değişiklikler var.', keep: 'Düzenlemeye devam et', discard: 'Değişiklikleri at' }
-    : { msg: 'You have unsaved changes.', keep: 'Keep editing', discard: 'Discard changes' };
-  notice.querySelector('[data-msg]')!.textContent = text.msg;
-  notice.querySelector('[data-keep]')!.textContent = text.keep;
-  notice.querySelector('[data-discard]')!.textContent = text.discard;
+  // Not context.ts's t: context imports this module, so that would be a cycle.
+  const t = useTranslations(document.documentElement.lang === 'tr' ? 'tr' : 'en');
+  notice.querySelector('[data-msg]')!.textContent = t('admin.unsaved.message');
+  notice.querySelector('[data-keep]')!.textContent = t('admin.unsaved.keep');
+  notice.querySelector('[data-discard]')!.textContent = t('admin.unsaved.discard');
   let pending: string | null = null;
   form.addEventListener('input', () => { dirty = true; });
   window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });

@@ -11,7 +11,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const url = new URL(request.url);
   const search = url.searchParams.get('search')?.trim() ?? '';
-  const filter = url.searchParams.get('filter') ?? 'all'; // all | members | pending
+  const filter = url.searchParams.get('filter') ?? 'all'; // all | members | pending | roles
 
   let query = `
     SELECT
@@ -33,6 +33,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   if (filter === 'members') conditions.push('u.is_member = 1');
   if (filter === 'pending') conditions.push('u.is_member = 0');
+  // Anyone holding a role, for the Roles tab and the "Has a role" filter:
+  // filtered here so the 100-row cap below cannot hide a role holder.
+  if (filter === 'roles') conditions.push('(u.is_admin=1 OR u.is_announcer=1 OR u.is_writer=1 OR u.is_sender=1 OR u.is_symposium=1 OR u.is_social=1 OR u.is_social_publisher=1)');
 
   if (search) {
     conditions.push('(u.email LIKE ? OR p.username LIKE ? OR p.display_name LIKE ?)');

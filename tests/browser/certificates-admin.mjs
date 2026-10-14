@@ -139,6 +139,10 @@ async function run(viewport) {
   // A double click: the panel must not run two upload loops over the same rows.
   await page.dblclick('#symCertUpload');
   await page.waitForFunction(() => /Uploaded \d+, failed \d+/.test(document.getElementById('symCertProgress')?.textContent ?? ''), null, { timeout: 15000 }).catch(() => {});
+  // The rebuild POST goes out after the progress text is written, so wait
+  // for it to arrive here, then a moment more in case a second one follows.
+  for (const start = Date.now(); rebuilds === 0 && Date.now() - start < 5000;) await new Promise((r) => setTimeout(r, 50));
+  await page.waitForTimeout(300);
   console.log('   ', JSON.stringify(posts), 'rebuilds:', rebuilds);
   ok(posts.length === 3, 'three uploads');
   ok(JSON.stringify(posts.map((p) => p.type)) === '["participation","workshop","presentation"]', 'kinds sent in English');

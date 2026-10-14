@@ -63,12 +63,19 @@ const waitHash = (page, h) => page.waitForFunction((x) => {
   return sub ? shown.length === 1 && shown[0] === sub : shown.length === 0;
 }, h, { timeout: 5000 }).catch(() => {});
 const visible = (page, sel) => page.locator(sel).first().isVisible();
+// The element's own computed display, whatever its ancestors do: `hidden`
+// beside `inline-flex` once lost to it in the built CSS, so these buttons
+// showed while hidden. isVisible() would miss that inside a hidden section.
+// Shown, it reads `flex` rather than `inline-flex` inside a flex row.
+const display = (page, id) => page.evaluate((x) => getComputedStyle(document.getElementById(x)).display, id);
+const STARTS_HIDDEN = ['cancelEditBtn', 'auditMore', 'symSpeakerCancelBtn', 'symSessionCancelBtn', 'symCommitteeCancelBtn', 'symCertUpload'];
 const fits = async (page, w) => (await page.evaluate(() => document.documentElement.scrollWidth)) <= w;
 
 console.log('1) admin, 1280 px');
 {
   const { page, views } = await open(ADMIN, { width: 1280, height: 900 });
   ok(await hash(page) === '#genel', `lands on #genel (got ${await hash(page)})`);
+  for (const id of STARTS_HIDDEN) ok(await display(page, id) === 'none', `#${id} is display:none at load (got ${await display(page, id)})`);
   ok(await page.locator('#sectionNav [data-nav-group]').count() === 4, 'menu shows the four group headings');
   const email = page.locator('#sectionNav [data-count="email"]');
   ok(await email.isVisible() && (await email.textContent()) === '3', 'E-posta carries the count 3');
@@ -166,6 +173,7 @@ console.log('5) lists redrawn, 390 px');
     sends: [{ subject: 'Hello ' + long, sender_email: 's@example.org', sender_name: null, recipient_email: 'r@example.org', sent_at: 1760000000, status: 'failed', error_message: long }],
     connections: [{ platform: 'gmail', status: 'connected', accountName: 'mail@example.org', connectedBy: 'admin@example.org', connectedAt: 1760000000, lastOkAt: 1760000000, lastError: null, usesLegacySecret: false, hasStoredToken: true }],
     rows: [{ seq: 1, at: 1760000000, user_email: 'a@example.org', action: 'users.update', target_type: 'user', target_id: 'u1', details: JSON.stringify({ note: long }) }],
+    hasMore: true,
   };
   const { page, deletes, views } = await open(ADMIN, { width: 390, height: 844 }, '/admin', FULL);
   for (const h of ['#duyurular', '#blog', '#eposta/yetki', '#eposta/gondericiler', '#eposta/ekler', '#eposta/gonderilenler', '#baglantilar', '#kayit']) {
@@ -174,8 +182,16 @@ console.log('5) lists redrawn, 390 px');
     await page.waitForTimeout(250);
     ok(await fits(page, 390), `${h}: scrollWidth <= 390`);
   }
+  await page.waitForFunction(() => getComputedStyle(document.getElementById('auditMore')).display !== 'none', null, { timeout: 3000 }).catch(() => {});
+  ok(await display(page, 'auditMore') !== 'none' && await visible(page, '#auditMore'), `with more entries, "Older entries" shows (got ${await display(page, 'auditMore')})`);
   await page.evaluate(() => { location.hash = '#duyurular'; });
   await waitHash(page, '#duyurular');
+  await page.waitForSelector('#announcementsList .edit-announcement-btn');
+  ok(await display(page, 'cancelEditBtn') === 'none', 'Cancel is hidden before an edit');
+  await page.click('#announcementsList .edit-announcement-btn');
+  ok(await display(page, 'cancelEditBtn') !== 'none' && await visible(page, '#cancelEditBtn'), `editing an announcement shows Cancel (got ${await display(page, 'cancelEditBtn')})`);
+  await page.click('#cancelEditBtn');
+  ok(await display(page, 'cancelEditBtn') === 'none' && await page.inputValue('#announcementEditId') === '', 'Cancel hides itself and clears the edit');
   await page.waitForSelector('#announcementsList .delete-announcement-btn');
   const del = page.locator('#announcementsList .delete-announcement-btn').first();
   await del.click();
@@ -264,22 +280,26 @@ console.log('6) Sempozyum sub-pages and the unsaved-changes guard');
     await waitHash(page, '#sempozyum/konusmacilar');
     await page.waitForSelector('#symSpeakersTableBody > div');
     await page.fill('#symSpeakerName', 'Unsaved speaker');
-    const noticeUp = () => page.locator('#symSpeakerForm').evaluate((f) => !f.previousElementSibling.classList.contains('hidden'));
+    const notice = page.locator('#symSpeakerForm').locator('xpath=preceding-sibling::div[1]');
     await page.evaluate(() => { location.hash = '#sempozyum/oturumlar'; });
-    await waitHash(page, '#sempozyum/oturumlar');
-    ok(await hash(page) === '#sempozyum/oturumlar', 'moving between symposium sub-pages is free');
-    await page.evaluate(() => { location.hash = '#sempozyum/konusmacilar'; });
-    await waitHash(page, '#sempozyum/konusmacilar');
+    await page.waitForTimeout(300);
+    ok(await hash(page) === '#sempozyum/konusmacilar', 'a dirty speaker form blocks moving to another symposium sub-page');
+    ok(await notice.isVisible(), 'the unsaved-changes notice is on screen above the speaker form');
+    ok(!(await visible(page, '[data-sub="oturumlar"]')), 'the sessions sub-page was never shown');
+    await notice.locator('[data-keep]').click();
     await page.evaluate(() => { location.hash = '#blog'; });
     await page.waitForTimeout(300);
     ok(await hash(page) === '#sempozyum/konusmacilar', 'a dirty speaker form blocks leaving the section');
-    ok(await noticeUp(), 'the unsaved-changes notice shows above the speaker form');
-    await page.locator('#symSpeakerForm').locator('xpath=preceding-sibling::div[1]').locator('[data-discard]').click();
+    ok(await notice.isVisible(), 'the notice shows again');
+    await notice.locator('[data-discard]').click();
     await waitHash(page, '#blog');
     ok(await hash(page) === '#blog', 'Discard continues to the wanted section');
     await page.evaluate(() => { location.hash = '#sempozyum/konusmacilar'; });
     await waitHash(page, '#sempozyum/konusmacilar');
     ok(await page.inputValue('#symSpeakerName') === '', 'Discard cleared the speaker form');
+    await page.evaluate(() => { location.hash = '#sempozyum/oturumlar'; });
+    await waitHash(page, '#sempozyum/oturumlar');
+    ok(await hash(page) === '#sempozyum/oturumlar', 'with a clean form, moving between sub-pages is free');
     await page.close();
   }
 }

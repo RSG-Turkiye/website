@@ -1,6 +1,6 @@
 import { escapeHtml } from '../../escape-html';
 import { t, showToast, formatDate } from '../context';
-import { row, chip, BTN, armConfirm, guardUnsaved } from '../ui-kit';
+import { row, chip, BTN, armConfirm, guardUnsaved, showInlineFlex } from '../ui-kit';
 
 let canManageAnnouncements = false;
 
@@ -41,7 +41,7 @@ function renderAnnouncements(items: any[]) {
       (document.getElementById('annExpiresAt') as HTMLInputElement).value = localExpiresDateStr;
       (document.getElementById('annSite') as unknown as HTMLSelectElement).value = item.site ?? 'main';
       (document.getElementById('annShowAsPopup') as HTMLInputElement).checked = item.show_as_popup;
-      document.getElementById('cancelEditBtn')!.classList.remove('hidden');
+      showInlineFlex(document.getElementById('cancelEditBtn')!, true);
       document.getElementById('announcementForm')!.scrollIntoView({ block: 'nearest' });
     });
   });
@@ -78,7 +78,7 @@ export function setupAnnouncementForm() {
   function resetForm() {
     form.reset();
     (document.getElementById('announcementEditId') as HTMLInputElement).value = '';
-    cancelBtn.classList.add('hidden');
+    showInlineFlex(cancelBtn, false);
     guard.reset();
   }
 

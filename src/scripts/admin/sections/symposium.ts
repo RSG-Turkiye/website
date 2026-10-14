@@ -3,7 +3,7 @@ import { drivePhotoUrl } from '../../../../functions/_lib/photo-url';
 import { escapeHtml } from '../../escape-html';
 import { setupCertificates, loadCertificates } from '../../admin-certificates';
 import { lang, t, tf, showToast, formatDate } from '../context';
-import { row, chip, BTN, armConfirm, guardUnsaved } from '../ui-kit';
+import { row, chip, BTN, armConfirm, guardUnsaved, showInlineFlex } from '../ui-kit';
 
 // The edition being edited (the highest year not yet archived, per
 // edition.ts) and the current speaker list, cached so the sessions form's
@@ -123,7 +123,7 @@ function setupEditionForm(): void {
   const form = document.getElementById('symEditionForm') as HTMLFormElement;
   const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
   const snapshotBtn = document.getElementById('symEditionSnapshotBtn') as HTMLButtonElement | null;
-  const guard = guardUnsaved(form, '#sempozyum', () => { void loadEdition(); });
+  const guard = guardUnsaved(form, '#sempozyum/baski', () => { void loadEdition(); });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     void whileSaving(submitBtn, saveEdition);
@@ -234,7 +234,7 @@ function renderSpeakers(items: SpeakerItem[]): void {
       (document.getElementById('symSpeakerPhoto') as HTMLInputElement).value = item.photo;
       (document.getElementById('symSpeakerLinkedin') as HTMLInputElement).value = item.linkedin;
       speakerPhoto?.show(item.photo);
-      document.getElementById('symSpeakerCancelBtn')!.classList.remove('hidden');
+      showInlineFlex(document.getElementById('symSpeakerCancelBtn')!, true);
     });
   });
 
@@ -261,13 +261,13 @@ function setupSpeakerForm(): void {
   const form = document.getElementById('symSpeakerForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('symSpeakerCancelBtn')!;
 
-  const guard = guardUnsaved(form, '#sempozyum', () => resetForm());
+  const guard = guardUnsaved(form, '#sempozyum/konusmacilar', () => resetForm());
 
   function resetForm() {
     form.reset();
     (document.getElementById('symSpeakerEditId') as HTMLInputElement).value = '';
     speakerPhoto?.reset();
-    cancelBtn.classList.add('hidden');
+    showInlineFlex(cancelBtn, false);
     guard.reset();
   }
   cancelBtn.addEventListener('click', resetForm);
@@ -367,7 +367,7 @@ function renderSessions(items: SessionItem[]): void {
       (document.getElementById('symSessionDay') as HTMLInputElement).value = String(item.day ?? 1);
       const select = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
       Array.from(select.options).forEach((o) => { o.selected = item.speakerSlugs.includes(o.value); });
-      document.getElementById('symSessionCancelBtn')!.classList.remove('hidden');
+      showInlineFlex(document.getElementById('symSessionCancelBtn')!, true);
     });
   });
 
@@ -392,13 +392,13 @@ function setupSessionForm(): void {
   const cancelBtn = document.getElementById('symSessionCancelBtn')!;
   const speakersSelect = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
 
-  const guard = guardUnsaved(form, '#sempozyum', () => resetForm());
+  const guard = guardUnsaved(form, '#sempozyum/oturumlar', () => resetForm());
 
   function resetForm() {
     form.reset();
     (document.getElementById('symSessionEditId') as HTMLInputElement).value = '';
     Array.from(speakersSelect.options).forEach((o) => { o.selected = false; });
-    cancelBtn.classList.add('hidden');
+    showInlineFlex(cancelBtn, false);
     guard.reset();
   }
   cancelBtn.addEventListener('click', resetForm);
@@ -538,7 +538,7 @@ function renderCommittee(items: CommitteeItem[]): void {
       (document.getElementById('symCommitteeTeamsTr') as HTMLInputElement).value =
         trTeams.some(Boolean) ? trTeams.join(', ') : '';
       committeePhoto?.show(item.photo);
-      document.getElementById('symCommitteeCancelBtn')!.classList.remove('hidden');
+      showInlineFlex(document.getElementById('symCommitteeCancelBtn')!, true);
     });
   });
 
@@ -667,13 +667,13 @@ function setupCommitteeForm(): void {
   const form = document.getElementById('symCommitteeForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('symCommitteeCancelBtn')!;
 
-  const guard = guardUnsaved(form, '#sempozyum', () => resetForm());
+  const guard = guardUnsaved(form, '#sempozyum/komite', () => resetForm());
 
   function resetForm() {
     form.reset();
     (document.getElementById('symCommitteeEditId') as HTMLInputElement).value = '';
     committeePhoto?.reset();
-    cancelBtn.classList.add('hidden');
+    showInlineFlex(cancelBtn, false);
     guard.reset();
   }
   cancelBtn.addEventListener('click', resetForm);

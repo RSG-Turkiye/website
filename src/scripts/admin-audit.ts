@@ -1,7 +1,7 @@
 /** The Log pane (admins only): filter, page back, export, verify. */
 import { escapeHtml } from './escape-html';
 import { formatDateTime } from './format-time';
-import { row as uiRow, emptyState } from './admin/ui-kit';
+import { row as uiRow, emptyState, showInlineFlex } from './admin/ui-kit';
 
 export interface AuditDeps {
   t: (key: string) => string;
@@ -58,7 +58,7 @@ export async function loadAudit(more = false): Promise<void> {
   if (more) body.insertAdjacentHTML('beforeend', html);
   else body.innerHTML = html || emptyState(deps.t('admin.audit.empty'));
   if (rows.length) oldestSeq = rows[rows.length - 1].seq;
-  $('auditMore').classList.toggle('hidden', !hasMore);
+  showInlineFlex($('auditMore'), hasMore);
 }
 
 async function verify(): Promise<void> {

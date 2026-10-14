@@ -28,6 +28,18 @@ test('a social publisher gets only the social counts; an editor only what is sch
   assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ed' })).json(), { scheduledThisWeek: 1 });
 });
 
+test('a count whose query fails is left out; the others are still returned', async (t) => {
+  const { env, db } = setupSocial();
+  seed(db);
+  db.exec('DROP TABLE mail_threads');
+  const logged: unknown[] = [];
+  t.mock.method(console, 'error', (...a: unknown[]) => { logged.push(a); });
+  const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { social: 1, blog: 1, scheduledThisWeek: 1 });
+  assert.equal(logged.length, 1);
+});
+
 test('a member without a panel role is refused; signed out is 401', async () => {
   const { env } = setupSocial();
   assert.equal((await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'mem' })).status, 403);

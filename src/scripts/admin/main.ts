@@ -5,11 +5,6 @@
 // copy now lives in src/i18n/ui.ts under the `admin.*` keys; this module
 // looks up the current page's language from the <html lang> attribute that
 // BaseLayout already sets, and renders the same markup either way.
-//
-// Two behavioural differences between the two languages predate this
-// refactor and are reproduced here exactly rather than resolved one way or
-// the other:
-//
 import { loadHealth } from '../admin-health';
 import { setupConnections, loadConnections } from '../admin-connections';
 import { setupAudit, loadAudit } from '../admin-audit';
@@ -69,6 +64,9 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   // The shell runs a section's loader as soon as it shows it, so whatever
   // a loader needs is wired before the shell starts.
   if (isFullAdmin) {
+    // Before the shell starts: opening /admin#kullanicilar/yetkiler renders
+    // the role cards, which lock one's own Admin chip, straight away.
+    setCurrentUserId(data.user.id ?? null);
     setupConnections({ t: t as (k: string) => string, showToast, lang });
     setupAudit({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, showToast, lang });
   }
@@ -103,10 +101,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     await loadAnnouncements();
     setupAnnouncementForm();
   }
-  if (isFullAdmin) {
-    setCurrentUserId(data.user.id ?? null);
-    await loadUsers();
-  }
+  if (isFullAdmin) await loadUsers();
   if (isFullAdmin) await loadBlogSubmissions();
   if (isFullAdmin) {
     setupBulkGrant();

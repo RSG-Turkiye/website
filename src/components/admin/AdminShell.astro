@@ -8,21 +8,16 @@
  * places, so lightening it back makes most of the panel unreadable to some
  * people, while looking merely "softer" to everyone else.
  *
- * `overflow-x-auto` on the table cards, not `overflow-hidden`. The cards used to
- * clip: with seven columns and a long Turkish action label ("Üyeliği kaldır"),
- * the Actions column fell outside the card and there was no scrollbar to reach
- * it -- it simply vanished. Widening the panel to max-w-7xl is what actually
- * makes it fit; this is the net for the day something grows again.
+ * Lists are rows (src/scripts/admin/ui-kit.ts), never tables, so nothing
+ * needs to scroll sideways: no element may be wider than the viewport at
+ * 390 or 1280 px (tests/browser/admin-overflow.mjs checks every route).
  */
 // Shared markup for the admin panel, rendered by both /admin (English) and
 // /tr/admin (Turkish). The two pages used to be near-clones of this file
 // with every string hand-translated in place; the copy now lives in
 // src/i18n/ui.ts under the `admin.*` keys, and the client-side logic lives
-// in src/scripts/admin/main.ts (shared the same way).
-//
-// One pre-existing, non-copy difference between the two languages is
-// reproduced here rather than resolved: the Turkish admin page never had
-// rank/badge management (the "Rank" and "Badges" table columns), so those
+// in src/scripts/admin/main.ts (shared the same way). Both languages render
+// the same panel, rank and badge management included.
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminNav from './AdminNav.astro';
 import SymposiumPane from './panes/SymposiumPane.astro';
@@ -157,7 +152,7 @@ const t = useTranslations(lang);
                 <button type="submit" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">
                   {t('admin.announcements.form.save')}
                 </button>
-                <button type="button" id="cancelEditBtn" class="hidden inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">
+                <button type="button" id="cancelEditBtn" class="hidden items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">
                   {t('admin.announcements.form.cancelEdit')}
                 </button>
               </div>
@@ -253,7 +248,7 @@ const t = useTranslations(lang);
           </form>
           <p id="auditVerifyResult" class="text-sm"></p>
           <div id="auditBody" class="flex flex-col gap-2 mt-2"></div>
-          <button type="button" id="auditMore" class="hidden mt-3 inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.more')}</button>
+          <button type="button" id="auditMore" class="hidden mt-3 items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.more')}</button>
         </section>
 
           </div>

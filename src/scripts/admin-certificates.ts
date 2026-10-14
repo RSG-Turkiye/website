@@ -4,7 +4,7 @@
  */
 import { decodeCsv, parseCsv, planUpload, type PlannedRow } from '../lib/certificate-csv';
 import { compressPdf, type Method } from './pdf-compress';
-import { row, chip, BTN, armConfirm } from './admin/ui-kit';
+import { row, chip, BTN, armConfirm, showInlineFlex } from './admin/ui-kit';
 import { escapeHtml } from './escape-html';
 
 export interface CertDeps {
@@ -65,7 +65,7 @@ function renderPreview(unused: string[]): void {
   // Hidden while a check or an upload is running, not only when nothing is
   // ready: offering "Upload 3" halfway through compressing ten files invites
   // an upload of the first three.
-  button.classList.toggle('hidden', ready === 0 || busy);
+  showInlineFlex(button, ready > 0 && !busy);
 }
 
 /** Runs one check or upload, with both buttons locked for its duration. */
@@ -75,7 +75,7 @@ async function exclusive(work: () => Promise<void>): Promise<void> {
   const check = $<HTMLButtonElement>('symCertCheck');
   const upload = $<HTMLButtonElement>('symCertUpload');
   check.disabled = upload.disabled = true;
-  upload.classList.add('hidden');
+  showInlineFlex(upload, false);
   try {
     await work();
   } finally {

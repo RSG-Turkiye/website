@@ -23,12 +23,14 @@ const EMPTY = {
   posts: [], plans: [], modes: [], editors: [],
 };
 const fresh = () => [
-  { id: 'u1', email: 'admin@example.org', display_name: 'Ada Admin', username: 'ada', is_member: 1, is_admin: 1, is_announcer: 0,
+  { id: 'u1', email: 'admin@example.org', display_name: 'Ada Admin', username: 'ada', is_member: 1, is_admin: 1, is_announcer: 1,
     is_writer: 0, is_sender: 0, is_symposium: 0, is_social: 0, is_social_publisher: 0, is_public: 1, current_rank: 'seed', badge_codes: '', created_at: 1700000000 },
   { id: 'u2', email: 'uye@example.org', display_name: 'Bir Üye', username: 'uye', is_member: 0, is_admin: 0, is_announcer: 0,
     is_writer: 0, is_sender: 0, is_symposium: 0, is_social: 0, is_social_publisher: 0, is_public: 1, current_rank: 'seed', badge_codes: '', created_at: 1700000000 },
 ];
 const FLAGS = { make_: 1, remove_: 0 };
+const ROLE_FLAGS = ['is_admin', 'is_announcer', 'is_writer', 'is_sender', 'is_symposium', 'is_social', 'is_social_publisher'];
+const hasRole = (u) => ROLE_FLAGS.some((f) => u[f]);
 
 const browser = await chromium.launch();
 
@@ -36,6 +38,9 @@ async function open(viewport, hash) {
   const page = await browser.newPage({ viewport });
   const users = fresh();
   const patches = [];
+  const gets = [];
+  // How the next PATCHes answer: 'ok', 'refuse' (a 400) or 'abort' (a network failure).
+  const patchMode = { value: 'ok' };
   page.on('pageerror', (e) => bad.push(`pageerror (${viewport.width}px): ` + String(e).slice(0, 160)));
   await page.route('**/api/**', (r) => {
     const req = r.request();
@@ -44,6 +49,8 @@ async function open(viewport, hash) {
     if (url.pathname === '/api/admin/users' && req.method() === 'PATCH') {
       const body = req.postDataJSON();
       patches.push(body);
+      if (patchMode.value === 'refuse') return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Refused by the stub' }) });
+      if (patchMode.value === 'abort') return r.abort('failed');
       const u = users.find((x) => x.id === body.user_id);
       const m = /^(make|remove)_(.+)$/.exec(body.action);
       if (u && m && m[2] !== 'private') u[`is_${m[2]}`] = FLAGS[`${m[1]}_`];
@@ -54,15 +61,19 @@ async function open(viewport, hash) {
     if (url.pathname === '/api/admin/counts') return json({ email: 0, social: 0, blog: 0, scheduledThisWeek: 0 });
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
     if (url.pathname === '/api/admin/users') {
+      gets.push(url.search);
       const f = url.searchParams.get('filter');
-      const list = users.filter((u) => f === 'members' ? u.is_member : f === 'pending' ? !u.is_member : true);
+      const q = (url.searchParams.get('search') ?? '').toLowerCase();
+      const list = users
+        .filter((u) => f === 'members' ? u.is_member : f === 'pending' ? !u.is_member : f === 'roles' ? hasRole(u) : true)
+        .filter((u) => !q || `${u.email} ${u.username} ${u.display_name}`.toLowerCase().includes(q));
       return json({ users: list, badge_catalog: [{ code: 'nf', name_en: 'Nextflow', name_tr: 'Nextflow' }] });
     }
     return json(EMPTY);
   });
   await page.goto(BASE + '/admin' + hash, { waitUntil: 'networkidle' });
   await page.waitForSelector('#adminContent:not(.hidden)');
-  return { page, patches };
+  return { page, patches, gets, patchMode };
 }
 
 const waitPatches = (patches, n) => new Promise((resolve) => {
@@ -75,7 +86,7 @@ const rowText = (page, id) => page.textContent(`#usersList [data-user="${id}"]`)
 
 console.log('1) list and detail, 1280 px');
 {
-  const { page, patches } = await open({ width: 1280, height: 900 }, '#kullanicilar/liste');
+  const { page, patches, gets, patchMode } = await open({ width: 1280, height: 900 }, '#kullanicilar/liste');
   await page.waitForSelector('#usersList [data-user="u2"]');
   ok(await page.locator('#usersList [data-user]').count() === 2, 'two rows');
   ok(await page.locator('#userDetail input[role="switch"]').count() === 0, 'no switches before a row is selected');
@@ -100,6 +111,7 @@ console.log('1) list and detail, 1280 px');
   await page.click('[data-filter="roles"]');
   await page.waitForFunction(() => document.querySelectorAll('#usersList [data-user]').length === 1, null, { timeout: 3000 }).catch(() => {});
   ok(await page.locator('#usersList [data-user]').count() === 1 && await page.locator('#usersList [data-user="u1"]').count() === 1, 'only the admin is listed');
+  ok(gets.some((s) => new URLSearchParams(s).get('filter') === 'roles'), `"Has a role" asks the server for filter=roles (${gets.join(' ')})`);
   await page.click('[data-filter="all"]');
   await page.waitForFunction(() => document.querySelectorAll('#usersList [data-user]').length === 2, null, { timeout: 3000 }).catch(() => {});
 
@@ -130,42 +142,58 @@ console.log('1) list and detail, 1280 px');
   await waitPatches(patches, 7);
   ok(patches[6]?.action === 'make_private', `make_private sent ${JSON.stringify(patches[6])}`);
 
-  console.log('   taking admin from oneself needs a second click');
+  console.log('   a refused or failed change puts the switch back and frees it');
+  for (const mode of ['refuse', 'abort']) {
+    patchMode.value = mode;
+    const n = patches.length;
+    const sw = '#userDetail input[data-action-on="make_writer"]';
+    await page.waitForSelector(sw);
+    const was = await page.locator(sw).isChecked();
+    await page.click(sw);
+    await waitPatches(patches, n + 1);
+    await page.waitForFunction((s) => !document.querySelector(s)?.disabled, sw, { timeout: 3000 }).catch(() => {});
+    ok(patches.length === n + 1 && patches[n]?.action === 'make_writer', `${mode}: the PATCH was sent`);
+    ok(await page.locator(sw).isChecked() === was, `${mode}: the switch is back in its old state`);
+    ok(await page.locator(sw).isEnabled(), `${mode}: the switch is enabled again`);
+    ok(await page.locator('#toastStack [role="alert"]').count() > 0, `${mode}: an error toast shows`);
+  }
+  patchMode.value = 'ok';
+
+  console.log('   one cannot take admin from oneself: the switch is locked');
   await page.click('#usersList [data-user="u1"]');
-  await page.waitForSelector('#userDetail input[data-action-off="remove_admin"]:checked');
-  const before = patches.length;
-  await page.click('#userDetail input[data-action-off="remove_admin"]');
-  await page.waitForTimeout(150);
-  ok(patches.length === before, 'first click sends nothing');
-  ok(await page.locator('#userDetail input[data-action-off="remove_admin"]').isChecked(), 'switch stays on after the first click');
-  await page.click('#userDetail input[data-action-off="remove_admin"]');
-  await waitPatches(patches, before + 1);
-  ok(patches[before]?.action === 'remove_admin' && patches[before]?.user_id === 'u1', `second click sends remove_admin ${JSON.stringify(patches[before])}`);
+  const selfAdmin = '#userDetail input[data-action-off="remove_admin"]';
+  await page.waitForSelector(`${selfAdmin}:checked`);
+  ok(await page.locator(selfAdmin).isDisabled(), 'own Admin switch is disabled');
+  ok((await page.locator(selfAdmin).locator('xpath=..').textContent()).includes('You cannot remove your own admin role.'), 'its hint says why');
+  ok(await page.locator('#userDetail input[data-action-off="remove_announcer"]').isEnabled(), 'own other roles stay editable');
   ok(await fits(page, 1280), 'no horizontal scroll at 1280 px');
   await page.close();
 }
 
 console.log('2) roles tab, 1280 px');
 {
-  const { page, patches } = await open({ width: 1280, height: 900 }, '#kullanicilar/yetkiler');
+  const { page, patches, gets } = await open({ width: 1280, height: 900 }, '#kullanicilar/yetkiler');
   await page.waitForSelector('#rolesView [data-role-card="is_admin"] [data-person="u1"]').catch(() => {});
   ok(await page.locator('#rolesView [data-role-card]').count() === 7, 'seven role cards');
+  ok(gets.includes('?filter=roles'), `the Roles tab loads with filter=roles (${gets.join(' ')})`);
   ok((await page.textContent('#rolesView [data-role-card="is_admin"]') ?? '').includes('Ada Admin'), 'Ada Admin is listed under Admin');
-  const remove = page.locator('#rolesView [data-role-card="is_admin"] [data-person="u1"] button');
+  ok(await page.locator('#rolesView [data-role-card="is_admin"] [data-person="u1"] button').count() === 0, 'no × on one\'s own Admin chip');
+  const remove = page.locator('#rolesView [data-role-card="is_announcer"] [data-person="u1"] button');
   await remove.click();
   await page.waitForTimeout(150);
   ok(patches.length === 0, 'first × click sends nothing');
   await remove.click();
   await waitPatches(patches, 1);
-  ok(JSON.stringify(patches[0]) === JSON.stringify({ user_id: 'u1', action: 'remove_admin' }), `second × click sends ${JSON.stringify(patches[0])}`);
-  await page.waitForFunction(() => !document.querySelector('#rolesView [data-role-card="is_admin"] [data-person="u1"]'), null, { timeout: 3000 }).catch(() => {});
-  ok(await page.locator('#rolesView [data-role-card="is_admin"] [data-person="u1"]').count() === 0, 'Ada leaves the Admin card');
+  ok(JSON.stringify(patches[0]) === JSON.stringify({ user_id: 'u1', action: 'remove_announcer' }), `second × click sends ${JSON.stringify(patches[0])}`);
+  await page.waitForFunction(() => !document.querySelector('#rolesView [data-role-card="is_announcer"] [data-person="u1"]'), null, { timeout: 3000 }).catch(() => {});
+  ok(await page.locator('#rolesView [data-role-card="is_announcer"] [data-person="u1"]').count() === 0, 'Ada leaves the Announcements card');
 
-  console.log('   + adds a person');
+  console.log('   + adds a person, found by the server');
   await page.click('#rolesView [data-role-card="is_writer"] [data-add-role]');
   await page.fill('#rolesView [data-role-card="is_writer"] [data-add-input]', 'uye@');
   await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-add-user="u2"]');
   ok(await page.locator('#rolesView [data-role-card="is_writer"] [data-add-user]').count() === 1, 'search filters to one match');
+  ok(gets.some((s) => new URLSearchParams(s).get('search') === 'uye@'), `the add box searches the server (${gets.join(' ')})`);
   await page.click('#rolesView [data-role-card="is_writer"] [data-add-user="u2"]');
   await waitPatches(patches, 2);
   ok(JSON.stringify(patches[1]) === JSON.stringify({ user_id: 'u2', action: 'make_writer' }), `add sends ${JSON.stringify(patches[1])}`);
