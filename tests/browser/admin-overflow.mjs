@@ -72,6 +72,27 @@ const FULL = {
   posts: [], plans: [], modes: [], editors: [],
 };
 
+// Social data: dated around now so the calendar month shows the cards and slots.
+const now = Math.floor(Date.now() / 1000);
+const POSTS = [
+  { id: 'p1', type: 'image', caption: 'Join us for the symposium', captionOverrides: {}, link: null, media: [], platforms: ['instagram', 'x'], scheduledAt: now + 3600, status: 'pending_approval', revision: 1,
+    createdBy: 'u2', authorEmail: 'editor@example.org', approvedBy: null, approvedAt: null, reviewNote: null, planId: null, planTitle: null, eventModeId: null, createdAt: now, updatedAt: now, targets: [] },
+  { id: 'p2', type: 'image', caption: long, captionOverrides: {}, link: 'https://example.org/' + long, media: [], platforms: ['instagram', 'linkedin', 'x'], scheduledAt: now + 7200, status: 'draft', revision: 1,
+    createdBy: 'u2', authorEmail: long + '@example.org', approvedBy: null, approvedAt: null, reviewNote: long, planId: null, planTitle: long, eventModeId: null, createdAt: now, updatedAt: now, targets: [] },
+];
+const PLANS = [
+  { id: 'pl1', title: 'Weekly recap', scheduledAt: now + 86400, platforms: ['instagram'], postType: 'image', assigneeId: 'u2', assigneeEmail: 'editor@example.org', note: 'n', postId: null, postStatus: null, createdBy: 'u1', createdAt: now },
+  { id: 'pl2', title: 'Plan ' + long, scheduledAt: now + 2 * 86400, platforms: ['instagram', 'x'], postType: 'story', assigneeId: null, assigneeEmail: long + '@example.org', note: long, postId: null, postStatus: null, createdBy: 'u1', createdAt: now },
+];
+const EDITORS = [
+  { id: 'u2', email: 'editor@example.org', name: 'Editor Two', isPublisher: false },
+  { id: 'u3', email: long + '@example.org', name: null, isPublisher: false },
+];
+const MODES = [
+  { id: 'm1', name: 'Symposium day', startsAt: now - 3600, endsAt: now + 86400, editorIds: ['u2'], editorEmails: ['editor@example.org'], openedBy: 'u1', closedAt: null, active: true },
+  { id: 'm2', name: 'Event ' + long, startsAt: now + 86400, endsAt: now + 2 * 86400, editorIds: ['u3'], editorEmails: [long + '@example.org'], openedBy: 'u1', closedAt: null, active: false },
+];
+
 // Not 44 px on purpose, each with its reason. (Add [selector, reason] pairs.)
 const EXCLUDED = [];
 
@@ -88,6 +109,10 @@ async function open(path, viewport) {
     if (url.pathname === '/api/me') return json({ user: ADMIN, profile: {} });
     if (url.pathname === '/api/admin/counts') return json(COUNTS);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
+    if (url.pathname === '/api/social/plans') return json({ plans: PLANS });
+    if (url.pathname === '/api/social/posts') return json({ posts: POSTS });
+    if (url.pathname === '/api/social/editors') return json({ editors: EDITORS });
+    if (url.pathname === '/api/social/event-modes') return json({ modes: MODES });
     return json(FULL);
   });
   await page.goto(BASE + path, { waitUntil: 'networkidle' });
@@ -96,19 +121,26 @@ async function open(path, viewport) {
 }
 
 // Wait until the menu marks the section and the addressed sub-page shows.
+// True once the menu marks the section, the addressed sub-page (if any) is
+// the only one shown, and the visible part has content.
 const settle = (page, h) => page.waitForFunction((x) => {
   const [section, sub] = x.slice(1).split('/');
-  if (location.hash !== x) return false;
+  if (!location.hash.startsWith('#' + section)) return false;
   if (document.querySelector('[data-nav][aria-current="page"]')?.dataset.nav !== section) return false;
-  if (!sub) return true;
-  const shown = [...document.querySelectorAll(`[data-section="${section}"] [data-sub]`)].filter((el) => !el.classList.contains('hidden')).map((el) => el.dataset.sub);
-  return shown.length === 1 && shown[0] === sub;
-}, h, { timeout: 5000 }).catch(() => {});
+  const root = document.querySelector(`[data-section="${section}"]`);
+  if (!root || root.classList.contains('hidden')) return false;
+  if (sub) {
+    const shown = [...root.querySelectorAll('[data-sub]')].filter((el) => !el.classList.contains('hidden'));
+    return shown.length === 1 && shown[0].dataset.sub === sub && shown[0].innerText.trim().length > 0;
+  }
+  return root.innerText.trim().length > 0 || document.querySelectorAll('#subNav a').length > 0;
+}, h, { timeout: 8000 }).then(() => true, () => false);
 
 async function go(page, h) {
   await page.evaluate((x) => { location.hash = x; }, h);
-  await settle(page, h);
-  await page.waitForTimeout(250);
+  const reached = await settle(page, h);
+  await page.waitForLoadState('networkidle');
+  return reached;
 }
 
 // Every section and sub-page this admin can open, read from the menu itself.
@@ -149,9 +181,11 @@ for (const lang of ['', '/tr']) {
     const page = await open(lang + '/admin', { width, height: width === 390 ? 844 : 900 });
     const phone = width === 390;
     for (const h of all) {
-      await go(page, h);
-      pages++;
       const tag = `${lang || '/en'} ${width}px ${h}`;
+      const reached = await go(page, h);
+      ok(reached, `${tag}: route did not settle`);
+      if (!reached) continue;
+      pages++;
       const sw = await page.evaluate(() => ({ s: document.documentElement.scrollWidth, w: innerWidth }));
       if (sw.s > sw.w) {
         const wide = await page.evaluate((w) => [...document.querySelectorAll('body *')]

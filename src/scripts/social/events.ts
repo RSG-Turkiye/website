@@ -21,10 +21,10 @@ export async function loadEvents(): Promise<void> {
     const state = m.active ? 'active' : m.closedAt !== null || m.endsAt <= now ? 'ended' : 'upcoming';
     const badge = state === 'active' ? 'bg-green-100 text-green-900' : state === 'ended' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-900';
     return `<div data-event="${esc(m.id)}" class="p-3 mb-2 bg-white rounded-2xl border border-border">
-      <div class="flex flex-wrap items-center gap-2"><strong class="text-navy">${esc(m.name)}</strong>
+      <div class="flex flex-wrap items-center gap-2"><strong class="text-navy min-w-0 break-all">${esc(m.name)}</strong>
         <span class="px-2 rounded-full text-xs ${badge}">${esc(t(`admin.social.events.${state}`))}</span>
         <span class="text-xs text-gray-500">${esc(when(m.startsAt))} - ${esc(when(m.endsAt))}</span></div>
-      <p class="text-xs text-gray-500 mt-1">${esc(tf('admin.social.events.editors', { list: m.editorEmails.join(', ') }))}</p>
+      <p class="text-xs text-gray-500 mt-1 break-all">${esc(tf('admin.social.events.editors', { list: m.editorEmails.join(', ') }))}</p>
       ${me.isPublisher && state !== 'ended' ? `<div class="mt-2">${button(t('admin.social.events.close'), 'data-close-event', 'danger')}</div>` : ''}</div>`;
   }).join('') || `<p class="text-sm text-gray-500">${esc(t('admin.social.events.none'))}</p>`;
   list.querySelectorAll<HTMLElement>('[data-event]').forEach((el) => {
@@ -58,8 +58,8 @@ async function renderForm(): Promise<void> {
       <label class="block text-xs text-gray-500">${esc(t('admin.social.events.start'))}<input name="start" type="datetime-local" required class="${field}" value="${esc(epochToIstanbulInput(now))}"></label>
       <label class="block text-xs text-gray-500">${esc(t('admin.social.events.end'))}<input name="end" type="datetime-local" required class="${field}" value="${esc(epochToIstanbulInput(now + 2 * 86400))}"></label>
     </div>
-    <fieldset class="mt-2 text-xs text-gray-500">${esc(t('admin.social.events.pickEditors'))}<div class="flex flex-wrap gap-3 mt-1">
-      ${people.filter((p) => !p.isPublisher).map((p) => `<label class="inline-flex items-center gap-2 min-h-11 lg:min-h-0 text-sm text-navy"><input type="checkbox" name="editor" value="${esc(p.id)}"> ${esc(p.name ?? p.email)}</label>`).join('')}
+    <fieldset class="mt-2 min-w-0 text-xs text-gray-500">${esc(t('admin.social.events.pickEditors'))}<div class="flex flex-wrap gap-3 mt-1 min-w-0">
+      ${people.filter((p) => !p.isPublisher).map((p) => `<label class="inline-flex items-center gap-2 min-w-0 max-w-full min-h-11 lg:min-h-0 text-sm text-navy"><input type="checkbox" name="editor" value="${esc(p.id)}" class="shrink-0"> <span class="min-w-0 break-all">${esc(p.name ?? p.email)}</span></label>`).join('')}
     </div></fieldset>
     <button type="submit" class="mt-3 px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40 disabled:cursor-not-allowed">${esc(t('admin.social.events.open'))}</button>`;
   form.addEventListener('submit', (e) => {

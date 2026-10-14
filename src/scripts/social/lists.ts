@@ -20,7 +20,7 @@ function card(p: Post, actions: string): string {
   const alts = p.media.filter((m) => m.alt.trim()).length;
   return `<div data-post="${esc(p.id)}" class="flex gap-3 p-3 mb-3 bg-white rounded-2xl border border-border">${thumb}
     <div class="flex-1 min-w-0"><p class="font-medium text-navy truncate">${esc(p.planTitle || p.caption.split('\n')[0] || t(`admin.social.type.${p.type}`))}</p>
-      <p class="text-xs text-gray-500">${esc(t(`admin.social.type.${p.type}`))} · ${esc(p.platforms.map((x) => t(`admin.connections.platform.${x}`)).join(' + '))} · ${esc(when(p.scheduledAt))} · ${esc(p.authorEmail ?? '')} · ${esc(tf('admin.social.list.alt', { n: alts, m: p.media.length }))}</p>
+      <p class="text-xs text-gray-500 break-all">${esc(t(`admin.social.type.${p.type}`))} · ${esc(p.platforms.map((x) => t(`admin.connections.platform.${x}`)).join(' + '))} · ${esc(when(p.scheduledAt))} · ${esc(p.authorEmail ?? '')} · ${esc(tf('admin.social.list.alt', { n: alts, m: p.media.length }))}</p>
       <div class="flex flex-wrap gap-2 mt-2">${actions}</div>
       <div data-reject class="hidden mt-2"><textarea rows="2" maxlength="500" class="w-full px-2 py-1 rounded-lg border border-border text-sm" placeholder="${esc(t('admin.social.rejectNote'))}"></textarea>
         ${button(t('admin.social.action.rejectConfirm'), 'data-act="rejectSend"', 'danger')}</div></div></div>`;
