@@ -1,0 +1,35 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { setupSocial, call } from './lib/social';
+import { onRequestGet } from '../functions/api/admin/counts';
+
+function seed(db: import('node:sqlite').DatabaseSync) {
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare(`INSERT INTO mail_threads (id, sender_user_id, recipient_email, subject, last_message_at, last_direction, unread, created_at, updated_at) VALUES ('t1','admin','x@example.org','s',1,'in',1,1,1), ('t2','admin','y@example.org','s',1,'out',0,1,1)`).run();
+  db.prepare(`INSERT INTO social_posts (id, type, caption, media, platforms, scheduled_at, status, revision, created_by, created_at, updated_at) VALUES
+    ('p1','image','a','[]','["instagram"]',?,'pending_approval',1,'ed',1,1),
+    ('p2','image','b','[]','["instagram"]',?,'scheduled',1,'ed',1,1),
+    ('p3','image','c','[]','["instagram"]',?,'scheduled',1,'ed',1,1)`).run(now + 3600, now + 2 * 86400, now + 30 * 86400);
+  db.prepare(`INSERT INTO blog_submissions (id, submitted_by, lang, title, description, category, author, body, slug, status, created_at) VALUES ('b1','mem','en','t','d','c','a','x','s','pending',1), ('b2','mem','en','t','d','c','a','x','s2','approved',1)`).run();
+}
+
+test('an admin gets every count', async () => {
+  const { env, db } = setupSocial();
+  seed(db);
+  const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { email: 1, social: 1, blog: 1, scheduledThisWeek: 1 });
+});
+
+test('a social publisher gets only the social counts; an editor only what is scheduled', async () => {
+  const { env, db } = setupSocial();
+  seed(db);
+  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json(), { social: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ed' })).json(), { scheduledThisWeek: 1 });
+});
+
+test('a member without a panel role is refused; signed out is 401', async () => {
+  const { env } = setupSocial();
+  assert.equal((await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'mem' })).status, 403);
+  assert.equal((await call(onRequestGet, 'GET', '/api/admin/counts', { env })).status, 401);
+});
