@@ -16,7 +16,8 @@ import { loadOverview } from './overview';
 import { loadUsers, setupUsersFilters, setCurrentUserId, loadRolesView } from './sections/users';
 import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } from './sections/announcements';
 import { loadBlogSubmissions } from './sections/blog';
-import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload, loadAllSends } from './sections/mail';
+import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload } from './sections/mail';
+import { loadSent, setSentAdmin } from './sections/mail-sent';
 import { setupSymposium, loadSymposium } from './sections/symposium';
 
 // Init
@@ -50,6 +51,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   document.getElementById('adminContent')!.classList.remove('hidden');
   const roles = rolesFromMe(data.user);
   const isFullAdmin = data.user.is_admin === true;
+  const isSender = data.user.is_sender === true;
   const isAnnouncer = data.user.is_announcer === true;
   const isSymposium = data.user.is_symposium === true;
   const isSocial = data.user.is_social === true || data.user.is_social_publisher === true;
@@ -84,8 +86,16 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
     sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),
   };
+  // Senders and admins both list their sent mail, the first time that sub-page shows.
+  let sentLoaded = false;
+  setSentAdmin(isFullAdmin);
   const onSub: Partial<Record<SectionId, (sub: string, item: string | null) => void>> = {
     sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
+    eposta: (sub) => {
+      if (sub !== 'gonderilenler' || sentLoaded || !(isFullAdmin || isSender)) return;
+      sentLoaded = true;
+      loadSent().catch(() => { sentLoaded = false; });
+    },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
   };
   // Back from a Gmail reconnect: the shell opens Connections; say how it went.
@@ -106,7 +116,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   if (isFullAdmin) {
     setupBulkGrant();
     setupAttachmentUpload();
-    await Promise.all([loadSenders(), loadAdminAttachments(), loadAllSends()]);
+    await Promise.all([loadSenders(), loadAdminAttachments()]);
   }
   if (canEditSymposium) {
     setupSymposium();

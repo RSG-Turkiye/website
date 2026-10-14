@@ -18,6 +18,7 @@ const ok = (c, m) => { console.log(`   ${c ? '✓' : '✗'} ${m}`); if (!c) bad.
 
 const ADMIN = { id: 'u1', email: 'admin@example.org', is_admin: true };
 const SOCIAL = { id: 'u2', email: 'social@example.org', is_social: true };
+const SENDER = { id: 'u3', email: 'sender@example.org', is_sender: true };
 const COUNTS = { email: 3, social: 2, blog: 1, scheduledThisWeek: 4 };
 // One body that satisfies every list the panel reads on load.
 const EMPTY = {
@@ -32,11 +33,13 @@ async function open(user, viewport, path = '/admin', body = EMPTY) {
   const page = await browser.newPage({ viewport });
   const views = [];
   const deletes = [];
+  const gets = [];
   page.on('pageerror', (e) => bad.push(`pageerror (${user.email} ${viewport.width}px): ` + String(e).slice(0, 160)));
   await page.route('**/api/**', (r) => {
     const req = r.request();
     const url = new URL(req.url());
     const json = (v) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(v) });
+    if (req.method() === 'GET') gets.push(url.pathname + url.search);
     if (req.method() !== 'GET') {
       deletes.push(`${req.method()} ${url.pathname}`);
       if (url.pathname === '/api/audit/view') views.push(req.postDataJSON()?.pane);
@@ -49,7 +52,7 @@ async function open(user, viewport, path = '/admin', body = EMPTY) {
   });
   await page.goto(BASE + path, { waitUntil: 'networkidle' });
   await page.waitForSelector('#adminContent:not(.hidden)');
-  return { page, views, deletes };
+  return { page, views, deletes, gets };
 }
 
 const hash = (page) => page.evaluate(() => location.hash);
@@ -300,6 +303,39 @@ console.log('6) Sempozyum sub-pages and the unsaved-changes guard');
     await page.evaluate(() => { location.hash = '#sempozyum/oturumlar'; });
     await waitHash(page, '#sempozyum/oturumlar');
     ok(await hash(page) === '#sempozyum/oturumlar', 'with a clean form, moving between sub-pages is free');
+    await page.close();
+  }
+}
+
+console.log('7) sender-only user and the Sent sub-page');
+{
+  const SENDS = { ...EMPTY, sends: [
+    { id: 's1', subject: 'Welcome <b>aboard</b>', recipient_email: 'r@example.org', recipient_name: null, sent_at: 1760000000, status: 'sent', error_message: null, sender_email: 'x@example.org', sender_name: 'Xavier' },
+  ] };
+  {
+    const { page, gets } = await open(SENDER, { width: 1280, height: 900 }, '/admin', SENDS);
+    ok(await hash(page) === '#eposta/gelen', `sender lands on #eposta/gelen (got ${await hash(page)})`);
+    const subs = await page.locator('#subNav [data-sub-link]').evaluateAll((els) => els.map((e) => e.dataset.subLink));
+    ok(subs.join(',') === 'gelen,yaz,gonderilenler', `sub-nav is gelen, yaz, gonderilenler (got ${subs.join(',')})`);
+    ok(gets.includes('/api/admin/counts'), 'counts were requested');
+    await page.click('#subNav [data-sub-link="gonderilenler"]');
+    await waitHash(page, '#eposta/gonderilenler');
+    await page.waitForSelector('#sentList > div');
+    ok(await page.locator('#sentList > div').count() === 1, 'the stubbed history row is listed');
+    ok((await page.textContent('#sentList')).includes('Welcome <b>aboard</b>'), 'the subject is escaped');
+    ok(!(await visible(page, '#sentScope')), 'a sender has no Mine/Everyone toggle');
+    ok(gets.includes('/api/mail/history'), 'own sends requested');
+    ok(await fits(page, 1280), 'sent: no horizontal scroll at 1280 px');
+    await page.close();
+  }
+  {
+    const { page, gets } = await open(ADMIN, { width: 1280, height: 900 }, '/admin#eposta/gonderilenler', SENDS);
+    await page.waitForSelector('#sentList > div');
+    ok(await visible(page, '#sentScope'), 'an admin sees the toggle');
+    ok(!gets.some((g) => g.includes('scope=all')), 'default view is not everyone');
+    await page.click('#sentScope [data-scope="all"]');
+    await page.waitForFunction(() => document.getElementById('sentList').textContent.includes('Xavier'));
+    ok(gets.some((g) => g === '/api/mail/history?scope=all'), 'Everyone requests scope=all');
     await page.close();
   }
 }

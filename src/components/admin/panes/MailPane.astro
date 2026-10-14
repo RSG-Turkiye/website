@@ -1,0 +1,76 @@
+---
+/**
+ * The e-mail pane: six sub-pages under one nav entry. Inbox and Compose are
+ * empty roots that the mail workspace scripts fill; Sent lists the caller's
+ * own sends (an admin can widen it to everyone's); the last three are the
+ * admin-only sender, attachment and permission tools.
+ */
+import { useTranslations } from '../../../i18n/ui';
+
+interface Props { lang: 'en' | 'tr' }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+        <section id="rsgMailSection" data-section="eposta">
+
+          <div data-sub="gelen">
+            <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.nav.inbox')}</h2>
+            <div id="mailInboxRoot"></div>
+          </div>
+
+          <div data-sub="yaz">
+            <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.nav.compose')}</h2>
+            <div id="mailComposeRoot"></div>
+          </div>
+
+          <div data-sub="gonderilenler">
+            <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.nav.sent')}</h2>
+            <div id="sentScope" class="hidden mb-3"><div class="flex gap-2" role="group" aria-label={t('admin.mail.nav.sent')}>
+              <button type="button" data-scope="mine" aria-pressed="true" class="px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium bg-navy text-white">{t('admin.mail.sent.mine')}</button>
+              <button type="button" data-scope="all" aria-pressed="false" class="px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium bg-[#F7F7F6] text-gray-500 hover:bg-navy-light hover:text-navy">{t('admin.mail.sent.everyone')}</button>
+            </div></div>
+            <div id="sentList" class="flex flex-col gap-2"></div>
+          </div>
+
+
+          <div data-sub="yetki">
+          <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.bulkGrant.heading')}</h2><div class="bg-white rounded-2xl border border-border p-6 mb-4">
+            <form id="bulkGrantForm" class="flex flex-col gap-3">
+              <textarea id="bulkEmails" rows="4" required
+                placeholder={t('admin.mail.bulkGrant.emailsPlaceholder')}
+                class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid"></textarea>
+              <div class="flex items-center gap-3">
+                <input id="bulkTeam" type="text" placeholder={t('admin.mail.bulkGrant.teamPlaceholder')}
+                  class="flex-1 px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+                <button type="submit" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">{t('admin.mail.bulkGrant.submit')}</button>
+              </div>
+              <p id="bulkResult" class="hidden text-xs"></p>
+            </form>
+          </div></div>
+
+          <div data-sub="gondericiler">
+          <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.senders.heading')}</h2><div class="bg-white rounded-2xl border border-border p-6 mb-4">
+            <div id="sendersList" class="flex flex-col gap-2"></div>
+            <p id="sendersEmpty" class="hidden text-sm text-gray-500">{t('admin.mail.senders.empty')}</p>
+          </div></div>
+
+          <div data-sub="ekler">
+          <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.attachments.heading')}</h2><div class="bg-white rounded-2xl border border-border p-6 mb-4">
+
+            <input id="attachmentFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.pptx"
+              class="text-sm text-gray-500 block" />
+            <p class="text-xs text-gray-500 mt-1">{t('admin.mail.attachments.typesNote')}</p>
+
+            <div id="attachmentChosen" class="hidden mt-3 text-sm text-navy bg-[#F7F7F6] rounded-xl px-3 py-2"></div>
+            <p id="attachmentError" class="hidden mt-2 text-sm text-red-600"></p>
+
+            <button type="button" id="attachmentUploadBtn" disabled
+              class="mt-3 inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">
+              {t('admin.mail.attachments.uploadBtn')}
+            </button>
+
+            <div id="attachmentAdminList" class="flex flex-col gap-2 mt-4"></div>
+            <p id="attachmentsEmpty" class="hidden text-sm text-gray-500 mt-2">{t('admin.mail.attachments.empty')}</p>
+          </div></div>
+        </section>
