@@ -231,6 +231,13 @@ for (const lang of ['', '/tr']) {
       ok(reached, `${tag}: route did not settle`);
       if (!reached) continue;
       pages++;
+      if (h === '#eposta/gelen/t2') {
+        // The thread must really be open, not just the list.
+        const open = await page.waitForFunction((s) => document.getElementById('mailThreadSubject')?.textContent === s
+          && !document.getElementById('mailThreadView')?.classList.contains('hidden'), long, { timeout: 5000 }).then(() => true, () => false);
+        ok(open, `${tag}: the thread did not open`);
+        ok(await page.locator('#mailThreadView').isVisible(), `${tag}: thread pane is visible`);
+      }
       const sw = await page.evaluate(() => ({ s: document.documentElement.scrollWidth, w: innerWidth }));
       if (sw.s > sw.w) {
         const wide = await page.evaluate((w) => [...document.querySelectorAll('body *')]

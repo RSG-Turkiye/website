@@ -8,12 +8,12 @@ import { SECTIONS, visibleSections, subsFor, landing, type RoleFlags, type Secti
 export interface Route { section: SectionId; sub: string | null; item: string | null }
 type Raw = { section: string; sub: string | null; item: string | null };
 
-// The item is a mail thread id, which is Gmail's thread id: a hex string.
+// The item is a mail thread id: the shape the server accepts (gmail-read.ts).
 export function parseHash(hash: string): Raw | null {
   const raw = hash.replace(/^#/, '').trim();
   if (!raw) return null;
   const [section, sub, item] = raw.split('/');
-  return section ? { section, sub: sub || null, item: sub && item && /^[0-9a-f]{1,32}$/i.test(item) ? item : null } : null;
+  return section ? { section, sub: sub || null, item: sub && item && /^[A-Za-z0-9_-]{1,128}$/.test(item) ? item : null } : null;
 }
 
 export function toHash(r: Route): string {
