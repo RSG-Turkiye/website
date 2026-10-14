@@ -1,24 +1,20 @@
 /**
  * Looks for new Instagram DMs. Runs from the social tick every minute but
- * acts every five (a 'social_dm' row in dispatch_runs marks each run), or on
- * a publisher's Refresh at most every 30 seconds. Records per conversation
- * only who and when (social_dm_threads), never what was written, then hands
- * over to the notifications.
+ * acts every six hours (a 'social_dm' row in dispatch_runs marks each run),
+ * or when a publisher opens or refreshes the tab, at most every 30 seconds.
+ * Records per conversation only who and when (social_dm_threads), never what
+ * was written. The e-mails are a separate step (social-dm-notify.ts) that the
+ * tick runs every minute, so a last call never waits for the next poll.
  */
 import type { Env } from './auth';
 import { getConnection, markBroken } from './connections';
 import { usableToken } from './social/tokens';
 import { instagramDm, peerOf } from './social/instagram-dm';
 import { startRun, finishRun } from './dispatch-log';
-import { runDmNotifications } from './social-dm-notify';
 import { DM_SCOPE, POLL_EVERY, REFRESH_MIN_GAP, MAX_THREAD_FETCHES } from './social-dm';
 
 export type DmEnv = Pick<Env, 'DB' | 'TOKEN_ENC_KEY' | 'RSG_MAIL_FROM'> & Partial<Env>;
 export interface PollSummary { skipped?: 'paced' | 'not_connected' | 'needs_scope' | 'token'; fetched: number; updated: number; error?: string }
-
-/** The digest and last-call step; tests swap it with setAfterSync. */
-export let afterSync: (env: DmEnv, now: number, origin: string) => Promise<void> = async (env, now, origin) => { await runDmNotifications(env, now, origin); };
-export function setAfterSync(fn: typeof afterSync): void { afterSync = fn; }
 
 export async function dmStatus(env: DmEnv, now: number): Promise<'ok' | 'not_connected' | 'broken' | 'needs_scope'> {
   const row = await getConnection(env.DB, 'instagram');
@@ -86,7 +82,6 @@ export async function pollDms(env: DmEnv, now: number, origin: string, opts: { f
         .bind(known?.id ?? crypto.randomUUID(), conv.id, peer.id, peer.username, inbound, outbound, conv.updatedAt).run();
       summary.updated++;
     }
-    await afterSync(env, now, origin);
     return summary;
   } catch (err) {
     summary.error = String(err).slice(0, 300);

@@ -241,7 +241,13 @@ export async function showDm(item: string | null): Promise<void> {
   renderList();
   if (!started) {
     started = true;
-    void loadThreads().then((ok) => { if (!ok) started = false; });
+    // The server asks Instagram only every six hours: show what it has at
+    // once, then ask Instagram now and show the list again.
+    void loadThreads().then(async (ok) => {
+      if (!ok) { started = false; return; }
+      try { await fetch('/api/admin/social/dm/refresh', { method: 'POST' }); } catch { /* the cached list stays */ }
+      await loadThreads();
+    });
   }
   if (item !== null && item !== currentId) {
     el('dmThreadView').classList.add('hidden');

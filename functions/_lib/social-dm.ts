@@ -6,7 +6,8 @@
  */
 export const WINDOW_SECONDS = 86400;
 export const LAST_CALL_AFTER = 20 * 3600;
-export const POLL_EVERY = 300;
+/** Instagram is asked for new DMs every six hours (and when a publisher opens or refreshes the tab). */
+export const POLL_EVERY = 6 * 3600;
 export const REFRESH_MIN_GAP = 30;
 export const MAX_THREAD_FETCHES = 10;
 export const DIGEST_GAP = 3600;

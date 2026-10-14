@@ -5,6 +5,7 @@ import { stubGraph, type GraphCall } from './lib/instagram';
 import { connectionUpsert } from '../functions/_lib/connections';
 import { runDmNotifications, dmDigestText, dmLastCallText } from '../functions/_lib/social-dm-notify';
 import { pollDms } from '../functions/_lib/social-dm-poll';
+import { POLL_EVERY } from '../functions/_lib/social-dm';
 import { onRequestPost as tick } from '../functions/api/social/dispatch';
 
 const KEY = Buffer.alloc(32, 1).toString('base64');
@@ -54,16 +55,18 @@ test('a first poll records each conversation without its text', async () => {
   assert.match(String(rows[0].id), /^[0-9a-f-]{36}$/);
 });
 
-test('paced: a second poll within five minutes does nothing; force waits 30 seconds', async () => {
+test('paced: a second poll within six hours does nothing; force waits 30 seconds', async () => {
   const { env } = world();
   await connect(env);
   const g = stubGraph(graphWith({ cA: [['555', 'ayse', T0 - 600]] }));
   try {
+    assert.equal(POLL_EVERY, 6 * 3600);
     await pollDms(env, T0, ORIGIN);
-    assert.equal((await pollDms(env, T0 + 120, ORIGIN)).skipped, 'paced');
+    assert.equal((await pollDms(env, T0 + 300, ORIGIN)).skipped, 'paced');
+    assert.equal((await pollDms(env, T0 + 6 * 3600 - 1, ORIGIN)).skipped, 'paced');
     assert.equal((await pollDms(env, T0 + 20, ORIGIN, { force: true })).skipped, 'paced');
     assert.equal((await pollDms(env, T0 + 31, ORIGIN, { force: true })).skipped, undefined);
-    assert.equal((await pollDms(env, T0 + 331, ORIGIN)).skipped, undefined);
+    assert.equal((await pollDms(env, T0 + 31 + 6 * 3600, ORIGIN)).skipped, undefined);
   } finally { g.restore(); }
 });
 
@@ -75,10 +78,10 @@ test('an unchanged conversation is not fetched again; a changed one is', async (
   try {
     await pollDms(env, T0, ORIGIN);
     const before = g.calls.length;
-    await pollDms(env, T0 + 300, ORIGIN);
+    await pollDms(env, T0 + POLL_EVERY, ORIGIN);
     assert.equal(g.calls.length - before, 1, 'list only');
     convs.cA.push([IG, 'rsg_test', T0 + 400]);
-    await pollDms(env, T0 + 600, ORIGIN);
+    await pollDms(env, T0 + 2 * POLL_EVERY, ORIGIN);
   } finally { g.restore(); }
   assert.equal(threads(db)[0].last_outbound_at, T0 + 400, 'answered in the Instagram app is seen');
 });
@@ -93,7 +96,7 @@ test('at most ten conversation fetches per poll; the rest wait', async () => {
     const first = await pollDms(env, T0, ORIGIN);
     assert.equal(first.fetched, 10);
     assert.equal(threads(db).length, 10);
-    await pollDms(env, T0 + 300, ORIGIN);
+    await pollDms(env, T0 + POLL_EVERY, ORIGIN);
   } finally { g.restore(); }
   assert.equal(threads(db).length, 13);
 });
@@ -113,7 +116,7 @@ test('an auth error marks Instagram broken; a transient one does not', async () 
   try { await pollDms(env, T0, ORIGIN); } finally { g.restore(); }
   assert.equal((db.prepare(`SELECT last_error FROM platform_connections WHERE platform='instagram'`).get() as { last_error: string | null }).last_error, null);
   g = stubGraph(() => Response.json({ error: { code: 190, message: 'expired' } }, { status: 400 }));
-  try { await pollDms(env, T0 + 300, ORIGIN); } finally { g.restore(); }
+  try { await pollDms(env, T0 + POLL_EVERY, ORIGIN); } finally { g.restore(); }
   assert.ok((db.prepare(`SELECT last_error FROM platform_connections WHERE platform='instagram'`).get() as { last_error: string | null }).last_error);
 });
 
@@ -259,4 +262,22 @@ test('last call text reads right with and without a username (Turkish never doub
   assert.match(known.text, /@ayse hesabından gelen mesaj/);
   assert.match(unknown.text, /Bir Instagram kullanıcısından gelen mesaj/);
   for (const m of [known, unknown]) { assert.ok(!/kullanıcısı kullanıcısının/.test(m.text)); assert.ok(!m.text.includes('@null')); }
+});
+
+test('the tick sends a due last call every minute, even while the Instagram poll is paced', async () => {
+  const { env, db } = world();
+  await connect(env);
+  const now = Math.floor(Date.now() / 1000);
+  const at = now - 20 * 3600 - 60;
+  db.prepare(`INSERT INTO dispatch_runs (id, started_at, kind) VALUES ('r1', ?, 'social_dm')`).run(now - 60);
+  db.prepare(`INSERT INTO social_dm_threads (id, platform, conversation_id, peer_id, peer_username, last_inbound_at, digested_at, updated_at)
+              VALUES ('t1', 'instagram', 'c1', 'p1', 'ayse', ?, ?, ?)`).run(at, at, at);
+  const g = stubGraph(() => undefined);
+  try {
+    const res = await tick({ request: new Request(`${ORIGIN}/api/social/dispatch`, { method: 'POST', headers: { 'X-Dispatch-Secret': 'tick' } }), env } as never);
+    assert.equal(res.status, 200);
+    assert.equal(g.calls.length, 0, 'no Instagram call: the poll is paced');
+  } finally { g.restore(); }
+  assert.deepEqual(mail.sent.map((m) => m.to).sort(), ['admin@example.org', 'pub@example.org']);
+  assert.equal((db.prepare(`SELECT final_warned_at FROM social_dm_threads WHERE id = 't1'`).get() as { final_warned_at: number }).final_warned_at, at);
 });

@@ -10,8 +10,9 @@ The person on social media duty may not open the panel every day, so new
 messages are noticed by the server on its own, and publishers are told by
 e-mail before a message can no longer be answered.
 
-Success looks like this: a DM arrives on @rsgturkey; within about five minutes
-it is counted in the panel; within the hour a publisher gets one short e-mail;
+Success looks like this: a DM arrives on @rsgturkey; within six hours (at once
+if a publisher opens the tab) it is counted in the panel and a publisher gets
+one short e-mail;
 the e-mail's link opens that conversation (after sign-in if needed); the
 publisher answers from the panel; the reply arrives in the sender's Instagram
 inbox and the conversation is marked answered.
@@ -35,7 +36,7 @@ Not in v1:
   shows as an "Open attachment" link.
 - **Answering after 24 hours.** Meta's HUMAN_AGENT tag (7 days) needs its own
   App Review; not requested.
-- **Webhooks.** Polling every five minutes is enough for a 24-hour window
+- **Webhooks.** Polling every six hours is enough for a 24-hour window
   (§6). Webhooks can replace the poll later without changing the panel.
 - **Storing message text.** See §4.
 
@@ -136,9 +137,13 @@ The existing social tick (`functions/api/social/dispatch.ts`, every minute
 from `workers/mail-cron`) calls `pollDms(env, now)` after `dispatchSocial`.
 Polling needs no Worker change and no new secret.
 
-- **Pacing.** It runs only if five minutes have passed since the last DM
-  poll, recorded as a `dispatch_runs` row with kind `social_dm`. This also
-  lets the health banner notice a stopped poll.
+- **Pacing.** It runs only if six hours have passed since the last DM
+  poll, recorded as a `dispatch_runs` row with kind `social_dm` (amended
+  2026-10-15 at the admin's request; it was five minutes). Opening the DM
+  tab, or Refresh, polls at once (at most every 30 seconds).
+- **Notifications run every tick.** The digest and last call (§7) read only
+  the database, so the tick runs them every minute, apart from the poll. A
+  last call therefore goes out at 20 hours whatever the poll's timing.
 - **Isolation.** The poll has its own try/catch. A DM failure never fails or
   delays publishing.
 - **Steps:**
@@ -150,7 +155,7 @@ Polling needs no Worker change and no new secret.
   3. Answers given in the Instagram app are seen here too, so the
      conversation is marked answered no matter where the reply came from.
 - **Budget.** At most 10 conversation fetches per poll; the rest wait for
-  the next poll. That is at most about 130 Graph calls an hour.
+  the next poll. That is at most 11 Graph calls per poll.
 - **Skip.** If Instagram is not connected or lacks the scope, skip quietly.
 
 ## 7. Notifications
@@ -295,7 +300,7 @@ The mail reply notifications (`threadLink()`) benefit from this as well.
   - the deep link;
   - phone layout.
 - **Manual, signed in, after go-live:**
-  1. Send a DM from a test account and see it in the panel within 5 minutes.
+  1. Send a DM from a test account, open the DM tab and see it there.
   2. See the digest arrive.
   3. Answer from the panel and see it arrive.
   4. Answer from the Instagram app and see "Answered" after the next poll.

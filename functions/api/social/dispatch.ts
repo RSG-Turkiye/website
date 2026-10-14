@@ -3,13 +3,15 @@ import { jsonResponse } from '../../_lib/auth';
 import { safeEqual } from '../../_lib/secret';
 import { startRun, finishRun } from '../../_lib/dispatch-log';
 import { dispatchSocial } from '../../_lib/social-dispatcher';
-import { pollDms } from '../../_lib/social-dm-poll';
+import { pollDms, dmStatus } from '../../_lib/social-dm-poll';
+import { runDmNotifications } from '../../_lib/social-dm-notify';
 
 /**
  * The social tick. workers/mail-cron calls it every minute with the same
  * X-Dispatch-Secret it sends to /api/mail/dispatch. Each run is recorded in
  * dispatch_runs as kind 'social', so the banner notices a stopped scheduler,
- * and then looks for new Instagram DMs (social-dm-poll.ts).
+ * and then looks for new Instagram DMs (social-dm-poll.ts, every six hours)
+ * and sends any DM digest or last call that is due (every tick: database only).
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!safeEqual(request.headers.get('X-Dispatch-Secret'), env.MAIL_SYNC_SECRET)) {
@@ -34,6 +36,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     await pollDms(env, Math.floor(Date.now() / 1000), new URL(request.url).origin);
   } catch (err) {
     console.error('social DM poll failed', err);
+  }
+  try {
+    const at = Math.floor(Date.now() / 1000);
+    if (await dmStatus(env, at) === 'ok') await runDmNotifications(env, at, new URL(request.url).origin);
+  } catch (err) {
+    console.error('social DM notifications failed', err);
   }
   return res;
 };
