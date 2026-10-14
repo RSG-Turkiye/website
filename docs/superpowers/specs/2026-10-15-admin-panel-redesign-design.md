@@ -33,7 +33,7 @@ The panel grew one pane at a time and is now hard to use. It has:
 | Symposium team | Laptop | Symposium, in season |
 | Social media team (coming) | Phone, mostly | Social media only |
 | Membership reviewers (coming) | Laptop | Membership, twice a year |
-| Blog reviewers, mail senders | Laptop | Blog / E-posta only |
+| Mail senders | Laptop | E-posta (from part 2) |
 
 ## Decisions
 
@@ -51,7 +51,11 @@ Rules:
 - **Entries follow roles.**
   - Everyone sees only the sections their roles grant. A group with no
     visible entries is not shown.
-  - Writers see Blog, and senders see E-posta.
+  - Server authorization is unchanged in this part, so Blog (reviewing
+    submissions) and the E-posta management sub-pages stay admin-only.
+    Senders reach E-posta in part 2, when sending and the inbox move into
+    the panel. `is_writer` is the right to submit a post, not to review
+    one; a writers' section is separate future work.
   - A user with a single section lands on it directly, without Overview.
 - **Counts.** Each entry carries a count of waiting work:
   - unread mail;
