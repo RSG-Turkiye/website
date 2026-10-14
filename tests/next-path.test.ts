@@ -35,6 +35,6 @@ test('login stores a valid next and ignores a bad one', async () => {
   const ok = await login({ request: new Request('https://rsg-turkiye.iscbsc.org/auth/login?next=%2Ftr%2Fadmin%23sosyal%2Fdm%2Fx'), env } as never);
   assert.match(ok.headers.get('Set-Cookie') ?? '', /^rsg_next=/);
   const bad = await login({ request: new Request('https://rsg-turkiye.iscbsc.org/auth/login?next=%2F%2Fevil.example'), env } as never);
-  assert.equal(bad.headers.get('Set-Cookie'), null);
+  assert.match(bad.headers.get('Set-Cookie') ?? '', /^rsg_next=;.*Max-Age=0/);
   assert.match(bad.headers.get('Location') ?? '', /^https:\/\/accounts\.google\.com\//);
 });
