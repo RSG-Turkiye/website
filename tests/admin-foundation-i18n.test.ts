@@ -13,7 +13,13 @@ test('every new admin key exists in both languages', () => {
 
 test('every key the new scripts look up exists', () => {
   const used = new Set<string>();
-  for (const f of ['admin-health', 'admin-connections', 'admin-audit', 'admin-panel']) {
+  const files = [
+    'admin-health', 'admin-connections', 'admin-audit',
+    'admin/context', 'admin/main',
+    'admin/sections/users', 'admin/sections/announcements', 'admin/sections/blog',
+    'admin/sections/mail', 'admin/sections/symposium',
+  ];
+  for (const f of files) {
     const src = readFileSync(new URL(`../src/scripts/${f}.ts`, import.meta.url), 'utf8');
     for (const m of src.matchAll(/'((?:admin\.(?:connections|audit|health|badge\.social|action\.(?:make|remove)Social)[\w.]*))'/g)) used.add(m[1]);
   }

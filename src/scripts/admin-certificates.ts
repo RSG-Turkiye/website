@@ -1,5 +1,5 @@
 /**
- * The Certificates section of the symposium pane. Kept out of admin-panel.ts
+ * The Certificates section of the symposium pane. Kept out of admin/sections/symposium.ts
  * (already 1600+ lines); that file hands in its helpers through CertDeps.
  */
 import { decodeCsv, parseCsv, planUpload, type PlannedRow } from '../lib/certificate-csv';

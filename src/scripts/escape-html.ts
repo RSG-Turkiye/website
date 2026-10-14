@@ -11,7 +11,7 @@
  * same-origin request can grant its sender is_admin.
  *
  * It lives here rather than being copied into each page because it had been
- * copied into one page already: admin-panel.ts had this function and used it
+ * copied into one page already: admin-panel.ts (now split into src/scripts/admin/) had this function and used it
  * on the email column while missing the two columns beside it. One copy, one
  * import, and the next page that renders a member cannot quietly do without.
  */

@@ -1,6 +1,6 @@
 /**
  * Entry point for the social pane. setupSocial wires tabs and toolbar once;
- * loadSocial runs the first time the pane is shown (admin-panel.ts pane
+ * loadSocial runs the first time the pane is shown (admin/main.ts pane
  * loaders), and again on every changed() signal.
  */
 import { setDeps, deps, onChange, type SocialDeps } from './context';
