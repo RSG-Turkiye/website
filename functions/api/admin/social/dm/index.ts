@@ -25,10 +25,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!canSocialPublish(user)) return jsonResponse({ error: 'Forbidden' }, 403);
   const now = Math.floor(Date.now() / 1000);
   const [status, ig, li] = await Promise.all([dmStatus(env, now), getConnection(env.DB, 'instagram'), getConnection(env.DB, 'linkedin')]);
-  const rows = (await env.DB.prepare(
-    `SELECT * FROM social_dm_threads WHERE platform = 'instagram'
-     ORDER BY MAX(COALESCE(last_inbound_at, 0), COALESCE(last_outbound_at, 0)) DESC LIMIT 100`,
-  ).all<DmThreadRow>()).results;
+  let rows: DmThreadRow[] = [];
+  try {
+    rows = (await env.DB.prepare(
+      `SELECT * FROM social_dm_threads WHERE platform = 'instagram'
+       ORDER BY MAX(COALESCE(last_inbound_at, 0), COALESCE(last_outbound_at, 0)) DESC LIMIT 100`,
+    ).all<DmThreadRow>()).results;
+  } catch (err) {
+    // The table does not exist until the admin applies the migration.
+    console.error('social dm list: threads unavailable', err);
+  }
   return jsonResponse({
     status, account: ig?.account_name ?? null, linkedin: !!li?.access_token_enc,
     threads: rows.map((r) => threadOut(r, now)),

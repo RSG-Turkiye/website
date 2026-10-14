@@ -155,3 +155,38 @@ test('without the messaging scope, thread and reply refuse and never touch Meta 
   } finally { g.restore(); }
   assert.equal((db.prepare(`SELECT last_error FROM platform_connections WHERE platform='instagram'`).get() as any).last_error, null);
 });
+
+test('R8: a messaging permission error (code 200) is its own answer and never marks the connection broken', async () => {
+  const { env, db } = await world();
+  const g = stubGraph(() => Response.json({ error: { code: 200, message: 'messages not allowed' } }, { status: 403 }));
+  try {
+    const t = await (await call(thread, 'GET', '/api/admin/social/dm/open1', { env, as: 'pub', params: { id: 'open1' } })).json() as any;
+    assert.equal(t.error, 'permission');
+    assert.equal(t.messages, null);
+    const r = await call(reply, 'POST', '/api/admin/social/dm/open1/reply', { env, as: 'pub', params: { id: 'open1' }, body: { text: 'x' } });
+    assert.equal(r.status, 503);
+    assert.equal((await r.json() as any).code, 'permission');
+  } finally { g.restore(); }
+  assert.equal((db.prepare(`SELECT last_error FROM platform_connections WHERE platform='instagram'`).get() as any).last_error, null);
+});
+
+test('a bookkeeping failure after a sent reply still answers ok (no duplicate send)', async () => {
+  const { env, db } = await world();
+  db.exec(`CREATE TRIGGER fail_dm_update BEFORE UPDATE ON social_dm_threads BEGIN SELECT RAISE(ABORT, 'boom'); END`);
+  const g = stubGraph((c) => (c.method === 'POST' && c.path === '/me/messages' ? Response.json({ message_id: 'x' }) : undefined));
+  const errs = console.error; console.error = () => {};
+  let res: Response;
+  try { res = await call(reply, 'POST', '/api/admin/social/dm/open1/reply', { env, as: 'pub', params: { id: 'open1' }, body: { text: 'merhaba' } }); } finally { g.restore(); console.error = errs; }
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true });
+});
+
+test('the list answers with no threads before the migration has been applied', async () => {
+  const { env, db } = await world();
+  db.exec(`DROP TABLE social_dm_threads`);
+  const errs = console.error; console.error = () => {};
+  let res: Response;
+  try { res = await call(list, 'GET', '/api/admin/social/dm', { env, as: 'pub' }); } finally { console.error = errs; }
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json() as any).threads, []);
+});

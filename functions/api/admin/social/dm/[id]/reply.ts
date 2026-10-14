@@ -38,10 +38,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (!sent.ok) {
     if (sent.kind === 'window') return jsonResponse({ error: 'Window closed', code: 'window_closed' }, 409);
     if (sent.kind === 'auth') { await markBroken(env.DB, 'instagram', sent.reason, now); return jsonResponse({ error: 'Connection', code: 'connection' }, 503); }
+    if (sent.kind === 'permission') return jsonResponse({ error: 'Permission', code: 'permission' }, 503);
     if (sent.kind === 'transient') return jsonResponse({ error: 'Unavailable', code: 'unavailable' }, 503);
     return jsonResponse({ error: 'Refused', code: 'refused' }, 422);
   }
-  await env.DB.prepare(`UPDATE social_dm_threads SET last_outbound_at = ?, read_at = ?, read_by = ? WHERE id = ?`).bind(now, now, user.id, id).run();
-  await appendAudit(env.DB, { userId: user.id, action: 'social.dm.reply', targetType: 'social_dm', targetId: id, details: { platform: 'instagram', bytes: new TextEncoder().encode(text).length } }, now);
+  // The DM is already out. A bookkeeping failure must not read as a failed send, or Send gets pressed twice.
+  try {
+    await env.DB.prepare(`UPDATE social_dm_threads SET last_outbound_at = ?, read_at = ?, read_by = ? WHERE id = ?`).bind(now, now, user.id, id).run();
+    await appendAudit(env.DB, { userId: user.id, action: 'social.dm.reply', targetType: 'social_dm', targetId: id, details: { platform: 'instagram', bytes: new TextEncoder().encode(text).length } }, now);
+  } catch (err) {
+    console.error('social dm reply: sent, but bookkeeping failed', id, err);
+  }
   return jsonResponse({ ok: true });
 };

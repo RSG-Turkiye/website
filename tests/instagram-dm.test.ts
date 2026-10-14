@@ -62,7 +62,7 @@ test('error classes: the window refusal is never auth (R3)', () => {
   assert.equal(dmErrorKind(400, { code: 10, error_subcode: 2534022 }), 'window');
   assert.equal(dmErrorKind(400, { code: 10 }), 'refused', 'a bare permission error must not break the connection');
   assert.equal(dmErrorKind(400, { code: 190 }), 'auth');
-  assert.equal(dmErrorKind(403, { code: 200 }), 'auth');
+  assert.equal(dmErrorKind(403, { code: 200 }), 'permission');
   assert.equal(dmErrorKind(500, null), 'transient');
   assert.equal(dmErrorKind(0, null), 'transient');
   assert.equal(dmErrorKind(400, { code: 4 }), 'transient');

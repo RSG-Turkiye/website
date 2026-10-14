@@ -51,6 +51,7 @@ export async function pollDms(env: DmEnv, now: number, origin: string, opts: { f
   try {
     const list = await instagramDm.listConversations(tok.token);
     if (!list.ok) {
+      // 'permission' is a messaging-only refusal; it must never halt publishing (R8).
       if (list.kind === 'auth') await markBroken(env.DB, 'instagram', list.reason, now);
       summary.error = `${list.kind}: ${list.reason}`;
       return summary;
@@ -63,6 +64,7 @@ export async function pollDms(env: DmEnv, now: number, origin: string, opts: { f
       summary.fetched++;
       const th = await instagramDm.thread(tok.token, conv.id, tok.account);
       if (!th.ok) {
+        if (th.kind === 'permission') { summary.error = `permission: ${th.reason}`; break; }
         if (th.kind === 'auth') { await markBroken(env.DB, 'instagram', th.reason, now); summary.error = `auth: ${th.reason}`; break; }
         continue;
       }

@@ -13,7 +13,7 @@ import type { GraphError } from './instagram-errors';
 
 export interface DmConversation { id: string; updatedAt: number }
 export interface DmMessage { id: string; at: number; fromId: string; fromUsername: string | null; text: string; attachments: string[]; mine: boolean; toId?: string; toUsername?: string | null }
-export type DmErrorKind = 'window' | 'auth' | 'transient' | 'refused';
+export type DmErrorKind = 'window' | 'auth' | 'permission' | 'transient' | 'refused';
 export interface DmError { ok: false; kind: DmErrorKind; reason: string }
 export interface DmAccount { id: string; name: string | null }
 
@@ -29,7 +29,9 @@ const TRANSIENT_CODES = new Set([1, 2, 4, 17, 32, 341, 613, -1, -2]);
 export function dmErrorKind(status: number, err: GraphError | null): DmErrorKind {
   const code = err?.code ?? 0;
   if (code === 10 && err?.error_subcode === WINDOW_SUBCODE) return 'window';
-  if (code === 190 || (code >= 200 && code <= 299)) return 'auth';
+  if (code === 190) return 'auth';
+  // Codes 200-299 are a permission refusal; for messages that is a settings toggle, not a dead token (R8).
+  if (code >= 200 && code <= 299) return 'permission';
   if (status === 0 || status >= 500 || TRANSIENT_CODES.has(code)) return 'transient';
   return 'refused';
 }

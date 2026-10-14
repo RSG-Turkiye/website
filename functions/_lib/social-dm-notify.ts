@@ -27,11 +27,14 @@ export function dmDigestText(rows: DmThreadRow[], now: number, origin: string): 
   };
 }
 
+/** Turkish "from" phrase that reads right with and without a username. */
+const fromTr = (r: DmThreadRow) => r.peer_username ? `@${r.peer_username} hesabından gelen mesaj` : 'Bir Instagram kullanıcısından gelen mesaj';
+
 export function dmLastCallText(r: DmThreadRow, now: number, origin: string): { subject: string; text: string } {
   const h = hoursLeft(r, now);
   return {
     subject: `Son ${h} saat: ${who(r, 'tr')} / Last ${h} h: ${who(r, 'en')}`,
-    text: `${who(r, 'tr')} kullanıcısının mesajı ${at(r.last_inbound_at!, 'tr-TR')} tarihinden beri cevap bekliyor. ${h} saat sonra panelden cevap verilemeyecek.\n\n${dmPanelUrl(origin, r.id)}\n\n---\n\nThe message from ${who(r, 'en')} has waited since ${at(r.last_inbound_at!, 'en-GB')}. In ${h} h it can no longer be answered from the panel.\n\n${dmPanelUrl(origin, r.id)}`,
+    text: `${fromTr(r)} ${at(r.last_inbound_at!, 'tr-TR')} tarihinden beri cevap bekliyor. ${h} saat sonra panelden cevap verilemeyecek.\n\n${dmPanelUrl(origin, r.id)}\n\n---\n\nThe message from ${who(r, 'en')} has waited since ${at(r.last_inbound_at!, 'en-GB')}. In ${h} h it can no longer be answered from the panel.\n\n${dmPanelUrl(origin, r.id)}`,
   };
 }
 

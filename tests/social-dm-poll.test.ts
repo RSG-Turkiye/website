@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { setupSocial, stubMail } from './lib/social';
 import { stubGraph, type GraphCall } from './lib/instagram';
 import { connectionUpsert } from '../functions/_lib/connections';
-import { runDmNotifications, dmDigestText } from '../functions/_lib/social-dm-notify';
+import { runDmNotifications, dmDigestText, dmLastCallText } from '../functions/_lib/social-dm-notify';
 import { pollDms } from '../functions/_lib/social-dm-poll';
 import { onRequestPost as tick } from '../functions/api/social/dispatch';
 
@@ -217,4 +217,46 @@ test('R7: when the run log cannot be written, the poll does not call Meta', asyn
     assert.equal(r.error, 'run log unavailable');
     assert.equal(g.calls.length, 0, 'no graph call');
   } finally { g.restore(); }
+});
+
+test('R8: a messaging permission error (code 200) stops the poll but never marks the connection broken', async () => {
+  const { env, db } = world();
+  await connect(env);
+  const g = stubGraph(() => Response.json({ error: { code: 200, message: 'messages not allowed' } }, { status: 403 }));
+  let s;
+  try { s = await pollDms(env, T0, ORIGIN); } finally { g.restore(); }
+  assert.match(s.error ?? '', /^permission: /);
+  assert.equal((db.prepare(`SELECT last_error FROM platform_connections WHERE platform='instagram'`).get() as { last_error: string | null }).last_error, null);
+});
+
+test('R8: a permission error on one thread fetch stops the poll without breaking the connection', async () => {
+  const { env, db } = world();
+  await connect(env);
+  const g = stubGraph((c) => (c.path === '/me/conversations'
+    ? Response.json({ data: [{ id: 'cA', updated_time: iso(T0 - 60) }] })
+    : Response.json({ error: { code: 200, message: 'no' } }, { status: 403 })));
+  let s;
+  try { s = await pollDms(env, T0, ORIGIN); } finally { g.restore(); }
+  assert.match(s.error ?? '', /^permission: /);
+  assert.equal((db.prepare(`SELECT last_error FROM platform_connections WHERE platform='instagram'`).get() as { last_error: string | null }).last_error, null);
+});
+
+test('when Gmail fails, the notification step writes nothing', async () => {
+  const { env, db } = world();
+  seedThread(db, { id: 'a', inbound: T0 - 600 });
+  seedThread(db, { id: 'b', inbound: T0 - 20 * 3600 });
+  mail.fail();
+  await runDmNotifications(env, T0, ORIGIN);
+  const rows = db.prepare(`SELECT digested_at, final_warned_at FROM social_dm_threads`).all() as { digested_at: number | null; final_warned_at: number | null }[];
+  assert.ok(rows.every((r) => r.digested_at === null && r.final_warned_at === null));
+  assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM social_dm_digest_log`).get() as { n: number }).n, 0);
+});
+
+test('last call text reads right with and without a username (Turkish never doubles kullanıcısı)', () => {
+  const base = { platform: 'instagram', conversation_id: 'c', peer_id: 'p', last_inbound_at: T0 - 20 * 3600, last_outbound_at: null, read_at: null, read_by: null, digested_at: null, final_warned_at: null, updated_at: T0 };
+  const known = dmLastCallText({ id: 'i1', peer_username: 'ayse', ...base } as never, T0, ORIGIN);
+  const unknown = dmLastCallText({ id: 'i2', peer_username: null, ...base } as never, T0, ORIGIN);
+  assert.match(known.text, /@ayse hesabından gelen mesaj/);
+  assert.match(unknown.text, /Bir Instagram kullanıcısından gelen mesaj/);
+  for (const m of [known, unknown]) { assert.ok(!/kullanıcısı kullanıcısının/.test(m.text)); assert.ok(!m.text.includes('@null')); }
 });
