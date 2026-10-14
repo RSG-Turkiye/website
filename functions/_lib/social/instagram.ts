@@ -10,6 +10,7 @@ import { stepFromError, classifyGraphError, graphReason, type GraphError } from 
 
 export const IG_GRAPH = 'https://graph.instagram.com/v25.0';
 export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_messages'];
+export const IG_REQUIRED_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish'];
 const PROFESSIONAL = ['BUSINESS', 'MEDIA_CREATOR', 'CREATOR'];
 
 type App = Pick<Env, 'INSTAGRAM_APP_ID' | 'INSTAGRAM_APP_SECRET'>;

@@ -108,6 +108,32 @@ test('callback refuses a personal account and a grant without publishing', async
   }
 });
 
+test('a grant without the messaging scope still connects, with the scopes Meta gave', async () => {
+  const { env } = setup();
+  const state = (await begin(env)).searchParams.get('state')!;
+  const ig = instagram({ permissions: 'instagram_business_basic,instagram_business_content_publish' });
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/instagram/callback?code=abc&state=${state}`, env);
+    const loc = res.headers.get('Location')!;
+    assert.match(loc, /connected=instagram/);
+    assert.doesNotMatch(loc, /connection_error/);
+  } finally { ig.restore(); }
+  const row = await getConnection(env.DB as never, 'instagram');
+  assert.ok(row);
+  assert.equal((row as { scopes?: string }).scopes, 'instagram_business_basic,instagram_business_content_publish');
+});
+
+test('a grant with messaging but without publishing is refused', async () => {
+  const { env } = setup();
+  const state = (await begin(env)).searchParams.get('state')!;
+  const ig = instagram({ permissions: 'instagram_business_basic,instagram_business_manage_messages' });
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/instagram/callback?code=abc&state=${state}`, env);
+    assert.match(res.headers.get('Location')!, /connection_error=missing_scope/);
+  } finally { ig.restore(); }
+  assert.equal(await getConnection(env.DB as never, 'instagram'), null);
+});
+
 test('a cancelled authorisation stores nothing', async () => {
   const { env } = setup();
   const state = (await begin(env)).searchParams.get('state')!;
