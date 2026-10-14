@@ -51,8 +51,15 @@ async function open(user, viewport, path = '/admin') {
 }
 
 const hash = (page) => page.evaluate(() => location.hash);
-// The address changes before the hashchange handler runs; give it a beat.
-const waitHash = async (page, h) => { await page.waitForFunction((x) => location.hash === x, h, { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(150); };
+// The address changes before the hashchange handler runs: wait until the
+// menu marks the section and exactly the addressed sub-page (or none) shows.
+const waitHash = (page, h) => page.waitForFunction((x) => {
+  const [section, sub] = x.slice(1).split('/');
+  if (location.hash !== x) return false;
+  if (document.querySelector('[data-nav][aria-current="page"]')?.dataset.nav !== section) return false;
+  const shown = [...document.querySelectorAll(`[data-section="${section}"] [data-sub]`)].filter((el) => !el.classList.contains('hidden')).map((el) => el.dataset.sub);
+  return sub ? shown.length === 1 && shown[0] === sub : shown.length === 0;
+}, h, { timeout: 5000 }).catch(() => {});
 const visible = (page, sel) => page.locator(sel).first().isVisible();
 const fits = async (page, w) => (await page.evaluate(() => document.documentElement.scrollWidth)) <= w;
 
