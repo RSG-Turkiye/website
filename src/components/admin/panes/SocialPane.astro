@@ -10,11 +10,11 @@ const { lang } = Astro.props;
 const t = useTranslations(lang);
 const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border text-sm text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 ---
-<div data-section="sosyal">
+<div data-section="sosyal" class="lg:h-full fit-col">
   <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.social.heading')}</h2>
   <p class="text-sm text-gray-500 mb-4">{t('admin.social.intro')}</p>
 
-  <section data-social-view="calendar" data-sub="takvim">
+  <section data-social-view="calendar" data-sub="takvim" class="lg:flex-1 fit-col">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
       <div class="flex items-center gap-2">
         <button type="button" id="socialPrev" class={btn} aria-label={t('admin.social.nav.prev')}>‹</button>
@@ -31,16 +31,18 @@ const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border tex
         <button type="button" id="socialNewPost" class="px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg bg-navy text-white text-sm font-medium">{t('admin.social.newPost')}</button>
       </div>
     </div>
-    <div class="flex flex-col xl:flex-row gap-4 items-start">
-      <div id="socialCalendar" class="flex-1 min-w-0 w-full overflow-x-auto"></div>
-      <aside id="socialSide" class="hidden w-full xl:w-80 shrink-0 bg-white rounded-2xl border border-border p-4"></aside>
+    <!-- From lg up this row scrolls as one; from xl, where the panel sits
+         beside the calendar, each column scrolls on its own. -->
+    <div class="flex flex-col xl:flex-row gap-4 items-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain xl:overflow-visible">
+      <div id="socialCalendar" class="flex-1 min-w-0 w-full overflow-x-auto xl:max-h-full xl:overflow-y-auto xl:overscroll-contain"></div>
+      <aside id="socialSide" class="hidden w-full xl:w-80 shrink-0 bg-white rounded-2xl border border-border p-4 xl:max-h-full xl:overflow-y-auto xl:overscroll-contain"></aside>
     </div>
   </section>
 
-  <section data-social-view="pending" data-sub="onay" class="hidden"><div id="socialPendingList"></div></section>
-  <section data-social-view="drafts" data-sub="taslaklar" class="hidden"><div id="socialDraftList"></div></section>
-  <section data-social-view="published" data-sub="yayinlananlar" class="hidden"><div id="socialPublishedList"></div></section>
-  <section data-social-view="events" data-sub="etkinlik" class="hidden">
+  <section data-social-view="pending" data-sub="onay" class="hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"><div id="socialPendingList"></div></section>
+  <section data-social-view="drafts" data-sub="taslaklar" class="hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"><div id="socialDraftList"></div></section>
+  <section data-social-view="published" data-sub="yayinlananlar" class="hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"><div id="socialPublishedList"></div></section>
+  <section data-social-view="events" data-sub="etkinlik" class="hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
     <p class="text-sm text-gray-500 mb-3">{t('admin.social.events.intro')}</p>
     <div id="socialEventList" class="mb-6"></div>
     <form id="socialEventForm" data-publisher-only class="bg-white rounded-2xl border border-border p-4"></form>

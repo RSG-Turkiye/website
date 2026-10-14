@@ -3,7 +3,7 @@ import { drivePhotoUrl } from '../../../../functions/_lib/photo-url';
 import { escapeHtml } from '../../escape-html';
 import { setupCertificates, loadCertificates } from '../../admin-certificates';
 import { lang, t, tf, showToast, formatDate } from '../context';
-import { row, chip, BTN, armConfirm, guardUnsaved, showInlineFlex } from '../ui-kit';
+import { row, chip, BTN, armConfirm, guardUnsaved, showInlineFlex, revealInPanel } from '../ui-kit';
 
 // The edition being edited (the highest year not yet archived, per
 // edition.ts) and the current speaker list, cached so the sessions form's
@@ -235,6 +235,7 @@ function renderSpeakers(items: SpeakerItem[]): void {
       (document.getElementById('symSpeakerLinkedin') as HTMLInputElement).value = item.linkedin;
       speakerPhoto?.show(item.photo);
       showInlineFlex(document.getElementById('symSpeakerCancelBtn')!, true);
+      revealInPanel(document.getElementById('symSpeakerForm')!.parentElement!, 'start');
     });
   });
 
@@ -368,6 +369,7 @@ function renderSessions(items: SessionItem[]): void {
       const select = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
       Array.from(select.options).forEach((o) => { o.selected = item.speakerSlugs.includes(o.value); });
       showInlineFlex(document.getElementById('symSessionCancelBtn')!, true);
+      revealInPanel(document.getElementById('symSessionForm')!.parentElement!, 'start');
     });
   });
 
@@ -539,6 +541,7 @@ function renderCommittee(items: CommitteeItem[]): void {
         trTeams.some(Boolean) ? trTeams.join(', ') : '';
       committeePhoto?.show(item.photo);
       showInlineFlex(document.getElementById('symCommitteeCancelBtn')!, true);
+      revealInPanel(document.getElementById('symCommitteeForm')!.parentElement!, 'start');
     });
   });
 

@@ -143,6 +143,8 @@ async function openThread(id: string): Promise<void> {
 }
 
 function renderThread(thread: any, messages: Message[], changed: boolean): void {
+  // From lg up the thread card is its own scroll box: a new thread starts at its top.
+  if (changed) el('mailThreadCard').scrollTop = 0;
   el('mailThreadEmpty').classList.add('hidden');
   el('mailThreadView').classList.remove('hidden');
   el('mailThreadSubject').textContent = thread.subject ?? '';

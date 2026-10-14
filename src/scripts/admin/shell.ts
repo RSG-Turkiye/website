@@ -68,9 +68,13 @@ function go(): void {
   backPops = !!(route.sub && previous && previous.section === route.section && (route.item
     ? previous.sub === route.sub && previous.item === null
     : previous.sub === null));
+  const moved = !previous || previous.section !== route.section || previous.sub !== route.sub;
   previous = route;
   shownHash = wanted;
   show(route);
+  // From lg up one box scrolls every section: a new page starts at its top,
+  // not where the last one was left. (Not a scroll box on a phone: a no-op.)
+  if (moved) document.getElementById('sectionBody')?.scrollTo(0, 0);
 }
 
 function show(route: Route): void {

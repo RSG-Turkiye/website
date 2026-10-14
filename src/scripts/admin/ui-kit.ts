@@ -6,6 +6,15 @@ import { escapeHtml } from '../escape-html';
 import { useTranslations } from '../../i18n/ui';
 import { registerNavigationGuard } from './nav-guard';
 
+/**
+ * From lg up the panel fills the window and scrolls inside its own boxes
+ * (AdminShell), so revealing something means scrolling that box. Phones keep
+ * the page scroll and are left exactly as they were.
+ */
+export function revealInPanel(el: Element, block: ScrollLogicalPosition = 'nearest'): void {
+  if (typeof matchMedia === 'function' && matchMedia('(min-width: 1024px)').matches) el.scrollIntoView({ block });
+}
+
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 const BASE = `inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
 
@@ -131,6 +140,7 @@ export function guardUnsaved(form: HTMLFormElement, sectionHash: string, onDisca
     if (!dirty || !from.startsWith(sectionHash) || (opts.exact ? to === from : to.startsWith(sectionHash))) return true;
     pending = to;
     notice.classList.remove('hidden');
+    revealInPanel(notice);
     return false;
   });
   notice.querySelector('[data-keep]')!.addEventListener('click', () => { pending = null; notice.classList.add('hidden'); });

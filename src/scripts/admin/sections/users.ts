@@ -151,6 +151,8 @@ function select(id: string): void {
     el.classList.toggle('border-border', !on);
   });
   renderDetail(u);
+  // From lg up the detail is its own scroll box: start each person at the top.
+  document.getElementById('userDetail')!.scrollTop = 0;
   openDetail();
 }
 
