@@ -96,8 +96,8 @@ export async function loadAdminAttachments() {
   list.innerHTML = data.attachments.map((a: any) => row({
     title: a.filename,
     subtitle: `${Math.round(a.size_bytes / 1024)} KB · ${formatDate(a.uploaded_at)}`,
-    chips: a.is_active ? '' : chip(t('admin.mail.attachments.reactivate'), 'neutral'),
-    attrs: a.is_active ? '' : 'data-inactive="1"',
+    chips: a.is_active ? '' : chip(t('admin.mail.attachments.inactive'), 'neutral'),
+    attrs: a.is_active ? '' : 'data-inactive="1" style="opacity:.6"',
     trailing: `<button type="button" data-id="${escapeHtml(a.id)}" data-active="${a.is_active ? '1' : '0'}" class="toggle-attachment-btn ${a.is_active ? BTN.danger : BTN.secondary}">${escapeHtml(a.is_active ? t('admin.mail.attachments.deactivate') : t('admin.mail.attachments.reactivate'))}</button>`,
   })).join('');
 

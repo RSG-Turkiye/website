@@ -6,6 +6,9 @@
 import { SECTIONS, visibleSections, subsFor, type RoleFlags, type SectionId } from './sections';
 import { parseHash, toHash, resolveRoute, type Route } from './router';
 import { t } from './context';
+import { navigationAllowed } from './nav-guard';
+
+export { registerNavigationGuard } from './nav-guard';
 
 type Hooks = { onShow?: Partial<Record<SectionId, () => Promise<void>>>; onSub?: Partial<Record<SectionId, (sub: string) => void>> };
 const PHONE = window.matchMedia('(max-width: 1023px)');
@@ -18,6 +21,8 @@ const loaded = new Set<SectionId>();
 // list again, so the browser's back button then leaves the section.
 let previous: Route | null = null;
 let backPops = false;
+// The hash of the route last shown; a vetoed move restores it.
+let shownHash = '';
 
 export function startShell(r: RoleFlags, h: Hooks): void {
   roles = r;
@@ -49,12 +54,17 @@ function pruneNav(nav: HTMLElement, visible: Set<SectionId>): void {
 }
 
 function go(): void {
+  if (shownHash && !navigationAllowed(shownHash, location.hash)) {
+    history.replaceState(null, '', `${location.pathname}${location.search}${shownHash}`);
+    return;
+  }
   const route = resolveRoute(parseHash(location.hash), roles, PHONE.matches, oauthReturn);
   oauthReturn = false;
   const wanted = toHash(route);
   if (location.hash !== wanted) history.replaceState(null, '', `${location.pathname}${location.search}${wanted}`);
   backPops = !!(route.sub && previous && previous.section === route.section && previous.sub === null);
   previous = route;
+  shownHash = wanted;
   show(route);
 }
 

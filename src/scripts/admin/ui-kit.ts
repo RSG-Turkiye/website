@@ -3,6 +3,7 @@
  * scrolls sideways on a phone; every control is at least 44 px tall there.
  */
 import { escapeHtml } from '../escape-html';
+import { registerNavigationGuard } from './nav-guard';
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 const BASE = `inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
@@ -93,9 +94,8 @@ export function toast(message: string, isError = false): void {
  * browser's own prompt) and on moving to another section (an inline notice
  * with Keep editing / Discard, never window.confirm).
  */
-export function guardUnsaved(form: HTMLFormElement, sectionHash: string): { reset(): void } {
+export function guardUnsaved(form: HTMLFormElement, sectionHash: string, onDiscard?: () => void): { reset(): void } {
   let dirty = false;
-  let current = location.hash;
   const notice = document.createElement('div');
   notice.className = 'hidden mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800';
   notice.innerHTML = `<span class="flex-1 min-w-0" data-msg></span><button type="button" data-keep class="${BTN.secondary}"></button><button type="button" data-discard class="${BTN.danger}"></button>`;
@@ -110,16 +110,14 @@ export function guardUnsaved(form: HTMLFormElement, sectionHash: string): { rese
   let pending: string | null = null;
   form.addEventListener('input', () => { dirty = true; });
   window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
-  window.addEventListener('hashchange', () => {
-    const leaving = current.startsWith(sectionHash) && !location.hash.startsWith(sectionHash);
-    if (dirty && leaving && pending === null) {
-      pending = location.hash;
-      history.replaceState(null, '', current);
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-      notice.classList.remove('hidden');
-      return;
-    }
-    current = location.hash;
+  // The shell asks before it shows the next route, so a refused move shows
+  // nothing and records no view. While the notice is up every move out is
+  // refused too, and the latest one is the one Discard follows.
+  registerNavigationGuard((from, to) => {
+    if (!dirty || !from.startsWith(sectionHash) || to.startsWith(sectionHash)) return true;
+    pending = to;
+    notice.classList.remove('hidden');
+    return false;
   });
   notice.querySelector('[data-keep]')!.addEventListener('click', () => { pending = null; notice.classList.add('hidden'); });
   notice.querySelector('[data-discard]')!.addEventListener('click', () => {
@@ -127,6 +125,7 @@ export function guardUnsaved(form: HTMLFormElement, sectionHash: string): { rese
     notice.classList.add('hidden');
     const to = pending;
     pending = null;
+    onDiscard?.();
     if (to) location.hash = to;
   });
   return { reset() { dirty = false; notice.classList.add('hidden'); } };

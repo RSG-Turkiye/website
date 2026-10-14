@@ -167,7 +167,7 @@ console.log('5) lists redrawn, 390 px');
     connections: [{ platform: 'gmail', status: 'connected', accountName: 'mail@example.org', connectedBy: 'admin@example.org', connectedAt: 1760000000, lastOkAt: 1760000000, lastError: null, usesLegacySecret: false, hasStoredToken: true }],
     rows: [{ seq: 1, at: 1760000000, user_email: 'a@example.org', action: 'users.update', target_type: 'user', target_id: 'u1', details: JSON.stringify({ note: long }) }],
   };
-  const { page, deletes } = await open(ADMIN, { width: 390, height: 844 }, '/admin', FULL);
+  const { page, deletes, views } = await open(ADMIN, { width: 390, height: 844 }, '/admin', FULL);
   for (const h of ['#duyurular', '#blog', '#eposta/yetki', '#eposta/gondericiler', '#eposta/ekler', '#eposta/gonderilenler', '#baglantilar', '#kayit']) {
     await page.evaluate((x) => { location.hash = x; }, h);
     await waitHash(page, h);
@@ -184,14 +184,36 @@ console.log('5) lists redrawn, 390 px');
   await page.waitForFunction(() => true);
   await page.waitForTimeout(300);
   ok(deletes.some((d) => d === 'DELETE /api/admin/announcements/a1'), 'second click deletes');
+  const go = async (h) => { await page.evaluate((x) => { location.hash = x; }, h); await page.waitForTimeout(300); };
+  const noticeUp = () => page.locator('#announcementForm').evaluate((f) => !f.previousElementSibling.classList.contains('hidden'));
   await page.fill('#annTitle', 'unsaved');
-  await page.evaluate(() => { location.hash = '#blog'; });
-  await page.waitForTimeout(300);
+  const before = views.length;
+  await go('#blog');
   ok(await hash(page) === '#duyurular', 'leaving a dirty form stays on the section');
-  ok(await page.locator('#announcementForm').evaluate((f) => !f.previousElementSibling.classList.contains('hidden')), 'the unsaved-changes notice shows');
+  ok(await noticeUp(), 'the unsaved-changes notice shows');
+  ok(!(await visible(page, '[data-section="blog"]')), 'the target section was never shown');
+  ok(views.length === before, 'a vetoed navigation posts no audit view');
+  await go('#kayit');
+  ok(await hash(page) === '#duyurular' && views.length === before, 'a second navigation while the notice is up is still blocked');
+  await page.click('[data-keep]');
+  ok(!(await noticeUp()) && await page.inputValue('#annTitle') === 'unsaved', 'Keep editing hides the notice and keeps the data');
+  await go('#blog');
+  await go('#kayit');
   await page.click('[data-discard]');
-  await waitHash(page, '#blog');
-  ok(await hash(page) === '#blog', 'Discard changes goes on to the other section');
+  await waitHash(page, '#kayit');
+  ok(await hash(page) === '#kayit', 'Discard follows the latest wanted section');
+  ok(views.length === before + 1 && views[views.length - 1] === 'kayit', 'only the section actually shown is audited');
+  await go('#duyurular');
+  ok(await page.inputValue('#annTitle') === '' && await page.inputValue('#announcementEditId') === '', 'Discard cleared the form');
+  await page.fill('#annTitle', 'T');
+  await page.fill('#annDescription', 'D');
+  await page.fill('#annButtonText', 'B');
+  await page.fill('#annButtonUrl', 'https://example.org');
+  await page.fill('#annExpiresAt', '2030-01-01');
+  await page.click('#announcementForm button[type="submit"]');
+  await page.waitForTimeout(400);
+  await go('#blog');
+  ok(await hash(page) === '#blog', 'after a successful save, leaving is free');
   await page.close();
 }
 

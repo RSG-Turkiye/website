@@ -109,14 +109,21 @@ export async function loadBlogSubmissions() {
     });
   });
 
-  // Rejecting needs a reason, typed in the card, then two clicks.
+  // Rejecting needs a reason, typed in the card, then two clicks. The reason
+  // is checked on the first click so nobody confirms what the server refuses.
   list.querySelectorAll<HTMLButtonElement>('.blog-reject-btn').forEach(btn => {
+    const reasonOf = () => (btn.closest('[data-id]')!.querySelector('.blog-reject-reason') as HTMLInputElement);
+    btn.addEventListener('click', (e) => {
+      if (reasonOf().value.trim()) return;
+      e.stopImmediatePropagation();
+      reasonOf().focus();
+      showToast(t('admin.blog.rejectReasonPrompt'), true);
+    }, true);
     armConfirm(btn, t('admin.users.detail.confirm'), async () => {
       const card = btn.closest('[data-id]') as HTMLElement;
       const id = card.dataset.id!;
-      const reasonInput = card.querySelector('.blog-reject-reason') as HTMLInputElement;
-      const reason = reasonInput.value.trim();
-      if (!reason) { reasonInput.focus(); showToast(t('admin.blog.rejectReasonPrompt'), true); return; }
+      const reason = reasonOf().value.trim();
+      if (!reason) return;
       const res = await fetch(`/api/admin/blog-submissions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

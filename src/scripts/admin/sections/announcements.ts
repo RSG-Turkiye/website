@@ -72,7 +72,8 @@ export function setupAnnouncementForm() {
 
   const form = document.getElementById('announcementForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('cancelEditBtn')!;
-  const guard = guardUnsaved(form, '#duyurular');
+
+  const guard = guardUnsaved(form, '#duyurular', () => resetForm());
 
   function resetForm() {
     form.reset();
