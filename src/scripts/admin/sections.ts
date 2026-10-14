@@ -8,7 +8,8 @@ export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
 export type SectionId = 'genel' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
 export type CountKey = 'email' | 'social' | 'blog' | 'membership';
 
-export interface SubPage { id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean }
+/** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it). */
+export interface SubPage { id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean; count?: CountKey }
 export interface Section {
   id: SectionId;
   group: GroupId | null;
@@ -32,7 +33,7 @@ export const SECTIONS: Section[] = [
   {
     id: 'eposta', group: 'iletisim', label: 'admin.nav.email', count: 'email', visible: (r) => r.admin || r.sender,
     subs: [
-      { id: 'gelen', label: 'admin.mail.nav.inbox' },
+      { id: 'gelen', label: 'admin.mail.nav.inbox', count: 'email' },
       { id: 'yaz', label: 'admin.mail.nav.compose', senderOnly: true },
       { id: 'gonderilenler', label: 'admin.mail.nav.sent' },
       { id: 'yetki', label: 'admin.mail.bulkGrant.heading', adminOnly: true },
@@ -87,6 +88,15 @@ export function subsFor(s: Section, r: RoleFlags): SubPage[] {
 
 export function landing(r: RoleFlags): SectionId | null {
   return visibleSections(r)[0]?.id ?? null;
+}
+
+export type SentScope = 'mine' | 'all';
+/**
+ * Where the Sent list starts. Whoever can send starts on their own mail; an
+ * admin who cannot send has none, so starts on everyone's.
+ */
+export function defaultSentScope(admin: boolean, sender: boolean): SentScope {
+  return admin && !sender ? 'all' : 'mine';
 }
 
 const yes = (v: unknown) => v === true || v === 1;

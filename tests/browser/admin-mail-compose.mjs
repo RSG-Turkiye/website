@@ -100,9 +100,21 @@ for (const lang of ['en', 'tr']) {
       await page.close();
     }
 
-    // Send.
+    // Send. Sent is opened first, so its list is loaded and must reload after.
     {
       const { page, calls } = await open(lang, viewport);
+      const histories = () => calls.filter((c) => c.method === 'GET' && c.path === '/api/mail/history').length;
+      await page.evaluate(() => { location.hash = '#eposta/gonderilenler'; });
+      await page.waitForFunction(() => document.getElementById('sentList').children.length > 0);
+      ok(histories() === 1, 'Sent loads its list once');
+      await page.evaluate(() => { location.hash = '#eposta/yaz'; });
+      await page.waitForFunction(() => location.hash === '#eposta/yaz');
+      await page.evaluate(() => { location.hash = '#eposta/gonderilenler'; });
+      await page.waitForFunction(() => location.hash === '#eposta/gonderilenler');
+      await page.waitForTimeout(150);
+      ok(histories() === 1, 'showing Sent again without a send does not reload it');
+      await page.evaluate(() => { location.hash = '#eposta/yaz'; });
+      await page.waitForFunction(() => location.hash === '#eposta/yaz');
       await fill(page);
       await page.check('.mail-compose-attachment');
       await page.click('#mailComposeSend');
@@ -114,6 +126,23 @@ for (const lang of ['en', 'tr']) {
       ok((await toastText(page)).includes(s.sentTo), 'success toast');
       ok(await page.inputValue('#mailComposeBody') === '', 'the form clears');
       ok(calls.filter((c) => c.method === 'GET' && c.path === '/api/mail/scheduled').length >= 2, 'the queue reloads');
+      await page.evaluate(() => { location.hash = '#eposta/gonderilenler'; });
+      await page.waitForFunction(() => location.hash === '#eposta/gonderilenler');
+      for (let i = 0; i < 20 && histories() < 2; i++) await page.waitForTimeout(100);
+      ok(histories() === 2, `after a send, Sent asks for the history again (${histories()} requests)`);
+      await page.close();
+    }
+
+    // A refusal without a code is an error, and the draft stays.
+    {
+      const { page } = await open(lang, viewport, (method, path) => method === 'POST' && path === '/api/mail/send' ? { status: 500, json: { error: 'boom' } } : null);
+      await fill(page);
+      await page.click('#mailComposeSend');
+      await page.waitForFunction(() => document.getElementById('toastStack').textContent.length > 0);
+      const generic = lang === 'en' ? 'Something went wrong. Please try again.' : 'Bir hata oluştu. Lütfen tekrar deneyin.';
+      ok((await toastText(page)).includes(generic), 'a coded-less 500 shows the generic error');
+      ok(!(await toastText(page)).includes(s.sentTo), 'and no success toast');
+      ok(await page.inputValue('#mailComposeBody') === 'Body text', 'the draft is kept');
       await page.close();
     }
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SECTIONS, GROUPS, visibleSections, subsFor, landing, rolesFromMe, type RoleFlags } from '../src/scripts/admin/sections';
+import { SECTIONS, GROUPS, visibleSections, subsFor, landing, rolesFromMe, defaultSentScope, type RoleFlags } from '../src/scripts/admin/sections';
 import { ui } from '../src/i18n/ui';
 
 const none: RoleFlags = { admin: false, announcer: false, symposium: false, social: false, socialPublisher: false, sender: false };
@@ -72,4 +72,16 @@ test('every label exists in both languages and ids are safe for the audit log', 
     assert.ok(k in ui.tr, `tr ${k}`);
   }
   for (const s of SECTIONS) assert.match(s.id, /^[a-z][a-z-]{0,39}$/);
+});
+
+test('Sent starts on Mine for anyone who can send, on Everyone for an admin who cannot', () => {
+  assert.equal(defaultSentScope(false, true), 'mine', 'sender');
+  assert.equal(defaultSentScope(true, true), 'mine', 'admin and sender');
+  assert.equal(defaultSentScope(true, false), 'all', 'admin, not a sender');
+});
+
+test('the Inbox sub-page carries the email count, so a sender-only panel shows it', () => {
+  const eposta = SECTIONS.find((s) => s.id === 'eposta')!;
+  const gelen = subsFor(eposta, { ...none, sender: true }).find((s) => s.id === 'gelen');
+  assert.equal(gelen?.count, 'email');
 });

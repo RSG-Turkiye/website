@@ -94,8 +94,8 @@ async function openRow(page, id) {
 }
 
 const T = {
-  en: { unread: 'Unread', sent: 'Reply sent.', unsaved: 'You have unsaved changes.', blocked: 'Only the member who started the conversation can reply.', back: 'Back to inbox', attach: '2 attachment(s): open the RSG mailbox in Gmail to download.' },
-  tr: { unread: 'Okunmadı', sent: 'Cevap gönderildi.', unsaved: 'Kaydedilmemiş değişiklikler var.', blocked: 'Yalnızca yazışmayı başlatan üye cevap yazabilir.', back: 'Gelen kutusuna dön', attach: '2 ek var: indirmek için RSG posta kutusunu Gmail\'den açın.' },
+  en: { notSender: 'Replying needs the sender role', unread: 'Unread', sent: 'Reply sent.', unsaved: 'You have unsaved changes.', blocked: 'Only the member who started the conversation can reply.', back: 'Back to inbox', attach: '2 attachment(s): open the RSG mailbox in Gmail to download.' },
+  tr: { notSender: 'Cevap yazmak için gönderici yetkisi gerekir', unread: 'Okunmadı', sent: 'Cevap gönderildi.', unsaved: 'Kaydedilmemiş değişiklikler var.', blocked: 'Yalnızca yazışmayı başlatan üye cevap yazabilir.', back: 'Gelen kutusuna dön', attach: '2 ek var: indirmek için RSG posta kutusunu Gmail\'den açın.' },
 };
 
 for (const lang of ['en', 'tr']) {
@@ -142,9 +142,13 @@ for (const lang of ['en', 'tr']) {
         const small = await page.evaluate(() => [...document.querySelectorAll('#mailThreadCard a, #mailThreadCard button, #mailThreadCard textarea')]
           .filter((e) => e.offsetParent && e.getBoundingClientRect().height < 44).length);
         ok(small === 0, `thread: every control is at least 44 px tall (${small} short)`);
+        ok(await page.locator('#phoneBack').isHidden(), 'phone: the bar\'s ‹ hides on a thread, one back control');
+        const before = await page.evaluate(() => history.length);
         await page.click('#mailInboxBack');
         await page.waitForFunction(() => location.hash === '#eposta/gelen');
         ok(await hash(page) === '#eposta/gelen', '‹ returns to #eposta/gelen');
+        ok(await page.evaluate(() => history.length) === before, '‹ steps back rather than pushing the list again');
+        ok(await page.locator('#phoneBack').isVisible(), 'phone: the bar\'s ‹ is back on the list');
         await page.waitForSelector('#mailInboxListCard', { state: 'visible', timeout: 3000 }).catch(() => {});
         ok(await page.locator('#mailInboxListCard').isVisible(), '‹ shows the list again');
         ok(await page.locator('#mailThreadCard').isHidden(), '‹ hides the thread');
@@ -202,8 +206,10 @@ for (const lang of ['en', 'tr']) {
       // Navigating away after a sent reply needs no confirmation.
       if (phone) await page.click('#mailInboxBack');
       else await page.click('#mailInboxList [data-thread="9"]');
-      await page.waitForFunction(() => location.hash !== '#eposta/gelen/8');
-      ok(true, 'leaving after a sent reply is not held up');
+      const left = phone ? '#eposta/gelen' : '#eposta/gelen/9';
+      await page.waitForFunction((h) => location.hash === h, left).catch(() => {});
+      ok(await hash(page) === left, `leaving after a sent reply is not held up (got ${await hash(page)})`);
+      ok(await page.locator('#mailReplyWrap [data-discard]').isHidden(), 'no unsaved notice after a sent reply');
       await page.close();
     }
 
@@ -264,6 +270,40 @@ for (const lang of ['en', 'tr']) {
       ok(await page.locator('#mailReplyBlocked').isVisible(), 'the blocked note is visible');
       ok(calls.filter((c) => c.path === '/api/admin/counts').length === before, 'reading someone else\'s unread thread leaves the counts');
       if (!phone) ok((await page.textContent('[data-thread="c4"]')).includes(s.unread), 'and their row stays unread');
+      await page.close();
+    }
+
+    // An admin who is not (or no longer) a sender, on their own old thread:
+    // the server would refuse the reply, so the form hides and says why.
+    {
+      const own = (method, path) => method === 'GET' && path === '/api/mail/conversations/8'
+        ? { json: { ...threadFor('8', ADMIN), thread: { ...threadFor('8', ADMIN).thread, can_reply: true } } }
+        : null;
+      const { page } = await open(lang, viewport, { user: ADMIN, reply: own });
+      await openRow(page, '8');
+      ok(await page.locator('#mailReplyForm').isHidden(), 'no reply form for an owner without the sender role');
+      ok((await page.textContent('#mailReplyBlocked')).includes(s.notSender), 'the note says replying needs the sender role');
+      await page.close();
+    }
+
+    // Refresh after a failed open retries the thread the address names.
+    {
+      let fail = true;
+      const flaky = (method, path) => fail && method === 'GET' && path === '/api/mail/conversations/9' ? { status: 500, json: {} } : null;
+      const { page, calls } = await open(lang, viewport, { reply: flaky });
+      if (!phone) {
+        await openRow(page, '8');
+        await page.click('#mailInboxList [data-thread="9"]');
+      } else {
+        await page.evaluate(() => { location.hash = '#eposta/gelen/9'; });
+      }
+      await page.waitForFunction(() => location.hash === '#eposta/gelen/9');
+      await page.waitForFunction(() => document.getElementById('toastStack').textContent.length > 0);
+      fail = false;
+      await page.click('#mailInboxRefresh');
+      await page.waitForFunction(() => document.getElementById('mailThreadSubject').textContent === 'Workshop dates', null, { timeout: 5000 }).catch(() => {});
+      ok(threadGets(calls, '9') >= 2, `Refresh asks for thread 9 again (${threadGets(calls, '9')} requests)`);
+      ok((await page.textContent('#mailThreadSubject')) === 'Workshop dates', 'and thread 9 shows');
       await page.close();
     }
   }

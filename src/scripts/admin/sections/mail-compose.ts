@@ -8,6 +8,7 @@ import { escapeHtml } from '../../escape-html';
 import { epochToIstanbulInput, istanbulInputToEpoch, formatIstanbul } from '../../../lib/istanbul-time';
 import { t, tf, dateLocale } from '../context';
 import { BTN, row, emptyState, armConfirm, guardUnsaved, toast } from '../ui-kit';
+import { markSentStale } from './mail-sent';
 
 let isAdmin = false;
 let editingId: string | null = null;
@@ -101,21 +102,35 @@ async function submit(btn: HTMLButtonElement) {
     return;
   }
 
+  // A refusal with no code is still a refusal: say so and keep the draft.
+  // The one coded-less refusal that is expected, every recipient failing
+  // (502), carries `results` and is reported below as a partial send.
+  if (!res.ok && !Array.isArray(data.results)) {
+    toast(t('admin.mail.compose.genericError'), true);
+    return;
+  }
+
   const done = async (message: string) => {
     guard?.reset();
     resetForm();
     toast(message);
     await loadQueued();
   };
-  if (editingId) return done(t('admin.mail.compose.updated'));
+  // Whatever went out is now in the history: Sent reloads when next shown.
+  markSentStale();
+  if (res.ok && editingId) return done(t('admin.mail.compose.updated'));
   // `queued` is the server's answer when a send is too large to go out
   // inline: it is due now and the next queue run sends it.
-  if (data.scheduled || data.queued) return done(t('admin.mail.compose.queued'));
+  if (res.ok && (data.scheduled || data.queued)) return done(t('admin.mail.compose.queued'));
 
   const results: any[] = data.results ?? [];
   const failed = results.filter((r) => r.status === 'failed');
   const sent = results.length - failed.length;
-  if (failed.length === 0) return done(tf('admin.mail.compose.sentTo', { count: sent }));
+  if (res.ok && failed.length === 0) return done(tf('admin.mail.compose.sentTo', { count: sent }));
+  if (failed.length === 0) {
+    toast(t('admin.mail.compose.genericError'), true);
+    return;
+  }
   toast(tf('admin.mail.compose.sentPartial', { count: sent, list: failed.map((r) => r.recipient).join(', ') }), true);
 }
 

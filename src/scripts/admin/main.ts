@@ -17,7 +17,7 @@ import { loadUsers, setupUsersFilters, setCurrentUserId, loadRolesView } from '.
 import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } from './sections/announcements';
 import { loadBlogSubmissions } from './sections/blog';
 import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload } from './sections/mail';
-import { loadSent, setSentAdmin } from './sections/mail-sent';
+import { showSent, setSentAdmin } from './sections/mail-sent';
 import { setupCompose, loadQueued } from './sections/mail-compose';
 import { setupInbox, showInbox } from './sections/mail-inbox';
 import { setupSymposium, loadSymposium } from './sections/symposium';
@@ -45,7 +45,13 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
 
   document.getElementById('loadingState')!.classList.add('hidden');
 
-  if (!data.user || landing(rolesFromMe(data.user)) === null) {
+  // Signed out (a reply notification opened on a phone with no session,
+  // say): ask to sign in. Signed in without a panel role: no access.
+  if (!data.user) {
+    document.getElementById('notSignedIn')!.classList.remove('hidden');
+    return;
+  }
+  if (landing(rolesFromMe(data.user)) === null) {
     document.getElementById('notAuth')!.classList.remove('hidden');
     return;
   }
@@ -88,9 +94,9 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
     sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),
   };
-  // Senders and admins both list their sent mail, the first time that sub-page shows.
-  let sentLoaded = false;
-  setSentAdmin(isFullAdmin);
+  // Senders and admins both list sent mail: the first time that sub-page
+  // shows, and again after a send or a failed load.
+  setSentAdmin(isFullAdmin, isSender);
   // Compose is a sender's tool; its queue loads the first time it shows.
   let queuedLoaded = false;
   if (isSender) setupCompose({ isAdmin: isFullAdmin, email: data.user.email ?? null });
@@ -108,9 +114,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
         loadQueued().catch(() => { queuedLoaded = false; });
         return;
       }
-      if (sub !== 'gonderilenler' || sentLoaded || !(isFullAdmin || isSender)) return;
-      sentLoaded = true;
-      loadSent().catch(() => { sentLoaded = false; });
+      if (sub === 'gonderilenler' && (isFullAdmin || isSender)) showSent();
     },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
   };

@@ -10,7 +10,7 @@ import { escapeHtml } from '../../escape-html';
 import { formatIstanbul } from '../../../lib/istanbul-time';
 import { t, tf, dateLocale } from '../context';
 import { chip, guardUnsaved, toast } from '../ui-kit';
-import { refreshCounts } from '../shell';
+import { refreshCounts, goBack } from '../shell';
 
 interface ThreadSummary {
   id: string;
@@ -39,6 +39,7 @@ const INBOX = '#eposta/gelen';
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as unknown as T;
 
 let isAdmin = false;
+let isSender = false;
 let threads: ThreadSummary[] | null = null;
 // The thread on screen, and the one the address asks for (they differ while it loads).
 let currentId: string | null = null;
@@ -168,10 +169,13 @@ function renderThread(thread: any, messages: Message[], changed: boolean): void 
   }).join('');
 
   // The server refuses a reply from anyone but the member who started the
-  // thread, so the form shows only to them.
-  const canReply = thread.can_reply === true;
+  // thread, and from them too once they are no longer a sender, so the form
+  // shows only to an owner who can send.
+  const owner = thread.can_reply === true;
+  const canReply = owner && isSender;
   el('mailReplyWrap').classList.toggle('hidden', !canReply);
   el('mailReplyBlocked').classList.toggle('hidden', canReply);
+  el('mailReplyBlocked').textContent = t(owner ? 'admin.mail.reply.notSender' : 'admin.mail.reply.blocked');
   // A refresh of the same thread keeps a half-written reply.
   if (changed) resetReply();
 }
@@ -218,6 +222,7 @@ async function submitReply(): Promise<void> {
 /** Wires the controls once, before the shell first shows the pane. */
 export function setupInbox(opts: { isAdmin: boolean; isSender: boolean }): void {
   isAdmin = opts.isAdmin;
+  isSender = opts.isSender;
   const form = el<HTMLFormElement>('mailReplyForm');
   // `exact`: another thread or the bare list replaces this one, so both warn.
   guard = guardUnsaved(form, INBOX, () => { el<HTMLFormElement>('mailReplyForm').reset(); }, { exact: true });
@@ -229,7 +234,16 @@ export function setupInbox(opts: { isAdmin: boolean; isSender: boolean }): void 
   el('mailInboxRefresh').addEventListener('click', async () => {
     await refresh();
     await loadThreads();
-    if (currentId) await openThread(currentId);
+    // The thread the address asks for, which differs from the one on screen
+    // after a failed open: Refresh retries it.
+    if (wantedId) await openThread(wantedId);
+  });
+
+  // Phone: ‹ steps back to the list it came from rather than pushing the
+  // list again, as the shell's own back does (which hides on a thread).
+  el('mailInboxBack').addEventListener('click', (e) => {
+    e.preventDefault();
+    goBack();
   });
 
   if (isAdmin) {

@@ -318,6 +318,9 @@ console.log('7) sender-only user and the Sent sub-page');
     const subs = await page.locator('#subNav [data-sub-link]').evaluateAll((els) => els.map((e) => e.dataset.subLink));
     ok(subs.join(',') === 'gelen,yaz,gonderilenler', `sub-nav is gelen, yaz, gonderilenler (got ${subs.join(',')})`);
     ok(gets.includes('/api/admin/counts'), 'counts were requested');
+    // One section: no menu, so the Inbox tab carries the unread count.
+    await page.waitForFunction(() => document.querySelector('#subNav [data-sub-link="gelen"] [data-count="email"]')?.textContent === '3');
+    ok(await page.locator('#subNav [data-sub-link="gelen"] [data-count="email"]').isVisible(), 'the Inbox tab shows the unread count 3');
     await page.click('#subNav [data-sub-link="gonderilenler"]');
     await waitHash(page, '#eposta/gonderilenler');
     await page.waitForSelector('#sentList > div');
@@ -329,15 +332,95 @@ console.log('7) sender-only user and the Sent sub-page');
     await page.close();
   }
   {
+    // An admin who cannot send has no mail of their own: Everyone first.
     const { page, gets } = await open(ADMIN, { width: 1280, height: 900 }, '/admin#eposta/gonderilenler', SENDS);
     await page.waitForSelector('#sentList > div');
     ok(await visible(page, '#sentScope'), 'an admin sees the toggle');
-    ok(!gets.some((g) => g.includes('scope=all')), 'default view is not everyone');
+    ok(gets.filter((g) => g.startsWith('/api/mail/history')).join(',') === '/api/mail/history?scope=all', `a non-sender admin starts on Everyone (got ${gets.filter((g) => g.startsWith('/api/mail/history')).join(',')})`);
+    ok(await page.getAttribute('#sentScope [data-scope="all"]', 'aria-pressed') === 'true', 'Everyone is pressed');
+    ok((await page.textContent('#sentList')).includes('Xavier'), 'everyone\'s rows name the sender');
+    await page.click('#sentScope [data-scope="mine"]');
+    await page.waitForFunction(() => !document.getElementById('sentList').textContent.includes('Xavier'));
+    ok(gets.includes('/api/mail/history'), 'Mine requests the own list');
+    await page.close();
+  }
+  {
+    // An admin who is also a sender starts on Mine.
+    const { page, gets } = await open({ ...ADMIN, is_sender: true }, { width: 1280, height: 900 }, '/admin#eposta/gonderilenler', SENDS);
+    await page.waitForSelector('#sentList > div');
+    ok(!gets.some((g) => g.includes('scope=all')), 'admin and sender: default view is Mine');
+    ok(await page.getAttribute('#sentScope [data-scope="mine"]', 'aria-pressed') === 'true', 'Mine is pressed');
     await page.click('#sentScope [data-scope="all"]');
     await page.waitForFunction(() => document.getElementById('sentList').textContent.includes('Xavier'));
     ok(gets.some((g) => g === '/api/mail/history?scope=all'), 'Everyone requests scope=all');
     await page.close();
   }
+}
+
+console.log('8) Sent load failures');
+{
+  const SENDS = { ...EMPTY, sends: [
+    { id: 's1', subject: 'Own mail', recipient_email: 'r@example.org', recipient_name: null, sent_at: 1760000000, status: 'sent', error_message: null, sender_email: 'x@example.org', sender_name: 'Xavier' },
+  ] };
+  {
+    const { page, gets } = await open(SENDER, { width: 1280, height: 900 }, '/admin', SENDS);
+    let fail = true;
+    await page.route((u) => u.pathname === '/api/mail/history', (r) => fail
+      ? r.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"x"}' })
+      : r.fallback());
+    await page.click('#subNav [data-sub-link="gonderilenler"]');
+    await waitHash(page, '#eposta/gonderilenler');
+    await page.waitForSelector('#toastStack [role="alert"]');
+    ok((await page.textContent('#toastStack')).includes('Sent mail could not be loaded.'), 'a failed first load says so');
+    ok(await page.locator('#sentList > div').count() === 0, 'nothing is listed');
+    fail = false;
+    await page.click('#subNav [data-sub-link="gelen"]');
+    await waitHash(page, '#eposta/gelen');
+    await page.click('#subNav [data-sub-link="gonderilenler"]');
+    await waitHash(page, '#eposta/gonderilenler');
+    await page.waitForSelector('#sentList > div');
+    ok((await page.textContent('#sentList')).includes('Own mail'), 'the next show retries and lists the mail');
+    ok(gets.filter((g) => g === '/api/mail/history').length >= 1, 'the retry asked again');
+    await page.close();
+  }
+  {
+    // A failed switch leaves the toggle on the list still shown.
+    const { page } = await open({ ...ADMIN, is_sender: true }, { width: 1280, height: 900 }, '/admin#eposta/gonderilenler', SENDS);
+    await page.waitForSelector('#sentList > div');
+    await page.route((u) => u.pathname === '/api/mail/history' && u.searchParams.get('scope') === 'all', (r) => r.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"x"}' }));
+    await page.click('#sentScope [data-scope="all"]');
+    await page.waitForSelector('#toastStack [role="alert"]');
+    ok(await page.getAttribute('#sentScope [data-scope="mine"]', 'aria-pressed') === 'true', 'the toggle returns to Mine');
+    ok(!(await page.textContent('#sentList')).includes('Xavier') && (await page.textContent('#sentList')).includes('Own mail'), 'the own list stays under it');
+    await page.close();
+  }
+}
+
+console.log('9) signed out, and signed in without access');
+for (const [path, login, text] of [['/admin#eposta/gelen/abc', '/login/', 'Sign In'], ['/tr/admin#eposta/gelen/abc', '/tr/login/', 'Giriş Yap']]) {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  page.on('pageerror', (e) => bad.push(`pageerror (signed out ${path}): ` + String(e).slice(0, 160)));
+  await page.route('**/api/**', (r) => new URL(r.request().url()).pathname === '/api/me'
+    ? r.fulfill({ status: 401, contentType: 'application/json', body: '{"user":null}' })
+    : r.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+  await page.goto(BASE + path, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#notSignedIn:not(.hidden)', { timeout: 5000 }).catch(() => {});
+  ok(await page.locator('#notSignedIn').isVisible(), `${path}: signed out shows the sign-in prompt`);
+  ok(!(await page.locator('#notAuth').isVisible()), `${path}: not the no-access message`);
+  const link = page.locator('#notSignedIn a');
+  ok(await link.getAttribute('href') === login && (await link.textContent()).trim() === text, `${path}: the button is ${text} -> ${login}`);
+  ok((await link.boundingBox()).height >= 44, `${path}: the button is at least 44 px tall`);
+  ok(await fits(page, 390), `${path}: no horizontal scroll`);
+  await page.close();
+}
+{
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await page.route('**/api/**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ user: { id: 'u9', email: 'member@example.org' }, profile: {} }) }));
+  await page.goto(BASE + '/admin', { waitUntil: 'networkidle' });
+  await page.waitForSelector('#notAuth:not(.hidden)', { timeout: 5000 }).catch(() => {});
+  ok(await page.locator('#notAuth').isVisible(), 'a member without a panel role keeps the no-access message');
+  ok(!(await page.locator('#notSignedIn').isVisible()), 'and no sign-in prompt');
+  await page.close();
 }
 
 await browser.close();
