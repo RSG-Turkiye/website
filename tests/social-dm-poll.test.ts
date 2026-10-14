@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { setupSocial, stubMail } from './lib/social';
 import { stubGraph, type GraphCall } from './lib/instagram';
 import { connectionUpsert } from '../functions/_lib/connections';
+import { runDmNotifications, dmDigestText } from '../functions/_lib/social-dm-notify';
 import { pollDms } from '../functions/_lib/social-dm-poll';
 import { onRequestPost as tick } from '../functions/api/social/dispatch';
 
@@ -124,5 +125,96 @@ test('the social tick still answers 200 when the DM poll throws', async () => {
   try {
     const res = await tick({ request: new Request(`${ORIGIN}/api/social/dispatch`, { method: 'POST', headers: { 'X-Dispatch-Secret': 'tick' } }), env } as never);
     assert.equal(res.status, 200);
+  } finally { g.restore(); }
+});
+
+function seedThread(db: import('node:sqlite').DatabaseSync, o: { id: string; inbound: number; outbound?: number | null; user?: string | null; digested?: number | null; warned?: number | null }) {
+  db.prepare(`INSERT INTO social_dm_threads (id, platform, conversation_id, peer_id, peer_username, last_inbound_at, last_outbound_at, digested_at, final_warned_at, updated_at)
+              VALUES (?, 'instagram', ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(o.id, `conv-${o.id}`, `peer-${o.id}`, o.user === undefined ? 'ayse' : o.user, o.inbound, o.outbound ?? null, o.digested ?? null, o.warned ?? null, o.inbound);
+}
+
+test('digest: one mail per publisher, nothing to admins when a publisher exists, then paced', async () => {
+  const { env, db } = world();
+  seedThread(db, { id: 'a', inbound: T0 - 600 });
+  const r1 = await runDmNotifications(env, T0, ORIGIN);
+  assert.equal(r1.digests, 1);
+  assert.deepEqual(mail.sent.map((m) => m.to), ['pub@example.org']);
+  assert.match(mail.sent[0].subject, /Instagram/);
+  assert.equal((db.prepare(`SELECT digested_at FROM social_dm_threads WHERE id='a'`).get() as { digested_at: number }).digested_at, T0 - 600);
+  seedThread(db, { id: 'b', inbound: T0 + 60 });
+  assert.equal((await runDmNotifications(env, T0 + 120, ORIGIN)).digests, 0, 'an hour apart');
+  assert.equal((await runDmNotifications(env, T0 + 3600, ORIGIN)).digests, 1);
+  assert.equal((await runDmNotifications(env, T0 + 7300, ORIGIN)).digests, 0, 'nothing new');
+});
+
+test('digest goes to admins when there is no publisher', async () => {
+  const { env, db } = world();
+  db.prepare(`UPDATE users SET is_social_publisher = 0`).run();
+  seedThread(db, { id: 'a', inbound: T0 - 600 });
+  await runDmNotifications(env, T0, ORIGIN);
+  assert.deepEqual(mail.sent.map((m) => m.to), ['admin@example.org']);
+});
+
+test('quiet hours: no digest at 23:30, and the DM is still fresh at 08:00 (R5)', async () => {
+  const { env, db } = world();
+  const night = Date.UTC(2026, 9, 15, 20, 30) / 1000; // 23:30 Istanbul
+  seedThread(db, { id: 'a', inbound: night - 60 });
+  assert.equal((await runDmNotifications(env, night, ORIGIN)).digests, 0);
+  assert.equal(mail.sent.length, 0);
+  const morning = Date.UTC(2026, 9, 16, 5, 0) / 1000; // 08:00
+  assert.equal((await runDmNotifications(env, morning, ORIGIN)).digests, 1);
+});
+
+test('answered or expired threads never send anything', async () => {
+  const { env, db } = world();
+  seedThread(db, { id: 'a', inbound: T0 - 600, outbound: T0 - 60 });
+  seedThread(db, { id: 'b', inbound: T0 - 30 * 3600 });
+  const r = await runDmNotifications(env, T0, ORIGIN);
+  assert.deepEqual(r, { lastCalls: 0, digests: 0 });
+  assert.equal(mail.sent.length, 0);
+});
+
+test('last call: at 20 hours to publishers and admins, at night too, once per message', async () => {
+  const { env, db } = world();
+  const night = Date.UTC(2026, 9, 15, 21, 0) / 1000; // 00:00 Istanbul
+  seedThread(db, { id: 'a', inbound: night - 20 * 3600, digested: night - 20 * 3600 });
+  const r = await runDmNotifications(env, night, ORIGIN);
+  assert.equal(r.lastCalls, 1);
+  assert.deepEqual(mail.sent.map((m) => m.to).sort(), ['admin@example.org', 'pub@example.org']);
+  assert.equal((await runDmNotifications(env, night + 300, ORIGIN)).lastCalls, 0);
+});
+
+test('digest text: usernames, time left and a link per thread, never message text; unknown sender has a name', () => {
+  const at = T0 - 3600;
+  const text = dmDigestText([
+    { id: 'id-1', platform: 'instagram', conversation_id: 'c', peer_id: 'p', peer_username: 'ayse', last_inbound_at: at, last_outbound_at: null, read_at: null, read_by: null, digested_at: null, final_warned_at: null, updated_at: at },
+    { id: 'id-2', platform: 'instagram', conversation_id: 'c2', peer_id: 'p2', peer_username: null, last_inbound_at: at, last_outbound_at: null, read_at: null, read_by: null, digested_at: null, final_warned_at: null, updated_at: at },
+  ], T0, ORIGIN);
+  assert.match(text.text, /@ayse/);
+  assert.match(text.text, /Instagram kullanıcısı/);
+  assert.match(text.text, /Instagram user/);
+  assert.ok(!text.text.includes('@null'));
+  assert.match(text.text, /\/tr\/admin#sosyal\/dm\/id-1/);
+  assert.match(text.text, /23 saat/);
+  assert.match(text.subject, /2/);
+});
+
+test('the digest log keeps two days', async () => {
+  const { env, db } = world();
+  db.prepare(`INSERT INTO social_dm_digest_log (user_id, sent_at) VALUES ('pub', ?), ('pub', ?)`).run(T0 - 3 * 86400, T0 - 3600);
+  await runDmNotifications(env, T0, ORIGIN);
+  assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM social_dm_digest_log`).get() as { n: number }).n, 1);
+});
+
+test('R7: when the run log cannot be written, the poll does not call Meta', async () => {
+  const { env, db } = world();
+  await connect(env);
+  db.exec(`CREATE TRIGGER no_dm_runs BEFORE INSERT ON dispatch_runs WHEN NEW.kind = 'social_dm' BEGIN SELECT RAISE(ABORT, 'log down'); END`);
+  const g = stubGraph(graphWith({ cA: [['555', 'ayse', T0 - 600]] }));
+  try {
+    const r = await pollDms(env, T0, ORIGIN);
+    assert.equal(r.error, 'run log unavailable');
+    assert.equal(g.calls.length, 0, 'no graph call');
   } finally { g.restore(); }
 });

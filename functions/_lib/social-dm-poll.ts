@@ -10,13 +10,14 @@ import { getConnection, markBroken } from './connections';
 import { usableToken } from './social/tokens';
 import { instagramDm, peerOf } from './social/instagram-dm';
 import { startRun, finishRun } from './dispatch-log';
+import { runDmNotifications } from './social-dm-notify';
 import { DM_SCOPE, POLL_EVERY, REFRESH_MIN_GAP, MAX_THREAD_FETCHES } from './social-dm';
 
 export type DmEnv = Pick<Env, 'DB' | 'TOKEN_ENC_KEY' | 'RSG_MAIL_FROM'> & Partial<Env>;
 export interface PollSummary { skipped?: 'paced' | 'not_connected' | 'needs_scope' | 'token'; fetched: number; updated: number; error?: string }
 
-/** Task 4 replaces this with the digest and last-call step. */
-export let afterSync: (env: DmEnv, now: number, origin: string) => Promise<void> = async () => {};
+/** The digest and last-call step; tests swap it with setAfterSync. */
+export let afterSync: (env: DmEnv, now: number, origin: string) => Promise<void> = async (env, now, origin) => { await runDmNotifications(env, now, origin); };
 export function setAfterSync(fn: typeof afterSync): void { afterSync = fn; }
 
 export async function dmStatus(env: DmEnv, now: number): Promise<'ok' | 'not_connected' | 'broken' | 'needs_scope'> {
@@ -45,6 +46,8 @@ export async function pollDms(env: DmEnv, now: number, origin: string, opts: { f
   if (!tok.ok) return { ...summary, skipped: 'token' };
 
   const runId = await startRun(env.DB, crypto.randomUUID(), now, 'social_dm');
+  // Pacing depends on this row; without it the poll would call Meta every minute.
+  if (runId === null) return { ...summary, error: 'run log unavailable' };
   try {
     const list = await instagramDm.listConversations(tok.token);
     if (!list.ok) {
