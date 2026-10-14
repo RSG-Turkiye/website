@@ -1,17 +1,26 @@
 import { copyFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
+import { unified } from '@astrojs/markdown-remark';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 import { isNoindexPath } from './src/lib/noindex-routes';
 import { rehypeLazyImages } from './src/plugins/rehype-lazy-images.mjs';
 
 export default defineConfig({
+  // Astro 7 renders Markdown with Satteri by default, which runs no rehype
+  // plugins. The remark/rehype pipeline is opted back into here so the lazy
+  // image plugin keeps applying to post bodies.
   markdown: {
-    rehypePlugins: [rehypeLazyImages],
+    processor: unified({ rehypePlugins: [rehypeLazyImages] }),
   },
   site: 'https://rsg-turkiye.iscbsc.org',
   output: 'static',
+  // Astro 7 defaults to 'jsx', which drops whitespace between elements that
+  // sit on separate lines. Some of that whitespace is a visible space (on the
+  // symposium site it ran "Symposium" into "Just held"), so the Astro 5
+  // behaviour is kept here too.
+  compressHTML: true,
   // Targets carry the trailing slash, which is the canonical form: the site is
   // built in directory format, so Cloudflare Pages 308s /x to /x/. Without it
   // these redirects chained -- a 301 into a 308 -- for every visitor and every

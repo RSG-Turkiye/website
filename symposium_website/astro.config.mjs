@@ -22,6 +22,11 @@ let renderedSessions = 0;
 export default defineConfig({
   site: 'https://symposium.rsg-turkiye.iscbsc.org',
   output: 'static',
+  // Astro 7 defaults to 'jsx', which drops whitespace between elements that
+  // sit on separate lines. Some of that whitespace is a visible space (the
+  // schedule header ran "Symposium" into "Just held"), so the Astro 5
+  // behaviour is kept.
+  compressHTML: true,
   integrations: [
     // Declared before sitemap() so its astro:build:done runs first and the
     // filter below has a number to work with.

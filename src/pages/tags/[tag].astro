@@ -13,7 +13,10 @@ export async function getStaticPaths() {
   const trTags = new Set(trPosts.flatMap((post) => post.data.tags));
 
   return uniqueTags.map((tag) => {
-    const filteredPosts = allPosts.filter((post) => post.data.tags.includes(tag));
+    // Newest first, as on /blog/. Unsorted, the order was whatever the
+    // collection loader returned, which changed with Astro 7.
+    const filteredPosts = allPosts.filter((post) => post.data.tags.includes(tag))
+      .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
     return {
       params: { tag },
       props: { posts: filteredPosts, hasTrTranslation: trTags.has(tag) },
