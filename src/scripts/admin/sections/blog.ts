@@ -1,4 +1,5 @@
-import { t } from '../context';
+import { t, showToast } from '../context';
+import { BTN, chip, armConfirm } from '../ui-kit';
 
 function escapeHtmlForBlogReview(s: unknown): string {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -29,24 +30,29 @@ function blogSubmissionCardHtml(primary: BlogSubmission, paired: BlogSubmission 
   const bodyPreview = (s: BlogSubmission) => `
     <div class="mt-2 p-3 rounded-lg bg-[#F7F7F6] text-xs">
       <div class="font-medium text-navy">${langLabel(s)}: ${escapeHtmlForBlogReview(s.title)}</div>
-      <div class="text-gray-500 mt-1">${escapeHtmlForBlogReview(s.description)}</div>
+      <div class="text-gray-500 mt-1 break-words">${escapeHtmlForBlogReview(s.description)}</div>
       ${s.image_url ? `<img src="${escapeHtmlForBlogReview(s.image_url)}" class="mt-2 max-h-32 rounded" alt="" />` : ''}
       ${s.tags.length > 0 ? `<div class="mt-2 flex flex-wrap gap-1">${s.tags.map(t => `<span class="px-2 py-0.5 rounded-full bg-white border border-border text-gray-500">${escapeHtmlForBlogReview(t)}</span>`).join('')}</div>` : ''}
-      <pre class="whitespace-pre-wrap mt-2 text-gray-600">${escapeHtmlForBlogReview(s.body)}</pre>
+      <pre class="whitespace-pre-wrap break-all mt-2 text-gray-600">${escapeHtmlForBlogReview(s.body)}</pre>
     </div>`;
 
+  const INPUT = 'px-3 py-2 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid';
   return `
-    <div class="bg-white rounded-2xl border border-border p-5" data-id="${primary.id}">
-      <div class="flex items-center justify-between">
-        <div class="text-sm font-semibold text-navy">${escapeHtmlForBlogReview(primary.title)}</div>
-        <span class="text-xs text-gray-500">${escapeHtmlForBlogReview(primary.submitter_email)}</span>
+    <div class="bg-white rounded-2xl border border-border p-4 lg:p-5" data-id="${escapeHtmlForBlogReview(primary.id)}">
+      <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <div class="text-sm font-semibold text-navy min-w-0 break-words">${escapeHtmlForBlogReview(primary.title)}</div>
+        <span class="text-xs text-gray-500 min-w-0 break-all">${escapeHtmlForBlogReview(primary.submitter_email)}</span>
       </div>
-      <div class="text-xs text-gray-500 mt-1">${t('admin.blog.categoryLabel')} ${escapeHtmlForBlogReview(primary.category)} · ${t('admin.blog.slugLabel')} <input class="blog-slug-input text-xs border border-border rounded px-1" value="${escapeHtmlForBlogReview(primary.slug)}" /></div>
+      <div class="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500">
+        ${chip(`${t('admin.blog.categoryLabel')} ${primary.category}`, 'navy')}
+        <label class="flex items-center gap-2">${t('admin.blog.slugLabel')} <input class="blog-slug-input ${INPUT} min-w-0" value="${escapeHtmlForBlogReview(primary.slug)}" /></label>
+      </div>
       ${bodyPreview(primary)}
       ${paired ? bodyPreview(paired) : ''}
-      <div class="mt-3 flex items-center gap-2">
-        <button class="blog-approve-btn text-xs px-3 py-1.5 rounded-lg bg-navy text-white hover:bg-navy-mid transition-colors">${t('admin.blog.approve')}</button>
-        <button class="blog-reject-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">${t('admin.blog.reject')}</button>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" class="blog-approve-btn ${BTN.primary}">${t('admin.blog.approve')}</button>
+        <input type="text" class="blog-reject-reason ${INPUT} flex-1 min-w-40" placeholder="${escapeHtmlForBlogReview(t('admin.blog.rejectReasonPrompt'))}" aria-label="${escapeHtmlForBlogReview(t('admin.blog.rejectReasonPrompt'))}" />
+        <button type="button" class="blog-reject-btn ${BTN.danger}">${t('admin.blog.reject')}</button>
       </div>
     </div>`;
 }
@@ -82,12 +88,12 @@ export async function loadBlogSubmissions() {
     return blogSubmissionCardHtml(s, paired);
   }).join('');
 
-  list.querySelectorAll('.blog-approve-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const card = (e.currentTarget as HTMLButtonElement).closest('[data-id]') as HTMLElement;
+  list.querySelectorAll<HTMLButtonElement>('.blog-approve-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('[data-id]') as HTMLElement;
       const id = card.dataset.id!;
       const slugInput = card.querySelector('.blog-slug-input') as HTMLInputElement;
-      (e.currentTarget as HTMLButtonElement).setAttribute('disabled', 'true');
+      btn.disabled = true;
       const res = await fetch(`/api/admin/blog-submissions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -96,19 +102,21 @@ export async function loadBlogSubmissions() {
       if (res.ok) {
         await loadBlogSubmissions();
       } else {
-        const err = await res.json() as { error: string };
-        alert(err.error || t('admin.blog.approveFailedAlert'));
-        (e.currentTarget as HTMLButtonElement).removeAttribute('disabled');
+        const err = await res.json().catch(() => null) as { error?: string } | null;
+        showToast(err?.error || t('admin.blog.approveFailedAlert'), true);
+        btn.disabled = false;
       }
     });
   });
 
-  list.querySelectorAll('.blog-reject-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const card = (e.currentTarget as HTMLButtonElement).closest('[data-id]') as HTMLElement;
+  // Rejecting needs a reason, typed in the card, then two clicks.
+  list.querySelectorAll<HTMLButtonElement>('.blog-reject-btn').forEach(btn => {
+    armConfirm(btn, t('admin.users.detail.confirm'), async () => {
+      const card = btn.closest('[data-id]') as HTMLElement;
       const id = card.dataset.id!;
-      const reason = prompt(t('admin.blog.rejectReasonPrompt'));
-      if (!reason) return;
+      const reasonInput = card.querySelector('.blog-reject-reason') as HTMLInputElement;
+      const reason = reasonInput.value.trim();
+      if (!reason) { reasonInput.focus(); showToast(t('admin.blog.rejectReasonPrompt'), true); return; }
       const res = await fetch(`/api/admin/blog-submissions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -117,8 +125,8 @@ export async function loadBlogSubmissions() {
       if (res.ok) {
         await loadBlogSubmissions();
       } else {
-        const err = await res.json() as { error: string };
-        alert(err.error || t('admin.blog.rejectFailedAlert'));
+        const err = await res.json().catch(() => null) as { error?: string } | null;
+        showToast(err?.error || t('admin.blog.rejectFailedAlert'), true);
       }
     });
   });

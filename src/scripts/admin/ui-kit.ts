@@ -87,3 +87,47 @@ export function toast(message: string, isError = false): void {
   stack.appendChild(el);
   setTimeout(() => el.remove(), 4000);
 }
+
+/**
+ * Warns before unsaved form changes are lost: on closing the tab (the
+ * browser's own prompt) and on moving to another section (an inline notice
+ * with Keep editing / Discard, never window.confirm).
+ */
+export function guardUnsaved(form: HTMLFormElement, sectionHash: string): { reset(): void } {
+  let dirty = false;
+  let current = location.hash;
+  const notice = document.createElement('div');
+  notice.className = 'hidden mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800';
+  notice.innerHTML = `<span class="flex-1 min-w-0" data-msg></span><button type="button" data-keep class="${BTN.secondary}"></button><button type="button" data-discard class="${BTN.danger}"></button>`;
+  form.parentNode!.insertBefore(notice, form);
+  const lang = document.documentElement.lang === 'tr' ? 'tr' : 'en';
+  const text = lang === 'tr'
+    ? { msg: 'Kaydedilmemiş değişiklikler var.', keep: 'Düzenlemeye devam et', discard: 'Değişiklikleri at' }
+    : { msg: 'You have unsaved changes.', keep: 'Keep editing', discard: 'Discard changes' };
+  notice.querySelector('[data-msg]')!.textContent = text.msg;
+  notice.querySelector('[data-keep]')!.textContent = text.keep;
+  notice.querySelector('[data-discard]')!.textContent = text.discard;
+  let pending: string | null = null;
+  form.addEventListener('input', () => { dirty = true; });
+  window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+  window.addEventListener('hashchange', () => {
+    const leaving = current.startsWith(sectionHash) && !location.hash.startsWith(sectionHash);
+    if (dirty && leaving && pending === null) {
+      pending = location.hash;
+      history.replaceState(null, '', current);
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      notice.classList.remove('hidden');
+      return;
+    }
+    current = location.hash;
+  });
+  notice.querySelector('[data-keep]')!.addEventListener('click', () => { pending = null; notice.classList.add('hidden'); });
+  notice.querySelector('[data-discard]')!.addEventListener('click', () => {
+    dirty = false;
+    notice.classList.add('hidden');
+    const to = pending;
+    pending = null;
+    if (to) location.hash = to;
+  });
+  return { reset() { dirty = false; notice.classList.add('hidden'); } };
+}

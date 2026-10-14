@@ -1,5 +1,6 @@
 import { escapeHtml } from '../../escape-html';
 import { t, showToast, formatDate } from '../context';
+import { row, chip, BTN, armConfirm, guardUnsaved } from '../ui-kit';
 
 let canManageAnnouncements = false;
 
@@ -8,32 +9,27 @@ export function setCanManageAnnouncements(v: boolean): void {
 }
 
 function renderAnnouncements(items: any[]) {
-  const tbody = document.getElementById('announcementsTableBody')!;
+  const list = document.getElementById('announcementsList')!;
   const empty = document.getElementById('announcementsEmptyState')!;
 
   if (items.length === 0) {
-    tbody.innerHTML = '';
+    list.innerHTML = '';
     empty.classList.remove('hidden');
     return;
   }
   empty.classList.add('hidden');
 
-  tbody.innerHTML = items.map(a => `
-    <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
-      <td class="px-5 py-4 text-navy font-medium">${escapeHtml(a.title)}</td>
-      <td class="px-5 py-4 text-gray-500 tabular-nums">${formatDate(a.expires_at)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml(a.site ?? 'main')}</td>
-      <td class="px-5 py-4 text-gray-500">${a.show_as_popup ? t('admin.announcements.popupYes') : t('admin.announcements.popupNo')}</td>
-      <td class="px-5 py-4 text-right">
-        <button data-id="${a.id}" class="edit-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2">${t('admin.announcements.edit')}</button>
-        <button data-id="${a.id}" class="delete-announcement-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors">${t('admin.announcements.delete')}</button>
-      </td>
-    </tr>`).join('');
+  list.innerHTML = items.map(a => row({
+    title: a.title,
+    subtitle: `${formatDate(a.expires_at)} · ${a.site ?? 'main'}`,
+    chips: a.show_as_popup ? chip(t('admin.announcements.table.popup'), 'navy') : '',
+    trailing: `<button type="button" data-id="${escapeHtml(a.id)}" class="edit-announcement-btn ${BTN.ghost}">${escapeHtml(t('admin.announcements.edit'))}</button>
+      <button type="button" data-id="${escapeHtml(a.id)}" class="delete-announcement-btn ${BTN.danger}">${escapeHtml(t('admin.announcements.delete'))}</button>`,
+  })).join('');
 
-  tbody.querySelectorAll('.edit-announcement-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = (e.currentTarget as HTMLButtonElement).dataset.id!;
-      const item = items.find(a => a.id === id);
+  list.querySelectorAll<HTMLButtonElement>('.edit-announcement-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = items.find(a => a.id === btn.dataset.id);
       if (!item) return;
       (document.getElementById('announcementEditId') as HTMLInputElement).value = item.id;
       (document.getElementById('annTitle') as HTMLInputElement).value = item.title;
@@ -46,16 +42,15 @@ function renderAnnouncements(items: any[]) {
       (document.getElementById('annSite') as unknown as HTMLSelectElement).value = item.site ?? 'main';
       (document.getElementById('annShowAsPopup') as HTMLInputElement).checked = item.show_as_popup;
       document.getElementById('cancelEditBtn')!.classList.remove('hidden');
+      document.getElementById('announcementForm')!.scrollIntoView({ block: 'nearest' });
     });
   });
 
-  tbody.querySelectorAll('.delete-announcement-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const b = e.currentTarget as HTMLButtonElement;
-      b.disabled = true;
-      const res = await fetch(`/api/admin/announcements/${b.dataset.id}`, { method: 'DELETE' });
+  list.querySelectorAll<HTMLButtonElement>('.delete-announcement-btn').forEach(btn => {
+    armConfirm(btn, t('admin.users.detail.confirm'), async () => {
+      const res = await fetch(`/api/admin/announcements/${btn.dataset.id}`, { method: 'DELETE' });
       if (res.ok) { showToast(t('admin.toast.deleted')); await loadAnnouncements(); }
-      else { showToast(t('admin.toast.error'), true); b.disabled = false; }
+      else showToast(t('admin.toast.error'), true);
     });
   });
 }
@@ -77,11 +72,13 @@ export function setupAnnouncementForm() {
 
   const form = document.getElementById('announcementForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('cancelEditBtn')!;
+  const guard = guardUnsaved(form, '#duyurular');
 
   function resetForm() {
     form.reset();
     (document.getElementById('announcementEditId') as HTMLInputElement).value = '';
     cancelBtn.classList.add('hidden');
+    guard.reset();
   }
 
   cancelBtn.addEventListener('click', resetForm);

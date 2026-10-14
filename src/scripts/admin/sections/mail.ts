@@ -1,6 +1,7 @@
 import { escapeHtml } from '../../escape-html';
 import { t, tf, showToast, formatDate } from '../context';
 import { loadUsers } from './users';
+import { row, chip, BTN, armConfirm } from '../ui-kit';
 
 const ATTACHMENT_ERRORS: Record<string, string> = {
   unsupported_type: t('admin.errors.unsupportedType'),
@@ -26,22 +27,19 @@ export async function loadSenders() {
     return;
   }
   empty.classList.add('hidden');
-  list.innerHTML = data.senders.map((s: any) => `
-    <div class="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
-      <div>
-        <div class="text-navy">${escapeHtml(s.display_name ?? s.email)}</div>
-        <div class="text-xs text-gray-500">
-          ${escapeHtml(s.email)}${s.team ? ` · ${escapeHtml(s.team)}` : ''}
-          ${s.granted_at ? tf('admin.mail.senders.grantedAtFragment', { date: formatDate(s.granted_at) }) : ''}
-          ${s.granted_by_email ? tf('admin.mail.senders.grantedByFragment', { email: escapeHtml(s.granted_by_email) }) : ''}
-        </div>
-      </div>
-      <button data-id="${escapeHtml(s.user_id)}" class="revoke-sender-btn text-xs px-3 py-1.5 rounded-lg border border-border text-red-500 hover:bg-red-50">${t('admin.mail.senders.revoke')}</button>
-    </div>`).join('');
+  list.innerHTML = data.senders.map((s: any) => row({
+    title: s.display_name ?? s.email,
+    subtitle: [
+      s.email,
+      s.granted_at ? tf('admin.mail.senders.grantedAtFragment', { date: formatDate(s.granted_at) }).replace(/^ · /, '') : '',
+      s.granted_by_email ? tf('admin.mail.senders.grantedByFragment', { email: s.granted_by_email }).trim() : '',
+    ].filter(Boolean).join(' · '),
+    chips: s.team ? chip(s.team, 'navy') : '',
+    trailing: `<button type="button" data-id="${escapeHtml(s.user_id)}" class="revoke-sender-btn ${BTN.danger}">${escapeHtml(t('admin.mail.senders.revoke'))}</button>`,
+  })).join('');
 
   list.querySelectorAll<HTMLButtonElement>('.revoke-sender-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
+    armConfirm(btn, t('admin.users.detail.confirm'), async () => {
       const res = await fetch('/api/admin/senders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -51,7 +49,6 @@ export async function loadSenders() {
         showToast(t('admin.toast.senderRevoked'));
         await Promise.all([loadSenders(), loadUsers()]);
       } else {
-        btn.disabled = false;
         showToast(t('admin.toast.senderRevokeFailed'), true);
       }
     });
@@ -96,34 +93,32 @@ export async function loadAdminAttachments() {
   const list = document.getElementById('attachmentAdminList')!;
   const empty = document.getElementById('attachmentsEmpty')!;
   empty.classList.toggle('hidden', data.attachments.length > 0);
-  list.innerHTML = data.attachments.map((a: any) => `
-    <div class="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
-      <div>
-        <div class="text-navy ${a.is_active ? '' : 'line-through text-gray-500'}">${escapeHtml(a.filename)}</div>
-        <div class="text-xs text-gray-500">${Math.round(a.size_bytes / 1024)} KB · ${formatDate(a.uploaded_at)}</div>
-      </div>
-      <button data-id="${escapeHtml(a.id)}" data-active="${a.is_active}"
-        class="toggle-attachment-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-600 hover:bg-gray-50">
-        ${a.is_active ? t('admin.mail.attachments.deactivate') : t('admin.mail.attachments.reactivate')}
-      </button>
-    </div>`).join('');
+  list.innerHTML = data.attachments.map((a: any) => row({
+    title: a.filename,
+    subtitle: `${Math.round(a.size_bytes / 1024)} KB · ${formatDate(a.uploaded_at)}`,
+    chips: a.is_active ? '' : chip(t('admin.mail.attachments.reactivate'), 'neutral'),
+    attrs: a.is_active ? '' : 'data-inactive="1"',
+    trailing: `<button type="button" data-id="${escapeHtml(a.id)}" data-active="${a.is_active ? '1' : '0'}" class="toggle-attachment-btn ${a.is_active ? BTN.danger : BTN.secondary}">${escapeHtml(a.is_active ? t('admin.mail.attachments.deactivate') : t('admin.mail.attachments.reactivate'))}</button>`,
+  })).join('');
+
+  async function toggle(btn: HTMLButtonElement) {
+    const res = await fetch('/api/admin/mail-attachments', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: btn.dataset.id, is_active: btn.dataset.active !== '1' }),
+    });
+    if (res.ok) {
+      await loadAdminAttachments();
+    } else {
+      const data = await res.json().catch(() => null) as { code?: string } | null;
+      showToast(ATTACHMENT_ERRORS[data?.code ?? ''] ?? t('admin.mail.attachments.updateFailed'), true);
+    }
+  }
 
   list.querySelectorAll<HTMLButtonElement>('.toggle-attachment-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      const res = await fetch('/api/admin/mail-attachments', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: btn.dataset.id, is_active: btn.dataset.active !== '1' }),
-      });
-      if (res.ok) {
-        await loadAdminAttachments();
-      } else {
-        const data = await res.json().catch(() => null) as { code?: string } | null;
-        showToast(ATTACHMENT_ERRORS[data?.code ?? ''] ?? t('admin.mail.attachments.updateFailed'), true);
-        btn.disabled = false;
-      }
-    });
+    // Deactivating takes two clicks; bringing a file back is harmless and takes one.
+    if (btn.dataset.active === '1') armConfirm(btn, t('admin.users.detail.confirm'), () => toggle(btn));
+    else btn.addEventListener('click', async () => { btn.disabled = true; await toggle(btn); btn.disabled = false; });
   });
 }
 
@@ -248,17 +243,10 @@ export async function loadAllSends() {
     return;
   }
   empty.classList.add('hidden');
-  list.innerHTML = data.sends.map((s: any) => `
-    <div class="flex items-start justify-between gap-3 text-sm border-b border-border last:border-0 py-2">
-      <div class="min-w-0">
-        <div class="text-navy truncate">${escapeHtml(s.subject)}</div>
-        <div class="text-xs text-gray-500">
-          ${escapeHtml(s.sender_name ?? s.sender_email)} → ${escapeHtml(s.recipient_email)} · ${formatDate(s.sent_at)}
-        </div>
-        ${s.status === 'failed' ? `<div class="text-xs text-red-600 mt-0.5">${escapeHtml(s.error_message)}</div>` : ''}
-      </div>
-      <span class="shrink-0 text-xs px-2 py-0.5 rounded-full ${
-        s.status === 'sent' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-      }">${s.status === 'sent' ? t('admin.mail.allSends.sent') : t('admin.mail.allSends.failed')}</span>
-    </div>`).join('');
+  list.innerHTML = data.sends.map((s: any) => row({
+    title: s.subject,
+    subtitle: `${s.sender_name ?? s.sender_email} → ${s.recipient_email} · ${formatDate(s.sent_at)}`,
+    chips: s.status === 'failed' && s.error_message ? `<span class="text-xs text-red-600 min-w-0 break-all">${escapeHtml(s.error_message)}</span>` : '',
+    trailing: chip(s.status === 'sent' ? t('admin.mail.allSends.sent') : t('admin.mail.allSends.failed'), s.status === 'sent' ? 'green' : 'red'),
+  })).join('');
 }

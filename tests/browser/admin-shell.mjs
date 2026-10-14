@@ -28,26 +28,28 @@ const EMPTY = {
 
 const browser = await chromium.launch();
 
-async function open(user, viewport, path = '/admin') {
+async function open(user, viewport, path = '/admin', body = EMPTY) {
   const page = await browser.newPage({ viewport });
   const views = [];
+  const deletes = [];
   page.on('pageerror', (e) => bad.push(`pageerror (${user.email} ${viewport.width}px): ` + String(e).slice(0, 160)));
   await page.route('**/api/**', (r) => {
     const req = r.request();
     const url = new URL(req.url());
     const json = (v) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(v) });
     if (req.method() !== 'GET') {
+      deletes.push(`${req.method()} ${url.pathname}`);
       if (url.pathname === '/api/audit/view') views.push(req.postDataJSON()?.pane);
       return r.fulfill({ status: 204, body: '' });
     }
     if (url.pathname === '/api/me') return json({ user, profile: {} });
     if (url.pathname === '/api/admin/counts') return json(COUNTS);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: !!user.is_admin });
-    return json(EMPTY);
+    return json(body);
   });
   await page.goto(BASE + path, { waitUntil: 'networkidle' });
   await page.waitForSelector('#adminContent:not(.hidden)');
-  return { page, views };
+  return { page, views, deletes };
 }
 
 const hash = (page) => page.evaluate(() => location.hash);
@@ -149,6 +151,47 @@ console.log('4) back from an OAuth connect');
   const toast = page.locator('#toastStack [role="status"]');
   ok(await toast.count() > 0 && ((await toast.first().textContent()) ?? '').trim().length > 0, 'the success toast shows');
   ok(new URL(page.url()).pathname + new URL(page.url()).search + new URL(page.url()).hash === '/admin#baglantilar', `URL becomes /admin#baglantilar (got ${page.url()})`);
+  await page.close();
+}
+
+console.log('5) lists redrawn, 390 px');
+{
+  const long = 'x'.repeat(120);
+  const FULL = {
+    ...EMPTY,
+    announcements: [{ id: 'a1', title: 'Registration closes ' + long, description: 'd', button_text: 'Go', button_url: 'https://example.org', expires_at: 1893456000, site: 'main', show_as_popup: true }],
+    submissions: [{ id: 'b1', lang: 'en', title: 'A post', description: 'd', category: 'news', tags: ['x'], author: 'a', image_url: '', body: long, slug: 's', status: 'pending', rejection_reason: null, pr_url: null, paired_submission_id: null, submitter_email: 'someone@example.org' }],
+    senders: [{ user_id: 'u9', email: 'sender@example.org', display_name: 'Sender', team: 'Comms', granted_at: 1760000000, granted_by_email: 'admin@example.org' }],
+    attachments: [{ id: 'f1', filename: long + '.pdf', size_bytes: 2048, uploaded_at: 1760000000, is_active: 1 }],
+    sends: [{ subject: 'Hello ' + long, sender_email: 's@example.org', sender_name: null, recipient_email: 'r@example.org', sent_at: 1760000000, status: 'failed', error_message: long }],
+    connections: [{ platform: 'gmail', status: 'connected', accountName: 'mail@example.org', connectedBy: 'admin@example.org', connectedAt: 1760000000, lastOkAt: 1760000000, lastError: null, usesLegacySecret: false, hasStoredToken: true }],
+    rows: [{ seq: 1, at: 1760000000, user_email: 'a@example.org', action: 'users.update', target_type: 'user', target_id: 'u1', details: JSON.stringify({ note: long }) }],
+  };
+  const { page, deletes } = await open(ADMIN, { width: 390, height: 844 }, '/admin', FULL);
+  for (const h of ['#duyurular', '#blog', '#eposta/yetki', '#eposta/gondericiler', '#eposta/ekler', '#eposta/gonderilenler', '#baglantilar', '#kayit']) {
+    await page.evaluate((x) => { location.hash = x; }, h);
+    await waitHash(page, h);
+    await page.waitForTimeout(250);
+    ok(await fits(page, 390), `${h}: scrollWidth <= 390`);
+  }
+  await page.evaluate(() => { location.hash = '#duyurular'; });
+  await waitHash(page, '#duyurular');
+  await page.waitForSelector('#announcementsList .delete-announcement-btn');
+  const del = page.locator('#announcementsList .delete-announcement-btn').first();
+  await del.click();
+  ok(deletes.every((d) => !d.startsWith('DELETE')), 'first click on Delete does not delete');
+  await del.click();
+  await page.waitForFunction(() => true);
+  await page.waitForTimeout(300);
+  ok(deletes.some((d) => d === 'DELETE /api/admin/announcements/a1'), 'second click deletes');
+  await page.fill('#annTitle', 'unsaved');
+  await page.evaluate(() => { location.hash = '#blog'; });
+  await page.waitForTimeout(300);
+  ok(await hash(page) === '#duyurular', 'leaving a dirty form stays on the section');
+  ok(await page.locator('#announcementForm').evaluate((f) => !f.previousElementSibling.classList.contains('hidden')), 'the unsaved-changes notice shows');
+  await page.click('[data-discard]');
+  await waitHash(page, '#blog');
+  ok(await hash(page) === '#blog', 'Discard changes goes on to the other section');
   await page.close();
 }
 
