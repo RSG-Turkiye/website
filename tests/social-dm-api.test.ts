@@ -16,13 +16,13 @@ let mail: ReturnType<typeof stubMail>;
 beforeEach(() => { mail = stubMail(); });
 afterEach(() => mail.restore());
 
-async function world(opts: { connected?: boolean } = {}) {
+async function world(opts: { connected?: boolean; scopes?: string } = {}) {
   const s = setupSocial();
   const env = { ...(s.env as object), TOKEN_ENC_KEY: KEY, MAIL_SYNC_SECRET: 'tick' } as never;
   if (opts.connected !== false) {
     await (await connectionUpsert(env, 'instagram', {
       accountId: IG, accountName: 'rsg_test', accessToken: 'tok', refreshToken: null,
-      scopes: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages',
+      scopes: opts.scopes ?? 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages',
       expiresAt: now() + 50 * 86400, refreshExpiresAt: null,
     }, 'admin', now() - 86400)).run();
   }
@@ -139,4 +139,19 @@ test('refresh runs a forced poll', async () => {
     assert.equal(res.status, 200);
     assert.equal(g.calls[0].path, '/me/conversations');
   } finally { g.restore(); }
+});
+
+test('without the messaging scope, thread and reply refuse and never touch Meta or the connection (R6)', async () => {
+  const { env, db } = await world({ scopes: 'instagram_business_basic,instagram_business_content_publish' });
+  const g = stubGraph(() => Response.json({ error: { code: 200, message: 'permission' } }, { status: 403 }));
+  try {
+    const t = await (await call(thread, 'GET', '/api/admin/social/dm/open1', { env, as: 'pub', params: { id: 'open1' } })).json() as any;
+    assert.equal(t.error, 'connection');
+    assert.equal(t.messages, null);
+    const r = await call(reply, 'POST', '/api/admin/social/dm/open1/reply', { env, as: 'pub', params: { id: 'open1' }, body: { text: 'x' } });
+    assert.equal(r.status, 503);
+    assert.equal((await r.json() as any).code, 'connection');
+    assert.equal(g.calls.length, 0);
+  } finally { g.restore(); }
+  assert.equal((db.prepare(`SELECT last_error FROM platform_connections WHERE platform='instagram'`).get() as any).last_error, null);
 });

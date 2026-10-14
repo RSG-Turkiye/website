@@ -9,6 +9,7 @@ import { markBroken } from '../../../../../_lib/connections';
 import { appendAudit } from '../../../../../_lib/audit';
 import { usableToken } from '../../../../../_lib/social/tokens';
 import { instagramDm } from '../../../../../_lib/social/instagram-dm';
+import { dmStatus } from '../../../../../_lib/social-dm-poll';
 import { dmView, MAX_REPLY_BYTES, type DmThreadRow } from '../../../../../_lib/social-dm';
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -29,6 +30,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const v = dmView(row, now);
   if (v.closesAt === null || v.expired) return jsonResponse({ error: 'Window closed', code: 'window_closed' }, 409);
 
+  // Without the messaging scope Meta's refusal reads as 'auth'; never reach it (R6).
+  if (await dmStatus(env, now) !== 'ok') return jsonResponse({ error: 'Connection', code: 'connection' }, 503);
   const tok = await usableToken(env as never, 'instagram', now);
   if (!tok.ok) return jsonResponse({ error: 'Connection', code: 'connection' }, 503);
   const sent = await instagramDm.send(tok.token, row.peer_id, text);
