@@ -42,13 +42,13 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
 };
 ---
 
-<div id="symposiumSection" data-pane="symposium">
+<div id="symposiumSection" data-section="sempozyum">
   <h2 class="text-lg font-semibold text-navy mb-4">
     {t('admin.symposium.heading')}<span id="symYearLabel" class="text-gray-500 font-normal"></span>
   </h2>
 
   <!-- Edition settings -->
-  <section class="mb-8">
+  <div data-sub="baski" class="mb-8">
     <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.edition.heading')}</h3>
     <div class="bg-white rounded-2xl border border-border p-4">
       <form id="symEditionForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -114,10 +114,10 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
         <p class="sm:col-span-2 text-xs text-gray-500">{t('admin.symposium.edition.snapshotHint')}</p>
       </form>
     </div>
-  </section>
+  </div>
 
   <!-- Speakers -->
-  <section class="mb-8">
+  <div data-sub="konusmacilar" class="mb-8">
     <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.speakers.heading')}</h3>
     <div class="bg-white rounded-2xl border border-border p-4 mb-4">
       <form id="symSpeakerForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -174,10 +174,10 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </table>
       <div id="symSpeakersEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.speakers.table.noneYet')}</div>
     </div>
-  </section>
+  </div>
 
   <!-- Sessions -->
-  <section class="mb-8">
+  <div data-sub="oturumlar" class="mb-8">
     <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.sessions.heading')}</h3>
     <div class="bg-white rounded-2xl border border-border p-4 mb-4">
       <form id="symSessionForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -244,10 +244,10 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </table>
       <div id="symSessionsEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.sessions.table.noneYet')}</div>
     </div>
-  </section>
+  </div>
 
   <!-- Committee -->
-  <section>
+  <div data-sub="komite">
     <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.symposium.committee.heading')}</h3>
     <div class="bg-white rounded-2xl border border-border p-4 mb-4">
       <form id="symCommitteeForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -336,7 +336,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </table>
       <div id="symCommitteeEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.committee.table.noneYet')}</div>
     </div>
-  </section>
+  </div>
 
   <!--
     Certificates. Unlike the four sections above this is not CMS overlay:
@@ -344,7 +344,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
     upload. The CSV is read and the PDFs shrunk in this browser before
     anything is sent -- see src/scripts/admin-certificates.ts.
   -->
-  <section id="symCertificates" class="mt-8">
+  <div data-sub="sertifikalar" id="symCertificates" class="mt-8">
     <h3 class="text-sm font-semibold text-navy mb-1">{t('admin.symposium.certificates.heading')}</h3>
     <p class="text-xs text-gray-500 mb-3">{t('admin.symposium.certificates.intro')}</p>
     <div class="bg-white rounded-2xl border border-border p-4 mb-4">
@@ -422,5 +422,5 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       <button id="symCertDeleteAll" type="button" disabled
         class="px-4 py-2 rounded-xl border border-red-600 text-red-600 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"></button>
     </div>
-  </section>
+  </div>
 </div>

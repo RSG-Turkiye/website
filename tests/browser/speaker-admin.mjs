@@ -62,7 +62,7 @@ await page.route('**/api/blog-submissions/upload-image', async (r) => {
 });
 
 console.log('1) konuşmacı formunda dosya yükleme alanı var');
-await page.goto(BASE + '/admin', { waitUntil: 'networkidle' });
+await page.goto(BASE + '/admin#sempozyum/konusmacilar', { waitUntil: 'networkidle' });
 await page.waitForSelector('#symSpeakersTableBody tr');
 ok(await page.isVisible('#symSpeakerPhotoFile'), 'dosya seçme tuşu görünür');
 

@@ -13,8 +13,11 @@
 import { loadHealth } from '../admin-health';
 import { setupConnections, loadConnections } from '../admin-connections';
 import { setupAudit, loadAudit } from '../admin-audit';
-import { setupSocial, loadSocial } from '../social';
+import { setupSocial, loadSocial, showSocialTab, type Tab } from '../social';
 import { lang, t, tf, showToast } from './context';
+import { landing, rolesFromMe, type SectionId } from './sections';
+import { startShell, refreshCounts } from './shell';
+import { loadOverview } from './overview';
 import { loadUsers, setupUsersFilters } from './sections/users';
 import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } from './sections/announcements';
 import { loadBlogSubmissions } from './sections/blog';
@@ -23,102 +26,19 @@ import { setupSymposium, loadSymposium } from './sections/symposium';
 
 // Init
 
-/**
- * Which panes this admin may open, and which one opens first.
- *
- * This replaces three `classList.toggle('hidden', !isFullAdmin)` calls on
- * whole sections. The sections are panes now, so a role decides which nav
- * entries exist rather than which blocks are stacked on the page -- but the
- * rule itself is unchanged: an announcer gets announcements and nothing
- * else, and (now) a symposium-only user gets the symposium pane and
- * nothing else. Each flag comes straight from what /api/me returned, not
- * from a boolean this module re-derives.
- *
- * The nav is hidden entirely when only one pane is available, since a
- * switcher with one option is furniture.
- */
-function applyRoleVisibility(roles: { isFullAdmin: boolean; isAnnouncer: boolean; isSymposium: boolean; isSocial: boolean }, preferred?: string): void {
-  const allowed = roles.isFullAdmin
-    ? ['members', 'announcements', 'blog', 'symposium', 'social', 'connections', 'audit', 'mail-grant', 'mail-senders', 'mail-files', 'mail-sent']
-    : [
-        ...(roles.isAnnouncer ? ['announcements'] : []),
-        ...(roles.isSymposium ? ['symposium'] : []),
-        ...(roles.isSocial ? ['social'] : []),
-      ];
+const healthDeps = { t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, lang };
 
-  document.querySelectorAll<HTMLElement>('[data-pane]').forEach((pane) => {
-    if (!allowed.includes(pane.dataset.pane!)) pane.remove();
-  });
-
-  document.querySelectorAll<HTMLElement>('.admin-nav-item').forEach((item) => {
-    if (!allowed.includes(item.dataset.target!)) item.remove();
-  });
-
-  // A group heading with nothing left under it is noise.
-  document.querySelectorAll<HTMLElement>('[data-nav-group]').forEach((group) => {
-    if (!group.querySelector('.admin-nav-item')) group.remove();
-  });
-
-  const nav = document.getElementById('adminNav');
-  if (nav && allowed.length < 2) nav.classList.add('hidden');
-
-  setupPaneSwitching(preferred && allowed.includes(preferred) ? preferred : allowed[0]);
-}
+/** The shell's sub-page ids for the social pane's tabs. */
+const SOCIAL_TABS: Record<string, Tab> = { takvim: 'calendar', onay: 'pending', taslaklar: 'drafts', yayinlananlar: 'published', etkinlik: 'events' };
 
 /**
- * Data that should load the first time a pane is shown, not on every page
- * load: each load is a read the audit log records, so loading unseen panes
- * would fill the log with reads nobody asked for.
+ * Data that loads the first time a section is shown, not on every page
+ * load: each load is a read the audit log records, so loading unseen
+ * sections would fill the log with reads nobody asked for. A failed load
+ * says so, as the pane loaders did.
  */
-const paneLoaders = new Map<string, () => Promise<void>>();
-const paneLoaded = new Set<string>();
-let currentPane = '';
-
-const LOAD_FAILED: Record<string, string> = {
-  audit: 'admin.audit.loadFailed',
-  connections: 'admin.connections.loadFailed',
-  social: 'admin.social.loadFailed',
-};
-
-function runPaneLoader(pane: string): void {
-  const loader = paneLoaders.get(pane);
-  if (!loader || paneLoaded.has(pane)) return;
-  paneLoaded.add(pane);
-  loader().catch(() => showToast(t((Object.hasOwn(LOAD_FAILED, pane) ? LOAD_FAILED[pane] : 'admin.social.loadFailed') as never), true));
-}
-
-/** Registers a loader; runs it now if its pane is already the one on screen. */
-function registerPaneLoader(pane: string, loader: () => Promise<void>): void {
-  paneLoaders.set(pane, loader);
-  if (currentPane === pane) runPaneLoader(pane);
-}
-
-/** Shows one pane at a time and marks its nav entry as current. */
-function setupPaneSwitching(initial: string): void {
-  const items = document.querySelectorAll<HTMLButtonElement>('.admin-nav-item');
-  const panes = document.querySelectorAll<HTMLElement>('[data-pane]');
-
-  function show(target: string): void {
-    currentPane = target;
-    runPaneLoader(target);
-    panes.forEach((p) => p.classList.toggle('hidden', p.dataset.pane !== target));
-    items.forEach((i) => {
-      const current = i.dataset.target === target;
-      i.classList.toggle('bg-navy-light', current);
-      i.classList.toggle('text-navy', current);
-      i.classList.toggle('font-medium', current);
-      i.setAttribute('aria-current', current ? 'page' : 'false');
-    });
-    // The audit log records which panes each person opened (spec §6).
-    // keepalive so a view right before leaving the page is still sent.
-    void fetch('/api/audit/view', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pane: target }), keepalive: true,
-    }).catch(() => {});
-  }
-
-  items.forEach((i) => i.addEventListener('click', () => show(i.dataset.target!)));
-  show(initial);
+function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<void> {
+  return () => load().catch(() => { if (failed) showToast(t(failed as never), true); });
 }
 
 (async () => {
@@ -127,12 +47,13 @@ function setupPaneSwitching(initial: string): void {
 
   document.getElementById('loadingState')!.classList.add('hidden');
 
-  if (!data.user || (!data.user.is_admin && !data.user.is_announcer && !data.user.is_symposium && !data.user.is_social && !data.user.is_social_publisher)) {
+  if (!data.user || landing(rolesFromMe(data.user)) === null) {
     document.getElementById('notAuth')!.classList.remove('hidden');
     return;
   }
 
   document.getElementById('adminContent')!.classList.remove('hidden');
+  const roles = rolesFromMe(data.user);
   const isFullAdmin = data.user.is_admin === true;
   const isAnnouncer = data.user.is_announcer === true;
   const isSymposium = data.user.is_symposium === true;
@@ -141,12 +62,42 @@ function setupPaneSwitching(initial: string): void {
   const canManageAnnouncements = isFullAdmin || isAnnouncer;
   setCanManageAnnouncements(canManageAnnouncements);
   const canEditSymposium = isFullAdmin || isSymposium;
-  // Back from a Gmail reconnect: open Connections and say how it went.
   const params = new URLSearchParams(location.search);
   const connected = params.get('connected');
   const connectionError = params.get('connection_error');
-  applyRoleVisibility({ isFullAdmin, isAnnouncer, isSymposium, isSocial }, connected || connectionError ? 'connections' : undefined);
-  void loadHealth({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, lang });
+
+  // The shell runs a section's loader as soon as it shows it, so whatever
+  // a loader needs is wired before the shell starts.
+  if (isFullAdmin) {
+    setupConnections({ t: t as (k: string) => string, showToast, lang });
+    setupAudit({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, showToast, lang });
+  }
+  if (isFullAdmin || isSocial) {
+    setupSocial({
+      t: t as (k: string) => string,
+      tf: tf as (k: string, v: Record<string, string | number>) => string,
+      showToast, lang, me: { id: data.user.id, isPublisher: isSocialPublisher }, refreshCounts,
+    });
+  }
+  const onShow: Partial<Record<SectionId, () => Promise<void>>> = {
+    // Overview's System block is filled by the health check, whichever finishes first.
+    genel: loadOverview,
+    baglantilar: onFirstShow(loadConnections, 'admin.connections.loadFailed'),
+    kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
+    sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),
+  };
+  const onSub: Partial<Record<SectionId, (sub: string) => void>> = {
+    sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
+  };
+  // Back from a Gmail reconnect: the shell opens Connections; say how it went.
+  startShell(roles, { onShow, onSub });
+  if (connected || connectionError) {
+    const known = ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'store_failed', 'not_configured', 'not_professional', 'not_page_admin', 'lookup_failed'];
+    if (connected) showToast(tf('admin.connections.connected', { platform: t(`admin.connections.platform.${connected}` as never) }));
+    else showToast(t(`admin.connections.error.${known.includes(connectionError!) ? connectionError : 'unknown'}` as never), true);
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
+  void loadHealth(healthDeps);
   if (canManageAnnouncements) {
     await loadAnnouncements();
     setupAnnouncementForm();
@@ -157,26 +108,6 @@ function setupPaneSwitching(initial: string): void {
     setupBulkGrant();
     setupAttachmentUpload();
     await Promise.all([loadSenders(), loadAdminAttachments(), loadAllSends()]);
-  }
-  if (isFullAdmin) {
-    setupConnections({ t: t as (k: string) => string, showToast, lang });
-    setupAudit({ t: t as (k: string) => string, tf: tf as (k: string, v: Record<string, string | number>) => string, showToast, lang });
-    registerPaneLoader('connections', loadConnections);
-    registerPaneLoader('audit', () => loadAudit());
-  }
-  if (isFullAdmin || isSocial) {
-    setupSocial({
-      t: t as (k: string) => string,
-      tf: tf as (k: string, v: Record<string, string | number>) => string,
-      showToast, lang, me: { id: data.user.id, isPublisher: isSocialPublisher },
-    });
-    registerPaneLoader('social', loadSocial);
-  }
-  if (connected || connectionError) {
-    const known = ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'store_failed', 'not_configured', 'not_professional', 'not_page_admin', 'lookup_failed'];
-    if (connected) showToast(tf('admin.connections.connected', { platform: t(`admin.connections.platform.${connected}` as never) }));
-    else showToast(t(`admin.connections.error.${known.includes(connectionError!) ? connectionError : 'unknown'}` as never), true);
-    history.replaceState(null, '', location.pathname);
   }
   if (canEditSymposium) {
     setupSymposium();

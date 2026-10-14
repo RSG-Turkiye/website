@@ -56,7 +56,7 @@ for (const kind of ['speakers', 'sessions', 'committee']) {
 }
 await page.route('**/api/admin/symposium/edition', json({ year: 2026, edition: {} }));
 
-await page.goto(BASE + '/admin', { waitUntil: 'networkidle' });
+await page.goto(BASE + '/admin#kullanicilar/liste', { waitUntil: 'networkidle' });
 await page.waitForSelector('#userTableBody tr');
 
 // Playwright's own :visible, never offsetParent -- the dropdown's buttons are

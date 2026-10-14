@@ -46,9 +46,11 @@ async function act(work: () => Promise<unknown>, doneKey: string, btn?: HTMLButt
 
 export async function refreshPendingCount(): Promise<void> {
   if (!deps().me.isPublisher) return;
-  const n = (await api.pending()).length;
+  // The admin menu shows this count now (shell.ts refreshCounts); without
+  // the pill there is nothing to fill, so skip the request.
   const pill = document.getElementById('socialPendingCount');
   if (!pill) return;
+  const n = (await api.pending()).length;
   pill.textContent = String(n);
   pill.classList.toggle('hidden', n === 0);
 }

@@ -72,7 +72,7 @@ await page.route('**/api/blog-submissions/upload-image', (r) => {
 });
 
 console.log('1) sempozyum yetkilisi olarak /admin — komite tablosu ekipleri gösteriyor');
-await page.goto(BASE + '/admin', { waitUntil: 'networkidle' });
+await page.goto(BASE + '/admin#sempozyum/komite', { waitUntil: 'networkidle' });
 await page.waitForSelector('#symCommitteeTableBody tr');
 const rows = await page.$$eval('#symCommitteeTableBody tr', (trs) =>
   trs.map((tr) => [...tr.querySelectorAll('td')].slice(0, 4).map((td) => td.textContent.trim())));

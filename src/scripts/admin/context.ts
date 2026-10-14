@@ -1,4 +1,5 @@
 import { useTranslations } from '../../i18n/ui';
+import { toast } from './ui-kit';
 
 type Lang = 'en' | 'tr';
 
@@ -16,12 +17,7 @@ export function tf(key: Parameters<typeof t>[0], vars: Record<string, string | n
 export const dateLocale = lang === 'en' ? 'en-GB' : 'tr-TR';
 
 export function showToast(message: string, isError = false) {
-  const toast = document.getElementById('toast')!;
-  toast.textContent = message;
-  toast.style.background = isError ? '#dc2626' : '#0f2045';
-  toast.classList.remove('hidden');
-  // Errors linger; a confirmed success only needs long enough to be seen.
-  setTimeout(() => toast.classList.add('hidden'), isError ? 5000 : 1600);
+  toast(message, isError);
 }
 
 export function formatDate(ts: number) {

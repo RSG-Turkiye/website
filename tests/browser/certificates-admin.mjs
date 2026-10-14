@@ -107,7 +107,7 @@ async function run(viewport) {
   });
 
   console.log(`\n== ${viewport.width}x${viewport.height}`);
-  await page.goto(BASE + '/admin', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/admin#sempozyum/sertifikalar', { waitUntil: 'networkidle' });
   await page.waitForSelector('#symCertificates');
   await page.setInputFiles('#symCertCsv', join(dir, 'list.csv'));
   await page.setInputFiles('#symCertPdfs', ['small.pdf', 'big.pdf', 'broken.pdf', 'notpdf.pdf'].map((f) => join(dir, f)));

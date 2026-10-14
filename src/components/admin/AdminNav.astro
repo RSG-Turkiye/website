@@ -1,74 +1,27 @@
 ---
 /**
- * The admin panel's section switcher.
- *
- * The panel used to stack every section down one page: four top-level blocks,
- * one of which ("Send as RSG") held four more. Finding anything meant
- * scrolling past everything else, and a fifth section is on the way.
- *
- * Each entry names a pane in AdminShell via `data-target`. Which entries a
- * given admin may use is decided at runtime in admin/main.ts, from the same
- * role flags that used to hide whole sections -- see `applyRoleVisibility`.
+ * The admin panel's menu, rendered from the section registry
+ * (src/scripts/admin/sections.ts). Every entry is rendered; shell.ts prunes
+ * what the signed-in person's roles do not grant and clones the result into
+ * the phone drawer. Entries are plain links to `#<section>`, so the address
+ * says where the panel is.
  */
+import { SECTIONS, GROUPS } from '../../scripts/admin/sections';
 import { useTranslations } from '../../i18n/ui';
-
 interface Props { lang: 'en' | 'tr' }
-const { lang } = Astro.props;
-const t = useTranslations(lang);
-
-const items = [
-  { pane: 'members',       label: t('admin.members.heading') },
-  { pane: 'announcements', label: t('admin.announcements.heading') },
-  { pane: 'blog',          label: t('admin.blog.heading') },
-  { pane: 'symposium',     label: t('admin.symposium.heading') },
-  { pane: 'social',        label: t('admin.social.heading') },
-  { pane: 'connections',   label: t('admin.connections.heading') },
-  { pane: 'audit',         label: t('admin.audit.heading') },
-  {
-    label: t('admin.mail.heading'),
-    children: [
-      { pane: 'mail-grant',   label: t('admin.mail.bulkGrant.heading') },
-      { pane: 'mail-senders', label: t('admin.mail.senders.heading') },
-      { pane: 'mail-files',   label: t('admin.mail.attachments.heading') },
-      { pane: 'mail-sent',    label: t('admin.mail.allSends.heading') },
-    ],
-  },
-];
+const t = useTranslations(Astro.props.lang);
+const link = 'flex items-center justify-between gap-2 px-3 min-h-11 lg:min-h-9 rounded-lg text-sm text-navy hover:bg-[#F7F7F6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const countSlot = (k?: string) => (k ? `<span data-count="${k}" class="hidden min-w-5 px-1.5 rounded-full bg-red text-white text-xs text-center"></span>` : '');
+const overview = SECTIONS.find((s) => s.id === 'genel')!;
 ---
-
-<nav
-  id="adminNav"
-  aria-label={t('admin.members.heading')}
-  class="w-full lg:w-56 shrink-0 bg-white rounded-2xl border border-border p-2"
->
-  {items.map((item) => (
-    <div data-nav-group={item.children ? 'mail' : item.pane}>
-      {item.children ? (
-        <Fragment>
-          <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            {item.label}
-          </p>
-          <div class="pl-1">
-            {item.children.map((c) => (
-              <button
-                type="button"
-                data-target={c.pane}
-                class="admin-nav-item w-full text-left px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-[#F7F7F6] hover:text-navy transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </Fragment>
-      ) : (
-        <button
-          type="button"
-          data-target={item.pane}
-          class="admin-nav-item w-full text-left px-3 py-2 rounded-xl text-sm font-medium text-navy hover:bg-[#F7F7F6] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"
-        >
-          {item.label}
-        </button>
-      )}
+<nav id="sectionNav" aria-label={t('admin.nav.menu')} class="flex flex-col gap-0.5 text-sm">
+  <a href="#genel" data-nav="genel" class={link}><span>{t(overview.label as never)}</span></a>
+  {GROUPS.map((g) => (
+    <div data-nav-group={g.id} class="mt-3">
+      <p class="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{t(g.label as never)}</p>
+      {SECTIONS.filter((s) => s.group === g.id).map((s) => (
+        <a href={`#${s.id}`} data-nav={s.id} class={link}><span>{t(s.label as never)}</span><Fragment set:html={countSlot(s.count)} /></a>
+      ))}
     </div>
   ))}
 </nav>

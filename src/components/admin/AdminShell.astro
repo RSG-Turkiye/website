@@ -58,26 +58,39 @@ const t = useTranslations(lang);
       <!-- Admin content -->
       <div id="adminContent" class="hidden">
 
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-8">
-          <div>
-            <h1 class="text-2xl font-bold text-navy">{t('admin.header.title')}</h1>
-            <p class="text-sm text-gray-500 mt-1">{t('admin.header.subtitle')}</p>
-          </div>
-          <div id="statsRow" class="flex gap-4"></div>
+        <!-- Phone top bar: the menu, back to the sub-page list, and where you are -->
+        <div class="lg:hidden flex items-center gap-2 mb-4">
+          <button type="button" id="navToggle" aria-controls="navDrawer" aria-expanded="false" aria-label={t('admin.nav.menu')}
+            class="w-11 h-11 shrink-0 inline-flex items-center justify-center rounded-xl border border-border bg-white text-navy text-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">☰</button>
+          <button type="button" id="phoneBack" aria-label={t('admin.nav.back')}
+            class="hidden w-11 h-11 shrink-0 items-center justify-center rounded-xl text-navy text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">‹</button>
+          <h1 id="phoneTitle" class="flex-1 min-w-0 truncate text-base font-semibold text-navy"></h1>
         </div>
 
-        <!-- Toast -->
-        <div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white z-50"></div>
+        <!-- Toasts -->
+        <div id="toastStack" class="fixed z-50 bottom-4 inset-x-4 lg:inset-x-auto lg:right-6 flex flex-col gap-2 items-stretch lg:items-end"></div>
 
         <div id="healthBanner" role="status" class="hidden mb-6 rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]"></div>
 
+        <!-- Phone drawer: shell.ts clones #sectionNav into the panel -->
+        <div id="navDrawer" class="hidden fixed inset-0 z-40 bg-black/30 lg:hidden">
+          <div class="w-4/5 max-w-xs h-full bg-white p-3 overflow-y-auto" data-drawer-panel></div>
+        </div>
+
         <div class="flex flex-col lg:flex-row gap-6 items-start">
-          <AdminNav lang={lang} />
+          <aside class="hidden lg:block w-60 shrink-0 bg-white rounded-2xl border border-border p-2">
+            <p class="px-3 pt-2 pb-1 text-base font-bold text-navy">{t('admin.header.title')}</p>
+            <AdminNav lang={lang} />
+          </aside>
 
           <div class="flex-1 min-w-0 w-full">
+            <h1 id="sectionTitle" class="hidden lg:block text-2xl font-bold text-navy mb-4"></h1>
+            <div id="subNav"></div>
 
-        <div id="userManagementSection" data-pane="members">
+        <section data-section="genel"><div id="overview"></div></section>
+
+        <section id="userManagementSection" data-section="kullanicilar">
+        <div data-sub="liste">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.members.heading')}</h2>
         <!-- Filters -->
         <div class="bg-white rounded-2xl border border-border p-4 mb-6 flex flex-wrap items-center gap-3">
@@ -114,9 +127,11 @@ const t = useTranslations(lang);
           <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.table.noUsersFound')}</div>
         </div>
         </div>
+        <div data-sub="yetkiler"><div id="rolesView"></div></div>
+        </section>
 
         <!-- Announcements section -->
-        <div id="announcementsSection" data-pane="announcements">
+        <section id="announcementsSection" data-section="duyurular">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.announcements.heading')}</h2>
 
           <div class="bg-white rounded-2xl border border-border p-4 mb-6">
@@ -177,22 +192,22 @@ const t = useTranslations(lang);
             </table>
             <div id="announcementsEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.announcements.table.noneYet')}</div>
           </div>
-        </div>
+        </section>
 
         <!-- Blog submissions section -->
-        <div id="blogSubmissionsSection" data-pane="blog">
+        <section id="blogSubmissionsSection" data-section="blog">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.blog.heading')}</h2>
           <div id="blogSubmissionsList" class="flex flex-col gap-4"></div>
           <p id="blogSubmissionsEmpty" class="hidden text-sm text-gray-500">{t('admin.blog.empty')}</p>
-        </div>
+        </section>
 
         <SymposiumPane lang={lang} />
         <SocialPane lang={lang} />
 
         <!-- Send as RSG -->
-        <div id="rsgMailSection">
+        <section id="rsgMailSection" data-section="eposta">
 
-          <div data-pane="mail-grant">
+          <div data-sub="yetki">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.bulkGrant.heading')}</h2><div class="bg-white rounded-2xl border border-border p-6 mb-4">
             <form id="bulkGrantForm" class="flex flex-col gap-3">
               <textarea id="bulkEmails" rows="4" required
@@ -207,13 +222,13 @@ const t = useTranslations(lang);
             </form>
           </div></div>
 
-          <div data-pane="mail-senders">
+          <div data-sub="gondericiler">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.senders.heading')}</h2><div class="bg-white rounded-2xl border border-border p-6 mb-4">
             <div id="sendersList" class="flex flex-col gap-2"></div>
             <p id="sendersEmpty" class="hidden text-sm text-gray-500">{t('admin.mail.senders.empty')}</p>
           </div></div>
 
-          <div data-pane="mail-files">
+          <div data-sub="ekler">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.attachments.heading')}</h2><div class="bg-white rounded-2xl border border-border p-6 mb-4">
 
             <input id="attachmentFile" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.pptx"
@@ -232,14 +247,15 @@ const t = useTranslations(lang);
             <p id="attachmentsEmpty" class="hidden text-sm text-gray-500 mt-2">{t('admin.mail.attachments.empty')}</p>
           </div></div>
 
-          <div data-pane="mail-sent">
+          <div data-sub="gonderilenler">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.allSends.heading')}</h2><div class="bg-white rounded-2xl border border-border p-6">
             <div id="allSendsList" class="flex flex-col gap-2"></div>
             <p id="allSendsEmpty" class="hidden text-sm text-gray-500">{t('admin.mail.allSends.empty')}</p>
           </div>
-        </div>
+          </div>
+        </section>
 
-        <div data-pane="connections">
+        <section data-section="baglantilar">
           <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.connections.heading')}</h2>
           <p class="text-sm text-gray-500 mb-4">{t('admin.connections.intro')}</p>
           <div class="bg-white rounded-2xl border border-border overflow-x-auto">
@@ -256,9 +272,9 @@ const t = useTranslations(lang);
               <tbody id="connectionsBody"></tbody>
             </table>
           </div>
-        </div>
+        </section>
 
-        <div data-pane="audit">
+        <section data-section="kayit">
           <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.audit.heading')}</h2>
           <p class="text-sm text-gray-500 mb-4">{t('admin.audit.intro')}</p>
           <form id="auditFilter" class="bg-white rounded-2xl border border-border p-4 mb-4 flex flex-wrap items-end gap-3">
@@ -288,7 +304,10 @@ const t = useTranslations(lang);
             </table>
           </div>
           <button type="button" id="auditMore" class="hidden mt-3 px-4 py-2 rounded-xl border border-border text-sm text-navy">{t('admin.audit.more')}</button>
-        </div></div></div></div>
+        </section>
+
+          </div>
+        </div>
 
       </div>
     </div>

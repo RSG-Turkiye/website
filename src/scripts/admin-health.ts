@@ -38,10 +38,41 @@ function action(i: Issue, canFix: boolean, d: HealthDeps): string {
     : `<span class="shrink-0 text-xs">${escapeHtml(d.t('admin.health.adminCanFix'))}</span>`;
 }
 
+type Health = { issues: Issue[]; canFix: boolean };
+
+// The last answer, kept so Overview can show it whichever of the two (this
+// check or Overview's own render) finishes first.
+let last: { data: Health; d: HealthDeps } | null = null;
+
+function lines(data: Health, d: HealthDeps): string {
+  return data.issues
+    .map((i) => `<div class="flex items-center justify-between gap-3 py-1.5"><span>⚠ ${escapeHtml(message(i, d))}</span>${action(i, data.canFix, d)}</div>`)
+    .join('');
+}
+
+function wireFix(el: HTMLElement): void {
+  el.querySelectorAll<HTMLButtonElement>('[data-fix]').forEach((b) =>
+    b.addEventListener('click', () => { location.hash = '#baglantilar'; }),
+  );
+}
+
+/** Fills Overview's System block, once Overview is on the page and the check has answered. */
+export function renderOverviewHealth(): void {
+  const el = document.getElementById('overviewHealth');
+  if (!el || !last) return;
+  const { data, d } = last;
+  if (data.issues.length === 0) {
+    el.innerHTML = `<p class="text-sm text-gray-500">${escapeHtml(d.t('admin.overview.healthy'))}</p>`;
+    return;
+  }
+  el.innerHTML = `<div class="rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]">${lines(data, d)}</div>`;
+  wireFix(el);
+}
+
 export async function loadHealth(d: HealthDeps): Promise<void> {
   const el = document.getElementById('healthBanner');
   if (!el) return;
-  let data: { issues: Issue[]; canFix: boolean };
+  let data: Health;
   try {
     const res = await fetch('/api/admin/health');
     if (!res.ok) return;
@@ -49,16 +80,14 @@ export async function loadHealth(d: HealthDeps): Promise<void> {
   } catch {
     return;
   }
+  last = { data, d };
+  renderOverviewHealth();
   if (data.issues.length === 0) {
     el.classList.add('hidden');
     el.replaceChildren();
     return;
   }
-  el.innerHTML = data.issues
-    .map((i) => `<div class="flex items-center justify-between gap-3 py-1.5"><span>⚠ ${escapeHtml(message(i, d))}</span>${action(i, data.canFix, d)}</div>`)
-    .join('');
+  el.innerHTML = lines(data, d);
   el.classList.remove('hidden');
-  el.querySelectorAll<HTMLButtonElement>('[data-fix]').forEach((b) =>
-    b.addEventListener('click', () => document.querySelector<HTMLButtonElement>('.admin-nav-item[data-target="connections"]')?.click()),
-  );
+  wireFix(el);
 }

@@ -224,23 +224,6 @@ export async function loadUsers() {
   const data = await res.json() as { users: any[]; badge_catalog?: typeof badgeCatalog };
   badgeCatalog = data.badge_catalog ?? [];
   renderUsers(data.users);
-
-  // Update stats
-  const total = data.users.length;
-  const members = data.users.filter(u => u.is_member).length;
-  document.getElementById('statsRow')!.innerHTML = `
-    <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
-      <div class="text-lg font-bold text-navy">${total}</div>
-      <div class="text-xs text-gray-500">${t('admin.stats.shown')}</div>
-    </div>
-    <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
-      <div class="text-lg font-bold text-green-600">${members}</div>
-      <div class="text-xs text-gray-500">${t('admin.stats.members')}</div>
-    </div>
-    <div class="text-center px-4 py-2 rounded-xl bg-white border border-border">
-      <div class="text-lg font-bold text-gray-500">${total - members}</div>
-      <div class="text-xs text-gray-500">${t('admin.stats.pending')}</div>
-    </div>`;
 }
 
 export function setupUsersFilters(): void {
