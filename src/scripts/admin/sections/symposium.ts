@@ -3,6 +3,7 @@ import { drivePhotoUrl } from '../../../../functions/_lib/photo-url';
 import { escapeHtml } from '../../escape-html';
 import { setupCertificates, loadCertificates } from '../../admin-certificates';
 import { lang, t, tf, showToast, formatDate } from '../context';
+import { row, chip, BTN, armConfirm, guardUnsaved } from '../ui-kit';
 
 // The edition being edited (the highest year not yet archived, per
 // edition.ts) and the current speaker list, cached so the sessions form's
@@ -122,6 +123,7 @@ function setupEditionForm(): void {
   const form = document.getElementById('symEditionForm') as HTMLFormElement;
   const submitBtn = form.querySelector('button[type=submit]') as HTMLButtonElement | null;
   const snapshotBtn = document.getElementById('symEditionSnapshotBtn') as HTMLButtonElement | null;
+  const guard = guardUnsaved(form, '#sempozyum', () => { void loadEdition(); });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     void whileSaving(submitBtn, saveEdition);
@@ -174,6 +176,7 @@ function setupEditionForm(): void {
 
     if (res.ok) {
       const data = await res.json() as { ok: true; rebuild: { triggered: boolean; detail: string } };
+      guard.reset();
       showRebuildStatus('symEditionStatus', data.rebuild);
     } else {
       const err = await res.json() as { error: string };
@@ -210,16 +213,12 @@ function renderSpeakers(items: SpeakerItem[]): void {
   }
   empty.classList.add('hidden');
 
-  tbody.innerHTML = items.map((s) => `
-    <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
-      <td class="px-5 py-4 text-navy font-medium">${escapeHtml(s.name)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml(s.position)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml(s.slug)}</td>
-      <td class="px-5 py-4 text-right">
-        <button data-id="${s.id}" class="edit-speaker-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.speakers.edit')}</button>
-        <button data-id="${s.id}" class="delete-speaker-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.speakers.delete')}</button>
-      </td>
-    </tr>`).join('');
+  tbody.innerHTML = items.map((s) => row({
+    title: s.name,
+    subtitle: [s.company, s.position].filter(Boolean).join(' · '),
+    trailing: `<button type="button" data-id="${escapeHtml(s.id)}" class="edit-speaker-btn ${BTN.ghost}">${escapeHtml(t('admin.symposium.speakers.edit'))}</button>
+      <button type="button" data-id="${escapeHtml(s.id)}" class="delete-speaker-btn ${BTN.danger}">${escapeHtml(t('admin.symposium.speakers.delete'))}</button>`,
+  })).join('');
 
   tbody.querySelectorAll('.edit-speaker-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
@@ -239,13 +238,11 @@ function renderSpeakers(items: SpeakerItem[]): void {
     });
   });
 
-  tbody.querySelectorAll('.delete-speaker-btn').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      const b = e.currentTarget as HTMLButtonElement;
-      b.disabled = true;
-      const res = await fetch(`/api/admin/symposium/speakers/${b.dataset.id}`, { method: 'DELETE' });
+  tbody.querySelectorAll<HTMLButtonElement>('.delete-speaker-btn').forEach((btn) => {
+    armConfirm(btn, t('admin.users.detail.confirm'), async () => {
+      const res = await fetch(`/api/admin/symposium/speakers/${btn.dataset.id}`, { method: 'DELETE' });
       if (res.ok) { showToast(t('admin.toast.deleted')); await loadSpeakers(); }
-      else { showToast(t('admin.toast.error'), true); b.disabled = false; }
+      else showToast(t('admin.toast.error'), true);
     });
   });
 }
@@ -264,11 +261,14 @@ function setupSpeakerForm(): void {
   const form = document.getElementById('symSpeakerForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('symSpeakerCancelBtn')!;
 
+  const guard = guardUnsaved(form, '#sempozyum', () => resetForm());
+
   function resetForm() {
     form.reset();
     (document.getElementById('symSpeakerEditId') as HTMLInputElement).value = '';
     speakerPhoto?.reset();
     cancelBtn.classList.add('hidden');
+    guard.reset();
   }
   cancelBtn.addEventListener('click', resetForm);
 
@@ -343,17 +343,12 @@ function renderSessions(items: SessionItem[]): void {
   }
   empty.classList.add('hidden');
 
-  tbody.innerHTML = items.map((s) => `
-    <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
-      <td class="px-5 py-4 text-navy font-medium">${escapeHtml(s.title)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml(sessionTypeLabel(s.type))}</td>
-      <td class="px-5 py-4 text-gray-500 tabular-nums">${s.day ?? 1}</td>
-      <td class="px-5 py-4 text-gray-500 tabular-nums">${escapeHtml(s.time)}${s.endTime ? '–' + escapeHtml(s.endTime) : ''}</td>
-      <td class="px-5 py-4 text-right">
-        <button data-id="${s.id}" class="edit-session-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.sessions.edit')}</button>
-        <button data-id="${s.id}" class="delete-session-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.sessions.delete')}</button>
-      </td>
-    </tr>`).join('');
+  tbody.innerHTML = items.map((s) => row({
+    title: `${t('admin.symposium.sessions.table.day')} ${s.day ?? 1} · ${s.time}${s.endTime ? '–' + s.endTime : ''}`,
+    subtitle: `${s.title} · ${sessionTypeLabel(s.type)}`,
+    trailing: `<button type="button" data-id="${escapeHtml(s.id)}" class="edit-session-btn ${BTN.ghost}">${escapeHtml(t('admin.symposium.sessions.edit'))}</button>
+      <button type="button" data-id="${escapeHtml(s.id)}" class="delete-session-btn ${BTN.danger}">${escapeHtml(t('admin.symposium.sessions.delete'))}</button>`,
+  })).join('');
 
   tbody.querySelectorAll('.edit-session-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
@@ -376,13 +371,11 @@ function renderSessions(items: SessionItem[]): void {
     });
   });
 
-  tbody.querySelectorAll('.delete-session-btn').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      const b = e.currentTarget as HTMLButtonElement;
-      b.disabled = true;
-      const res = await fetch(`/api/admin/symposium/sessions/${b.dataset.id}`, { method: 'DELETE' });
+  tbody.querySelectorAll<HTMLButtonElement>('.delete-session-btn').forEach((btn) => {
+    armConfirm(btn, t('admin.users.detail.confirm'), async () => {
+      const res = await fetch(`/api/admin/symposium/sessions/${btn.dataset.id}`, { method: 'DELETE' });
       if (res.ok) { showToast(t('admin.toast.deleted')); await loadSessions(); }
-      else { showToast(t('admin.toast.error'), true); b.disabled = false; }
+      else showToast(t('admin.toast.error'), true);
     });
   });
 }
@@ -399,11 +392,14 @@ function setupSessionForm(): void {
   const cancelBtn = document.getElementById('symSessionCancelBtn')!;
   const speakersSelect = document.getElementById('symSessionSpeakers') as unknown as HTMLSelectElement;
 
+  const guard = guardUnsaved(form, '#sempozyum', () => resetForm());
+
   function resetForm() {
     form.reset();
     (document.getElementById('symSessionEditId') as HTMLInputElement).value = '';
     Array.from(speakersSelect.options).forEach((o) => { o.selected = false; });
     cancelBtn.classList.add('hidden');
+    guard.reset();
   }
   cancelBtn.addEventListener('click', resetForm);
 
@@ -515,17 +511,13 @@ function renderCommittee(items: CommitteeItem[]): void {
   }
   empty.classList.add('hidden');
 
-  tbody.innerHTML = items.map((c) => `
-    <tr class="border-b border-border last:border-0 hover:bg-[#FAFAFA] transition-colors">
-      <td class="px-5 py-4 text-navy font-medium">${escapeHtml(c.name)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml(lang === 'tr' ? (c.roleTr || c.role) : c.role)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml(c.affiliation)}</td>
-      <td class="px-5 py-4 text-gray-500">${escapeHtml(teamLabels(c).join(', '))}</td>
-      <td class="px-5 py-4 text-right">
-        <button data-id="${c.id}" class="edit-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-navy-mid hover:text-navy transition-colors mr-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.edit')}</button>
-        <button data-id="${c.id}" class="delete-committee-btn text-xs px-3 py-1.5 rounded-lg border border-border text-gray-500 hover:border-red hover:text-red transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">${t('admin.symposium.committee.delete')}</button>
-      </td>
-    </tr>`).join('');
+  tbody.innerHTML = items.map((c) => row({
+    title: c.name,
+    subtitle: [lang === 'tr' ? (c.roleTr || c.role) : c.role, c.affiliation].filter(Boolean).join(' · '),
+    chips: teamLabels(c).map((team) => chip(team, 'navy')).join(''),
+    trailing: `<button type="button" data-id="${escapeHtml(c.id)}" class="edit-committee-btn ${BTN.ghost}">${escapeHtml(t('admin.symposium.committee.edit'))}</button>
+      <button type="button" data-id="${escapeHtml(c.id)}" class="delete-committee-btn ${BTN.danger}">${escapeHtml(t('admin.symposium.committee.delete'))}</button>`,
+  })).join('');
 
   tbody.querySelectorAll('.edit-committee-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
@@ -550,13 +542,11 @@ function renderCommittee(items: CommitteeItem[]): void {
     });
   });
 
-  tbody.querySelectorAll('.delete-committee-btn').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      const b = e.currentTarget as HTMLButtonElement;
-      b.disabled = true;
-      const res = await fetch(`/api/admin/symposium/committee/${b.dataset.id}`, { method: 'DELETE' });
+  tbody.querySelectorAll<HTMLButtonElement>('.delete-committee-btn').forEach((btn) => {
+    armConfirm(btn, t('admin.users.detail.confirm'), async () => {
+      const res = await fetch(`/api/admin/symposium/committee/${btn.dataset.id}`, { method: 'DELETE' });
       if (res.ok) { showToast(t('admin.toast.deleted')); await loadCommittee(); }
-      else { showToast(t('admin.toast.error'), true); b.disabled = false; }
+      else showToast(t('admin.toast.error'), true);
     });
   });
 }
@@ -677,11 +667,14 @@ function setupCommitteeForm(): void {
   const form = document.getElementById('symCommitteeForm') as HTMLFormElement;
   const cancelBtn = document.getElementById('symCommitteeCancelBtn')!;
 
+  const guard = guardUnsaved(form, '#sempozyum', () => resetForm());
+
   function resetForm() {
     form.reset();
     (document.getElementById('symCommitteeEditId') as HTMLInputElement).value = '';
     committeePhoto?.reset();
     cancelBtn.classList.add('hidden');
+    guard.reset();
   }
   cancelBtn.addEventListener('click', resetForm);
 

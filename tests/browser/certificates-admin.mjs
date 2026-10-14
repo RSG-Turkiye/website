@@ -119,8 +119,12 @@ async function run(viewport) {
   // Compression is sequential; give the last row time to settle.
   await page.waitForTimeout(500);
 
-  const rows = await page.$$eval('#symCertPreviewBody tr', (trs) =>
-    trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())));
+  // A row is: title (name), subtitle (email · kind · size), status chip.
+  const rows = await page.$$eval('#symCertPreviewBody > div', (els) =>
+    els.map((el) => {
+      const sub = (el.querySelectorAll('p')[1]?.textContent ?? '').trim();
+      return [el.querySelector('p').textContent.trim(), sub, sub, sub, el.querySelector('[data-status]').textContent.trim()];
+    }));
   console.log('   ', JSON.stringify(rows));
   ok(rows.length === 5, 'five preview rows');
   ok(rows[0]?.[4] === 'Ready', `row 1 ready (${rows[0]?.[4]})`);
@@ -170,11 +174,12 @@ async function run(viewport) {
     document.getElementById('symCertRebuildStatus').classList.add('hidden');
     document.getElementById('symCertYear').dispatchEvent(new Event('change'));
   });
-  await page.waitForSelector('#symCertListBody tr');
-  await page.click('#symCertListBody tr button');
+  await page.waitForSelector('#symCertListBody > div');
+  await page.click('#symCertListBody button');
+  await page.click('#symCertListBody button');
   await page.waitForTimeout(500);
   const afterDelete = await page.evaluate(() => ({
-    rows: document.querySelectorAll('#symCertListBody tr').length,
+    rows: document.querySelectorAll('#symCertListBody > div').length,
     rebuildShown: !document.getElementById('symCertRebuildStatus').classList.contains('hidden'),
     rebuildText: document.getElementById('symCertRebuildStatus').textContent,
     label: document.querySelector('label[for=symCertDeleteAllInput]')?.textContent?.trim() ?? '',

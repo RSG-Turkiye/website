@@ -217,6 +217,73 @@ console.log('5) lists redrawn, 390 px');
   await page.close();
 }
 
+console.log('6) Sempozyum sub-pages and the unsaved-changes guard');
+{
+  const long = 'y'.repeat(120);
+  const SYMP = {
+    ...EMPTY,
+    items: [{ id: 'i1', sort: 1, slug: 's1', name: 'Ada ' + long, position: 'Prof. ' + long, company: 'Uni ' + long, bio: '', photo: '', linkedin: '',
+      title: 'Talk ' + long, type: 'talk', time: '09:00', endTime: '09:30', description: '', speakerSlugs: [], day: 1, titleTr: '', descriptionTr: '',
+      role: 'Chair', roleTr: '', affiliation: 'Lab', teams: ['A', 'B'], teamsTr: [] }],
+    certificates: [{ id: 'c1', email: long + '@example.org', name: 'Ayse ' + long, kind: 'participation', size_bytes: 877, expires_at: 1794415522 }],
+    totalBytes: 877,
+  };
+  const SUBS = ['baski', 'konusmacilar', 'oturumlar', 'komite', 'sertifikalar'];
+  {
+    const { page } = await open(ADMIN, { width: 1280, height: 900 }, '/admin', SYMP);
+    for (const sub of SUBS) {
+      await page.evaluate(() => { location.hash = '#genel'; });
+      await waitHash(page, '#genel');
+      await page.click('#sectionNav [data-nav="sempozyum"]');
+      await page.click(`#subNav [data-sub-link="${sub}"]`);
+      await waitHash(page, `#sempozyum/${sub}`);
+      ok(await hash(page) === `#sempozyum/${sub}` && await visible(page, `[data-sub="${sub}"]`), `desktop: tab ${sub} opens its sub-page`);
+    }
+    ok(await fits(page, 1280), 'sempozyum: no horizontal scroll at 1280 px');
+    await page.close();
+  }
+  {
+    const { page, deletes } = await open(ADMIN, { width: 390, height: 844 }, '/admin', SYMP);
+    for (const sub of SUBS) {
+      await page.evaluate(() => { location.hash = '#sempozyum'; });
+      await waitHash(page, '#sempozyum');
+      await page.click(`#subNav [data-sub-link="${sub}"]`);
+      await waitHash(page, `#sempozyum/${sub}`);
+      ok(await hash(page) === `#sempozyum/${sub}` && await visible(page, `[data-sub="${sub}"]`), `phone: list row ${sub} opens its sub-page`);
+      await page.waitForTimeout(150);
+      ok(await fits(page, 390), `phone: #sempozyum/${sub} has no horizontal scroll`);
+    }
+    await page.evaluate(() => { location.hash = '#sempozyum/sertifikalar'; });
+    await waitHash(page, '#sempozyum/sertifikalar');
+    await page.waitForSelector('#symCertListBody > div');
+    ok(await fits(page, 390), 'certificates with long values: scrollWidth <= 390');
+    await page.click('#symCertListBody button');
+    ok(!deletes.some((d) => d.startsWith('DELETE')), 'certificate delete needs a second click');
+
+    await page.evaluate(() => { location.hash = '#sempozyum/konusmacilar'; });
+    await waitHash(page, '#sempozyum/konusmacilar');
+    await page.waitForSelector('#symSpeakersTableBody > div');
+    await page.fill('#symSpeakerName', 'Unsaved speaker');
+    const noticeUp = () => page.locator('#symSpeakerForm').evaluate((f) => !f.previousElementSibling.classList.contains('hidden'));
+    await page.evaluate(() => { location.hash = '#sempozyum/oturumlar'; });
+    await waitHash(page, '#sempozyum/oturumlar');
+    ok(await hash(page) === '#sempozyum/oturumlar', 'moving between symposium sub-pages is free');
+    await page.evaluate(() => { location.hash = '#sempozyum/konusmacilar'; });
+    await waitHash(page, '#sempozyum/konusmacilar');
+    await page.evaluate(() => { location.hash = '#blog'; });
+    await page.waitForTimeout(300);
+    ok(await hash(page) === '#sempozyum/konusmacilar', 'a dirty speaker form blocks leaving the section');
+    ok(await noticeUp(), 'the unsaved-changes notice shows above the speaker form');
+    await page.locator('#symSpeakerForm').locator('xpath=preceding-sibling::div[1]').locator('[data-discard]').click();
+    await waitHash(page, '#blog');
+    ok(await hash(page) === '#blog', 'Discard continues to the wanted section');
+    await page.evaluate(() => { location.hash = '#sempozyum/konusmacilar'; });
+    await waitHash(page, '#sempozyum/konusmacilar');
+    ok(await page.inputValue('#symSpeakerName') === '', 'Discard cleared the speaker form');
+    await page.close();
+  }
+}
+
 await browser.close();
 console.log(bad.length ? `\n${bad.length} FAILED:\n - ` + bad.join('\n - ') : '\nALL PASSED');
 process.exit(bad.length ? 1 : 0);

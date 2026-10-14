@@ -63,11 +63,11 @@ await page.route('**/api/blog-submissions/upload-image', async (r) => {
 
 console.log('1) konuşmacı formunda dosya yükleme alanı var');
 await page.goto(BASE + '/admin#sempozyum/konusmacilar', { waitUntil: 'networkidle' });
-await page.waitForSelector('#symSpeakersTableBody tr');
+await page.waitForSelector('#symSpeakersTableBody > div');
 ok(await page.isVisible('#symSpeakerPhotoFile'), 'dosya seçme tuşu görünür');
 
 console.log('2) düzenle — Drive linkli fotoğrafın önizlemesi doğrudan resim adresini kullanıyor');
-await page.click('#symSpeakersTableBody tr:first-child .edit-speaker-btn');
+await page.click('#symSpeakersTableBody > div:first-child .edit-speaker-btn');
 const preview = await page.evaluate(() => {
   const img = document.getElementById('symSpeakerPhotoPreview');
   return { src: img.getAttribute('src'), hidden: img.classList.contains('hidden') };

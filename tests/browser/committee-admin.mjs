@@ -73,13 +73,14 @@ await page.route('**/api/blog-submissions/upload-image', (r) => {
 
 console.log('1) sempozyum yetkilisi olarak /admin — komite tablosu ekipleri gösteriyor');
 await page.goto(BASE + '/admin#sempozyum/komite', { waitUntil: 'networkidle' });
-await page.waitForSelector('#symCommitteeTableBody tr');
-const rows = await page.$$eval('#symCommitteeTableBody tr', (trs) =>
-  trs.map((tr) => [...tr.querySelectorAll('td')].slice(0, 4).map((td) => td.textContent.trim())));
+await page.waitForSelector('#symCommitteeTableBody > div');
+const rows = await page.$$eval('#symCommitteeTableBody > div', (els) =>
+  els.map((el) => [el.querySelector('p').textContent.trim(), el.querySelectorAll('p')[1]?.textContent.trim() ?? '', '',
+    [...el.querySelectorAll('span')].map((c) => c.textContent.trim()).join(', ')]));
 console.log('   ', JSON.stringify(rows));
 ok(rows[0][3] === 'Social Media, Scientific Program',
   `İngilizce panel İngilizce adları gösteriyor (gelen: ${rows[0][3]})`);
-ok(rows[1][3] === '', 'ekipsiz üyenin hücresi boş');
+ok(rows[1][3] === '', 'ekipsiz üyenin ekip alanı boş');
 
 console.log('2) her iki dil alanı da kullanımdaki ekipleri öneriyor');
 const options = await page.evaluate(() => ({
@@ -91,7 +92,7 @@ ok(JSON.stringify(options.en) === '["Social Media","Scientific Program"]', 'İng
 ok(JSON.stringify(options.tr) === '["Sosyal Medya","Bilimsel Program"]', 'Türkçe öneriler');
 
 console.log('3) düzenle — ekipler ve fotoğraf forma yükleniyor');
-await page.click('#symCommitteeTableBody tr:first-child .edit-committee-btn');
+await page.click('#symCommitteeTableBody > div:first-child .edit-committee-btn');
 const filled = await page.evaluate(() => ({
   teams: document.getElementById('symCommitteeTeams').value,
   teamsTr: document.getElementById('symCommitteeTeamsTr').value,
@@ -167,7 +168,7 @@ await page.route('**/api/admin/symposium/committee/*', (r) => {
   return r.fulfill({ status: 400, contentType: 'application/json',
     body: JSON.stringify({ error: '2 team name(s) in English and 1 in Turkish: the two lists are matched one to one and in order, so give a Turkish name for every team or leave Turkish empty' }) });
 });
-await page.click('#symCommitteeTableBody tr:first-child .edit-committee-btn');
+await page.click('#symCommitteeTableBody > div:first-child .edit-committee-btn');
 await page.fill('#symCommitteeTeams', 'Social Media, Scientific Program');
 await page.fill('#symCommitteeTeamsTr', 'Sosyal Medya');
 await page.click('#symCommitteeForm button[type=submit]');

@@ -23,6 +23,15 @@ interface Props { lang: 'en' | 'tr' }
 const { lang } = Astro.props;
 const t = useTranslations(lang);
 
+// The same classes as BTN in src/scripts/admin/ui-kit.ts (not imported: that
+// module touches the DOM). Keep the two in step.
+const BTN_BASE = 'inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const btn = {
+  primary: `${BTN_BASE} bg-navy text-white hover:bg-navy-mid`,
+  secondary: `${BTN_BASE} border border-navy text-navy hover:bg-navy-light`,
+  danger: `${BTN_BASE} border border-red text-red hover:bg-red-tint`,
+};
+
 const SESSION_TYPE_VALUES = [
   'opening', 'keynote', 'workshop', 'panel', 'talk', 'company', 'poster',
   'networking', 'break', 'closing',
@@ -101,11 +110,11 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
             {t('admin.symposium.edition.archivePrLink')}
           </a>
         </p>
-        <div class="sm:col-span-2 flex items-center gap-3">
-          <button type="submit" id="symEditionSaveBtn" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-3 sticky bottom-0 bg-white py-2 lg:static">
+          <button type="submit" id="symEditionSaveBtn" class={btn.primary}>
             {t('admin.symposium.edition.save')}
           </button>
-          <button type="button" id="symEditionSnapshotBtn" class="px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+          <button type="button" id="symEditionSnapshotBtn" class={btn.secondary}>
             {t('admin.symposium.edition.snapshot')}
           </button>
           <p id="symEditionStatus" class="hidden text-xs text-gray-500"></p>
@@ -148,11 +157,11 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
         </div>
         <input id="symSpeakerLinkedin" type="url" placeholder={t('admin.symposium.speakers.form.linkedinPlaceholder')}
           class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
-        <div class="sm:col-span-2 flex items-center gap-3">
-          <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-3 sticky bottom-0 bg-white py-2 lg:static">
+          <button type="submit" class={btn.primary}>
             {t('admin.symposium.speakers.form.save')}
           </button>
-          <button type="button" id="symSpeakerCancelBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+          <button type="button" id="symSpeakerCancelBtn" class={`hidden ${btn.secondary}`}>
             {t('admin.symposium.speakers.form.cancelEdit')}
           </button>
           <p id="symSpeakerStatus" class="hidden text-xs text-gray-500"></p>
@@ -160,18 +169,8 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </form>
     </div>
 
-    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-border bg-[#F7F7F6]">
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.speakers.table.name')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.speakers.table.position')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.speakers.table.slug')}</th>
-            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
-          </tr>
-        </thead>
-        <tbody id="symSpeakersTableBody"></tbody>
-      </table>
+    <div>
+      <div id="symSpeakersTableBody" class="flex flex-col gap-2"></div>
       <div id="symSpeakersEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.speakers.table.noneYet')}</div>
     </div>
   </div>
@@ -217,11 +216,11 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <select id="symSessionSpeakers" multiple size="4"
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid"></select>
         </label>
-        <div class="sm:col-span-2 flex items-center gap-3">
-          <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-3 sticky bottom-0 bg-white py-2 lg:static">
+          <button type="submit" class={btn.primary}>
             {t('admin.symposium.sessions.form.save')}
           </button>
-          <button type="button" id="symSessionCancelBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+          <button type="button" id="symSessionCancelBtn" class={`hidden ${btn.secondary}`}>
             {t('admin.symposium.sessions.form.cancelEdit')}
           </button>
           <p id="symSessionStatus" class="hidden text-xs text-gray-500"></p>
@@ -229,19 +228,8 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </form>
     </div>
 
-    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-border bg-[#F7F7F6]">
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.title')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.type')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.day')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.sessions.table.time')}</th>
-            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
-          </tr>
-        </thead>
-        <tbody id="symSessionsTableBody"></tbody>
-      </table>
+    <div>
+      <div id="symSessionsTableBody" class="flex flex-col gap-2"></div>
       <div id="symSessionsEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.sessions.table.noneYet')}</div>
     </div>
   </div>
@@ -309,11 +297,11 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <input id="symCommitteePhoto" type="url" placeholder={t('admin.symposium.committee.form.photoPlaceholder')}
             class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
         </div>
-        <div class="sm:col-span-2 flex items-center gap-3">
-          <button type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-3 sticky bottom-0 bg-white py-2 lg:static">
+          <button type="submit" class={btn.primary}>
             {t('admin.symposium.committee.form.save')}
           </button>
-          <button type="button" id="symCommitteeCancelBtn" class="hidden px-4 py-2 rounded-xl border border-border text-sm text-gray-500">
+          <button type="button" id="symCommitteeCancelBtn" class={`hidden ${btn.secondary}`}>
             {t('admin.symposium.committee.form.cancelEdit')}
           </button>
           <p id="symCommitteeStatus" class="hidden text-xs text-gray-500"></p>
@@ -321,19 +309,8 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </form>
     </div>
 
-    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-border bg-[#F7F7F6]">
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.name')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.role')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.affiliation')}</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.committee.table.teams')}</th>
-            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
-          </tr>
-        </thead>
-        <tbody id="symCommitteeTableBody"></tbody>
-      </table>
+    <div>
+      <div id="symCommitteeTableBody" class="flex flex-col gap-2"></div>
       <div id="symCommitteeEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.committee.table.noneYet')}</div>
     </div>
   </div>
@@ -369,10 +346,10 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
           <span>{t('admin.symposium.certificates.rasterise')}</span>
         </label>
         <div class="sm:col-span-2 flex flex-wrap items-center gap-3">
-          <button id="symCertCheck" type="submit" class="px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors">
+          <button id="symCertCheck" type="submit" class={btn.primary}>
             {t('admin.symposium.certificates.check')}
           </button>
-          <button id="symCertUpload" type="button" class="hidden px-4 py-2 rounded-xl bg-navy text-white text-sm font-medium hover:bg-navy-mid transition-colors"></button>
+          <button id="symCertUpload" type="button" class={`hidden ${btn.primary}`}></button>
           <p id="symCertProgress" class="hidden text-xs text-gray-500"></p>
           <p id="symCertRebuildStatus" class="hidden text-xs text-gray-500"></p>
         </div>
@@ -380,37 +357,14 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       </form>
     </div>
 
-    <div id="symCertPreview" class="hidden bg-white rounded-2xl border border-border overflow-x-auto mb-2">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-border bg-[#F7F7F6]">
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.email')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.name')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.kind')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.size')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.status')}</th>
-          </tr>
-        </thead>
-        <tbody id="symCertPreviewBody"></tbody>
-      </table>
+    <div id="symCertPreview" class="hidden mb-2">
+      <div id="symCertPreviewBody" class="flex flex-col gap-2"></div>
     </div>
     <p id="symCertUnused" class="hidden text-xs text-gray-500 mb-4"></p>
 
     <p id="symCertSummary" class="text-xs text-gray-500 mt-4 mb-2"></p>
-    <div class="bg-white rounded-2xl border border-border overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-border bg-[#F7F7F6]">
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.email')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.name')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.kind')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.size')}</th>
-            <th class="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.symposium.certificates.col.expires')}</th>
-            <th class="text-right px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
-          </tr>
-        </thead>
-        <tbody id="symCertListBody"></tbody>
-      </table>
+    <div>
+      <div id="symCertListBody" class="flex flex-col gap-2"></div>
       <div id="symCertEmpty" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.symposium.certificates.none')}</div>
     </div>
     <!-- Typed confirmation rather than confirm(): the label says what unlocks
@@ -420,7 +374,7 @@ const sessionTypeLabels: Record<(typeof SESSION_TYPE_VALUES)[number], string> = 
       <input id="symCertDeleteAllInput" type="text" inputmode="numeric" autocomplete="off"
         class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
       <button id="symCertDeleteAll" type="button" disabled
-        class="px-4 py-2 rounded-xl border border-red-600 text-red-600 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"></button>
+        class={btn.danger}></button>
     </div>
   </div>
 </div>
