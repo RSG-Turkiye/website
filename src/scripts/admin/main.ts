@@ -20,6 +20,7 @@ import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUploa
 import { showSent, setSentAdmin } from './sections/mail-sent';
 import { setupCompose, loadQueued } from './sections/mail-compose';
 import { setupInbox, showInbox } from './sections/mail-inbox';
+import { setupDm, showDm } from './sections/social-dm';
 import { setupSymposium, loadSymposium } from './sections/symposium';
 
 // Init
@@ -49,6 +50,8 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   // say): ask to sign in. Signed in without a panel role: no access.
   if (!data.user) {
     document.getElementById('notSignedIn')!.classList.remove('hidden');
+    // Back to this exact place after Google: the fragment never reaches the server, so it travels as ?next=.
+    document.getElementById('notSignedInLink')?.setAttribute('href', `/auth/login?next=${encodeURIComponent(location.pathname + location.hash)}`);
     return;
   }
   if (landing(rolesFromMe(data.user)) === null) {
@@ -87,6 +90,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
       showToast, lang, me: { id: data.user.id, isPublisher: isSocialPublisher }, refreshCounts,
     });
   }
+  if (isSocialPublisher) setupDm({ isAdmin: isFullAdmin });
   const onShow: Partial<Record<SectionId, () => Promise<void>>> = {
     // Overview's System block is filled by the health check, whichever finishes first.
     genel: loadOverview,
@@ -103,7 +107,10 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   // The inbox is for senders and admins alike; it opens whatever thread the address names.
   if (isFullAdmin || isSender) setupInbox({ isAdmin: isFullAdmin, isSender });
   const onSub: Partial<Record<SectionId, (sub: string, item: string | null) => void>> = {
-    sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
+    sosyal: (sub, item) => {
+      if (sub === 'dm') { if (isSocialPublisher) void showDm(item); return; }
+      if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]);
+    },
     eposta: (sub, item) => {
       if (sub === 'gelen') {
         void showInbox(item);

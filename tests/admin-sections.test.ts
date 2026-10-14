@@ -85,3 +85,20 @@ test('the Inbox sub-page carries the email count, so a sender-only panel shows i
   const gelen = subsFor(eposta, { ...none, sender: true }).find((s) => s.id === 'gelen');
   assert.equal(gelen?.count, 'email');
 });
+
+test('the DM tab is for publishers and admins, with its own count', () => {
+  const sosyal = SECTIONS.find((s) => s.id === 'sosyal')!;
+  const dm = sosyal.subs.find((s) => s.id === 'dm')!;
+  assert.equal(dm.publisherOnly, true);
+  assert.equal(dm.count, 'dm');
+  const base = { admin: false, announcer: false, symposium: false, social: true, socialPublisher: false, sender: false };
+  assert.ok(!subsFor(sosyal, base).some((s) => s.id === 'dm'), 'editor');
+  assert.ok(subsFor(sosyal, { ...base, socialPublisher: true }).some((s) => s.id === 'dm'), 'publisher');
+  assert.ok(subsFor(sosyal, { ...base, social: false, admin: true }).some((s) => s.id === 'dm'), 'admin');
+});
+
+test('the Sosyal menu badge counts approvals plus unread DMs; the DM tab keeps its own', () => {
+  const sosyal = SECTIONS.find((s) => s.id === 'sosyal')!;
+  assert.equal(sosyal.count, 'socialTotal');
+  assert.equal(sosyal.subs.find((s) => s.id === 'dm')!.count, 'dm');
+});

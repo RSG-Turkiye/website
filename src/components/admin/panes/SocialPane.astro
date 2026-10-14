@@ -51,5 +51,49 @@ const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border tex
     <form id="socialEventForm" data-publisher-only class="bg-white rounded-2xl border border-border p-4 lg:p-3"></form>
   </section>
 
+  <section data-sub="dm" data-publisher-only class="hidden lg:flex-1 lg:min-h-0 fit-col">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-3 lg:mb-2">
+      <p class="text-sm lg:text-xs text-gray-500 flex-1 min-w-0">{t('admin.social.dm.intro')}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <div role="group" class="flex gap-1">
+          <button type="button" id="dmFilterUnanswered" aria-pressed="true" class="px-3 min-h-11 lg:min-h-9 rounded-full border border-border text-sm text-navy aria-pressed:bg-navy-light aria-pressed:font-semibold">{t('admin.social.dm.filter.unanswered')}</button>
+          <button type="button" id="dmFilterAll" aria-pressed="false" class="px-3 min-h-11 lg:min-h-9 rounded-full border border-border text-sm text-navy aria-pressed:bg-navy-light aria-pressed:font-semibold">{t('admin.social.dm.filter.all')}</button>
+        </div>
+        <button type="button" id="dmRefresh" class={btn}>{t('admin.social.dm.refresh')}</button>
+      </div>
+    </div>
+    <p id="dmStatus" class="hidden text-sm text-navy bg-[#FFF7E6] border border-border rounded-xl px-3 py-2 mb-3"></p>
+    <div class="grid lg:grid-cols-[320px_1fr] lg:grid-rows-[minmax(0,1fr)] lg:flex-1 lg:min-h-0 gap-4 lg:gap-3 items-start">
+      <div id="dmListCard" class="min-w-0 lg:block bg-white rounded-2xl border border-border p-2 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain">
+        <div id="dmList" class="flex flex-col gap-1"></div>
+        <p id="dmEmpty" class="hidden text-sm text-gray-500 px-2 py-4">{t('admin.social.dm.empty')}</p>
+        <p id="dmLinkedin" class="hidden text-xs text-gray-500 px-2 pt-3 border-t border-border mt-2">{t('admin.social.dm.linkedin')} <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" class="text-navy underline">{t('admin.social.dm.linkedinOpen')}</a></p>
+      </div>
+      <div id="dmThreadCard" class="hidden min-w-0 lg:block bg-[#F0F0EE] rounded-2xl border border-border p-4 lg:p-3 lg:h-full lg:overflow-y-auto lg:overscroll-contain">
+        <div class="lg:hidden mb-3">
+          <a href="#sosyal/dm" id="dmBack" class="flex w-fit items-center gap-1 px-4 min-h-11 rounded-xl text-sm font-medium text-navy hover:text-navy-mid"><span aria-hidden="true">‹</span> {t('admin.social.dm.back')}</a>
+        </div>
+        <p id="dmThreadEmpty" class="text-sm text-gray-600 text-center py-24">{t('admin.social.dm.select')}</p>
+        <div id="dmThreadView" class="hidden flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 min-w-0">
+            <h3 id="dmThreadWho" class="text-sm font-semibold text-navy break-all"></h3>
+            <a id="dmOpenInstagram" href="https://www.instagram.com/direct/inbox/" target="_blank" rel="noopener noreferrer" class="text-xs text-navy underline">{t('admin.social.dm.openInstagram')}</a>
+          </div>
+          <p class="text-[11px] text-gray-600">{t('admin.social.dm.only20')}</p>
+          <p id="dmThreadError" class="hidden text-sm text-navy"></p>
+          <div id="dmMessages" class="flex flex-col gap-3"></div>
+          <p id="dmClosed" class="hidden text-xs text-gray-600 border-t border-border pt-3">{t('admin.social.dm.closed')}</p>
+          <form id="dmReplyForm" class="hidden flex-col gap-2 border-t border-border pt-3">
+            <textarea id="dmReplyText" rows="4" aria-label={t('admin.social.dm.placeholder')} placeholder={t('admin.social.dm.placeholder')}
+              class="px-3 py-2 min-h-11 rounded-xl border border-border text-sm text-navy bg-white placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"></textarea>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="submit" id="dmSend" class="px-4 min-h-11 lg:min-h-9 rounded-xl bg-navy text-white text-sm font-medium disabled:opacity-40">{t('admin.social.dm.send')}</button>
+              <span id="dmBytes" class="text-xs text-gray-600" aria-live="polite"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
   <div id="socialOverlay" class="hidden fixed inset-0 z-40 bg-black/30 overflow-y-auto p-4"></div>
 </div>

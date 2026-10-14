@@ -31,6 +31,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   if (admin || user.is_sender === 1) await count('email', 'SELECT COUNT(*) AS n FROM mail_threads WHERE unread = 1 AND sender_user_id = ?', user.id);
   if (publisher) await count('social', `SELECT COUNT(*) AS n FROM social_posts WHERE status = 'pending_approval'`);
+  if (publisher) await count('dm', `SELECT COUNT(*) AS n FROM social_dm_threads
+    WHERE last_inbound_at > COALESCE(last_outbound_at, 0) AND last_inbound_at > ? AND COALESCE(read_at, 0) < last_inbound_at`, now - 86400);
+  // The Sosyal menu badge: approvals plus unread messages. A missing dm count (migration not applied) adds nothing.
+  if (typeof out.social === 'number') out.socialTotal = out.social + (out.dm ?? 0);
   if (admin) await count('blog', `SELECT COUNT(*) AS n FROM blog_submissions WHERE status = 'pending'`);
   if (social) await count('scheduledThisWeek', `SELECT COUNT(*) AS n FROM social_posts WHERE status = 'scheduled' AND scheduled_at BETWEEN ? AND ?`, now, now + WEEK);
   return jsonResponse(out);

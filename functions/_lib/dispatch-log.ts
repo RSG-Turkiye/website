@@ -88,7 +88,7 @@ export function isPruneTick(at: number): boolean {
  * failed -- in which case the caller carries on unlogged rather than
  * refusing to send mail because a diagnostic table was unavailable.
  */
-export async function startRun(db: RunLogDb, id: string, at: number, kind: 'mail' | 'social' = 'mail'): Promise<string | null> {
+export async function startRun(db: RunLogDb, id: string, at: number, kind: 'mail' | 'social' | 'social_dm' = 'mail'): Promise<string | null> {
   try {
     // The mail statement stays as it was: it must keep working before migration 8e adds the kind column.
     const stmt = kind === 'mail'

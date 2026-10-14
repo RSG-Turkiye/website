@@ -58,10 +58,10 @@ const t = useTranslations(lang);
         <a href={homeUrl} class="mt-4 inline-block text-sm text-navy hover:underline">{t('admin.notAuth.goHome')}</a>
       </div>
 
-      <!-- Signed out: the site's sign-in page (it returns to /account afterwards) -->
+      <!-- Signed out: the site's sign-in page (it returns to this admin page afterwards) -->
       <div id="notSignedIn" class="hidden text-center py-24">
         <p class="text-gray-500 mb-4">{t('admin.notSignedIn.message')}</p>
-        <a href={lang === 'tr' ? '/tr/login/' : '/login/'} class="inline-flex px-6 py-2.5 min-h-11 items-center rounded-xl bg-navy text-white text-sm font-semibold no-underline hover:bg-navy-mid transition-colors">{t('admin.notSignedIn.signIn')}</a>
+        <a id="notSignedInLink" href={lang === 'tr' ? '/tr/login/' : '/login/'} class="inline-flex px-6 py-2.5 min-h-11 items-center rounded-xl bg-navy text-white text-sm font-semibold no-underline hover:bg-navy-mid transition-colors">{t('admin.notSignedIn.signIn')}</a>
       </div>
 
       <!-- Loading -->

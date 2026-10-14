@@ -1,5 +1,6 @@
 import type { Env } from '../_lib/auth';
 import { getBaseUrl, redirectResponse } from '../_lib/auth';
+import { safeNext, nextCookie, clearNextCookie } from '../_lib/next-path';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const base = getBaseUrl(request);
@@ -14,5 +15,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     prompt: 'select_account',
   });
 
-  return redirectResponse(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  const google = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  const next = safeNext(new URL(request.url).searchParams.get('next'));
+  return next ? redirectResponse(google, { 'Set-Cookie': nextCookie(next) }) : redirectResponse(google, { 'Set-Cookie': clearNextCookie() });
 };

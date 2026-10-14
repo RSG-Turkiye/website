@@ -18,7 +18,7 @@ test('an admin gets every count', async () => {
   seed(db);
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { email: 1, social: 1, blog: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await res.json(), { email: 1, social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1 });
 });
 
 function addSender(db: import('node:sqlite').DatabaseSync) {
@@ -47,7 +47,7 @@ test('an admin gets their own unread threads, not everyone\'s', async () => {
 test('a social publisher gets only the social counts; an editor only what is scheduled', async () => {
   const { env, db } = setupSocial();
   seed(db);
-  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json(), { social: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json(), { social: 1, dm: 0, socialTotal: 1, scheduledThisWeek: 1 });
   assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ed' })).json(), { scheduledThisWeek: 1 });
 });
 
@@ -59,7 +59,7 @@ test('a count whose query fails is left out; the others are still returned', asy
   t.mock.method(console, 'error', (...a: unknown[]) => { logged.push(a); });
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { social: 1, blog: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await res.json(), { social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1 });
   assert.equal(logged.length, 1);
 });
 
@@ -67,4 +67,16 @@ test('a member without a panel role is refused; signed out is 401', async () => 
   const { env } = setupSocial();
   assert.equal((await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'mem' })).status, 403);
   assert.equal((await call(onRequestGet, 'GET', '/api/admin/counts', { env })).status, 401);
+});
+
+test('socialTotal is approvals plus unread DMs; an editor gets neither', async () => {
+  const { env, db } = setupSocial();
+  seed(db);
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare(`INSERT INTO social_dm_threads (id, platform, conversation_id, peer_id, last_inbound_at, updated_at) VALUES ('t1','instagram','c1','p1',?,?)`).run(now - 600, now);
+  const pub = await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json() as Record<string, number>;
+  assert.deepEqual([pub.social, pub.dm, pub.socialTotal], [1, 1, 2]);
+  const ed = await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ed' })).json() as Record<string, number>;
+  assert.equal(ed.socialTotal, undefined);
+  assert.equal(ed.social, undefined);
 });

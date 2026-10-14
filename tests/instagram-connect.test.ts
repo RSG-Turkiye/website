@@ -34,7 +34,7 @@ async function begin(env: unknown) {
 function instagram(opts: { accountType?: string; permissions?: string; flat?: boolean } = {}) {
   return stubGraph((c) => {
     if (c.host === 'api.instagram.com' && c.path === '/oauth/access_token') {
-      const row = { access_token: 'short', user_id: 111, permissions: opts.permissions ?? 'instagram_business_basic,instagram_business_content_publish' };
+      const row = { access_token: 'short', user_id: 111, permissions: opts.permissions ?? 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages' };
       return Response.json(opts.flat ? row : { data: [row] });
     }
     if (c.path === '/access_token') return Response.json({ access_token: 'long-1', token_type: 'bearer', expires_in: 5184000 });
@@ -43,13 +43,13 @@ function instagram(opts: { accountType?: string; permissions?: string; flat?: bo
   });
 }
 
-test('start sends the admin to Instagram with both scopes and our callback', async () => {
+test('start sends the admin to Instagram with all three scopes and our callback', async () => {
   const { env } = setup();
   const u = await begin(env);
   assert.equal(u.origin + u.pathname, 'https://www.instagram.com/oauth/authorize');
   assert.equal(u.searchParams.get('client_id'), 'app-1');
   assert.equal(u.searchParams.get('redirect_uri'), `${BASE}/api/admin/connections/instagram/callback`);
-  assert.equal(u.searchParams.get('scope'), 'instagram_business_basic,instagram_business_content_publish');
+  assert.equal(u.searchParams.get('scope'), 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages');
   assert.ok(u.searchParams.get('state'));
 });
 
@@ -108,6 +108,32 @@ test('callback refuses a personal account and a grant without publishing', async
   }
 });
 
+test('a grant without the messaging scope still connects, with the scopes Meta gave', async () => {
+  const { env } = setup();
+  const state = (await begin(env)).searchParams.get('state')!;
+  const ig = instagram({ permissions: 'instagram_business_basic,instagram_business_content_publish' });
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/instagram/callback?code=abc&state=${state}`, env);
+    const loc = res.headers.get('Location')!;
+    assert.match(loc, /connected=instagram/);
+    assert.doesNotMatch(loc, /connection_error/);
+  } finally { ig.restore(); }
+  const row = await getConnection(env.DB as never, 'instagram');
+  assert.ok(row);
+  assert.equal((row as { scopes?: string }).scopes, 'instagram_business_basic,instagram_business_content_publish');
+});
+
+test('a grant with messaging but without publishing is refused', async () => {
+  const { env } = setup();
+  const state = (await begin(env)).searchParams.get('state')!;
+  const ig = instagram({ permissions: 'instagram_business_basic,instagram_business_manage_messages' });
+  try {
+    const res = await get(callback, `${BASE}/api/admin/connections/instagram/callback?code=abc&state=${state}`, env);
+    assert.match(res.headers.get('Location')!, /connection_error=missing_scope/);
+  } finally { ig.restore(); }
+  assert.equal(await getConnection(env.DB as never, 'instagram'), null);
+});
+
 test('a cancelled authorisation stores nothing', async () => {
   const { env } = setup();
   const state = (await begin(env)).searchParams.get('state')!;
@@ -133,7 +159,7 @@ test('/me failing after a good exchange stores nothing', async () => {
   const { env } = setup();
   const state = (await begin(env)).searchParams.get('state')!;
   const ig = stubGraph((c) => {
-    if (c.path === '/oauth/access_token') return Response.json({ data: [{ access_token: 'short', user_id: 111, permissions: 'instagram_business_basic,instagram_business_content_publish' }] });
+    if (c.path === '/oauth/access_token') return Response.json({ data: [{ access_token: 'short', user_id: 111, permissions: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages' }] });
     if (c.path === '/access_token') return Response.json({ access_token: 'long-1', expires_in: 5184000 });
     if (c.path === '/me') return new Response('{}', { status: 500 });
     return undefined;

@@ -3,7 +3,7 @@ import { getSessionUser, redirectResponse, getBaseUrl } from '../../../../_lib/a
 import { consumeState } from '../../../../_lib/oauth-state';
 import { connectionUpsert, requeueWaitingStatement } from '../../../../_lib/connections';
 import { runWithAudit, appendAudit } from '../../../../_lib/audit';
-import { exchangeInstagramCode, longLivedInstagramToken, instagramMe, isProfessional, IG_SCOPES } from '../../../../_lib/social/instagram';
+import { exchangeInstagramCode, longLivedInstagramToken, instagramMe, isProfessional, IG_REQUIRED_SCOPES } from '../../../../_lib/social/instagram';
 
 /**
  * Finishes "Connect Instagram". Every way out is a redirect back to the
@@ -42,7 +42,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     await audit('connection.rejected', { reason: 'token_exchange', status: short.status });
     return back(returnTo, 'connection_error=token_exchange');
   }
-  if (!IG_SCOPES.every((s) => short.permissions.includes(s))) {
+  if (!IG_REQUIRED_SCOPES.every((s) => short.permissions.includes(s))) {
     await audit('connection.rejected', { reason: 'missing_scope', permissions: short.permissions });
     return back(returnTo, 'connection_error=missing_scope');
   }

@@ -68,7 +68,7 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
           'Google: sign-in, the Gmail account we use to write to members, the Join page form, the events calendar on the home page, and the Inter font. The font and calendar are loaded by your browser, so Google sees your IP address when you open those pages.',
           'YouTube: webinar recordings are embedded from YouTube.',
           'GitHub: approved blog posts are published through our public GitHub repository.',
-          'Instagram and LinkedIn: the team publishes posts to RSG-Turkiye\'s own accounts from the admin panel. Access to those accounts is granted with OAuth and stored encrypted; we never store their passwords. We do not read or store data about other people from these platforms.',
+          'Instagram and LinkedIn: the team publishes posts to RSG-Turkiye\'s own accounts from the admin panel. Access to those accounts is granted with OAuth and stored encrypted; we never store their passwords. Direct messages sent to our Instagram account are read and answered by the social media team in the admin panel: they are fetched from Instagram when opened. The site stores the sender\'s Instagram username and account ID, the times of the latest messages and which team member last opened the conversation, not the messages themselves.',
         ],
       },
       {
@@ -131,7 +131,7 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
           'Google: giriş, üyelere yazdığımız Gmail hesabı, Bize Katıl sayfasındaki form, ana sayfadaki etkinlik takvimi ve Inter yazı tipi. Yazı tipi ve takvim tarayıcınız tarafından yüklenir; bu sayfaları açtığınızda Google IP adresinizi görür.',
           'YouTube: Webinar kayıtları YouTube\'dan gömülür.',
           'GitHub: Onaylanan blog yazıları herkese açık GitHub depomuz üzerinden yayınlanır.',
-          'Instagram ve LinkedIn: Ekip, yönetim panelinden RSG-Türkiye\'nin kendi hesaplarına paylaşım yapar. Bu hesaplara erişim OAuth ile verilir ve şifreli saklanır; şifrelerini hiçbir zaman saklamayız. Bu platformlardan başka kişilere ait veri okumayız ve saklamayız.',
+          'Instagram ve LinkedIn: Ekip, yönetim panelinden RSG-Türkiye\'nin kendi hesaplarına paylaşım yapar. Bu hesaplara erişim OAuth ile verilir ve şifreli saklanır; şifrelerini hiçbir zaman saklamayız. Instagram hesabımıza gönderilen doğrudan mesajları sosyal medya ekibi yönetim panelinden okur ve cevaplar: mesajlar açıldığında Instagram\'dan çekilir. Site, gönderenin Instagram kullanıcı adını ve hesap kimliğini, son mesajların zamanını ve konuşmayı en son hangi ekip üyesinin açtığını saklar; mesajların kendisini saklamaz.',
         ],
       },
       {

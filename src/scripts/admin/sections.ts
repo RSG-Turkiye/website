@@ -6,7 +6,7 @@
 export type RoleFlags = { admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean; sender: boolean };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
 export type SectionId = 'genel' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
-export type CountKey = 'email' | 'social' | 'blog' | 'membership';
+export type CountKey = 'email' | 'social' | 'blog' | 'membership' | 'dm' | 'socialTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it). */
 export interface SubPage { id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean; count?: CountKey }
@@ -42,13 +42,14 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    id: 'sosyal', group: 'iletisim', label: 'admin.social.heading', count: 'social', visible: (r) => r.admin || r.social,
+    id: 'sosyal', group: 'iletisim', label: 'admin.social.heading', count: 'socialTotal', visible: (r) => r.admin || r.social,
     subs: [
       { id: 'takvim', label: 'admin.social.tab.calendar' },
       { id: 'onay', label: 'admin.social.tab.pending', publisherOnly: true },
       { id: 'taslaklar', label: 'admin.social.tab.drafts' },
       { id: 'yayinlananlar', label: 'admin.social.tab.published' },
       { id: 'etkinlik', label: 'admin.social.tab.events' },
+      { id: 'dm', label: 'admin.social.tab.dm', publisherOnly: true, count: 'dm' },
     ],
   },
   { id: 'duyurular', group: 'iletisim', label: 'admin.announcements.heading', subs: [], visible: (r) => r.admin || r.announcer },
