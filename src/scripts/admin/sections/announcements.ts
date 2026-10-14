@@ -1,0 +1,118 @@
+import { escapeHtml } from '../../escape-html';
+import { t, showToast, formatDate } from '../context';
+import { row, chip, BTN, armConfirm, guardUnsaved, showInlineFlex } from '../ui-kit';
+
+let canManageAnnouncements = false;
+
+export function setCanManageAnnouncements(v: boolean): void {
+  canManageAnnouncements = v;
+}
+
+function renderAnnouncements(items: any[]) {
+  const list = document.getElementById('announcementsList')!;
+  const empty = document.getElementById('announcementsEmptyState')!;
+
+  if (items.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  list.innerHTML = items.map(a => row({
+    title: a.title,
+    subtitle: `${formatDate(a.expires_at)} · ${a.site ?? 'main'}`,
+    chips: a.show_as_popup ? chip(t('admin.announcements.table.popup'), 'navy') : '',
+    trailing: `<button type="button" data-id="${escapeHtml(a.id)}" class="edit-announcement-btn ${BTN.ghost}">${escapeHtml(t('admin.announcements.edit'))}</button>
+      <button type="button" data-id="${escapeHtml(a.id)}" class="delete-announcement-btn ${BTN.danger}">${escapeHtml(t('admin.announcements.delete'))}</button>`,
+  })).join('');
+
+  list.querySelectorAll<HTMLButtonElement>('.edit-announcement-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = items.find(a => a.id === btn.dataset.id);
+      if (!item) return;
+      (document.getElementById('announcementEditId') as HTMLInputElement).value = item.id;
+      (document.getElementById('annTitle') as HTMLInputElement).value = item.title;
+      (document.getElementById('annDescription') as HTMLTextAreaElement).value = item.description;
+      (document.getElementById('annButtonText') as HTMLInputElement).value = item.button_text;
+      (document.getElementById('annButtonUrl') as HTMLInputElement).value = item.button_url;
+      const expiresDate = new Date(item.expires_at * 1000);
+      const localExpiresDateStr = `${expiresDate.getFullYear()}-${String(expiresDate.getMonth() + 1).padStart(2, '0')}-${String(expiresDate.getDate()).padStart(2, '0')}`;
+      (document.getElementById('annExpiresAt') as HTMLInputElement).value = localExpiresDateStr;
+      (document.getElementById('annSite') as unknown as HTMLSelectElement).value = item.site ?? 'main';
+      (document.getElementById('annShowAsPopup') as HTMLInputElement).checked = item.show_as_popup;
+      showInlineFlex(document.getElementById('cancelEditBtn')!, true);
+      document.getElementById('announcementForm')!.scrollIntoView({ block: 'nearest' });
+    });
+  });
+
+  list.querySelectorAll<HTMLButtonElement>('.delete-announcement-btn').forEach(btn => {
+    armConfirm(btn, t('admin.users.detail.confirm'), async () => {
+      const res = await fetch(`/api/admin/announcements/${btn.dataset.id}`, { method: 'DELETE' });
+      if (res.ok) { showToast(t('admin.toast.deleted')); await loadAnnouncements(); }
+      else showToast(t('admin.toast.error'), true);
+    });
+  });
+}
+
+export async function loadAnnouncements() {
+  const res = await fetch('/api/admin/announcements');
+  if (!res.ok) return;
+  const data = await res.json() as { announcements: any[] };
+  renderAnnouncements(data.announcements);
+}
+
+// One-time wiring of the announcement form's submit/cancel listeners.
+// Must run exactly once for the page's lifetime — loadAnnouncements() is
+// called repeatedly (after every create/update/delete) and #announcementForm
+// / #cancelEditBtn are static DOM nodes, so attaching listeners inside
+// loadAnnouncements would stack a new listener on every reload.
+export function setupAnnouncementForm() {
+  if (!canManageAnnouncements) return;
+
+  const form = document.getElementById('announcementForm') as HTMLFormElement;
+  const cancelBtn = document.getElementById('cancelEditBtn')!;
+
+  const guard = guardUnsaved(form, '#duyurular', () => resetForm());
+
+  function resetForm() {
+    form.reset();
+    (document.getElementById('announcementEditId') as HTMLInputElement).value = '';
+    showInlineFlex(cancelBtn, false);
+    guard.reset();
+  }
+
+  cancelBtn.addEventListener('click', resetForm);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = (document.getElementById('announcementEditId') as HTMLInputElement).value;
+    const expiresDate = (document.getElementById('annExpiresAt') as HTMLInputElement).value;
+    const body = {
+      title: (document.getElementById('annTitle') as HTMLInputElement).value,
+      description: (document.getElementById('annDescription') as HTMLTextAreaElement).value,
+      button_text: (document.getElementById('annButtonText') as HTMLInputElement).value,
+      button_url: (document.getElementById('annButtonUrl') as HTMLInputElement).value,
+      site: (document.getElementById('annSite') as unknown as HTMLSelectElement).value,
+      show_as_popup: (document.getElementById('annShowAsPopup') as HTMLInputElement).checked,
+      expires_at: Math.floor(new Date(expiresDate + 'T23:59:59').getTime() / 1000),
+    };
+
+    const url = editId ? `/api/admin/announcements/${editId}` : '/api/admin/announcements';
+    const method = editId ? 'PATCH' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      showToast(editId ? t('admin.toast.updated') : t('admin.toast.created'));
+      resetForm();
+      await loadAnnouncements();
+    } else {
+      const err = await res.json() as { error: string };
+      showToast(err.error || t('admin.toast.error'), true);
+    }
+  });
+}

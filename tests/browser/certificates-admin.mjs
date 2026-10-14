@@ -107,7 +107,7 @@ async function run(viewport) {
   });
 
   console.log(`\n== ${viewport.width}x${viewport.height}`);
-  await page.goto(BASE + '/admin', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/admin#sempozyum/sertifikalar', { waitUntil: 'networkidle' });
   await page.waitForSelector('#symCertificates');
   await page.setInputFiles('#symCertCsv', join(dir, 'list.csv'));
   await page.setInputFiles('#symCertPdfs', ['small.pdf', 'big.pdf', 'broken.pdf', 'notpdf.pdf'].map((f) => join(dir, f)));
@@ -119,8 +119,12 @@ async function run(viewport) {
   // Compression is sequential; give the last row time to settle.
   await page.waitForTimeout(500);
 
-  const rows = await page.$$eval('#symCertPreviewBody tr', (trs) =>
-    trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())));
+  // A row is: title (name), subtitle (email · kind · size), status chip.
+  const rows = await page.$$eval('#symCertPreviewBody > div', (els) =>
+    els.map((el) => {
+      const sub = (el.querySelectorAll('p')[1]?.textContent ?? '').trim();
+      return [el.querySelector('p').textContent.trim(), sub, sub, sub, el.querySelector('[data-status]').textContent.trim()];
+    }));
   console.log('   ', JSON.stringify(rows));
   ok(rows.length === 5, 'five preview rows');
   ok(rows[0]?.[4] === 'Ready', `row 1 ready (${rows[0]?.[4]})`);
@@ -135,6 +139,10 @@ async function run(viewport) {
   // A double click: the panel must not run two upload loops over the same rows.
   await page.dblclick('#symCertUpload');
   await page.waitForFunction(() => /Uploaded \d+, failed \d+/.test(document.getElementById('symCertProgress')?.textContent ?? ''), null, { timeout: 15000 }).catch(() => {});
+  // The rebuild POST goes out after the progress text is written, so wait
+  // for it to arrive here, then a moment more in case a second one follows.
+  for (const start = Date.now(); rebuilds === 0 && Date.now() - start < 5000;) await new Promise((r) => setTimeout(r, 50));
+  await page.waitForTimeout(300);
   console.log('   ', JSON.stringify(posts), 'rebuilds:', rebuilds);
   ok(posts.length === 3, 'three uploads');
   ok(JSON.stringify(posts.map((p) => p.type)) === '["participation","workshop","presentation"]', 'kinds sent in English');
@@ -170,11 +178,12 @@ async function run(viewport) {
     document.getElementById('symCertRebuildStatus').classList.add('hidden');
     document.getElementById('symCertYear').dispatchEvent(new Event('change'));
   });
-  await page.waitForSelector('#symCertListBody tr');
-  await page.click('#symCertListBody tr button');
+  await page.waitForSelector('#symCertListBody > div');
+  await page.click('#symCertListBody button');
+  await page.click('#symCertListBody button');
   await page.waitForTimeout(500);
   const afterDelete = await page.evaluate(() => ({
-    rows: document.querySelectorAll('#symCertListBody tr').length,
+    rows: document.querySelectorAll('#symCertListBody > div').length,
     rebuildShown: !document.getElementById('symCertRebuildStatus').classList.contains('hidden'),
     rebuildText: document.getElementById('symCertRebuildStatus').textContent,
     label: document.querySelector('label[for=symCertDeleteAllInput]')?.textContent?.trim() ?? '',

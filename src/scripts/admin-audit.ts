@@ -1,6 +1,7 @@
 /** The Log pane (admins only): filter, page back, export, verify. */
 import { escapeHtml } from './escape-html';
 import { formatDateTime } from './format-time';
+import { row as uiRow, emptyState, showInlineFlex } from './admin/ui-kit';
 
 export interface AuditDeps {
   t: (key: string) => string;
@@ -35,13 +36,12 @@ function filters(): URLSearchParams {
 
 function row(r: Row): string {
   const target = [r.target_type, r.target_id].filter(Boolean).join(': ');
-  return `<tr class="border-b border-border last:border-0 align-top">
-    <td class="px-4 py-2 whitespace-nowrap text-gray-500">${escapeHtml(formatDateTime(r.at, deps.lang))}</td>
-    <td class="px-4 py-2">${escapeHtml(r.user_email ?? deps.t('admin.audit.system'))}</td>
-    <td class="px-4 py-2"><code class="text-xs">${escapeHtml(r.action)}</code></td>
-    <td class="px-4 py-2 text-xs text-gray-500">${escapeHtml(target)}</td>
-    <td class="px-4 py-2 text-xs text-gray-500 break-all">${r.details === '{}' ? '' : escapeHtml(r.details)}</td>
-  </tr>`;
+  const who = r.user_email ?? deps.t('admin.audit.system');
+  const subtitle = [formatDateTime(r.at, deps.lang), who, target].filter(Boolean).join(' · ');
+  const card = uiRow({ title: r.action, subtitle });
+  if (r.details === '{}') return card;
+  // Details sit in a disclosure beneath the row, so a long payload never widens the page.
+  return `<div>${card}<details class="mt-1 px-4"><summary class="cursor-pointer text-xs text-gray-500 min-h-11 lg:min-h-0 flex items-center">${escapeHtml(deps.t('admin.audit.col.details'))}</summary><pre class="whitespace-pre-wrap break-all text-xs text-gray-600 pb-2">${escapeHtml(r.details)}</pre></details></div>`;
 }
 
 export async function loadAudit(more = false): Promise<void> {
@@ -56,9 +56,9 @@ export async function loadAudit(more = false): Promise<void> {
   const body = $('auditBody');
   const html = rows.map(row).join('');
   if (more) body.insertAdjacentHTML('beforeend', html);
-  else body.innerHTML = html || `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">${escapeHtml(deps.t('admin.audit.empty'))}</td></tr>`;
+  else body.innerHTML = html || emptyState(deps.t('admin.audit.empty'));
   if (rows.length) oldestSeq = rows[rows.length - 1].seq;
-  $('auditMore').classList.toggle('hidden', !hasMore);
+  showInlineFlex($('auditMore'), hasMore);
 }
 
 async function verify(): Promise<void> {

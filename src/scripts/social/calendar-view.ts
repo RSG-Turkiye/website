@@ -57,7 +57,7 @@ export async function loadCalendar(): Promise<void> {
 const emptyPlans = () => plans.filter((p) => p.postId === null);
 
 function entry(kind: 'plan' | 'post', id: string, cls: string, label: string): string {
-  return `<button type="button" data-entry="${kind}" data-id="${esc(id)}" class="block w-full text-left mt-1 px-1.5 py-0.5 rounded text-xs truncate ${cls}">${esc(label)}</button>`;
+  return `<button type="button" data-entry="${kind}" data-id="${esc(id)}" class="block w-full text-left mt-1 px-1.5 py-0.5 min-h-11 lg:min-h-0 rounded text-xs truncate ${cls}">${esc(label)}</button>`;
 }
 const postLabel = (p: Post) => p.planTitle || p.caption.trim().split('\n')[0] || deps().t(`admin.social.type.${p.type}`);
 

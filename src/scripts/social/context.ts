@@ -5,6 +5,8 @@ export interface SocialDeps {
   showToast: (message: string, isError?: boolean) => void;
   lang: 'en' | 'tr';
   me: { id: string; isPublisher: boolean };
+  /** The admin shell's menu counts; called after every change. */
+  refreshCounts: () => Promise<void>;
 }
 
 let current: SocialDeps | null = null;

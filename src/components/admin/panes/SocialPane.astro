@@ -8,24 +8,13 @@ import { useTranslations } from '../../../i18n/ui';
 interface Props { lang: 'en' | 'tr' }
 const { lang } = Astro.props;
 const t = useTranslations(lang);
-const tabClass = 'social-tab px-3 py-2 text-sm text-gray-500 border-b-2 border-transparent hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
-const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border text-sm text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 ---
-<div data-pane="social">
+<div data-section="sosyal">
   <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.social.heading')}</h2>
   <p class="text-sm text-gray-500 mb-4">{t('admin.social.intro')}</p>
 
-  <div id="socialTabs" class="flex flex-wrap gap-1 border-b border-border mb-4">
-    <button type="button" data-social-tab="calendar" class={tabClass}>{t('admin.social.tab.calendar')}</button>
-    <button type="button" data-social-tab="pending" data-publisher-only class={tabClass}>
-      {t('admin.social.tab.pending')} <span id="socialPendingCount" class="hidden ml-1 inline-block min-w-5 px-1.5 rounded-full bg-red text-white text-xs text-center"></span>
-    </button>
-    <button type="button" data-social-tab="drafts" class={tabClass}>{t('admin.social.tab.drafts')}</button>
-    <button type="button" data-social-tab="published" class={tabClass}>{t('admin.social.tab.published')}</button>
-    <button type="button" data-social-tab="events" class={tabClass}>{t('admin.social.tab.events')}</button>
-  </div>
-
-  <section data-social-view="calendar">
+  <section data-social-view="calendar" data-sub="takvim">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
       <div class="flex items-center gap-2">
         <button type="button" id="socialPrev" class={btn} aria-label={t('admin.social.nav.prev')}>‹</button>
@@ -34,12 +23,12 @@ const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover
         <button type="button" id="socialToday" class={btn}>{t('admin.social.nav.today')}</button>
       </div>
       <div class="inline-flex rounded-lg border border-border overflow-hidden" role="group">
-        <button type="button" id="socialViewCalendar" class="px-3 py-1.5 text-sm">{t('admin.social.view.calendar')}</button>
-        <button type="button" id="socialViewBoard" class="px-3 py-1.5 text-sm">{t('admin.social.view.board')}</button>
+        <button type="button" id="socialViewCalendar" class="px-3 py-1.5 min-h-11 lg:min-h-0 text-sm">{t('admin.social.view.calendar')}</button>
+        <button type="button" id="socialViewBoard" class="px-3 py-1.5 min-h-11 lg:min-h-0 text-sm">{t('admin.social.view.board')}</button>
       </div>
       <div class="flex gap-2">
         <button type="button" id="socialNewPlan" class={btn}>{t('admin.social.newPlan')}</button>
-        <button type="button" id="socialNewPost" class="px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium">{t('admin.social.newPost')}</button>
+        <button type="button" id="socialNewPost" class="px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg bg-navy text-white text-sm font-medium">{t('admin.social.newPost')}</button>
       </div>
     </div>
     <div class="flex flex-col xl:flex-row gap-4 items-start">
@@ -48,10 +37,10 @@ const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover
     </div>
   </section>
 
-  <section data-social-view="pending" class="hidden"><div id="socialPendingList"></div></section>
-  <section data-social-view="drafts" class="hidden"><div id="socialDraftList"></div></section>
-  <section data-social-view="published" class="hidden"><div id="socialPublishedList"></div></section>
-  <section data-social-view="events" class="hidden">
+  <section data-social-view="pending" data-sub="onay" class="hidden"><div id="socialPendingList"></div></section>
+  <section data-social-view="drafts" data-sub="taslaklar" class="hidden"><div id="socialDraftList"></div></section>
+  <section data-social-view="published" data-sub="yayinlananlar" class="hidden"><div id="socialPublishedList"></div></section>
+  <section data-social-view="events" data-sub="etkinlik" class="hidden">
     <p class="text-sm text-gray-500 mb-3">{t('admin.social.events.intro')}</p>
     <div id="socialEventList" class="mb-6"></div>
     <form id="socialEventForm" data-publisher-only class="bg-white rounded-2xl border border-border p-4"></form>

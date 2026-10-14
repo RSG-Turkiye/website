@@ -1,0 +1,36 @@
+/**
+ * The numbers beside the admin panel's menu entries and on Overview. Each
+ * count is returned only to someone whose role lets them act on it, so the
+ * menu never hints at work a person cannot see.
+ */
+import type { Env } from '../../_lib/auth';
+import { getSessionUser, jsonResponse, canSeeAdminPanel } from '../../_lib/auth';
+
+const WEEK = 7 * 86400;
+
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
+  if (!canSeeAdminPanel(user)) return jsonResponse({ error: 'Forbidden' }, 403);
+
+  const admin = user.is_admin === 1;
+  const publisher = admin || user.is_social_publisher === 1;
+  const social = publisher || user.is_social === 1;
+  const now = Math.floor(Date.now() / 1000);
+  const out: Record<string, number> = {};
+  // One failing query (a table missing on a fresh database, say) leaves out
+  // its own number only; the menu shows no badge for a missing key.
+  const count = async (key: string, sql: string, ...b: (string | number)[]) => {
+    try {
+      out[key] = (await env.DB.prepare(sql).bind(...b).first<{ n: number }>())?.n ?? 0;
+    } catch (err) {
+      console.error(`admin counts: ${key} failed`, err);
+    }
+  };
+
+  if (admin) await count('email', 'SELECT COUNT(*) AS n FROM mail_threads WHERE unread = 1');
+  if (publisher) await count('social', `SELECT COUNT(*) AS n FROM social_posts WHERE status = 'pending_approval'`);
+  if (admin) await count('blog', `SELECT COUNT(*) AS n FROM blog_submissions WHERE status = 'pending'`);
+  if (social) await count('scheduledThisWeek', `SELECT COUNT(*) AS n FROM social_posts WHERE status = 'scheduled' AND scheduled_at BETWEEN ? AND ?`, now, now + WEEK);
+  return jsonResponse(out);
+};

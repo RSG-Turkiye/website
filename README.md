@@ -473,6 +473,32 @@ demand. If it does, it invokes the same `scheduled` handler as the schedule
 does and is unaffected by `workers_dev` — but the local route above is the one
 documented by Cloudflare, so prefer it unless you have checked.
 
+## The admin panel
+
+`/admin` (and `/tr/admin`) is one page with a grouped menu. Each person sees
+only the sections their roles allow; the server still checks every request.
+The address records where you are, so a link such as `/admin#sempozyum/komite`
+opens that sub-page directly and reload and back keep working. A section with
+sub-pages opens its first one on a laptop; on a phone it opens a list of them,
+and a ‹ button returns from a sub-page to the list. Counts of waiting work
+(e-mail, social approvals, blog posts) show next to the menu entries and on
+Overview.
+
+- **Overview** (`#genel`): what is waiting, plus the status banner. Shown when
+  you can open two or more sections.
+- **Communication**: E-posta (admins), Social media (editors, publishers,
+  admins), Announcements (announcers, admins).
+- **Content**: Blog (admins), Symposium (symposium editors, admins).
+- **Community**: Users and roles (admins). Membership has an entry but stays
+  hidden until it is built.
+- **System**: Connections and Activity log (admins).
+
+The section ids in the address are Turkish (`eposta`, `sosyal`, `duyurular`,
+`blog`, `sempozyum`, `kullanicilar`, `baglantilar`, `kayit`). The routing table
+is `src/scripts/admin/sections.ts`. `tests/browser/admin-overflow.mjs` opens
+every section at 390 and 1280 px and checks for horizontal scroll and 44 px
+touch targets.
+
 ## Connections and the status banner
 
 The admin panel (`/admin`) shows a banner when something the site depends on is
