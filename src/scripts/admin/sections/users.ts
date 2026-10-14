@@ -169,7 +169,7 @@ function closeDetail(): void {
 }
 
 const heading = (key: Parameters<typeof t>[0]) =>
-  `<h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-5 mb-2">${t(key)}</h4>`;
+  `<h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-5 lg:mt-4 mb-2 lg:mb-1">${t(key)}</h4>`;
 
 function renderDetail(u: User | null): void {
   const box = document.getElementById('userDetail')!;
@@ -190,7 +190,7 @@ function renderDetail(u: User | null): void {
   box.innerHTML = `
     <button type="button" id="userDetailBack" aria-label="${escapeHtml(t('admin.nav.back'))}"
       class="lg:hidden w-11 h-11 -ml-2 mb-1 inline-flex items-center justify-center rounded-xl text-navy text-2xl ${FOCUS}">‹</button>
-    <h3 class="text-base font-semibold text-navy break-words">${escapeHtml(displayName(u))}</h3>
+    <h3 class="text-base lg:text-sm font-semibold text-navy break-words">${escapeHtml(displayName(u))}</h3>
     <p class="text-xs text-gray-500 break-all">${escapeHtml(u.email)}</p>
     ${meta ? `<p class="text-xs text-gray-500 break-words">${escapeHtml(meta)}</p>` : ''}
     <p class="text-xs text-gray-500">${t('admin.table.joined')}: ${formatDate(u.created_at)}</p>
@@ -316,10 +316,10 @@ export function renderRolesView(users: User[]): void {
   rolesUsers = users;
   const box = document.getElementById('rolesView');
   if (!box) return;
-  box.innerHTML = `<h2 class="text-lg font-semibold text-navy mb-4">${t('admin.nav.roles')}</h2>
+  box.innerHTML = `<h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">${t('admin.nav.roles')}</h2>
     <div class="grid gap-3 lg:grid-cols-2">${ROLE_SWITCHES.map((r) => {
       const people = users.filter((u) => !!u[r.flag]);
-      return `<div data-role-card="${r.flag}" class="bg-white rounded-2xl border border-border p-4 min-w-0">
+      return `<div data-role-card="${r.flag}" class="bg-white rounded-2xl border border-border p-4 lg:p-3 min-w-0">
         <h3 class="text-sm font-semibold text-navy">${t(r.label)}</h3>
         <p class="text-xs text-gray-500 mb-3">${t(r.hint)}</p>
         <div class="flex flex-wrap items-center gap-1">

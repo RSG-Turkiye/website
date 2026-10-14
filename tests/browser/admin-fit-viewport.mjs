@@ -2,7 +2,10 @@
  * The admin panel fits the window from lg up, in a real browser: on a laptop
  * the page itself never scrolls; long lists scroll inside their own boxes and
  * a side panel (a member, a mail thread, an edit form) is on screen without
- * scrolling the page. On a phone the page still scrolls as before.
+ * scrolling the page. On a phone the page still scrolls as before. The
+ * section title and sub-page tabs stay put however far the content scrolls
+ * (with and without the podcast bar), the social calendar fits its box with
+ * "+N more" on a busy day, and the content's type is desktop-sized.
  *
  * Not part of `npm test`: it needs Playwright and a preview server.
  *
@@ -55,14 +58,27 @@ const FULL = {
 };
 const POSTS = N(12, (i) => ({ id: `p${i}`, type: 'image', caption: `Caption ${i}`, captionOverrides: {}, link: null, media: [], platforms: ['instagram'], scheduledAt: now + i * 3600, status: i % 2 ? 'pending_approval' : 'draft', revision: 1,
   createdBy: 'u2', authorEmail: 'editor@example.org', approvedBy: null, approvedAt: null, reviewNote: null, planId: null, planTitle: null, eventModeId: null, createdAt: now, updatedAt: now, targets: [] }));
+// A busy month: twelve posts on today, five tomorrow (Istanbul days), so
+// some calendar cells have more than they can show.
+const DAY0 = Math.floor((now + 3 * 3600) / 86400) * 86400 - 3 * 3600;
+const BUSY = [
+  ...N(12, (i) => ({ ...POSTS[0], id: `busy${i}`, caption: `Busy post ${i}`, scheduledAt: DAY0 + 8 * 3600 + i * 900, status: i % 3 ? 'scheduled' : 'pending_approval' })),
+  ...N(5, (i) => ({ ...POSTS[0], id: `next${i}`, caption: `Next day ${i}`, scheduledAt: DAY0 + 86400 + 9 * 3600 + i * 900, status: 'draft' })),
+  ...POSTS,
+];
 const PLANS = N(6, (i) => ({ id: `pl${i}`, title: `Plan ${i}`, scheduledAt: now + i * 86400, platforms: ['instagram'], postType: 'image', assigneeId: 'u2', assigneeEmail: 'editor@example.org', note: 'n', postId: null, postStatus: null, createdBy: 'u1', createdAt: now }));
 const EDITORS = [{ id: 'u2', email: 'editor@example.org', name: 'Editor Two', isPublisher: false }];
 const MODES = N(10, (i) => ({ id: `m${i}`, name: `Event ${i}`, startsAt: now + i * 86400, endsAt: now + (i + 1) * 86400, editorIds: ['u2'], editorEmails: ['editor@example.org'], openedBy: 'u1', closedAt: null, active: i === 1 }));
 
 const browser = await chromium.launch();
 
-async function open(path, viewport, user = ADMIN) {
+// ONLY=1,5 runs just those parts (a debugging aid; the default is all of them).
+const want = (n) => !process.env.ONLY || process.env.ONLY.split(',').includes(String(n));
+
+async function open(path, viewport, user = ADMIN, { podcast = true, posts = POSTS } = {}) {
   const page = await browser.newPage({ viewport });
+  // The podcast bar shows unless it was dismissed; it takes height off the panel.
+  if (!podcast) await page.addInitScript(() => { try { localStorage.setItem('rsg:podcast-strip-dismissed', '1'); } catch {} });
   page.on('pageerror', (e) => bad.push(`pageerror (${path} ${viewport.width}px): ` + String(e).slice(0, 160)));
   page.inflight = 0;
   await page.route('**/api/**', async (r) => {
@@ -80,7 +96,7 @@ async function open(path, viewport, user = ADMIN) {
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
     if (url.pathname === '/api/social/plans') return json({ plans: PLANS });
-    if (url.pathname === '/api/social/posts') return json({ posts: POSTS });
+    if (url.pathname === '/api/social/posts') return json({ posts });
     if (url.pathname === '/api/social/editors') return json({ editors: EDITORS });
     if (url.pathname === '/api/social/event-modes') return json({ modes: MODES });
     const q = url.searchParams.get('search');
@@ -155,9 +171,9 @@ const inView = (page, sel) => page.evaluate((s) => {
 
 const LAPTOPS = [{ width: 1280, height: 800 }, { width: 1440, height: 900 }, { width: 1280, height: 680 }, { width: 1024, height: 768 }];
 
-console.log('1) every route, every laptop size: the document does not scroll');
 let checked = 0;
-for (const [who, user] of [['admin', ADMIN], ['sender', SENDER]])
+if (want(1)) console.log('1) every route, every laptop size: the document does not scroll');
+if (want(1)) for (const [who, user] of [['admin', ADMIN], ['sender', SENDER]])
 for (const lang of ['', '/tr']) {
   const all = await routes(lang, user);
   ok(all.length >= (who === 'admin' ? 20 : 3), `${who} ${lang || '/en'}: found the routes (${all.length})`);
@@ -175,9 +191,9 @@ for (const lang of ['', '/tr']) {
     await page.close();
   }
 }
-pass(checked > 0 && !bad.some((m) => m.includes('the page scrolls')), `${checked} route x size combinations fit the window`);
+if (want(1)) pass(checked > 0 && !bad.some((m) => m.includes('the page scrolls')), `${checked} route x size combinations fit the window`);
 
-for (const vp of LAPTOPS) for (const lang of ['', '/tr']) {
+if (want(2)) for (const vp of LAPTOPS) for (const lang of ['', '/tr']) {
   const tag = `${lang || '/en'} ${vp.width}x${vp.height}`;
   console.log(`2) ${tag}: long lists scroll in their own box, side panels stay on screen`);
   const page = await open(lang + '/admin', vp);
@@ -236,8 +252,8 @@ for (const vp of LAPTOPS) for (const lang of ['', '/tr']) {
   await page.close();
 }
 
-console.log('3) a new page starts at its top, not where the last one was left');
-{
+if (want(3)) {
+  console.log('3) a new page starts at its top, not where the last one was left');
   const page = await open('/admin', { width: 1280, height: 680 });
   await go(page, '#kayit');
   const box = await page.locator('#sectionBody').boundingBox();
@@ -263,8 +279,8 @@ console.log('3) a new page starts at its top, not where the last one was left');
   await page.close();
 }
 
-console.log('4) phone, 390 px: the page still scrolls as before');
-{
+if (want(4)) {
+  console.log('4) phone, 390 px: the page still scrolls as before');
   const page = await open('/admin', { width: 390, height: 844 });
   await go(page, '#kullanicilar/liste');
   await page.waitForSelector('#usersList [data-user="u200"]');
@@ -279,6 +295,154 @@ console.log('4) phone, 390 px: the page still scrolls as before');
   const footer = await page.locator('footer').isVisible();
   pass(footer, 'the site footer is still there');
   await page.close();
+}
+
+// Where the section's title and its sub-page tabs are on screen.
+const heads = (page) => page.evaluate(() => {
+  const top = (el) => (el ? Math.round(el.getBoundingClientRect().top * 2) / 2 : null);
+  const tab = document.querySelector('#subNav [role=tab]');
+  return { title: top(document.getElementById('sectionTitle')), tabs: top(tab), hasTabs: !!tab, y: scrollY, main: document.querySelector('main').scrollTop };
+});
+
+// Scrolls the content as far down as it goes: the wheel over the middle of
+// the content, then every scroll box in it to its end, then the section's
+// last element into view the way revealInPanel and focus do.
+async function scrollContentToBottom(page) {
+  const box = await page.evaluate(() => {
+    const r = document.getElementById('sectionBody').getBoundingClientRect();
+    const bottom = Math.min(r.bottom, innerHeight);
+    return { x: r.left + r.width / 2, y: r.top + (bottom - r.top) / 2 };
+  });
+  await page.mouse.move(box.x, box.y);
+  for (let i = 0; i < 3; i++) await page.mouse.wheel(0, 4000);
+  await page.waitForTimeout(80);
+  await page.evaluate(() => {
+    const body = document.getElementById('sectionBody');
+    for (const el of [body, ...body.querySelectorAll('*')]) {
+      if (el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight;
+    }
+    const shown = [...body.querySelectorAll('[data-section]:not(.hidden) *')].filter((el) => el.getClientRects().length > 0);
+    shown.at(-1)?.scrollIntoView({ block: 'end' });
+  });
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
+}
+
+if (want(5)) {
+  console.log('5) the section title and the sub-page tabs never move when the content scrolls');
+  const all = await routes('', ADMIN);
+  const sizes = [
+    [{ width: 1280, height: 680 }, true], [{ width: 1366, height: 768 }, true], [{ width: 1024, height: 768 }, true], [{ width: 1440, height: 900 }, true],
+    [{ width: 1280, height: 680 }, false], [{ width: 1366, height: 768 }, false],
+  ];
+  let n = 0;
+  for (const [vp, podcast] of sizes) {
+    const page = await open('/admin', vp, ADMIN, { podcast });
+    const strip = await page.evaluate(() => { const s = document.getElementById('podcastStrip'); return !!s && !s.hidden; });
+    ok(strip === podcast, `${vp.width}x${vp.height}: the podcast bar is ${podcast ? 'shown' : 'dismissed'} as asked (shown: ${strip})`);
+    for (const h of all) {
+      const tag = `${vp.width}x${vp.height}${podcast ? ' +podcast' : ''} ${h}`;
+      if (!(await go(page, h))) { ok(false, `${tag}: route did not settle`); continue; }
+      const before = await heads(page);
+      await scrollContentToBottom(page);
+      const after = await heads(page);
+      n++;
+      ok(before.title === after.title && before.tabs === after.tabs && after.y === 0 && after.main === 0,
+        `${tag}: the heading moved (title ${before.title} -> ${after.title}, tabs ${before.tabs} -> ${after.tabs}, scrollY ${after.y}, main ${after.main})`);
+      if (after.hasTabs) ok(after.tabs >= 0 && after.tabs < 200, `${tag}: the tabs are not at the top of the window (${after.tabs})`);
+      await page.evaluate(() => document.getElementById('sectionBody').scrollTo(0, 0));
+    }
+    await page.close();
+  }
+  pass(n > 0 && !bad.some((m) => m.includes('the heading moved') || m.includes('tabs are not')), `${n} route x size combinations keep the title and tabs in place`);
+}
+
+if (want(6)) {
+  console.log('6) the social calendar fits its box: no scrollbar, a busy day shows "+N more"');
+  for (const vp of [{ width: 1024, height: 768 }, { width: 1280, height: 680 }, { width: 1280, height: 800 }, { width: 1440, height: 900 }]) for (const podcast of [true, false]) {
+    const tag = `${vp.width}x${vp.height}${podcast ? ' +podcast' : ''}`;
+    const page = await open('/admin', vp, ADMIN, { podcast, posts: BUSY });
+    await go(page, '#sosyal/takvim');
+    await page.waitForSelector('#socialCalendar [data-entry]', { state: 'attached' });
+    await quiet(page);
+    const m = await page.evaluate((day0) => {
+      const cal = document.getElementById('socialCalendar');
+      const grid = cal.querySelector('[data-month-grid]');
+      const strip = document.getElementById('podcastStrip');
+      const floor = innerHeight - (strip && !strip.hidden ? strip.getBoundingClientRect().height : 0);
+      const key = (e) => new Date((e + 3 * 3600) * 1000).toISOString().slice(0, 10);
+      const busy = cal.querySelector(`[data-day="${key(day0)}"]`);
+      const more = busy?.querySelector('[data-more]');
+      const spill = [];
+      for (const cell of cal.querySelectorAll('[data-day]')) {
+        const c = cell.getBoundingClientRect();
+        for (const el of cell.querySelectorAll('*')) {
+          if (el.closest('[hidden]') || el.getClientRects().length === 0) continue;
+          const r = el.getBoundingClientRect();
+          if (r.height > 0 && (r.bottom > c.bottom + 0.5 || r.top < c.top - 0.5)) spill.push(`${cell.dataset.day}: ${el.textContent.trim().slice(0, 20)}`);
+        }
+      }
+      const legend = cal.lastElementChild.getBoundingClientRect();
+      return {
+        cal: [cal.scrollHeight, cal.clientHeight], grid: [grid.scrollHeight, grid.clientHeight],
+        bottom: Math.round(cal.getBoundingClientRect().bottom), legend: Math.round(legend.bottom), floor: Math.round(floor),
+        moreShown: !!more && !more.hidden, moreText: more?.textContent ?? '',
+        shownEntries: busy ? [...busy.querySelectorAll('[data-entry]')].filter((e) => !e.hidden).length : -1,
+        allEntries: busy ? busy.querySelectorAll('[data-entry]').length : -1,
+        rowH: Math.round(busy?.getBoundingClientRect().height ?? 0),
+        spill, y: scrollY, docH: document.scrollingElement.scrollHeight,
+      };
+    }, DAY0);
+    pass(m.cal[0] <= m.cal[1] + 1 && m.grid[0] <= m.grid[1] + 1, `${tag}: neither the calendar nor its grid scrolls (calendar ${m.cal}, grid ${m.grid})`);
+    pass(m.bottom <= m.floor + 1 && m.legend <= m.floor + 1 && m.y === 0 && m.docH <= vp.height + 1, `${tag}: the whole calendar and its legend are on screen (bottom ${m.bottom}, legend ${m.legend}, floor ${m.floor}, scrollY ${m.y})`);
+    const hiddenN = Number((m.moreText.match(/\+(\d+)/) ?? [])[1] ?? 0);
+    pass(m.allEntries >= 12 && m.moreShown && hiddenN > 0 && m.shownEntries > 0 && hiddenN + m.shownEntries === m.allEntries, `${tag}: the busy day shows ${m.shownEntries} of ${m.allEntries} and "${m.moreText}" (cell ${m.rowH} px tall)`);
+    pass(m.spill.length === 0, `${tag}: nothing spills out of a day cell (${m.spill.slice(0, 3).join('; ')})`);
+    if (vp.width === 1280 && vp.height === 680 && podcast) {
+      await page.click('#socialCalendar [data-more]:not([hidden])');
+      await page.waitForSelector('#socialSide:not(.hidden) [data-day-list]', { timeout: 3000 }).catch(() => {});
+      const listed = await page.locator('#socialSide [data-day-list] [data-entry]').count();
+      const v = await inView(page, '#socialSide');
+      pass(listed === m.allEntries && v.ok, `${tag}: "+N more" lists the whole day in the side panel (${listed} of ${m.allEntries} items; ${v.why})`);
+      await page.click('#socialSide [data-day-list] [data-entry][data-id="busy12"]');
+      const opened = await page.waitForFunction(() => !document.querySelector('#socialSide [data-day-list]') && document.getElementById('socialSide').textContent.includes('editor@example.org'), null, { timeout: 3000 }).then(() => true, () => false);
+      pass(opened, `${tag}: an item in the day list opens that item`);
+      // The board fills the same box; its columns scroll on their own.
+      await page.click('#socialViewBoard');
+      const b = await page.evaluate(() => { const c = document.getElementById('socialCalendar'); return [c.scrollHeight, c.clientHeight, scrollY]; });
+      pass(b[0] <= b[1] + 1 && b[2] === 0, `${tag}: the board fits the same box (${b})`);
+      await page.click('#socialViewCalendar');
+    }
+    await page.close();
+  }
+}
+
+if (want(7)) {
+  console.log('7) at 1280 the content is set like a desktop tool: title <= 20 px, row titles <= 14 px, nothing over 16 px');
+  const all = await routes('', ADMIN);
+  const page = await open('/admin', { width: 1280, height: 800 });
+  let rows = 0;
+  for (const h of all) {
+    if (!(await go(page, h))) { ok(false, `${h}: route did not settle`); continue; }
+    if (h === '#kullanicilar/liste') { await page.click('#usersList [data-user="u2"]'); await page.waitForTimeout(50); }
+    const f = await page.evaluate(() => {
+      const px = (el) => parseFloat(getComputedStyle(el).fontSize);
+      const shown = (el) => el.getClientRects().length > 0 && !el.closest('.hidden,[hidden]');
+      const body = document.getElementById('sectionBody');
+      const rowTitles = [...body.querySelectorAll('[data-row-title]')].filter(shown).map(px);
+      // A heading kept for screen readers only (lg:sr-only) is a 1 px box.
+      const srOnly = (el) => el.getBoundingClientRect().width <= 1;
+      const hasText = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+      const big = [...body.querySelectorAll('*')].filter((el) => shown(el) && hasText(el) && !srOnly(el) && px(el) > 16)
+        .map((el) => `${el.tagName.toLowerCase()} ${px(el)}px "${el.textContent.trim().slice(0, 24)}"`);
+      return { title: px(document.getElementById('sectionTitle')), rowTitles, big };
+    });
+    rows += f.rowTitles.length;
+    ok(f.title <= 20, `${h}: the section title is ${f.title}px`);
+    ok(f.rowTitles.every((x) => x <= 14), `${h}: a row title is over 14px (${Math.max(...f.rowTitles)})`);
+    ok(f.big.length === 0, `${h}: text over 16px in the content: ${f.big.slice(0, 3).join('; ')}`);
+  }
+  await page.close();
+  pass(rows > 50 && !bad.some((m) => / title is |row title is over|text over 16px/.test(m)), `${all.length} routes: title <= 20px, ${rows} row titles <= 14px, no content text over 16px`);
 }
 
 await browser.close();

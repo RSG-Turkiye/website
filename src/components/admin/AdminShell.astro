@@ -15,7 +15,13 @@
  * From lg up the panel is exactly one window tall (BaseLayout fitViewport) and
  * the page never scrolls: #sectionBody scrolls the section shown, and the
  * sections with a side panel (users, inbox, social calendar) fill it with
- * lg:h-full and scroll per column. Phones keep the page scroll.
+ * lg:h-full and scroll per column. Phones keep the page scroll. The title and
+ * the sub-page tabs sit outside #sectionBody, so they never scroll; a pane's
+ * own heading that only repeats the tab label is lg:sr-only.
+ *
+ * From lg up the content is set like a desktop tool: #sectionBody is text-sm,
+ * and cards, rows, fields and buttons take tighter lg: paddings (the shared
+ * ones live in ui-kit.ts). Phones keep today's sizes and 44 px targets.
  * tests/browser/admin-fit-viewport.mjs checks every route.
  */
 // Shared markup for the admin panel, rendered by both /admin (English) and
@@ -43,7 +49,7 @@ const t = useTranslations(lang);
 ---
 
 <BaseLayout pageTitle={pageTitle} description={description} fitViewport>
-  <div class="min-h-screen bg-[#F7F7F6] py-10 px-4 lg:min-h-0 lg:flex-1 lg:py-6 lg:flex lg:flex-col">
+  <div class="min-h-screen bg-[#F7F7F6] py-10 px-4 lg:min-h-0 lg:flex-1 lg:py-4 lg:flex lg:flex-col">
     <div class="max-w-7xl mx-auto lg:w-full lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
 
       <!-- Not authorized -->
@@ -85,30 +91,30 @@ const t = useTranslations(lang);
           <div class="w-4/5 max-w-xs h-full bg-white p-3 overflow-y-auto" data-drawer-panel></div>
         </div>
 
-        <div class="flex flex-col lg:flex-row gap-6 items-start lg:flex-1 lg:min-h-0">
-          <aside class="hidden lg:block w-60 shrink-0 bg-white rounded-2xl border border-border p-2 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain">
-            <p class="px-3 pt-2 pb-1 text-base font-bold text-navy">{t('admin.header.title')}</p>
+        <div class="flex flex-col lg:flex-row gap-6 lg:gap-4 items-start lg:flex-1 lg:min-h-0">
+          <aside class="hidden lg:block w-56 shrink-0 bg-white rounded-2xl border border-border p-2 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain">
+            <p class="px-3 pt-1.5 pb-1 text-sm font-bold text-navy">{t('admin.header.title')}</p>
             <AdminNav lang={lang} />
           </aside>
 
           <div class="flex-1 min-w-0 w-full lg:self-stretch lg:flex lg:flex-col lg:min-h-0">
-            <h1 id="sectionTitle" class="hidden lg:block shrink-0 text-2xl font-bold text-navy mb-4"></h1>
+            <h1 id="sectionTitle" class="hidden lg:block shrink-0 text-xl font-bold text-navy mb-2"></h1>
             <div id="subNav" class="shrink-0"></div>
 
             <!-- From lg up the one scroll box for the section shown; a section
                  with a side panel fills it exactly (lg:h-full) and scrolls
                  per column instead. p-1/-m-1 leaves room for focus rings. -->
-            <div id="sectionBody" class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1 lg:-m-1">
+            <div id="sectionBody" class="lg:text-sm lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1 lg:-m-1">
 
         <section data-section="genel"><div id="overview"></div></section>
 
         <section id="userManagementSection" data-section="kullanicilar" class="lg:h-full">
         <div data-sub="liste" class="lg:h-full fit-col">
-          <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.members.heading')}</h2>
-          <div class="lg:grid lg:grid-cols-[1fr_22rem] lg:grid-rows-[minmax(0,1fr)] lg:flex-1 lg:min-h-0 gap-4 items-start">
+          <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.members.heading')}</h2>
+          <div class="lg:grid lg:grid-cols-[1fr_22rem] lg:grid-rows-[minmax(0,1fr)] lg:flex-1 lg:min-h-0 gap-4 lg:gap-3 items-start">
             <div id="usersPane" class="min-w-0 lg:h-full">
               <div class="lg:h-full lg:flex lg:flex-col">
-              <div class="shrink-0 bg-white rounded-2xl border border-border p-4 mb-4 flex flex-col gap-3">
+              <div class="shrink-0 bg-white rounded-2xl border border-border p-4 lg:p-3 mb-4 lg:mb-3 flex flex-col gap-3 lg:gap-2">
                 <input
                   id="searchInput"
                   type="search"
@@ -116,17 +122,17 @@ const t = useTranslations(lang);
                   class="w-full min-h-11 lg:min-h-9 px-4 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid transition-colors"
                 />
                 <div class="flex flex-wrap gap-2">
-                  <button type="button" data-filter="all" class="filter-btn active-filter min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.all')}</button>
-                  <button type="button" data-filter="members" class="filter-btn min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.members')}</button>
-                  <button type="button" data-filter="pending" class="filter-btn min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.pending')}</button>
-                  <button type="button" data-filter="roles" class="filter-btn min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.users.filter.roles')}</button>
+                  <button type="button" data-filter="all" class="filter-btn active-filter min-h-11 lg:min-h-9 px-4 lg:px-3 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.all')}</button>
+                  <button type="button" data-filter="members" class="filter-btn min-h-11 lg:min-h-9 px-4 lg:px-3 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.members')}</button>
+                  <button type="button" data-filter="pending" class="filter-btn min-h-11 lg:min-h-9 px-4 lg:px-3 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.pending')}</button>
+                  <button type="button" data-filter="roles" class="filter-btn min-h-11 lg:min-h-9 px-4 lg:px-3 rounded-xl text-sm font-medium transition-colors">{t('admin.users.filter.roles')}</button>
                 </div>
               </div>
-              <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.table.noUsersFound')}</div>
+              <div id="emptyState" class="hidden text-center py-12 lg:py-6 text-sm text-gray-500">{t('admin.table.noUsersFound')}</div>
               <div id="usersList" class="flex flex-col gap-2 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1 lg:-m-1"></div>
               </div>
             </div>
-            <div id="userDetail" class="hidden lg:block min-w-0 bg-white rounded-2xl border border-border p-4 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain"></div>
+            <div id="userDetail" class="hidden lg:block min-w-0 bg-white rounded-2xl border border-border p-4 lg:p-3 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain"></div>
           </div>
         </div>
         <div data-sub="yetkiler"><div id="rolesView"></div></div>
@@ -134,23 +140,23 @@ const t = useTranslations(lang);
 
         <!-- Announcements section -->
         <section id="announcementsSection" data-section="duyurular">
-          <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.announcements.heading')}</h2>
+          <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.announcements.heading')}</h2>
 
-          <div class="bg-white rounded-2xl border border-border p-4 mb-6">
-            <form id="announcementForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-white rounded-2xl border border-border p-4 lg:p-3 mb-6 lg:mb-4">
+            <form id="announcementForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-2">
               <input type="hidden" id="announcementEditId" value="" />
               <input id="annTitle" type="text" placeholder={t('admin.announcements.form.titlePlaceholder')} required maxlength="80"
-                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2" />
+                class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2" />
               <textarea id="annDescription" placeholder={t('admin.announcements.form.descriptionPlaceholder')} required rows="2" maxlength="200"
-                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2"></textarea>
+                class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid sm:col-span-2"></textarea>
               <input id="annButtonText" type="text" placeholder={t('admin.announcements.form.buttonTextPlaceholder')} required maxlength="30"
-                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+                class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
               <input id="annButtonUrl" type="url" placeholder={t('admin.announcements.form.buttonUrlPlaceholder')} required
-                class="px-3 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+                class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
               <label class="flex items-center gap-2 text-sm text-gray-600">
                 {t('admin.announcements.form.expiresOn')}
                 <input id="annExpiresAt" type="date" required
-                  class="px-3 py-2 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+                  class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
               </label>
               <label class="flex items-center gap-2 text-sm text-gray-600">
                 {t('admin.announcements.form.site')}
@@ -159,7 +165,7 @@ const t = useTranslations(lang);
                      main-site one and the symposium list was empty by
                      construction. -->
                 <select id="annSite"
-                  class="px-3 py-2 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
+                  class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid">
                   <option value="main">{t('admin.announcements.form.siteMain')}</option>
                   <option value="symposium">{t('admin.announcements.form.siteSymposium')}</option>
                 </select>
@@ -169,10 +175,10 @@ const t = useTranslations(lang);
                 {t('admin.announcements.form.showAsPopup')}
               </label>
               <div class="sm:col-span-2 flex items-center gap-2">
-                <button type="submit" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">
+                <button type="submit" class="inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">
                   {t('admin.announcements.form.save')}
                 </button>
-                <button type="button" id="cancelEditBtn" class="hidden items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">
+                <button type="button" id="cancelEditBtn" class="hidden items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">
                   {t('admin.announcements.form.cancelEdit')}
                 </button>
               </div>
@@ -180,12 +186,12 @@ const t = useTranslations(lang);
           </div>
 
           <div id="announcementsList" class="flex flex-col gap-2"></div>
-          <p id="announcementsEmptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.announcements.table.noneYet')}</p>
+          <p id="announcementsEmptyState" class="hidden text-center py-12 lg:py-6 text-sm text-gray-500">{t('admin.announcements.table.noneYet')}</p>
         </section>
 
         <!-- Blog submissions section -->
         <section id="blogSubmissionsSection" data-section="blog">
-          <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.blog.heading')}</h2>
+          <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.blog.heading')}</h2>
           <div id="blogSubmissionsList" class="flex flex-col gap-4"></div>
           <p id="blogSubmissionsEmpty" class="hidden text-sm text-gray-500">{t('admin.blog.empty')}</p>
         </section>
@@ -196,30 +202,30 @@ const t = useTranslations(lang);
         <MailPane lang={lang} />
 
         <section data-section="baglantilar">
-          <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.connections.heading')}</h2>
-          <p class="text-sm text-gray-500 mb-4">{t('admin.connections.intro')}</p>
+          <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.connections.heading')}</h2>
+          <p class="text-sm text-gray-500 mb-4 lg:mb-3">{t('admin.connections.intro')}</p>
           <div id="connectionsBody" class="flex flex-col gap-2"></div>
         </section>
 
         <section data-section="kayit">
-          <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.audit.heading')}</h2>
-          <p class="text-sm text-gray-500 mb-4">{t('admin.audit.intro')}</p>
-          <form id="auditFilter" class="bg-white rounded-2xl border border-border p-4 mb-4 flex flex-wrap items-end gap-3">
-            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.user')}<input id="auditUser" type="text" class="block mt-1 w-full px-3 py-2 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
-            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.action')}<input id="auditAction" type="text" class="block mt-1 w-full px-3 py-2 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
-            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.from')}<input id="auditFrom" type="date" class="block mt-1 w-full px-3 py-2 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
-            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.to')}<input id="auditTo" type="date" class="block mt-1 w-full px-3 py-2 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
+          <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.audit.heading')}</h2>
+          <p class="text-sm text-gray-500 mb-4 lg:mb-3">{t('admin.audit.intro')}</p>
+          <form id="auditFilter" class="bg-white rounded-2xl border border-border p-4 lg:p-3 mb-4 lg:mb-3 flex flex-wrap items-end gap-3 lg:gap-2">
+            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.user')}<input id="auditUser" type="text" class="block mt-1 w-full px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
+            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.action')}<input id="auditAction" type="text" class="block mt-1 w-full px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
+            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.from')}<input id="auditFrom" type="date" class="block mt-1 w-full px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
+            <label class="text-sm text-gray-600 min-w-0 flex-1 basis-40">{t('admin.audit.filter.to')}<input id="auditTo" type="date" class="block mt-1 w-full px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" /></label>
             <div class="w-full flex flex-wrap gap-2">
-            <button type="submit" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">{t('admin.audit.apply')}</button>
+            <button type="submit" class="inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">{t('admin.audit.apply')}</button>
             <span class="flex-1"></span>
-            <button type="button" id="auditExportCsv" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.exportCsv')}</button>
-            <button type="button" id="auditExportJson" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.exportJson')}</button>
-            <button type="button" id="auditVerify" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.verify')}</button>
+            <button type="button" id="auditExportCsv" class="inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.exportCsv')}</button>
+            <button type="button" id="auditExportJson" class="inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.exportJson')}</button>
+            <button type="button" id="auditVerify" class="inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.verify')}</button>
             </div>
           </form>
           <p id="auditVerifyResult" class="text-sm"></p>
           <div id="auditBody" class="flex flex-col gap-2 mt-2"></div>
-          <button type="button" id="auditMore" class="hidden mt-3 items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.more')}</button>
+          <button type="button" id="auditMore" class="hidden mt-3 items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.more')}</button>
         </section>
 
             </div>

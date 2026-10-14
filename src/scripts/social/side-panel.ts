@@ -4,7 +4,7 @@ import { deps, changed } from './context';
 import { errorText, problemText, publishErrorText, splitPublishError, requeueLabelKey } from './messages';
 import { esc, button, armConfirm } from './ui';
 import { dayKey, timeOf, planDue } from '../../lib/social-calendar';
-import { findPlan, findPost } from './calendar-view';
+import { findPlan, findPost, dayItems } from './calendar-view';
 import { openPlanDialog } from './plan-dialog';
 import { openComposer } from './composer';
 
@@ -15,7 +15,7 @@ const LOCKED = ['published', 'partially_published', 'cancelled'];
 const STALE_CODES = ['post_changed', 'not_found', 'not_pending', 'plan_taken', 'plan_has_post'];
 
 /** What the panel shows, so it can be redrawn from fresh data after an edit elsewhere. */
-let shown: { kind: 'plan' | 'post'; id: string } | null = null;
+let shown: { kind: 'plan' | 'post' | 'day'; id: string } | null = null;
 
 export function hideSide(): void { shown = null; side().classList.add('hidden'); side().replaceChildren(); }
 
@@ -27,6 +27,7 @@ export function showSide(kind: 'plan' | 'post', id: string): void {
 /** After the calendar reloads: redraw the open panel from the new data (a stale revision gives false conflicts), or close it if the item is gone. */
 export function refreshSide(): void {
   if (!shown || side().classList.contains('hidden')) return;
+  if (shown.kind === 'day') { renderDay(shown.id); return; }
   const plan = shown.kind === 'plan' ? findPlan(shown.id) : undefined;
   const post = shown.kind === 'post' ? findPost(shown.id) : undefined;
   if (plan) renderPlan(plan); else if (post) renderPost(post); else hideSide();
@@ -59,9 +60,20 @@ function frame(title: string, body: string): void {
   side().innerHTML = `<div class="flex justify-between items-start gap-2"><h3 class="font-semibold text-navy">${esc(title)}</h3>
     ${button(t('admin.social.side.close'), 'data-close')}</div>${body}`;
   side().classList.remove('hidden');
-  // Between lg and xl the panel opens under the calendar, inside the pane's own scroll box.
-  if (matchMedia('(min-width: 1024px) and (max-width: 1279px)').matches) side().scrollIntoView({ block: 'nearest' });
+  side().scrollTop = 0;
   side().querySelector('[data-close]')!.addEventListener('click', hideSide);
+}
+
+/** Every plan and post on one day: what the calendar's "+N more" opens. */
+export function showDay(key: string): void { shown = { kind: 'day', id: key }; renderDay(key); }
+
+function renderDay(key: string): void {
+  const { lang } = deps();
+  const items = dayItems(key);
+  if (!items) { hideSide(); return; }
+  const title = new Date(`${key}T12:00:00Z`).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  frame(title, `<div data-day-list class="mt-2">${items}</div>`);
+  side().querySelectorAll<HTMLElement>('[data-entry]').forEach((b) => b.addEventListener('click', () => showSide(b.dataset.entry as 'plan' | 'post', b.dataset.id!)));
 }
 
 function renderPlan(p: Plan): void {

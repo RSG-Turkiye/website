@@ -13,7 +13,7 @@ export async function editorsCache(): Promise<Editor[]> {
 
 const PLATFORMS: Platform[] = ['instagram', 'linkedin', 'x'];
 const TYPES: PostType[] = ['image', 'carousel', 'story'];
-const input = 'mt-1 w-full px-3 py-2 rounded-xl border border-border text-sm text-navy';
+const input = 'mt-1 w-full px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy';
 
 export async function openPlanDialog(opts: { plan?: Plan; date?: string }): Promise<void> {
   const { t, showToast } = deps();

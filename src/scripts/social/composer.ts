@@ -220,7 +220,7 @@ function render(): void {
   const { t, tf, me } = deps();
   const title = !editable ? 'admin.social.composer.viewTitle' : state.id ? 'admin.social.composer.editTitle' : 'admin.social.composer.newTitle';
   const dis = editable ? '' : 'disabled';
-  const field = 'mt-1 w-full px-3 py-2 rounded-xl border border-border text-sm text-navy';
+  const field = 'mt-1 w-full px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy';
   const warn = editable && (state.status === 'scheduled' || state.status === 'failed') && !me.isPublisher
     ? `<p class="mb-3 p-2 rounded-lg bg-amber-50 text-amber-900 text-sm">${esc(t('admin.social.composer.backToApproval'))}</p>` : '';
   overlay().innerHTML = `<div class="max-w-6xl mx-auto my-6 bg-white rounded-2xl border border-border p-5">
@@ -248,8 +248,8 @@ function render(): void {
         <p data-link-error class="hidden text-xs text-red -mt-2">${esc(t('admin.social.error.invalid_link'))}</p>
         <p class="text-xs text-gray-500 -mt-2">${esc(t('admin.social.composer.linkHint'))}</p>
         <div><p class="text-xs font-semibold text-navy">${esc(t('admin.social.composer.when'))} <span class="font-normal text-gray-500">${esc(t('admin.social.composer.timeHint'))}</span></p>
-          <div class="flex gap-2 mt-1"><input data-date type="date" ${dis} class="px-3 py-2 rounded-xl border border-border text-sm" value="${esc(state.date)}">
-            <input data-time type="time" ${dis} class="px-3 py-2 rounded-xl border border-border text-sm" value="${esc(state.time)}"></div></div>
+          <div class="flex gap-2 mt-1"><input data-date type="date" ${dis} class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm" value="${esc(state.date)}">
+            <input data-time type="time" ${dis} class="px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm" value="${esc(state.time)}"></div></div>
         <div data-checks class="border-t border-border pt-3"></div>
         <div data-actions class="flex flex-wrap gap-2 items-center"></div>
       </div>
