@@ -10,7 +10,7 @@ import { navigationAllowed } from './nav-guard';
 
 export { registerNavigationGuard } from './nav-guard';
 
-type Hooks = { onShow?: Partial<Record<SectionId, () => Promise<void>>>; onSub?: Partial<Record<SectionId, (sub: string) => void>> };
+type Hooks = { onShow?: Partial<Record<SectionId, () => Promise<void>>>; onSub?: Partial<Record<SectionId, (sub: string, item: string | null) => void>> };
 const PHONE = window.matchMedia('(max-width: 1023px)');
 let roles: RoleFlags;
 let hooks: Hooks;
@@ -95,7 +95,7 @@ function show(route: Route): void {
     const load = hooks.onShow?.[route.section];
     if (load) void load().catch(() => {});
   }
-  if (route.sub) hooks.onSub?.[route.section]?.(route.sub);
+  if (route.sub) hooks.onSub?.[route.section]?.(route.sub, route.item);
   void fetch('/api/audit/view', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pane: route.section }), keepalive: true,
@@ -108,12 +108,12 @@ function renderSubNav(route: Route, subs: { id: string; label: string }[]): void
   if (PHONE.matches) {
     // Phone: the list of sub-pages first; a sub-page hides the list.
     nav.innerHTML = route.sub ? '' : `<div class="flex flex-col gap-2">${subs.map((s) => `
-      <a href="${toHash({ section: route.section, sub: s.id })}" data-sub-link="${s.id}" class="flex items-center justify-between min-h-14 px-4 rounded-xl border border-border bg-white text-navy text-base">
+      <a href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}" class="flex items-center justify-between min-h-14 px-4 rounded-xl border border-border bg-white text-navy text-base">
         <span>${t(s.label as never)}</span><span aria-hidden="true">›</span></a>`).join('')}</div>`;
     return;
   }
   nav.innerHTML = `<div role="tablist" class="flex flex-wrap gap-2 mb-4">${subs.map((s) => `
-    <a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id })}" data-sub-link="${s.id}"
+    <a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}"
       class="px-3 min-h-9 inline-flex items-center rounded-full border text-sm ${s.id === route.sub ? 'bg-navy-light border-navy-mid text-navy font-semibold' : 'border-border text-gray-500 hover:text-navy'}">
       ${t(s.label as never)}</a>`).join('')}</div>`;
 }

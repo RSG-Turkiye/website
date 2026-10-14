@@ -84,7 +84,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
     sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),
   };
-  const onSub: Partial<Record<SectionId, (sub: string) => void>> = {
+  const onSub: Partial<Record<SectionId, (sub: string, item: string | null) => void>> = {
     sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
   };

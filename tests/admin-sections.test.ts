@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { SECTIONS, GROUPS, visibleSections, subsFor, landing, rolesFromMe, type RoleFlags } from '../src/scripts/admin/sections';
 import { ui } from '../src/i18n/ui';
 
-const none: RoleFlags = { admin: false, announcer: false, symposium: false, social: false, socialPublisher: false };
+const none: RoleFlags = { admin: false, announcer: false, symposium: false, social: false, socialPublisher: false, sender: false };
 const ids = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
@@ -29,10 +29,26 @@ test('no role, no panel', () => {
   assert.equal(landing(none), null);
 });
 
-test('blog and e-mail stay admin-only, as on the server', () => {
+test('blog stays admin-only; e-mail is for admins and senders, not for other roles', () => {
   const r = { ...none, announcer: true, symposium: true, social: true, socialPublisher: true };
   assert.ok(!ids(r).includes('blog'));
   assert.ok(!ids(r).includes('eposta'));
+  assert.ok(ids({ ...none, sender: true }).includes('eposta'));
+});
+
+test('a sender alone lands in E-posta with inbox, compose and sent', () => {
+  const r = { ...none, sender: true };
+  assert.deepEqual(ids(r), ['eposta']);
+  assert.equal(landing(r), 'eposta');
+  const eposta = SECTIONS.find((s) => s.id === 'eposta')!;
+  assert.deepEqual(subsFor(eposta, r).map((s) => s.id), ['gelen', 'yaz', 'gonderilenler']);
+});
+
+test('E-posta sub-pages: admin-only ones need admin, compose needs sender', () => {
+  const eposta = SECTIONS.find((s) => s.id === 'eposta')!;
+  const subIds = (r: RoleFlags) => subsFor(eposta, r).map((s) => s.id);
+  assert.deepEqual(subIds({ ...none, admin: true }), ['gelen', 'gonderilenler', 'yetki', 'gondericiler', 'ekler']);
+  assert.deepEqual(subIds({ ...none, admin: true, sender: true }), ['gelen', 'yaz', 'gonderilenler', 'yetki', 'gondericiler', 'ekler']);
 });
 
 test('the approval sub-page is for publishers', () => {
@@ -43,8 +59,10 @@ test('the approval sub-page is for publishers', () => {
 });
 
 test('roles come from /api/me; a publisher is also a social editor', () => {
-  assert.deepEqual(rolesFromMe({ is_admin: true, is_social_publisher: true }), { admin: true, announcer: false, symposium: false, social: true, socialPublisher: true });
+  assert.deepEqual(rolesFromMe({ is_admin: true, is_social_publisher: true }), { admin: true, announcer: false, symposium: false, social: true, socialPublisher: true, sender: false });
   assert.deepEqual(rolesFromMe({ is_admin: 1 }), { ...none, admin: true });
+  assert.equal(rolesFromMe({ is_sender: 1 }).sender, true);
+  assert.equal(rolesFromMe({ is_sender: true }).sender, true);
 });
 
 test('every label exists in both languages and ids are safe for the audit log', () => {

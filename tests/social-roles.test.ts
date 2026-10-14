@@ -8,7 +8,7 @@ import { onRequestPatch } from '../functions/api/admin/users';
 import { verifyChain, type AuditRow } from '../functions/_lib/audit';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
-const none = { is_admin: 0, is_announcer: 0, is_symposium: 0, is_social: 0, is_social_publisher: 0 };
+const none = { is_admin: 0, is_announcer: 0, is_symposium: 0, is_social: 0, is_social_publisher: 0, is_sender: 0 };
 
 test('who may edit and who may publish', () => {
   assert.equal(canSocialEdit(none), false);
@@ -31,6 +31,7 @@ test('the admin panel opens for any panel role', () => {
   for (const k of ['is_admin', 'is_announcer', 'is_symposium', 'is_social', 'is_social_publisher'] as const) {
     assert.equal(canSeeAdminPanel({ ...none, [k]: 1 }), true, k);
   }
+  assert.equal(canSeeAdminPanel({ ...none, is_sender: 1 }), true, 'a mail sender');
 });
 
 function setup(isAdmin = 1) {

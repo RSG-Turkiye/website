@@ -3,12 +3,12 @@
  * routing and Overview all read. Visibility mirrors the server's role checks;
  * it never grants anything the server would refuse.
  */
-export type RoleFlags = { admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean };
+export type RoleFlags = { admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean; sender: boolean };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
 export type SectionId = 'genel' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
 export type CountKey = 'email' | 'social' | 'blog' | 'membership';
 
-export interface SubPage { id: string; label: string; publisherOnly?: boolean }
+export interface SubPage { id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean }
 export interface Section {
   id: SectionId;
   group: GroupId | null;
@@ -30,12 +30,14 @@ const adminOnly = (r: RoleFlags) => r.admin;
 export const SECTIONS: Section[] = [
   { id: 'genel', group: null, label: 'admin.nav.overview', subs: [], visible: () => true },
   {
-    id: 'eposta', group: 'iletisim', label: 'admin.nav.email', count: 'email', visible: adminOnly,
+    id: 'eposta', group: 'iletisim', label: 'admin.nav.email', count: 'email', visible: (r) => r.admin || r.sender,
     subs: [
-      { id: 'yetki', label: 'admin.mail.bulkGrant.heading' },
-      { id: 'gondericiler', label: 'admin.mail.senders.heading' },
-      { id: 'ekler', label: 'admin.mail.attachments.heading' },
-      { id: 'gonderilenler', label: 'admin.mail.allSends.heading' },
+      { id: 'gelen', label: 'admin.mail.nav.inbox' },
+      { id: 'yaz', label: 'admin.mail.nav.compose', senderOnly: true },
+      { id: 'gonderilenler', label: 'admin.mail.nav.sent' },
+      { id: 'yetki', label: 'admin.mail.bulkGrant.heading', adminOnly: true },
+      { id: 'gondericiler', label: 'admin.mail.senders.heading', adminOnly: true },
+      { id: 'ekler', label: 'admin.mail.attachments.heading', adminOnly: true },
     ],
   },
   {
@@ -80,7 +82,7 @@ export function visibleSections(r: RoleFlags): Section[] {
 }
 
 export function subsFor(s: Section, r: RoleFlags): SubPage[] {
-  return s.subs.filter((x) => !x.publisherOnly || r.admin || r.socialPublisher);
+  return s.subs.filter((x) => (!x.publisherOnly || r.admin || r.socialPublisher) && (!x.adminOnly || r.admin) && (!x.senderOnly || r.sender));
 }
 
 export function landing(r: RoleFlags): SectionId | null {
@@ -92,6 +94,6 @@ export function rolesFromMe(u: Record<string, unknown>): RoleFlags {
   const socialPublisher = yes(u.is_social_publisher);
   return {
     admin: yes(u.is_admin), announcer: yes(u.is_announcer), symposium: yes(u.is_symposium),
-    social: yes(u.is_social) || socialPublisher, socialPublisher,
+    social: yes(u.is_social) || socialPublisher, socialPublisher, sender: yes(u.is_sender),
   };
 }

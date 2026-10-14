@@ -172,9 +172,9 @@ export function canSocialPublish(user: Pick<User, 'is_admin' | 'is_social_publis
 
 /** Anyone with a pane in /admin. Used by endpoints every panel user needs, like the status banner. */
 export function canSeeAdminPanel(
-  user: Pick<User, 'is_admin' | 'is_announcer' | 'is_symposium' | 'is_social' | 'is_social_publisher'>,
+  user: Pick<User, 'is_admin' | 'is_announcer' | 'is_symposium' | 'is_social' | 'is_social_publisher' | 'is_sender'>,
 ): boolean {
-  return user.is_admin === 1 || user.is_announcer === 1 || user.is_symposium === 1 || canSocialEdit(user);
+  return user.is_admin === 1 || user.is_announcer === 1 || user.is_sender === 1 || user.is_symposium === 1 || canSocialEdit(user);
 }
 
 const ALLOWED_ORIGINS = new Set([
