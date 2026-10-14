@@ -329,7 +329,7 @@ export const ui = {
     // Admin Panel
     'admin.notAuth.message': 'You don\'t have access to this page.',
     'admin.notAuth.goHome': 'Go home',
-    'admin.notSignedIn.message': 'You need to sign in to view this page. After signing in, open the link again.',
+    'admin.notSignedIn.message': 'You need to sign in to view this page.',
     'admin.notSignedIn.signIn': 'Sign In',
     'admin.header.title': 'Admin Panel',
     'admin.header.subtitle': 'Manage members and content',
@@ -1376,7 +1376,7 @@ export const ui = {
     // Admin Panel
     'admin.notAuth.message': 'Bu sayfaya erişim izniniz yok.',
     'admin.notAuth.goHome': 'Ana sayfaya dön',
-    'admin.notSignedIn.message': 'Bu sayfayı görüntülemek için giriş yapmanız gerekmektedir. Giriş yaptıktan sonra bağlantıyı yeniden açın.',
+    'admin.notSignedIn.message': 'Bu sayfayı görüntülemek için giriş yapmanız gerekiyor.',
     'admin.notSignedIn.signIn': 'Giriş Yap',
     'admin.header.title': 'Admin Paneli',
     'admin.header.subtitle': 'Üyeleri ve içeriği yönetin',

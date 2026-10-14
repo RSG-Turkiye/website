@@ -7,6 +7,7 @@ import {
   getBaseUrl,
 } from '../_lib/auth';
 import { awardRank } from '../_lib/rank';
+import { readNext, clearNextCookie } from '../_lib/next-path';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const url = new URL(request.url);
@@ -79,9 +80,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
     // Redirect new users to profile setup
     const { token, expires } = await createSession(user.id, env);
-    return redirectResponse(`${base}/account/setup`, {
-      'Set-Cookie': sessionCookie(token, expires),
-    });
+    const res = redirectResponse(`${base}/account/setup`, { 'Set-Cookie': sessionCookie(token, expires) });
+    res.headers.append('Set-Cookie', clearNextCookie());
+    return res;
   }
 
   // Update last login
@@ -95,9 +96,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(user.id).first();
 
   const { token, expires } = await createSession(user.id, env);
-  const dest = profile ? `${base}/account` : `${base}/account/setup`;
-
-  return redirectResponse(dest, {
-    'Set-Cookie': sessionCookie(token, expires),
-  });
+  // A new profile is set up first; otherwise back to the page that sent them to sign in.
+  const next = profile ? readNext(request) : null;
+  const dest = profile ? `${base}${next ?? '/account'}` : `${base}/account/setup`;
+  const res = redirectResponse(dest, { 'Set-Cookie': sessionCookie(token, expires) });
+  res.headers.append('Set-Cookie', clearNextCookie());
+  return res;
 };

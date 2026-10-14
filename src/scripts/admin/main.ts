@@ -49,6 +49,8 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   // say): ask to sign in. Signed in without a panel role: no access.
   if (!data.user) {
     document.getElementById('notSignedIn')!.classList.remove('hidden');
+    // Back to this exact place after Google: the fragment never reaches the server, so it travels as ?next=.
+    document.getElementById('notSignedInLink')?.setAttribute('href', `/auth/login?next=${encodeURIComponent(location.pathname + location.hash)}`);
     return;
   }
   if (landing(rolesFromMe(data.user)) === null) {
