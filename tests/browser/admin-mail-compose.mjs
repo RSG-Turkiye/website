@@ -135,6 +135,7 @@ for (const lang of ['en', 'tr']) {
       const { page, calls } = await open(lang, viewport);
       await page.click('[data-edit="q1"]');
       ok(await page.locator('#mailComposeEditing').isVisible(), 'the editing banner shows');
+      ok(await fits(page, viewport.width), 'editing: no horizontal scroll');
       ok(await page.inputValue('#mailComposeTo') === 'x@example.org, y@example.org', 'Edit fills To');
       ok(await page.inputValue('#mailComposeSubject') === 'Queued <i>hello</i>', 'Edit fills Subject');
       ok(await page.inputValue('#mailComposeSchedule') === '2026-11-20T09:30', 'Edit fills the Istanbul time');
@@ -157,6 +158,9 @@ for (const lang of ['en', 'tr']) {
       await page.click('[data-cancel="q1"]');
       ok((await page.textContent('[data-cancel="q1"]')).trim() === s.confirm, 'the first click arms');
       ok(!calls.some((c) => c.method === 'DELETE'), 'nothing deleted yet');
+      ok(await fits(page, viewport.width), 'armed Cancel: no horizontal scroll');
+      const right = await page.evaluate(() => document.querySelector('[data-cancel="q1"]').getBoundingClientRect().right);
+      ok(right <= viewport.width, `armed Cancel stays inside the viewport (right edge ${Math.round(right)})`);
       await page.click('[data-cancel="q1"]');
       await page.waitForFunction(() => document.getElementById('toastStack').textContent.length > 0);
       const del = calls.find((c) => c.method === 'DELETE' && c.path === '/api/mail/scheduled');
