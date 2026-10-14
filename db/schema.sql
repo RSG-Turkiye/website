@@ -853,3 +853,31 @@ CREATE TABLE IF NOT EXISTS social_event_modes (
   closed_at   INTEGER,
   created_at  INTEGER NOT NULL
 );
+
+-- Social DM inbox (docs/superpowers/specs/2026-10-15-social-dm-inbox-design.md).
+-- One row per conversation the poll has seen. No message text is stored: the
+-- panel fetches messages live. id is our own random id, used in URLs, so the
+-- platform's conversation id never appears in a link. updated_at is the
+-- platform's updated_time for the conversation when we last read it.
+CREATE TABLE IF NOT EXISTS social_dm_threads (
+  id                TEXT PRIMARY KEY,
+  platform          TEXT NOT NULL CHECK (platform IN ('instagram','x')),
+  conversation_id   TEXT NOT NULL,
+  peer_id           TEXT NOT NULL,
+  peer_username     TEXT,
+  last_inbound_at   INTEGER,
+  last_outbound_at  INTEGER,
+  read_at           INTEGER,
+  read_by           TEXT,
+  digested_at       INTEGER,
+  final_warned_at   INTEGER,
+  updated_at        INTEGER NOT NULL,
+  UNIQUE (platform, conversation_id)
+);
+
+-- Per-person digest pacing; pruned to two days by each poll.
+CREATE TABLE IF NOT EXISTS social_dm_digest_log (
+  user_id   TEXT NOT NULL,
+  sent_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS social_dm_digest_log_user ON social_dm_digest_log (user_id, sent_at);
