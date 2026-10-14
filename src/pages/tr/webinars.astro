@@ -11,6 +11,9 @@ const pageTitle = "Webinarlar - RSG-Türkiye";
 const allWebinars = await getCollection('webinars', ({ data }) => !data.draft);
 const trWebinars = allWebinars.filter(w => w.id.startsWith('tr/'));
 const sortedWebinars = trWebinars.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const videoCount = sortedWebinars.filter((w) => w.data.youtubeUrl).length;
+const yearCounts = [...sortedWebinars.reduce((m, w) => m.set(w.data.year, (m.get(w.data.year) ?? 0) + 1), new Map<number, number>())]
+  .sort((a, b) => b[0] - a[0]);
 
 
 const speakerMap = new Map<string, { name: string; slug: string; photo: string }>();
@@ -45,10 +48,43 @@ function initials(name: string) {
 
   <section class="bg-white py-10">
     <div class="max-w-6xl mx-auto px-6">
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] lg:grid-rows-[auto_1fr] gap-x-10 gap-y-6">
+
+        <!-- Search and filters: above the list on phones, top of the sidebar on wide screens -->
+        <div class="flex flex-col gap-6 lg:col-start-2 lg:row-start-1">
+          <!-- Search -->
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Arama</p>
+            <input
+              type="text"
+              id="searchWebinars"
+              placeholder="Webinar ara..."
+              class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
+            />
+          </div>
+
+          <!-- Filters -->
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Süz</p>
+            <label class="flex items-center gap-2 text-sm text-gray-600 mb-3 cursor-pointer">
+              <input type="checkbox" id="videoOnly" class="accent-red" />
+              <span>Yalnızca kaydı olanlar ({videoCount})</span>
+            </label>
+            <select
+              id="yearFilter"
+              aria-label="Tüm yıllar"
+              class="w-full border border-border rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:border-navy-mid transition-colors"
+            >
+              <option value="">Tüm yıllar</option>
+              {yearCounts.map(([year, count]) => (
+                <option value={year}>{year} ({count})</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <!-- Posts -->
-        <div>
+        <div class="lg:col-start-1 lg:row-start-1 lg:row-span-2">
           <div id="webinarList" class="flex flex-col">
             {sortedWebinars.map((webinar) => (
               <article
@@ -57,13 +93,14 @@ function initials(name: string) {
                 data-speaker={webinar.data.speaker || ''}
                 data-description={webinar.data.description || ''}
                 data-year={String(webinar.data.year)}
+                data-video={webinar.data.youtubeUrl ? '1' : '0'}
               >
                 <div class="flex items-center gap-3 text-xs text-gray-500 mb-2">
                   <time>{webinar.data.date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
                   {webinar.data.speaker && <span>{webinar.data.speaker}</span>}
                 {/*
                   Whether a recording exists, on the card rather than only on
-                  the page behind it: 49 of the 82 entries have none, so a
+                  the page behind it: 50 of the 82 entries have none, so a
                   reader looking for something to watch was opening cards to
                   find out. Marking the ones that do is quieter than marking
                   the ones that do not.
@@ -92,18 +129,7 @@ function initials(name: string) {
         </div>
 
         <!-- Sidebar -->
-        <aside class="flex flex-col gap-6">
-
-          <!-- Search -->
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Arama</p>
-            <input
-              type="text"
-              id="searchWebinars"
-              placeholder="Webinar ara..."
-              class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
-            />
-          </div>
+        <aside class="flex flex-col gap-6 lg:col-start-2 lg:row-start-2">
 
           <!-- About the series -->
           <div class="rounded-lg border border-[#C4CEEA] bg-navy-light p-5">
@@ -229,6 +255,8 @@ function initials(name: string) {
 </style>
 
 <script>
+  import { matches, stateFromUrl, applyStateToUrl, type FilterState, type WebinarFacts } from '../../lib/webinar-filter';
+
   const PER_PAGE = 20;
   let currentPage = parseInt(new URLSearchParams(window.location.search).get('page') || '1') || 1;
   let filtered: HTMLElement[] = [];
@@ -244,14 +272,23 @@ function initials(name: string) {
     history.replaceState(null, '', url.toString());
   }
 
-  function applyFilter(term: string) {
-    filtered = allItems().filter(item => {
-      const title = (item.dataset.title || '').toLowerCase();
-      const speaker = (item.dataset.speaker || '').toLowerCase();
-      const desc = (item.dataset.description || '').toLowerCase();
-      return title.includes(term) || speaker.includes(term) || desc.includes(term);
-    });
-    currentPage = 1;
+  const videoBox = document.querySelector<HTMLInputElement>('#videoOnly')!;
+  // `as unknown as`: this project's DOM types make HTMLSelectElement clash with Element (same as BlogIndex, members).
+  const yearSelect = document.getElementById('yearFilter') as unknown as HTMLSelectElement;
+  const state: FilterState = stateFromUrl(new URL(window.location.href));
+
+  const facts = (item: HTMLElement): WebinarFacts => ({
+    title: item.dataset.title || '', speaker: item.dataset.speaker || '', description: item.dataset.description || '',
+    year: item.dataset.year || '', hasVideo: item.dataset.video === '1',
+  });
+
+  // Search, recording and year apply together; the address keeps the last two so a filtered list can be shared.
+  function refilter(resetPage: boolean) {
+    filtered = allItems().filter((item) => matches(facts(item), state));
+    if (resetPage) currentPage = 1;
+    const url = new URL(window.location.href);
+    applyStateToUrl(url, state);
+    history.replaceState(null, '', url.toString());
     render();
   }
 
@@ -298,16 +335,14 @@ function initials(name: string) {
     });
   }
 
-  // Init, filter by year hash if present (e.g. #2025)
-  const yearHash = window.location.hash.replace('#', '');
-  if (yearHash && /^\d{4}$/.test(yearHash)) {
-    filtered = allItems().filter(item => item.dataset.year === yearHash);
-  } else {
-    filtered = allItems();
-  }
-  render();
+  videoBox.checked = state.videoOnly;
+  yearSelect.value = state.year ?? '';
+  refilter(false);
 
   searchInput?.addEventListener('input', function () {
-    applyFilter(this.value.toLowerCase());
+    state.term = this.value;
+    refilter(true);
   });
+  videoBox.addEventListener('change', () => { state.videoOnly = videoBox.checked; refilter(true); });
+  yearSelect.addEventListener('change', () => { state.year = yearSelect.value || null; refilter(true); });
 </script>
