@@ -19,6 +19,7 @@ import { loadBlogSubmissions } from './sections/blog';
 import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload } from './sections/mail';
 import { loadSent, setSentAdmin } from './sections/mail-sent';
 import { setupCompose, loadQueued } from './sections/mail-compose';
+import { setupInbox, showInbox } from './sections/mail-inbox';
 import { setupSymposium, loadSymposium } from './sections/symposium';
 
 // Init
@@ -93,9 +94,15 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   // Compose is a sender's tool; its queue loads the first time it shows.
   let queuedLoaded = false;
   if (isSender) setupCompose({ isAdmin: isFullAdmin, email: data.user.email ?? null });
+  // The inbox is for senders and admins alike; it opens whatever thread the address names.
+  if (isFullAdmin || isSender) setupInbox({ isAdmin: isFullAdmin, isSender });
   const onSub: Partial<Record<SectionId, (sub: string, item: string | null) => void>> = {
     sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
-    eposta: (sub) => {
+    eposta: (sub, item) => {
+      if (sub === 'gelen') {
+        void showInbox(item);
+        return;
+      }
       if (sub === 'yaz' && isSender && !queuedLoaded) {
         queuedLoaded = true;
         loadQueued().catch(() => { queuedLoaded = false; });

@@ -16,7 +16,56 @@ const t = useTranslations(lang);
 
           <div data-sub="gelen">
             <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.nav.inbox')}</h2>
-            <div id="mailInboxRoot"></div>
+            <div id="mailInboxRoot" class="flex flex-col gap-4">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <p class="text-sm text-gray-500 flex-1 min-w-0">{t('admin.mail.inbox.intro')}</p>
+                <div class="flex flex-wrap items-center gap-3">
+                  <label id="mailInboxScopeLabel" class="hidden flex items-center gap-2 min-h-11 text-sm text-gray-500 cursor-pointer">
+                    <input type="checkbox" id="mailInboxScopeAll" class="rounded border-border" />
+                    {t('admin.mail.inbox.allMembers')}
+                  </label>
+                  <button type="button" id="mailInboxRefresh" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.mail.inbox.refresh')}</button>
+                </div>
+              </div>
+
+              <div class="grid lg:grid-cols-[320px_1fr] gap-4 items-start">
+                <div id="mailInboxListCard" class="min-w-0 lg:block bg-white rounded-2xl border border-border p-2">
+                  <div id="mailInboxList" class="flex flex-col gap-1"></div>
+                  <p id="mailInboxEmpty" class="hidden text-sm text-gray-500 px-2 py-4">{t('admin.mail.inbox.empty')}</p>
+                </div>
+
+                <div id="mailThreadCard" class="hidden min-w-0 lg:block bg-[#F0F0EE] rounded-2xl border border-border p-4 lg:min-h-[420px]">
+                  <div class="lg:hidden mb-3">
+                    <a href="#eposta/gelen" id="mailInboxBack" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid text-navy hover:text-navy-mid"><span aria-hidden="true">‹</span> {t('admin.mail.inbox.back')}</a>
+                  </div>
+                  <p id="mailThreadEmpty" class="text-sm text-gray-600 text-center py-24">{t('admin.mail.inbox.select')}</p>
+
+                  <div id="mailThreadView" class="hidden flex flex-col gap-4">
+                    <div class="border-b border-border pb-3 min-w-0">
+                      <h3 id="mailThreadSubject" class="text-sm font-semibold text-navy break-words"></h3>
+                      <p id="mailThreadWith" class="text-xs text-gray-600 mt-0.5 break-all"></p>
+                    </div>
+
+                    <div id="mailThreadMessages" class="flex flex-col gap-3"></div>
+
+                    <p id="mailReplyBlocked" class="hidden text-xs text-gray-600 border-t border-border pt-3">{t('admin.mail.reply.blocked')}</p>
+
+                    <div id="mailReplyWrap" class="hidden border-t border-border pt-3">
+                      <form id="mailReplyForm" class="flex flex-col gap-2">
+                        <textarea id="mailReplyBody" rows="5" required maxlength="20000"
+                          placeholder={t('admin.mail.reply.placeholder')} aria-label={t('admin.mail.reply.placeholder')}
+                          class="px-3 py-2 min-h-11 rounded-xl border border-border text-sm text-navy bg-white placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid"></textarea>
+                        <p class="text-xs text-gray-600 -mt-1">{t('admin.mail.reply.hint')}</p>
+                        <div class="flex flex-wrap items-center gap-3">
+                          <button type="submit" id="mailReplySend" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">{t('admin.mail.reply.send')}</button>
+                          <span id="mailReplyStatus" class="text-xs text-gray-600" aria-live="polite"></span>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div data-sub="yaz">
@@ -128,3 +177,10 @@ const t = useTranslations(lang);
             <p id="attachmentsEmpty" class="hidden text-sm text-gray-500 mt-2">{t('admin.mail.attachments.empty')}</p>
           </div></div>
         </section>
+
+<style is:global>
+  /* Message bodies arrive as server-rendered HTML, so scoped styles would not reach them. */
+  .mail-body a { text-decoration: underline; }
+  .mail-body p { margin: 0 0 0.5rem; }
+  .mail-body p:last-child { margin-bottom: 0; }
+</style>

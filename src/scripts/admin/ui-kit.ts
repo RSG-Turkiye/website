@@ -106,8 +106,11 @@ export function toast(message: string, isError = false): void {
  * notice with Keep editing / Discard, never window.confirm). A form on a
  * sub-page passes that sub-page's hash (`#sempozyum/komite`), so moving to a
  * sibling sub-page is guarded too and the notice is on screen when it shows.
+ * With `exact`, every move away from the current address is guarded, including
+ * one to a deeper or shallower address under `sectionHash`: a reply form on
+ * `#eposta/gelen/<thread>` warns before another thread or the list replaces it.
  */
-export function guardUnsaved(form: HTMLFormElement, sectionHash: string, onDiscard?: () => void): { reset(): void } {
+export function guardUnsaved(form: HTMLFormElement, sectionHash: string, onDiscard?: () => void, opts: { exact?: boolean } = {}): { reset(): void } {
   let dirty = false;
   const notice = document.createElement('div');
   notice.className = 'hidden mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800';
@@ -125,7 +128,7 @@ export function guardUnsaved(form: HTMLFormElement, sectionHash: string, onDisca
   // nothing and records no view. While the notice is up every move out is
   // refused too, and the latest one is the one Discard follows.
   registerNavigationGuard((from, to) => {
-    if (!dirty || !from.startsWith(sectionHash) || to.startsWith(sectionHash)) return true;
+    if (!dirty || !from.startsWith(sectionHash) || (opts.exact ? to === from : to.startsWith(sectionHash))) return true;
     pending = to;
     notice.classList.remove('hidden');
     return false;

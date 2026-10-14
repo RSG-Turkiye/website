@@ -11,7 +11,10 @@ test('hash round trip', () => {
   assert.deepEqual(parseHash('#kayit'), { section: 'kayit', sub: null, item: null });
   assert.equal(parseHash('#eposta/gelen/42')!.item, '42');
   assert.equal(parseHash('#eposta/gelen/x')!.item, null);
-  assert.equal(parseHash('#eposta/gelen/1234567890123')!.item, null);
+  // Thread ids are Gmail thread ids: hex strings, usually 16 characters.
+  assert.equal(parseHash('#eposta/gelen/18c2f3a4b5d6e7f8')!.item, '18c2f3a4b5d6e7f8');
+  assert.equal(parseHash('#eposta/gelen/' + 'a'.repeat(33))!.item, null);
+  assert.equal(parseHash('#eposta/gelen/<img>')!.item, null);
   assert.equal(parseHash(''), null);
   assert.equal(parseHash('#'), null);
   assert.equal(toHash({ section: 'eposta', sub: 'ekler', item: null }), '#eposta/ekler');
