@@ -92,40 +92,27 @@ const t = useTranslations(lang);
         <section id="userManagementSection" data-section="kullanicilar">
         <div data-sub="liste">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.members.heading')}</h2>
-        <!-- Filters -->
-        <div class="bg-white rounded-2xl border border-border p-4 mb-6 flex flex-wrap items-center gap-3">
-          <input
-            id="searchInput"
-            type="text"
-            placeholder={t('admin.search.placeholder')}
-            class="flex-1 min-w-48 px-4 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid transition-colors"
-          />
-          <div class="flex gap-2">
-            <button data-filter="all" class="filter-btn active-filter px-4 py-2 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.all')}</button>
-            <button data-filter="members" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.members')}</button>
-            <button data-filter="pending" class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.pending')}</button>
+          <div class="lg:grid lg:grid-cols-[1fr_22rem] gap-4 items-start">
+            <div id="usersPane" class="min-w-0">
+              <div class="bg-white rounded-2xl border border-border p-4 mb-4 flex flex-col gap-3">
+                <input
+                  id="searchInput"
+                  type="search"
+                  placeholder={t('admin.search.placeholder')}
+                  class="w-full min-h-11 lg:min-h-9 px-4 py-2 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid transition-colors"
+                />
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" data-filter="all" class="filter-btn active-filter min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.all')}</button>
+                  <button type="button" data-filter="members" class="filter-btn min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.members')}</button>
+                  <button type="button" data-filter="pending" class="filter-btn min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.filter.pending')}</button>
+                  <button type="button" data-filter="roles" class="filter-btn min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.users.filter.roles')}</button>
+                </div>
+              </div>
+              <div id="usersList" class="flex flex-col gap-2"></div>
+              <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.table.noUsersFound')}</div>
+            </div>
+            <div id="userDetail" class="hidden lg:block min-w-0 bg-white rounded-2xl border border-border p-4 lg:sticky lg:top-4"></div>
           </div>
-        </div>
-
-        <!-- User table -->
-        <div class="bg-white rounded-2xl border border-border overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-border bg-[#F7F7F6]">
-                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.user')}</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.email')}</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.status')}</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.rank')}</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.badges')}</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.joined')}</th>
-                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('admin.table.actions')}</th>
-              </tr>
-            </thead>
-            <tbody id="userTableBody">
-            </tbody>
-          </table>
-          <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.table.noUsersFound')}</div>
-        </div>
         </div>
         <div data-sub="yetkiler"><div id="rolesView"></div></div>
         </section>

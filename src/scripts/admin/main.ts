@@ -18,7 +18,7 @@ import { lang, t, tf, showToast } from './context';
 import { landing, rolesFromMe, type SectionId } from './sections';
 import { startShell, refreshCounts } from './shell';
 import { loadOverview } from './overview';
-import { loadUsers, setupUsersFilters } from './sections/users';
+import { loadUsers, setupUsersFilters, setCurrentUserId, loadRolesView } from './sections/users';
 import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } from './sections/announcements';
 import { loadBlogSubmissions } from './sections/blog';
 import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload, loadAllSends } from './sections/mail';
@@ -88,6 +88,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   };
   const onSub: Partial<Record<SectionId, (sub: string) => void>> = {
     sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
+    kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
   };
   // Back from a Gmail reconnect: the shell opens Connections; say how it went.
   startShell(roles, { onShow, onSub });
@@ -102,7 +103,10 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     await loadAnnouncements();
     setupAnnouncementForm();
   }
-  if (isFullAdmin) await loadUsers();
+  if (isFullAdmin) {
+    setCurrentUserId(data.user.id ?? null);
+    await loadUsers();
+  }
   if (isFullAdmin) await loadBlogSubmissions();
   if (isFullAdmin) {
     setupBulkGrant();

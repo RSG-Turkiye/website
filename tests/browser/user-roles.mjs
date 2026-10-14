@@ -57,37 +57,41 @@ for (const kind of ['speakers', 'sessions', 'committee']) {
 await page.route('**/api/admin/symposium/edition', json({ year: 2026, edition: {} }));
 
 await page.goto(BASE + '/admin#kullanicilar/liste', { waitUntil: 'networkidle' });
-await page.waitForSelector('#userTableBody tr');
+await page.waitForSelector('#usersList [data-user="u2"]');
 
-// Playwright's own :visible, never offsetParent -- the dropdown's buttons are
-// in the DOM the whole time, and offsetParent called them visible while a
-// click on them timed out as "element is not visible". Note the row also
-// carries one action button outside the menu, so this asks about the
-// symposium action specifically rather than counting all of them.
-const symposiumAction = (which) => page.locator(`#userTableBody .action-btn[data-action=${which}_symposium]:visible`);
-const openMenu = async () => { await page.click('#userTableBody .more-btn'); await page.waitForTimeout(200); };
-const rowText = () => page.textContent('#userTableBody tr');
+// Playwright's own :visible, never offsetParent. The roles are switches in
+// the detail panel now, which only exists once a person is selected; the
+// row carries the role as a chip.
+const symposiumSwitch = () => page.locator('#userDetail input[data-action-on=make_symposium]:visible');
+const rowText = () => page.textContent('#usersList [data-user="u2"]');
+const waitRow = (has) => page.waitForFunction((h) => (document.querySelector('#usersList [data-user="u2"]')?.textContent ?? '').includes('Symposium') === h, has, { timeout: 3000 }).catch(() => {});
+const waitAction = async (a) => {
+  for (let i = 0; i < 60 && !actions.includes(a); i++) await new Promise((r) => setTimeout(r, 50));
+};
 
-console.log('1) menü kapalıyken rol verilemez');
-ok(await symposiumAction('make').count() === 0, 'kapalı menüde sempozyum eylemi tıklanamaz');
+console.log('1) kişi seçilmeden rol verilemez');
+ok(await symposiumSwitch().count() === 0, 'seçim yokken sempozyum anahtarı tıklanamaz');
 ok(!(await rowText()).includes('Symposium'), 'rozet yok');
 
-console.log('2) menüyü aç');
-await openMenu();
-ok(await symposiumAction('make').count() === 1, 'menüde "Make symposium editor" görünür');
+console.log('2) kişiyi seç');
+await page.click('#usersList [data-user="u2"]');
+await page.waitForSelector('#userDetail input[data-action-on=make_symposium]');
+ok(await symposiumSwitch().count() === 1, 'ayrıntıda sempozyum anahtarı görünür');
+ok(!(await symposiumSwitch().isChecked()), 'anahtar kapalı');
 
 console.log('3) rolü ver');
-await symposiumAction('make').click();
-await page.waitForTimeout(800);
+await symposiumSwitch().click();
+await waitAction('make_symposium');
+await waitRow(true);
 console.log('   sunucuya giden:', JSON.stringify(actions));
 ok(actions.includes('make_symposium'), 'make_symposium gönderildi');
 ok((await rowText()).includes('Symposium'), 'rozet listede göründü');
 
 console.log('4) geri al');
-await openMenu();
-ok(await symposiumAction('remove').count() === 1, 'menü artık "Remove" gösteriyor');
-await symposiumAction('remove').click();
-await page.waitForTimeout(800);
+ok(await symposiumSwitch().isChecked(), 'anahtar artık açık');
+await symposiumSwitch().click();
+await waitAction('remove_symposium');
+await waitRow(false);
 ok(actions.includes('remove_symposium'), 'remove_symposium gönderildi');
 ok(!(await rowText()).includes('Symposium'), 'rozet kalktı');
 
