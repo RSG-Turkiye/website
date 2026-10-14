@@ -11,14 +11,15 @@
     "podcast:sync": "tsx scripts/sync-podcast.ts"
   },
   "dependencies": {
-    "@astrojs/rss": "^4.0.15",
-    "@astrojs/sitemap": "^3.7.0",
-    "astro": "^5.13.2",
+    "@astrojs/markdown-remark": "^7.3.2",
+    "@astrojs/rss": "^4.0.19",
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.3.8",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "4.10.38"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
@@ -27,7 +28,7 @@
     "@types/turndown": "^5.0.6",
     "node-html-parser": "^7.0.2",
     "tailwindcss": "^4.2.2",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.15",
     "turndown": "^7.2.2",
     "typescript": "^5.9.3"
   }
