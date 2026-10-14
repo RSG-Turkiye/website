@@ -397,7 +397,7 @@ console.log('8) Sent load failures');
 }
 
 console.log('9) signed out, and signed in without access');
-for (const [path, login, text] of [['/admin#eposta/gelen/abc', '/login/', 'Sign In'], ['/tr/admin#eposta/gelen/abc', '/tr/login/', 'Giriş Yap']]) {
+for (const [path, text] of [['/admin#eposta/gelen/abc', 'Sign In'], ['/tr/admin#eposta/gelen/abc', 'Giriş Yap']]) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on('pageerror', (e) => bad.push(`pageerror (signed out ${path}): ` + String(e).slice(0, 160)));
   await page.route('**/api/**', (r) => new URL(r.request().url()).pathname === '/api/me'
@@ -408,7 +408,9 @@ for (const [path, login, text] of [['/admin#eposta/gelen/abc', '/login/', 'Sign 
   ok(await page.locator('#notSignedIn').isVisible(), `${path}: signed out shows the sign-in prompt`);
   ok(!(await page.locator('#notAuth').isVisible()), `${path}: not the no-access message`);
   const link = page.locator('#notSignedIn a');
-  ok(await link.getAttribute('href') === login && (await link.textContent()).trim() === text, `${path}: the button is ${text} -> ${login}`);
+  const href = (await link.getAttribute('href')) ?? '';
+  ok(href.startsWith('/auth/login?next=') && (await link.textContent()).trim() === text, `${path}: the button is ${text} -> /auth/login?next=`);
+  ok(decodeURIComponent(href.slice('/auth/login?next='.length)) === path, `${path}: signing in returns to this page`);
   ok((await link.boundingBox()).height >= 44, `${path}: the button is at least 44 px tall`);
   ok(await fits(page, 390), `${path}: no horizontal scroll`);
   await page.close();
