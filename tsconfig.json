@@ -1,5 +1,28 @@
 {
-  "extends": "astro/tsconfigs/strict",
+  // Astro's "strict" preset (astro/tsconfigs/strict + base), written out
+  // rather than extended. Vite 8 resolves this file even while building
+  // symposium_website, whose CI job and Pages project install only that
+  // site's packages, so an `extends` into this site's node_modules fails
+  // there with "Tsconfig not found astro/tsconfigs/strict". Keep in step with
+  // node_modules/astro/tsconfigs/{base,strict}.json on Astro upgrades.
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "types": ["@cloudflare/workers-types"]
+  },
   "include": [
     ".astro/types.d.ts",
     "**/*"
@@ -8,10 +31,5 @@
     "dist",
     "symposium_website",
     "tests"
-  ],
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "preact",
-    "types": ["@cloudflare/workers-types"]
-  }
+  ]
 }
