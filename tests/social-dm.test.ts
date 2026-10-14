@@ -97,3 +97,7 @@ test('lastCallDue: 20 hours old, unanswered, open, once per incoming message', (
   ];
   assert.deepEqual(lastCallDue(rows, NOON).map((r) => r.id), ['due', 'warnedEarlier']);
 });
+
+test('a stored 0 means no message', () => {
+  assert.equal(dmView(row({ last_inbound_at: 0 }), NOON).unanswered, false);
+});

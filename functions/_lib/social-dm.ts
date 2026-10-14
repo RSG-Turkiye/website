@@ -43,7 +43,7 @@ export interface DmView {
 }
 
 export function dmView(row: Pick<DmThreadRow, 'last_inbound_at' | 'last_outbound_at' | 'read_at'>, now: number): DmView {
-  const inbound = row.last_inbound_at;
+  const inbound = row.last_inbound_at || null;
   if (inbound === null) return { unanswered: false, unread: false, expired: false, closesAt: null, secondsLeft: 0 };
   const closesAt = inbound + WINDOW_SECONDS;
   const expired = now >= closesAt;
