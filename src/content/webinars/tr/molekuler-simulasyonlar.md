@@ -6,7 +6,7 @@ speaker: Seyit Kale
 speakerAffiliation: İzmir Biyotıp ve Genom Merkezi
 speakerTitle: Araştırma Grubu Lideri
 description: Moleküler simülasyonların in silico deney olarak nasıl düşünülebileceğine dair tarihsel ve fiziksel bir perspektif, yapısal biyoloji ve hesaplamalı biyofizik üzerine.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=Nc3uD6b8zP0"
 slidesUrl: ""
 year: 2020
 type: bioinfonet
