@@ -8,7 +8,7 @@ import { useTranslations } from '../../../i18n/ui';
 interface Props { lang: 'en' | 'tr' }
 const { lang } = Astro.props;
 const t = useTranslations(lang);
-const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border text-sm text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 ---
 <div data-section="sosyal">
   <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.social.heading')}</h2>
@@ -23,12 +23,12 @@ const btn = 'px-3 py-1.5 rounded-lg border border-border text-sm text-navy hover
         <button type="button" id="socialToday" class={btn}>{t('admin.social.nav.today')}</button>
       </div>
       <div class="inline-flex rounded-lg border border-border overflow-hidden" role="group">
-        <button type="button" id="socialViewCalendar" class="px-3 py-1.5 text-sm">{t('admin.social.view.calendar')}</button>
-        <button type="button" id="socialViewBoard" class="px-3 py-1.5 text-sm">{t('admin.social.view.board')}</button>
+        <button type="button" id="socialViewCalendar" class="px-3 py-1.5 min-h-11 lg:min-h-0 text-sm">{t('admin.social.view.calendar')}</button>
+        <button type="button" id="socialViewBoard" class="px-3 py-1.5 min-h-11 lg:min-h-0 text-sm">{t('admin.social.view.board')}</button>
       </div>
       <div class="flex gap-2">
         <button type="button" id="socialNewPlan" class={btn}>{t('admin.social.newPlan')}</button>
-        <button type="button" id="socialNewPost" class="px-3 py-1.5 rounded-lg bg-navy text-white text-sm font-medium">{t('admin.social.newPost')}</button>
+        <button type="button" id="socialNewPost" class="px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg bg-navy text-white text-sm font-medium">{t('admin.social.newPost')}</button>
       </div>
     </div>
     <div class="flex flex-col xl:flex-row gap-4 items-start">

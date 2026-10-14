@@ -29,7 +29,7 @@ function blogSubmissionCardHtml(primary: BlogSubmission, paired: BlogSubmission 
   const langLabel = (s: BlogSubmission) => s.lang === 'en' ? t('admin.blog.langEnglish') : t('admin.blog.langTurkish');
   const bodyPreview = (s: BlogSubmission) => `
     <div class="mt-2 p-3 rounded-lg bg-[#F7F7F6] text-xs">
-      <div class="font-medium text-navy">${langLabel(s)}: ${escapeHtmlForBlogReview(s.title)}</div>
+      <div class="font-medium text-navy break-words">${langLabel(s)}: ${escapeHtmlForBlogReview(s.title)}</div>
       <div class="text-gray-500 mt-1 break-words">${escapeHtmlForBlogReview(s.description)}</div>
       ${s.image_url ? `<img src="${escapeHtmlForBlogReview(s.image_url)}" class="mt-2 max-h-32 rounded" alt="" />` : ''}
       ${s.tags.length > 0 ? `<div class="mt-2 flex flex-wrap gap-1">${s.tags.map(t => `<span class="px-2 py-0.5 rounded-full bg-white border border-border text-gray-500">${escapeHtmlForBlogReview(t)}</span>`).join('')}</div>` : ''}

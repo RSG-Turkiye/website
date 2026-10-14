@@ -24,7 +24,7 @@ const TONES = {
 } as const;
 
 export function chip(text: string, tone: keyof typeof TONES = 'neutral'): string {
-  return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${TONES[tone]}">${escapeHtml(text)}</span>`;
+  return `<span class="inline-flex items-center max-w-full min-w-0 break-all px-2 py-0.5 rounded-full text-xs font-medium ${TONES[tone]}">${escapeHtml(text)}</span>`;
 }
 
 export function row(o: { title: string; subtitle?: string; chips?: string; trailing?: string; attrs?: string; selected?: boolean }): string {

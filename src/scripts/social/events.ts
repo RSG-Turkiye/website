@@ -59,9 +59,9 @@ async function renderForm(): Promise<void> {
       <label class="block text-xs text-gray-500">${esc(t('admin.social.events.end'))}<input name="end" type="datetime-local" required class="${field}" value="${esc(epochToIstanbulInput(now + 2 * 86400))}"></label>
     </div>
     <fieldset class="mt-2 text-xs text-gray-500">${esc(t('admin.social.events.pickEditors'))}<div class="flex flex-wrap gap-3 mt-1">
-      ${people.filter((p) => !p.isPublisher).map((p) => `<label class="text-sm text-navy"><input type="checkbox" name="editor" value="${esc(p.id)}"> ${esc(p.name ?? p.email)}</label>`).join('')}
+      ${people.filter((p) => !p.isPublisher).map((p) => `<label class="inline-flex items-center gap-2 min-h-11 lg:min-h-0 text-sm text-navy"><input type="checkbox" name="editor" value="${esc(p.id)}"> ${esc(p.name ?? p.email)}</label>`).join('')}
     </div></fieldset>
-    <button type="submit" class="mt-3 px-3 py-1.5 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40 disabled:cursor-not-allowed">${esc(t('admin.social.events.open'))}</button>`;
+    <button type="submit" class="mt-3 px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg text-sm font-medium bg-navy text-white disabled:opacity-40 disabled:cursor-not-allowed">${esc(t('admin.social.events.open'))}</button>`;
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const f = new FormData(form);
