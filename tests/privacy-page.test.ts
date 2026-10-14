@@ -44,3 +44,11 @@ test('the footer links to the notice', () => {
   const footer = readFileSync(`${REPO}src/components/Footer.astro`, 'utf8');
   assert.match(footer, /\$\{prefix\}\/privacy\//);
 });
+
+test('the notice says how DMs are handled, in both languages', () => {
+  const en = JSON.stringify(PRIVACY.en);
+  const tr = JSON.stringify(PRIVACY.tr);
+  assert.match(en, /direct messages/i);
+  assert.match(tr, /mesaj/i);
+  assert.ok(!en.includes('We do not read or store data about other people from these platforms'), 'old sentence removed');
+});
