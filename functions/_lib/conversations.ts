@@ -181,6 +181,11 @@ export async function ingestThread(env: Env, threadId: string, now: number): Pro
   return { newInbound, total: messages.length };
 }
 
+/** Where the notification mail sends the member: the thread in the admin panel. */
+export function threadLink(siteOrigin: string, threadId: string): string {
+  return `${siteOrigin}/tr/admin#eposta/gelen/${encodeURIComponent(threadId)}`;
+}
+
 /**
  * Tell the member who started a thread that it has a reply waiting.
  *
@@ -207,7 +212,7 @@ export async function notifyThreadOwner(
   if (!row) return false;
   if (!shouldNotify(row.last_notified_at, now)) return false;
 
-  const link = `${siteOrigin}/tr/account/conversations`;
+  const link = threadLink(siteOrigin, threadId);
   const body = [
     `${row.recipient_email} adlı kişi "${row.subject}" konulu e-postanıza cevap verdi.`,
     '',

@@ -6,6 +6,7 @@ import {
   computeThreadState,
   shouldNotify,
   snippet,
+  threadLink,
   NOTIFY_THROTTLE_SECONDS,
   MAX_REFERENCES,
 } from '../functions/_lib/conversations';
@@ -109,4 +110,9 @@ test('snippet truncates a long body with an ellipsis', () => {
 
 test('snippet on an empty body returns an empty string', () => {
   assert.equal(snippet(''), '');
+});
+
+test('threadLink points at the thread in the admin panel and encodes the id', () => {
+  assert.equal(threadLink('https://rsgturkey.com', '18c2f3a9b1'), 'https://rsgturkey.com/tr/admin#eposta/gelen/18c2f3a9b1');
+  assert.equal(threadLink('https://rsgturkey.com', 'a/b c'), 'https://rsgturkey.com/tr/admin#eposta/gelen/a%2Fb%20c');
 });

@@ -16,7 +16,10 @@ import { loadOverview } from './overview';
 import { loadUsers, setupUsersFilters, setCurrentUserId, loadRolesView } from './sections/users';
 import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } from './sections/announcements';
 import { loadBlogSubmissions } from './sections/blog';
-import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload, loadAllSends } from './sections/mail';
+import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload } from './sections/mail';
+import { showSent, setSentAdmin } from './sections/mail-sent';
+import { setupCompose, loadQueued } from './sections/mail-compose';
+import { setupInbox, showInbox } from './sections/mail-inbox';
 import { setupSymposium, loadSymposium } from './sections/symposium';
 
 // Init
@@ -42,7 +45,13 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
 
   document.getElementById('loadingState')!.classList.add('hidden');
 
-  if (!data.user || landing(rolesFromMe(data.user)) === null) {
+  // Signed out (a reply notification opened on a phone with no session,
+  // say): ask to sign in. Signed in without a panel role: no access.
+  if (!data.user) {
+    document.getElementById('notSignedIn')!.classList.remove('hidden');
+    return;
+  }
+  if (landing(rolesFromMe(data.user)) === null) {
     document.getElementById('notAuth')!.classList.remove('hidden');
     return;
   }
@@ -50,6 +59,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   document.getElementById('adminContent')!.classList.remove('hidden');
   const roles = rolesFromMe(data.user);
   const isFullAdmin = data.user.is_admin === true;
+  const isSender = data.user.is_sender === true;
   const isAnnouncer = data.user.is_announcer === true;
   const isSymposium = data.user.is_symposium === true;
   const isSocial = data.user.is_social === true || data.user.is_social_publisher === true;
@@ -84,8 +94,28 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
     sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),
   };
-  const onSub: Partial<Record<SectionId, (sub: string) => void>> = {
+  // Senders and admins both list sent mail: the first time that sub-page
+  // shows, and again after a send or a failed load.
+  setSentAdmin(isFullAdmin, isSender);
+  // Compose is a sender's tool; its queue loads the first time it shows.
+  let queuedLoaded = false;
+  if (isSender) setupCompose({ isAdmin: isFullAdmin, email: data.user.email ?? null });
+  // The inbox is for senders and admins alike; it opens whatever thread the address names.
+  if (isFullAdmin || isSender) setupInbox({ isAdmin: isFullAdmin, isSender });
+  const onSub: Partial<Record<SectionId, (sub: string, item: string | null) => void>> = {
     sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
+    eposta: (sub, item) => {
+      if (sub === 'gelen') {
+        void showInbox(item);
+        return;
+      }
+      if (sub === 'yaz' && isSender && !queuedLoaded) {
+        queuedLoaded = true;
+        loadQueued().catch(() => { queuedLoaded = false; });
+        return;
+      }
+      if (sub === 'gonderilenler' && (isFullAdmin || isSender)) showSent();
+    },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
   };
   // Back from a Gmail reconnect: the shell opens Connections; say how it went.
@@ -106,7 +136,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   if (isFullAdmin) {
     setupBulkGrant();
     setupAttachmentUpload();
-    await Promise.all([loadSenders(), loadAdminAttachments(), loadAllSends()]);
+    await Promise.all([loadSenders(), loadAdminAttachments()]);
   }
   if (canEditSymposium) {
     setupSymposium();

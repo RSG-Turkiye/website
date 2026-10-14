@@ -230,23 +230,3 @@ export function setupAttachmentUpload() {
     }
   });
 }
-
-export async function loadAllSends() {
-  const res = await fetch('/api/mail/history?scope=all');
-  if (!res.ok) return;
-  const data = await res.json() as { sends: any[] };
-  const list = document.getElementById('allSendsList')!;
-  const empty = document.getElementById('allSendsEmpty')!;
-  if (!data.sends.length) {
-    list.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-  list.innerHTML = data.sends.map((s: any) => row({
-    title: s.subject,
-    subtitle: `${s.sender_name ?? s.sender_email} → ${s.recipient_email} · ${formatDate(s.sent_at)}`,
-    chips: s.status === 'failed' && s.error_message ? `<span class="text-xs text-red-600 min-w-0 break-all">${escapeHtml(s.error_message)}</span>` : '',
-    trailing: chip(s.status === 'sent' ? t('admin.mail.allSends.sent') : t('admin.mail.allSends.failed'), s.status === 'sent' ? 'green' : 'red'),
-  })).join('');
-}

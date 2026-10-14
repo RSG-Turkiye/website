@@ -7,11 +7,9 @@
  * otherwise schedule mail for the wrong hour with no sign anything was off --
  * the `datetime-local` input just shows a bare "09:00" either way.
  *
- * This lives here, imported from a `<script>` block in both
- * `src/pages/account/mail.astro` and `src/pages/tr/account/mail.astro`
- * (mirroring `src/lib/badges.ts`, imported the same way from
- * `src/pages/members.astro`), so the two pages cannot drift apart on how a
- * schedule time is read or shown.
+ * This lives here, imported by the admin mail panes
+ * `src/scripts/admin/sections/mail-compose.ts` and `mail-inbox.ts`, so the two
+ * cannot drift apart on how a schedule time is read or shown.
  *
  * The Istanbul offset is derived from `Intl` rather than hardcoded as
  * `+03:00`. Turkey has had no DST since 2016, so the offset is a constant in

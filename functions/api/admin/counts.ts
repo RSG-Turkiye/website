@@ -1,7 +1,8 @@
 /**
  * The numbers beside the admin panel's menu entries and on Overview. Each
  * count is returned only to someone whose role lets them act on it, so the
- * menu never hints at work a person cannot see.
+ * menu never hints at work a person cannot see. The e-mail count is the
+ * caller's own unread threads, for admins and senders alike.
  */
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, canSeeAdminPanel } from '../../_lib/auth';
@@ -28,7 +29,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     }
   };
 
-  if (admin) await count('email', 'SELECT COUNT(*) AS n FROM mail_threads WHERE unread = 1');
+  if (admin || user.is_sender === 1) await count('email', 'SELECT COUNT(*) AS n FROM mail_threads WHERE unread = 1 AND sender_user_id = ?', user.id);
   if (publisher) await count('social', `SELECT COUNT(*) AS n FROM social_posts WHERE status = 'pending_approval'`);
   if (admin) await count('blog', `SELECT COUNT(*) AS n FROM blog_submissions WHERE status = 'pending'`);
   if (social) await count('scheduledThisWeek', `SELECT COUNT(*) AS n FROM social_posts WHERE status = 'scheduled' AND scheduled_at BETWEEN ? AND ?`, now, now + WEEK);

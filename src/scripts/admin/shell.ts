@@ -3,14 +3,14 @@
  * what the roles do not grant, fills the menu counts, and runs the phone
  * drawer and the phone's list-then-page sub-navigation.
  */
-import { SECTIONS, visibleSections, subsFor, type RoleFlags, type SectionId } from './sections';
+import { SECTIONS, visibleSections, subsFor, type RoleFlags, type SectionId, type SubPage } from './sections';
 import { parseHash, toHash, resolveRoute, type Route } from './router';
 import { t } from './context';
 import { navigationAllowed } from './nav-guard';
 
 export { registerNavigationGuard } from './nav-guard';
 
-type Hooks = { onShow?: Partial<Record<SectionId, () => Promise<void>>>; onSub?: Partial<Record<SectionId, (sub: string) => void>> };
+type Hooks = { onShow?: Partial<Record<SectionId, () => Promise<void>>>; onSub?: Partial<Record<SectionId, (sub: string, item: string | null) => void>> };
 const PHONE = window.matchMedia('(max-width: 1023px)');
 let roles: RoleFlags;
 let hooks: Hooks;
@@ -23,6 +23,8 @@ let previous: Route | null = null;
 let backPops = false;
 // The hash of the route last shown; a vetoed move restores it.
 let shownHash = '';
+// The last counts fetched, for sub-page tabs drawn after the fetch.
+let counts: Record<string, number> = {};
 
 export function startShell(r: RoleFlags, h: Hooks): void {
   roles = r;
@@ -62,7 +64,10 @@ function go(): void {
   oauthReturn = false;
   const wanted = toHash(route);
   if (location.hash !== wanted) history.replaceState(null, '', `${location.pathname}${location.search}${wanted}`);
-  backPops = !!(route.sub && previous && previous.section === route.section && previous.sub === null);
+  // An item (a thread) opened from its sub-page's list pops back the same way.
+  backPops = !!(route.sub && previous && previous.section === route.section && (route.item
+    ? previous.sub === route.sub && previous.item === null
+    : previous.sub === null));
   previous = route;
   shownHash = wanted;
   show(route);
@@ -85,7 +90,9 @@ function show(route: Route): void {
   document.getElementById('sectionTitle')!.textContent = title;
   const sub = route.sub ? subs.find((s) => s.id === route.sub) : undefined;
   document.getElementById('phoneTitle')!.textContent = sub ? (t(sub.label as never) as string) : title;
-  const back = PHONE.matches && !!route.sub && subs.length > 0;
+  // An item carries its own ‹ inside its card (the inbox's thread), so the
+  // bar's would be a second back control beside it.
+  const back = PHONE.matches && !!route.sub && subs.length > 0 && !route.item;
   const backBtn = document.getElementById('phoneBack')!;
   backBtn.classList.toggle('hidden', !back);
   backBtn.classList.toggle('inline-flex', back);
@@ -95,27 +102,34 @@ function show(route: Route): void {
     const load = hooks.onShow?.[route.section];
     if (load) void load().catch(() => {});
   }
-  if (route.sub) hooks.onSub?.[route.section]?.(route.sub);
+  if (route.sub) hooks.onSub?.[route.section]?.(route.sub, route.item);
   void fetch('/api/audit/view', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pane: route.section }), keepalive: true,
   }).catch(() => {});
 }
 
-function renderSubNav(route: Route, subs: { id: string; label: string }[]): void {
+/** A sub-page's count badge, filled from the last fetch (refreshCounts updates it after). */
+function countBadge(s: SubPage): string {
+  if (!s.count) return '';
+  const n = counts[s.count] ?? 0;
+  return `<span data-count="${s.count}" class="${n === 0 ? 'hidden ' : ''}min-w-5 px-1.5 rounded-full bg-red text-white text-xs text-center">${n}</span>`;
+}
+
+function renderSubNav(route: Route, subs: SubPage[]): void {
   const nav = document.getElementById('subNav')!;
   if (subs.length === 0) { nav.replaceChildren(); return; }
   if (PHONE.matches) {
     // Phone: the list of sub-pages first; a sub-page hides the list.
     nav.innerHTML = route.sub ? '' : `<div class="flex flex-col gap-2">${subs.map((s) => `
-      <a href="${toHash({ section: route.section, sub: s.id })}" data-sub-link="${s.id}" class="flex items-center justify-between min-h-14 px-4 rounded-xl border border-border bg-white text-navy text-base">
-        <span>${t(s.label as never)}</span><span aria-hidden="true">›</span></a>`).join('')}</div>`;
+      <a href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}" class="flex items-center justify-between min-h-14 px-4 rounded-xl border border-border bg-white text-navy text-base">
+        <span class="flex items-center gap-2 min-w-0">${t(s.label as never)}${countBadge(s)}</span><span aria-hidden="true">›</span></a>`).join('')}</div>`;
     return;
   }
   nav.innerHTML = `<div role="tablist" class="flex flex-wrap gap-2 mb-4">${subs.map((s) => `
-    <a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id })}" data-sub-link="${s.id}"
-      class="px-3 min-h-9 inline-flex items-center rounded-full border text-sm ${s.id === route.sub ? 'bg-navy-light border-navy-mid text-navy font-semibold' : 'border-border text-gray-500 hover:text-navy'}">
-      ${t(s.label as never)}</a>`).join('')}</div>`;
+    <a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}"
+      class="px-3 min-h-9 inline-flex items-center gap-2 rounded-full border text-sm ${s.id === route.sub ? 'bg-navy-light border-navy-mid text-navy font-semibold' : 'border-border text-gray-500 hover:text-navy'}">
+      ${t(s.label as never)}${countBadge(s)}</a>`).join('')}</div>`;
 }
 
 function wireDrawer(): void {
@@ -128,11 +142,19 @@ function wireDrawer(): void {
   // Choosing the section already on screen changes no hash, so close here too.
   drawer.addEventListener('click', (e) => { if (e.target === drawer || (e.target as HTMLElement).closest('a')) closeDrawer(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
-  document.getElementById('phoneBack')!.addEventListener('click', () => {
-    if (backPops) { history.back(); return; }
-    const r = parseHash(location.hash);
-    if (r) location.hash = `#${r.section}`;
-  });
+  document.getElementById('phoneBack')!.addEventListener('click', goBack);
+}
+
+/**
+ * Phone back, one level up: to the sub-page's list from an item, to the
+ * section's list from a sub-page. When the page was opened from that list,
+ * this steps back in history instead of pushing the list a second time.
+ */
+export function goBack(): void {
+  if (backPops) { history.back(); return; }
+  const r = parseHash(location.hash);
+  if (!r) return;
+  location.hash = r.item && r.sub ? `#${r.section}/${r.sub}` : `#${r.section}`;
 }
 
 function closeDrawer(): void {
@@ -141,11 +163,12 @@ function closeDrawer(): void {
 }
 
 export async function refreshCounts(): Promise<void> {
-  let counts: Record<string, number> = {};
+  let fresh: Record<string, number> = {};
   try {
     const res = await fetch('/api/admin/counts');
-    if (res.ok) counts = await res.json();
+    if (res.ok) fresh = await res.json();
   } catch { /* the menu works without numbers */ }
+  counts = fresh;
   document.querySelectorAll<HTMLElement>('[data-count]').forEach((el) => {
     const n = counts[el.dataset.count!] ?? 0;
     el.textContent = String(n);
