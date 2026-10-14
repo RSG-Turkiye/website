@@ -101,7 +101,12 @@ const browser = await chromium.launch();
 async function open(path, viewport) {
   const page = await browser.newPage({ viewport });
   page.on('pageerror', (e) => bad.push(`pageerror (${path} ${viewport.width}px): ` + String(e).slice(0, 160)));
-  await page.route('**/api/**', (r) => {
+  page.inflight = 0; // routed requests started and not yet fulfilled
+  await page.route('**/api/**', async (r) => {
+    page.inflight++;
+    try { await answer(r); } finally { page.inflight--; }
+  });
+  async function answer(r) {
     const req = r.request();
     const url = new URL(req.url());
     const json = (v) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(v) });
@@ -114,7 +119,7 @@ async function open(path, viewport) {
     if (url.pathname === '/api/social/editors') return json({ editors: EDITORS });
     if (url.pathname === '/api/social/event-modes') return json({ modes: MODES });
     return json(FULL);
-  });
+  }
   await page.goto(BASE + path, { waitUntil: 'networkidle' });
   await page.waitForSelector('#adminContent:not(.hidden)');
   return page;
@@ -133,13 +138,29 @@ const settle = (page, h) => page.waitForFunction((x) => {
     const shown = [...root.querySelectorAll('[data-sub]')].filter((el) => !el.classList.contains('hidden'));
     return shown.length === 1 && shown[0].dataset.sub === sub && shown[0].innerText.trim().length > 0;
   }
-  return root.innerText.trim().length > 0 || document.querySelectorAll('#subNav a').length > 0;
+  if (root.querySelector('[data-sub]')) {
+    // A section with sub-pages: a list of them (phone) or exactly one shown sub-page with content (laptop).
+    if (document.querySelectorAll('#subNav a').length === 0) return false;
+    const shown = [...root.querySelectorAll('[data-sub]')].filter((el) => !el.classList.contains('hidden'));
+    return shown.length === 0 || (shown.length === 1 && shown[0].innerText.trim().length > 0);
+  }
+  return root.innerText.trim().length > 0;
 }, h, { timeout: 8000 }).then(() => true, () => false);
 
 async function go(page, h) {
   await page.evaluate((x) => { location.hash = x; }, h);
   const reached = await settle(page, h);
-  await page.waitForLoadState('networkidle');
+  // A hash change does not navigate, so networkidle would return at once: wait for the stub to have answered everything, then a frame.
+  for (let i = 0; i < 200 && page.inflight > 0; i++) await page.waitForTimeout(25);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
+  // Requests started by the render itself: give them one more round.
+  for (let i = 0; i < 200 && page.inflight > 0; i++) await page.waitForTimeout(25);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
+  if (reached && /^#sosyal\/(takvim|onay|taslaklar|yayinlananlar|etkinlik)$/.test(h)) {
+    // The stubbed items must actually be drawn before measuring.
+    const item = await page.waitForSelector('[data-sub]:not(.hidden) [data-entry], [data-sub]:not(.hidden) [data-post], [data-sub]:not(.hidden) [data-event], [data-social-view]:not(.hidden) [data-entry], [data-social-view]:not(.hidden) [data-post]', { timeout: 5000 }).then(() => true, () => false);
+    if (!item) return false;
+  }
   return reached;
 }
 
@@ -149,7 +170,7 @@ async function routes(lang) {
   const sections = await page.locator('#sectionNav [data-nav]').evaluateAll((els) => els.map((e) => e.dataset.nav));
   const out = [];
   for (const s of sections) {
-    await go(page, '#' + s);
+    ok(await go(page, '#' + s), `${lang || '/en'}: menu section #${s} could not be reached`);
     const subs = await page.locator('#subNav [data-sub-link]').evaluateAll((els) => els.map((e) => e.dataset.subLink));
     out.push('#' + s);
     for (const sub of subs) out.push(`#${s}/${sub}`);
