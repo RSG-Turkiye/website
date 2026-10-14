@@ -90,7 +90,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
       showToast, lang, me: { id: data.user.id, isPublisher: isSocialPublisher }, refreshCounts,
     });
   }
-  if (isSocialPublisher) setupDm();
+  if (isSocialPublisher) setupDm({ isAdmin: isFullAdmin });
   const onShow: Partial<Record<SectionId, () => Promise<void>>> = {
     // Overview's System block is filled by the health check, whichever finishes first.
     genel: loadOverview,

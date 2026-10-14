@@ -29,6 +29,7 @@ let onlyUnanswered = true;
 let wantedId: string | null = null;
 let currentId: string | null = null;
 let started = false;
+let isAdmin = false;
 let listToken = 0;
 let threadToken = 0;
 let guard: { reset(): void } | null = null;
@@ -57,6 +58,13 @@ async function loadThreads(): Promise<boolean> {
   const status = el('dmStatus');
   status.classList.toggle('hidden', data.status === 'ok');
   status.textContent = data.status === 'ok' ? '' : t(`admin.social.dm.status.${data.status}` as never);
+  if (data.status !== 'ok' && isAdmin) {
+    const link = document.createElement('a');
+    link.href = '#baglantilar';
+    link.textContent = t('admin.social.dm.openConnections');
+    link.className = 'ml-2 inline-flex items-center min-h-11 font-semibold underline';
+    status.appendChild(link);
+  }
   el('dmLinkedin').classList.toggle('hidden', !data.linkedin);
   threads = data.threads ?? [];
   renderList();
@@ -101,15 +109,38 @@ function updateBytes(): void {
   el<HTMLButtonElement>('dmSend').disabled = n === 0 || n > MAX_BYTES;
 }
 
+class ThreadLoadError extends Error {
+  constructor(readonly kind: 'not_found' | 'failed') { super(kind); }
+}
+
+/** A failed load must not leave a blank card (e-mail deep links land here). */
+function showThreadFailure(notFound: boolean): void {
+  el('dmThreadEmpty').classList.add('hidden');
+  el('dmThreadView').classList.remove('hidden');
+  el('dmThreadWho').textContent = '';
+  const err = el('dmThreadError');
+  err.classList.remove('hidden');
+  err.textContent = t(notFound ? 'admin.social.dm.error.not_found' : 'admin.social.dm.threadFailed');
+  el('dmMessages').innerHTML = '';
+  setReplyOpen(false);
+  el('dmClosed').classList.add('hidden');
+}
+
 async function openThread(id: string): Promise<void> {
   const mine = ++threadToken;
   let data: { thread: ThreadOut; messages: Msg[] | null; error?: string };
   try {
     const res = await fetch(`/api/admin/social/dm/${encodeURIComponent(id)}`);
-    if (!res.ok) throw new Error(String(res.status));
+    if (!res.ok) {
+      const body = await res.json().catch(() => null) as { code?: string } | null;
+      throw new ThreadLoadError(body?.code === 'not_found' ? 'not_found' : 'failed');
+    }
     data = await res.json();
-  } catch {
-    if (mine === threadToken) toast(t('admin.social.dm.threadFailed'), true);
+  } catch (err) {
+    if (mine === threadToken) {
+      toast(t('admin.social.dm.threadFailed'), true);
+      if (wantedId === id) showThreadFailure(err instanceof ThreadLoadError && err.kind === 'not_found');
+    }
     return;
   }
   if (mine !== threadToken || wantedId !== id) return;
@@ -121,12 +152,12 @@ async function openThread(id: string): Promise<void> {
   el('dmThreadWho').textContent = who(data.thread);
   const err = el('dmThreadError');
   err.classList.toggle('hidden', !data.error);
-  err.textContent = data.error ? t(data.error === 'connection' ? 'admin.social.dm.error.connection' : 'admin.social.dm.threadFailed') : '';
+  err.textContent = data.error ? t(data.error === 'connection' ? 'admin.social.dm.error.connection' : data.error === 'permission' ? 'admin.social.dm.error.permission' : 'admin.social.dm.threadFailed') : '';
   el('dmMessages').innerHTML = (data.messages ?? []).map((m) => `
     <div class="flex ${m.mine ? 'justify-end' : 'justify-start'} min-w-0">
-      <div class="max-w-[85%] min-w-0 break-words whitespace-pre-wrap rounded-2xl px-4 py-3 lg:px-3 lg:py-2 ${m.mine ? 'bg-navy text-white' : 'bg-white border border-border text-navy'}">
+      <div class="max-w-[85%] min-w-0 break-words rounded-2xl px-4 py-3 lg:px-3 lg:py-2 ${m.mine ? 'bg-navy text-white' : 'bg-white border border-border text-navy'}">
         <div class="text-[11px] mb-1 ${m.mine ? 'text-white/70' : 'text-gray-500'}">${escapeHtml(m.mine ? t('admin.social.dm.you') : who(data.thread))} &middot; ${escapeHtml(formatIstanbul(m.at, dateLocale))}</div>
-        <div class="text-sm leading-relaxed">${escapeHtml(m.text)}</div>
+        <div class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</div>
         ${m.attachments.map((u) => `<a href="${escapeHtml(u)}" target="_blank" rel="noopener noreferrer" class="block text-[11px] underline mt-1">${escapeHtml(t('admin.social.dm.attachment'))}</a>`).join('')}
       </div>
     </div>`).join('');
@@ -181,7 +212,8 @@ function setFilter(unanswered: boolean): void {
 }
 
 /** Wires the controls once, before the shell first shows the sub-page. */
-export function setupDm(): void {
+export function setupDm(opts: { isAdmin?: boolean } = {}): void {
+  isAdmin = opts.isAdmin === true;
   const form = el<HTMLFormElement>('dmReplyForm');
   if (!form) return;
   guard = guardUnsaved(form, HASH, () => { form.reset(); }, { exact: true });

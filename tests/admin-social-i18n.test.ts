@@ -37,7 +37,7 @@ test('every key the DM tab looks up exists', () => {
   const used = [...src.matchAll(/'(admin\.[\w.]+)'/g)].map((m) => m[1]);
   assert.ok(used.length > 10);
   for (const k of used) assert.ok(has(k), `missing ${k}`);
-  for (const c of ['empty', 'too_long', 'window_closed', 'connection', 'unavailable', 'refused', 'not_found']) assert.ok(has(`admin.social.dm.error.${c}`), c);
+  for (const c of ['empty', 'too_long', 'window_closed', 'connection', 'unavailable', 'permission', 'refused', 'not_found']) assert.ok(has(`admin.social.dm.error.${c}`), c);
   for (const s of ['not_connected', 'broken', 'needs_scope']) assert.ok(has(`admin.social.dm.status.${s}`), s);
 });
 

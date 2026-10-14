@@ -96,3 +96,9 @@ test('the DM tab is for publishers and admins, with its own count', () => {
   assert.ok(subsFor(sosyal, { ...base, socialPublisher: true }).some((s) => s.id === 'dm'), 'publisher');
   assert.ok(subsFor(sosyal, { ...base, social: false, admin: true }).some((s) => s.id === 'dm'), 'admin');
 });
+
+test('the Sosyal menu badge counts approvals plus unread DMs; the DM tab keeps its own', () => {
+  const sosyal = SECTIONS.find((s) => s.id === 'sosyal')!;
+  assert.equal(sosyal.count, 'socialTotal');
+  assert.equal(sosyal.subs.find((s) => s.id === 'dm')!.count, 'dm');
+});

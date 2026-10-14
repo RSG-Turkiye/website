@@ -98,6 +98,18 @@ console.log('publisher, desktop, English');
   await page.close();
 }
 
+console.log('deep link to a missing conversation');
+{
+  const { page } = await open('en', { width: 1280, height: 800 }, {
+    hash: '#sosyal/dm/zzz-9',
+    reply: (m, path) => (path === '/api/admin/social/dm/zzz-9' ? { status: 404, json: { error: 'Not found', code: 'not_found' } } : null),
+  });
+  await page.waitForSelector('#dmThreadError:not(.hidden)');
+  ok((await page.locator('#dmThreadError').innerText()).includes('no longer exists'), 'not-found text shown');
+  ok(await page.locator('#dmReplyForm').isHidden(), 'no reply box');
+  await page.close();
+}
+
 console.log('publisher, phone, Turkish');
 {
   const { page } = await open('tr', { width: 390, height: 844 });
