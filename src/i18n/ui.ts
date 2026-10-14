@@ -65,7 +65,7 @@ export const ui = {
     // Statistics
     'stats.years': "Years, since 2011",
     'stats.symposiums': "Student symposiums",
-    'stats.webinars': "Webinar recordings",
+    'stats.webinars': "Webinars",
 
     // Features
     'features.community.title': 'Community Building',
@@ -984,7 +984,7 @@ export const ui = {
     // Statistics
     'stats.years': "Yıl, 2011'den beri",
     'stats.symposiums': "Öğrenci sempozyumu",
-    'stats.webinars': "Webinar kaydı",
+    'stats.webinars': "Webinar",
 
     // Features
     'features.community.title': 'Topluluk Oluşturma',
