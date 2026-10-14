@@ -9,7 +9,7 @@ import type { PublishStep, PostForPlatform, TargetState } from './types';
 import { stepFromError, classifyGraphError, graphReason, type GraphError } from './instagram-errors';
 
 export const IG_GRAPH = 'https://graph.instagram.com/v25.0';
-export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish'];
+export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_messages'];
 const PROFESSIONAL = ['BUSINESS', 'MEDIA_CREATOR', 'CREATOR'];
 
 type App = Pick<Env, 'INSTAGRAM_APP_ID' | 'INSTAGRAM_APP_SECRET'>;
@@ -109,10 +109,10 @@ export function needsRefresh(row: { expires_at: number | null; connected_at: num
   return row.expires_at - now < REFRESH_BEFORE_SECONDS && now - row.connected_at >= 86400;
 }
 
-type GraphResult = { ok: true; data: Record<string, unknown> } | { ok: false; status: number; error: GraphError | null };
+export type GraphResult = { ok: true; data: Record<string, unknown> } | { ok: false; status: number; error: GraphError | null };
 
 /** One Graph call. Never throws: a dropped connection is status 0, which classifies as transient. */
-async function graph(method: 'GET' | 'POST', path: string, token: string, params: Record<string, string>): Promise<GraphResult> {
+export async function igGraph(method: 'GET' | 'POST', path: string, token: string, params: Record<string, string>): Promise<GraphResult> {
   const url = new URL(`${IG_GRAPH}/${path}`);
   const all = { ...params, access_token: token };
   let res: Response;
@@ -145,10 +145,10 @@ const fromFailure = (r: Extract<GraphResult, { ok: false }>) => stepFromError(r.
 
 /** Creates a media container; if this API version refuses alt_text, makes it once more without and says so. */
 async function createContainer(igUserId: string, token: string, params: Record<string, string>, alt: string, notes: string[]): Promise<GraphResult> {
-  const first = await graph('POST', `${igUserId}/media`, token, alt ? { ...params, alt_text: alt } : params);
+  const first = await igGraph('POST', `${igUserId}/media`, token, alt ? { ...params, alt_text: alt } : params);
   if (!first.ok && alt && first.error?.code === 100 && /alt_text/i.test(first.error.message ?? '')) {
     if (!notes.includes('alt_text_dropped')) notes.push('alt_text_dropped');
-    return graph('POST', `${igUserId}/media`, token, params);
+    return igGraph('POST', `${igUserId}/media`, token, params);
   }
   return first;
 }
@@ -173,7 +173,7 @@ async function createContainer(igUserId: string, token: string, params: Record<s
 export async function instagramPublishStep(input: { igUserId: string; token: string; post: PostForPlatform; state: TargetState }): Promise<PublishStep> {
   const { igUserId, token, post, state } = input;
   if (state.containerId) {
-    const s = await graph('GET', state.containerId, token, { fields: 'status_code,status' });
+    const s = await igGraph('GET', state.containerId, token, { fields: 'status_code,status' });
     if (!s.ok) {
       // An expired-class error on the read is not proof nothing was published: keep the container.
       if (classifyGraphError(s.status, s.error) === 'expired') return { kind: 'retry', reason: graphReason(s.status, s.error) };
@@ -187,7 +187,7 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
       case 'EXPIRED':
         return { kind: 'retry', reason: 'expired: container expired', clearContainer: true };
       case 'FINISHED': {
-        const p = await graph('POST', `${igUserId}/media_publish`, token, { creation_id: state.containerId });
+        const p = await igGraph('POST', `${igUserId}/media_publish`, token, { creation_id: state.containerId });
         if (!p.ok) {
           const cls = classifyGraphError(p.status, p.error);
           if (cls === 'pending') return { kind: 'pending', containerId: state.containerId };
@@ -196,7 +196,7 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
         }
         const remoteId = idOf(p.data);
         if (!remoteId) return NO_ID;
-        const link = await graph('GET', remoteId, token, { fields: 'permalink' });
+        const link = await igGraph('GET', remoteId, token, { fields: 'permalink' });
         const permalink = link.ok && typeof link.data.permalink === 'string' ? link.data.permalink : null;
         return { kind: 'done', remoteId, permalink };
       }
@@ -213,7 +213,7 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
   const notes: string[] = [];
   let created: GraphResult;
   if (post.type === 'story') {
-    created = await graph('POST', `${igUserId}/media`, token, { media_type: 'STORIES', image_url: post.media[0].url });
+    created = await igGraph('POST', `${igUserId}/media`, token, { media_type: 'STORIES', image_url: post.media[0].url });
   } else if (post.type === 'carousel') {
     const children: string[] = [];
     for (const m of post.media) {
@@ -223,7 +223,7 @@ export async function instagramPublishStep(input: { igUserId: string; token: str
       if (!childId) return NO_ID;
       children.push(childId);
     }
-    created = await graph('POST', `${igUserId}/media`, token, { media_type: 'CAROUSEL', children: children.join(','), caption: post.caption });
+    created = await igGraph('POST', `${igUserId}/media`, token, { media_type: 'CAROUSEL', children: children.join(','), caption: post.caption });
   } else {
     created = await createContainer(igUserId, token, { image_url: post.media[0].url, caption: post.caption }, post.media[0].alt, notes);
   }

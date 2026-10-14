@@ -34,7 +34,7 @@ async function begin(env: unknown) {
 function instagram(opts: { accountType?: string; permissions?: string; flat?: boolean } = {}) {
   return stubGraph((c) => {
     if (c.host === 'api.instagram.com' && c.path === '/oauth/access_token') {
-      const row = { access_token: 'short', user_id: 111, permissions: opts.permissions ?? 'instagram_business_basic,instagram_business_content_publish' };
+      const row = { access_token: 'short', user_id: 111, permissions: opts.permissions ?? 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages' };
       return Response.json(opts.flat ? row : { data: [row] });
     }
     if (c.path === '/access_token') return Response.json({ access_token: 'long-1', token_type: 'bearer', expires_in: 5184000 });
@@ -43,13 +43,13 @@ function instagram(opts: { accountType?: string; permissions?: string; flat?: bo
   });
 }
 
-test('start sends the admin to Instagram with both scopes and our callback', async () => {
+test('start sends the admin to Instagram with all three scopes and our callback', async () => {
   const { env } = setup();
   const u = await begin(env);
   assert.equal(u.origin + u.pathname, 'https://www.instagram.com/oauth/authorize');
   assert.equal(u.searchParams.get('client_id'), 'app-1');
   assert.equal(u.searchParams.get('redirect_uri'), `${BASE}/api/admin/connections/instagram/callback`);
-  assert.equal(u.searchParams.get('scope'), 'instagram_business_basic,instagram_business_content_publish');
+  assert.equal(u.searchParams.get('scope'), 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages');
   assert.ok(u.searchParams.get('state'));
 });
 
@@ -133,7 +133,7 @@ test('/me failing after a good exchange stores nothing', async () => {
   const { env } = setup();
   const state = (await begin(env)).searchParams.get('state')!;
   const ig = stubGraph((c) => {
-    if (c.path === '/oauth/access_token') return Response.json({ data: [{ access_token: 'short', user_id: 111, permissions: 'instagram_business_basic,instagram_business_content_publish' }] });
+    if (c.path === '/oauth/access_token') return Response.json({ data: [{ access_token: 'short', user_id: 111, permissions: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages' }] });
     if (c.path === '/access_token') return Response.json({ access_token: 'long-1', expires_in: 5184000 });
     if (c.path === '/me') return new Response('{}', { status: 500 });
     return undefined;
