@@ -10,14 +10,14 @@ import { SECTIONS, GROUPS } from '../../scripts/admin/sections';
 import { useTranslations } from '../../i18n/ui';
 interface Props { lang: 'en' | 'tr' }
 const t = useTranslations(Astro.props.lang);
-const link = 'flex items-center justify-between gap-2 px-3 min-h-11 lg:min-h-9 rounded-lg text-sm text-navy hover:bg-[#F7F7F6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const link = 'flex items-center justify-between gap-2 px-3 min-h-11 lg:min-h-8 rounded-lg text-sm text-navy hover:bg-[#F7F7F6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 const countSlot = (k?: string) => (k ? `<span data-count="${k}" class="hidden min-w-5 px-1.5 rounded-full bg-red text-white text-xs text-center"></span>` : '');
 const overview = SECTIONS.find((s) => s.id === 'genel')!;
 ---
 <nav id="sectionNav" aria-label={t('admin.nav.menu')} class="flex flex-col gap-0.5 text-sm">
   <a href="#genel" data-nav="genel" class={link}><span>{t(overview.label as never)}</span></a>
   {GROUPS.map((g) => (
-    <div data-nav-group={g.id} class="mt-3">
+    <div data-nav-group={g.id} class="mt-3 lg:mt-2">
       <p class="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{t(g.label as never)}</p>
       {SECTIONS.filter((s) => s.group === g.id).map((s) => (
         <a href={`#${s.id}`} data-nav={s.id} class={link}><span>{t(s.label as never)}</span><Fragment set:html={countSlot(s.count)} /></a>

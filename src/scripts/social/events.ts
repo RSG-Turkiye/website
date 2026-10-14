@@ -9,7 +9,7 @@ import { epochToIstanbulInput, istanbulInputToEpoch } from '../../lib/istanbul-t
 
 const CLOSE_STALE_CODES = ['already_closed', 'not_found'];
 const when = (e: number) => `${dayKey(e)} ${timeOf(e)}`;
-const field = 'mt-1 w-full px-3 py-2 rounded-xl border border-border text-sm text-navy';
+const field = 'mt-1 w-full px-3 py-2 lg:py-1.5 rounded-xl border border-border text-sm text-navy';
 
 export async function loadEvents(): Promise<void> {
   const { t, tf, me, showToast } = deps();

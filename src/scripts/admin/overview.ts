@@ -21,9 +21,9 @@ export async function loadOverview(): Promise<void> {
     ? `<a href="#sosyal/takvim" class="block">${row({ title: tf('admin.overview.scheduled' as never, { n: counts.scheduledThisWeek }), trailing: '<span aria-hidden="true">›</span>' })}</a>` : '';
   host.innerHTML = `
     <h2 class="text-sm font-semibold text-navy mb-2">${escapeHtml(t('admin.overview.waiting' as never))}</h2>
-    <div class="flex flex-col gap-2 mb-6">${waiting || `<p class="text-sm text-gray-500">${escapeHtml(t('admin.overview.nothingWaiting' as never))}</p>`}</div>
+    <div class="flex flex-col gap-2 mb-6 lg:mb-4">${waiting || `<p class="text-sm text-gray-500">${escapeHtml(t('admin.overview.nothingWaiting' as never))}</p>`}</div>
     <h2 class="text-sm font-semibold text-navy mb-2">${escapeHtml(t('admin.overview.health' as never))}</h2>
-    <div id="overviewHealth" class="mb-6"></div>
+    <div id="overviewHealth" class="mb-6 lg:mb-4"></div>
     ${upcoming ? `<h2 class="text-sm font-semibold text-navy mb-2">${escapeHtml(t('admin.overview.upcoming' as never))}</h2><div class="flex flex-col gap-2">${upcoming}</div>` : ''}`;
   renderOverviewHealth();
 }

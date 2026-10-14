@@ -18,7 +18,7 @@ function card(p: Post, actions: string): string {
     ? `<div class="w-16 h-20 shrink-0 rounded bg-gray-200 bg-center bg-cover" style="${bgImage(p.media[0].url)}"></div>`
     : '<div class="w-16 h-20 shrink-0 rounded bg-gray-100"></div>';
   const alts = p.media.filter((m) => m.alt.trim()).length;
-  return `<div data-post="${esc(p.id)}" class="flex gap-3 p-3 mb-3 bg-white rounded-2xl border border-border">${thumb}
+  return `<div data-post="${esc(p.id)}" class="flex gap-3 p-3 mb-3 lg:mb-2 bg-white rounded-2xl border border-border">${thumb}
     <div class="flex-1 min-w-0"><p class="font-medium text-navy truncate">${esc(p.planTitle || p.caption.split('\n')[0] || t(`admin.social.type.${p.type}`))}</p>
       <p class="text-xs text-gray-500 break-all">${esc(t(`admin.social.type.${p.type}`))} · ${esc(p.platforms.map((x) => t(`admin.connections.platform.${x}`)).join(' + '))} · ${esc(when(p.scheduledAt))} · ${esc(p.authorEmail ?? '')} · ${esc(tf('admin.social.list.alt', { n: alts, m: p.media.length }))}</p>
       <div class="flex flex-wrap gap-2 mt-2">${actions}</div>

@@ -11,11 +11,11 @@ const t = useTranslations(lang);
 const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border text-sm text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 ---
 <div data-section="sosyal" class="lg:h-full fit-col">
-  <h2 class="text-lg font-semibold text-navy mb-1">{t('admin.social.heading')}</h2>
-  <p class="text-sm text-gray-500 mb-4">{t('admin.social.intro')}</p>
+  <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.social.heading')}</h2>
+  <p class="text-sm lg:text-xs text-gray-500 mb-4 lg:mb-2">{t('admin.social.intro')}</p>
 
   <section data-social-view="calendar" data-sub="takvim" class="lg:flex-1 fit-col">
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 lg:mb-2">
       <div class="flex items-center gap-2">
         <button type="button" id="socialPrev" class={btn} aria-label={t('admin.social.nav.prev')}>‹</button>
         <strong id="socialMonth" class="min-w-36 text-center text-navy"></strong>
@@ -31,11 +31,14 @@ const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border tex
         <button type="button" id="socialNewPost" class="px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg bg-navy text-white text-sm font-medium">{t('admin.social.newPost')}</button>
       </div>
     </div>
-    <!-- From lg up this row scrolls as one; from xl, where the panel sits
-         beside the calendar, each column scrolls on its own. -->
-    <div class="flex flex-col xl:flex-row gap-4 items-start lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain xl:overflow-visible">
-      <div id="socialCalendar" class="flex-1 min-w-0 w-full overflow-x-auto xl:max-h-full xl:overflow-y-auto xl:overscroll-contain"></div>
-      <aside id="socialSide" class="hidden w-full xl:w-80 shrink-0 bg-white rounded-2xl border border-border p-4 xl:max-h-full xl:overflow-y-auto xl:overscroll-contain"></aside>
+    <!-- From lg up the calendar fills what is left of the window and never
+         scrolls: the month's six rows share the height and a day with more
+         than fits shows "+N more" (calendar-view.ts). The panel opens over
+         the calendar's right edge, beside it from xl, and scrolls inside
+         itself. -->
+    <div class="relative flex flex-col xl:flex-row gap-4 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
+      <div id="socialCalendar" class="flex-1 min-w-0 w-full overflow-x-auto lg:min-h-0 lg:overflow-hidden lg:flex lg:flex-col"></div>
+      <aside id="socialSide" class="hidden w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-border p-4 lg:p-3 lg:absolute lg:top-0 lg:right-0 lg:z-10 lg:shadow-lg lg:max-h-full lg:overflow-y-auto lg:overscroll-contain xl:static xl:self-start xl:shadow-none"></aside>
     </div>
   </section>
 
@@ -43,9 +46,9 @@ const btn = 'px-3 py-1.5 min-h-11 lg:min-h-0 rounded-lg border border-border tex
   <section data-social-view="drafts" data-sub="taslaklar" class="hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"><div id="socialDraftList"></div></section>
   <section data-social-view="published" data-sub="yayinlananlar" class="hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"><div id="socialPublishedList"></div></section>
   <section data-social-view="events" data-sub="etkinlik" class="hidden lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
-    <p class="text-sm text-gray-500 mb-3">{t('admin.social.events.intro')}</p>
-    <div id="socialEventList" class="mb-6"></div>
-    <form id="socialEventForm" data-publisher-only class="bg-white rounded-2xl border border-border p-4"></form>
+    <p class="text-sm text-gray-500 mb-3 lg:mb-2">{t('admin.social.events.intro')}</p>
+    <div id="socialEventList" class="mb-6 lg:mb-4"></div>
+    <form id="socialEventForm" data-publisher-only class="bg-white rounded-2xl border border-border p-4 lg:p-3"></form>
   </section>
 
   <div id="socialOverlay" class="hidden fixed inset-0 z-40 bg-black/30 overflow-y-auto p-4"></div>

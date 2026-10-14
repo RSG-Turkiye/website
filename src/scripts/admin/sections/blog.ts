@@ -32,9 +32,9 @@ function blogSubmissionCardHtml(primary: BlogSubmission, paired: BlogSubmission 
       <pre class="whitespace-pre-wrap break-all mt-2 text-gray-600">${escapeHtml(s.body)}</pre>
     </div>`;
 
-  const INPUT = 'px-3 py-2 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid';
+  const INPUT = 'px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid';
   return `
-    <div class="bg-white rounded-2xl border border-border p-4 lg:p-5" data-id="${escapeHtml(primary.id)}">
+    <div class="bg-white rounded-2xl border border-border p-4 lg:p-3" data-id="${escapeHtml(primary.id)}">
       <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
         <div class="text-sm font-semibold text-navy min-w-0 break-words">${escapeHtml(primary.title)}</div>
         <span class="text-xs text-gray-500 min-w-0 break-all">${escapeHtml(primary.submitter_email)}</span>

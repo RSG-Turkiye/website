@@ -157,7 +157,7 @@ function renderThread(thread: any, messages: Message[], changed: boolean): void 
     const muted = out ? 'text-white/70' : 'text-gray-500';
     return `
     <div class="flex ${out ? 'justify-end' : 'justify-start'} min-w-0">
-      <div class="max-w-[85%] min-w-0 break-words rounded-2xl px-4 py-3 ${out ? 'bg-navy text-white' : 'bg-white border border-border text-navy'}">
+      <div class="max-w-[85%] min-w-0 break-words rounded-2xl px-4 py-3 lg:px-3 lg:py-2 ${out ? 'bg-navy text-white' : 'bg-white border border-border text-navy'}">
         <div class="text-[11px] mb-1 ${muted}">
           ${escapeHtml(out ? 'RSG-Türkiye' : (m.from_name || m.from_email))} &middot; ${escapeHtml(formatIstanbul(m.sent_at, dateLocale))}
         </div>

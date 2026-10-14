@@ -16,7 +16,7 @@ export function revealInPanel(el: Element, block: ScrollLogicalPosition = 'neare
 }
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
-const BASE = `inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+const BASE = `inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
 
 export const BTN = {
   primary: `${BASE} bg-navy text-white hover:bg-navy-mid`,
@@ -48,9 +48,9 @@ export function chip(text: string, tone: keyof typeof TONES = 'neutral'): string
 }
 
 export function row(o: { title: string; subtitle?: string; chips?: string; trailing?: string; attrs?: string; selected?: boolean }): string {
-  return `<div ${o.attrs ?? ''} class="flex items-center gap-3 min-h-14 px-4 py-3 bg-white border ${o.selected ? 'border-navy-mid bg-navy-light/40' : 'border-border'} rounded-xl">
+  return `<div ${o.attrs ?? ''} class="shrink-0 flex items-center gap-3 lg:gap-2 min-h-14 lg:min-h-0 px-4 py-3 lg:px-3 lg:py-2 bg-white border ${o.selected ? 'border-navy-mid bg-navy-light/40' : 'border-border'} rounded-xl">
     <div class="flex-1 min-w-0">
-      <p class="text-sm font-medium text-navy truncate">${escapeHtml(o.title)}</p>
+      <p data-row-title class="text-sm font-medium text-navy truncate">${escapeHtml(o.title)}</p>
       ${o.subtitle ? `<p class="text-xs text-gray-500 truncate">${escapeHtml(o.subtitle)}</p>` : ''}
       ${o.chips ? `<div class="flex flex-wrap gap-1 mt-1">${o.chips}</div>` : ''}
     </div>
@@ -59,7 +59,7 @@ export function row(o: { title: string; subtitle?: string; chips?: string; trail
 }
 
 export function switchControl(o: { id: string; checked: boolean; label: string; hint?: string; attrs?: string }): string {
-  return `<div class="flex items-center justify-between gap-3 min-h-11 py-2 border-b border-border last:border-0">
+  return `<div class="flex items-center justify-between gap-3 min-h-11 lg:min-h-9 py-2 lg:py-1.5 border-b border-border last:border-0">
     <label for="${escapeHtml(o.id)}" class="flex-1 min-w-0 cursor-pointer">
       <span class="block text-sm text-navy">${escapeHtml(o.label)}</span>
       ${o.hint ? `<span class="block text-xs text-gray-500">${escapeHtml(o.hint)}</span>` : ''}
@@ -72,11 +72,11 @@ export function switchControl(o: { id: string; checked: boolean; label: string; 
 }
 
 export function emptyState(text: string): string {
-  return `<p class="text-center py-10 text-sm text-gray-500">${escapeHtml(text)}</p>`;
+  return `<p class="text-center py-10 lg:py-6 text-sm text-gray-500">${escapeHtml(text)}</p>`;
 }
 
 export function sectionCard(inner: string): string {
-  return `<div class="bg-white rounded-2xl border border-border p-4 lg:p-6">${inner}</div>`;
+  return `<div class="bg-white rounded-2xl border border-border p-4 lg:p-3">${inner}</div>`;
 }
 
 /** Two clicks instead of window.confirm: the first changes the label, the second acts. Disarms after 4 s. */

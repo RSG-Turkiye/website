@@ -130,9 +130,9 @@ function renderSubNav(route: Route, subs: SubPage[]): void {
         <span class="flex items-center gap-2 min-w-0">${t(s.label as never)}${countBadge(s)}</span><span aria-hidden="true">›</span></a>`).join('')}</div>`;
     return;
   }
-  nav.innerHTML = `<div role="tablist" class="flex flex-wrap gap-2 mb-4">${subs.map((s) => `
+  nav.innerHTML = `<div role="tablist" class="flex flex-wrap gap-1.5 mb-3">${subs.map((s) => `
     <a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}"
-      class="px-3 min-h-9 inline-flex items-center gap-2 rounded-full border text-sm ${s.id === route.sub ? 'bg-navy-light border-navy-mid text-navy font-semibold' : 'border-border text-gray-500 hover:text-navy'}">
+      class="px-3 min-h-8 inline-flex items-center gap-2 rounded-full border text-sm ${s.id === route.sub ? 'bg-navy-light border-navy-mid text-navy font-semibold' : 'border-border text-gray-500 hover:text-navy'}">
       ${t(s.label as never)}${countBadge(s)}</a>`).join('')}</div>`;
 }
 
