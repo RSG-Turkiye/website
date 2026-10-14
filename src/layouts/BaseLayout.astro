@@ -26,9 +26,16 @@ interface Props {
   translationExists?: boolean;
   /** 'article' for a blog post; anything else is a page. */
   ogType?: 'website' | 'article';
+  /**
+   * From lg up, the page is exactly one viewport tall: the header stays, the
+   * footer goes, and <main> is a full-height flex column for the page to fill
+   * and scroll inside its own boxes. The admin panel uses it; phones keep the
+   * ordinary page scroll.
+   */
+  fitViewport?: boolean;
 }
 
-const { pageTitle, ogType = 'website', description = 'RSG-Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkiye.', image = '', translationUrl, translationExists } = Astro.props;
+const { pageTitle, ogType = 'website', fitViewport = false, description = 'RSG-Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkiye.', image = '', translationUrl, translationExists } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -134,12 +141,12 @@ const alternateHref = (path: string) => new URL(path, site).href;
       }
     })} />
   </head>
-  <body>
+  <body class:list={[fitViewport && 'lg:h-dvh lg:flex lg:flex-col']}>
     <Header />
-    <main class="pt-16">
+    <main class:list={['pt-16', fitViewport && 'lg:flex-1 lg:min-h-0 lg:flex lg:flex-col']}>
       <slot />
     </main>
-    <Footer />
+    {fitViewport ? <div class="lg:hidden"><Footer /></div> : <Footer />}
     <PodcastStrip lang={lang} />
   </body>
 </html>

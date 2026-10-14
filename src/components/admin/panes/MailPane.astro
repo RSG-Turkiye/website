@@ -12,11 +12,11 @@ const { lang } = Astro.props;
 const t = useTranslations(lang);
 ---
 
-        <section id="rsgMailSection" data-section="eposta">
+        <section id="rsgMailSection" data-section="eposta" class="lg:h-full">
 
-          <div data-sub="gelen">
+          <div data-sub="gelen" class="lg:h-full fit-col">
             <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.nav.inbox')}</h2>
-            <div id="mailInboxRoot" class="flex flex-col gap-4">
+            <div id="mailInboxRoot" class="flex flex-col gap-4 lg:flex-1 lg:min-h-0">
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <p class="text-sm text-gray-500 flex-1 min-w-0">{t('admin.mail.inbox.intro')}</p>
                 <div class="flex flex-wrap items-center gap-3">
@@ -28,13 +28,13 @@ const t = useTranslations(lang);
                 </div>
               </div>
 
-              <div class="grid lg:grid-cols-[320px_1fr] gap-4 items-start">
-                <div id="mailInboxListCard" class="min-w-0 lg:block bg-white rounded-2xl border border-border p-2">
+              <div class="grid lg:grid-cols-[320px_1fr] lg:grid-rows-[minmax(0,1fr)] lg:flex-1 lg:min-h-0 gap-4 items-start">
+                <div id="mailInboxListCard" class="min-w-0 lg:block bg-white rounded-2xl border border-border p-2 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain">
                   <div id="mailInboxList" class="flex flex-col gap-1"></div>
                   <p id="mailInboxEmpty" class="hidden text-sm text-gray-500 px-2 py-4">{t('admin.mail.inbox.empty')}</p>
                 </div>
 
-                <div id="mailThreadCard" class="hidden min-w-0 lg:block bg-[#F0F0EE] rounded-2xl border border-border p-4 lg:min-h-[420px]">
+                <div id="mailThreadCard" class="hidden min-w-0 lg:block bg-[#F0F0EE] rounded-2xl border border-border p-4 lg:h-full lg:overflow-y-auto lg:overscroll-contain">
                   <div class="lg:hidden mb-3">
                     <a href="#eposta/gelen" id="mailInboxBack" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid text-navy hover:text-navy-mid"><span aria-hidden="true">‹</span> {t('admin.mail.inbox.back')}</a>
                   </div>

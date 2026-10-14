@@ -11,6 +11,12 @@
  * Lists are rows (src/scripts/admin/ui-kit.ts), never tables, so nothing
  * needs to scroll sideways: no element may be wider than the viewport at
  * 390 or 1280 px (tests/browser/admin-overflow.mjs checks every route).
+ *
+ * From lg up the panel is exactly one window tall (BaseLayout fitViewport) and
+ * the page never scrolls: #sectionBody scrolls the section shown, and the
+ * sections with a side panel (users, inbox, social calendar) fill it with
+ * lg:h-full and scroll per column. Phones keep the page scroll.
+ * tests/browser/admin-fit-viewport.mjs checks every route.
  */
 // Shared markup for the admin panel, rendered by both /admin (English) and
 // /tr/admin (Turkish). The two pages used to be near-clones of this file
@@ -36,9 +42,9 @@ const { lang, pageTitle, description, homeUrl } = Astro.props;
 const t = useTranslations(lang);
 ---
 
-<BaseLayout pageTitle={pageTitle} description={description}>
-  <div class="min-h-screen bg-[#F7F7F6] py-10 px-4">
-    <div class="max-w-7xl mx-auto">
+<BaseLayout pageTitle={pageTitle} description={description} fitViewport>
+  <div class="min-h-screen bg-[#F7F7F6] py-10 px-4 lg:min-h-0 lg:flex-1 lg:py-6 lg:flex lg:flex-col">
+    <div class="max-w-7xl mx-auto lg:w-full lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
 
       <!-- Not authorized -->
       <div id="notAuth" class="hidden text-center py-24">
@@ -58,7 +64,7 @@ const t = useTranslations(lang);
       </div>
 
       <!-- Admin content -->
-      <div id="adminContent" class="hidden">
+      <div id="adminContent" class="hidden fit-col lg:flex-1">
 
         <!-- Phone top bar: the menu, back to the sub-page list, and where you are -->
         <div class="lg:hidden flex items-center gap-2 mb-4">
@@ -72,31 +78,37 @@ const t = useTranslations(lang);
         <!-- Toasts -->
         <div id="toastStack" class="fixed z-50 bottom-4 inset-x-4 lg:inset-x-auto lg:right-6 flex flex-col gap-2 items-stretch lg:items-end"></div>
 
-        <div id="healthBanner" role="status" class="hidden mb-6 rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]"></div>
+        <div id="healthBanner" role="status" class="hidden shrink-0 mb-6 rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]"></div>
 
         <!-- Phone drawer: shell.ts clones #sectionNav into the panel -->
         <div id="navDrawer" class="hidden fixed inset-0 z-40 bg-black/30 lg:hidden">
           <div class="w-4/5 max-w-xs h-full bg-white p-3 overflow-y-auto" data-drawer-panel></div>
         </div>
 
-        <div class="flex flex-col lg:flex-row gap-6 items-start">
-          <aside class="hidden lg:block w-60 shrink-0 bg-white rounded-2xl border border-border p-2">
+        <div class="flex flex-col lg:flex-row gap-6 items-start lg:flex-1 lg:min-h-0">
+          <aside class="hidden lg:block w-60 shrink-0 bg-white rounded-2xl border border-border p-2 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain">
             <p class="px-3 pt-2 pb-1 text-base font-bold text-navy">{t('admin.header.title')}</p>
             <AdminNav lang={lang} />
           </aside>
 
-          <div class="flex-1 min-w-0 w-full">
-            <h1 id="sectionTitle" class="hidden lg:block text-2xl font-bold text-navy mb-4"></h1>
-            <div id="subNav"></div>
+          <div class="flex-1 min-w-0 w-full lg:self-stretch lg:flex lg:flex-col lg:min-h-0">
+            <h1 id="sectionTitle" class="hidden lg:block shrink-0 text-2xl font-bold text-navy mb-4"></h1>
+            <div id="subNav" class="shrink-0"></div>
+
+            <!-- From lg up the one scroll box for the section shown; a section
+                 with a side panel fills it exactly (lg:h-full) and scrolls
+                 per column instead. p-1/-m-1 leaves room for focus rings. -->
+            <div id="sectionBody" class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1 lg:-m-1">
 
         <section data-section="genel"><div id="overview"></div></section>
 
-        <section id="userManagementSection" data-section="kullanicilar">
-        <div data-sub="liste">
+        <section id="userManagementSection" data-section="kullanicilar" class="lg:h-full">
+        <div data-sub="liste" class="lg:h-full fit-col">
           <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.members.heading')}</h2>
-          <div class="lg:grid lg:grid-cols-[1fr_22rem] gap-4 items-start">
-            <div id="usersPane" class="min-w-0">
-              <div class="bg-white rounded-2xl border border-border p-4 mb-4 flex flex-col gap-3">
+          <div class="lg:grid lg:grid-cols-[1fr_22rem] lg:grid-rows-[minmax(0,1fr)] lg:flex-1 lg:min-h-0 gap-4 items-start">
+            <div id="usersPane" class="min-w-0 lg:h-full">
+              <div class="lg:h-full lg:flex lg:flex-col">
+              <div class="shrink-0 bg-white rounded-2xl border border-border p-4 mb-4 flex flex-col gap-3">
                 <input
                   id="searchInput"
                   type="search"
@@ -110,10 +122,11 @@ const t = useTranslations(lang);
                   <button type="button" data-filter="roles" class="filter-btn min-h-11 lg:min-h-9 px-4 rounded-xl text-sm font-medium transition-colors">{t('admin.users.filter.roles')}</button>
                 </div>
               </div>
-              <div id="usersList" class="flex flex-col gap-2"></div>
               <div id="emptyState" class="hidden text-center py-12 text-sm text-gray-500">{t('admin.table.noUsersFound')}</div>
+              <div id="usersList" class="flex flex-col gap-2 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1 lg:-m-1"></div>
+              </div>
             </div>
-            <div id="userDetail" class="hidden lg:block min-w-0 bg-white rounded-2xl border border-border p-4 lg:sticky lg:top-4"></div>
+            <div id="userDetail" class="hidden lg:block min-w-0 bg-white rounded-2xl border border-border p-4 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain"></div>
           </div>
         </div>
         <div data-sub="yetkiler"><div id="rolesView"></div></div>
@@ -209,6 +222,7 @@ const t = useTranslations(lang);
           <button type="button" id="auditMore" class="hidden mt-3 items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.audit.more')}</button>
         </section>
 
+            </div>
           </div>
         </div>
 
@@ -216,6 +230,15 @@ const t = useTranslations(lang);
     </div>
   </div>
 </BaseLayout>
+
+<style is:global>
+  /* A flex column from lg up, but only while shown: on an element whose
+     `hidden` class is toggled, a display utility would beat `.hidden` in the
+     built CSS and show it anyway. */
+  @media (width >= 64rem) {
+    .fit-col:not(.hidden) { display: flex; flex-direction: column; min-height: 0; }
+  }
+</style>
 
 <style>
   @reference "../../styles/global.css";

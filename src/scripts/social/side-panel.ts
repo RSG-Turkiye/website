@@ -59,6 +59,8 @@ function frame(title: string, body: string): void {
   side().innerHTML = `<div class="flex justify-between items-start gap-2"><h3 class="font-semibold text-navy">${esc(title)}</h3>
     ${button(t('admin.social.side.close'), 'data-close')}</div>${body}`;
   side().classList.remove('hidden');
+  // Between lg and xl the panel opens under the calendar, inside the pane's own scroll box.
+  if (matchMedia('(min-width: 1024px) and (max-width: 1279px)').matches) side().scrollIntoView({ block: 'nearest' });
   side().querySelector('[data-close]')!.addEventListener('click', hideSide);
 }
 
