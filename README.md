@@ -488,6 +488,14 @@ Overview.
   you can open two or more sections.
 - **Communication**: E-posta (admins), Social media (editors, publishers,
   admins), Announcements (announcers, admins).
+  E-posta sub-pages (`#eposta/...`): Inbox `gelen` (senders see their own
+  threads, admins can switch to all members; `#eposta/gelen/<threadId>` opens
+  one thread, and the reply notification mail links there), Compose `yaz`
+  (senders), Sent `gonderilenler` (senders and admins), and admin-only `yetki`
+  (grant sender access), `gondericiler` (senders) and `ekler` (attachments).
+  Senders without admin rights see only the E-posta section. The old
+  `/account/mail` and `/account/conversations` pages (and `/tr` twins) forward
+  to `#eposta/yaz` and `#eposta/gelen`.
 - **Content**: Blog (admins), Symposium (symposium editors, admins).
 - **Community**: Users and roles (admins). Membership has an entry but stays
   hidden until it is built.

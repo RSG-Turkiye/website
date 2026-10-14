@@ -18,8 +18,23 @@ const bad = [];
 const ok = (c, m) => { if (!c) { console.log(`   ✗ ${m}`); bad.push(m); } };
 
 const ADMIN = { id: 'u1', email: 'admin@example.org', is_admin: true, is_social_publisher: true, is_symposium: true, is_announcer: true };
+const SENDER = { id: 'u3', email: 'sender@example.org', is_sender: true };
 const COUNTS = { email: 3, social: 2, blog: 1, scheduledThisWeek: 4 };
 const long = 'x'.repeat(120);
+const now0 = Math.floor(Date.now() / 1000);
+// Mail: a 120-character subject, a 60-character address and a long unbroken snippet.
+const LONG_ADDR = 'r'.repeat(48) + '@example.org'; // 60 characters
+const MAIL_THREADS = [
+  { id: 't1', recipient_email: 'ayse@example.org', recipient_name: 'Ayse', subject: 'Sponsorship', last_message_at: 1760000300, last_direction: 'in', unread: 1, snippet: 'Thanks a lot' },
+  { id: 't2', recipient_email: LONG_ADDR, recipient_name: long, subject: long, last_message_at: 1760000200, last_direction: 'out', unread: 0, snippet: long + long, sender_email: LONG_ADDR, sender_name: long },
+];
+const MAIL_THREAD = {
+  thread: { id: 't2', recipient_email: LONG_ADDR, recipient_name: long, subject: long, sender_email: 'sender@example.org', can_reply: true },
+  messages: [
+    { id: 'm1', direction: 'out', from_email: 'rsg@example.org', from_name: null, body_html: '<p>' + long + long + '</p>', attachment_count: 0, sent_at: 1760000000 },
+    { id: 'm2', direction: 'in', from_email: LONG_ADDR, from_name: long, body_html: '<p>' + long + '</p>', attachment_count: 1, sent_at: 1760000060 },
+  ],
+};
 // Two realistic items per list, one with a long unbroken string.
 const FULL = {
   users: [
@@ -45,7 +60,11 @@ const FULL = {
   ],
   sends: [
     { subject: 'Hello', sender_email: 's@example.org', sender_name: null, recipient_email: 'r@example.org', sent_at: 1760000000, status: 'sent', error_message: null },
-    { subject: 'Hello ' + long, sender_email: 's@example.org', sender_name: null, recipient_email: 'r@example.org', sent_at: 1760000000, status: 'failed', error_message: long },
+    { subject: 'Hello ' + long, sender_email: 's@example.org', sender_name: null, recipient_email: LONG_ADDR, sent_at: 1760000000, status: 'failed', error_message: long },
+  ],
+  scheduled: [
+    { id: 's1', subject: 'Later', recipient_email: 'r@example.org', recipients: ['r@example.org'], send_at: now0 + 86400, status: 'pending', sender_email: 's@example.org' },
+    { id: 's2', subject: long, recipient_email: LONG_ADDR, recipients: [LONG_ADDR], send_at: now0 + 86400, status: 'pending', sender_email: LONG_ADDR },
   ],
   connections: [
     { platform: 'gmail', status: 'connected', accountName: 'mail@example.org', connectedBy: 'admin@example.org', connectedAt: 1760000000, lastOkAt: 1760000000, lastError: null, usesLegacySecret: false, hasStoredToken: true },
@@ -98,7 +117,7 @@ const EXCLUDED = [];
 
 const browser = await chromium.launch();
 
-async function open(path, viewport) {
+async function open(path, viewport, user = ADMIN) {
   const page = await browser.newPage({ viewport });
   page.on('pageerror', (e) => bad.push(`pageerror (${path} ${viewport.width}px): ` + String(e).slice(0, 160)));
   page.inflight = 0; // routed requests started and not yet fulfilled
@@ -111,8 +130,10 @@ async function open(path, viewport) {
     const url = new URL(req.url());
     const json = (v) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(v) });
     if (req.method() !== 'GET') return r.fulfill({ status: 204, body: '' });
-    if (url.pathname === '/api/me') return json({ user: ADMIN, profile: {} });
+    if (url.pathname === '/api/me') return json({ user, profile: {} });
     if (url.pathname === '/api/admin/counts') return json(COUNTS);
+    if (url.pathname === '/api/mail/conversations') return json({ threads: MAIL_THREADS, unreadCount: 1, scope: url.searchParams.get('scope') === 'all' ? 'all' : 'own', isAdmin: user.is_admin === true });
+    if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
     if (url.pathname === '/api/social/plans') return json({ plans: PLANS });
     if (url.pathname === '/api/social/posts') return json({ posts: POSTS });
@@ -165,8 +186,8 @@ async function go(page, h) {
 }
 
 // Every section and sub-page this admin can open, read from the menu itself.
-async function routes(lang) {
-  const page = await open(lang + '/admin', { width: 1280, height: 900 });
+async function routes(lang, user) {
+  const page = await open(lang + '/admin', { width: 1280, height: 900 }, user);
   const sections = await page.locator('#sectionNav [data-nav]').evaluateAll((els) => els.map((e) => e.dataset.nav));
   const out = [];
   for (const s of sections) {
@@ -176,6 +197,8 @@ async function routes(lang) {
     for (const sub of subs) out.push(`#${s}/${sub}`);
   }
   await page.close();
+  // A thread in the address, as the notification mail links to it.
+  if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t2');
   return [...new Set(out)];
 }
 
@@ -195,14 +218,15 @@ function smallTargets(excluded) {
 }
 
 let pages = 0;
+for (const [who, user, min] of [['admin', ADMIN, 20], ['sender', SENDER, 3]])
 for (const lang of ['', '/tr']) {
-  const all = await routes(lang);
-  ok(all.length >= 20, `${lang || '/en'}: found the routes (${all.length})`);
+  const all = await routes(lang, user);
+  ok(all.length >= min, `${who} ${lang || '/en'}: found the routes (${all.length})`);
   for (const width of [390, 1280]) {
-    const page = await open(lang + '/admin', { width, height: width === 390 ? 844 : 900 });
+    const page = await open(lang + '/admin', { width, height: width === 390 ? 844 : 900 }, user);
     const phone = width === 390;
     for (const h of all) {
-      const tag = `${lang || '/en'} ${width}px ${h}`;
+      const tag = `${who} ${lang || '/en'} ${width}px ${h}`;
       const reached = await go(page, h);
       ok(reached, `${tag}: route did not settle`);
       if (!reached) continue;
