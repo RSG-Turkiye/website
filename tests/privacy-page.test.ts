@@ -49,6 +49,8 @@ test('the notice says how DMs are handled, in both languages', () => {
   const en = JSON.stringify(PRIVACY.en);
   const tr = JSON.stringify(PRIVACY.tr);
   assert.match(en, /direct messages/i);
-  assert.match(tr, /mesaj/i);
+  assert.match(en, /account ID/);
+  assert.match(tr, /mesajların kendisini saklamaz/);
   assert.ok(!en.includes('We do not read or store data about other people from these platforms'), 'old sentence removed');
+  assert.ok(!tr.includes('Bu platformlardan başka kişilere ait veri okumayız'), 'old tr sentence removed');
 });
