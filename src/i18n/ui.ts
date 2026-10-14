@@ -32,10 +32,11 @@ export const ui = {
     // The hero says who we are in full. Same name, with the parent body
     // in front of it.
     'hero.title': 'ISCB-SC RSG-Turkiye',
-    'hero.description': 'A non-profit student society providing a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics in Turkiye.',
+    'hero.description': "The Turkiye Regional Student Group of the ISCB Student Council: an academic student group for master's and PhD students and postdocs doing research in computational biology and bioinformatics.",
     'hero.membership': 'Member of the International Society for Computational Biology (ISCB) Student Council (SC) Regional Student Groups (RSG)',
     'hero.learnMore': 'Learn More',
-    'hero.joinCommunity': 'Join Our Community',
+    'hero.follow': "Follow us",
+    'hero.apply': "Apply for membership",
 
     // The three doors under the hero. Written as the visitor's own sentence,
     // not as a section of the site, because the question a reader answers
@@ -47,8 +48,8 @@ export const ui = {
     'doors.content.question': 'I am looking for content',
     'doors.content.detail': 'Every webinar recording, by speaker and by subject.',
     'doors.content.count': '{n} recordings',
-    'doors.join.question': 'I want to join the community',
-    'doors.join.detail': 'Active and passive membership, the teams, and how to apply.',
+    'doors.join.question': "I do research in bioinformatics",
+    'doors.join.detail': "Following us, membership by application, and the teams.",
     'doors.join.end': 'Membership',
 
     // Announcements
@@ -58,13 +59,13 @@ export const ui = {
 
     // Mission Section
     'mission.title': 'Our Mission',
-    'mission.description': 'We provide an environment for young scientists from various institutions to share their knowledge and experience and to encourage collaboration between them.',
-    'mission.goal': 'Our main goal is to connect the young Turkish community with international colleagues and build bridges between bioinformatics professionals and young bioinformatics students.',
+    'mission.description': "We aim to produce content that is genuinely useful to graduate researchers: methods, tools, papers and careers.",
+    'mission.goal': "We bring young researchers in Turkiye together with each other and with colleagues abroad.",
 
     // Statistics
-    'stats.years': 'Years of Foundation',
-    'stats.members': 'Team Members',
-    'stats.webinars': 'Webinars',
+    'stats.years': "Years, since 2011",
+    'stats.symposiums': "Student symposiums",
+    'stats.webinars': "Webinars",
 
     // Features
     'features.community.title': 'Community Building',
@@ -84,8 +85,8 @@ export const ui = {
     'about.title': 'About RSG-Turkiye',
     'about.subtitle': 'A non-profit community of early career researchers interested in computational biology and bioinformatics.',
     'about.whoWeAre.title': 'Who Are We?',
-    'about.whoWeAre.description': 'RSG-Turkiye is a volunteer platform affiliated with the International Society for Computational Biology (ISCB) Student Council, bringing together students and early-career researchers in computational biology and bioinformatics across Turkiye.',
-    'about.whoWeAre.detail': 'Operating entirely on volunteerism since 2011, we are a non-hierarchical community that creates and supports one another. We organize annual student symposiums, monthly webinars with international experts, journal club meetings, and hands-on workshops: connecting young scientists in Turkiye with each other and with colleagues around the world.',
+    'about.whoWeAre.description': "RSG-Turkiye is the Turkiye Regional Student Group of the ISCB Student Council. We work for master's and PhD students and postdocs doing research in computational biology and bioinformatics; undergraduates doing research in a lab and Turkish researchers abroad are part of the group too.",
+    'about.whoWeAre.detail': "We have run on volunteer work since 2011. We measure ourselves by what we give researchers, not by headcount: an annual student symposium, expert webinars, a journal club and hands-on workshops.",
     'about.affiliation.title': 'International Affiliation',
     'about.affiliation.description': 'Member of ISCB Student Council Regional Student Groups',
     'about.community.title': 'Community Focus',
@@ -200,7 +201,7 @@ export const ui = {
     'join.benefits.international': 'International connections',
 
     // Footer
-    'footer.description': 'A non-profit community of early career researchers in computational biology and bioinformatics.',
+    'footer.description': "The Turkiye Regional Student Group of the ISCB Student Council.",
     'footer.quickLinks': 'Quick Links',
     'footer.contact': 'Contact',
     'footer.follow': 'Follow Us',
@@ -221,9 +222,9 @@ export const ui = {
     'common.previous': 'Previous',
     
     // CTA Section
-    'cta.title': 'Ready to Join?',
-    'cta.description': 'Become part of our growing community and start your journey in computational biology.',
-    'cta.joinToday': 'Join Today',
+    'cta.title': "Doing research in bioinformatics?",
+    'cta.description': "Our events are open to everyone. Membership is for people doing research in the field, by application.",
+    'cta.joinToday': "How membership works",
     'cta.contactUs': 'Contact Us',
     
     // Join Network Section
@@ -953,10 +954,11 @@ export const ui = {
     // Hero Section
     'brand.name': 'RSG-Türkiye',
     'hero.title': 'ISCB-SC RSG-Türkiye',
-    'hero.description': 'Türkiye\'de hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve doktora sonrası araştırmacılar arasında iletişim ve etkileşim için çerçeve sağlayan kar amacı gütmeyen bir öğrenci topluluğu.',
+    'hero.description': "ISCB Öğrenci Konseyi'nin Türkiye Bölgesel Öğrenci Grubu: hesaplamalı biyoloji ve biyoinformatik alanında araştırma yapan yüksek lisans ve doktora öğrencileri ile doktora sonrası araştırmacılar için akademik bir öğrenci grubu.",
     'hero.membership': 'Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi (SC) Bölgesel Öğrenci Grupları (RSG) üyesi.',
     'hero.learnMore': 'Daha Fazla Bilgi',
-    'hero.joinCommunity': 'Topluluğumuza Katıl',
+    'hero.follow': "Bizi takip et",
+    'hero.apply': "Üyelik başvurusu",
 
     'doors.heading': 'Nereden başlamak istiyorsun',
     'doors.new.question': 'Biyoinformatiğe yeniyim',
@@ -965,8 +967,8 @@ export const ui = {
     'doors.content.question': 'İçerik arıyorum',
     'doors.content.detail': 'Webinar kayıtlarının tamamı, konuşmacı ve konuya göre.',
     'doors.content.count': '{n} kayıt',
-    'doors.join.question': 'Topluluğa katılmak istiyorum',
-    'doors.join.detail': 'Aktif ve pasif üyelik, ekipler ve başvuru süreci.',
+    'doors.join.question': "Biyoinformatik alanında araştırma yapıyorum",
+    'doors.join.detail': "Bizi takip etmek, başvuruyla üyelik ve ekipler.",
     'doors.join.end': 'Üyelik',
 
     // Announcements
@@ -976,13 +978,13 @@ export const ui = {
 
     // Mission Section
     'mission.title': 'Misyonumuz',
-    'mission.description': 'Çeşitli kurumlardan genç bilim insanlarına bilgi ve deneyimlerini paylaşmaları için ortam sağlıyor ve aralarında işbirliğini teşvik ediyoruz.',
-    'mission.goal': 'Ana hedefimiz, genç Türk topluluğunu uluslararası meslektaşlarla bağlamak ve biyoinformatik profesyonelleri ile genç biyoinformatik öğrencileri arasında köprüler kurmaktır.',
+    'mission.description': "Amacımız, lisansüstü araştırmacıların işine gerçekten yarayan içerik üretmek: yöntemler, araçlar, makaleler ve kariyer.",
+    'mission.goal': "Türkiye'deki genç araştırmacıları birbirleriyle ve uluslararası meslektaşlarıyla buluşturuyoruz.",
 
     // Statistics
-    'stats.years': 'Kuruluş Yılı',
-    'stats.members': 'Takım Üyesi',
-    'stats.webinars': 'Webinar',
+    'stats.years': "Yıl, 2011'den beri",
+    'stats.symposiums': "Öğrenci sempozyumu",
+    'stats.webinars': "Webinar",
 
     // Features
     'features.community.title': 'Topluluk Oluşturma',
@@ -1002,8 +1004,8 @@ export const ui = {
     'about.title': 'RSG-Türkiye Hakkında',
     'about.subtitle': 'Hesaplamalı biyoloji ve biyoinformatik ile ilgilenen erken kariyer araştırmacılarından oluşan kar amacı gütmeyen bir topluluk.',
     'about.whoWeAre.title': 'Biz Kimiz?',
-    'about.whoWeAre.description': 'RSG-Türkiye, Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi\'ne bağlı, Türkiye\'deki hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve erken kariyer araştırmacılarını bir araya getiren gönüllü bir platformdur.',
-    'about.whoWeAre.detail': '2011\'den bu yana tamamen gönüllülük esasıyla ve hiyerarşiden uzak bir şekilde faaliyet gösteren bir topluluğuz. Yıllık öğrenci sempozyumları, uluslararası uzmanlarla aylık webinarlar, makale kulübü toplantıları ve uygulamalı çalıştaylar düzenleyerek Türkiye\'deki genç bilim insanlarını hem birbirleriyle hem de dünyanın dört bir yanındaki meslektaşlarıyla buluşturuyoruz.',
+    'about.whoWeAre.description': "RSG-Türkiye, ISCB Öğrenci Konseyi'nin Türkiye bölgesel öğrenci grubudur. Hesaplamalı biyoloji ve biyoinformatik alanında araştırma yapan yüksek lisans ve doktora öğrencileri ile doktora sonrası araştırmacılar için çalışırız. Laboratuvarda araştırma yapan lisans öğrencileri ve yurt dışındaki Türk araştırmacılar da aramızdadır.",
+    'about.whoWeAre.detail': "2011'den bu yana gönüllülükle çalışıyoruz. Ölçütümüz katılımcı sayısı değil, araştırmacıya kattığımız: yıllık öğrenci sempozyumu, uzman webinarları, makale kulübü ve uygulamalı atölyeler.",
     'about.affiliation.title': 'Uluslararası Bağlantı',
     'about.affiliation.description': 'ISCB Öğrenci Konseyi Bölgesel Öğrenci Grupları üyesi',
     'about.community.title': 'Topluluk Odaklı',
@@ -1118,7 +1120,7 @@ export const ui = {
     'join.benefits.international': 'Uluslararası bağlantılar',
 
     // Footer
-    'footer.description': 'Hesaplamalı biyoloji ve biyoinformatik alanlarında erken kariyer araştırmacılarından oluşan kar amacı gütmeyen bir topluluk.',
+    'footer.description': "ISCB Öğrenci Konseyi'nin Türkiye bölgesel öğrenci grubu.",
     'footer.quickLinks': 'Hızlı Bağlantılar',
     'footer.contact': 'İletişim',
     'footer.follow': 'Bizi Takip Edin',
@@ -1139,9 +1141,9 @@ export const ui = {
     'common.previous': 'Önceki',
     
     // CTA Section
-    'cta.title': 'Katılmaya Hazır mısınız?',
-    'cta.description': 'Büyüyen topluluğumuzun bir parçası olun ve hesaplamalı biyoloji yolculuğunuza başlayın.',
-    'cta.joinToday': 'Bugün Katıl',
+    'cta.title': "Biyoinformatik alanında araştırma mı yapıyorsun?",
+    'cta.description': "Etkinliklerimiz herkese açık. Üyelik, alanda araştırma yapanlar için ve başvuruyla.",
+    'cta.joinToday': "Üyelik nasıl işliyor",
     'cta.contactUs': 'İletişime Geç',
     
     // Join Network Section

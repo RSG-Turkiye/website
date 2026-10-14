@@ -4,6 +4,7 @@ import EntryIndex from '../components/EntryIndex.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { getCollection } from 'astro:content';
 import { events, groupEvents, yearsSinceFounding } from '../data/events';
+import { symposiumCount, symposiumEditions } from '../lib/home-stats';
 
 const lang = getLangFromUrl(Astro.url);
 const nextEvent = groupEvents(events, new Date()).upcoming[0] ?? null;
@@ -15,8 +16,9 @@ const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
   .slice(0, 3);
 
-const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.startsWith('en/') && !data.draft))
-  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())[0];
+const webinars = await getCollection('webinars', ({ id, data }) => id.startsWith('en/') && !data.draft);
+const webinarCount = webinars.length;
+const latestWebinar = [...webinars].sort((a, b) => b.data.date.getTime() - a.data.date.getTime())[0];
 ---
 
 <BaseLayout pageTitle={pageTitle}
@@ -40,12 +42,20 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
       <p class="text-white/75 text-lg leading-relaxed mb-8 max-w-xl mx-auto">
         {t('hero.description')}
       </p>
-      <a
-        href="/join/"
-        class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium text-base hover:bg-red-hover transition-colors no-underline"
-      >
-        {t('hero.joinCommunity')}
-      </a>
+      <div class="flex flex-wrap justify-center gap-3">
+        <a
+          href="/join/#follow"
+          class="inline-flex items-center px-6 py-3 rounded-md border border-white/70 text-white font-medium text-base hover:bg-white/10 transition-colors no-underline"
+        >
+          {t('hero.follow')}
+        </a>
+        <a
+          href="/join/#membership"
+          class="inline-flex items-center px-6 py-3 rounded-md bg-red text-white font-medium text-base hover:bg-red-hover transition-colors no-underline"
+        >
+          {t('hero.apply')}
+        </a>
+      </div>
     </div>
   </section>
 
@@ -65,12 +75,11 @@ const latestWebinar = (await getCollection('webinars', ({ id, data }) => id.star
         </div>
 
         <!-- Stats grid -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { n: `${yearsSinceFounding(new Date())}+`, label: t('stats.years') },
-            { n: '500+', label: t('stats.members') },
-            { n: '80+', label: t('stats.webinars') },
-            { n: '12', label: lang === 'tr' ? 'Sempozyum' : 'Symposiums' },
+            { n: String(yearsSinceFounding(new Date())), label: t('stats.years') },
+            { n: String(symposiumCount(symposiumEditions(), new Date())), label: t('stats.symposiums') },
+            { n: String(webinarCount), label: t('stats.webinars') },
           ].map(({ n, label }) => (
             <div class="text-center p-5 rounded-lg bg-navy-light border border-[#C4CEEA]">
               <span class="block text-3xl font-bold text-navy">{n}</span>
