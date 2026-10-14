@@ -18,7 +18,7 @@ test('an admin gets every count', async () => {
   seed(db);
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { email: 1, social: 1, blog: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await res.json(), { email: 1, social: 1, dm: 0, blog: 1, scheduledThisWeek: 1 });
 });
 
 function addSender(db: import('node:sqlite').DatabaseSync) {
@@ -47,7 +47,7 @@ test('an admin gets their own unread threads, not everyone\'s', async () => {
 test('a social publisher gets only the social counts; an editor only what is scheduled', async () => {
   const { env, db } = setupSocial();
   seed(db);
-  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json(), { social: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json(), { social: 1, dm: 0, scheduledThisWeek: 1 });
   assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ed' })).json(), { scheduledThisWeek: 1 });
 });
 
@@ -59,7 +59,7 @@ test('a count whose query fails is left out; the others are still returned', asy
   t.mock.method(console, 'error', (...a: unknown[]) => { logged.push(a); });
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { social: 1, blog: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await res.json(), { social: 1, dm: 0, blog: 1, scheduledThisWeek: 1 });
   assert.equal(logged.length, 1);
 });
 
