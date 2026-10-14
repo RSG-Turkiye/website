@@ -7,6 +7,7 @@ import { renderOverviewHealth } from '../admin-health';
 const CARDS: { key: string; section: string; label: string }[] = [
   { key: 'email', section: 'eposta', label: 'admin.overview.email' },
   { key: 'social', section: 'sosyal/onay', label: 'admin.overview.social' },
+  { key: 'dm', section: 'sosyal/dm', label: 'admin.overview.dm' },
   { key: 'blog', section: 'blog', label: 'admin.overview.blog' },
 ];
 

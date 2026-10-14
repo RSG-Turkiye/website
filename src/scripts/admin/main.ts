@@ -20,6 +20,7 @@ import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUploa
 import { showSent, setSentAdmin } from './sections/mail-sent';
 import { setupCompose, loadQueued } from './sections/mail-compose';
 import { setupInbox, showInbox } from './sections/mail-inbox';
+import { setupDm, showDm } from './sections/social-dm';
 import { setupSymposium, loadSymposium } from './sections/symposium';
 
 // Init
@@ -89,6 +90,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
       showToast, lang, me: { id: data.user.id, isPublisher: isSocialPublisher }, refreshCounts,
     });
   }
+  if (isSocialPublisher) setupDm();
   const onShow: Partial<Record<SectionId, () => Promise<void>>> = {
     // Overview's System block is filled by the health check, whichever finishes first.
     genel: loadOverview,
@@ -105,7 +107,10 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   // The inbox is for senders and admins alike; it opens whatever thread the address names.
   if (isFullAdmin || isSender) setupInbox({ isAdmin: isFullAdmin, isSender });
   const onSub: Partial<Record<SectionId, (sub: string, item: string | null) => void>> = {
-    sosyal: (sub) => { if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]); },
+    sosyal: (sub, item) => {
+      if (sub === 'dm') { if (isSocialPublisher) void showDm(item); return; }
+      if (Object.hasOwn(SOCIAL_TABS, sub)) showSocialTab(SOCIAL_TABS[sub]);
+    },
     eposta: (sub, item) => {
       if (sub === 'gelen') {
         void showInbox(item);

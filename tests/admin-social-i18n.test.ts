@@ -31,3 +31,19 @@ test('every problem, error and status the API can return has a sentence', () => 
   for (const k of PUBLISH_REASON_KEYS) assert.ok(has(`admin.social.publishError.${k}`), k);
   for (const t of ['image', 'carousel', 'story']) assert.ok(has(`admin.social.type.${t}`), t);
 });
+
+test('every key the DM tab looks up exists', () => {
+  const src = readFileSync(new URL('../src/scripts/admin/sections/social-dm.ts', import.meta.url), 'utf8');
+  const used = [...src.matchAll(/'(admin\.[\w.]+)'/g)].map((m) => m[1]);
+  assert.ok(used.length > 10);
+  for (const k of used) assert.ok(has(k), `missing ${k}`);
+  for (const c of ['empty', 'too_long', 'window_closed', 'connection', 'unavailable', 'refused', 'not_found']) assert.ok(has(`admin.social.dm.error.${c}`), c);
+  for (const s of ['not_connected', 'broken', 'needs_scope']) assert.ok(has(`admin.social.dm.status.${s}`), s);
+});
+
+test('utf8Bytes counts what the server counts', async () => {
+  // social-dm re-exports this; it cannot be imported under node (context.ts reads document).
+  const { utf8Bytes } = await import('../src/lib/utf8-bytes');
+  assert.equal(utf8Bytes('ş'.repeat(500)), 1000);
+  assert.equal(utf8Bytes('😀'), 4);
+});
