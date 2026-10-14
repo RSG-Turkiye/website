@@ -21,7 +21,61 @@ const t = useTranslations(lang);
 
           <div data-sub="yaz">
             <h2 class="text-lg font-semibold text-navy mb-4">{t('admin.mail.nav.compose')}</h2>
-            <div id="mailComposeRoot"></div>
+            <div id="mailComposeRoot" class="flex flex-col gap-6">
+              <p class="text-sm text-gray-500">{t('admin.mail.compose.intro')}</p>
+              <div class="bg-white rounded-2xl border border-border p-4 lg:p-6">
+                <form id="mailComposeForm" class="flex flex-col gap-3">
+                  <label class="flex flex-col gap-1 text-sm text-gray-600">
+                    {t('admin.mail.compose.to')}
+                    <input id="mailComposeTo" type="text" required placeholder={t('admin.mail.compose.toPlaceholder')}
+                      class="px-3 py-2 min-h-11 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-sm text-gray-600">
+                    {t('admin.mail.compose.subject')}
+                    <input id="mailComposeSubject" type="text" required maxlength="200"
+                      class="px-3 py-2 min-h-11 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-sm text-gray-600">
+                    {t('admin.mail.compose.body')}
+                    <textarea id="mailComposeBody" required rows="14" maxlength="20000" placeholder={t('admin.mail.compose.bodyPlaceholder')}
+                      class="px-3 py-2 min-h-11 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid"></textarea>
+                  </label>
+                  <p class="text-xs text-gray-500 -mt-1" set:html={t('admin.mail.compose.formatHint')} />
+                  <p class="text-xs text-gray-500 -mt-1">{t('admin.mail.compose.signOff')}</p>
+
+                  <fieldset id="mailComposeAttachmentsWrap" class="hidden border-t border-border pt-3">
+                    <legend class="text-xs font-semibold text-navy mb-2">{t('admin.mail.compose.attachments')}</legend>
+                    <div id="mailComposeAttachments" class="flex flex-col"></div>
+                  </fieldset>
+
+                  <div class="border-t border-border pt-3 flex flex-col gap-1">
+                    <label id="mailComposeScheduleLabel" for="mailComposeSchedule" class="text-xs font-semibold text-navy">{t('admin.mail.compose.scheduleLabel')}</label>
+                    <input id="mailComposeSchedule" type="datetime-local" class="px-3 py-2 min-h-11 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid max-w-full sm:max-w-xs" />
+                  </div>
+
+                  <div id="mailComposeEditing" class="hidden flex flex-wrap items-center gap-2 text-sm bg-amber-50 text-amber-800 rounded-xl px-3 py-2">
+                    <span class="flex-1 min-w-0">{t('admin.mail.compose.editingBanner')}</span>
+                    <button type="button" id="mailComposeCancelEdit" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid border border-navy text-navy hover:bg-navy-light">{t('admin.mail.compose.cancelEditing')}</button>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-3 pt-1">
+                    <button type="submit" id="mailComposeSend" class="inline-flex items-center justify-center gap-1 px-4 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">{t('admin.mail.compose.send')}</button>
+                    <span id="mailComposeStatus" class="text-xs text-gray-500" aria-live="polite"></span>
+                  </div>
+                </form>
+              </div>
+
+              <div id="mailQueuedCard" class="hidden">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <h3 class="text-sm font-semibold text-navy">{t('admin.mail.queued.heading')}</h3>
+                  <label id="mailQueuedScopeLabel" class="hidden flex items-center gap-2 min-h-11 text-sm text-gray-500 cursor-pointer">
+                    <input type="checkbox" id="mailQueuedScopeAll" class="rounded border-border" />
+                    {t('admin.mail.queued.everyone')}
+                  </label>
+                </div>
+                <div id="mailQueuedList" class="flex flex-col gap-2"></div>
+              </div>
+            </div>
           </div>
 
           <div data-sub="gonderilenler">
