@@ -113,7 +113,7 @@ const searchIndex = [
         type: 'member',
         title: m.display_name,
         description: [m.institution, m.bio].filter(Boolean).join(' · '),
-        url: `/members/${m.username}`,
+        url: `/tr/members/${m.username}`,
         meta: `@${m.username}`,
       }));
     } catch { return []; }

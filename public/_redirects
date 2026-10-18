@@ -14,7 +14,12 @@
 # The trailing slash matters too. Astro builds directory-style pages, so
 # /members/profile is itself a 308 to /members/profile/ -- pointing at the
 # unslashed form meant two redirects where one would do.
+# No trailing slash on the links to it: a placeholder rule matches only the
+# unslashed form, so /members/ayse/ is a 404 (measured live, 2026-10-18 --
+# the directory cards had gained a slash in #194). tests/member-links.test.ts
+# keeps the slash off.
 /members/:username  /members/profile/?u=:username  200
+/tr/members/:username  /tr/members/profile/?u=:username  200
 
 # Three duplicate posts removed in #74, redirected because they were live for
 # years and the dead slug may be the indexed one.

@@ -29,11 +29,6 @@ const LANGUAGE_NEUTRAL = [
   '/flags/',
   '/images/',
   '/favicon',
-  // The member profile page exists only in English. The Turkish directory
-  // links to it because there is nowhere else to send a reader today --
-  // see the note in issue #113. When /tr/members/profile exists, this
-  // exception goes and the test starts enforcing it.
-  '/members/',
 ];
 
 function pages(dir: string): string[] {
