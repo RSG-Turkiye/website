@@ -46,8 +46,9 @@ confirmed by the first live call in the plan's first task, before anything
 else is built on them.
 
 - One GraphQL endpoint, `POST https://api.buffer.com`, header
-  `Authorization: Bearer <key>`. The key is account-wide, has no stated
-  expiry, and is created by the organisation owner (turkey.rsg@gmail.com).
+  `Authorization: Bearer <key>`. The key is account-wide, created by the
+  organisation owner (turkey.rsg@gmail.com), and lasts one year: the current
+  one expires on 2027-10-19 (shown in Buffer's API settings).
 - Free plan: 3 channels (now: LinkedIn Page, Instagram, X), 100 requests per
   15 min, 250 per day, 3000 per 30 days per key. Over the limit: HTTP 429,
   `Retry-After`, `errors[0].extensions.code = RATE_LIMIT_EXCEEDED`.
@@ -76,8 +77,15 @@ requeue on reconnect all work unchanged:
   `scopes` = `buffer:<organizationId>`. No token is stored: the key stays in
   the `BUFFER_API_KEY` Pages secret, so rotating it never needs a reconnect.
 - `connectionStatus` counts a row with `scopes` starting `buffer:` as having
-  a token (today it needs `access_token_enc`); `expires_at` stays null, so it
-  never shows "expiring".
+  a token (today it needs `access_token_enc`).
+- The key's end date is a plain Pages variable, `BUFFER_KEY_EXPIRES`
+  (`2027-10-19`), set next to the secret and changed whenever the key is
+  replaced. It is the connection's expiry: the existing rules then show
+  "expiring" in the panel and the banner 14 days before, and "broken" after.
+  The daily job mails the admins 30, 14 and 3 days before (once each), with
+  the steps to rotate: new key in Buffer, `wrangler pages secret put`, new
+  date in `BUFFER_KEY_EXPIRES`, redeploy. A missing date shows as
+  "end date unknown" on the card rather than as healthy.
 - `usableToken` returns `env.BUFFER_API_KEY` for such a row; a missing
   secret is `unreadable` (admins are told, as for a broken token).
 - The registry picks the step per row: `scopes` starts with `buffer:` →
