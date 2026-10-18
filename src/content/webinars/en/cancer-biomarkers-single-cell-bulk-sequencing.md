@@ -5,7 +5,7 @@ speaker: "Akdes Serin Harmancı"
 speakerAffiliation: "Center for Computational Systems Medicine, UTHealth Houston"
 speakerTitle: ""
 description: "Integrated genetic and epigenetic analysis of non-NF2 meningiomas, and CaSpER: an algorithm that identifies, visualises and integrates CNV events at multiscale resolution from single-cell and bulk RNA-Seq."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=FSL3KT8gY2s"
 slidesUrl: ""
 year: 2018
 type: bioinfonet

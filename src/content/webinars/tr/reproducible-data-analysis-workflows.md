@@ -5,7 +5,7 @@ speaker: "Mine Çetinkaya-Rundel"
 speakerAffiliation: ""
 speakerTitle: "Doçent"
 description: "Tekrarlanabilirlik için iyi, daha iyi ve en iyi iş akışları: veri saklama ve temizlemeden analize, oradan sonucun aktarılmasına."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=994uO3U-R1c"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

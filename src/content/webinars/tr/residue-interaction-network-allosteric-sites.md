@@ -6,7 +6,7 @@ speakerAffiliation: "İstanbul Teknik Üniversitesi"
 speakerTitle: "Doçent Doktor"
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789055924/rsgturkey/webinars/ozge-kurkcuoglu.jpg"
 description: "Proteinin doğal yapısını ağırlıklı bir çizge olarak tanımlayan ve ağ merkezilik ölçüleriyle ilaç bağlanması için olası allosterik bölgeler öneren rezidü etkileşim ağı modeli; GPCR'ler ve diğer komplekslerde gösterimi."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=P-4va_F5U_s"
 slidesUrl: ""
 year: 2025
 type: bioinfonet

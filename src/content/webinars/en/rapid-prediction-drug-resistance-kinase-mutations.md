@@ -5,7 +5,7 @@ speaker: Mehmet Ergüven
 speakerAffiliation: University of Münster
 speakerTitle: PhD Student
 description: A comparison of six web-based scoring tools in assessing the effect of kinase mutations on their interactions with inhibitors, using the new BINDKIN benchmark.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=NF5Ltoh4pGI"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

@@ -5,7 +5,7 @@ speaker: "Gonzalo Parra"
 speakerAffiliation: "EMBL Heidelberg"
 speakerTitle: "Doktora Sonrası Araştırmacı, İstatistiksel Genomik ve Sistem Genetiği"
 description: "Tek hücre transkriptomiğinden çok sayıda hücre kaderi içeren soy ağaçlarını kuran ve bu ağaçlar boyunca zamansal gen ifadesi profillerini tamamlayan MERLoT aracı."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=EhEzK8y9OO0"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

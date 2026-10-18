@@ -5,7 +5,7 @@ speaker: Stephan Schiffels
 speakerAffiliation: Max Planck İnsanlık Tarihi Bilimi Enstitüsü
 speakerTitle: Popülasyon Genetiği Grup Lideri, Arkeogenetik Bölümü
 description: "İnsanlık tarihini genomlardan okumak: türümüzün Afrika'daki kökenleri, antik DNA üzerinden Anglosakson göç dönemi ve Kuzey Amerika'nın iskânı."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=qGW67OAbXD4"
 slidesUrl: ""
 year: 2018
 type: bioinfonet

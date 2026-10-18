@@ -6,7 +6,7 @@ speakerAffiliation: KU Leuven, Mikrobiyal Sistem Biyolojisi Laboratuvarı
 speakerTitle: Doktora Sonrası Araştırmacı
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789169220/rsgturkey/webinars/haris-zafeiropoulos.png"
 description: Algoritmaların, yazılım araçlarının ve metabolik modellerin mikrobiyal topluluklardaki etkileşimleri nasıl ortaya çıkardığı; çevresel değişim, topluluk yapısı ve ekosistem etkisi arasındaki geri besleme.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=lshEMebcQJE"
 slidesUrl: ""
 year: 2026
 type: bioinfonet

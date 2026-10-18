@@ -5,7 +5,7 @@ speaker: "Akdes Serin Harmancı"
 speakerAffiliation: "Hesaplamalı Sistem Tıbbı Merkezi, UTHealth Houston"
 speakerTitle: ""
 description: "NF2 dışı meninjiyomların bütünleşik genetik ve epigenetik analizi ve CaSpER: tek hücre ile yığın RNA-Seq verisinden CNV olaylarını çok ölçekli çözünürlükte belirleyen, görselleştiren ve bütünleştiren bir algoritma."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=FSL3KT8gY2s"
 slidesUrl: ""
 year: 2018
 type: bioinfonet

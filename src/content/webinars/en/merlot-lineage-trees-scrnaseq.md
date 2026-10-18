@@ -5,7 +5,7 @@ speaker: "Gonzalo Parra"
 speakerAffiliation: "EMBL Heidelberg"
 speakerTitle: "Postdoctoral Researcher, Statistical Genomics and Systems Genetics"
 description: "MERLoT, a tool for reconstructing cellular lineage trees with many cell fates from single-cell transcriptomics, and for imputing temporal gene expression profiles along them."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=EhEzK8y9OO0"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

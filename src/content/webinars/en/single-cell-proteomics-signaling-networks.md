@@ -5,7 +5,7 @@ speaker: Savaş Tay
 speakerAffiliation: ""
 speakerTitle: ""
 description: Using microfluidic live-cell imaging and the Prox-seq technology to understand how the NF-κB immune pathway processes complex signals, and how single-cell dynamics shape gene expression.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=9WDuHfY0FP4"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

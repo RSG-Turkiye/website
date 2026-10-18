@@ -5,7 +5,7 @@ speaker: "Tunca Doğan"
 speakerAffiliation: "KanSiL, ODTÜ Enformatik Enstitüsü Sağlık Bilişimi Bölümü ve EMBL-EBI"
 speakerTitle: ""
 description: "Büyük ölçekli biyolojik veriler için iki derin öğrenme yöntemi: tanımlanmamış proteinlerin işlevlerini öngören DEEPred ve yeni ilaç adaylarını belirleyen DEEPscreen. Bir de derin öğrenmenin sınırları."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=ijr0B5oTnuY"
 slidesUrl: ""
 year: 2018
 type: bioinfonet

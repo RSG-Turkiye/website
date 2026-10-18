@@ -5,7 +5,7 @@ speaker: Antoine van Kampen
 speakerAffiliation: Amsterdam Üniversitesi Tıp Merkezleri (AMC)
 speakerTitle: Profesör
 description: ENCORE uygulamasının pratik kullanımını kapsayan bir webinar; hesaplamalı araştırmalarda tekrarlanabilirliği ve şeffaflığı artırmaya yönelik yöntemler.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=vssNf3CGVho"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

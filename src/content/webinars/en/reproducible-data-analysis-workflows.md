@@ -5,7 +5,7 @@ speaker: "Mine Çetinkaya-Rundel"
 speakerAffiliation: ""
 speakerTitle: "Associate Professor"
 description: "Good, better and best workflows for reproducibility: from data storage and cleaning through analysis to communicating the final result."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=994uO3U-R1c"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

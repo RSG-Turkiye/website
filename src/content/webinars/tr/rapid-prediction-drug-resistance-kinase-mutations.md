@@ -5,7 +5,7 @@ speaker: Mehmet Ergüven
 speakerAffiliation: University of Münster
 speakerTitle: Doktora Öğrencisi
 description: Altı web tabanlı puanlama aracının kinaz mutasyonlarının inhibitörleriyle etkileşimleri üzerindeki etkisini değerlendirmedeki performanslarının karşılaştırması; yeni BINDKIN kıyas ölçütü kullanılarak.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=NF5Ltoh4pGI"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

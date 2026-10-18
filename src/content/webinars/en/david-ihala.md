@@ -5,7 +5,7 @@ speaker: David Žihala
 speakerAffiliation: ""
 speakerTitle: ""
 description: An exploration of codon reassignments and unprecedented variants of the mitochondrial genetic code in the green algal order Sphaeropleales.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=KkJ7BSzv88o"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

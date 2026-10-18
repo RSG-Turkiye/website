@@ -5,7 +5,7 @@ speaker: "Öznur Taştan"
 speakerAffiliation: ""
 speakerTitle: "Doçent"
 description: "İyi tanımlanmış kinazlardan az çalışılmış olanlara bilgi aktaran sıfır-çekimli öğrenme yaklaşımı; öncesinde verisi bulunmayan kinazlar için fosforilasyon bölgesi tahmini."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jW1i9vX6LS0"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

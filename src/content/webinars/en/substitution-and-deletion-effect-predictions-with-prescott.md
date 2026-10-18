@@ -6,7 +6,7 @@ speakerAffiliation: "Van Yüzüncü Yıl University"
 speakerTitle: ""
 speakerPhoto: ""
 description: "PRESCOTT and ESCOTT for predicting the effect of amino-acid substitutions and deletions, together with a precomputed ESCOTT database covering 19,295 human proteins."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=Bl91wPznfbE"
 slidesUrl: ""
 year: 2025
 type: bioinfonet

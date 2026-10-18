@@ -5,7 +5,7 @@ speaker: Antoine van Kampen
 speakerAffiliation: Amsterdam University Medical Centers (AMC)
 speakerTitle: Professor
 description: A webinar on the practical use of the ENCORE implementation, and on methods for improving reproducibility and transparency in computational research.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=vssNf3CGVho"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

@@ -5,7 +5,7 @@ speaker: Afshan Nabi
 speakerAffiliation: OccamzRazor
 speakerTitle: Machine Learning Engineer
 description: A framework that exploits the training dynamics of deep learning models to detect misannotated lncRNAs, reaching >91% AUC without the need for ribo-seq experiments.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=Dip7r7Gz36s"
 slidesUrl: ""
 year: 2021
 type: bioinfonet

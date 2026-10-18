@@ -5,7 +5,7 @@ speaker: "Ömer Gökçümen"
 speakerAffiliation: ""
 speakerTitle: ""
 description: "Binlerce antik ve modern genomun ve yeni hesaplamalı yaklaşımların insanın evrimsel tarihini nasıl yeniden yazdığı: homininler arası gen akışı, yapısal varyantlar ve yakın soyun belirlenmesi."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=0TrES_f19hs"
 slidesUrl: ""
 year: 2019
 type: bioinfonet
