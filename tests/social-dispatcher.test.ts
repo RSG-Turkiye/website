@@ -2,6 +2,7 @@ import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { setupSocial, stubMail, KEYS } from './lib/social';
 import { stubGraph, type GraphCall } from './lib/instagram';
+import { stubHttp } from './lib/http';
 import { dispatchSocial } from '../functions/_lib/social-dispatcher';
 import { onRequestPost as endpoint } from '../functions/api/social/dispatch';
 import { connectionUpsert } from '../functions/_lib/connections';
@@ -360,4 +361,34 @@ test('a waiting target of one platform is healed only by that platform\'s workin
   await dispatchSocial(env, T0 + 30, ORIGIN);
   const rows = db.prepare(`SELECT platform, status FROM social_post_targets ORDER BY platform`).all() as { platform: string; status: string }[];
   assert.deepEqual(rows.map((r) => [r.platform, r.status]), [['instagram', 'queued'], ['linkedin', 'waiting_connection']]);
+});
+
+test('a LinkedIn connection through Buffer: the tick hands the post to Buffer, a later tick reads it back published', async () => {
+  const { env, db } = world({ platforms: ['linkedin'] });
+  const e = { ...(env as object), BUFFER_API_KEY: 'buf-key' } as never as Parameters<typeof dispatchSocial>[0];
+  await (await connectionUpsert(e as never, 'linkedin', {
+    accountId: 'chan1', accountName: 'RSG Page', accessToken: null, refreshToken: null, scopes: 'buffer:org1', expiresAt: T0 + 300 * 86400, refreshExpiresAt: null,
+  }, 'admin', T0 - 86400)).run();
+  const asked: string[] = [];
+  const s = stubHttp(['api.buffer.com'], (c) => {
+    const q = String((c.body as { query: string }).query);
+    asked.push(q.match(/^(?:query|mutation) (\w+)/)![1]);
+    if (q.startsWith('mutation CreatePost')) {
+      assert.equal(((c.body as { variables: { input: { assets: { image: { url: string } }[] } } }).variables.input.assets[0].image.url), `${ORIGIN}/api/images/${KEYS.feed}`);
+      return Response.json({ data: { createPost: { __typename: 'PostActionSuccess', post: { id: 'bp1' } } } });
+    }
+    if (q.startsWith('query Post')) return Response.json({ data: { post: { id: 'bp1', status: 'sent', sentAt: '2027-01-01T00:00:00Z', externalLink: 'https://www.linkedin.com/feed/update/urn:li:share:7/', error: null } } });
+    return undefined;
+  });
+  try {
+    await dispatchSocial(e, T0 + 30, ORIGIN);
+    assert.equal((db.prepare(`SELECT status FROM social_post_targets WHERE platform = 'linkedin'`).get() as { status: string }).status, 'publishing');
+    await dispatchSocial(e, T0 + 60, ORIGIN);
+    assert.deepEqual(asked, ['CreatePost'], 'no status read before its turn');
+    await dispatchSocial(e, T0 + 100, ORIGIN);
+  } finally { s.restore(); }
+  assert.deepEqual(asked, ['CreatePost', 'Post']);
+  const li = db.prepare(`SELECT status, remote_id, permalink FROM social_post_targets WHERE platform = 'linkedin'`).get() as Record<string, unknown>;
+  assert.deepEqual({ ...li }, { status: 'published', remote_id: 'bp1', permalink: 'https://www.linkedin.com/feed/update/urn:li:share:7/' });
+  assert.equal(postStatus(db), 'published');
 });

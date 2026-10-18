@@ -12,7 +12,7 @@ import { markOk, markBroken, requeueWaitingStatement } from './connections';
 import { rowToDraft, type PostRow } from './social-posts';
 import { captionFor, type SocialPlatform } from './social-limits';
 import { afterStep, derivePostStatus, isLate, CLAIM_LEASE_SECONDS, type TargetNow, type TargetStatus } from './social-dispatch';
-import { PUBLISHERS, PLATFORM_LABEL, SKIP_WHEN_UNCONNECTED } from './social/registry';
+import { PUBLISHERS, PLATFORM_LABEL, SKIP_WHEN_UNCONNECTED, publisherFor } from './social/registry';
 import { usableToken, type Usable } from './social/tokens';
 import { appendAudit } from './audit';
 import { notificationText, notifyEach, publisherEmails, adminEmails, postLabel, type NotifyKind } from './social-notify';
@@ -152,8 +152,8 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
     }
 
     const d = rowToDraft(row);
-    const step = await publish({
-      account: usable.account, token: usable.token, now,
+    const step = await (publisherFor(platform, usable.via) ?? publish)({
+      account: usable.account, token: usable.token, now, platform,
       post: {
         type: d.type, caption: captionFor(d, platform),
         media: d.media.map((m) => ({ key: m.key, alt: m.alt, url: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.key}`, load: () => loadMedia(env, m.key) })),

@@ -8,5 +8,6 @@ export const PUBLISH_REASON_KEYS = [
   'account_restricted', 'spam', 'media_unreachable', 'rate_limited', 'daily_limit', 'expired', 'container_error',
   'unavailable', 'not_available', 'unknown', 'processing',
   'duplicate', 'uncertain', 'no_api_access', 'not_connected',
+  'buffer_refused', 'limit',
 ] as const;
 export type PublishReasonKey = (typeof PUBLISH_REASON_KEYS)[number];
