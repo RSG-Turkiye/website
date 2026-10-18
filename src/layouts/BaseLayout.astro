@@ -65,6 +65,9 @@ const alternateHref = (path: string) => new URL(path, site).href;
          16 or 32 pixels and the full-size logo cost 377 KB on every first
          visit. public/favicon.svg is Astro's default logo, not ours. -->
     <link rel="icon" type="image/png" href="/logo/favicon-64.png" />
+    <!-- A plain-text summary for AI assistants (see src/lib/llms-txt.ts). Nothing
+         announces /llms.txt by itself; a link is what lets a crawler find it. -->
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
     <!-- Not `{pageTitle} | RSG-Turkiye`: every page already puts the brand in

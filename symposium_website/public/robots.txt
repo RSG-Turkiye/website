@@ -2,3 +2,5 @@ User-agent: *
 Allow: /
 
 Sitemap: https://symposium.rsg-turkiye.iscbsc.org/sitemap-index.xml
+
+# A plain-text summary of this site for AI assistants: https://symposium.rsg-turkiye.iscbsc.org/llms.txt
