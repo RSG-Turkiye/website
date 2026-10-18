@@ -47,14 +47,15 @@ export function chip(text: string, tone: keyof typeof TONES = 'neutral'): string
   return `<span class="inline-flex items-center max-w-full min-w-0 break-all px-2 py-0.5 rounded-full text-xs font-medium ${TONES[tone]}">${escapeHtml(text)}</span>`;
 }
 
-export function row(o: { title: string; subtitle?: string; chips?: string; trailing?: string; attrs?: string; selected?: boolean }): string {
-  return `<div ${o.attrs ?? ''} class="shrink-0 flex items-center gap-3 lg:gap-2 min-h-14 lg:min-h-0 px-4 py-3 lg:px-3 lg:py-2 bg-white border ${o.selected ? 'border-navy-mid bg-navy-light/40' : 'border-border'} rounded-xl">
-    <div class="flex-1 min-w-0">
+/** stack: on a phone the trailing buttons get their own line under the text, for rows with long button labels. */
+export function row(o: { title: string; subtitle?: string; chips?: string; trailing?: string; attrs?: string; selected?: boolean; stack?: boolean }): string {
+  return `<div ${o.attrs ?? ''} class="shrink-0 flex ${o.stack ? 'flex-wrap sm:flex-nowrap' : ''} items-center gap-3 lg:gap-2 min-h-14 lg:min-h-0 px-4 py-3 lg:px-3 lg:py-2 bg-white border ${o.selected ? 'border-navy-mid bg-navy-light/40' : 'border-border'} rounded-xl">
+    <div class="flex-1 ${o.stack ? 'basis-full sm:basis-0' : ''} min-w-0">
       <p data-row-title class="text-sm font-medium text-navy truncate">${escapeHtml(o.title)}</p>
       ${o.subtitle ? `<p class="text-xs text-gray-500 truncate">${escapeHtml(o.subtitle)}</p>` : ''}
       ${o.chips ? `<div class="flex flex-wrap gap-1 mt-1">${o.chips}</div>` : ''}
     </div>
-    ${o.trailing ? `<div class="shrink-0 flex items-center gap-2">${o.trailing}</div>` : ''}
+    ${o.trailing ? `<div class="${o.stack ? 'flex-wrap sm:flex-nowrap' : 'shrink-0'} flex items-center gap-2">${o.trailing}</div>` : ''}
   </div>`;
 }
 

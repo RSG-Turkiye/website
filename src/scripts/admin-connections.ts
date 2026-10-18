@@ -71,6 +71,7 @@ function row(c: Conn): string {
     chips: chip(deps.t(`admin.connections.status.${c.status}`), STATUS_TONE[c.status]) + (note ? `<span class="text-xs text-gray-500 min-w-0 max-w-full break-all">${escapeHtml(note)}</span>` : ''),
     trailing: actions(c),
     attrs: `data-platform="${c.platform}"`,
+    stack: true,
   });
 }
 
