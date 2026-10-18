@@ -10,7 +10,7 @@ const stages = allStages.filter(s => s.id.startsWith('tr/')).sort((a, b) => a.da
 const totalResources = stages.reduce((sum, s) => sum + s.data.resources.length, 0);
 
 const stageResourceIds = stages.map(stage =>
-  stage.data.resources.map((_, ri) => `tr-roadmap-${stage.data.number}-${ri}`)
+  stage.data.resources.map(res => `tr-${res.id}`)
 );
 ---
 

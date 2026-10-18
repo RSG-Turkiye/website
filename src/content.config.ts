@@ -93,6 +93,13 @@ const webinars = defineCollection({
 //   The pages pick them up automatically on the next build.
 
 const resourceSchema = z.object({
+  // The key members' progress is saved under, so it must never change once
+  // published: reorder, insert or delete freely, but leave every id alone.
+  // A new resource gets any new unique id (letters, digits, - and _), the
+  // same in en/ and tr/. Turkish pages store it with a "tr-" prefix.
+  // Existing ids look positional because they were seeded from the old
+  // position-based keys; they are not positions any more.
+  id: z.string().regex(/^[a-z0-9_-]+$/i).max(110),
   title: z.string(),
   // Explain WHY this resource — what does it give the reader that others don't?
   description: z.string(),

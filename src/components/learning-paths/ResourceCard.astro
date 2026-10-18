@@ -1,10 +1,15 @@
 ---
+import { getCollection } from 'astro:content';
+import { counterpartSlug } from '../../lib/translations';
+
 /**
  * ResourceCard, renders a single learning path resource with a progress checkbox.
  *
  * URL resolution order for webinar resources:
  *   1. webinarSlug  → /webinars/<slug>/  (internal page; the trailing slash is
- *      the canonical form, so the link does not cost a 308 redirect)
+ *      the canonical form, so the link does not cost a 308 redirect). On a
+ *      Turkish page it goes to the Turkish twin, /tr/webinars/<its slug>/,
+ *      when one exists.
  *   2. youtubeUrl   → YouTube             (external, before the page exists)
  *   3. neither      → no link            ("Recording not yet available")
  *
@@ -29,6 +34,11 @@ interface Props {
 }
 
 const { resource, resourceId, lang = 'en' } = Astro.props;
+
+// Turkish webinars have their own slugs; webinarSlug always names the English one.
+const trWebinarSlug = lang === 'tr' && resource.webinarSlug
+  ? counterpartSlug(await getCollection('webinars', ({ data }) => !data.draft), `en/${resource.webinarSlug}`, 'tr')
+  : null;
 
 const isWebinar = resource.tag === 'Webinar';
 
@@ -86,7 +96,7 @@ let unavailable = false;
 
 if (isWebinar) {
   if (resource.webinarSlug) {
-    href = `/webinars/${resource.webinarSlug}/`;
+    href = trWebinarSlug ? `/tr/webinars/${trWebinarSlug}/` : `/webinars/${resource.webinarSlug}/`;
     linkLabel = L.watch;
   } else if (resource.youtubeUrl) {
     href = resource.youtubeUrl;

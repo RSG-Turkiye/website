@@ -9,9 +9,9 @@ const stages = allStages.filter(s => s.id.startsWith('en/')).sort((a, b) => a.da
 
 const totalResources = stages.reduce((sum, s) => sum + s.data.resources.length, 0);
 
-// Pre-compute resource IDs exactly as the client script will
+// Progress keys are the resources' own ids, as on the domain pages.
 const stageResourceIds = stages.map(stage =>
-  stage.data.resources.map((_, ri) => `roadmap-${stage.data.number}-${ri}`)
+  stage.data.resources.map(res => res.id)
 );
 ---
 

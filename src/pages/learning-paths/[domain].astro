@@ -52,12 +52,12 @@ const levels = LEVEL_ORDER.map(id => ({
 // Default active level = first one that exists
 const defaultLevel = levels.find(l => l.exists)?.id ?? 'explorer';
 
-// Pre-compute stable resource IDs: domain-level-sectionType-index
-// These match what the client script uses.
+// Progress keys come from each resource's own id (see resourceSchema in
+// content.config.ts), never its position, so editing a list keeps members' ticks.
 const levelResourceIds = levels.map(level => {
   if (!level.content) return [];
   return level.content.sections.map(section =>
-    section.resources.map((_, ri) => `${domainSlug}-${level.id}-${section.type}-${ri}`)
+    section.resources.map(res => res.id)
   );
 });
 
