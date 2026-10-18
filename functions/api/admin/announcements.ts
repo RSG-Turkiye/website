@@ -22,6 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
      ORDER BY created_at DESC`
   ).all<{
     id: string;
+    site: string;
     title: string;
     description: string;
     button_text: string;
@@ -34,6 +35,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   return jsonResponse({
     announcements: result.results.map(a => ({
       id: a.id,
+      // The panel fills its site picker from this and sends it back on save;
+      // without it every edit moved a symposium announcement to the main site.
+      site: a.site,
       title: a.title,
       description: a.description,
       button_text: a.button_text,
