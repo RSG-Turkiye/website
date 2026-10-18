@@ -5,11 +5,11 @@
  * registers that in REFRESH_ON_USE).
  */
 import type { ConnectionRow } from '../connections';
-import { getConnection, connectionStatus, readAccessToken, isBufferRow, bufferOrg } from '../connections';
+import { getConnection, connectionStatus, readAccessToken, isBufferRow, bufferOrg, withLiveExpiry } from '../connections';
 import type { SocialPlatform } from '../social-limits';
 import { refreshXOnUse } from './x';
 
-export type TokenEnv = { DB: D1Database; TOKEN_ENC_KEY?: string; X_CLIENT_ID?: string; X_CLIENT_SECRET?: string; BUFFER_API_KEY?: string };
+export type TokenEnv = { DB: D1Database; TOKEN_ENC_KEY?: string; X_CLIENT_ID?: string; X_CLIENT_SECRET?: string; BUFFER_API_KEY?: string; BUFFER_KEY_EXPIRES?: string };
 
 export type Usable =
   /** via: 'buffer' when the connection posts through Buffer (token = the Buffer key, account.org its organisation). */
@@ -28,7 +28,7 @@ export const REFRESH_ON_USE: Partial<Record<SocialPlatform, { within: number; re
 REFRESH_ON_USE.x = { within: 300, refresh: refreshXOnUse };
 
 export async function usableToken(env: TokenEnv, platform: SocialPlatform, now: number): Promise<Usable> {
-  const row = await getConnection(env.DB, platform);
+  const row = withLiveExpiry(await getConnection(env.DB, platform), env);
   const status = connectionStatus(row, now);
   if (status === 'unused') return { ok: false, why: 'unused' };
   if (status === 'broken' || !row?.account_id) return { ok: false, why: 'broken' };

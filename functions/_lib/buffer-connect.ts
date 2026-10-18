@@ -9,22 +9,26 @@ import type { Env } from './auth';
 import { getSessionUser, jsonResponse, checkCsrf } from './auth';
 import { connectionUpsert, requeueWaitingStatement, bufferKeyExpiry, BUFFER_SCOPE_PREFIX } from './connections';
 import { runWithAudit, appendAudit } from './audit';
-import { listBufferChannels, channelFits, type BufferChannel } from './social/buffer';
+import { listBufferChannels, channelFits, channelUsable, isAuthFailure, type BufferChannel } from './social/buffer';
 
 export type BufferPlatform = 'linkedin' | 'x';
 
 /**
- * Which channel to save: the one asked for, or the only one that fits. More
- * than one and none asked for: the panel shows the list and asks again.
+ * Which channel to save: the one asked for, or the only usable one that fits.
+ * More than one and none asked for: the panel shows the list and asks again.
+ * A channel disconnected or locked in Buffer is never offered; when those are
+ * all there is, the answer says so (fix it in Buffer first).
  */
 export function chooseChannel(platform: BufferPlatform, channels: BufferChannel[], wanted: string | null):
-  { ok: true; channel: BufferChannel } | { ok: false; code: 'no_channel' | 'unknown_channel' } | { ok: false; code: 'choose'; choices: { id: string; name: string }[] } {
-  const fits = channels.filter((c) => channelFits(platform, c));
+  { ok: true; channel: BufferChannel } | { ok: false; code: 'no_channel' | 'unknown_channel' | 'channel_unusable' } | { ok: false; code: 'choose'; choices: { id: string; name: string }[] } {
+  const fitting = channels.filter((c) => channelFits(platform, c));
+  const fits = fitting.filter(channelUsable);
   if (wanted) {
     const c = fits.find((f) => f.id === wanted);
-    return c ? { ok: true, channel: c } : { ok: false, code: 'unknown_channel' };
+    if (c) return { ok: true, channel: c };
+    return { ok: false, code: fitting.some((f) => f.id === wanted) ? 'channel_unusable' : 'unknown_channel' };
   }
-  if (fits.length === 0) return { ok: false, code: 'no_channel' };
+  if (fits.length === 0) return { ok: false, code: fitting.length ? 'channel_unusable' : 'no_channel' };
   if (fits.length === 1) return { ok: true, channel: fits[0] };
   return { ok: false, code: 'choose', choices: fits.map((c) => ({ id: c.id, name: c.name })) };
 }
@@ -49,14 +53,14 @@ export function bufferConnect(platform: BufferPlatform): PagesFunction<Env> {
 
     const listed = await listBufferChannels(env.BUFFER_API_KEY);
     if (!listed.ok) {
-      const auth = listed.status === 401 || listed.code === 'UNAUTHORIZED' || listed.code === 'UNAUTHENTICATED';
+      const auth = isAuthFailure(listed);
       await appendAudit(env.DB, { userId: user.id, action: 'connection.buffer_failed', targetType: 'connection', targetId: platform, details: { status: listed.status, code: listed.code } }, now);
       return jsonResponse({ error: listed.message, code: auth ? 'buffer_auth' : 'buffer_unavailable' }, 502);
     }
     const pick = chooseChannel(platform, listed.channels, wanted);
     if (!pick.ok) {
       if (pick.code === 'choose') return jsonResponse({ choose: pick.choices });
-      return jsonResponse({ error: pick.code, code: pick.code }, pick.code === 'no_channel' ? 409 : 400);
+      return jsonResponse({ error: pick.code, code: pick.code }, pick.code === 'unknown_channel' ? 400 : 409);
     }
     const c = pick.channel;
     const upsert = await connectionUpsert(env, platform, {

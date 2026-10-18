@@ -69,6 +69,9 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
   }
 
   // Fewest attempts first: a target retrying a transient error must not starve newer due posts.
+  // A Buffer target between status reads (its state's "next" still ahead) is left out
+  // here rather than claimed and put back, so it never takes a batch slot from a due post.
+  // CASE keeps json_extract away from Instagram's plain container ids. Same rows, same index.
   const due = (await db.prepare(
     `SELECT p.*, t.platform, t.status AS target_status, t.attempts, t.first_tried_at, t.container_id, t.remote_id, t.permalink,
             t.published_at, t.last_error, t.confirmed_at, u.email AS author_email, pl.title AS plan_title
@@ -78,9 +81,11 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
        LEFT JOIN social_plans pl ON pl.post_id = p.id
       WHERE t.status IN ('queued','publishing') AND p.status = 'scheduled' AND p.scheduled_at <= ?
         AND (t.claimed_at IS NULL OR t.claimed_at <= ?)
+        AND (CASE WHEN t.status = 'publishing' AND t.container_id LIKE '{"buf":1,%' AND json_valid(t.container_id)
+                  THEN COALESCE(json_extract(t.container_id, '$.next'), 0) ELSE 0 END) <= ?
       ORDER BY t.attempts, p.scheduled_at
       LIMIT ?`,
-  ).bind(now, now - CLAIM_LEASE_SECONDS, TICK_BATCH).all<Due>()).results;
+  ).bind(now, now - CLAIM_LEASE_SECONDS, now, TICK_BATCH).all<Due>()).results;
   summary.candidates = due.length;
 
   // A tick that died between a target's write and its post's settle leaves a post 'scheduled' with every target settled; no claim would ever touch it again.
@@ -172,10 +177,12 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
     // Lost the lease (the step outlived it and another tick took over): that tick owns the target now; record nothing.
     if (!await write(db, row, tr.next, now)) continue;
     await settlePost(db, row.id, now);
-    if (tr.audit) {
+    // A step's notes (a recovered create, say) are worth a line even when the status did not change.
+    const notes = 'notes' in step && step.notes?.length ? step.notes : undefined;
+    if (tr.audit || notes) {
       await appendAudit(db, {
-        userId: null, action: tr.audit, targetType: 'social_post', targetId: row.id,
-        details: { platform, status: tr.next.status, reason: tr.next.last_error, remoteId: tr.next.remote_id, notes: 'notes' in step ? step.notes : undefined },
+        userId: null, action: tr.audit ?? 'social.target.note', targetType: 'social_post', targetId: row.id,
+        details: { platform, status: tr.next.status, reason: tr.next.last_error, remoteId: tr.next.remote_id, notes },
       }, now);
     }
     if (step.kind === 'done') { summary.published++; await markOk(db, platform, now); }

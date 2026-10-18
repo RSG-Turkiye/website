@@ -30,7 +30,7 @@ type Conn = {
   via: 'buffer' | null;
 };
 
-const BUFFER_ERRORS = ['buffer_not_configured', 'buffer_auth', 'buffer_unavailable', 'no_channel', 'unknown_channel'];
+const BUFFER_ERRORS = ['buffer_not_configured', 'buffer_auth', 'buffer_unavailable', 'no_channel', 'unknown_channel', 'channel_unusable'];
 const viaBufferPossible = (p: Conn['platform']) => p === 'linkedin' || p === 'x';
 
 const STATUS_TONE = { connected: 'green', expiring: 'amber', broken: 'red', unused: 'neutral' } as const;

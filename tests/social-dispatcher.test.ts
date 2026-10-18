@@ -392,3 +392,38 @@ test('a LinkedIn connection through Buffer: the tick hands the post to Buffer, a
   assert.deepEqual({ ...li }, { status: 'published', remote_id: 'bp1', permalink: 'https://www.linkedin.com/feed/update/urn:li:share:7/' });
   assert.equal(postStatus(db), 'published');
 });
+
+test('Buffer targets waiting for their next status read take no batch slot from a due post', async () => {
+  const { env, db } = world({ platforms: ['linkedin', 'x'] });
+  const e = { ...(env as object), BUFFER_API_KEY: 'buf-key' } as never as Parameters<typeof dispatchSocial>[0];
+  await connect(e);
+  for (const p of ['linkedin', 'x'] as const) {
+    await (await connectionUpsert(e as never, p, { accountId: `${p}-chan`, accountName: 'RSG', accessToken: null, refreshToken: null, scopes: 'buffer:org1', expiresAt: null, refreshExpiresAt: null }, 'admin', T0 - 86400)).run();
+  }
+  const waiting = JSON.stringify({ buf: 1, attempt: null, first: T0, postId: 'bp', next: T0 + 1000, polls: 1 });
+  db.prepare(`UPDATE social_post_targets SET status = 'publishing', container_id = ?, first_tried_at = ? WHERE post_id = 'p1'`).run(waiting, T0);
+  db.prepare(`INSERT INTO social_posts (id, type, caption, media, platforms, scheduled_at, status, revision, created_by, created_at, updated_at)
+              VALUES ('p2','image','İkinci',?,'["instagram"]',?,'scheduled',1,'ed',1,1)`).run(JSON.stringify([{ key: KEYS.feed, alt: 'Afiş' }]), T0 + 10);
+  db.prepare(`INSERT INTO social_post_targets (post_id, platform, status) VALUES ('p2', 'instagram', 'queued')`).run();
+  const buf = stubHttp(['api.buffer.com'], () => { throw new Error('no Buffer call while both wait'); });
+  const g = stubGraph(graphFlow(['IN_PROGRESS']));
+  try {
+    const summary = await dispatchSocial(e, T0 + 60, ORIGIN);
+    assert.equal(summary.claimed, 1);
+  } finally { g.restore(); buf.restore(); }
+  assert.equal((db.prepare(`SELECT status FROM social_post_targets WHERE post_id = 'p2'`).get() as { status: string }).status, 'publishing', 'the due Instagram target went ahead');
+  assert.deepEqual((db.prepare(`SELECT container_id FROM social_post_targets WHERE post_id = 'p1'`).all() as { container_id: string }[]).map((r) => r.container_id), [waiting, waiting], 'untouched');
+});
+
+test('a recovered Buffer create is recorded in the audit log even though the target stays publishing', async () => {
+  const { env, db } = world({ platforms: ['linkedin'] });
+  const e = { ...(env as object), BUFFER_API_KEY: 'buf-key' } as never as Parameters<typeof dispatchSocial>[0];
+  await (await connectionUpsert(e as never, 'linkedin', { accountId: 'chan1', accountName: 'RSG', accessToken: null, refreshToken: null, scopes: 'buffer:org1', expiresAt: null, refreshExpiresAt: null }, 'admin', T0 - 86400)).run();
+  db.prepare(`UPDATE social_post_targets SET status = 'publishing', container_id = ?, first_tried_at = ? WHERE post_id = 'p1'`)
+    .run(JSON.stringify({ buf: 1, attempt: T0, first: T0, postId: null, next: 0, polls: 0 }), T0);
+  const buf = stubHttp(['api.buffer.com'], () => Response.json({ data: { posts: { edges: [{ node: { id: 'bp5', text: 'Merhaba', createdAt: new Date((T0 + 5) * 1000).toISOString() } }] } } }));
+  try { await dispatchSocial(e, T0 + 60, ORIGIN); } finally { buf.restore(); }
+  const row = db.prepare(`SELECT details FROM audit_log WHERE action = 'social.target.note'`).get() as { details: string } | undefined;
+  assert.ok(row, 'a note row');
+  assert.deepEqual(JSON.parse(row.details).notes, ['recovered_created']);
+});

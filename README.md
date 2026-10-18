@@ -844,8 +844,15 @@ checks the channels once (a channel disconnected or locked in Buffer marks
 the connection broken and mails the admins) and mails the admins 30, 14 and
 3 days before the key expires. To renew it: a new key in Buffer, the
 `wrangler pages secret put` above, the new date in `BUFFER_KEY_EXPIRES`,
-deploy, then delete the old key in Buffer. Comments are answered in Buffer's
-Community tab; Buffer's API has no comments or messages yet.
+deploy, then delete the old key in Buffer. `BUFFER_KEY_EXPIRES` is read
+when it is used, so the new date counts as soon as it is deployed. Comments
+are answered in Buffer's Community tab; Buffer's API has no comments or
+messages yet.
+
+If Buffer's answer to a create is lost, the target looks for the post in the
+channel's list for ten minutes before sending it again. A target switched
+between Buffer and a direct connection while a post was in flight ends
+`failed` with "uncertain": check the account before pressing Retry.
 
 ### If a post's answer is lost
 

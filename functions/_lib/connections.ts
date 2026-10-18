@@ -57,6 +57,15 @@ export function connectionExpiry(row: Pick<ConnectionRow, 'refresh_expires_at' |
  * success means broken; a later success clears it. `hasLegacyToken` covers
  * Gmail while its refresh token still lives in the GMAIL_REFRESH_TOKEN secret.
  */
+/**
+ * A Buffer row's end is the key's, read from BUFFER_KEY_EXPIRES at the moment
+ * of use, so a rotated key (new secret, new date, deploy) counts at once.
+ * Other rows are returned as they are.
+ */
+export function withLiveExpiry<T extends Pick<ConnectionRow, 'scopes' | 'expires_at'>>(row: T | null, env: { BUFFER_KEY_EXPIRES?: string }): T | null {
+  return row && isBufferRow(row) ? { ...row, expires_at: bufferKeyExpiry(env) } : row;
+}
+
 export function connectionStatus(row: ConnectionRow | null, now: number, hasLegacyToken = false): ConnectionStatus {
   const hasToken = Boolean(row?.refresh_token_enc || row?.access_token_enc) || isBufferRow(row) || hasLegacyToken;
   if (!hasToken) return 'unused';

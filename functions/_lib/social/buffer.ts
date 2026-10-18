@@ -13,10 +13,16 @@ import type { PublishInput, PublishStep } from './types';
 import type { SocialPlatform } from '../social-limits';
 
 export const BUFFER_API = 'https://api.buffer.com';
-/** Status reads after a create: 1, 2, 5, 10 and then every 20 minutes, within the dispatcher's two-hour window. */
-export const POLL_BACKOFF = [60, 120, 300, 600, 1200];
-/** A create whose answer was lost: how long the post list is given to show it before the create is sent again. */
-const RECOVERY_SETTLE_SECONDS = 120;
+/** Status reads after a create: 1, 2, 5, 10, 20 and then every 30 minutes; about six reads in the dispatcher's two-hour window (spec §5). */
+export const POLL_BACKOFF = [60, 120, 300, 600, 1200, 1800];
+/**
+ * A create whose answer was lost: how long the post list is given to show it
+ * before the create is sent again. Generous on purpose: a second copy on the
+ * Page is worse than a post going out a few minutes late.
+ */
+export const RECOVERY_SETTLE_SECONDS = 10 * 60;
+/** Every Buffer call gives up after this, so one slow answer cannot hold a tick past its lease. */
+const TIMEOUT_MS = 20_000;
 /** Under this share left in any rate-limit window, no new post is created (spec §5). */
 export const RATE_LOW = 0.1;
 /** X takes up to four images in one post. */
@@ -64,8 +70,8 @@ export const resetRateMemory = () => { lastShare = null; };
 
 export type GqlResult =
   | { ok: true; data: Record<string, unknown> }
-  /** status 0: no answer. code: Buffer's errors[0].extensions.code, if any. */
-  | { ok: false; status: number; code: string | null; message: string };
+  /** status 0: no answer. code: Buffer's errors[0].extensions.code, if any. data: whatever came back alongside the errors. */
+  | { ok: false; status: number; code: string | null; message: string; data?: Record<string, unknown> | null };
 
 /** One GraphQL call. Never throws, and never puts the key in a message. */
 export async function bufferGraphql(token: string, query: string, variables: Record<string, unknown> = {}, now = Math.floor(Date.now() / 1000)): Promise<GqlResult> {
@@ -75,6 +81,7 @@ export async function bufferGraphql(token: string, query: string, variables: Rec
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch { return { ok: false, status: 0, code: null, message: 'no answer from Buffer' }; }
   const share = lowestShare(parseRateLimit(res.headers.get('ratelimit'), res.headers.get('ratelimit-policy')));
@@ -82,49 +89,108 @@ export async function bufferGraphql(token: string, query: string, variables: Rec
   const body = await res.json().catch(() => null) as { data?: Record<string, unknown> | null; errors?: { message?: string; extensions?: { code?: string } }[] } | null;
   const first = body?.errors?.[0];
   if (!res.ok || first || !body?.data) {
-    return { ok: false, status: res.status, code: first?.extensions?.code ?? null, message: String(first?.message ?? `HTTP ${res.status}`).slice(0, 250) };
+    return { ok: false, status: res.status, code: first?.extensions?.code ?? null, message: String(first?.message ?? `HTTP ${res.status}`).slice(0, 250), data: body?.data ?? null };
   }
   return { ok: true, data: body.data };
 }
 
-/** A failed call as a step. Whether a create may have gone out is the caller's question (see the step). */
+const AUTH_CODES = new Set(['UNAUTHORIZED', 'UNAUTHENTICATED', 'FORBIDDEN']);
+/** The key was refused. Shared by the publish step, the connect endpoint and the daily check, so they agree. */
+export const isAuthFailure = (r: Extract<GqlResult, { ok: false }>) => r.status === 401 || r.status === 403 || AUTH_CODES.has(r.code ?? '');
+const isRateLimited = (r: Extract<GqlResult, { ok: false }>) => r.status === 429 || r.code === 'RATE_LIMIT_EXCEEDED';
+/** Codes for a request refused before it ran (Apollo-style); with a 4xx, the only proof that a create did not happen. */
+const NEVER_RAN = new Set(['BAD_USER_INPUT', 'GRAPHQL_VALIDATION_FAILED', 'GRAPHQL_PARSE_FAILED']);
+
+/**
+ * Whether a failed create call provably created nothing: a 4xx, a refused
+ * key or rate limit, or a query refused before it ran. A 200 carrying
+ * errors, an unreadable body, a 5xx or no answer at all may hide a post that
+ * exists, so the attempt is kept for the recovery read.
+ */
+export function createNeverRan(r: Extract<GqlResult, { ok: false }>): boolean {
+  return (r.status >= 400 && r.status < 500) || isAuthFailure(r) || isRateLimited(r) || NEVER_RAN.has(r.code ?? '');
+}
+
+/** A failed call as a step. created: whether the call may have created a post (see createNeverRan). */
 function fromFailure(r: Extract<GqlResult, { ok: false }>, created: 'no' | 'maybe'): PublishStep {
   const m = r.message;
-  if (r.status === 401 || r.code === 'UNAUTHORIZED' || r.code === 'UNAUTHENTICATED' || r.code === 'FORBIDDEN') return { kind: 'auth', reason: `auth: ${m}` };
-  if (r.status === 429 || r.code === 'RATE_LIMIT_EXCEEDED') return { kind: 'retry', reason: `rate_limited: ${m}`, clearContainer: created === 'no' };
+  if (isAuthFailure(r)) return { kind: 'auth', reason: `auth: ${m}` };
+  if (isRateLimited(r)) return { kind: 'retry', reason: `rate_limited: ${m}`, clearContainer: created === 'no' };
   if (r.status === 0 || r.status >= 500) return { kind: 'retry', reason: `unavailable: ${m}` };
   // A refused query (a schema change, a bad id): nothing was created.
   return created === 'no' ? { kind: 'fail', reason: `unknown: ${m}`, clearContainer: true } : { kind: 'retry', reason: `uncertain: ${m}` };
 }
 
-interface BufState { buf: 1; attempt: number | null; postId: string | null; next: number; polls: number }
-const encodeState = (s: Omit<BufState, 'buf'>) => JSON.stringify({ buf: 1, attempt: s.attempt, postId: s.postId, next: s.next, polls: s.polls });
+/**
+ * first: when the first create for this target was sent, kept when an
+ * attempt is cleared, so every later look-up searches back to it.
+ */
+interface BufState { buf: 1; attempt: number | null; first: number | null; postId: string | null; next: number; polls: number }
+type StateFields = Omit<BufState, 'buf'>;
+const encodeState = (s: StateFields) => JSON.stringify({ buf: 1, attempt: s.attempt, first: s.first, postId: s.postId, next: s.next, polls: s.polls });
+const num = (v: unknown) => (typeof v === 'number' ? v : null);
 export function decodeBufferState(raw: string | null): BufState | null {
   if (!raw) return null;
   try {
-    const v = JSON.parse(raw) as BufState;
+    const v = JSON.parse(raw) as Record<string, unknown>;
     if (!v || v.buf !== 1) return null;
     return {
-      buf: 1, attempt: typeof v.attempt === 'number' ? v.attempt : null, postId: typeof v.postId === 'string' ? v.postId : null,
-      next: typeof v.next === 'number' ? v.next : 0, polls: typeof v.polls === 'number' ? v.polls : 0,
+      buf: 1, attempt: num(v.attempt), first: num(v.first) ?? num(v.attempt), postId: typeof v.postId === 'string' ? v.postId : null,
+      next: num(v.next) ?? 0, polls: num(v.polls) ?? 0,
     };
   } catch { return null; }
 }
 
-const waitFor = (postId: string, now: number, polls: number, notes?: string[]): PublishStep =>
-  ({ kind: 'pending', containerId: encodeState({ attempt: null, postId, next: now + POLL_BACKOFF[Math.min(polls, POLL_BACKOFF.length - 1)], polls }), ...(notes ? { notes } : {}) });
+/**
+ * Another adapter's state on this target (the connection was switched while
+ * a post was in flight): 'idle' when it never sent a create, 'started' when it
+ * may have. null when the state is not another adapter's.
+ */
+export function foreignState(raw: string | null, own: 'buf' | 'li' | 'x'): 'idle' | 'started' | null {
+  if (!raw) return null;
+  let v: Record<string, unknown>;
+  try { v = JSON.parse(raw) as Record<string, unknown>; } catch { return null; }
+  if (!v || typeof v !== 'object') return null;
+  const marker = (['buf', 'li', 'x'] as const).find((k) => v[k] === 1);
+  if (!marker || marker === own) return null;
+  return typeof v.attempt === 'number' || typeof v.postId === 'string' ? 'started' : 'idle';
+}
 
+const waitFor = (st: Pick<StateFields, 'first'>, postId: string, now: number, polls: number, notes?: string[]): PublishStep =>
+  ({ kind: 'pending', containerId: encodeState({ attempt: null, first: st.first, postId, next: now + POLL_BACKOFF[Math.min(polls, POLL_BACKOFF.length - 1)], polls }), ...(notes ? { notes } : {}) });
+
+/**
+ * The concrete error types are the ones Buffer's error guide shows on
+ * createPost; any other error (DuplicateError among them) still answers
+ * through the MutationError interface, routed by __typename. A fragment on a
+ * type outside the payload union would make the whole mutation invalid.
+ */
 const CREATE = `mutation CreatePost($input: CreatePostInput!) {
   createPost(input: $input) {
     __typename
     ... on PostActionSuccess { post { id } }
+    ... on LimitReachedError { message }
+    ... on InvalidInputError { message }
     ... on MutationError { message }
   }
 }`;
 
+/** Text up to its first link, whitespace collapsed: Buffer may shorten or rewrite links (live). */
+export function comparableText(text: string): string {
+  const flat = (t: string) => t.replace(/\s+/g, ' ').trim();
+  const head = flat(text.split(/https?:\/\//)[0]);
+  return head || flat(text);
+}
+
+/** Buffer's clock and ours may differ a little; a post created this much "before" the attempt still counts. */
+const CLOCK_SKEW = 120;
+
 /**
- * The channel's latest posts, newest first, looking for ours: same text,
- * created no earlier than the attempt (with a few minutes for clock skew).
+ * The channel's latest posts, newest first, looking for ours: the same text
+ * (up to the first link) and created at or after our first attempt. A post
+ * without createdAt is never taken as ours.
+ * (live) Whether `posts` lists posts that were already sent, and whether
+ * Buffer keeps the text unchanged, are checked in the first live test.
  */
 async function findCreated(token: string, org: string, channelId: string, caption: string, since: number, now: number): Promise<{ ok: true; id: string | null } | { ok: false; failure: Extract<GqlResult, { ok: false }> }> {
   const r = await bufferGraphql(token, `query Recent {
@@ -134,8 +200,12 @@ async function findCreated(token: string, org: string, channelId: string, captio
 }`, {}, now);
   if (!r.ok) return { ok: false, failure: r };
   const edges = ((r.data.posts as { edges?: { node?: { id?: string; text?: string; createdAt?: string } }[] } | null)?.edges ?? []);
-  const mine = edges.map((e) => e.node).find((n) =>
-    n?.id && (n.text ?? '').trim() === caption.trim() && (!n.createdAt || Date.parse(n.createdAt) / 1000 >= since - 300));
+  const want = comparableText(caption);
+  const mine = edges.map((e) => e.node).find((n) => {
+    if (!n?.id || !n.createdAt) return false;
+    const at = Date.parse(n.createdAt) / 1000;
+    return Number.isFinite(at) && at >= since - CLOCK_SKEW && comparableText(n.text ?? '') === want;
+  });
   return { ok: true, id: mine?.id ?? null };
 }
 
@@ -151,12 +221,18 @@ async function findCreated(token: string, org: string, channelId: string, captio
 export async function bufferPublishStep(input: PublishInput): Promise<PublishStep> {
   const { account, token, post, now, checkpoint } = input;
   const platform: SocialPlatform | null = input.platform ?? null;
-  const st = decodeBufferState(input.state.containerId);
-  if (input.state.containerId && !st) return { kind: 'fail', reason: 'unknown: unreadable Buffer state', clearContainer: true };
+  const foreign = foreignState(input.state.containerId, 'buf');
+  if (foreign === 'started') {
+    return { kind: 'fail', reason: 'uncertain: a direct create may already have gone out before switching to Buffer; check the account, then retry', clearContainer: true };
+  }
+  const raw = foreign === 'idle' ? null : input.state.containerId;
+  const st = decodeBufferState(raw);
+  if (raw && !st) return { kind: 'fail', reason: 'unknown: unreadable Buffer state', clearContainer: true };
   const org = account.org ?? null;
+  const first = st?.first ?? null;
 
   if (st?.postId) {
-    if (now < st.next) return { kind: 'pending', containerId: input.state.containerId! };
+    if (now < st.next) return { kind: 'pending', containerId: raw! };
     const r = await bufferGraphql(token, `query Post {
   post(input: { id: ${JSON.stringify(st.postId)} }) { id status sentAt externalLink error { message } }
 }`, {}, now);
@@ -173,16 +249,16 @@ export async function bufferPublishStep(input: PublishInput): Promise<PublishSte
         ? { kind: 'done', remoteId: st.postId, permalink: p.externalLink }
         : { kind: 'done', remoteId: st.postId, permalink: null, notes: ['no_link'] };
     }
-    return waitFor(st.postId, now, st.polls + 1);
+    return waitFor(st, st.postId, now, st.polls + 1);
   }
 
   if (st?.attempt != null) {
     if (!org) return { kind: 'retry', reason: 'uncertain: no Buffer organisation to look the post up in' };
-    const found = await findCreated(token, org, account.id, post.caption, st.attempt, now);
+    const found = await findCreated(token, org, account.id, post.caption, first ?? st.attempt, now);
     if (!found.ok) return fromFailure(found.failure, 'maybe');
-    if (found.id) return waitFor(found.id, now, 0, ['recovered_created']);
-    if (now - st.attempt < RECOVERY_SETTLE_SECONDS) return { kind: 'pending', containerId: input.state.containerId! };
-    return { kind: 'pending', containerId: encodeState({ attempt: null, postId: null, next: 0, polls: 0 }) };
+    if (found.id) return waitFor(st, found.id, now, 0, ['recovered_created']);
+    if (now - st.attempt < RECOVERY_SETTLE_SECONDS) return { kind: 'pending', containerId: raw! };
+    return { kind: 'pending', containerId: encodeState({ attempt: null, first, postId: null, next: 0, polls: 0 }) };
   }
 
   if (post.type === 'story') return { kind: 'fail', reason: 'not_available: stories do not go through Buffer' };
@@ -192,27 +268,30 @@ export async function bufferPublishStep(input: PublishInput): Promise<PublishSte
     return { kind: 'retry', reason: 'rate_limited: rate_low, under 10% of the Buffer request quota left' };
   }
 
+  const sent = { first: first ?? now };
   // Lease lost: another tick owns the target now, and this answer is never written.
-  if (!await checkpoint(encodeState({ attempt: now, postId: null, next: 0, polls: 0 }))) return { kind: 'retry', reason: 'uncertain: lease lost before the create' };
+  if (!await checkpoint(encodeState({ attempt: now, first: sent.first, postId: null, next: 0, polls: 0 }))) return { kind: 'retry', reason: 'uncertain: lease lost before the create' };
   const created = await bufferGraphql(token, CREATE, {
     input: {
       channelId: account.id, text: post.caption, schedulingType: 'automatic', mode: 'shareNow',
       assets: post.media.map((m) => ({ image: { url: m.url, metadata: { altText: m.alt } } })),
     },
   }, now);
-  if (!created.ok) return fromFailure(created, created.status === 0 || created.status >= 500 ? 'maybe' : 'no');
-  const c = created.data.createPost as { __typename?: string; post?: { id?: string }; message?: string } | null;
-  if (c?.post?.id) return waitFor(c.post.id, now, 0);
+  const c = created.data?.createPost as { __typename?: string; post?: { id?: string }; message?: string } | null | undefined;
+  // A post id is followed even when errors came with it: the post exists.
+  if (c?.post?.id) return waitFor(sent, c.post.id, now, 0);
+  if (!created.ok) return fromFailure(created, createNeverRan(created) ? 'no' : 'maybe');
   const message = String(c?.message ?? 'no answer').slice(0, 250);
-  if (c?.__typename === 'DuplicateError') {
+  if (c?.__typename === 'DuplicateError' || (!c?.__typename?.startsWith('Limit') && /duplicate/i.test(message))) {
     // Buffer saw this text before: maybe our lost create, maybe a deleted copy (a known Buffer bug). Only the list tells.
     if (!org) return { kind: 'fail', reason: `duplicate: ${message}`, clearContainer: true };
-    const found = await findCreated(token, org, account.id, post.caption, now - 3 * 3600, now);
-    if (found.ok && found.id) return waitFor(found.id, now, 0, ['recovered_duplicate']);
+    const found = await findCreated(token, org, account.id, post.caption, sent.first, now);
+    if (found.ok && found.id) return waitFor(sent, found.id, now, 0, ['recovered_duplicate']);
     if (!found.ok) return { kind: 'retry', reason: `uncertain: ${found.failure.message}` };
     return { kind: 'fail', reason: `duplicate: ${message}`, clearContainer: true };
   }
   if (c?.__typename === 'LimitReachedError') return { kind: 'fail', reason: `limit: ${message}`, clearContainer: true };
+  if (!c) return { kind: 'retry', reason: 'uncertain: Buffer answered without a createPost result' };
   return { kind: 'fail', reason: `buffer_refused: ${message}`, clearContainer: true };
 }
 
@@ -247,6 +326,9 @@ export async function listBufferChannels(token: string): Promise<{ ok: true; cha
   }
   return { ok: true, channels };
 }
+
+/** A channel Buffer cannot post to until someone fixes it in Buffer. */
+export const channelUsable = (c: BufferChannel) => !c.isDisconnected && !c.isLocked;
 
 /** (live) The spelling of service and type: LinkedIn Pages only (never a member's profile); X may be called twitter. */
 export function channelFits(platform: 'linkedin' | 'x', c: BufferChannel): boolean {

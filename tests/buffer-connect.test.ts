@@ -7,7 +7,8 @@ import { onRequestPost as connectX } from '../functions/api/admin/connections/x/
 import { onRequestGet as listConnections } from '../functions/api/admin/connections/index';
 import { onRequestPost as refresh, checkBuffer } from '../functions/api/admin/social/refresh-tokens';
 import { chooseChannel } from '../functions/_lib/buffer-connect';
-import { connectionUpsert, connectionStatus, getConnection, bufferKeyExpiry, markBroken } from '../functions/_lib/connections';
+import { connectionUpsert, connectionStatus, getConnection, bufferKeyExpiry, markBroken, withLiveExpiry } from '../functions/_lib/connections';
+import { onRequestGet as health } from '../functions/api/admin/health';
 import { usableToken } from '../functions/_lib/social/tokens';
 import type { BufferChannel } from '../functions/_lib/social/buffer';
 
@@ -43,6 +44,11 @@ test('choosing a channel: the one asked for, the only fitting one, or a list', (
   assert.deepEqual(chooseChannel('linkedin', [profile], null), { ok: false, code: 'no_channel' });
   assert.deepEqual(chooseChannel('linkedin', [page, { ...page, id: 'p2', name: 'Other' }], null), { ok: false, code: 'choose', choices: [{ id: 'p', name: 'RSG Page' }, { id: 'p2', name: 'Other' }] });
   assert.deepEqual(chooseChannel('linkedin', [page], 'me'), { ok: false, code: 'unknown_channel' }, 'a profile cannot be forced');
+  const down = { ...page, isDisconnected: true };
+  const locked = { ...page, id: 'p3', isLocked: true };
+  assert.deepEqual(chooseChannel('linkedin', [down, locked], null), { ok: false, code: 'channel_unusable' });
+  assert.deepEqual(chooseChannel('linkedin', [down, { ...page, id: 'ok' }], null), { ok: true, channel: { ...page, id: 'ok' } }, 'a broken one is not offered');
+  assert.deepEqual(chooseChannel('linkedin', [down], 'p'), { ok: false, code: 'channel_unusable' });
 });
 
 test('connect through Buffer saves the LinkedIn Page, never the profile, and re-queues waiting posts', async () => {
@@ -89,6 +95,13 @@ test('connect through Buffer: admins only, needs the key, a list when there is a
     assert.equal(((await res.json()) as { code: string }).code, 'no_channel');
   } finally { none.restore(); }
 
+  const locked = buffer([ch('t9', 'twitter', 'profile', { isLocked: true })]);
+  try {
+    const res = await call(connectX, 'POST', '/api/admin/connections/x/buffer', { env: world().env, as: 'admin', body: {} });
+    assert.equal(res.status, 409);
+    assert.equal(((await res.json()) as { code: string }).code, 'channel_unusable');
+  } finally { locked.restore(); }
+
   const refused = stubHttp(['api.buffer.com'], () => Response.json({ errors: [{ message: 'bad key', extensions: { code: 'UNAUTHORIZED' } }] }, { status: 401 }));
   try {
     const res = await call(connectLinkedin, 'POST', '/api/admin/connections/linkedin/buffer', { env, as: 'admin', body: {} });
@@ -103,19 +116,31 @@ async function bufferRow(env: unknown, platform: 'linkedin' | 'x', expiresAt: nu
 
 test('a Buffer row counts as connected, hands out the key with its organisation, and never runs X\'s token refresh', async () => {
   const { env } = world();
-  const now = 1_900_000_000;
-  await bufferRow(env, 'x', now + 200 * 86400);
-  const row = (await getConnection(DB(env), 'x'))!;
-  assert.equal(connectionStatus(row, now), 'connected');
-  assert.equal(connectionStatus(row, now + 190 * 86400), 'expiring', '14 days before the key ends');
-  assert.equal(connectionStatus(row, now + 201 * 86400), 'broken', 'after it');
+  await bufferRow(env, 'x', null);
+  const row = withLiveExpiry((await getConnection(DB(env), 'x'))!, env as never)!;
+  assert.equal(connectionStatus(row, END - 30 * 86400), 'connected');
+  assert.equal(connectionStatus(row, END - 10 * 86400), 'expiring', '14 days before the key ends');
+  assert.equal(connectionStatus(row, END + 1), 'broken', 'after it');
   const s = stubHttp(['api.x.com'], () => { throw new Error('X must not be called'); });
   try {
-    assert.deepEqual(await usableToken(env as never, 'x', now), { ok: true, token: 'buf-key', account: { id: 'x-chan', name: 'RSG', org: 'org1' }, via: 'buffer' });
+    assert.deepEqual(await usableToken(env as never, 'x', END - 30 * 86400), { ok: true, token: 'buf-key', account: { id: 'x-chan', name: 'RSG', org: 'org1' }, via: 'buffer' });
+    assert.deepEqual(await usableToken(env as never, 'x', END + 1), { ok: false, why: 'broken' });
   } finally { s.restore(); }
   const keyless = world({});
   await bufferRow(keyless.env, 'x', null);
-  assert.deepEqual(await usableToken(keyless.env as never, 'x', now), { ok: false, why: 'unreadable' });
+  assert.deepEqual(await usableToken(keyless.env as never, 'x', END - 30 * 86400), { ok: false, why: 'unreadable' });
+});
+
+test('a rotated key counts at once: the end date is read from the variable, not the stored row', async () => {
+  const { env } = world({ BUFFER_API_KEY: 'new-key', BUFFER_KEY_EXPIRES: '2028-10-19' });
+  await bufferRow(env, 'linkedin', END - 86400, 100);
+  const after = END + 86400;
+  assert.equal((await usableToken(env as never, 'linkedin', after)).ok, true, 'the stored date has passed, the new one has not');
+  const res = await call(listConnections, 'GET', '/api/admin/connections', { env, as: 'admin' });
+  const li = ((await res.json()) as { connections: { platform: string; expiresAt: number }[] }).connections.find((c) => c.platform === 'linkedin')!;
+  assert.equal(li.expiresAt, Date.UTC(2028, 9, 19) / 1000);
+  const banner = await (await call(health, 'GET', '/api/admin/health', { env, as: 'admin' })).json() as { issues: { kind: string; platform?: string }[] };
+  assert.ok(!banner.issues.some((i) => i.platform === 'linkedin'), 'no expiring banner for a key with a year left');
 });
 
 test('the key end date is read from BUFFER_KEY_EXPIRES, and only a real date counts', () => {
@@ -153,6 +178,25 @@ test('daily: a channel disconnected in Buffer breaks its connection and mails th
   assert.equal(mail.sent.filter((m) => /LinkedIn bağlantısı koptu/.test(m.subject)).length, 1, 'mailed once');
 });
 
+test('daily: a connection broken for another reason (an auth refusal on publish) is not healed by a healthy channel', async () => {
+  const { env } = world();
+  const now = Math.floor(Date.now() / 1000);
+  await bufferRow(env, 'x', END, now - 100);
+  await markBroken(DB(env), 'x', 'auth: Not authorized', now - 50);
+  const b = buffer([ch('x-chan', 'twitter', 'profile')]);
+  try { await checkBuffer(env as never, now, 'p'); } finally { b.restore(); }
+  assert.equal(connectionStatus((await getConnection(DB(env), 'x'))!, now), 'broken');
+});
+
+test('daily: a refused key (FORBIDDEN, as the publish step reads it) breaks every Buffer connection', async () => {
+  const { env } = world();
+  const now = Math.floor(Date.now() / 1000);
+  await bufferRow(env, 'linkedin', END, now - 100);
+  const b = stubHttp(['api.buffer.com'], () => Response.json({ data: null, errors: [{ message: 'no', extensions: { code: 'FORBIDDEN' } }] }));
+  try { assert.equal(await checkBuffer(env as never, now, 'p'), 'broken'); } finally { b.restore(); }
+  assert.match((await getConnection(DB(env), 'linkedin'))!.last_error!, /^buffer: Buffer refused the key/);
+});
+
 test('daily: a channel healthy again is marked working and its waiting posts re-queued', async () => {
   const { env, db } = world();
   const now = Math.floor(Date.now() / 1000);
@@ -167,7 +211,7 @@ test('daily: a channel healthy again is marked working and its waiting posts re-
   assert.equal(mail.sent.length, 0);
 });
 
-test('daily: the end date follows the variable, and the admins are reminded 30, 14 and 3 days before', async () => {
+test('daily: the admins are reminded 30, 14 and 3 days before the key ends', async () => {
   const { env, db } = world();
   await bufferRow(env, 'x', null);
   const b = buffer([ch('x-chan', 'twitter', 'profile')]);
@@ -183,7 +227,6 @@ test('daily: the end date follows the variable, and the admins are reminded 30, 
       }
     }
   } finally { b.restore(); }
-  assert.equal((await getConnection(DB(env), 'x'))!.expires_at, END, 'copied from BUFFER_KEY_EXPIRES');
   assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE action = 'connection.expiry_reminder' AND target_id = 'buffer'`).get() as { n: number }).n, 3);
 });
 
