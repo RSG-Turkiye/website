@@ -27,6 +27,23 @@ export interface ConnectionRow {
 export type ConnectionStatus = 'connected' | 'expiring' | 'broken' | 'unused';
 
 /**
+ * A LinkedIn or X connection that posts through Buffer keeps no token of its
+ * own: scopes is "buffer:<organisation id>", account_id the Buffer channel,
+ * and the key is the BUFFER_API_KEY secret (spec 2026-10-19 §4).
+ */
+export const BUFFER_SCOPE_PREFIX = 'buffer:';
+export const isBufferRow = (row: Pick<ConnectionRow, 'scopes'> | null | undefined): boolean => Boolean(row?.scopes?.startsWith(BUFFER_SCOPE_PREFIX));
+export const bufferOrg = (row: Pick<ConnectionRow, 'scopes'>): string => (row.scopes ?? '').slice(BUFFER_SCOPE_PREFIX.length);
+
+/** The Buffer key's end (BUFFER_KEY_EXPIRES, "YYYY-MM-DD", start of that day UTC), or null when unset or unreadable. */
+export function bufferKeyExpiry(env: { BUFFER_KEY_EXPIRES?: string }): number | null {
+  const v = env.BUFFER_KEY_EXPIRES?.trim() ?? '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const t = Date.parse(`${v}T00:00:00Z`);
+  return Number.isFinite(t) ? Math.floor(t / 1000) : null;
+}
+
+/**
  * When the connection stops working by itself, or null if it has no known end.
  * A refresh token with no known end keeps the connection alive past each short
  * access token (X: two hours; Gmail): only a refresh failure breaks it.
@@ -41,7 +58,7 @@ export function connectionExpiry(row: Pick<ConnectionRow, 'refresh_expires_at' |
  * Gmail while its refresh token still lives in the GMAIL_REFRESH_TOKEN secret.
  */
 export function connectionStatus(row: ConnectionRow | null, now: number, hasLegacyToken = false): ConnectionStatus {
-  const hasToken = Boolean(row?.refresh_token_enc || row?.access_token_enc) || hasLegacyToken;
+  const hasToken = Boolean(row?.refresh_token_enc || row?.access_token_enc) || isBufferRow(row) || hasLegacyToken;
   if (!hasToken) return 'unused';
   if (row?.last_error_at != null && (row.last_ok_at == null || row.last_error_at >= row.last_ok_at)) return 'broken';
   const expiry = connectionExpiry(row);

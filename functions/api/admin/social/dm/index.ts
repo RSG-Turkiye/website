@@ -5,7 +5,7 @@
  */
 import type { Env } from '../../../../_lib/auth';
 import { getSessionUser, jsonResponse, canSocialPublish } from '../../../../_lib/auth';
-import { getConnection } from '../../../../_lib/connections';
+import { getConnection, isBufferRow } from '../../../../_lib/connections';
 import { dmView, type DmThreadRow } from '../../../../_lib/social-dm';
 import { dmStatus } from '../../../../_lib/social-dm-poll';
 
@@ -36,7 +36,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     console.error('social dm list: threads unavailable', err);
   }
   return jsonResponse({
-    status, account: ig?.account_name ?? null, linkedin: !!li?.access_token_enc,
+    status, account: ig?.account_name ?? null, linkedin: !!li?.access_token_enc || isBufferRow(li),
     threads: rows.map((r) => threadOut(r, now)),
   });
 };

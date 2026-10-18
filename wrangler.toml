@@ -23,6 +23,10 @@ PUBLIC_BLOG_IMAGES_URL = "https://rsg-turkiye.iscbsc.org/api/images"
 # (linkedin.com/company/<this>). Connecting LinkedIn checks the signing-in
 # member administers this Page. See README, "Social media and connections".
 LINKEDIN_ORGANIZATION = "rsgturkey"
+# The day the Buffer API key (Pages secret BUFFER_API_KEY) expires. Buffer
+# keys last a year; the panel warns 14 days before and the admins get mail at
+# 30, 14 and 3 days. A new key means a new date here. See README, "Buffer".
+BUFFER_KEY_EXPIRES = "2027-10-19"
 # The address members' mail is sent from. Gmail accepts any address verified
 # as a "send mail as" alias on the sending account, so switching to
 # rsg-turkey@iscbsc.org once that alias works is a change to this line only --
