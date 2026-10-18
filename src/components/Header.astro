@@ -21,6 +21,9 @@ const prefix = lang === 'tr' ? '/tr' : '';
  */
 const webinars = await getCollection('webinars', ({ id, data }) => id.startsWith(`${lang}/`) && !data.draft);
 const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => b - a).slice(0, 5);
+
+// The symposium site has its own Turkish pages; a Turkish reader should land on them.
+const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/tr/' : 'https://symposium.rsg-turkiye.iscbsc.org/';
 ---
 
 <header class="fixed top-0 left-0 right-0 z-50 bg-navy h-16 border-b border-[#1a2744]">
@@ -50,7 +53,17 @@ const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => 
 
       <a href={`${prefix}/resources/`} class="nav-link">{t('nav.resources')}</a>
       <a href={`${prefix}/learning-paths/`} class="nav-link">{t('nav.learningPaths')}</a>
-      <a href="https://symposium.rsg-turkiye.iscbsc.org" class="nav-link">{t('nav.symposium')}</a>
+      <!-- Events dropdown: the symposium, workshops and hackathons are all
+           events, so they sit under one item instead of three. -->
+      <div class="relative group">
+        <a href={`${prefix}/events/`} class="nav-link">{t('nav.events')}</a>
+        <div class="dropdown-menu">
+          <a href={`${prefix}/events/`} class="dropdown-item">{t('nav.allEvents')}</a>
+          <a href={symposiumUrl} class="dropdown-item">{t('nav.symposium')} ↗</a>
+          <a href={`${prefix}/workshops/`} class="dropdown-item">{t('nav.workshops')}</a>
+          <a href={`${prefix}/workshops/#nf-core`} class="dropdown-item">{t('nav.nfcore')}</a>
+        </div>
+      </div>
       <a id="membersNavLink" href={`${prefix}/members/`} class="nav-link hidden">{t('nav.members')}</a>
     </nav>
 
@@ -93,7 +106,9 @@ const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => 
     <a href={`${prefix}/webinars/`} class="mobile-link">{t('nav.webinars')}</a>
     <a href={`${prefix}/resources/`} class="mobile-link">{t('nav.resources')}</a>
     <a href={`${prefix}/learning-paths/`} class="mobile-link">{t('nav.learningPaths')}</a>
-    <a href="https://symposium.rsg-turkiye.iscbsc.org" class="mobile-link">{t('nav.symposium')}</a>
+    <a href={`${prefix}/events/`} class="mobile-link">{t('nav.events')}</a>
+    <a href={symposiumUrl} class="mobile-link mobile-sublink">{t('nav.symposium')} ↗</a>
+    <a href={`${prefix}/workshops/`} class="mobile-link mobile-sublink">{t('nav.workshops')}</a>
     <a id="membersMobileLink" href={`${prefix}/members/`} class="mobile-link hidden">{t('nav.members')}</a>
     <a href={`${prefix}/join/`} class="mt-3 flex items-center justify-center px-4 py-2 rounded bg-red text-white text-sm font-medium no-underline">
       {t('nav.join')}
@@ -115,17 +130,31 @@ const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => 
     @apply hidden absolute top-full left-0 mt-1 min-w-[160px] bg-white rounded shadow-lg border border-border py-1 z-10;
   }
 
-  .group:hover .dropdown-menu {
+  /* Hover for the mouse, focus-within for the keyboard: tabbing onto the
+     item opens its menu so the links inside it can be reached too. */
+  .group:hover .dropdown-menu,
+  .group:focus-within .dropdown-menu {
     @apply flex flex-col;
   }
 
   .dropdown-item {
-    @apply block px-4 py-2 text-sm text-navy hover:bg-navy-light hover:text-navy-mid no-underline transition-colors;
+    @apply block px-4 py-2 text-sm text-navy hover:bg-navy-light hover:text-navy-mid no-underline transition-colors whitespace-nowrap;
   }
 
   /* Mobile links */
   .mobile-link {
     @apply block py-2.5 text-sm text-white/90 hover:text-white border-b border-white/10 no-underline;
+  }
+
+  /* The members link starts hidden and is shown only to a signed-in visitor.
+     `display: block` above outranked the `hidden` utility, so on phones it
+     showed to everyone and led signed-out readers to a sign-in wall. */
+  .mobile-link.hidden {
+    display: none;
+  }
+
+  .mobile-sublink {
+    @apply pl-4 text-white/75;
   }
 </style>
 
