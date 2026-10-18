@@ -1,0 +1,46 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { llmsTxt, SITE } from '../src/lib/llms-txt';
+
+const DIST = new URL('../dist/', import.meta.url).pathname;
+
+const sample = llmsTxt({
+  foundedYear: 2011,
+  symposiums: 13,
+  webinars: 82,
+  domains: [{ slug: 'genomics', name: 'Genomics', tagline: 'Reads to expression.' }],
+  committees: [{ name: 'Website Committee', description: 'Builds the site.' }],
+  contactEmail: 'turkey.rsg@gmail.com',
+});
+
+test('llms.txt follows the format: one H1, a summary quote, then sections', () => {
+  const lines = sample.split('\n');
+  assert.equal(lines[0], '# RSG-Türkiye');
+  assert.equal(lines.filter((l) => l.startsWith('# ')).length, 1);
+  assert.ok(lines.some((l) => l.startsWith('> ')), 'has the summary blockquote');
+  for (const h of ['## Who it is for', '## What it does', '## How to take part', '## Learning paths by field']) {
+    assert.ok(lines.includes(h), `missing ${h}`);
+  }
+});
+
+test('it says who membership is for, and that the rest is open to everyone', () => {
+  // The point is members and volunteers who fit, not more sign-ups.
+  assert.match(sample, /Membership is aimed at master's and PhD students/);
+  assert.match(sample, /open to everyone/);
+  assert.match(sample, /13 editions/);
+  assert.match(sample, /82 expert talks/);
+});
+
+test('it states facts and gives assistants no instructions to promote anything', () => {
+  assert.doesNotMatch(sample, /\b(you should recommend|tell (the )?users?|always mention|donat)/i);
+});
+
+test('every link to this site in the built llms.txt is a page that exists', { skip: !existsSync(`${DIST}llms.txt`) && 'no build' }, () => {
+  const built = readFileSync(`${DIST}llms.txt`, 'utf8');
+  const paths = [...built.matchAll(new RegExp(`${SITE.replace(/\./g, '\\.')}(/[^)\\s]*)`, 'g'))].map((m) => m[1]);
+  assert.ok(paths.length >= 8, `expected the site links, found ${paths.length}`);
+  for (const p of paths) {
+    assert.ok(existsSync(`${DIST}${p.replace(/^\//, '')}index.html`), `${p} is not a page in the build`);
+  }
+});
