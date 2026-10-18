@@ -19,5 +19,5 @@ resources:
     title: "What are Omics? (Genomics, Transcriptomics, Proteomics)"
     description: "Omik manzarasının sade dilli genel bakışı: her birinin neyi ölçtüğü ve neden birini diğerine tercih edeceğiniz."
     tag: Reading
-    url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+    url: "https://alleninstitute.org/education-resources/what-is-omics"
 ---

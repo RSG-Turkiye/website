@@ -11,7 +11,7 @@ sections:
         title: "How Sequencing Works, from Sanger to short-read"
         description: "Bir dizileme makinasının gerçekte ne ürettiği, neden okumalar kısa olduğu ve 'kapsama' ne anlama geldiği. Bu çerçeveleme, sonraki tüm araç kararlarını anlamlı kılar."
         tag: Reading
-        url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+        url: "https://www.genome.gov/about-genomics/fact-sheets/DNA-Sequencing-Fact-Sheet"
       - id: "genomics-explorer-foundations-1"
         title: "What does RNA-seq actually measure?"
         description: "RNA-seq genleri ölçmez, transkriptleri sayar. Bu ayrımı anlamak, başlangıçta herkesi etkileyen bir yorum hatasını önler."
@@ -21,7 +21,7 @@ sections:
         title: "What are Omics? (Genomics, Transcriptomics, Proteomics)"
         description: "Omik manzarasının sade dilli genel bakışı: her birinin neyi ölçtüğü, hangi soruları yanıtladığı ve neden birini diğerine tercih edeceğiniz."
         tag: Reading
-        url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+        url: "https://alleninstitute.org/education-resources/what-is-omics"
 
   - type: toolkit
     resources:

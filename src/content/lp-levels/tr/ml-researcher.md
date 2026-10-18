@@ -23,7 +23,7 @@ sections:
         title: "From CNNs to Transformers in Genomics"
         description: "DeepBind ve Basenji'den dikkat tabanlı modellere ilerleme. Mimari seçimlerin biyolojik sonuçları var, bu inceleme alanın her geçişi neden yaptığını izliyor."
         tag: Reading
-        url: "https://www.nature.com/articles/s41576-021-00434-9"
+        url: "https://doi.org/10.1146/annurev-genom-021623-024727"
       - id: "ml-researcher-foundations-3"
         title: "Honest Evaluation in Bio-ML"
         description: "Genomik bölmeler i.i.d. değildir. Veri sızıntısı makaleleri mahveder. Gerçek dünya genellemesini yansıtan değerlendirmeler nasıl tasarlanır."

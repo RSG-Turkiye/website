@@ -19,5 +19,5 @@ resources:
     title: "What are Omics? (Genomics, Transcriptomics, Proteomics)"
     description: "A plain-language overview of the -omics landscape: what each one measures, and why you'd choose one over another."
     tag: Reading
-    url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+    url: "https://alleninstitute.org/education-resources/what-is-omics"
 ---

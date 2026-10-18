@@ -17,8 +17,8 @@ sections:
       - id: "genomics-researcher-foundations-1"
         title: "How Sequencing Works, from Sanger to long-read"
         description: "Short-read Illumina vs. long-read Nanopore/PacBio, what the machine produces and how the read characteristics shape every downstream analysis choice."
-        tag: Course
-        url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+        tag: Videos
+        url: "https://www.ibiology.org/techniques/next-generation-sequencing/"
       - id: "genomics-researcher-foundations-2"
         title: "Statistics for Genomics, StatQuest"
         description: "PCA, clustering, multiple testing correction, and the EXACT statistical model behind DESeq2. If you're running these analyses, you need to understand what they're actually computing."
