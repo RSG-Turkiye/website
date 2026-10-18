@@ -26,6 +26,12 @@
 # mean an announcement, a new post or a corrected date waiting a day to
 # appear, and the revalidation of an HTML page is not on the critical path the
 # way the stylesheet's is.
+# /llms.txt is a briefing for AI assistants (src/lib/llms-txt.ts). Kept out of
+# search results, where the raw text would only compete with the pages it
+# describes; noindex does not stop anything from reading it.
+/llms.txt
+  X-Robots-Tag: noindex
+
 /*
   # Nothing embeds this site, and being framed is how a click on someone
   # else's page becomes a click on ours.
