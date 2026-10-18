@@ -101,6 +101,9 @@ const toggleUrl = translationUrl ?? (alternates ? (lang === "en" ? alternates.tr
     <!-- 64px, not the 1280x1280 original: a browser tab draws this at 16 or
          32 pixels and the full-size logo cost 598 KB on every first visit. -->
     <link rel="icon" type="image/png" href="/logo/favicon-64.png" />
+    <!-- A plain-text summary for AI assistants (see src/lib/llms-txt.ts). Nothing
+         announces /llms.txt by itself; a link is what lets a crawler find it. -->
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
   </head>
   <body>
     <Header lang={lang} translationUrl={toggleUrl} navState={navState} />

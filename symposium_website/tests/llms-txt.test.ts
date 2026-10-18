@@ -47,3 +47,12 @@ test('every symposium link in the built llms.txt is a page that exists', { skip:
     assert.ok(existsSync(`${DIST}${p.replace(/^\//, '')}index.html`), `${p} is not a page in the build`);
   }
 });
+
+test('every page links to /llms.txt, and robots.txt names it', () => {
+  // Nothing announces llms.txt by itself; these are how a crawler finds it.
+  const layout = readFileSync(new URL('../src/layouts/BaseLayout.astro', import.meta.url).pathname, 'utf8');
+  assert.match(layout, /<link rel="alternate" type="text\/plain" href="\/llms\.txt"/);
+  const robots = readFileSync(new URL('../public/robots.txt', import.meta.url).pathname, 'utf8');
+  assert.match(robots, /\/llms\.txt/);
+  assert.match(robots, /^User-agent: \*\nAllow: \//m, 'and the file still allows everything');
+});
