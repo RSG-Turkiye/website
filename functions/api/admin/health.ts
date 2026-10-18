@@ -34,7 +34,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 async function lastRuns(db: D1Database): Promise<{ mail: number | null; social: number | null | undefined }> {
   try {
     const r = await db.prepare(
-      `SELECT MAX(CASE WHEN kind = 'mail' THEN started_at END) AS mail, MAX(CASE WHEN kind = 'social' THEN started_at END) AS social FROM dispatch_runs`,
+      // Two subqueries, not MAX(CASE ...): each is one lookup in idx_dispatch_runs_kind_started instead of a table scan.
+      `SELECT (SELECT MAX(started_at) FROM dispatch_runs WHERE kind = 'mail') AS mail,
+              (SELECT MAX(started_at) FROM dispatch_runs WHERE kind = 'social') AS social`,
     ).first<{ mail: number | null; social: number | null }>();
     return { mail: r?.mail ?? null, social: r?.social ?? null };
   } catch {
