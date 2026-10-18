@@ -11,12 +11,12 @@ sections:
     resources:
       - title: "Representations of Biological Sequences"
         description: "One-hot encoding, k-mers, embeddings: how you represent a sequence determines what a model can and can't learn from it. This is the most consequential modelling decision you'll make."
-        tag: Course
-        url: "https://www.ebi.ac.uk/training/online/courses/protein-bioinformatics/"
+        tag: Videos
+        url: "https://www.youtube.com/watch?v=uPoFdCUqBWk"
       - title: "Honest Evaluation in Bio-ML, avoiding data leakage"
         description: "Genomic data is not i.i.d. Sequence similarity between train and test sets inflates performance metrics. This paper is required reading before you report any benchmark number."
         tag: Reading
-        url: "https://www.nature.com/articles/s41592-021-01205-6"
+        url: "https://doi.org/10.1038/s41592-021-01205-4"
       - title: "From CNNs to Transformers in Genomics"
         description: "The progression from DeepBind to Enformer to modern attention models. Understanding this history explains why the field made each architectural choice, and when older approaches still win."
         tag: Reading

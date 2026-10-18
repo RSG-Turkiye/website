@@ -12,7 +12,7 @@ resources:
   - title: "RNA-seq: from reads to results"
     description: "Tüm RNA-seq pipeline'ının kavramsal bir yürüyüşü, her adımın ne yaptığı ve neyin yanlış gidebileceği. İlk analizinizi çalıştırmadan önce bunu okuyun."
     tag: Tutorial
-    url: "https://hbctraining.github.io/Intro-to-rnaseq-hpc-salmon-flipped/"
+    url: "https://hbctraining.github.io/Intro-to-bulk-RNAseq/"
   - title: "Statistics for Biologists, StatQuest"
     description: "p-değerleri, çoklu test düzeltmesi, PCA, kümeleme. Bu kavramlar her analizde karşınıza çıkar. Josh Starmer bunları herkesten iyi açıklıyor."
     tag: Videos

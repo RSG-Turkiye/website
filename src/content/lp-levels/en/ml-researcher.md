@@ -12,11 +12,11 @@ sections:
       - title: "Why Biology Needs ML, and the hard part"
         description: "Biological data is high-dimensional, noisy, and structured. Understanding this shapes every modelling decision, especially what you should and shouldn't expect your model to learn."
         tag: Reading
-        url: "https://www.nature.com/articles/s41592-021-01333-z"
+        url: "https://doi.org/10.1038/s41580-021-00407-0"
       - title: "Representations of Biological Sequences"
-        description: "One-hot, k-mer features, embeddings from language models: the representation is the model's view of the world. This course maps the options and their trade-offs."
-        tag: Course
-        url: "https://www.ebi.ac.uk/training/online/courses/protein-bioinformatics/"
+        description: "One-hot, k-mer features, embeddings from language models: the representation is the model's view of the world. This lecture maps the options and their trade-offs."
+        tag: Videos
+        url: "https://www.youtube.com/watch?v=uPoFdCUqBWk"
       - title: "From CNNs to Transformers in Genomics"
         description: "The progression from DeepBind and Basenji to attention-based models. Architecture choices have biological consequences, this review traces why the field made each transition."
         tag: Reading
@@ -24,7 +24,7 @@ sections:
       - title: "Honest Evaluation in Bio-ML"
         description: "Genomic splits are not i.i.d. Data leakage ruins papers. How to design evaluations that actually reflect real-world generalisation."
         tag: Reading
-        url: "https://www.nature.com/articles/s41592-021-01205-6"
+        url: "https://doi.org/10.1038/s41592-021-01205-4"
 
   - type: toolkit
     resources:

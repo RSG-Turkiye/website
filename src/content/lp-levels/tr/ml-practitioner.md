@@ -11,12 +11,12 @@ sections:
     resources:
       - title: "Representations of Biological Sequences"
         description: "One-hot kodlama, k-mer'ler, gömüler: bir diziyi nasıl temsil ettiğiniz, modelin ondan ne öğrenip öğrenemeyeceğini belirler. Yapacağınız en belirleyici modelleme kararı budur."
-        tag: Course
-        url: "https://www.ebi.ac.uk/training/online/courses/protein-bioinformatics/"
+        tag: Videos
+        url: "https://www.youtube.com/watch?v=uPoFdCUqBWk"
       - title: "Honest Evaluation in Bio-ML, avoiding data leakage"
         description: "Genomik veri i.i.d. değildir. Eğitim ve test setleri arasındaki dizi benzerliği performans metriklerini şişirir. Herhangi bir kıyaslama sayısı raporlamadan önce zorunlu okuma."
         tag: Reading
-        url: "https://www.nature.com/articles/s41592-021-01205-6"
+        url: "https://doi.org/10.1038/s41592-021-01205-4"
       - title: "From CNNs to Transformers in Genomics"
         description: "DeepBind'dan Enformer'a, modern dikkat modellerine ilerleme. Bu tarihi anlamak, alanın her mimari seçimi neden yaptığını açıklar, ve eski yaklaşımların hâlâ ne zaman kazandığını."
         tag: Reading

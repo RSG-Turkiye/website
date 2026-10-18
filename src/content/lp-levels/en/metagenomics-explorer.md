@@ -14,7 +14,7 @@ sections:
       - title: "16S rRNA vs Shotgun Metagenomics: when to choose each"
         description: "16S targets one gene (cheap, taxonomic); shotgun sequences everything (expensive, functional). The choice of approach determines what you can learn and what the analysis looks like."
         tag: Reading
-        url: "https://www.illumina.com/areas-of-interest/microbiology/microbial-sequencing-methods/metagenomic-sequencing.html"
+        url: "https://www.illumina.com/areas-of-interest/microbiology/microbial-sequencing-methods/shotgun-metagenomic-sequencing.html"
       - title: "The Human Microbiome Project, why microbiome science matters"
         description: "The project that established the baseline diversity of the human microbiome. Reading the overview gives you the biological motivation before the technical details."
         tag: Reading

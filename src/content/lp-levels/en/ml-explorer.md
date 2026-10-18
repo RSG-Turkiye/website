@@ -11,10 +11,10 @@ sections:
         description: "If you're coming from biology: this is the gentlest rigorous introduction to the concepts that ML is built on. Watch the probability and linear models series before anything else."
         tag: Videos
         url: "https://www.youtube.com/@statquest"
-      - title: "Why Biology Needs ML, and why it's hard (Nature Methods)"
+      - title: "Why Biology Needs ML, and why it's hard (Nature Reviews MCB)"
         description: "Biological data is high-dimensional, sparse, and structured in ways that break standard ML assumptions. Reading this first saves you from a category of mistakes that afflicts every biologist-turned-ML-practitioner."
         tag: Reading
-        url: "https://www.nature.com/articles/s41592-021-01333-z"
+        url: "https://doi.org/10.1038/s41580-021-00407-0"
       - title: "fast.ai Practical Deep Learning, Part 1"
         description: "If you're coming from CS/ML: the best top-down introduction to deep learning. Get to chapter 4 (NLP) before branching into biology-specific content."
         tag: Course
@@ -29,7 +29,7 @@ sections:
       - title: "scikit-learn: start here, not with deep learning"
         description: "Decision trees, random forests, SVMs: if your problem can be solved without a GPU, solve it this way first. Most biology problems can be meaningfully addressed with classical ML."
         tag: Tool
-        url: "https://scikit-learn.org/stable/tutorial/"
+        url: "https://scikit-learn.org/stable/getting_started.html"
       - title: "Kaggle Learn, ML fundamentals"
         description: "Short, interactive courses on pandas, ML fundamentals, and feature engineering. Good for closing gaps if you know biology but haven't worked with data programmatically."
         tag: Interactive

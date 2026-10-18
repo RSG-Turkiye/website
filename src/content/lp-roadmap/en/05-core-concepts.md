@@ -12,7 +12,7 @@ resources:
   - title: "RNA-seq: from reads to results"
     description: "A conceptual walk through the entire RNA-seq pipeline, what each step does and what can go wrong. Read this before running your first analysis."
     tag: Tutorial
-    url: "https://hbctraining.github.io/Intro-to-rnaseq-hpc-salmon-flipped/"
+    url: "https://hbctraining.github.io/Intro-to-bulk-RNAseq/"
   - title: "Statistics for Biologists, StatQuest"
     description: "p-values, multiple testing correction, PCA, clustering. These concepts appear in every analysis. Josh Starmer explains them better than anyone."
     tag: Videos

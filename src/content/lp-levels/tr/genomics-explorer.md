@@ -14,7 +14,7 @@ sections:
       - title: "What does RNA-seq actually measure?"
         description: "RNA-seq genleri ölçmez, transkriptleri sayar. Bu ayrımı anlamak, başlangıçta herkesi etkileyen bir yorum hatasını önler."
         tag: Reading
-        url: "https://hbctraining.github.io/Intro-to-rnaseq-hpc-salmon-flipped/lessons/01_intro-to-RNAseq.html"
+        url: "https://hbctraining.github.io/Intro-to-bulk-RNAseq/lessons/01_intro-to-RNAseq.html"
       - title: "What are Omics? (Genomics, Transcriptomics, Proteomics)"
         description: "Omik manzarasının sade dilli genel bakışı: her birinin neyi ölçtüğü, hangi soruları yanıtladığı ve neden birini diğerine tercih edeceğiniz."
         tag: Reading

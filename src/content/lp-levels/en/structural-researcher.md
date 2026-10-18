@@ -12,7 +12,7 @@ sections:
       - title: "Cryo-EM: principles and what it gives you over X-ray"
         description: "Cryo-EM has become the dominant method for large complexes and flexible systems. Understanding the reconstruction pipeline (particle picking, 2D classes, 3D refinement) is now a core literacy for structural biologists."
         tag: Reading
-        url: "https://www.ebi.ac.uk/training/online/courses/cryo-em-map-interpretation-in-protein-model-building/"
+        url: "https://cryoem101.org/"
       - title: "Integrative Structural Biology: combining data types"
         description: "No single method gives you the full picture. How to combine cryo-EM, crosslinking-MS, SAXS, and computational modelling into a coherent structural model, and how to report the uncertainty."
         tag: Reading
