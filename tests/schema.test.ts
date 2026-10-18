@@ -130,3 +130,18 @@ test('the per-minute dispatch_runs lookups use an index, not a table scan', () =
   }
   db.close();
 });
+
+test('queries on tables that are never pruned look rows up by index', () => {
+  // Each runs on a cron tick, so a scan here costs its table's size every minute.
+  const db = freshDatabase();
+  const queries: [string, string][] = [
+    ['SELECT recipient_email FROM sent_emails WHERE scheduled_id = ?', 'idx_sent_emails_scheduled'],
+    [`SELECT * FROM social_dm_threads WHERE platform = 'instagram' AND last_inbound_at > ?`, 'social_dm_threads_inbound'],
+    ['DELETE FROM social_dm_digest_log WHERE sent_at < ?', 'social_dm_digest_log_sent'],
+  ];
+  for (const [q, index] of queries) {
+    const plan = (db.prepare(`EXPLAIN QUERY PLAN ${q}`).all(1) as { detail: string }[]).map((r) => r.detail);
+    assert.ok(plan.some((d) => d.includes(index)), `${q} does not use ${index}: ${plan.join(' / ')}`);
+  }
+  db.close();
+});
