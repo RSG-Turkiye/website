@@ -9,45 +9,54 @@ prerequisites:
 sections:
   - type: foundations
     resources:
-      - title: "Representations of Biological Sequences"
+      - id: "ml-practitioner-foundations-0"
+        title: "Representations of Biological Sequences"
         description: "One-hot encoding, k-mers, embeddings: how you represent a sequence determines what a model can and can't learn from it. This is the most consequential modelling decision you'll make."
         tag: Videos
         url: "https://www.youtube.com/watch?v=uPoFdCUqBWk"
-      - title: "Honest Evaluation in Bio-ML, avoiding data leakage"
+      - id: "ml-practitioner-foundations-1"
+        title: "Honest Evaluation in Bio-ML, avoiding data leakage"
         description: "Genomic data is not i.i.d. Sequence similarity between train and test sets inflates performance metrics. This paper is required reading before you report any benchmark number."
         tag: Reading
         url: "https://doi.org/10.1038/s41592-021-01205-4"
-      - title: "From CNNs to Transformers in Genomics"
+      - id: "ml-practitioner-foundations-2"
+        title: "From CNNs to Transformers in Genomics"
         description: "The progression from DeepBind to Enformer to modern attention models. Understanding this history explains why the field made each architectural choice, and when older approaches still win."
         tag: Reading
         url: "https://www.nature.com/articles/s41576-021-00434-9"
 
   - type: toolkit
     resources:
-      - title: "PyTorch, the research framework"
+      - id: "ml-practitioner-toolkit-0"
+        title: "PyTorch, the research framework"
         description: "De-facto standard for bio-ML research. Most modern papers use PyTorch. The official tutorials (60-minute blitz) are the fastest way to get productive."
         tag: Tool
         url: "https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html"
-      - title: "BioPython, sequence data handling"
+      - id: "ml-practitioner-toolkit-1"
+        title: "BioPython, sequence data handling"
         description: "Parsing FASTA/FASTQ, accessing NCBI, working with sequence records. The plumbing that sits between raw biological data and your ML pipeline."
         tag: Tool
         url: "https://biopython.org/wiki/Documentation"
-      - title: "scikit-learn, your baseline for every experiment"
+      - id: "ml-practitioner-toolkit-2"
+        title: "scikit-learn, your baseline for every experiment"
         description: "Before you reach for PyTorch, fit a gradient-boosted tree. If the simple model performs comparably, the complex model isn't justified."
         tag: Tool
         url: "https://scikit-learn.org"
 
   - type: webinars
     resources:
-      - title: "Language Models for Protein Properties"
+      - id: "ml-practitioner-webinars-0"
+        title: "Language Models for Protein Properties"
         description: "How protein language models are trained, what they encode, and how to use pre-trained embeddings as features. A conceptual foundation before you touch ESM or ProtTrans code."
         tag: Webinar
         webinarSlug: language-models-protein-properties
-      - title: "HERCULES, Long-read Error Correction"
+      - id: "ml-practitioner-webinars-1"
+        title: "HERCULES, Long-read Error Correction"
         description: "A worked example of ML applied to a specific bioinformatics problem: correcting sequencing errors in long reads. Shows the full ML workflow from problem formulation to evaluation."
         tag: Webinar
         webinarSlug: hercules-long-read-error-correction
-      - title: "Big Data in Life Sciences"
+      - id: "ml-practitioner-webinars-2"
+        title: "Big Data in Life Sciences"
         description: "Scalability challenges in bio-ML, when your data doesn't fit in RAM and your model doesn't converge on a single GPU."
         tag: Webinar
         speaker: "Nikolay Oskolkov"

@@ -53,7 +53,7 @@ const defaultLevel = levels.find(l => l.exists)?.id ?? 'explorer';
 const levelResourceIds = levels.map(level => {
   if (!level.content) return [];
   return level.content.sections.map(section =>
-    section.resources.map((_, ri) => `tr-${domainSlug}-${level.id}-${section.type}-${ri}`)
+    section.resources.map(res => `tr-${res.id}`)
   );
 });
 
