@@ -1,0 +1,64 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout pageTitle="Mentorship, RSG-Turkiye" description="Find a mentor, or become one, among RSG-Turkiye members.">
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">Mentorship</h1>
+    </div>
+  </div>
+
+  <section class="bg-white py-14">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-base text-gray-700 leading-relaxed mb-10">For someone new to bioinformatics, the biggest difference is knowing one person they can ask when they get stuck. RSG-Turkiye members can say on their profile that they are open to mentoring, or that they are looking for a mentor; this page brings the two together.</p>
+
+      <h2 class="text-xl font-semibold text-navy mb-6">How it works</h2>
+      <ol class="flex flex-col gap-6 mb-10">
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">1</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">Set up your profile</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">Sign in and fill in your <a href="/account/setup/" class="text-navy-mid hover:underline">profile</a>. Choosing your research interests makes it easier to find the right person.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">2</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">Turn on a badge</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">Add <strong>Open to mentoring</strong> or <strong>Looking for a mentor</strong> to your profile. You can remove it at any time.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">3</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">Find someone</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">The links below open the member directory filtered by that badge. Narrow it down by research interest.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">4</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">Reach out</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">Introduce yourself in a short message: what you work on and where you are stuck. Members can be reached on the RSG-Turkiye Slack workspace.</p>
+            </div>
+          </li>
+      </ol>
+
+      <div class="flex flex-wrap gap-3 mb-12">
+        <a href="/members/?badge=open_to_mentor" class="inline-flex items-center px-5 py-2.5 rounded-md bg-navy text-white text-sm font-semibold hover:bg-navy-mid transition-colors no-underline">Find a mentor →</a>
+        <a href="/members/?badge=seeking_mentor" class="inline-flex items-center px-5 py-2.5 rounded-md border border-navy text-navy text-sm font-semibold hover:bg-navy-light transition-colors no-underline">See who is looking for a mentor →</a>
+      </div>
+
+      <div class="rounded-lg border border-border bg-[#F7F7F6] p-6">
+        <h2 class="text-sm font-semibold text-navy mb-3">Good to know</h2>
+        <ul class="flex flex-col gap-2 list-disc pl-5">
+            <li class="text-sm text-gray-600 leading-relaxed">This is not a formal programme: it is voluntary, member-to-member matching. You agree between you how often to meet.</li>
+            <li class="text-sm text-gray-600 leading-relaxed">You need to sign in to see the member directory. Only members who keep their profile public appear in it.</li>
+            <li class="text-sm text-gray-600 leading-relaxed">A topic you are stuck on in the learning paths is a good place to start a conversation with a mentor.</li>
+        </ul>
+        <a href="/learning-paths/" class="inline-block mt-4 text-sm font-semibold text-navy-mid hover:underline no-underline">Browse the learning paths →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

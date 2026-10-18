@@ -2,12 +2,14 @@
  * Where to go after signing in. The admin panel's address carries its place
  * in the fragment (#sosyal/dm/<id>), which never reaches the server, so the
  * page sends it as ?next= to /auth/login, which keeps it for ten minutes in a
- * cookie that only /auth/* sees. Only this site's own panel and account
- * pages are accepted: anything else would make sign-in an open redirect.
+ * cookie that only /auth/* sees. Only this site's own panel, account and
+ * member pages are accepted: anything else would make sign-in an open
+ * redirect. The member pages are here so that a link to a filtered directory
+ * (/members/?badge=open_to_mentor, from the mentorship page) survives sign-in.
  */
 export const NEXT_COOKIE = 'rsg_next';
 const BASE = 'https://next.invalid';
-const ALLOWED = /^\/(tr\/)?(admin|account)(\/|$)/;
+const ALLOWED = /^\/(tr\/)?(admin|account|members)(\/|$)/;
 
 export function safeNext(v: unknown): string | null {
   if (typeof v !== 'string' || v.length === 0 || v.length > 512) return null;

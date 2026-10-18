@@ -21,6 +21,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
         <!-- Google Sign In -->
         <a
+          id="googleSignIn"
           href="/auth/login"
           class="flex items-center justify-center gap-3 w-full px-6 py-3 rounded-xl border-2 border-border bg-white hover:border-navy-mid hover:shadow-sm transition-all no-underline text-navy font-semibold text-sm">
           <svg width="20" height="20" viewBox="0 0 24 24">
@@ -46,3 +47,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
   </div>
 </BaseLayout>
+
+<script>
+  // Pages that need a sign-in send the reader here with ?next=<where they
+  // were>; hand it on, or the reader always lands on /account. The server
+  // decides what it accepts (functions/_lib/next-path.ts), so nothing here
+  // needs checking.
+  const next = new URLSearchParams(window.location.search).get('next');
+  const link = document.getElementById('googleSignIn') as HTMLAnchorElement | null;
+  if (next && link) link.href = '/auth/login?next=' + encodeURIComponent(next);
+</script>

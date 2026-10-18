@@ -8,6 +8,8 @@ test('allowed: admin and account paths, with search and hash', () => {
   assert.equal(safeNext('/admin'), '/admin');
   assert.equal(safeNext('/account/mail?x=1'), '/account/mail?x=1');
   assert.equal(safeNext('/tr/account'), '/tr/account');
+  assert.equal(safeNext('/members?badge=open_to_mentor'), '/members?badge=open_to_mentor');
+  assert.equal(safeNext('/tr/members/profile/?u=ayse'), '/tr/members/profile/?u=ayse');
 });
 
 test('refused: other sites, other paths, tricks', () => {
@@ -15,7 +17,7 @@ test('refused: other sites, other paths, tricks', () => {
     '/blog', '/administrator', '', '/%2F%2Fevil.example', '/admin\nSet-Cookie: x', null, 42, '/' + 'a'.repeat(600),
     '/admin\t', '/\t/evil.example', '/admin@evil.example', '/admin%5c..%5cblog', '/admin/%5Cevil.example', '/admin/%2e%2e/blog',
     '/admin/%2E%2E/%2E%2E/blog', '/admin#\\evil', '/admin\u0000', '/admin\u007f', ' /admin', '/tr/admin/..%2f..%2fblog',
-    'admin', '/ADMIN', '/tr//admin', '/en/admin']) {
+    'admin', '/ADMIN', '/tr//admin', '/en/admin', '/membersx', '/members/../blog']) {
     assert.equal(safeNext(bad), null, String(bad));
   }
 });

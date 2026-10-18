@@ -25,6 +25,7 @@ const BADGE_LABELS: Record<string, string> = {
       <div class="mb-10">
         <h1 class="text-3xl font-bold text-navy mb-2">Topluluk Üyeleri</h1>
         <p class="text-gray-500">RSG-Türkiye biyoinformatik topluluğuna göz atın ve bağlantı kurun.</p>
+        <a href="/tr/mentorship/" class="inline-block mt-2 text-sm font-semibold text-navy-mid hover:underline no-underline">Mentorluk nasıl işler? →</a>
       </div>
 
       <!-- Filters -->
@@ -187,8 +188,16 @@ const BADGE_LABELS: Record<string, string> = {
     const authRes = await fetch('/api/me');
     const authData: any = await authRes.json();
     if (!authData.user) {
-      window.location.replace('/tr/login?next=/tr/members');
+      window.location.replace('/tr/login?next=' + encodeURIComponent('/tr/members' + window.location.search));
       return;
+    }
+    // ?badge= and ?interest= preselect the filters, so other pages can link to
+    // a filtered list (the mentorship page sends ?badge=open_to_mentor).
+    const query = new URLSearchParams(window.location.search);
+    for (const [param, id] of [['badge', 'badgeFilter'], ['interest', 'interestFilter']]) {
+      const select = document.getElementById(id) as unknown as HTMLSelectElement;
+      const wanted = query.get(param);
+      if (wanted && [...select.options].some((o) => o.value === wanted)) select.value = wanted;
     }
     loadMembers(true);
   })();
