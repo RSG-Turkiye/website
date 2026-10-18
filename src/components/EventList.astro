@@ -20,13 +20,14 @@ const t = useTranslations(lang);
 // Build time. The page is rebuilt nightly, so "now" is at worst a day old --
 // and the boundary this decides is midnight after an event's last day.
 const now = new Date();
-const { upcoming, symposiums, workshops, hackathons } = groupEvents(events, now);
+const { upcoming, symposiums, workshops, hackathons, meetups } = groupEvents(events, now);
 
 const sections: { id: string; title: string; items: CommunityEvent[] }[] = [
   { id: "upcoming", title: t("events.section.upcoming"), items: upcoming },
   { id: "symposiums", title: t("events.symposiums.title"), items: symposiums },
   { id: "hackathons", title: t("events.hackathons.title"), items: hackathons },
   { id: "workshops", title: t("events.workshops.title"), items: workshops },
+  { id: "meetups", title: t("events.meetups.title"), items: meetups },
 ];
 
 const symposiumSite = lang === "tr"
