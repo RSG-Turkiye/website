@@ -21,7 +21,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (wantsAll && user.is_admin === 1) {
     const result = await env.DB.prepare(
       `SELECT s.id, s.recipients, s.subject, s.body,
-              s.attachment_ids, s.scheduled_at, u.email AS sender_email
+              s.attachment_ids, s.scheduled_at, s.last_error, u.email AS sender_email
        FROM scheduled_emails s
        JOIN users u ON u.id = s.sender_user_id
        ORDER BY s.scheduled_at ASC LIMIT 200`
@@ -31,7 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const result = await env.DB.prepare(
     `SELECT id, recipients, subject, body,
-            attachment_ids, scheduled_at
+            attachment_ids, scheduled_at, last_error
      FROM scheduled_emails
      WHERE sender_user_id = ?
      ORDER BY scheduled_at ASC LIMIT 200`
@@ -104,10 +104,16 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
+  // An edit is a fresh request, so it gets a fresh retry window: the give-up
+  // clock and the count of attempts restart, and the old failure reason goes.
+  // Kept, they would carry the old schedule's clock into the new one -- a row
+  // stamped today and moved to tomorrow was retired at the first tick of
+  // tomorrow without a single new attempt.
   await env.DB.prepare(
     `UPDATE scheduled_emails
      SET recipients = ?, subject = ?, body = ?,
-         attachment_ids = ?, scheduled_at = ?, updated_at = ?
+         attachment_ids = ?, scheduled_at = ?, updated_at = ?,
+         attempts = 0, first_tried_at = NULL, last_error = NULL
      WHERE id = ? AND sender_user_id = ?`
   ).bind(
     JSON.stringify(validation.recipients),

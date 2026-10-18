@@ -27,6 +27,8 @@ function harness(options: {
   failResolveWith?: 'kill';
   /** Makes the post-send DELETE throw, which is what reaches the catch. */
   failDelete?: boolean;
+  /** What every sent_emails count answers: high enough and the quota is full. */
+  sentCount?: number;
 }) {
   const log: Recorded[] = [];
   const rows = options.rows ?? [];
@@ -58,7 +60,7 @@ function harness(options: {
             async first<T>() {
               record();
               if (/is_sender/.test(sql)) return { is_sender: 1 } as T;
-              if (/COUNT\(\*\)/.test(sql)) return { n: 0 } as T;
+              if (/COUNT\(\*\)/.test(sql)) return { n: options.sentCount ?? 0 } as T;
               return null;
             },
             async run() {
@@ -123,6 +125,7 @@ const queueRow = (over: Record<string, unknown> = {}) => ({
   body: 'Body',
   attachment_ids: JSON.stringify(['att-1']),
   first_tried_at: null,
+  last_error: null,
   claimed_at: null,
   ...over,
 });
@@ -299,4 +302,64 @@ test('a handled error records the reason without counting a second attempt', asy
   const reason = h.log.find((l) => /SET last_error/.test(l.sql));
   assert.ok(reason, 'and the reason is still recorded');
   assert.ok(!/attempts/.test(reason.sql), 'the reason update touches no counter');
+});
+
+// --- a full quota is a wait, not a failure ---------------------------------
+
+test('a full quota holds the row without starting its clock', async () => {
+  // The quotas are rolling 24-hour counts and the retry window is six hours.
+  // When the quota was checked after the stamp, a held row's clock ran on,
+  // and the row was deleted unsent once six hours had passed.
+  const h = harness({ rows: [queueRow()], sentCount: 10_000 });
+  await tick(h.env);
+  const order = h.order();
+  assert.equal(indexOf(order, /attempts = attempts \+ 1/), -1, 'no attempt is recorded');
+  assert.equal(indexOf(order, /^R2 head$/), -1, 'the attachment is not read');
+  assert.equal(indexOf(order, /DELETE FROM scheduled_emails/), -1, 'the row stays queued');
+  const reason = h.log.find((l) => /SET last_error = \?/.test(l.sql));
+  assert.ok(reason, 'the reason is recorded for the panel');
+  assert.match(String(reason.values[0]), /^rate_limit_/);
+});
+
+test('the quota is checked before the attempt is stamped', async () => {
+  const h = harness({ rows: [queueRow()] });
+  await tick(h.env);
+  const order = h.order();
+  const quota = indexOf(order, /COUNT\(\*\) AS n FROM sent_emails/);
+  const stamp = indexOf(order, /attempts = attempts \+ 1/);
+  assert.ok(quota !== -1 && stamp !== -1 && quota < stamp, `quota (${quota}) before stamp (${stamp})`);
+});
+
+test('a row that waited on the quota sends once the quota frees', async () => {
+  // Held all day: no clock was started, so nothing retires it when the room comes.
+  const h = harness({ rows: [queueRow({ last_error: 'rate_limit_day' })] });
+  const body = await (await tick(h.env)).json<{ sent: number }>();
+  assert.equal(body.sent, 1);
+});
+
+test('starting an attempt clears the reason left by an earlier tick', async () => {
+  // Otherwise a row held by the quota and later killed mid-send would be
+  // retired under "rate_limit_day", which is not what happened to it.
+  const h = harness({ rows: [queueRow({ last_error: 'rate_limit_day' })] });
+  await tick(h.env);
+  const stamp = h.log.find((l) => /attempts = attempts \+ 1/.test(l.sql));
+  assert.ok(stamp);
+  assert.match(stamp.sql, /last_error = NULL/);
+});
+
+test('a row given up on is logged with its last real error', async () => {
+  const sevenHoursAgo = Date.parse('2026-09-08T02:00:00Z') / 1000;
+  const h = harness({ rows: [queueRow({ first_tried_at: sevenHoursAgo, last_error: 'gmail_503' })] });
+  await tick(h.env);
+  const logged = h.log.filter((l) => /INSERT INTO sent_emails/.test(l.sql)).flatMap((l) => l.values.map(String));
+  assert.ok(logged.some((v) => v.includes('last error: gmail_503')), `logged: ${logged.join(' | ')}`);
+  assert.notEqual(indexOf(h.order(), /DELETE FROM scheduled_emails/), -1, 'and the row leaves the queue');
+});
+
+test('with no recorded error, a given-up row is the one that kept killing the tick', async () => {
+  const sevenHoursAgo = Date.parse('2026-09-08T02:00:00Z') / 1000;
+  const h = harness({ rows: [queueRow({ first_tried_at: sevenHoursAgo })] });
+  await tick(h.env);
+  const logged = h.log.filter((l) => /INSERT INTO sent_emails/.test(l.sql)).flatMap((l) => l.values.map(String));
+  assert.ok(logged.some((v) => /Killed the dispatcher/.test(v)), `logged: ${logged.join(' | ')}`);
 });
