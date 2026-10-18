@@ -15,7 +15,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
       (SELECT GROUP_CONCAT(ui.interest) FROM user_interests ui WHERE ui.user_id = p.user_id) AS interests_raw,
       COALESCE(
         (SELECT rh.rank FROM rank_history rh WHERE rh.user_id = p.user_id
-         ORDER BY rh.rank_ordinal DESC, rh.computed_at DESC LIMIT 1),
+         ORDER BY rh.computed_at DESC, rh.rowid DESC LIMIT 1),
         'seed'
       ) as current_rank,
       (SELECT GROUP_CONCAT(uab.badge_code) FROM user_achievement_badges uab WHERE uab.user_id = p.user_id) AS achievement_badges_raw

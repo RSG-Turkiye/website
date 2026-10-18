@@ -19,7 +19,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       p.username, p.display_name, p.institution, p.is_public,
       COALESCE(
         (SELECT rank FROM rank_history rh WHERE rh.user_id = u.id
-         ORDER BY rank_ordinal DESC, computed_at DESC LIMIT 1),
+         ORDER BY computed_at DESC, rowid DESC LIMIT 1),
         'seed'
       ) as current_rank,
       (SELECT GROUP_CONCAT(badge_code) FROM user_achievement_badges uab
