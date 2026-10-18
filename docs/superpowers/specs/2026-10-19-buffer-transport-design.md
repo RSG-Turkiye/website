@@ -64,6 +64,16 @@ else is built on them.
 - `post(input: { id })` → `status, sentAt, externalLink, error { message }`.
   The `PostStatus` values are not on the reference page (live).
 - No idempotency key on `createPost`; a lost answer can mean a post exists.
+  Since 2026-09-29 Buffer may answer a repeated identical post with
+  `DuplicateError` (a `MutationError`); the step treats it as "may already
+  exist" and goes to the recovery read (§5.3), never to `fail`. Buffer's
+  public roadmap lists a bug where duplicate detection also blocks a post
+  whose earlier copy was deleted; if the recovery read finds nothing, the
+  target fails with Buffer's message so a person can edit the text.
+- The key is created with the least permissions: `account:read`,
+  `posts:read`, `posts:write`. The `engagements:*` permissions exist, but the
+  public API has no comment or DM queries yet (comments are on Buffer's
+  roadmap; a `directMessage` feature flag appeared on 2026-09-21).
 - Buffer refuses a LinkedIn post with no image? Multi-image on LinkedIn and
   up to 4 on X through Buffer? (live)
 
