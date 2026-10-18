@@ -198,13 +198,30 @@ const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => 
      * So the fetch is caught here, on its own, and the renderer below is left
      * to fail loudly if it is ever broken again.
      */
+    /*
+     * Who is signed in is asked of /api/me only when the answer may be yes.
+     * The session cookie is HttpOnly, so sign-in also sets a readable
+     * rsg_signed_in marker; without it the visitor is signed out, the page
+     * renders that way at once, and no request is made. Asking on every page
+     * view cost a Function call per visit and hid Join and Sign in until it
+     * answered -- and on 2026-10-18, when D1 refused reads, it answered late.
+     * Sessions from before the marker get one check per browser session (the
+     * probe), and /api/me hands them the marker.
+     */
     var cached = getCached();
+    var hasMarker = /(?:^|;\s*)rsg_signed_in=1(?:;|$)/.test(document.cookie);
+    var probed = false;
+    try { probed = sessionStorage.getItem('rsg_me_probed') === '1'; } catch (e) {}
+    var mustAsk = !cached && (hasMarker || !probed);
+    if (mustAsk && !hasMarker) { try { sessionStorage.setItem('rsg_me_probed', '1'); } catch (e) {} }
     (cached
       ? Promise.resolve(cached)
-      : fetch('/api/me')
-          .then(function (r) { return r.json(); })
-          .then(function (d) { if (d.user) { setCache(d); } return d; })
-          .catch(function () { return null; }))
+      : !mustAsk
+        ? Promise.resolve({ user: null })
+        : fetch('/api/me')
+            .then(function (r) { return r.json(); })
+            .then(function (d) { if (d.user) { setCache(d); } return d; })
+            .catch(function () { return null; }))
       .then(function (data) {
         if (!data) {
           // The request failed. Show the site as it looks to a visitor who is

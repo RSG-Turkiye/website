@@ -1,12 +1,15 @@
 import type { Env } from '../_lib/auth';
-import { getSessionUser, jsonResponse } from '../_lib/auth';
+import { getSessionUser, jsonResponse, hasSignedInMarker, signedInMarker, clearSignedInMarker, SESSION_DURATION } from '../_lib/auth';
 import { getCurrentRank } from '../_lib/rank';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
 
   if (!user) {
-    return jsonResponse({ user: null }, 401);
+    const res = jsonResponse({ user: null }, 401);
+    // A marker that outlived its session would make every page ask again.
+    if (hasSignedInMarker(request)) res.headers.append('Set-Cookie', clearSignedInMarker());
+    return res;
   }
 
   const profile = await env.DB.prepare(
@@ -27,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     'SELECT badge_code FROM user_achievement_badges WHERE user_id = ?'
   ).bind(user.id).all<{ badge_code: string }>();
 
-  return jsonResponse({
+  const res = jsonResponse({
     user: {
       id: user.id,
       email: user.email,
@@ -46,4 +49,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     rank: rank?.rank ?? 'seed',
     achievement_badges: achievementBadges.results.map(b => b.badge_code),
   });
+  // Sessions from before the marker existed get it here, on their next page.
+  if (!hasSignedInMarker(request)) {
+    res.headers.append('Set-Cookie', signedInMarker(new Date(Date.now() + SESSION_DURATION * 1000)));
+  }
+  return res;
 };
