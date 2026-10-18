@@ -10,7 +10,7 @@ const { entry: edition } = await getCurrentEdition();
 const year = edition?.data.year ?? new Date().getFullYear();
 ---
 
-<BaseLayout pageTitle={t("sponsors.title")}>
+<BaseLayout pageTitle={t("sponsors.title")} description={t("meta.sponsors")}>
   <section class="bg-navy text-white py-16">
     <div class="max-w-7xl mx-auto px-6 text-center">
       <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("sponsors.title")}</h1>

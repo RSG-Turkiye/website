@@ -11,6 +11,7 @@ import { getCollection, render } from "astro:content";
 import { getSpeakerBySlug, getCurrentContent, getCommittee } from "../../../lib/content";
 import { getCurrentEdition } from "../../../lib/editions-content";
 import { locationFor, titleFor, subtitleFor, dateFor } from "../../../lib/editions";
+import EventJsonLd from "../../../components/EventJsonLd.astro";
 import { getSponsorsByEdition } from "../../../data/sponsors";
 
 export async function getStaticPaths() {
@@ -63,14 +64,28 @@ const committee =
 // current one and keeps a list of everyone before; until now the year each
 // company actually supported was recorded in the data and shown nowhere.
 const sponsors = getSponsorsByEdition(edition.data.year);
+
+// What search shows for this edition, and its Event entry; see the English
+// page for why editions without a startDate get only the description.
+const metaPlace = locationFor(edition.data, now, lang);
+const metaCity = metaPlace.kind === "hidden" ? "" : metaPlace.city;
+const metaWhen = [dateFor(edition.data, lang), metaCity].filter(Boolean).join(", ");
+const description = [
+  `${titleFor(edition.data, lang)}${metaWhen ? `: ${metaWhen}` : ""}.`,
+  subtitleFor(edition.data, lang),
+].filter(Boolean).join(" ");
+const finished = (edition.data.endDate ?? edition.data.startDate ?? now) < now;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const title = titleFor(edition.data, lang);
 const subtitle = subtitleFor(edition.data, lang);
 ---
 
 <BaseLayout
   pageTitle={title}
+  description={description}
   image={edition.data.posterImage}
 >
+  {edition.data.startDate && <EventJsonLd edition={edition.data} url={canonical} lang={lang} finished={finished} speakers={speakers.filter((s) => s !== undefined)} />}
   <section class="bg-navy text-white py-16">
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex items-center gap-3 mb-3">
