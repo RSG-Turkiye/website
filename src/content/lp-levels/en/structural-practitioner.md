@@ -47,6 +47,11 @@ sections:
         description: "Parse PDB files, extract residues, calculate distances, iterate over chains. The programmatic interface to structure data that you'll need for any batch analysis."
         tag: Tool
         url: "https://biopython.org/wiki/The_Biopython_Structural_Bioinformatics_FAQ"
+      - id: "structural-practitioner-rsg-csb-workshop"
+        title: "Computational Structural Biology Workshop, RSG-Türkiye 2021"
+        description: "Our own workshop materials: structure files and visualisation, protein docking with HADDOCK, SWISS and PRISM, then running and analysing molecular dynamics with NAMD."
+        tag: Tutorial
+        url: "https://github.com/RSG-Turkiye/Computational_Structural_Biology_Workshop"
 
   - type: webinars
     resources:

@@ -22,6 +22,8 @@ export interface LlmsTxtInput {
   /** Learning-path domains, in display order. */
   domains: { slug: string; name: string; tagline: string }[];
   committees: { name: string; description: string }[];
+  /** Hands-on workshops with public materials, newest first. */
+  workshops: { year: number; title: string; topics: string; url: string }[];
   contactEmail: string;
 }
 
@@ -57,6 +59,12 @@ export function llmsTxt(d: LlmsTxtInput): string {
     '### Committees',
     '',
     ...d.committees.map((c) => `- ${c.name}: ${c.description}`),
+    '',
+    '## Open workshop materials',
+    '',
+    'Slides, code and exercises from hands-on workshops RSG-Türkiye has run, free to use for self-study:',
+    '',
+    ...d.workshops.map((w) => `- [${w.title} (${w.year})](${w.url}): ${w.topics}`),
     '',
     '## Learning paths by field',
     '',

@@ -25,4 +25,14 @@ resources:
     description: "Not optional. Track changes, collaborate, and never lose your work. Every analysis you run should live in a Git repository."
     tag: Tutorial
     url: "https://swcarpentry.github.io/git-novice/"
+  - id: "roadmap-3-rsg-command-line-workshop"
+    title: "Command Line Tools Workshop, RSG-Türkiye 2021"
+    description: "Our own workshop materials: Linux, navigating files, sed, awk and grep, then two practicals that use them, a long-read genome assembly and the first steps of an RNA-seq analysis."
+    tag: Tutorial
+    url: "https://github.com/RSG-Turkiye/Workshop2021"
+  - id: "roadmap-3-rsg-ankapy-workshop"
+    title: "Python for Bioinformatics (AnkaPy), RSG-Türkiye 2019"
+    description: "Our own five-day workshop: Python basics, Biopython for FASTA, BLAST and Entrez, then numpy, pandas and matplotlib for data analysis."
+    tag: Tutorial
+    url: "https://github.com/RSG-Turkiye/AnkaPy"
 ---

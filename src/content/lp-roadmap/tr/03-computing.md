@@ -25,4 +25,14 @@ resources:
     description: "Zorunlu. Değişiklikleri takip edin, işbirliği yapın ve çalışmanızı asla kaybetmeyin. Çalıştırdığınız her analiz bir Git deposunda yaşamalıdır."
     tag: Tutorial
     url: "https://swcarpentry.github.io/git-novice/"
+  - id: "roadmap-3-rsg-command-line-workshop"
+    title: "Command Line Tools Workshop, RSG-Türkiye 2021"
+    description: "Kendi atölye materyallerimiz: Linux, dosyalarda gezinme, sed, awk ve grep; ardından bunları kullanan iki uygulama, uzun okumalarla genom birleştirme ve bir RNA-seq analizinin ilk adımları."
+    tag: Tutorial
+    url: "https://github.com/RSG-Turkiye/Workshop2021"
+  - id: "roadmap-3-rsg-ankapy-workshop"
+    title: "Python for Bioinformatics (AnkaPy), RSG-Türkiye 2019"
+    description: "Kendi beş günlük atölyemiz: Python temelleri, FASTA, BLAST ve Entrez için Biopython, ardından veri analizi için numpy, pandas ve matplotlib."
+    tag: Tutorial
+    url: "https://github.com/RSG-Turkiye/AnkaPy"
 ---

@@ -52,6 +52,11 @@ sections:
         description: "Her seviyede pazarlık konusu değil. Araştırmacı seviyesinde: raporlamayı planladığınız her gen için okumalara bakın."
         tag: Tool
         url: "https://igv.org"
+      - id: "genomics-researcher-rsg-seurat-workshop"
+        title: "Single-cell RNA-seq with Seurat, RSG-Türkiye 2024"
+        description: "Kendi atölye materyallerimiz: PBMC verisi üzerinde baştan sona bir Seurat v5 analizi, kurulumdan otomatik hücre tipi atamasına ve iki veri setinin entegrasyonuna kadar."
+        tag: Tutorial
+        url: "https://github.com/RSG-Turkiye/RSG-Single-Cell-Workshop2024"
 
   - type: webinars
     resources:
