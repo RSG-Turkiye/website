@@ -32,11 +32,12 @@ const facts: [number, string][] = [
 const fmt = (d: Date) => d.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
 ---
 
-<!-- Sticky beside the list, and never taller than the space between the
-     fixed header and the podcast bar: a column taller than the viewport hid
-     its own last block until the page ended. If it still does not fit (a
-     short window), it scrolls on its own. -->
-<aside class="flex flex-col gap-6 text-sm xl:sticky xl:top-24 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto [scrollbar-width:thin]">
+<!-- Sticky without an inner scroller. A column that fits the window stays
+     put under the header; one that does not (a short window) scrolls with the
+     page until its last block is in view, then stays: the script below sets
+     its sticky top so its bottom clears the podcast bar. An inner scrollbar,
+     the first version, read as broken. -->
+<aside data-sticky-aside class="flex flex-col gap-6 text-sm xl:sticky xl:top-24">
   <section>
     <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? `${yearAblative(since)} beri` : `Since ${since}`}</h2>
     <dl class="border-t border-border">
@@ -90,3 +91,22 @@ const fmt = (d: Date) => d.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "nu
   </section>
 
 </aside>
+
+<script>
+  // Stick by the bottom when the column is taller than the window.
+  const HEADER = 96; // the fixed header plus a gap (top-24)
+  const BOTTOM = 80; // keeps the last block above the podcast bar
+  const fit = () => {
+    document.querySelectorAll<HTMLElement>('[data-sticky-aside]').forEach((aside) => {
+      const room = window.innerHeight - HEADER - BOTTOM;
+      aside.style.top = aside.offsetHeight > room ? `${window.innerHeight - BOTTOM - aside.offsetHeight}px` : '';
+    });
+  };
+  fit();
+  window.addEventListener('resize', fit);
+  // Its height settles only after the web font loads; refit whenever it changes.
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(fit);
+    document.querySelectorAll('[data-sticky-aside]').forEach((a) => ro.observe(a));
+  }
+</script>
