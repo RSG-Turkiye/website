@@ -7,7 +7,7 @@
  */
 import type { DmEnv } from './social-dm-poll';
 import { notifyEach, publisherEmails } from './social-notify';
-import { dmView, digestFresh, digestList, mayDigest, lastCallDue, type DmThreadRow } from './social-dm';
+import { dmView, digestFresh, digestList, mayDigest, lastCallDue, WINDOW_SECONDS, type DmThreadRow } from './social-dm';
 
 export const dmPanelUrl = (origin: string, id: string) => `${origin}/tr/admin#sosyal/dm/${id}`;
 
@@ -47,7 +47,10 @@ async function digestRecipients(db: D1Database): Promise<{ id: string; email: st
 export async function runDmNotifications(env: DmEnv, now: number, origin: string): Promise<{ lastCalls: number; digests: number }> {
   const out = { lastCalls: 0, digests: 0 };
   await env.DB.prepare(`DELETE FROM social_dm_digest_log WHERE sent_at < ?`).bind(now - 2 * 86400).run();
-  const rows = (await env.DB.prepare(`SELECT * FROM social_dm_threads WHERE platform = 'instagram'`).all<DmThreadRow>()).results;
+  // Every rule below needs a thread still open (an inbound message under 24 h old), so
+  // older rows are never read: this runs every minute and the table is never pruned.
+  const rows = (await env.DB.prepare(`SELECT * FROM social_dm_threads WHERE platform = 'instagram' AND last_inbound_at > ?`)
+    .bind(now - WINDOW_SECONDS).all<DmThreadRow>()).results;
 
   for (const r of lastCallDue(rows, now)) {
     const sent = await notifyEach(env as never, await publisherEmails(env.DB), dmLastCallText(r, now, origin));

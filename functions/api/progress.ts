@@ -38,24 +38,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const now = Math.floor(Date.now() / 1000);
 
-  for (const item of items) {
-    if (
-      typeof item.resource_id !== 'string' ||
-      item.resource_id.length > 120 ||
-      !RESOURCE_ID_RE.test(item.resource_id)
-    ) continue;
-
-    const completed = item.completed ? 1 : 0;
-    const completedAt = item.completed ? now : null;
-
-    await env.DB.prepare(`
-      INSERT INTO progress (user_id, resource_id, completed, completed_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT (user_id, resource_id) DO UPDATE SET
-        completed = excluded.completed,
-        completed_at = CASE WHEN excluded.completed = 1 THEN excluded.completed_at ELSE completed_at END
-    `).bind(user.id, item.resource_id, completed, completedAt).run();
-  }
+  // One batch, not a statement per item: the free plan allows 50 D1 queries
+  // per request, and a first sync can carry far more ticked items than that.
+  const upsert = env.DB.prepare(`
+    INSERT INTO progress (user_id, resource_id, completed, completed_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT (user_id, resource_id) DO UPDATE SET
+      completed = excluded.completed,
+      completed_at = CASE WHEN excluded.completed = 1 THEN excluded.completed_at ELSE completed_at END
+  `);
+  const writes = items
+    .filter((item) =>
+      typeof item.resource_id === 'string' &&
+      item.resource_id.length <= 120 &&
+      RESOURCE_ID_RE.test(item.resource_id))
+    .map((item) => upsert.bind(user.id, item.resource_id, item.completed ? 1 : 0, item.completed ? now : null));
+  if (writes.length > 0) await env.DB.batch(writes);
 
   await maybeAutoPromote(user.id, env);
 
