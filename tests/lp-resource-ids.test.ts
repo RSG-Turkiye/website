@@ -13,26 +13,37 @@ const ROOT = new URL('../src/content/', import.meta.url).pathname;
 // The same rule functions/api/progress.ts applies; an id it rejects is never saved.
 const SAVABLE = /^[a-z0-9_-]+$/i;
 
+// What must be the same in both languages; only title and description are translated.
+const SHARED = ['tag', 'url', 'webinarSlug', 'youtubeUrl', 'speaker', 'year'] as const;
+type Resource = { id: string } & Partial<Record<(typeof SHARED)[number], string>>;
+
 /**
- * Each resource's id, in file order. Read line by line rather than with a YAML
- * parser (none is a dependency): a resource is an indented `title:` line, and
- * its id is the `- id:` line just above it. A resource without one reads as "".
+ * Each resource in file order. Read line by line rather than with a YAML
+ * parser (none is a dependency): a resource starts at its `- id:` line, and a
+ * resource with no id (an indented `title:` with none above it) reads as "".
  */
-function resourcesOf(collection: string, lang: string): Map<string, string[]> {
-  const out = new Map<string, string[]>();
+function resourceRecords(collection: string, lang: string): Map<string, Resource[]> {
+  const out = new Map<string, Resource[]>();
   for (const name of readdirSync(`${ROOT}${collection}/${lang}`).filter((n) => n.endsWith('.md'))) {
     const front = readFileSync(`${ROOT}${collection}/${lang}/${name}`, 'utf8').split(/^---$/m)[1];
-    const ids: string[] = [];
-    let pending: string | null = null;
+    const list: Resource[] = [];
+    let current: Resource | null = null;
     for (const line of front.split('\n')) {
       const id = line.match(/^\s+- id: "([^"]*)"\s*$/);
-      if (id) { pending = id[1]; continue; }
-      if (/^\s+(- )?title: /.test(line)) { ids.push(pending ?? ''); pending = null; }
+      if (id) { current = { id: id[1] }; list.push(current); continue; }
+      if (/^\s+- title: /.test(line)) { current = { id: '' }; list.push(current); continue; }
+      if (/^\s+- type: /.test(line)) { current = null; continue; }
+      const field = line.match(/^\s+(\w+): "?(.*?)"?\s*$/);
+      if (current && field && (SHARED as readonly string[]).includes(field[1])) {
+        current[field[1] as (typeof SHARED)[number]] = field[2];
+      }
     }
-    out.set(name, ids);
+    out.set(name, list);
   }
   return out;
 }
+const resourcesOf = (collection: string, lang: string) =>
+  new Map([...resourceRecords(collection, lang)].map(([file, list]) => [file, list.map((r) => r.id)]));
 
 test('every learning-path resource has an id the progress API will save', () => {
   for (const collection of ['lp-levels', 'lp-roadmap']) {
@@ -67,6 +78,25 @@ test('the Turkish file carries the same ids in the same order as the English one
     const tr = resourcesOf(collection, 'tr');
     for (const [file, ids] of en) {
       assert.deepEqual(tr.get(file), ids, `${collection}/tr/${file} differs from en/`);
+    }
+  }
+});
+
+test('a resource links to the same place in both languages', () => {
+  // A link fixed in one language only is how the two drift: the next #35 would
+  // be half-repaired. Site-relative links differ by their /tr prefix alone.
+  for (const collection of ['lp-levels', 'lp-roadmap']) {
+    const en = resourceRecords(collection, 'en');
+    const tr = resourceRecords(collection, 'tr');
+    for (const [file, list] of en) {
+      const twins = tr.get(file) ?? [];
+      list.forEach((r, i) => {
+        const t = { ...twins[i] };
+        if (t.url?.startsWith('/tr/')) t.url = t.url.slice(3);
+        for (const key of SHARED) {
+          assert.equal(t[key], r[key], `${collection}/${file} ${r.id}: ${key} is "${r[key]}" in en/ but "${twins[i]?.[key]}" in tr/`);
+        }
+      });
     }
   }
 });
