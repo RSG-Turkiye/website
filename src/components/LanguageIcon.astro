@@ -40,7 +40,9 @@
       } else {
         newPath = (currentPath === '/tr' || currentPath === '/tr/') ? '/' : (currentPath.startsWith('/tr/') ? currentPath.replace('/tr', '') : currentPath);
       }
-      window.location.href = newPath;
+      // The query string carries state both languages share, such as whose
+      // profile this is (/members/profile/?u=...) or the webinar filters.
+      window.location.href = newPath + window.location.search;
     });
   }
 
