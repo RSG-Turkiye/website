@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 import { videoJsonLd } from '../../lib/video-jsonld';
 import { counterpartSlug } from '../../lib/translations';
+import WebinarPathsCard from '../../components/learning-paths/WebinarPathsCard.astro';
 
 export async function getStaticPaths() {
   const all = await getCollection('webinars', ({ data }) => !data.draft);
@@ -112,6 +113,8 @@ const videoId = youtubeUrl
               </ul>
             </div>
           )}
+
+          <WebinarPathsCard webinarSlug={slug} lang="en" />
 
         </div>
       </div>

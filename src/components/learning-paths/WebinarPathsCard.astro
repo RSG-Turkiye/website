@@ -1,0 +1,33 @@
+---
+/**
+ * Sidebar card on a webinar page: the learning-path levels and roadmap stages
+ * that list this talk, so a reader who arrives from a search can find the
+ * path around it. Renders nothing when no path lists the talk.
+ */
+import { loadPaths } from '../../lib/learning-paths-content';
+import { pathsForWebinar, type Lang } from '../../lib/learning-paths';
+
+interface Props {
+  /** The English webinar's slug: learning paths always name that one. */
+  webinarSlug: string | null;
+  lang: Lang;
+}
+const { webinarSlug, lang } = Astro.props;
+const { domains, levels, stages } = await loadPaths(lang);
+const paths = webinarSlug ? pathsForWebinar(webinarSlug, lang, domains, levels, stages) : [];
+---
+
+{paths.length > 0 && (
+  <div class="rounded-lg border border-border bg-white p-5">
+    <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
+      {lang === 'tr' ? 'Öğrenme yollarında' : 'On the learning paths'}
+    </p>
+    <ul class="flex flex-col gap-2">
+      {paths.map((p) => (
+        <li>
+          <a href={p.href} class="text-sm text-navy-mid hover:text-navy hover:underline leading-snug">{p.label}</a>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
