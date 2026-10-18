@@ -1,0 +1,76 @@
+---
+/**
+ * "Your learning paths" on the account page: how far the member has got on
+ * each path, and a link back to the one in progress. Ticks were only visible
+ * on the path pages themselves, so the account page had a rank earned by
+ * learning paths and no way back to them.
+ *
+ * The page is static; the card fills itself from /api/progress, and stays
+ * hidden if that fails (signed out, or the database is unavailable).
+ */
+import { loadPaths } from '../../lib/learning-paths-content';
+import { pathUnits, type Lang } from '../../lib/learning-paths';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const { domains, levels, stages } = await loadPaths(lang);
+const units = pathUnits(lang, domains, levels, stages);
+
+const t = lang === 'tr'
+  ? { title: 'Öğrenme yolların', resume: 'Devam et', empty: 'Henüz hiçbir kaynağı işaretlemedin.', start: 'Başlangıç Yol Haritası ile başla →', all: 'Tüm öğrenme yolları →' }
+  : { title: 'Your learning paths', resume: 'Continue', empty: "You haven't ticked off any resources yet.", start: 'Start with the Beginner Roadmap →', all: 'All learning paths →' };
+const base = lang === 'tr' ? '/tr/learning-paths' : '/learning-paths';
+---
+
+<div id="lpProgressCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6"
+  data-units={JSON.stringify(units)} data-resume={t.resume}>
+  <div class="flex items-baseline justify-between gap-4 mb-4">
+    <h2 class="text-sm font-semibold text-navy">{t.title}</h2>
+    <a href={`${base}/`} class="text-xs text-navy-mid hover:underline no-underline">{t.all}</a>
+  </div>
+  <div id="lpProgressList" class="flex flex-col gap-4"></div>
+  <div id="lpProgressEmpty" class="hidden">
+    <p class="text-sm text-gray-500 mb-2">{t.empty}</p>
+    <a href={`${base}/roadmap/`} class="text-sm font-semibold text-navy-mid hover:underline no-underline">{t.start}</a>
+  </div>
+</div>
+
+<script>
+  import { progressByUnit, type PathUnit } from '../../lib/learning-paths';
+
+  const card = document.getElementById('lpProgressCard');
+  if (card) {
+    const units: PathUnit[] = JSON.parse(card.dataset.units ?? '[]');
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    (async () => {
+      try {
+        const res = await fetch('/api/progress');
+        if (!res.ok) return;
+        const { completed } = (await res.json()) as { completed: string[] };
+        const rows = progressByUnit(units, completed ?? []).slice(0, 5);
+        if (rows.length === 0) {
+          document.getElementById('lpProgressEmpty')!.classList.remove('hidden');
+        } else {
+          // The first unfinished one gets the button: that is where they left off.
+          const resumeKey = rows.find((r) => r.done < r.total)?.key;
+          document.getElementById('lpProgressList')!.innerHTML = rows.map((r) => {
+            const pct = Math.round((r.done / r.total) * 100);
+            return `<div>
+              <div class="flex items-baseline justify-between gap-3 mb-1.5">
+                <a href="${esc(r.href)}" class="text-sm text-navy hover:underline no-underline">${esc(r.label)}</a>
+                <span class="text-xs text-gray-500 tabular-nums shrink-0">${r.done} / ${r.total}</span>
+              </div>
+              <div class="h-1.5 rounded-full bg-navy-light overflow-hidden" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(r.label)}">
+                <div class="h-full ${r.done === r.total ? 'bg-green-600' : 'bg-navy-mid'}" style="width:${pct}%"></div>
+              </div>
+              ${r.key === resumeKey ? `<a href="${esc(r.href)}" class="inline-block mt-2 text-xs font-semibold text-red hover:underline no-underline">${esc(card.dataset.resume ?? '')} →</a>` : ''}
+            </div>`;
+          }).join('');
+        }
+        card.classList.remove('hidden');
+      } catch {
+        // Leave the card hidden: the rest of the account page does not depend on it.
+      }
+    })();
+  }
+</script>

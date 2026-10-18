@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import AccountPathsCard from '../../../components/learning-paths/AccountPathsCard.astro';
 ---
 
 <BaseLayout pageTitle="Profilim, RSG-Türkiye" description="RSG-Türkiye üye profiliniz.">
@@ -64,6 +65,9 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
             <p id="rankDesc" class="text-sm text-gray-500"></p>
           </div>
         </div>
+
+        <!-- Learning-path progress -->
+        <AccountPathsCard lang="tr" />
 
         <!-- Achievement badges -->
         <div id="achievementsCard" class="hidden bg-white rounded-2xl border border-border shadow-sm p-6">
