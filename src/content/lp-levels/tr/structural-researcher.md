@@ -12,7 +12,7 @@ sections:
       - title: "Cryo-EM: principles and what it gives you over X-ray"
         description: "Kryo-EM, büyük kompleksler ve esnek sistemler için baskın yöntem haline geldi. Yeniden yapılandırma pipeline'ını anlamak (parçacık toplama, 2B sınıflar, 3B iyileştirme) artık yapısal biyologlar için temel bir okuryazarlık."
         tag: Reading
-        url: "https://www.ebi.ac.uk/training/online/courses/cryo-em-map-interpretation-in-protein-model-building/"
+        url: "https://cryoem101.org/"
       - title: "Integrative Structural Biology: combining data types"
         description: "Hiçbir tek yöntem tam resmi vermez. Kryo-EM, çapraz bağlama-MS, SAXS ve hesaplamalı modellemeyi tutarlı bir yapısal modelde nasıl birleştireceğiniz, ve belirsizliği nasıl raporlayacağınız."
         tag: Reading

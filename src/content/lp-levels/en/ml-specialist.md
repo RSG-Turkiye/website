@@ -49,7 +49,7 @@ sections:
       - title: "ESM-3: Simulating 500 million years of evolution with a language model (Hayes et al. 2024)"
         description: "The paper that unified sequence, structure, and function in a single generative model. Read for the training objective and the generation experiments, not just the benchmarks."
         tag: Paper
-        url: "https://www.evolutionaryscale.ai/papers/esm3-simulating-500-million-years-of-evolution"
+        url: "https://www.evolutionaryscale.ai/blog/esm3-release"
       - title: "Accurate structure prediction of biomolecular interactions with AlphaFold 3 (Abramson et al. 2024)"
         description: "AF3 extends AlphaFold to protein-DNA, protein-RNA, and protein-ligand complexes. The diffusion-based architecture is a significant departure from AF2."
         tag: Paper

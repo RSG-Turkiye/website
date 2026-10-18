@@ -14,7 +14,7 @@ sections:
       - title: "16S rRNA vs Shotgun Metagenomics: when to choose each"
         description: "16S tek bir geni hedefler (ucuz, taksonomik); shotgun her şeyi diziler (pahalı, işlevsel). Yaklaşım seçimi, ne öğrenebileceğinizi ve analizin nasıl görüneceğini belirler."
         tag: Reading
-        url: "https://www.illumina.com/areas-of-interest/microbiology/microbial-sequencing-methods/metagenomic-sequencing.html"
+        url: "https://www.illumina.com/areas-of-interest/microbiology/microbial-sequencing-methods/shotgun-metagenomic-sequencing.html"
       - title: "The Human Microbiome Project, why microbiome science matters"
         description: "İnsan mikrobiyomunun taban çeşitliliğini belirleyen proje. Genel bakışı okumak, teknik ayrıntılardan önce biyolojik motivasyonu verir."
         tag: Reading

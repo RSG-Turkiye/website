@@ -10,9 +10,9 @@ sections:
   - type: foundations
     resources:
       - title: "RNA-seq Workflow End-to-End, Harvard HBC"
-        description: "The most complete free RNA-seq course. QC → trimming → alignment → quantification → DE analysis, with explanations of why each step exists."
+        description: "The most complete free RNA-seq course. QC → trimming → alignment → quantification to a count matrix, with explanations of why each step exists. DE analysis continues in HBC's Introduction to DGE."
         tag: Tutorial
-        url: "https://hbctraining.github.io/Intro-to-rnaseq-hpc-salmon-flipped/"
+        url: "https://hbctraining.github.io/Intro-to-bulk-RNAseq/"
       - title: "FastQC / MultiQC, always QC first"
         description: "Before any analysis: run FastQC on your raw reads and MultiQC to aggregate reports. Most analysis failures are detectable at this step."
         tag: Tool

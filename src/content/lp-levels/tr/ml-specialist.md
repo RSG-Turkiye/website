@@ -49,7 +49,7 @@ sections:
       - title: "ESM-3: Simulating 500 million years of evolution with a language model (Hayes et al. 2024)"
         description: "Dizi, yapı ve işlevi tek bir üretici modelde birleştiren makale. Eğitim hedefi ve üretim deneyleri için okuyun, sadece kıyaslamalara bakmayın."
         tag: Paper
-        url: "https://www.evolutionaryscale.ai/papers/esm3-simulating-500-million-years-of-evolution"
+        url: "https://www.evolutionaryscale.ai/blog/esm3-release"
       - title: "Accurate structure prediction of biomolecular interactions with AlphaFold 3 (Abramson et al. 2024)"
         description: "AF3, AlphaFold'u protein-DNA, protein-RNA ve protein-ligand komplekslerine genişletiyor. Diffüzyon tabanlı mimari, AF2'den önemli bir ayrılma."
         tag: Paper

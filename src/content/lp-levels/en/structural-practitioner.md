@@ -12,7 +12,7 @@ sections:
       - title: "Molecular Dynamics: what you're actually simulating"
         description: "MD integrates Newton's equations of motion for every atom. Understanding the force field, timestep, and ensemble choices explains why two simulations of the same protein can give different answers."
         tag: Tutorial
-        url: "https://www.gromacs.org/Documentation_of_outdated_versions/Tutorials/GROMACS_Tutorial_1_Lysozyme_in_Water"
+        url: "http://www.mdtutorials.com/gmx/lysozyme/"
       - title: "Molecular Docking: what the score means (and doesn't)"
         description: "Docking scores are not binding affinities. Understanding the scoring function (what it approximates and where it breaks down) prevents a very common category of over-interpretation."
         tag: Reading
@@ -20,7 +20,7 @@ sections:
       - title: "Structure Quality: how to evaluate what you're working with"
         description: "Resolution, R-factor, B-factors, clashscore: a structure with poor quality metrics should not anchor your analysis. Learn to read the wwPDB validation report before trusting any PDB entry."
         tag: Reading
-        url: "https://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/quality-filtering-and-checking"
+        url: "https://www.wwpdb.org/validation/2017/XrayValidationReportHelp"
 
   - type: toolkit
     resources:

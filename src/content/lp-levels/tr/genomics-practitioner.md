@@ -10,9 +10,9 @@ sections:
   - type: foundations
     resources:
       - title: "RNA-seq Workflow End-to-End, Harvard HBC"
-        description: "En kapsamlı ücretsiz RNA-seq kursu. QC → kırpma → hizalama → kantifikasyon → DE analizi; her adımın neden var olduğunun açıklamalarıyla."
+        description: "En kapsamlı ücretsiz RNA-seq kursu. QC → kırpma → hizalama → kantifikasyon ile sayım matrisine kadar; her adımın neden var olduğunun açıklamalarıyla. DE analizi HBC'nin Introduction to DGE kursunda devam ediyor."
         tag: Tutorial
-        url: "https://hbctraining.github.io/Intro-to-rnaseq-hpc-salmon-flipped/"
+        url: "https://hbctraining.github.io/Intro-to-bulk-RNAseq/"
       - title: "FastQC / MultiQC, always QC first"
         description: "Herhangi bir analizden önce: ham okumalarınızda FastQC ve raporları toplamak için MultiQC çalıştırın. Analiz hatalarının çoğu bu adımda tespit edilebilir."
         tag: Tool

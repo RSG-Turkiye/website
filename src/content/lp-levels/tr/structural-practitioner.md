@@ -12,7 +12,7 @@ sections:
       - title: "Molecular Dynamics: what you're actually simulating"
         description: "MD, her atom için Newton'ın hareket denklemlerini entegre eder. Kuvvet alanı, zaman adımı ve topluluk seçimlerini anlamak, aynı proteinin iki simülasyonunun neden farklı yanıtlar verebileceğini açıklar."
         tag: Tutorial
-        url: "https://www.gromacs.org/Documentation_of_outdated_versions/Tutorials/GROMACS_Tutorial_1_Lysozyme_in_Water"
+        url: "http://www.mdtutorials.com/gmx/lysozyme/"
       - title: "Molecular Docking: what the score means (and doesn't)"
         description: "Kenetlenme skorları bağlanma afinitesi değildir. Puanlama fonksiyonunu anlamak (neyi yaklaştırdığı ve nerede bozulduğu) çok yaygın bir aşırı yorum kategorisini önler."
         tag: Reading
@@ -20,7 +20,7 @@ sections:
       - title: "Structure Quality: how to evaluate what you're working with"
         description: "Çözünürlük, R-faktörü, B-faktörleri, çarpışma skoru: zayıf kalite metriklerine sahip bir yapı analizinizin temeli olmamalıdır. Herhangi bir PDB girdisine güvenmeden önce wwPDB doğrulama raporunu okumayı öğrenin."
         tag: Reading
-        url: "https://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/quality-filtering-and-checking"
+        url: "https://www.wwpdb.org/validation/2017/XrayValidationReportHelp"
 
   - type: toolkit
     resources:

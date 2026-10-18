@@ -12,11 +12,11 @@ sections:
       - title: "Why Biology Needs ML, and the hard part"
         description: "Biyolojik veri yüksek boyutlu, gürültülü ve yapılandırılmıştır. Bunu anlamak her modelleme kararını şekillendirir, özellikle modelinizin ne öğrenip öğrenmemesi gerektiği konusunda."
         tag: Reading
-        url: "https://www.nature.com/articles/s41592-021-01333-z"
+        url: "https://doi.org/10.1038/s41580-021-00407-0"
       - title: "Representations of Biological Sequences"
-        description: "One-hot, k-mer özellikleri, dil modellerinden gömüler: temsil, modelin dünyaya bakışıdır. Bu kurs seçenekleri ve ödünleşimlerini haritalıyor."
-        tag: Course
-        url: "https://www.ebi.ac.uk/training/online/courses/protein-bioinformatics/"
+        description: "One-hot, k-mer özellikleri, dil modellerinden gömüler: temsil, modelin dünyaya bakışıdır. Bu ders seçenekleri ve ödünleşimlerini haritalıyor."
+        tag: Videos
+        url: "https://www.youtube.com/watch?v=uPoFdCUqBWk"
       - title: "From CNNs to Transformers in Genomics"
         description: "DeepBind ve Basenji'den dikkat tabanlı modellere ilerleme. Mimari seçimlerin biyolojik sonuçları var, bu inceleme alanın her geçişi neden yaptığını izliyor."
         tag: Reading
@@ -24,7 +24,7 @@ sections:
       - title: "Honest Evaluation in Bio-ML"
         description: "Genomik bölmeler i.i.d. değildir. Veri sızıntısı makaleleri mahveder. Gerçek dünya genellemesini yansıtan değerlendirmeler nasıl tasarlanır."
         tag: Reading
-        url: "https://www.nature.com/articles/s41592-021-01205-6"
+        url: "https://doi.org/10.1038/s41592-021-01205-4"
 
   - type: toolkit
     resources:

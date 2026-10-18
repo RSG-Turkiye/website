@@ -14,7 +14,7 @@ sections:
       - title: "What does RNA-seq actually measure?"
         description: "RNA-seq doesn't measure genes, it counts transcripts. Understanding this distinction prevents a category of misinterpretation that haunts beginners."
         tag: Reading
-        url: "https://hbctraining.github.io/Intro-to-rnaseq-hpc-salmon-flipped/lessons/01_intro-to-RNAseq.html"
+        url: "https://hbctraining.github.io/Intro-to-bulk-RNAseq/lessons/01_intro-to-RNAseq.html"
       - title: "What are Omics? (Genomics, Transcriptomics, Proteomics)"
         description: "A plain-language overview of the -omics landscape: what each one measures, the kind of questions each answers, and why you'd choose one over another."
         tag: Reading
