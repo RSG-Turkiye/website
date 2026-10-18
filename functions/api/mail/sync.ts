@@ -6,7 +6,7 @@ import { ingestThread, notifyThreadOwner } from '../../_lib/conversations';
 /**
  * Pull replies into the local cache.
  *
- * Driven by the Cloudflare cron Worker (workers/mail-cron) every five minutes
+ * Driven by the Cloudflare cron Worker (workers/mail-cron) every minute
  * and by the conversations page on load. Secret-gated exactly like
  * /api/mail/dispatch: without that, anyone could burn the Gmail read quota.
  */

@@ -5,7 +5,7 @@ import { runSync } from './sync';
 /**
  * The page-driven half of the sync.
  *
- * The cron Worker runs every five minutes; this is what makes opening the page
+ * The cron Worker runs every minute; this is what makes opening the page
  * feel immediate. It is throttled globally rather than per member, because the
  * thing being protected is one shared Gmail quota, not one member's patience.
  */
