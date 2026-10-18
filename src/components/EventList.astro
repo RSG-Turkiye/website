@@ -6,8 +6,9 @@
  * copy of this markup. Two lists meant two things to update and, in
  * practice, neither got updated.
  */
-import { events, groupEvents, statusOf, type CommunityEvent } from "../data/events";
+import { events, groupEvents, type CommunityEvent } from "../data/events";
 import { useTranslations } from "../i18n/ui";
+import EventRow from "./EventRow.astro";
 
 interface Props {
   lang: "en" | "tr";
@@ -19,11 +20,12 @@ const t = useTranslations(lang);
 // Build time. The page is rebuilt nightly, so "now" is at worst a day old --
 // and the boundary this decides is midnight after an event's last day.
 const now = new Date();
-const { upcoming, symposiums, workshops } = groupEvents(events, now);
+const { upcoming, symposiums, workshops, hackathons } = groupEvents(events, now);
 
 const sections: { id: string; title: string; items: CommunityEvent[] }[] = [
   { id: "upcoming", title: t("events.section.upcoming"), items: upcoming },
   { id: "symposiums", title: t("events.symposiums.title"), items: symposiums },
+  { id: "hackathons", title: t("events.hackathons.title"), items: hackathons },
   { id: "workshops", title: t("events.workshops.title"), items: workshops },
 ];
 
@@ -43,41 +45,16 @@ const symposiumSite = lang === "tr"
           {section.title}
         </h2>
         <div class="flex flex-col">
-          {section.items.map((event) => {
-            const status = statusOf(event, now);
-            return (
-              <div class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 py-5 border-b border-border items-start">
-                <div class="flex flex-col">
-                  <span class="text-sm font-medium text-navy">{event.when[lang]}</span>
-                  <span class="text-xs text-gray-500">{event.location[lang]}</span>
-                </div>
-                <div>
-                  <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <strong class="text-navy">{event.title[lang]}</strong>
-                    <span class={`inline-block text-xs font-medium px-2 py-0.5 rounded ${status === "upcoming" ? "bg-red-tint text-red" : "bg-navy-light text-navy-mid"}`}>
-                      {status === "upcoming" ? t("events.status.upcoming") : t("events.status.completed")}
-                    </span>
-                    <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">
-                      {event.type === "symposium" ? t("events.type.symposium") : t("events.type.workshop")}
-                    </span>
-                  </div>
-                  <p class="text-sm text-gray-500 leading-relaxed mb-2">{event.description[lang]}</p>
-                  {status === "upcoming" && (
-                    <a
-                      href="mailto:turkey.rsg@gmail.com"
-                      class="inline-flex items-center px-3 py-1.5 rounded bg-red text-white text-xs font-medium hover:bg-red-hover transition-colors no-underline"
-                    >
-                      {t("events.register")}
-                    </a>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {section.items.map((event) => <EventRow event={event} lang={lang} now={now} />)}
         </div>
       </div>
     ))}
 
+    <p class="text-sm mb-2">
+      <a href={`${lang === "tr" ? "/tr" : ""}/workshops/`} class="text-navy-mid hover:text-navy transition-colors font-medium no-underline">
+        {t("events.workshopsPage")}
+      </a>
+    </p>
     <p class="text-sm">
       <a href={symposiumSite} class="text-navy-mid hover:text-navy transition-colors font-medium no-underline">
         {t("events.archive.link")}

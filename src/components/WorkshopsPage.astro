@@ -1,0 +1,103 @@
+---
+/**
+ * /workshops: RSG-Türkiye's hands-on work in one place. The nf-core and
+ * Nextflow work leads (#225: two official nf-core hackathon local sites, a
+ * merged module, Nextflow training in Turkish, none of it on the site
+ * before), then the other hackathons, then every workshop, with its public
+ * materials where they exist. Everything comes from src/data/events.ts, the
+ * list /events renders, so the two pages cannot disagree.
+ */
+import { events, statusOf } from "../data/events";
+import EventRow from "./EventRow.astro";
+
+interface Props { lang: "en" | "tr" }
+const { lang } = Astro.props;
+const now = new Date();
+const newest = (a: { start: Date }, b: { start: Date }) => b.start.getTime() - a.start.getTime();
+const nfcore = events.filter((e) => e.nfcore).sort(newest);
+const hackathons = events.filter((e) => e.type === "hackathon" && !e.nfcore && statusOf(e, now) === "completed").sort(newest);
+const workshops = events.filter((e) => e.type === "workshop" && !e.nfcore && statusOf(e, now) === "completed").sort(newest);
+const prefix = lang === "tr" ? "/tr" : "";
+
+const T = lang === "tr" ? {
+  title: "Atölyeler ve Hackathon'lar",
+  lead: "Webinarların ve sempozyumun yanında RSG-Türkiye uygulamalı çalışır: atölyeler, hackathon'lar ve açık kaynak katkıları. Geçmiş atölyelerin materyalleri herkese açık; kendi başınıza çalışabilirsiniz.",
+  nfTitle: "nf-core ve Nextflow",
+  nfIntro: "RSG-Türkiye 2025'ten beri küresel nf-core hackathon'unun resmi yerel ekiplerinden biri. nf-core/scdownstream iş akışına katkı veriyoruz ve Nextflow'u Türkçe öğretiyoruz.",
+  learn: "Nextflow öğrenin:",
+  learnTr: "Türkçe Nextflow eğitimi",
+  learnHello: "Hello Nextflow (İngilizce)",
+  learnEvents: "Sıradaki nf-core hackathon'ları",
+  hackTitle: "Diğer hackathon'lar",
+  workTitle: "Atölyeler",
+  workIntro: "Materyali GitHub'da açık olan atölyeler öğrenme yollarında da yer alıyor.",
+  lp: "Öğrenme yolları",
+  ctaTitle: "Bir atölye vermek ya da bir hackathon'a katılmak ister misiniz?",
+  cta: "Bir konu önermek ya da sıradaki etkinliğe katılmak için yazın:",
+} : {
+  title: "Workshops & Hackathons",
+  lead: "Alongside the webinars and the symposium, RSG-Türkiye works hands-on: workshops, hackathons and open-source contributions. The materials of past workshops are public, so you can work through them on your own.",
+  nfTitle: "nf-core & Nextflow",
+  nfIntro: "Since 2025 RSG-Türkiye has been an official local site of the global nf-core hackathon. We contribute to the nf-core/scdownstream pipeline and teach Nextflow in Turkish.",
+  learn: "Learn Nextflow:",
+  learnTr: "Nextflow training in Turkish",
+  learnHello: "Hello Nextflow",
+  learnEvents: "Upcoming nf-core hackathons",
+  hackTitle: "Other hackathons",
+  workTitle: "Workshops",
+  workIntro: "Workshops whose materials are public on GitHub are also part of the learning paths.",
+  lp: "Learning paths",
+  ctaTitle: "Want to run a workshop or join a hackathon?",
+  cta: "To propose a topic or take part in the next one, write to",
+};
+---
+
+<div class="bg-navy py-12 text-center">
+  <div class="max-w-7xl mx-auto px-6">
+    <h1 class="text-3xl font-bold text-white">{T.title}</h1>
+  </div>
+</div>
+
+<section class="bg-white py-14">
+  <div class="max-w-5xl mx-auto px-6">
+    <p class="text-base text-gray-700 leading-relaxed mb-12 max-w-3xl">{T.lead}</p>
+
+    <div class="mb-14" id="nf-core">
+      <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4">{T.nfTitle}</h2>
+      <p class="text-sm text-gray-700 leading-relaxed mb-3 max-w-3xl">{T.nfIntro}</p>
+      <p class="flex flex-wrap gap-x-4 gap-y-1 text-sm mb-4">
+        <span class="text-gray-500">{T.learn}</span>
+        <a href="https://training.nextflow.io/latest/tr/" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{T.learnTr} ↗</a>
+        <a href="https://training.nextflow.io/latest/hello_nextflow/" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{T.learnHello} ↗</a>
+        <a href="https://nf-co.re/events" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{T.learnEvents} ↗</a>
+      </p>
+      <div class="flex flex-col">
+        {nfcore.map((event) => <EventRow event={event} lang={lang} now={now} />)}
+      </div>
+    </div>
+
+    {hackathons.length > 0 && (
+      <div class="mb-14" id="hackathons">
+        <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4">{T.hackTitle}</h2>
+        <div class="flex flex-col">
+          {hackathons.map((event) => <EventRow event={event} lang={lang} now={now} />)}
+        </div>
+      </div>
+    )}
+
+    <div class="mb-14" id="workshops">
+      <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4">{T.workTitle}</h2>
+      <p class="text-sm text-gray-700 leading-relaxed mb-4">
+        {T.workIntro} <a href={`${prefix}/learning-paths/`} class="text-navy-mid hover:text-navy font-medium no-underline">{T.lp} →</a>
+      </p>
+      <div class="flex flex-col">
+        {workshops.map((event) => <EventRow event={event} lang={lang} now={now} />)}
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-border bg-[#F7F7F6] p-6">
+      <h2 class="text-base font-semibold text-navy mb-1">{T.ctaTitle}</h2>
+      <p class="text-sm text-gray-600">{T.cta} <a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy font-medium">turkey.rsg@gmail.com</a>.</p>
+    </div>
+  </div>
+</section>

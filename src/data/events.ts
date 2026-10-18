@@ -13,7 +13,7 @@
  * nothing has to be remembered on the day it happens.
  */
 
-export type EventType = "symposium" | "workshop";
+export type EventType = "symposium" | "workshop" | "hackathon";
 export type EventStatus = "upcoming" | "completed";
 
 export interface CommunityEvent {
@@ -29,6 +29,11 @@ export interface CommunityEvent {
   when: { en: string; tr: string };
   location: { en: string; tr: string };
   description: { en: string; tr: string };
+  /** Public pages that show the event or what came out of it: the nf-core
+   * local-site page, a merged pull request, the materials repository. */
+  links?: { label: { en: string; tr: string }; url: string }[];
+  /** Part of RSG-Türkiye's nf-core / Nextflow work, which /workshops groups. */
+  nfcore?: boolean;
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -54,8 +59,8 @@ function byDateDesc(a: CommunityEvent, b: CommunityEvent) {
 }
 
 /**
- * The three sections the page renders: what is still ahead, then the
- * symposiums that have happened, then the workshops.
+ * The sections the page renders: what is still ahead, then the symposiums
+ * that have happened, then the hackathons and the workshops.
  *
  * `upcoming` is returned even when empty so the caller decides whether to
  * render a heading over nothing -- it should not, and does not.
@@ -67,7 +72,13 @@ export function groupEvents(all: CommunityEvent[], now: Date) {
     upcoming: [...upcoming].sort((a, b) => a.start.getTime() - b.start.getTime()),
     symposiums: past.filter((e) => e.type === "symposium").sort(byDateDesc),
     workshops: past.filter((e) => e.type === "workshop").sort(byDateDesc),
+    hackathons: past.filter((e) => e.type === "hackathon").sort(byDateDesc),
   };
+}
+
+/** A link to a workshop's public materials in the RSG-Turkiye GitHub organisation. */
+function materials(repo: string): { label: { en: string; tr: string }; url: string } {
+  return { label: { en: "Workshop materials", tr: "Atölye materyalleri" }, url: `https://github.com/RSG-Turkiye/${repo}` };
 }
 
 /**
@@ -131,8 +142,87 @@ export const events: CommunityEvent[] = [
     },
   },
   {
+    id: "hackathon-nfcore-2026",
+    type: "hackathon",
+    nfcore: true,
+    start: new Date("2026-03-11"),
+    end: new Date("2026-03-13"),
+    title: { en: "nf-core Hackathon: Istanbul local site", tr: "nf-core Hackathon: İstanbul yerel ekibi" },
+    when: { en: "11 – 13 March 2026", tr: "11 – 13 Mart 2026" },
+    location: { en: "Istanbul Kent University, Istanbul", tr: "İstanbul Kent Üniversitesi, İstanbul" },
+    description: {
+      en: "Our second official local site of the global nf-core hackathon. A beginner project reviewed the Turkish translation of the Hello Nextflow and Hello nf-core training; an advanced one worked on nf-core/scdownstream, adding scDblFinder doublet detection as a module.",
+      tr: "Küresel nf-core hackathon'unun ikinci resmi yerel ekibimiz. Başlangıç projesi Hello Nextflow ve Hello nf-core eğitimlerinin Türkçe çevirisini gözden geçirdi; ileri proje nf-core/scdownstream üzerinde çalışıp scDblFinder çift hücre tespitini modül olarak ekledi.",
+    },
+    links: [
+      { label: { en: "nf-co.re event page", tr: "nf-co.re etkinlik sayfası" }, url: "https://nf-co.re/events/2026/hackathon-march-2026/istanbul" },
+      { label: { en: "scDblFinder module (merged)", tr: "scDblFinder modülü (birleştirildi)" }, url: "https://github.com/nf-core/scdownstream/pull/261" },
+      { label: { en: "Nextflow training in Turkish", tr: "Türkçe Nextflow eğitimi" }, url: "https://training.nextflow.io/latest/tr/" },
+    ],
+  },
+  {
+    id: "hackathon-docking-2025",
+    type: "hackathon",
+    start: new Date("2025-12-18"),
+    end: new Date("2025-12-19"),
+    title: { en: "Dock'n Roll: Molecular Docking Hackathon", tr: "Dock'n Roll: Moleküler Yerleştirme Hackathon'u" },
+    when: { en: "18 – 19 December 2025", tr: "18 – 19 Aralık 2025" },
+    location: { en: "Yıldız Technical University, Istanbul", tr: "Yıldız Teknik Üniversitesi, İstanbul" },
+    description: {
+      en: "A two-day molecular docking hackathon run with the YTÜ BİYOGEN student club.",
+      tr: "YTÜ BİYOGEN öğrenci kulübüyle düzenlenen iki günlük moleküler yerleştirme hackathon'u.",
+    },
+  },
+  {
+    id: "hackathon-nfcore-2025",
+    type: "hackathon",
+    nfcore: true,
+    start: new Date("2025-03-24"),
+    end: new Date("2025-03-26"),
+    title: { en: "nf-core Hackathon: RSG-Türkiye local site", tr: "nf-core Hackathon: RSG-Türkiye yerel ekibi" },
+    when: { en: "24 – 26 March 2025", tr: "24 – 26 Mart 2025" },
+    location: { en: "Istanbul Kent University, Istanbul", tr: "İstanbul Kent Üniversitesi, İstanbul" },
+    description: {
+      en: "Our first official local site of the global nf-core hackathon, with two days of Nextflow training on site. The team led a project to improve nf-core/scdownstream: doublet detection with scDblFinder, cell-type annotation beyond human data, and documentation.",
+      tr: "Küresel nf-core hackathon'unun ilk resmi yerel ekibimiz; yerinde iki günlük Nextflow eğitimiyle. Ekip nf-core/scdownstream'i geliştirme projesini yürüttü: scDblFinder ile çift hücre tespiti, insan dışı türler için hücre tipi atama ve dokümantasyon.",
+    },
+    links: [
+      { label: { en: "nf-co.re event page", tr: "nf-co.re etkinlik sayfası" }, url: "https://nf-co.re/events/2025/hackathon-march-2025/rsg-turkiye" },
+    ],
+  },
+  {
+    id: "workshop-nextflow-symposium-2024",
+    type: "workshop",
+    nfcore: true,
+    start: new Date("2024-11-15"),
+    end: new Date("2024-11-16"),
+    title: { en: "Nextflow & nf-core Workshop (11th Symposium)", tr: "Nextflow ve nf-core Atölyesi (11. Sempozyum)" },
+    when: { en: "15 – 16 November 2024", tr: "15 – 16 Kasım 2024" },
+    location: { en: "Istanbul", tr: "İstanbul" },
+    description: {
+      en: "A hands-on session at the 11th Student Symposium with Dr. Kübra Narcı on building reproducible pipelines with Nextflow and nf-core.",
+      tr: "11. Öğrenci Sempozyumu'nda Dr. Kübra Narcı ile Nextflow ve nf-core kullanarak tekrarlanabilir iş akışları kurma üzerine uygulamalı oturum.",
+    },
+    links: [{ label: { en: "Symposium programme", tr: "Sempozyum programı" }, url: "https://symposium.rsg-turkiye.iscbsc.org/editions/2024/" }],
+  },
+  {
+    id: "hackathon-combine-2024",
+    type: "hackathon",
+    start: new Date("2024-09-23"),
+    end: new Date("2024-09-25"),
+    title: { en: "Single-cell RNA-seq Hackathon with RSG-Australia (COMBINE)", tr: "RSG-Avustralya (COMBINE) ile Tek Hücre RNA-seq Hackathon'u" },
+    when: { en: "23 – 25 September 2024", tr: "23 – 25 Eylül 2024" },
+    location: { en: "Hybrid and online", tr: "Hibrit ve çevrimiçi" },
+    description: {
+      en: "A joint event with RSG-Australia (COMBINE): a Seurat workshop day, an online hackathon day, and a joint presentation and awards session.",
+      tr: "RSG-Avustralya (COMBINE) ile ortak etkinlik: bir Seurat atölyesi günü, bir çevrimiçi hackathon günü ve ortak sunum ve ödül oturumu.",
+    },
+    links: [materials("RSG-Single-Cell-Workshop2024")],
+  },
+  {
     id: "workshop-nextflow-2024",
     type: "workshop",
+    nfcore: true,
     start: new Date("2024-03-03"),
     title: {
       en: "Reproducibility in Bioinformatics Analyses: Nextflow and nf-core",
@@ -148,26 +238,71 @@ export const events: CommunityEvent[] = [
   {
     id: "workshop-structural-biology-2021",
     type: "workshop",
-    start: new Date("2021-12-01"),
+    start: new Date("2021-12-18"),
+    end: new Date("2021-12-19"),
     title: { en: "Structural Biology Workshop", tr: "Yapısal Biyoloji Atölyesi" },
-    when: { en: "December 2021", tr: "Aralık 2021" },
+    when: { en: "18 – 19 December 2021", tr: "18 – 19 Aralık 2021" },
     location: { en: "Online", tr: "Çevrimiçi" },
     description: {
       en: "An introduction to computational structural biology: protein structure determination, molecular docking with HADDOCK, SWISS-MODEL and PRISM, and molecular dynamics with NAMD.",
       tr: "Hesaplamalı yapısal biyolojiye giriş: protein yapı belirleme, HADDOCK, SWISS-MODEL ve PRISM ile moleküler yerleştirme, NAMD ile moleküler dinamik.",
     },
+    links: [materials("Computational_Structural_Biology_Workshop")],
+  },
+  {
+    id: "workshop-command-line-2021",
+    type: "workshop",
+    start: new Date("2021-09-12"),
+    title: { en: "Command Line Tools Workshop (8th Symposium)", tr: "Komut Satırı Araçları Atölyesi (8. Sempozyum)" },
+    when: { en: "September 2021", tr: "Eylül 2021" },
+    location: { en: "Online", tr: "Çevrimiçi" },
+    description: {
+      en: "Linux for computational biology: the command line, sed, awk and grep, and git, then practicals on long-read genome assembly and the first steps of RNA-seq analysis.",
+      tr: "Hesaplamalı biyoloji için Linux: komut satırı, sed, awk ve grep, git; ardından uzun okumalarla genom birleştirme ve RNA-seq analizinin ilk adımları üzerine uygulamalar.",
+    },
+    links: [materials("Workshop2021")],
   },
   {
     id: "workshop-single-cell-2020",
     type: "workshop",
-    start: new Date("2020-01-01"),
-    title: { en: "Single-Cell Workshop", tr: "Tek Hücre Atölyesi" },
-    when: { en: "2020", tr: "2020" },
+    start: new Date("2020-12-19"),
+    end: new Date("2020-12-20"),
+    title: { en: "Introduction to Single-Cell Analysis", tr: "Tek Hücre Analizine Giriş" },
+    when: { en: "19 – 20 December 2020", tr: "19 – 20 Aralık 2020" },
     location: { en: "Online", tr: "Çevrimiçi" },
     description: {
-      en: "A hands-on workshop on single-cell analysis techniques and methodologies.",
-      tr: "Tek hücre analiz teknikleri ve yöntemleri üzerine uygulamalı atölye.",
+      en: "Two days on single-cell sequencing: the theory of scRNA-seq, processing the data, and analysis with Seurat, then single-cell ATAC-seq.",
+      tr: "Tek hücre dizileme üzerine iki gün: scRNA-seq'in kuramı, verinin işlenmesi ve Seurat ile analiz, ardından tek hücre ATAC-seq.",
     },
+    links: [materials("Single-Cell-Workshop2020")],
+  },
+  {
+    id: "workshop-symposium-2020",
+    type: "workshop",
+    start: new Date("2020-10-24"),
+    end: new Date("2020-10-25"),
+    title: { en: "R, Machine Learning and ggplot2 (7th Symposium workshops)", tr: "R, Makine Öğrenmesi ve ggplot2 (7. Sempozyum atölyeleri)" },
+    when: { en: "24 – 25 October 2020", tr: "24 – 25 Ekim 2020" },
+    location: { en: "Online", tr: "Çevrimiçi" },
+    description: {
+      en: "The workshop sessions of the 7th Student Symposium: an introduction to R programming, machine learning in R, and data visualisation with ggplot2.",
+      tr: "7. Öğrenci Sempozyumu'nun atölye oturumları: R programlamaya giriş, R ile makine öğrenmesi ve ggplot2 ile veri görselleştirme.",
+    },
+    links: [materials("Workshop2020")],
+  },
+  {
+    id: "workshop-ankapy-2019",
+    type: "workshop",
+    start: new Date("2019-11-25"),
+    end: new Date("2019-11-29"),
+    title: { en: "AnkaPy: Python for Bioinformatics", tr: "AnkaPy: Biyoinformatik için Python" },
+    when: { en: "25 – 29 November 2019", tr: "25 – 29 Kasım 2019" },
+    location: { en: "Hacettepe University, Ankara", tr: "Hacettepe Üniversitesi, Ankara" },
+    description: {
+      en: "A five-day Python workshop with Hacettepe University, the University of Ostrava and SOVA: programming basics, Biopython for FASTA, BLAST and Entrez, and numpy, pandas and matplotlib for data analysis.",
+      tr: "Hacettepe Üniversitesi, Ostrava Üniversitesi ve SOVA ile beş günlük Python atölyesi: programlama temelleri, FASTA, BLAST ve Entrez için Biopython, veri analizi için numpy, pandas ve matplotlib.",
+    },
+    links: [materials("AnkaPy")],
   },
 ];
 
