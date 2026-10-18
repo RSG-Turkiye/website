@@ -5,7 +5,7 @@ speaker: "Ogün Adebali"
 speakerAffiliation: ""
 speakerTitle: "Assistant Professor"
 description: "Using accurate evolutionary histories and manually curated alignments of NPC1 and GPRC6A to improve predictions of disease-causing amino acid substitutions in membrane receptors."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=10My3g_cSVs"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

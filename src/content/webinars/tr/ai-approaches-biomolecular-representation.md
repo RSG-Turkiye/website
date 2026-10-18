@@ -5,7 +5,7 @@ speaker: Tunca Doğan
 speakerAffiliation: Hacettepe Üniversitesi / Hacettepe Biyolojik Veri Bilimi Laboratuvarı
 speakerTitle: Profesör
 description: Heterojen biyomedikal verilerin entegrasyonu, proteinlerin işlevsel özelliklerinin tahmini ve yeni ilaç adaylarının keşfi/tasarımı için makine öğrenmesi ve derin öğrenme tabanlı yaklaşımlar.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jYjJRFdcn8I"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

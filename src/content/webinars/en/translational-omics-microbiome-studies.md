@@ -5,7 +5,7 @@ speaker: "Gabriel Fernandes"
 speakerAffiliation: "Instituto René Rachou – Fiocruz Minas"
 speakerTitle: "Researcher, Bioinformatics and NGS Platform"
 description: "Turning a decade of microbiome sequencing data into predictive models for diagnosis, prognosis and therapy, and the methods needed to keep the results reproducible."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=hZS1f04q75Y"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

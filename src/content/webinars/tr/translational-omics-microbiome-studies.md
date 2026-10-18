@@ -5,7 +5,7 @@ speaker: "Gabriel Fernandes"
 speakerAffiliation: "Instituto René Rachou – Fiocruz Minas"
 speakerTitle: "Araştırmacı, Biyoinformatik ve YND Platformu"
 description: "On yıllık mikrobiyom dizileme verisini tanı, prognoz ve tedaviye yön verecek öngörü modellerine dönüştürmek, ve sonuçları tekrarlanabilir kılmak için gereken yöntemler."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=hZS1f04q75Y"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

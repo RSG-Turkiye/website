@@ -5,7 +5,7 @@ speaker: Alper Yılmaz
 speakerAffiliation: ""
 speakerTitle: Assoc. Prof. Dr.
 description: A webinar on the importance of the Linux terminal for managing and analysing large, complex and varied biological datasets effectively.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jRcZtcuB3jg"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

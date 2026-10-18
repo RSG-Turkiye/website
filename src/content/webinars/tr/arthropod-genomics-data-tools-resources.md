@@ -5,7 +5,7 @@ speaker: "Gloria Isabel Giraldo-Calderón"
 speakerAffiliation: "VectorBase"
 speakerTitle: "Bilimsel İrtibat / Tanıtım Yöneticisi"
 description: "360'tan fazla eklembacaklı genomu, 1000'den fazla transkriptom ve bunları barındıran biyoinformatik kaynaklar: VectorBase, AphidBase, Ensembl Metazoa, NCBI-GenBank, OrthoDB ve diğerleri."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=D7vcP8xIS10"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

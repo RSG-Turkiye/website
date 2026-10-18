@@ -5,7 +5,7 @@ speaker: "Ömer Gökçümen"
 speakerAffiliation: ""
 speakerTitle: ""
 description: "How thousands of ancient and modern genomes, and new computational approaches, rewrote human evolutionary history: gene flow among hominins, structural variants, and pinpointing recent ancestry."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=0TrES_f19hs"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

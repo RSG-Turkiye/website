@@ -5,7 +5,7 @@ speaker: David Žihala
 speakerAffiliation: ""
 speakerTitle: ""
 description: Yeşil alglerin Sphaeropleales takımında kodon yeniden atamaları ve mitokondriyal genetik kodun benzeri görülmemiş varyantları üzerine bir inceleme.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=KkJ7BSzv88o"
 slidesUrl: ""
 year: 2020
 type: bioinfonet

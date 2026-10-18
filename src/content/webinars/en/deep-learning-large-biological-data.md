@@ -5,7 +5,7 @@ speaker: "Tunca Doğan"
 speakerAffiliation: "KanSiL, Department of Health Informatics, METU Graduate School of Informatics, and EMBL-EBI"
 speakerTitle: ""
 description: "Two deep learning methods for large-scale biological data: DEEPred, for predicting the functions of uncharacterised proteins, and DEEPscreen, for identifying novel drug candidates. Also where deep learning falls short."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=ijr0B5oTnuY"
 slidesUrl: ""
 year: 2018
 type: bioinfonet

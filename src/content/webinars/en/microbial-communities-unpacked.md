@@ -6,7 +6,7 @@ speakerAffiliation: KU Leuven, Lab of Microbial Systems Biology
 speakerTitle: Post-doctoral Researcher
 speakerPhoto: "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,w_600/v1789169220/rsgturkey/webinars/haris-zafeiropoulos.png"
 description: How algorithms, software tools and metabolic models reveal the interactions inside microbial communities, and the feedback between environmental change, community structure and ecosystem impact.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=lshEMebcQJE"
 slidesUrl: ""
 year: 2026
 type: bioinfonet

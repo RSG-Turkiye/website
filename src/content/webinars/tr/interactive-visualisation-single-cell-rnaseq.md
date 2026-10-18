@@ -5,7 +5,7 @@ speaker: "Batuhan Çakır"
 speakerAffiliation: ""
 speakerTitle: ""
 description: "Tek hücre RNAseq için web tabanlı interaktif platformların kullanılabilirlik, arayüz, geliştirici desteği, farklı dosya boyutlarındaki başarım ve dosya biçimleri açısından karşılaştırılması."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=HuOtxCTxgIE"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

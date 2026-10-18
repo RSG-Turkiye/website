@@ -5,7 +5,7 @@ speaker: "Ogün Adebali"
 speakerAffiliation: ""
 speakerTitle: "Doktor Öğretim Üyesi"
 description: "NPC1 ve GPRC6A'nın doğru evrimsel geçmişi ve elle düzenlenmiş hizalamaları kullanılarak, membran reseptörlerinde hastalığa yol açan amino asit değişimlerinin daha iyi öngörülmesi."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=10My3g_cSVs"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

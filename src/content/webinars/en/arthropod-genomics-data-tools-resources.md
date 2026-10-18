@@ -5,7 +5,7 @@ speaker: "Gloria Isabel Giraldo-Calderón"
 speakerAffiliation: "VectorBase"
 speakerTitle: "Scientific Liaison / Outreach Manager"
 description: "Over 360 arthropod genomes and 1000 transcriptomes, and the bioinformatic resources that hold them: VectorBase, AphidBase, Ensembl Metazoa, NCBI-GenBank, OrthoDB and others."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=D7vcP8xIS10"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

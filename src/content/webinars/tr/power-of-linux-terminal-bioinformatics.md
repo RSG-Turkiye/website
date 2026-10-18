@@ -5,7 +5,7 @@ speaker: Alper Yılmaz
 speakerAffiliation: ""
 speakerTitle: Doç. Dr.
 description: Büyük, karmaşık ve çeşitli biyolojik veri setlerini etkili bir şekilde yönetmek ve analiz etmek için linux terminalinin önemi üzerine bir webinar.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jRcZtcuB3jg"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

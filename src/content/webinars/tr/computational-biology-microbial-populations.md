@@ -5,7 +5,7 @@ speaker: "Alejandro Reyes Muñoz"
 speakerAffiliation: "Hesaplamalı Biyoloji Max Planck Tandem Grubu, Universidad de los Andes"
 speakerTitle: "Doçent ve Grup Lideri"
 description: "Kültürden bağımsız dizilemenin mikrobiyolojiyi nasıl bir veri bilimine dönüştürdüğü ve hesaplamalı yaklaşımların insanı trilyonlarca mikroptan oluşan bir topluluk olarak nasıl gösterdiği."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=r1sv0aHF1sI"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

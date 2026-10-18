@@ -6,7 +6,7 @@ speakerAffiliation: "Yıldız Technical University"
 speakerTitle: "Associate Professor"
 speakerPhoto: ""
 description: "A follow-up to the earlier Linux terminal webinar, going past the basics into using the shell for data analysis and for automating the repetitive parts of a bioinformatics workflow."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=0x2qTbxwsFU"
 slidesUrl: ""
 year: 2025
 type: bioinfonet

@@ -5,7 +5,7 @@ speaker: Savaş Tay
 speakerAffiliation: ""
 speakerTitle: ""
 description: Mikroakışkan canlı hücre görüntüleme ve Prox-seq teknolojisiyle NF-κB bağışıklık yolunun karmaşık sinyalleri nasıl işlediğini anlamak; tek hücre dinamiklerinin gen ekspresyonu üzerindeki etkisi.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=9WDuHfY0FP4"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

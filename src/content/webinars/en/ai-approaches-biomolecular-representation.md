@@ -5,7 +5,7 @@ speaker: Tunca Doğan
 speakerAffiliation: Hacettepe University / Hacettepe Biological Data Science Lab
 speakerTitle: Professor
 description: Machine learning and deep learning approaches for integrating heterogeneous biomedical data, predicting the functional properties of proteins, and discovering and designing new drug candidates.
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jYjJRFdcn8I"
 slidesUrl: ""
 year: 2024
 type: bioinfonet

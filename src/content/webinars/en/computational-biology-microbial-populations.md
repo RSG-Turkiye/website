@@ -5,7 +5,7 @@ speaker: "Alejandro Reyes Muñoz"
 speakerAffiliation: "Max Planck Tandem Group in Computational Biology, Universidad de los Andes"
 speakerTitle: "Associate Professor and Group Leader"
 description: "How culture-independent sequencing turned microbiology into a data science, and what computational approaches revealed about humans as a collection of trillions of microbes."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=r1sv0aHF1sI"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

@@ -5,7 +5,7 @@ speaker: "Batuhan Çakır"
 speakerAffiliation: ""
 speakerTitle: ""
 description: "Web-based interactive platforms for single-cell RNA-seq, compared on usability, interface, developer support, performance at different file sizes, and the file formats they expect."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=HuOtxCTxgIE"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

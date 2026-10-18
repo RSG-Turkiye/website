@@ -5,7 +5,7 @@ speaker: "Öznur Taştan"
 speakerAffiliation: ""
 speakerTitle: "Associate Professor"
 description: "A zero-shot learning approach that transfers knowledge from well-characterised kinases to understudied ones, predicting phosphorylation sites for kinases with no prior data."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=jW1i9vX6LS0"
 slidesUrl: ""
 year: 2019
 type: bioinfonet

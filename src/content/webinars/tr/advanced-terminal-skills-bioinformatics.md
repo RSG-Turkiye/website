@@ -6,7 +6,7 @@ speakerAffiliation: "Yıldız Teknik Üniversitesi"
 speakerTitle: "Doç. Dr."
 speakerPhoto: ""
 description: "Önceki Linux terminali webinarının devamı: temellerin ötesine geçip kabuğu veri analizinde ve biyoinformatik iş akışının tekrar eden kısımlarını otomatikleştirmede kullanmak."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=0x2qTbxwsFU"
 slidesUrl: ""
 year: 2025
 type: bioinfonet

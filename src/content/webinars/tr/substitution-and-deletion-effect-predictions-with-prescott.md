@@ -6,7 +6,7 @@ speakerAffiliation: "Van Yüzüncü Yıl Üniversitesi"
 speakerTitle: ""
 speakerPhoto: ""
 description: "Amino asit sübstitüsyonlarının ve delesyonlarının etkisini tahmin etmek için PRESCOTT ve ESCOTT; ve 19.295 insan proteinini kapsayan önceden hesaplanmış ESCOTT veri tabanı."
-youtubeUrl: ""
+youtubeUrl: "https://www.youtube.com/watch?v=Bl91wPznfbE"
 slidesUrl: ""
 year: 2025
 type: bioinfonet
