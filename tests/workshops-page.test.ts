@@ -41,3 +41,26 @@ test('the events page lists the hackathons too, and links to /workshops', { skip
   assert.match(html, /id="hackathons"/);
   assert.match(html, /href="\/workshops\/"/);
 });
+
+test('event images are served by /api/images, with alt text in both languages', async () => {
+  // r2.dev is blocked in Türkiye, so photos go through the site's own /api/images.
+  const { IMAGE_KEY } = await import('../functions/_lib/images');
+  for (const e of events) {
+    if (!e.image) continue;
+    for (const url of [e.image.thumb, e.image.full]) {
+      const key = url.replace(/^\/api\/images\//, '');
+      assert.ok(url.startsWith('/api/images/') && IMAGE_KEY.test(key), `${e.id}: ${url}`);
+    }
+    assert.ok(e.image.alt.en.trim() && e.image.alt.tr.trim(), `${e.id}: alt text`);
+  }
+  assert.ok(events.filter((e) => e.image).length >= 10);
+});
+
+test('every event image is really in the bucket', { skip: process.env.CHECK_NETWORK !== '1' && 'network check; set CHECK_NETWORK=1' }, async () => {
+  for (const e of events) {
+    for (const url of e.image ? [e.image.thumb, e.image.full] : []) {
+      const res = await fetch(`https://rsg-turkiye.iscbsc.org${url}`, { method: 'HEAD' });
+      assert.equal(res.status, 200, `${e.id}: ${url}`);
+    }
+  }
+});
