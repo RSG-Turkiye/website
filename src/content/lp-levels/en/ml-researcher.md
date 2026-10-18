@@ -23,7 +23,7 @@ sections:
         title: "From CNNs to Transformers in Genomics"
         description: "The progression from DeepBind and Basenji to attention-based models. Architecture choices have biological consequences, this review traces why the field made each transition."
         tag: Reading
-        url: "https://www.nature.com/articles/s41576-021-00434-9"
+        url: "https://doi.org/10.1146/annurev-genom-021623-024727"
       - id: "ml-researcher-foundations-3"
         title: "Honest Evaluation in Bio-ML"
         description: "Genomic splits are not i.i.d. Data leakage ruins papers. How to design evaluations that actually reflect real-world generalisation."

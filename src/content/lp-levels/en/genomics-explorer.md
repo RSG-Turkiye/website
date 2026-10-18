@@ -11,7 +11,7 @@ sections:
         title: "How Sequencing Works, from Sanger to short-read"
         description: "What a sequencing machine actually produces, why reads are short, and what 'coverage' means. This framing makes every downstream tool decision make sense."
         tag: Reading
-        url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+        url: "https://www.genome.gov/about-genomics/fact-sheets/DNA-Sequencing-Fact-Sheet"
       - id: "genomics-explorer-foundations-1"
         title: "What does RNA-seq actually measure?"
         description: "RNA-seq doesn't measure genes, it counts transcripts. Understanding this distinction prevents a category of misinterpretation that haunts beginners."
@@ -21,7 +21,7 @@ sections:
         title: "What are Omics? (Genomics, Transcriptomics, Proteomics)"
         description: "A plain-language overview of the -omics landscape: what each one measures, the kind of questions each answers, and why you'd choose one over another."
         tag: Reading
-        url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+        url: "https://alleninstitute.org/education-resources/what-is-omics"
 
   - type: toolkit
     resources:

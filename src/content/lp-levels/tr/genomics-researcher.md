@@ -17,8 +17,8 @@ sections:
       - id: "genomics-researcher-foundations-1"
         title: "How Sequencing Works, from Sanger to long-read"
         description: "Kısa okuma Illumina ile uzun okuma Nanopore/PacBio karşılaştırması, makinanın ne ürettiği ve okuma özelliklerinin sonraki tüm analiz kararlarını nasıl şekillendirdiği."
-        tag: Course
-        url: "https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/"
+        tag: Videos
+        url: "https://www.ibiology.org/techniques/next-generation-sequencing/"
       - id: "genomics-researcher-foundations-2"
         title: "Statistics for Genomics, StatQuest"
         description: "PCA, kümeleme, çoklu test düzeltmesi ve DESeq2'nin arkasındaki TAM istatistiksel model. Bu analizleri çalıştırıyorsanız, gerçekte neyi hesapladıklarını anlamalısınız."

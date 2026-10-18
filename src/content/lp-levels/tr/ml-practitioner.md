@@ -23,7 +23,7 @@ sections:
         title: "From CNNs to Transformers in Genomics"
         description: "DeepBind'dan Enformer'a, modern dikkat modellerine ilerleme. Bu tarihi anlamak, alanın her mimari seçimi neden yaptığını açıklar, ve eski yaklaşımların hâlâ ne zaman kazandığını."
         tag: Reading
-        url: "https://www.nature.com/articles/s41576-021-00434-9"
+        url: "https://doi.org/10.1146/annurev-genom-021623-024727"
 
   - type: toolkit
     resources:

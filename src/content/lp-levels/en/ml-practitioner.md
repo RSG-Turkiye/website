@@ -23,7 +23,7 @@ sections:
         title: "From CNNs to Transformers in Genomics"
         description: "The progression from DeepBind to Enformer to modern attention models. Understanding this history explains why the field made each architectural choice, and when older approaches still win."
         tag: Reading
-        url: "https://www.nature.com/articles/s41576-021-00434-9"
+        url: "https://doi.org/10.1146/annurev-genom-021623-024727"
 
   - type: toolkit
     resources:
