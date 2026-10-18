@@ -64,3 +64,16 @@ test('every event image is really in the bucket', { skip: process.env.CHECK_NETW
     }
   }
 });
+
+test('both pages carry the year rail and the side column, and the column counts what the data holds', { skip: !built && 'no build in dist/' }, () => {
+  for (const page of ['workshops/index.html', 'tr/workshops/index.html', 'events/index.html', 'tr/events/index.html']) {
+    const html = readFileSync(`${DIST}${page}`, 'utf8');
+    assert.match(html, /class="year-rail"/, `${page}: no year rail`);
+    assert.match(html, /<aside[^>]*xl:sticky/, `${page}: no sticky side column`);
+    assert.match(html, /mailto:turkey\.rsg@gmail\.com/, `${page}: no invitation`);
+  }
+  const workshops = events.filter((e) => e.type === 'workshop' && e.start < new Date()).length;
+  const html = readFileSync(`${DIST}workshops/index.html`, 'utf8');
+  const aside = html.slice(html.indexOf('<aside'), html.indexOf('</aside>'));
+  assert.match(aside, new RegExp(`>workshops</dt>\\s*<dd[^>]*>${workshops}<`), 'workshop count');
+});

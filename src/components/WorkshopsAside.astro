@@ -1,0 +1,92 @@
+---
+/**
+ * The column beside /workshops on wide screens: what the list adds up to,
+ * what comes next, where the materials are, and how to take part. Every
+ * number is counted from src/data/events.ts and src/data/workshops.ts at
+ * build time; none is typed in. Below xl it follows the list. The invitation
+ * comes second so it stays in view even on short screens, where the end of
+ * the column scrolls.
+ */
+import { events, statusOf } from "../data/events";
+import { WORKSHOPS, workshopUrl } from "../data/workshops";
+import { yearAblative } from "../lib/turkish-year";
+
+interface Props { lang: "en" | "tr" }
+const { lang } = Astro.props;
+const now = new Date();
+const tr = lang === "tr";
+
+const handsOn = events.filter((e) => e.type === "workshop" || e.type === "hackathon");
+const done = handsOn.filter((e) => statusOf(e, now) === "completed");
+const upcoming = handsOn.filter((e) => statusOf(e, now) === "upcoming").sort((a, b) => a.start.getTime() - b.start.getTime());
+const since = Math.min(...done.map((e) => e.start.getFullYear()));
+const recordings = new Set(done.flatMap((e) => (e.links ?? []).filter((l) => /youtube\.com|youtu\.be/.test(l.url)).map((l) => l.url))).size;
+
+const facts: [number, string][] = [
+  [done.filter((e) => e.type === "workshop").length, tr ? "atölye" : "workshops"],
+  [done.filter((e) => e.type === "hackathon").length, tr ? "hackathon" : "hackathons"],
+  [done.filter((e) => e.nfcore && e.type === "hackathon").length, tr ? "resmi nf-core yerel ekibi" : "official nf-core local sites"],
+  [WORKSHOPS.length, tr ? "açık materyal reposu" : "open material repositories"],
+  [recordings, tr ? "YouTube'da kayıt" : "recordings on YouTube"],
+];
+const fmt = (d: Date) => d.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
+---
+
+<!-- Sticky beside the list, and never taller than the space between the
+     fixed header and the podcast bar: a column taller than the viewport hid
+     its own last block until the page ended. If it still does not fit (a
+     short window), it scrolls on its own. -->
+<aside class="flex flex-col gap-6 text-sm xl:sticky xl:top-24 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto [scrollbar-width:thin]">
+  <section>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? `${yearAblative(since)} beri` : `Since ${since}`}</h2>
+    <dl class="border-t border-border">
+      {facts.map(([n, label]) => (
+        <div class="flex items-baseline justify-between gap-4 py-1.5 border-b border-border">
+          <dt class="text-gray-700">{label}</dt>
+          <dd class="text-navy font-semibold tabular-nums text-base">{n}</dd>
+        </div>
+      ))}
+    </dl>
+  </section>
+
+  <section class="border-l-2 border-red pl-4">
+    <h2 class="font-semibold text-navy mb-1">{tr ? "Bir atölye vermek ister misiniz?" : "Want to run a workshop?"}</h2>
+    <p class="text-gray-600 leading-relaxed">
+      {tr ? "Bir konu önermek ya da sıradaki etkinliğe katılmak için yazın:" : "To propose a topic or take part in the next one, write to"}
+      {" "}<a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy font-medium">turkey.rsg@gmail.com</a>
+    </p>
+  </section>
+
+  <section>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? "Sıradaki" : "Next"}</h2>
+    {upcoming.length > 0 ? (
+      <ul class="flex flex-col gap-3">
+        {upcoming.slice(0, 2).map((e) => (
+          <li><p class="font-medium text-navy">{e.title[lang]}</p><p class="text-gray-500">{fmt(e.start)} · {e.location[lang]}</p></li>
+        ))}
+      </ul>
+    ) : (
+      <p class="text-gray-600 leading-relaxed">
+        {tr ? "Şu an duyurulmuş bir atölye ya da hackathon yok. Duyurular önce Instagram ve LinkedIn'de çıkar." : "No workshop or hackathon is announced right now. Announcements go out first on Instagram and LinkedIn."}
+      </p>
+    )}
+    <p class="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+      <a href="https://instagram.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">Instagram ↗</a>
+      <a href="https://linkedin.com/company/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">LinkedIn ↗</a>
+      <a href="https://nf-co.re/events" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{tr ? "nf-core etkinlikleri" : "nf-core events"} ↗</a>
+    </p>
+  </section>
+
+  <section>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? "Açık materyaller" : "Open materials"}</h2>
+    <ul class="flex flex-col gap-1.5">
+      {WORKSHOPS.map((w) => (
+        <li class="flex gap-3 min-w-0">
+          <span class="text-gray-500 tabular-nums shrink-0">{w.year}</span>
+          <a href={workshopUrl(w)} target="_blank" rel="noopener noreferrer" title={w.title} class="truncate text-navy-mid hover:text-navy no-underline">{w.title}</a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+</aside>

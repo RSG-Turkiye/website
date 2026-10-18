@@ -202,3 +202,13 @@
   font-weight: 600;
   color: var(--color-navy);
 }
+
+/* The year rail on /events and /workshops (src/components/YearRail.astro):
+   its width, and the offset that lines headings up with the content beside it. */
+:root {
+  --rail-width: 6.5rem;
+  --rail-gap: 2.5rem;
+}
+@media (min-width: 1024px) {
+  .rail-offset { padding-left: calc(var(--rail-width) + var(--rail-gap)); }
+}

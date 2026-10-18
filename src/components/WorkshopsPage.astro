@@ -8,7 +8,8 @@
  * list /events renders, so the two pages cannot disagree.
  */
 import { events, statusOf } from "../data/events";
-import EventRow from "./EventRow.astro";
+import YearRail from "./YearRail.astro";
+import WorkshopsAside from "./WorkshopsAside.astro";
 
 interface Props { lang: "en" | "tr" }
 const { lang } = Astro.props;
@@ -59,45 +60,38 @@ const T = lang === "tr" ? {
 </div>
 
 <section class="bg-white py-14">
-  <div class="max-w-5xl mx-auto px-6">
-    <p class="text-base text-gray-700 leading-relaxed mb-12 max-w-3xl">{T.lead}</p>
+  <div class="max-w-7xl mx-auto px-6 xl:grid xl:grid-cols-[minmax(0,1fr)_17rem] xl:gap-12">
+    <div>
+    <p class="rail-offset text-base text-gray-700 leading-relaxed mb-12 max-w-[calc(48rem+9rem)]">{T.lead}</p>
 
     <div class="mb-14" id="nf-core">
-      <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4">{T.nfTitle}</h2>
-      <p class="text-sm text-gray-700 leading-relaxed mb-3 max-w-3xl">{T.nfIntro}</p>
-      <p class="flex flex-wrap gap-x-4 gap-y-1 text-sm mb-4">
+      <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4 lg:ml-[calc(var(--rail-width)+var(--rail-gap))]">{T.nfTitle}</h2>
+      <p class="rail-offset text-sm text-gray-700 leading-relaxed mb-3 max-w-[calc(48rem+9rem)]">{T.nfIntro}</p>
+      <p class="rail-offset flex flex-wrap gap-x-4 gap-y-1 text-sm mb-4">
         <span class="text-gray-500">{T.learn}</span>
         <a href="https://training.nextflow.io/latest/tr/" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{T.learnTr} ↗</a>
         <a href="https://training.nextflow.io/latest/hello_nextflow/" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{T.learnHello} ↗</a>
         <a href="https://nf-co.re/events" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{T.learnEvents} ↗</a>
       </p>
-      <div class="flex flex-col">
-        {nfcore.map((event) => <EventRow event={event} lang={lang} now={now} />)}
-      </div>
+      <YearRail events={nfcore} lang={lang} now={now} compact />
     </div>
 
     {hackathons.length > 0 && (
       <div class="mb-14" id="hackathons">
-        <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4">{T.hackTitle}</h2>
-        <div class="flex flex-col">
-          {hackathons.map((event) => <EventRow event={event} lang={lang} now={now} />)}
-        </div>
+        <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4 lg:ml-[calc(var(--rail-width)+var(--rail-gap))]">{T.hackTitle}</h2>
+        <YearRail events={hackathons} lang={lang} now={now} compact />
       </div>
     )}
 
     <div class="mb-14" id="workshops">
-      <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4">{T.workTitle}</h2>
-      <p class="text-sm text-gray-700 leading-relaxed mb-4">
+      <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-4 lg:ml-[calc(var(--rail-width)+var(--rail-gap))]">{T.workTitle}</h2>
+      <p class="rail-offset text-sm text-gray-700 leading-relaxed mb-4">
         {T.workIntro} <a href={`${prefix}/learning-paths/`} class="text-navy-mid hover:text-navy font-medium no-underline">{T.lp} →</a>
       </p>
-      <div class="flex flex-col">
-        {workshops.map((event) => <EventRow event={event} lang={lang} now={now} />)}
-      </div>
+      <YearRail events={workshops} lang={lang} now={now} compact />
     </div>
 
-    <div class="rounded-lg border border-border bg-[#F7F7F6] p-6">
-      <h2 class="text-base font-semibold text-navy mb-1">{T.ctaTitle}</h2>
-      <p class="text-sm text-gray-600">{T.cta} <a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy font-medium">turkey.rsg@gmail.com</a>.</p>
-    </div>
+  </div>
+    <div class="mt-14 xl:mt-0"><WorkshopsAside lang={lang} /></div>
   </div>
 </section>
