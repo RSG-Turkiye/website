@@ -6,6 +6,22 @@ export const ui = {
     "site.title": "RSG-Türkiye Student Symposium",
     "site.description":
       "Annual student symposium on computational biology and bioinformatics, organized by ISCB-SC RSG-Türkiye.",
+    "meta.schedule":
+      "The programme of the RSG-Türkiye Student Symposium: every talk, workshop and break, with times.",
+    "meta.speakers":
+      "The invited speakers of the RSG-Türkiye Student Symposium on computational biology and bioinformatics.",
+    "meta.committee":
+      "The students and early-career researchers who organise the RSG-Türkiye Student Symposium.",
+    "meta.venue":
+      "Where the RSG-Türkiye Student Symposium takes place, and how to get there.",
+    "meta.about":
+      "RSG-Türkiye, the ISCB Student Council's regional student group in Türkiye, and the annual student symposium it organises.",
+    "meta.sponsors":
+      "The organisations that support the RSG-Türkiye Student Symposium, this year and in past editions.",
+    "meta.certificates":
+      "Get your RSG-Türkiye Student Symposium certificate with the email address you registered with.",
+    "meta.editions":
+      "Every edition of the RSG-Türkiye Student Symposium: dates, cities, speakers and programmes.",
 
     "nav.home": "Home",
     "nav.speakers": "Speakers",
@@ -203,6 +219,22 @@ export const ui = {
     "site.title": "RSG-Türkiye Öğrenci Sempozyumu",
     "site.description":
       "ISCB-SC RSG-Türkiye tarafından düzenlenen hesaplamalı biyoloji ve biyoinformatik alanındaki yıllık öğrenci sempozyumu.",
+    "meta.schedule":
+      "RSG-Türkiye Öğrenci Sempozyumu programı: tüm konuşmalar, atölyeler ve aralar, saatleriyle.",
+    "meta.speakers":
+      "Hesaplamalı biyoloji ve biyoinformatik alanındaki RSG-Türkiye Öğrenci Sempozyumu'nun davetli konuşmacıları.",
+    "meta.committee":
+      "RSG-Türkiye Öğrenci Sempozyumu'nu düzenleyen öğrenciler ve genç araştırmacılar.",
+    "meta.venue":
+      "RSG-Türkiye Öğrenci Sempozyumu'nun yapıldığı yer ve oraya nasıl gidileceği.",
+    "meta.about":
+      "ISCB Öğrenci Konseyi'nin Türkiye bölgesel öğrenci grubu RSG-Türkiye ve her yıl düzenlediği öğrenci sempozyumu.",
+    "meta.sponsors":
+      "RSG-Türkiye Öğrenci Sempozyumu'nu bu yıl ve geçmiş edisyonlarda destekleyen kurumlar.",
+    "meta.certificates":
+      "RSG-Türkiye Öğrenci Sempozyumu sertifikanızı kayıt olduğunuz e-posta adresiyle alın.",
+    "meta.editions":
+      "RSG-Türkiye Öğrenci Sempozyumu'nun tüm edisyonları: tarihler, şehirler, konuşmacılar ve programlar.",
 
     "nav.home": "Ana Sayfa",
     "nav.speakers": "Konuşmacılar",

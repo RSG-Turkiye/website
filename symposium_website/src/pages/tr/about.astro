@@ -13,7 +13,7 @@ const { entry: upcoming } = await getCurrentEdition();
 const past = await getPastEditions();
 ---
 
-<BaseLayout pageTitle={t("about.title")}>
+<BaseLayout pageTitle={t("about.title")} description={t("meta.about")}>
   <section class="bg-navy text-white py-16">
     <div class="max-w-7xl mx-auto px-6 text-center">
       <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("about.title")}</h1>

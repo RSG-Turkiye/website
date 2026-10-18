@@ -16,7 +16,7 @@ const content = await getCurrentContent();
 const effectiveEdition = edition ? withOverlayContent(edition.data, content) : null;
 ---
 
-<BaseLayout pageTitle={t("venue.title")}>
+<BaseLayout pageTitle={t("venue.title")} description={t("meta.venue")}>
   <section class="bg-navy text-white py-16">
     <div class="max-w-7xl mx-auto px-6 text-center">
       <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("venue.title")}</h1>

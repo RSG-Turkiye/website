@@ -6,7 +6,7 @@ import { useTranslations, getLangFromUrl } from "../i18n/ui";
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 ---
-<BaseLayout pageTitle={t("cert.title")}>
+<BaseLayout pageTitle={t("cert.title")} description={t("meta.certificates")}>
   <section class="bg-navy text-white py-16">
     <div class="max-w-7xl mx-auto px-6 text-center">
       <h1 class="text-3xl sm:text-4xl font-bold mb-3">{t("cert.title")}</h1>
