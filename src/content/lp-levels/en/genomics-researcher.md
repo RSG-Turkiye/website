@@ -52,6 +52,11 @@ sections:
         description: "Non-negotiable at every level. At researcher level: look at reads for every gene you intend to report."
         tag: Tool
         url: "https://igv.org"
+      - id: "genomics-researcher-rsg-seurat-workshop"
+        title: "Single-cell RNA-seq with Seurat, RSG-Türkiye 2024"
+        description: "Our own workshop materials: a full Seurat v5 analysis of PBMC data, from setup to automatic cell-type annotation and integrating two datasets."
+        tag: Tutorial
+        url: "https://github.com/RSG-Turkiye/RSG-Single-Cell-Workshop2024"
 
   - type: webinars
     resources:

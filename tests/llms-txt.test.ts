@@ -11,6 +11,7 @@ const sample = llmsTxt({
   webinars: 82,
   domains: [{ slug: 'genomics', name: 'Genomics', tagline: 'Reads to expression.' }],
   committees: [{ name: 'Website Committee', description: 'Builds the site.' }],
+  workshops: [{ year: 2021, title: 'Command Line Tools', topics: 'Linux', url: 'https://github.com/RSG-Turkiye/Workshop2021' }],
   contactEmail: 'turkey.rsg@gmail.com',
 });
 
@@ -19,7 +20,7 @@ test('llms.txt follows the format: one H1, a summary quote, then sections', () =
   assert.equal(lines[0], '# RSG-Türkiye');
   assert.equal(lines.filter((l) => l.startsWith('# ')).length, 1);
   assert.ok(lines.some((l) => l.startsWith('> ')), 'has the summary blockquote');
-  for (const h of ['## Who it is for', '## What it does', '## How to take part', '## Learning paths by field']) {
+  for (const h of ['## Who it is for', '## What it does', '## How to take part', '## Open workshop materials', '## Learning paths by field']) {
     assert.ok(lines.includes(h), `missing ${h}`);
   }
 });
@@ -42,5 +43,13 @@ test('every link to this site in the built llms.txt is a page that exists', { sk
   assert.ok(paths.length >= 8, `expected the site links, found ${paths.length}`);
   for (const p of paths) {
     assert.ok(existsSync(`${DIST}${p.replace(/^\//, '')}index.html`), `${p} is not a page in the build`);
+  }
+});
+
+test('every listed workshop repository is public on GitHub', { skip: process.env.CHECK_NETWORK !== '1' && 'network check; set CHECK_NETWORK=1' }, async () => {
+  const { WORKSHOPS, workshopUrl } = await import('../src/data/workshops');
+  for (const w of WORKSHOPS) {
+    const res = await fetch(workshopUrl(w), { method: 'HEAD', redirect: 'follow' });
+    assert.equal(res.status, 200, workshopUrl(w));
   }
 });

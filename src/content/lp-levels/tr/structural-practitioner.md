@@ -47,6 +47,11 @@ sections:
         description: "PDB dosyalarını ayrıştırın, kalıntıları çıkarın, mesafeleri hesaplayın, zincirler üzerinde yineleyin. Herhangi bir toplu analiz için ihtiyaç duyacağınız yapı verisinin programatik arayüzü."
         tag: Tool
         url: "https://biopython.org/wiki/The_Biopython_Structural_Bioinformatics_FAQ"
+      - id: "structural-practitioner-rsg-csb-workshop"
+        title: "Computational Structural Biology Workshop, RSG-Türkiye 2021"
+        description: "Kendi atölye materyallerimiz: yapı dosyaları ve görselleştirme, HADDOCK, SWISS ve PRISM ile protein docking, ardından NAMD ile moleküler dinamik simülasyonu ve analizi."
+        tag: Tutorial
+        url: "https://github.com/RSG-Turkiye/Computational_Structural_Biology_Workshop"
 
   - type: webinars
     resources:
