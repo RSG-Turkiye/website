@@ -49,6 +49,7 @@ export function llmsTxt(d: LlmsTxtInput): string {
     `- [Learning paths](${link('/learning-paths/')}): curated, free resources by field and level, with a [beginner roadmap](${link('/learning-paths/roadmap/')}).`,
     `- [Blog](${link('/blog/')}): articles from the community.`,
     `- [Events](${link('/events/')}): upcoming webinars, workshops and the symposium.`,
+    `- [Workshops & hackathons](${link('/workshops/')}): two official nf-core hackathon local sites (2025, 2026), Nextflow training in Turkish, other hackathons, and hands-on workshops.`,
     '',
     '## How to take part',
     '',

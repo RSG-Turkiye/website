@@ -1,0 +1,52 @@
+---
+/**
+ * One event: when and where on the left, what it was on the right, with its
+ * links. Shared by /events and /workshops so the two cannot drift.
+ */
+import { statusOf, type CommunityEvent } from "../data/events";
+import { useTranslations } from "../i18n/ui";
+
+interface Props {
+  event: CommunityEvent;
+  lang: "en" | "tr";
+  now: Date;
+}
+const { event, lang, now } = Astro.props;
+const t = useTranslations(lang);
+const status = statusOf(event, now);
+---
+
+<div class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 py-5 border-b border-border items-start">
+  <div class="flex flex-col">
+    <span class="text-sm font-medium text-navy">{event.when[lang]}</span>
+    <span class="text-xs text-gray-500">{event.location[lang]}</span>
+  </div>
+  <div>
+    <div class="flex items-center gap-2 flex-wrap mb-1">
+      <strong class="text-navy">{event.title[lang]}</strong>
+      <span class={`inline-block text-xs font-medium px-2 py-0.5 rounded ${status === "upcoming" ? "bg-red-tint text-red" : "bg-navy-light text-navy-mid"}`}>
+        {status === "upcoming" ? t("events.status.upcoming") : t("events.status.completed")}
+      </span>
+      <span class="inline-block text-xs font-medium px-2 py-0.5 rounded bg-navy-light text-navy-mid">
+        {t(`events.type.${event.type}`)}
+      </span>
+    </div>
+    <p class="text-sm text-gray-500 leading-relaxed mb-2">{event.description[lang]}</p>
+    {event.links && event.links.length > 0 && (
+      <p class="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-sm">
+        {event.links.map((l) => (
+          <a href={l.url} target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">{l.label[lang]} ↗</a>
+        ))}
+      </p>
+    )}
+    {status === "upcoming" && (
+      <a
+        href="mailto:turkey.rsg@gmail.com"
+        class="inline-flex items-center px-3 py-1.5 rounded bg-red text-white text-xs font-medium hover:bg-red-hover transition-colors no-underline"
+      >
+        {t("events.register")}
+      </a>
+    )}
+  </div>
+</div>
+            
