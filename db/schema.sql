@@ -243,6 +243,16 @@
 --    without it, only expensive.
 --
 
+-- 8g. Three more indexes for queries that would otherwise walk a table that
+--    keeps growing: the mail queue's lookup of what a claimed row already
+--    sent (sent_emails is never pruned), the DM tick's read of open threads,
+--    and its two-day prune of the digest log. All IF NOT EXISTS, so safe to
+--    re-run, and order against the deploy does not matter:
+--      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS idx_sent_emails_scheduled ON sent_emails(scheduled_id)"
+--      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS social_dm_threads_inbound ON social_dm_threads(platform, last_inbound_at)"
+--      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS social_dm_digest_log_sent ON social_dm_digest_log(sent_at)"
+--
+
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   google_id     TEXT UNIQUE NOT NULL,
@@ -481,6 +491,8 @@ CREATE TABLE IF NOT EXISTS mail_attachments (
 
 CREATE INDEX IF NOT EXISTS idx_sent_emails_sender_sent_at ON sent_emails(sender_user_id, sent_at);
 CREATE INDEX IF NOT EXISTS idx_sent_emails_sent_at ON sent_emails(sent_at);
+-- The queue's reconciler asks what a claimed row already delivered.
+CREATE INDEX IF NOT EXISTS idx_sent_emails_scheduled ON sent_emails(scheduled_id);
 CREATE INDEX IF NOT EXISTS idx_sender_grants_user_id ON sender_grants(user_id);
 
 -- Mail composed now and sent later. Deliberately NOT a new status on
@@ -886,6 +898,8 @@ CREATE TABLE IF NOT EXISTS social_dm_threads (
   updated_at        INTEGER NOT NULL,
   UNIQUE (platform, conversation_id)
 );
+-- The DM tick reads only threads still inside the 24-hour reply window.
+CREATE INDEX IF NOT EXISTS social_dm_threads_inbound ON social_dm_threads (platform, last_inbound_at);
 
 -- Per-person digest pacing; pruned to two days by each poll.
 CREATE TABLE IF NOT EXISTS social_dm_digest_log (
@@ -893,3 +907,5 @@ CREATE TABLE IF NOT EXISTS social_dm_digest_log (
   sent_at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS social_dm_digest_log_user ON social_dm_digest_log (user_id, sent_at);
+-- The per-minute prune by age.
+CREATE INDEX IF NOT EXISTS social_dm_digest_log_sent ON social_dm_digest_log (sent_at);
