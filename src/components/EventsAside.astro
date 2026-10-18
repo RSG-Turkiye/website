@@ -1,0 +1,88 @@
+---
+/**
+ * The column beside /events on wide screens, built like WorkshopsAside: what
+ * the archive adds up to, an invitation, what comes next, and the archives
+ * this page summarises. Every number is counted at build time (symposiums
+ * from the symposium site's edition pages, webinars from the collection, the
+ * rest from src/data/events.ts); none is typed in.
+ */
+import { getCollection } from "astro:content";
+import { events, statusOf } from "../data/events";
+import { symposiumCount, symposiumEditions } from "../lib/home-stats";
+import { FOUNDED_YEAR } from "../data/events";
+import { yearAblative } from "../lib/turkish-year";
+
+interface Props { lang: "en" | "tr" }
+const { lang } = Astro.props;
+const now = new Date();
+const tr = lang === "tr";
+const prefix = tr ? "/tr" : "";
+
+const webinars = (await getCollection("webinars", (e) => e.id.startsWith(`${lang}/`) && !e.data.draft)).length;
+const done = events.filter((e) => statusOf(e, now) === "completed");
+const count = (type: string) => done.filter((e) => e.type === type).length;
+const upcoming = events.filter((e) => statusOf(e, now) === "upcoming").sort((a, b) => a.start.getTime() - b.start.getTime());
+
+const facts: [number, string][] = [
+  [symposiumCount(symposiumEditions(), now), tr ? "öğrenci sempozyumu" : "student symposiums"],
+  [webinars, tr ? "webinar" : "webinars"],
+  [count("workshop"), tr ? "atölye" : "workshops"],
+  [count("hackathon"), tr ? "hackathon" : "hackathons"],
+  [count("meetup"), tr ? "topluluk buluşması" : "community meetups"],
+];
+const fmt = (d: Date) => d.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
+const symposiumArchive = tr ? "https://symposium.rsg-turkiye.iscbsc.org/tr/editions/" : "https://symposium.rsg-turkiye.iscbsc.org/editions/";
+---
+
+<!-- Sticky and capped to the space between the fixed header and the podcast
+     bar, as on /workshops; the invitation comes second so short screens keep it. -->
+<aside class="flex flex-col gap-6 text-sm xl:sticky xl:top-24 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto [scrollbar-width:thin]">
+  <section>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? `${yearAblative(FOUNDED_YEAR)} beri` : `Since ${FOUNDED_YEAR}`}</h2>
+    <dl class="border-t border-border">
+      {facts.map(([n, label]) => (
+        <div class="flex items-baseline justify-between gap-4 py-1.5 border-b border-border">
+          <dt class="text-gray-700">{label}</dt>
+          <dd class="text-navy font-semibold tabular-nums text-base">{n}</dd>
+        </div>
+      ))}
+    </dl>
+  </section>
+
+  <section class="border-l-2 border-red pl-4">
+    <h2 class="font-semibold text-navy mb-1">{tr ? "Şehrinde bir buluşma ister misin?" : "Want a meetup in your city?"}</h2>
+    <p class="text-gray-600 leading-relaxed">
+      {tr ? "Bir buluşma, atölye ya da konuşma önermek için yaz:" : "To propose a meetup, a workshop or a talk, write to"}
+      {" "}<a href="mailto:turkey.rsg@gmail.com" class="text-navy-mid hover:text-navy font-medium">turkey.rsg@gmail.com</a>
+    </p>
+  </section>
+
+  <section>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? "Sıradaki" : "Next"}</h2>
+    {upcoming.length > 0 ? (
+      <ul class="flex flex-col gap-3">
+        {upcoming.slice(0, 2).map((e) => (
+          <li><p class="font-medium text-navy">{e.title[lang]}</p><p class="text-gray-500">{fmt(e.start)} · {e.location[lang]}</p></li>
+        ))}
+      </ul>
+    ) : (
+      <p class="text-gray-600 leading-relaxed">
+        {tr ? "Şu an duyurulmuş bir etkinlik yok. Duyurular önce Instagram ve LinkedIn'de çıkar." : "No event is announced right now. Announcements go out first on Instagram and LinkedIn."}
+      </p>
+    )}
+    <p class="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+      <a href="https://instagram.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">Instagram ↗</a>
+      <a href="https://linkedin.com/company/rsgturkey" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">LinkedIn ↗</a>
+      <a href="https://www.youtube.com/@RSG-Turkiye" target="_blank" rel="noopener noreferrer" class="text-navy-mid hover:text-navy font-medium no-underline">YouTube ↗</a>
+    </p>
+  </section>
+
+  <section>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? "Arşivler" : "Archives"}</h2>
+    <ul class="flex flex-col gap-1.5">
+      <li><a href={symposiumArchive} class="text-navy-mid hover:text-navy no-underline">{tr ? "Bütün sempozyumlar, 2012'den bugüne" : "Every symposium, since 2012"} ↗</a></li>
+      <li><a href={`${prefix}/workshops/`} class="text-navy-mid hover:text-navy no-underline">{tr ? "Atölyeler ve hackathon'lar" : "Workshops & hackathons"}</a></li>
+      <li><a href={`${prefix}/webinars/`} class="text-navy-mid hover:text-navy no-underline">{tr ? "Webinar kayıtları" : "Webinar recordings"}</a></li>
+    </ul>
+  </section>
+</aside>

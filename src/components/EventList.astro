@@ -8,7 +8,8 @@
  */
 import { events, groupEvents, type CommunityEvent } from "../data/events";
 import { useTranslations } from "../i18n/ui";
-import EventRow from "./EventRow.astro";
+import YearRail from "./YearRail.astro";
+import EventsAside from "./EventsAside.astro";
 
 interface Props {
   lang: "en" | "tr";
@@ -30,36 +31,23 @@ const sections: { id: string; title: string; items: CommunityEvent[] }[] = [
   { id: "meetups", title: t("events.meetups.title"), items: meetups },
 ];
 
-const symposiumSite = lang === "tr"
-  ? "https://symposium.rsg-turkiye.iscbsc.org/tr/editions/"
-  : "https://symposium.rsg-turkiye.iscbsc.org/editions/";
 ---
 
 <section class="bg-white py-16">
-  <div class="max-w-7xl mx-auto px-6">
+  <div class="max-w-7xl mx-auto px-6 xl:grid xl:grid-cols-[minmax(0,1fr)_17rem] xl:gap-12">
+  <div>
     {/* An empty section renders a heading over nothing, which reads as a
         broken page. With no event ahead of us, "Upcoming Events" simply
         does not appear. */}
     {sections.filter((s) => s.items.length > 0).map((section) => (
       <div class="mb-12" id={section.id}>
-        <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6">
+        <h2 class="text-xl font-semibold text-navy pb-2 border-b-2 border-navy inline-block mb-6 lg:ml-[calc(var(--rail-width)+var(--rail-gap))]">
           {section.title}
         </h2>
-        <div class="flex flex-col">
-          {section.items.map((event) => <EventRow event={event} lang={lang} now={now} />)}
-        </div>
+        <YearRail events={section.items} lang={lang} now={now} compact />
       </div>
     ))}
-
-    <p class="text-sm mb-2">
-      <a href={`${lang === "tr" ? "/tr" : ""}/workshops/`} class="text-navy-mid hover:text-navy transition-colors font-medium no-underline">
-        {t("events.workshopsPage")}
-      </a>
-    </p>
-    <p class="text-sm">
-      <a href={symposiumSite} class="text-navy-mid hover:text-navy transition-colors font-medium no-underline">
-        {t("events.archive.link")}
-      </a>
-    </p>
+  </div>
+  <div class="mt-14 xl:mt-0"><EventsAside lang={lang} /></div>
   </div>
 </section>

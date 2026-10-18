@@ -1,0 +1,48 @@
+---
+/**
+ * Events grouped by year, with the year standing in the left margin.
+ *
+ * On wide screens /events and /workshops were one column with empty sides.
+ * Their content is a timeline, so the margin holds the timeline's own index:
+ * each year sits beside its events, stays in view (sticky) while you scroll
+ * through them, and a hairline joins the years. Nothing in the margin is
+ * decoration. Below lg the rail is dropped; every card already shows its date.
+ *
+ * Pair with the `rail-offset` class on anything above it (headings, intros)
+ * so they line up with the content column, not the rail.
+ */
+import type { CommunityEvent } from "../data/events";
+import EventRow from "./EventRow.astro";
+
+interface Props {
+  events: CommunityEvent[];
+  lang: "en" | "tr";
+  now: Date;
+  /** Passed to EventRow: the date sits above the title. */
+  compact?: boolean;
+}
+const { events, lang, now, compact = false } = Astro.props;
+
+const byYear = new Map<number, CommunityEvent[]>();
+for (const e of events) {
+  const y = e.start.getFullYear();
+  byYear.set(y, [...(byYear.get(y) ?? []), e]);
+}
+// Newest year first, the order the lists are in already.
+const years = [...byYear.keys()].sort((a, b) => b - a);
+---
+
+<div class="year-rail">
+  {years.map((year) => (
+    <div class="lg:grid lg:grid-cols-[var(--rail-width)_minmax(0,1fr)] lg:gap-x-[var(--rail-gap)]">
+      <div class="hidden lg:block border-r border-border">
+        <p class="sticky top-24 mt-5 mr-6 pt-2 border-t-2 border-navy text-right text-xl font-semibold text-navy tabular-nums tracking-tight">
+          {year}
+        </p>
+      </div>
+      <div>
+        {byYear.get(year)!.map((event) => <EventRow event={event} lang={lang} now={now} compact={compact} />)}
+      </div>
+    </div>
+  ))}
+</div>

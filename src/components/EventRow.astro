@@ -10,18 +10,31 @@ interface Props {
   event: CommunityEvent;
   lang: "en" | "tr";
   now: Date;
+  /** Date above the title instead of in its own column, for layouts that
+   * already show the year beside the list and need the width (/workshops). */
+  compact?: boolean;
 }
-const { event, lang, now } = Astro.props;
+const { event, lang, now, compact = false } = Astro.props;
 const t = useTranslations(lang);
 const status = statusOf(event, now);
 ---
 
-<div class:list={["grid grid-cols-1 gap-4 py-5 border-b border-border items-start", event.image ? "md:grid-cols-[200px_1fr_240px]" : "md:grid-cols-[200px_1fr]"]}>
-  <div class="flex flex-col">
+<div class:list={[
+  "grid grid-cols-1 gap-4 py-5 border-b border-border items-start",
+  compact
+    ? (event.image ? "md:grid-cols-[minmax(0,1fr)_200px]" : "")
+    : (event.image ? "md:grid-cols-[200px_1fr_240px]" : "md:grid-cols-[200px_1fr]"),
+]}>
+  <div class:list={["flex flex-col", compact && "hidden"]}>
     <span class="text-sm font-medium text-navy">{event.when[lang]}</span>
     <span class="text-xs text-gray-500">{event.location[lang]}</span>
   </div>
   <div>
+    {compact && (
+      <p class="text-xs text-gray-500 mb-1">
+        <span class="font-medium text-navy">{event.when[lang]}</span> · {event.location[lang]}
+      </p>
+    )}
     <div class="flex items-center gap-2 flex-wrap mb-1">
       <strong class="text-navy">{event.title[lang]}</strong>
       <span class={`inline-block text-xs font-medium px-2 py-0.5 rounded ${status === "upcoming" ? "bg-red-tint text-red" : "bg-navy-light text-navy-mid"}`}>
