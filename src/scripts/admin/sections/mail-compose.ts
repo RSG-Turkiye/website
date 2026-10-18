@@ -7,7 +7,7 @@
 import { escapeHtml } from '../../escape-html';
 import { epochToIstanbulInput, istanbulInputToEpoch, formatIstanbul } from '../../../lib/istanbul-time';
 import { t, tf, dateLocale } from '../context';
-import { BTN, row, emptyState, armConfirm, guardUnsaved, toast } from '../ui-kit';
+import { BTN, row, chip, emptyState, armConfirm, guardUnsaved, toast } from '../ui-kit';
 import { markSentStale } from './mail-sent';
 
 let isAdmin = false;
@@ -196,7 +196,14 @@ export async function loadQueued(): Promise<void> {
       ? `<button type="button" data-edit="${escapeHtml(s.id)}" class="${BTN.secondary}">${escapeHtml(t('admin.mail.queued.edit'))}</button>
          <button type="button" data-cancel="${escapeHtml(s.id)}" class="${BTN.danger}">${escapeHtml(t('admin.mail.queued.cancel'))}</button>`
       : `<span class="text-xs text-gray-500 px-1">${escapeHtml(t('admin.mail.queued.theirs'))}</span>`;
-    return row({ title: s.subject, subtitle, trailing, attrs: `data-queued="${escapeHtml(s.id)}"` });
+    // Why a due row has not gone yet. A full quota holds it until the rolling
+    // 24 hours free up (it no longer runs the retry clock, so it waits rather
+    // than being dropped); anything else is a failure the next tick retries.
+    const err: string | null = s.last_error ?? null;
+    const chips = !err ? undefined
+      : err.startsWith('rate_limit') ? chip(t('admin.mail.queued.waitingQuota'), 'amber')
+      : chip(t('admin.mail.queued.retrying'), 'red');
+    return row({ title: s.subject, subtitle, chips, trailing, attrs: `data-queued="${escapeHtml(s.id)}"` });
   }).join('');
 
   list.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach((b) => {

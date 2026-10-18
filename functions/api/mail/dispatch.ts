@@ -28,6 +28,8 @@ interface ScheduledRow {
   body: string;
   attachment_ids: string;
   first_tried_at: number | null;
+  /** Why the last tick did not send it, e.g. 'rate_limit_day'. Null when none failed. */
+  last_error: string | null;
   /** Set when an earlier invocation took this row to send it. Null on a row
    * nobody has started, and on every row written before the column existed. */
   claimed_at: number | null;
@@ -287,7 +289,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
 
   const candidates = await env.DB.prepare(
     `SELECT id, sender_user_id, recipients, subject, body,
-            attachment_ids, first_tried_at, claimed_at
+            attachment_ids, first_tried_at, last_error, claimed_at
      FROM scheduled_emails
      WHERE scheduled_at <= ?
        AND (claimed_at IS NULL OR claimed_at <= ?)
@@ -414,7 +416,28 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // ticks stopping at `planned` to prove it. Everything terminal and cheap
       // belongs above the expensive step.
       if (shouldGiveUp(row.first_tried_at, now)) {
-        await drop('Killed the dispatcher on every attempt across the retry window');
+        // last_error is the reason the last handled attempt failed. With none,
+        // every attempt died before it could record one -- the case this
+        // check was written for.
+        await drop(row.last_error
+          ? `Gave up after the retry window; last error: ${row.last_error}`
+          : 'Killed the dispatcher on every attempt across the retry window');
+        continue;
+      }
+
+      // A full quota is checked before the attempt is recorded, so waiting for
+      // it never runs the give-up clock. The quotas are rolling 24-hour counts
+      // and the clock allows six hours: when the check sat below the stamp, a
+      // round queued on a day the quota was nearly spent was held, its clock
+      // ran out, and it was deleted unsent with the message above. Nothing
+      // here needs the attachment, so it costs a count query and cannot kill
+      // the tick -- which is the one property the stamp below must come before.
+      const limit = await checkRateLimit(env.DB, row.sender_user_id, recipients.length, now);
+      if (!limit.ok) {
+        await env.DB.prepare(
+          'UPDATE scheduled_emails SET last_error = ?, updated_at = ? WHERE id = ?'
+        ).bind(limit.code, now, row.id).run();
+        retried++;
         continue;
       }
 
@@ -436,10 +459,15 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // it did not use. The retry window is six hours and a tick is a minute,
       // so it can afford that; what it cannot afford is a row that is never
       // retired at all.
+      //
+      // last_error is cleared with it: what it holds now is about an earlier
+      // tick (often a quota hold, above), and a row that dies in this attempt
+      // must not later be retired under that stale reason.
       await env.DB.prepare(
         `UPDATE scheduled_emails
          SET attempts = attempts + 1,
              first_tried_at = COALESCE(first_tried_at, ?),
+             last_error = NULL,
              updated_at = ?
          WHERE id = ?`
       ).bind(now, now, row.id).run();
@@ -454,22 +482,6 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // Past the R2 read and the base64, which is where the memory goes.
       await markPhase(env.DB, runId, 'resolved', row.id);
 
-      // A full rate limit is transient — wait for the next tick, up to the
-      // retry window.
-      const limit = await checkRateLimit(env.DB, row.sender_user_id, recipients.length, now);
-      if (!limit.ok) {
-        // Only the reason is recorded: the attempt was already counted above,
-        // and counting it twice would retire the row in half the window. The
-        // give-up check that used to live here has gone with it -- it ran on
-        // the same clock, in the same iteration, as the one above, so it could
-        // never be true, and the message it wrote when it supposedly fired
-        // said the dispatcher had been killed, which was not what happened.
-        await env.DB.prepare(
-          'UPDATE scheduled_emails SET last_error = ?, updated_at = ? WHERE id = ?'
-        ).bind(limit.code, now, row.id).run();
-        retried++;
-        continue;
-      }
 
       // Claimed before the send and committed on its own, so that an
       // invocation killed mid-send leaves a row that is visibly in flight
