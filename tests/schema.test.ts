@@ -113,3 +113,20 @@ test('the tables the mail queue depends on carry the columns it reads', () => {
   }
   db.close();
 });
+
+test('the per-minute dispatch_runs lookups use an index, not a table scan', () => {
+  // The DM poll's pacing query ran every minute as a full scan and used up
+  // the free plan's 5M daily row reads on 2026-10-18, blocking all of D1.
+  const db = freshDatabase();
+  const queries = [
+    `SELECT MAX(started_at) AS at FROM dispatch_runs WHERE kind = 'social_dm'`,
+    `SELECT (SELECT MAX(started_at) FROM dispatch_runs WHERE kind = 'mail') AS mail,
+            (SELECT MAX(started_at) FROM dispatch_runs WHERE kind = 'social') AS social`,
+  ];
+  for (const q of queries) {
+    const plan = (db.prepare(`EXPLAIN QUERY PLAN ${q}`).all() as { detail: string }[]).map((r) => r.detail);
+    assert.ok(plan.every((d) => !/^SCAN dispatch_runs/.test(d)), `scans dispatch_runs: ${plan.join(' / ')}`);
+    assert.ok(plan.some((d) => d.includes('idx_dispatch_runs_kind_started')), `no kind index: ${plan.join(' / ')}`);
+  }
+  db.close();
+});

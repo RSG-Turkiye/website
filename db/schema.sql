@@ -233,6 +233,16 @@
 --    social tick's run rows would fail to insert).
 --
 
+-- 8f. An index on dispatch_runs(kind, started_at). The Instagram DM poll asks
+--    for the newest 'social_dm' row on every one-minute tick; with only the
+--    started_at index that walked the whole table, and on 2026-10-18 it used
+--    up the free plan's 5M daily row reads and blocked every D1 read until
+--    midnight UTC. IF NOT EXISTS, so it is safe to re-run:
+--      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS idx_dispatch_runs_kind_started ON dispatch_runs(kind, started_at)"
+--    Order against the deploy does not matter; the queries are correct
+--    without it, only expensive.
+--
+
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   google_id     TEXT UNIQUE NOT NULL,
@@ -535,6 +545,8 @@ CREATE TABLE IF NOT EXISTS dispatch_runs (
   kind          TEXT NOT NULL DEFAULT 'mail'
 );
 CREATE INDEX IF NOT EXISTS idx_dispatch_runs_started ON dispatch_runs(started_at);
+-- Each kind's latest run (DM pacing, the health banner) in one index lookup.
+CREATE INDEX IF NOT EXISTS idx_dispatch_runs_kind_started ON dispatch_runs(kind, started_at);
 
 -- Conversations: the threads the site started, and their messages.
 --
