@@ -80,7 +80,14 @@ const webinars = defineCollection({
 //   lp-roadmap   one file per stage of the sequential beginner roadmap
 //
 // TO ADD A RESOURCE to an existing path:
-//   Open the right lp-levels file and add an item to the correct section.
+//   Open the right lp-levels file and add an item to the correct section,
+//   starting with `- id:` and a new unique id. Add the same item, with the same
+//   id, tag and link, to the tr/ file too; only title and description are
+//   translated. tests/lp-resource-ids.test.ts checks both.
+//
+// TO FIX A DEAD LINK: change the url in place, in en/ and tr/ together, and
+//   keep the id. The weekly link check (scripts/check-lp-links.ts) reports
+//   dead links in the issue labelled `link-check`.
 //
 // TO ADD A WEBINAR reference:
 //   Use webinarSlug if the webinar has a page on this site (/webinars/<slug>).

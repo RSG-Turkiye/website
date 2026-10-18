@@ -1,0 +1,89 @@
+name: Learning Paths Link Check
+
+# Weekly rather than on pull requests: the check depends on third-party sites,
+# so as a PR gate it would fail changes that have nothing to do with it (and a
+# gate that fails for no reason is soon ignored). GitHub's scheduler has proved
+# unreliable for this repo -- see workers/mail-cron -- but a weekly report that
+# arrives a few hours late loses nothing.
+#
+# The result lives in one issue labelled `link-check`: opened or reopened while
+# anything is dead, its body replaced each week, closed once all links work.
+on:
+  schedule:
+    - cron: "37 5 * * 1" # Mondays 08:37 in Türkiye, off the busy :00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check learning-path links
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Exits 1 when a link is dead; that is a finding for the issue, not a
+      # failed job. A crash leaves no report, and the next step fails on that.
+      - name: Check links
+        id: check
+        run: npx tsx scripts/check-lp-links.ts --out report.md || echo "dead=true" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the result in the link-check issue
+        uses: actions/github-script@v7
+        env:
+          DEAD: ${{ steps.check.outputs.dead }}
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('report.md')) {
+              core.setFailed('The link check crashed before writing its report; see the step above.');
+              return;
+            }
+            const body = fs.readFileSync('report.md', 'utf8');
+            const dead = process.env.DEAD === 'true';
+            const { owner, repo } = context.repo;
+            const LABEL = 'link-check';
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: LABEL });
+            } catch {
+              await github.rest.issues.createLabel({
+                owner, repo, name: LABEL, color: 'd93f0b',
+                description: 'Weekly check of the learning-path links',
+              });
+            }
+
+            const { data } = await github.rest.issues.listForRepo({
+              owner, repo, labels: LABEL, state: 'all', sort: 'created', direction: 'desc', per_page: 10,
+            });
+            const issue = data.find((i) => !i.pull_request);
+
+            if (!issue) {
+              if (dead) {
+                const { data: created } = await github.rest.issues.create({
+                  owner, repo, title: 'Learning paths: dead links', body, labels: [LABEL],
+                });
+                core.notice(`Dead links found: #${created.number}`);
+              } else {
+                core.notice('All learning-path links work.');
+              }
+              return;
+            }
+
+            await github.rest.issues.update({
+              owner, repo, issue_number: issue.number, body,
+              state: dead ? 'open' : 'closed',
+              ...(dead ? {} : { state_reason: 'completed' }),
+            });
+            core.notice(dead ? `Dead links found: #${issue.number}` : `All links work; #${issue.number} closed.`);
