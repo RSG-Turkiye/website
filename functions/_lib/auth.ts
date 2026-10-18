@@ -62,7 +62,7 @@ export interface Profile {
 }
 
 const SESSION_COOKIE = 'rsg_session';
-const SESSION_DURATION = 60 * 60 * 24 * 30; // 30 days in seconds
+export const SESSION_DURATION = 60 * 60 * 24 * 30; // 30 days in seconds
 
 export function generateId(): string {
   return crypto.randomUUID();
@@ -75,6 +75,26 @@ export function sessionCookie(token: string, expires: Date): string {
 export function clearSessionCookie(): string {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
+
+/**
+ * A readable companion to the session cookie, which pages cannot see because
+ * it is HttpOnly. It says only "there may be a session", never whose: the
+ * header uses it to skip /api/me for visitors who are not signed in, so their
+ * page views make no request and show Join and Sign in at once. Every
+ * decision that matters still reads the real session on the server.
+ */
+export const SIGNED_IN_MARKER = 'rsg_signed_in';
+
+export function signedInMarker(expires: Date): string {
+  return `${SIGNED_IN_MARKER}=1; Path=/; Secure; SameSite=Lax; Expires=${expires.toUTCString()}`;
+}
+
+export function clearSignedInMarker(): string {
+  return `${SIGNED_IN_MARKER}=; Path=/; Secure; SameSite=Lax; Max-Age=0`;
+}
+
+export const hasSignedInMarker = (request: Request): boolean =>
+  new RegExp(`(?:^|;\\s*)${SIGNED_IN_MARKER}=1(?:;|$)`).test(request.headers.get('Cookie') ?? '');
 
 export async function getSessionUser(request: Request, env: Env): Promise<User | null> {
   const cookie = request.headers.get('Cookie') || '';

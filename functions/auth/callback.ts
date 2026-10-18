@@ -3,6 +3,7 @@ import {
   generateId,
   createSession,
   sessionCookie,
+  signedInMarker,
   redirectResponse,
   getBaseUrl,
 } from '../_lib/auth';
@@ -82,6 +83,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const { token, expires } = await createSession(user.id, env);
     const res = redirectResponse(`${base}/account/setup`, { 'Set-Cookie': sessionCookie(token, expires) });
     res.headers.append('Set-Cookie', clearNextCookie());
+    res.headers.append('Set-Cookie', signedInMarker(expires));
     return res;
   }
 
@@ -101,5 +103,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const dest = profile ? `${base}${next ?? '/account'}` : `${base}/account/setup`;
   const res = redirectResponse(dest, { 'Set-Cookie': sessionCookie(token, expires) });
   res.headers.append('Set-Cookie', clearNextCookie());
+  res.headers.append('Set-Cookie', signedInMarker(expires));
   return res;
 };
