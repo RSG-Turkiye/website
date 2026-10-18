@@ -39,8 +39,15 @@ const registration = openCtas(edition, now).find((c) => c.kind === "registration
 // recorded, both mean "we can say the city, not the room". "hidden" gets
 // no location key at all, so an Event with nothing announced yet does not
 // claim a place it cannot back up.
-const location =
-  place.kind === "full"
+// Two editions (2020, 2021) were held online, recorded as venueCity "Online".
+// Without this they were published as an in-person event in a city called
+// "Online". Google's form for an online event is an online attendance mode
+// and a VirtualLocation whose url is where it happened -- here, its own page.
+const online = edition.venueCity?.trim().toLowerCase() === "online";
+
+const location = online
+  ? { "@type": "VirtualLocation", url }
+  : place.kind === "full"
     ? { "@type": "Place", name: place.venue, address: { "@type": "PostalAddress", addressLocality: place.city, addressCountry: "TR" } }
     : place.kind === "withheld" || place.kind === "city-only"
       ? { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: place.city, addressCountry: "TR" } }
@@ -68,7 +75,7 @@ const jsonLd = {
   ...(edition.endDate && { endDate: edition.endDate.toISOString().slice(0, 10) }),
   eventStatus: "https://schema.org/EventScheduled",
   image,
-  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+  eventAttendanceMode: online ? "https://schema.org/OnlineEventAttendanceMode" : "https://schema.org/OfflineEventAttendanceMode",
   organizer: { "@type": "Organization", name: "ISCB-SC RSG-Türkiye", url: "https://rsg-turkiye.iscbsc.org" },
   url,
   ...(performers.length > 0 && { performer: performers }),

@@ -111,3 +111,27 @@ test('each language publishes its own language', { skip: !built && 'no build in 
   assert.equal(eventOf('tr/index.html')!.inLanguage, 'tr');
   assert.notEqual(eventOf('index.html')!.name, eventOf('tr/index.html')!.name);
 });
+
+test('an edition held online is published as an online event, not a city called "Online"', { skip: !built && 'no build in dist/' }, () => {
+  for (const year of ['2020', '2021']) {
+    const event = eventOf(`editions/${year}/index.html`);
+    assert.ok(event, `${year} has an Event`);
+    assert.equal(event.eventAttendanceMode, 'https://schema.org/OnlineEventAttendanceMode', year);
+    assert.equal(event.location?.['@type'], 'VirtualLocation', year);
+    assert.match(event.location?.url ?? '', new RegExp(`/editions/${year}/$`));
+  }
+  const inPerson = eventOf('editions/2023/index.html');
+  assert.equal(inPerson?.eventAttendanceMode, 'https://schema.org/OfflineEventAttendanceMode');
+  assert.equal(inPerson?.location?.['@type'], 'Place');
+});
+
+test('every past edition with a start date is an Event on its own page', { skip: !built && 'no build in dist/' }, () => {
+  for (const file of readdirSync(EDITIONS).filter((f) => f.endsWith('.md'))) {
+    const text = readFileSync(EDITIONS + file, 'utf8');
+    if (!/^startDate:/m.test(text)) continue;
+    const year = file.replace('.md', '');
+    const event = eventOf(`editions/${year}/index.html`);
+    assert.ok(event, `${year} has no Event`);
+    assert.equal(event.startDate, /^startDate: (\S+)/m.exec(text)![1], year);
+  }
+});
