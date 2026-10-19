@@ -27,6 +27,8 @@ const TIMEOUT_MS = 20_000;
 export const RATE_LOW = 0.1;
 /** X takes up to four images in one post. */
 const X_MAX_IMAGES = 4;
+/** An Instagram carousel takes up to ten. */
+const IG_MAX_IMAGES = 10;
 
 export interface RateWindow { name: string; remaining: number; quota: number | null }
 
@@ -146,12 +148,13 @@ export function decodeBufferState(raw: string | null): BufState | null {
  * a post was in flight): 'idle' when it never sent a create, 'started' when it
  * may have. null when the state is not another adapter's.
  */
-export function foreignState(raw: string | null, own: 'buf' | 'li' | 'x'): 'idle' | 'started' | null {
+export function foreignState(raw: string | null, own: 'buf' | 'li' | 'x' | 'ig'): 'idle' | 'started' | null {
   if (!raw) return null;
   let v: Record<string, unknown>;
   try { v = JSON.parse(raw) as Record<string, unknown>; } catch { return null; }
   if (!v || typeof v !== 'object') return null;
   const marker = (['buf', 'li', 'x'] as const).find((k) => v[k] === 1);
+  // Instagram's own state is a bare container id, never JSON, so 'ig' has no marker.
   if (!marker || marker === own) return null;
   return typeof v.attempt === 'number' || typeof v.postId === 'string' ? 'started' : 'idle';
 }
@@ -221,6 +224,12 @@ async function findCreated(token: string, org: string, channelId: string, captio
 export async function bufferPublishStep(input: PublishInput): Promise<PublishStep> {
   const { account, token, post, now, checkpoint } = input;
   const platform: SocialPlatform | null = input.platform ?? null;
+  // Instagram's direct state is a bare container id. Nothing records whether media_publish was
+  // already called for it (a lost answer keeps the container), and without the Instagram token
+  // its status cannot be read here, so it is never taken as proof that nothing went out.
+  if (input.state.containerId && !input.state.containerId.startsWith('{')) {
+    return { kind: 'fail', reason: 'uncertain: an Instagram container from the direct connection may already have been published before switching to Buffer; check the account, then retry', clearContainer: true };
+  }
   const foreign = foreignState(input.state.containerId, 'buf');
   if (foreign === 'started') {
     return { kind: 'fail', reason: 'uncertain: a direct create may already have gone out before switching to Buffer; check the account, then retry', clearContainer: true };
@@ -261,9 +270,13 @@ export async function bufferPublishStep(input: PublishInput): Promise<PublishSte
     return { kind: 'pending', containerId: encodeState({ attempt: null, first, postId: null, next: 0, polls: 0 }) };
   }
 
-  if (post.type === 'story') return { kind: 'fail', reason: 'not_available: stories do not go through Buffer' };
+  const instagram = platform === 'instagram';
+  if (post.type === 'story' && !instagram) return { kind: 'fail', reason: 'not_available: stories do not go through Buffer' };
   if (post.media.length === 0) return { kind: 'fail', reason: 'unknown: post has no images' };
   if (platform === 'x' && post.media.length > X_MAX_IMAGES) return { kind: 'fail', reason: `carousel_count: X takes up to ${X_MAX_IMAGES} images` };
+  if (instagram && post.media.length > IG_MAX_IMAGES) return { kind: 'fail', reason: `carousel_count: Instagram takes up to ${IG_MAX_IMAGES} images` };
+  // A story is one image; a plain image post one; a carousel all of them.
+  const media = instagram && post.type !== 'carousel' ? post.media.slice(0, 1) : post.media;
   if (lastShare && now - lastShare.at < 900 && lastShare.share < RATE_LOW) {
     return { kind: 'retry', reason: 'rate_limited: rate_low, under 10% of the Buffer request quota left' };
   }
@@ -274,7 +287,10 @@ export async function bufferPublishStep(input: PublishInput): Promise<PublishSte
   const created = await bufferGraphql(token, CREATE, {
     input: {
       channelId: account.id, text: post.caption, schedulingType: 'automatic', mode: 'shareNow',
-      assets: post.media.map((m) => ({ image: { url: m.url, metadata: { altText: m.alt } } })),
+      assets: media.map((m) => ({ image: { url: m.url, metadata: { altText: m.alt } } })),
+      // InstagramPostMetadataInput. (live) Whether Buffer publishes a story and a carousel by itself
+      // through the API, rather than as a reminder to post from the phone, is checked in the first live test.
+      ...(instagram ? { metadata: { instagram: { type: post.type === 'story' ? 'story' : 'post', shouldShareToFeed: true } } } : {}),
     },
   }, now);
   const c = created.data?.createPost as { __typename?: string; post?: { id?: string }; message?: string } | null | undefined;
@@ -330,8 +346,10 @@ export async function listBufferChannels(token: string): Promise<{ ok: true; cha
 /** A channel Buffer cannot post to until someone fixes it in Buffer. */
 export const channelUsable = (c: BufferChannel) => !c.isDisconnected && !c.isLocked;
 
-/** (live) The spelling of service and type: LinkedIn Pages only (never a member's profile); X may be called twitter. */
-export function channelFits(platform: 'linkedin' | 'x', c: BufferChannel): boolean {
+/** (live) The spelling of service and type: LinkedIn Pages only (never a member's profile); X may be called twitter; Instagram professional accounts only. */
+export function channelFits(platform: 'linkedin' | 'x' | 'instagram', c: BufferChannel): boolean {
   if (platform === 'linkedin') return c.service === 'linkedin' && c.type === 'page';
+  // Buffer shows @rsgturkey as an "Instagram Professional Account"; a personal account cannot be posted to.
+  if (platform === 'instagram') return c.service === 'instagram' && ['business', 'professional', 'creator'].includes(c.type);
   return c.service === 'twitter' || c.service === 'x';
 }

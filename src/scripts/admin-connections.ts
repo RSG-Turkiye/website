@@ -31,7 +31,7 @@ type Conn = {
 };
 
 const BUFFER_ERRORS = ['buffer_not_configured', 'buffer_auth', 'buffer_unavailable', 'no_channel', 'unknown_channel', 'channel_unusable'];
-const viaBufferPossible = (p: Conn['platform']) => p === 'linkedin' || p === 'x';
+const viaBufferPossible = (p: Conn['platform']) => p === 'instagram' || p === 'linkedin' || p === 'x';
 
 const STATUS_TONE = { connected: 'green', expiring: 'amber', broken: 'red', unused: 'neutral' } as const;
 
@@ -43,16 +43,18 @@ export function setupConnections(d: ConnDeps): void {
 
 function actions(c: Conn): string {
   const urgent = c.status === 'broken' || c.status === 'expiring';
-  const label = deps.t(c.status === 'unused' ? 'admin.connections.connect' : 'admin.connections.reconnect');
-  const connect = `<a href="/api/admin/connections/${c.platform}/start?lang=${deps.lang}" class="${urgent ? BTN.danger : BTN.secondary}">${escapeHtml(label)}</a>`;
+  const label = deps.t(c.via === 'buffer' ? 'admin.connections.connectDirect' : c.status === 'unused' ? 'admin.connections.connect' : 'admin.connections.reconnect');
+  const connect = `<a href="/api/admin/connections/${c.platform}/start?lang=${deps.lang}" class="${urgent && c.via !== 'buffer' ? BTN.danger : BTN.secondary}">${escapeHtml(label)}</a>`;
   const buffer = viaBufferPossible(c.platform)
     ? `<button type="button" data-buffer-connect="${c.platform}" class="${urgent && c.via === 'buffer' ? BTN.danger : BTN.secondary}">${escapeHtml(deps.t(c.via === 'buffer' ? 'admin.connections.reconnectBuffer' : 'admin.connections.connectBuffer'))}</button>`
     : '';
   const disconnect = c.hasStoredToken
     ? `<button type="button" data-disconnect="${c.platform}" class="${BTN.danger}">${escapeHtml(deps.t('admin.connections.disconnect'))}</button>`
     : '';
-  // A Buffer connection is renewed through Buffer; the direct link stays for the other case.
-  return (c.via === 'buffer' ? '' : connect) + buffer + disconnect;
+  // A Buffer connection is renewed through Buffer. Instagram keeps a way back to the direct
+  // connection, which DMs need; LinkedIn's and X's direct apps are not usable today.
+  const direct = c.via !== 'buffer' || c.platform === 'instagram' ? connect : '';
+  return (c.via === 'buffer' ? buffer + direct : direct + buffer) + disconnect;
 }
 
 function row(c: Conn): string {

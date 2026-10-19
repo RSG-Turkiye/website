@@ -247,12 +247,13 @@ test('which channel fits: a LinkedIn Page (never a profile); X as twitter or x',
   assert.equal(channelFits('x', ch('x', 'profile')), true);
 });
 
-test('the registry picks Buffer only for a Buffer connection, and never for Instagram', () => {
+test('the registry picks Buffer only for a Buffer connection; the direct adapters stay the default', () => {
   assert.equal(publisherFor('linkedin', 'buffer'), bufferPublishStep);
   assert.equal(publisherFor('x', 'buffer'), bufferPublishStep);
   assert.equal(publisherFor('linkedin'), linkedinPublishStep);
   assert.equal(publisherFor('x'), xPublishStep);
-  assert.notEqual(publisherFor('instagram', 'buffer'), bufferPublishStep);
+  assert.equal(publisherFor('instagram', 'buffer'), bufferPublishStep);
+  assert.notEqual(publisherFor('instagram'), bufferPublishStep);
 });
 
 test('switching adapters mid-flight: an idle state is dropped, a started one fails honestly', async () => {
