@@ -1,12 +1,13 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { safeEqual } from '../../../_lib/secret';
-import { getConnection, readAccessToken, readRefreshToken, markBroken, connectionStatus, tokenContext, requeueWaitingStatement } from '../../../_lib/connections';
+import { getConnection, readAccessToken, readRefreshToken, markBroken, markOk, connectionStatus, tokenContext, requeueWaitingStatement, isBufferRow, bufferOrg, bufferKeyExpiry, withLiveExpiry, type ConnectionRow } from '../../../_lib/connections';
 import { seal } from '../../../_lib/token-vault';
 import { appendAudit } from '../../../_lib/audit';
 import { refreshInstagramToken, needsRefresh } from '../../../_lib/social/instagram';
 import { refreshLinkedinToken } from '../../../_lib/social/linkedin';
 import { refreshXOnUse } from '../../../_lib/social/x';
+import { listBufferChannels, isAuthFailure } from '../../../_lib/social/buffer';
 import { notificationText, notifyEach, adminEmails } from '../../../_lib/social-notify';
 
 /**
@@ -125,6 +126,67 @@ async function keepXAlive(env: Env, now: number, panelUrl: string): Promise<'ref
   return 'none';
 }
 
+const BUFFER_REMIND_DAYS = [30, 14, 3];
+const BUFFER_LABEL = { linkedin: 'LinkedIn', x: 'X' } as const;
+
+/**
+ * Buffer-backed LinkedIn and X (spec 2026-10-19 §4): one channels call a day
+ * when any connection goes through Buffer. A channel that is gone,
+ * disconnected or locked in Buffer marks its connection broken and mails the
+ * admins once. A connection this check broke ("buffer: ..." error) is marked
+ * working again once its channel is healthy, and its waiting posts
+ * re-queued; any other breakage waits for a reconnect, as for every
+ * platform. The admins are mailed 30, 14 and 3 days before the key's end
+ * (BUFFER_KEY_EXPIRES, read live, so a rotated key counts at once).
+ */
+export async function checkBuffer(env: Env, now: number, panelUrl: string): Promise<'ok' | 'broken' | 'reminded' | 'none'> {
+  const rows = (await Promise.all((['linkedin', 'x'] as const).map((p) => getConnection(env.DB, p))))
+    .filter((r): r is ConnectionRow & { platform: 'linkedin' | 'x' } => isBufferRow(r))
+    .map((r) => withLiveExpiry(r, env)!);
+  if (rows.length === 0) return 'none';
+  const mail = async (platform: 'linkedin' | 'x', note: string) =>
+    notifyEach(env, await adminEmails(env.DB), notificationText('connection_broken', { label: BUFFER_LABEL[platform], when: null, note, panelUrl, platform: BUFFER_LABEL[platform] }));
+
+  let result: 'ok' | 'broken' | 'reminded' = 'ok';
+  if (env.BUFFER_API_KEY) {
+    const listed = await listBufferChannels(env.BUFFER_API_KEY);
+    const auth = !listed.ok && isAuthFailure(listed);
+    // A transient failure (network, 5xx, rate limit) is left for tomorrow, as for the token refreshes above.
+    if (listed.ok || auth) {
+      for (const r of rows) {
+        const c = listed.ok ? listed.channels.find((ch) => ch.id === r.account_id && ch.organizationId === bufferOrg(r)) : undefined;
+        const problem = !listed.ok ? `Buffer refused the key: ${listed.message}`
+          : !c ? 'the channel is no longer in Buffer'
+          : c.isDisconnected ? 'the channel is disconnected in Buffer; refresh it there'
+          : c.isLocked ? 'the channel is locked in Buffer (plan limit)'
+          : null;
+        if (problem) {
+          const wasBroken = connectionStatus(r, now) === 'broken';
+          await markBroken(env.DB, r.platform, `buffer: ${problem}`, now);
+          await appendAudit(env.DB, { userId: null, action: 'connection.buffer_check', targetType: 'connection', targetId: r.platform, details: { problem } }, now);
+          if (!wasBroken) await mail(r.platform, problem);
+          result = 'broken';
+        } else if (connectionStatus(r, now) === 'broken' && r.last_error?.startsWith('buffer:')) {
+          await markOk(env.DB, r.platform, now);
+          await requeueWaitingStatement(env.DB, r.platform).run();
+          await appendAudit(env.DB, { userId: null, action: 'connection.buffer_check', targetType: 'connection', targetId: r.platform, details: { healed: true } }, now);
+        }
+      }
+    }
+  }
+
+  const expiry = bufferKeyExpiry(env);
+  if (expiry !== null) {
+    const daysLeft = Math.ceil((expiry - now) / 86400);
+    if (BUFFER_REMIND_DAYS.includes(daysLeft)) {
+      await notifyEach(env, await adminEmails(env.DB), notificationText('buffer_key_expiring', { label: 'Buffer', when: null, note: String(daysLeft), panelUrl }));
+      await appendAudit(env.DB, { userId: null, action: 'connection.expiry_reminder', targetType: 'connection', targetId: 'buffer', details: { daysLeft } }, now);
+      if (result === 'ok') result = 'reminded';
+    }
+  }
+  return result;
+}
+
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!safeEqual(request.headers.get('X-Archive-Secret'), env.SYMPOSIUM_ARCHIVE_SECRET)) {
     return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
@@ -135,5 +197,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const refreshed = await refreshInstagram(env, now, panelUrl).catch((err) => { console.error('instagram refresh failed', err); return false; });
   const linkedin = await refreshLinkedin(env, now, panelUrl).catch((err) => { console.error('linkedin refresh failed', err); return 'none' as const; });
   const x = await keepXAlive(env, now, panelUrl).catch((err) => { console.error('x refresh failed', err); return 'none' as const; });
-  return jsonResponse({ ok: true, refreshed, linkedin, x });
+  const buffer = await checkBuffer(env, now, panelUrl).catch((err) => { console.error('buffer check failed', err); return 'none' as const; });
+  return jsonResponse({ ok: true, refreshed, linkedin, x, buffer });
 };

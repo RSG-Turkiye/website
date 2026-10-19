@@ -8,6 +8,7 @@
  */
 import type { Env } from '../auth';
 import type { PublishInput, PublishStep } from './types';
+import { foreignState } from './buffer';
 
 export const LI_API = 'https://api.linkedin.com/rest';
 export const LI_VERSION = '202609';
@@ -170,8 +171,12 @@ const usesImage = (post: Record<string, unknown>, image: string) => {
 export async function linkedinPublishStep(input: PublishInput): Promise<PublishStep> {
   const { account, token, post, now, checkpoint } = input;
   const org = `urn:li:organization:${account.id}`;
-  const st = decodeState(input.state.containerId);
-  if (input.state.containerId && !st) return { kind: 'fail', reason: 'unknown: unreadable LinkedIn state', clearContainer: true };
+  // Switched back from Buffer while a post was in flight: Buffer may already have sent it.
+  const foreign = foreignState(input.state.containerId, 'li');
+  if (foreign === 'started') return { kind: 'fail', reason: 'uncertain: a Buffer post may already have gone out before switching back; check the account, then retry', clearContainer: true };
+  const raw = foreign === 'idle' ? null : input.state.containerId;
+  const st = decodeState(raw);
+  if (raw && !st) return { kind: 'fail', reason: 'unknown: unreadable LinkedIn state', clearContainer: true };
   if (post.type === 'story') return { kind: 'fail', reason: 'not_available: LinkedIn has no stories' };
   if (post.media.length === 0) return { kind: 'fail', reason: 'unknown: post has no images' };
 

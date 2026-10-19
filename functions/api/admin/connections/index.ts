@@ -1,6 +1,6 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse } from '../../../_lib/auth';
-import { PLATFORMS, connectionStatus, connectionExpiry, type ConnectionRow } from '../../../_lib/connections';
+import { PLATFORMS, connectionStatus, connectionExpiry, isBufferRow, withLiveExpiry, type ConnectionRow } from '../../../_lib/connections';
 import { appendAudit } from '../../../_lib/audit';
 
 type Row = ConnectionRow & { connected_by_email: string | null; connected_by_name: string | null };
@@ -20,8 +20,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const legacyGmail = Boolean(env.GMAIL_REFRESH_TOKEN);
 
   const connections = PLATFORMS.map((platform) => {
-    const row = rows.find((r) => r.platform === platform) ?? null;
-    const hasStoredToken = Boolean(row?.refresh_token_enc || row?.access_token_enc);
+    const row = withLiveExpiry(rows.find((r) => r.platform === platform) ?? null, env);
+    const viaBuffer = isBufferRow(row);
+    // A Buffer row stores no token, but it is a connection that can be removed.
+    const hasStoredToken = Boolean(row?.refresh_token_enc || row?.access_token_enc) || viaBuffer;
     return {
       platform,
       status: connectionStatus(row, now, platform === 'gmail' && legacyGmail),
@@ -33,6 +35,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       expiresAt: connectionExpiry(row),
       usesLegacySecret: platform === 'gmail' && legacyGmail && !hasStoredToken,
       hasStoredToken,
+      via: viaBuffer ? 'buffer' : null,
     };
   });
 

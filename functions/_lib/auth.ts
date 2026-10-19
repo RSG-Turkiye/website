@@ -28,6 +28,10 @@ export interface Env {
   LINKEDIN_CLIENT_SECRET?: string;
   /** The Page's public vanity name (linkedin.com/company/<this>); a [vars] entry. */
   LINKEDIN_ORGANIZATION?: string;
+  /** Buffer API key (Settings > API in Buffer, owner account), a Pages secret. LinkedIn and X can post through it. */
+  BUFFER_API_KEY?: string;
+  /** The day that key expires, "YYYY-MM-DD" (Buffer shows it next to the key); a [vars] entry, changed with each new key. */
+  BUFFER_KEY_EXPIRES?: string;
   /** X app (console.x.com, OAuth 2.0, confidential client). Pages secrets. */
   X_CLIENT_ID?: string;
   X_CLIENT_SECRET?: string;

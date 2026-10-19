@@ -12,6 +12,7 @@ import type { ConnectionRow } from '../connections';
 import { getConnection, readAccessToken, readRefreshToken, connectionStatus, tokenContext } from '../connections';
 import { seal } from '../token-vault';
 import type { PublishInput, PublishStep } from './types';
+import { foreignState } from './buffer';
 import type { TokenEnv, Usable } from './tokens';
 
 export const X_API = 'https://api.x.com/2';
@@ -175,8 +176,12 @@ async function call(url: string, init: RequestInit): Promise<{ status: number; b
  */
 export async function xPublishStep(input: PublishInput): Promise<PublishStep> {
   const { account, token, post, now, checkpoint } = input;
-  const st = decodeState(input.state.containerId);
-  if (input.state.containerId && !st) return { kind: 'fail', reason: 'unknown: unreadable X state', clearContainer: true };
+  // Switched back from Buffer while a post was in flight: Buffer may already have sent it.
+  const foreign = foreignState(input.state.containerId, 'x');
+  if (foreign === 'started') return { kind: 'fail', reason: 'uncertain: a Buffer post may already have gone out before switching back; check the account, then retry', clearContainer: true };
+  const raw = foreign === 'idle' ? null : input.state.containerId;
+  const st = decodeState(raw);
+  if (raw && !st) return { kind: 'fail', reason: 'unknown: unreadable X state', clearContainer: true };
   if (post.type === 'story') return { kind: 'fail', reason: 'not_available: X has no stories' };
   const auth = { Authorization: `Bearer ${token}` };
 

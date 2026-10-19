@@ -1,3 +1,5 @@
+import type { SocialPlatform } from '../social-limits';
+
 /**
  * What a platform adapter says after one step of publishing one target. The
  * dispatcher turns it into the target's next state (social-dispatch.ts).
@@ -23,7 +25,10 @@ export interface PostForPlatform {
 export interface TargetState { containerId: string | null }
 
 export interface PublishInput {
-  account: { id: string; name: string | null };
+  /** org: the Buffer organisation, for a Buffer-backed connection. */
+  account: { id: string; name: string | null; org?: string | null };
+  /** Which platform this target is for; an adapter serving more than one (Buffer) needs it. */
+  platform?: SocialPlatform;
   token: string;
   post: PostForPlatform;
   state: TargetState;

@@ -55,7 +55,7 @@ const when = (epoch: number | null, locale: 'tr-TR' | 'en-GB') =>
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul',
   });
 
-export type NotifyKind = 'submitted' | 'approved' | 'rejected' | 'plan_due' | 'publish_failed' | 'waiting_connection' | 'needs_confirmation' | 'connection_broken' | 'connection_expiring';
+export type NotifyKind = 'submitted' | 'approved' | 'rejected' | 'plan_due' | 'publish_failed' | 'waiting_connection' | 'needs_confirmation' | 'connection_broken' | 'connection_expiring' | 'buffer_key_expiring';
 
 /** Turkish first, then English, in one message: the reader's language is not known. */
 export function notificationText(
@@ -107,6 +107,11 @@ export function notificationText(
       return {
         subject: `${p} bağlantısı koptu / ${p} connection broken`,
         text: `${p} bağlantısı artık çalışmıyor. Neden:${note}\n\nBağlantılar sekmesinden yeniden bağla; bekleyen gönderiler sıraya döner: ${ctx.panelUrl}\n\n---\n\nThe ${p} connection no longer works. Reason:${note}\n\nReconnect it in Connections; waiting posts are queued again: ${ctx.panelUrl}`,
+      };
+    case 'buffer_key_expiring':
+      return {
+        subject: `Buffer API anahtarının süresi doluyor / Buffer API key expiring`,
+        text: `LinkedIn ve X gönderilerini taşıyan Buffer API anahtarının süresi ${ctx.note ?? ''} gün içinde doluyor. Dolunca LinkedIn ve X gönderileri bekler.\n\nYenilemek için:\n1. Buffer'da (turkey.rsg@gmail.com) Settings > API: yeni anahtar oluştur (izinler: account:read, posts:read, posts:write).\n2. Kendi terminalinde: npx wrangler pages secret put BUFFER_API_KEY --project-name website\n3. wrangler.toml içindeki BUFFER_KEY_EXPIRES'ı yeni bitiş tarihiyle değiştir ve deploy et.\n4. Eski anahtarı Buffer'da sil.\n\nPanel: ${ctx.panelUrl}\n\n---\n\nThe Buffer API key that carries LinkedIn and X posts expires in ${ctx.note ?? ''} days. After that, LinkedIn and X posts wait.\n\nTo renew it:\n1. In Buffer (turkey.rsg@gmail.com), Settings > API: create a new key (permissions: account:read, posts:read, posts:write).\n2. In your own terminal: npx wrangler pages secret put BUFFER_API_KEY --project-name website\n3. Change BUFFER_KEY_EXPIRES in wrangler.toml to the new end date and deploy.\n4. Delete the old key in Buffer.\n\nPanel: ${ctx.panelUrl}`,
       };
     case 'connection_expiring':
       return {

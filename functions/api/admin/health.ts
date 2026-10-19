@@ -1,6 +1,6 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, canSeeAdminPanel } from '../../_lib/auth';
-import { listConnections } from '../../_lib/connections';
+import { listConnections, withLiveExpiry } from '../../_lib/connections';
 import { healthIssues } from '../../_lib/health';
 
 /**
@@ -21,7 +21,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       listConnections(env.DB),
       lastRuns(env.DB),
     ]);
-    const issues = healthIssues({ connections, legacyGmail: Boolean(env.GMAIL_REFRESH_TOKEN), lastRunAt: lastRun.mail, lastSocialRunAt: lastRun.social, now })
+    const issues = healthIssues({ connections: connections.map((c) => withLiveExpiry(c, env)!), legacyGmail: Boolean(env.GMAIL_REFRESH_TOKEN), lastRunAt: lastRun.mail, lastSocialRunAt: lastRun.social, now })
       .map((i) => (i.kind === 'connection' && !canFix ? { ...i, lastError: null } : i));
     return jsonResponse({ issues, canFix });
   } catch (err) {

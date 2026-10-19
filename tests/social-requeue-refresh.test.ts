@@ -67,7 +67,7 @@ test('the daily job refreshes a token close to expiry and stores the new one sea
   const now = Math.floor(Date.now() / 1000);
   await connected(env, now - 45 * 86400, now + 10 * 86400);
   const g = stubGraph((c) => (c.path === '/refresh_access_token' ? Response.json({ access_token: 'new', token_type: 'bearer', expires_in: 5184000 }) : undefined));
-  try { assert.deepEqual(await (await cron(env)).json(), { ok: true, refreshed: true, linkedin: 'none', x: 'none' }); } finally { g.restore(); }
+  try { assert.deepEqual(await (await cron(env)).json(), { ok: true, refreshed: true, linkedin: 'none', x: 'none', buffer: 'none' }); } finally { g.restore(); }
   const row = (await getConnection((env as { DB: D1Database }).DB, 'instagram'))!;
   assert.equal(await readAccessToken(env as never, row), 'new');
   assert.ok(row.expires_at! > now + 59 * 86400);
@@ -79,7 +79,7 @@ test('a refused refresh marks the connection broken and tells admins; a wrong se
   await connected(env, now - 45 * 86400, now + 10 * 86400);
   assert.equal((await cron(env, 'nope')).status, 403);
   const g = stubGraph(() => Response.json({ error: { code: 190, message: 'expired' } }, { status: 400 }));
-  try { assert.deepEqual(await (await cron(env)).json(), { ok: true, refreshed: false, linkedin: 'none', x: 'none' }); } finally { g.restore(); }
+  try { assert.deepEqual(await (await cron(env)).json(), { ok: true, refreshed: false, linkedin: 'none', x: 'none', buffer: 'none' }); } finally { g.restore(); }
   assert.ok((db.prepare(`SELECT last_error_at FROM platform_connections`).get() as { last_error_at: number | null }).last_error_at);
   assert.ok(mail.sent.some((m) => /bağlantısı koptu/.test(m.subject)));
 });
@@ -92,7 +92,7 @@ test('a transient refresh failure with time left leaves the connection alone', a
   const now = Math.floor(Date.now() / 1000);
   await connected(env, now - 45 * 86400, now + 10 * 86400);
   const g = stubGraph(() => new Response('down', { status: 503 }));
-  try { assert.deepEqual(await (await cron(env)).json(), { ok: true, refreshed: false, linkedin: 'none', x: 'none' }); } finally { g.restore(); }
+  try { assert.deepEqual(await (await cron(env)).json(), { ok: true, refreshed: false, linkedin: 'none', x: 'none', buffer: 'none' }); } finally { g.restore(); }
   assert.equal((db.prepare(`SELECT last_error_at FROM platform_connections`).get() as { last_error_at: number | null }).last_error_at, null);
   assert.equal(mail.sent.length, 0);
   assert.equal(audits(db, 'connection.refresh_failed'), 1);
@@ -242,7 +242,7 @@ test('one platform throwing does not hide the other: LinkedIn lookup fails, Inst
   try {
     const res = await cron({ ...(env as object), DB: failing });
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { ok: true, refreshed: true, linkedin: 'none', x: 'none' });
+    assert.deepEqual(await res.json(), { ok: true, refreshed: true, linkedin: 'none', x: 'none', buffer: 'none' });
   } finally { g.restore(); console.error = quiet; }
 });
 

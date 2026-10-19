@@ -818,6 +818,42 @@ The access token lasts two hours and is renewed when a post needs it and once
 a day; each renewal replaces the refresh token. "No API credits" on a failed
 post means the balance ran out.
 
+### Buffer (LinkedIn and X)
+
+LinkedIn and X can post through Buffer instead of their own APIs: the panel
+still decides what goes out and when, and at the scheduled minute it hands
+the post to Buffer with "share now", then reads back the link (spec
+`docs/superpowers/specs/2026-10-19-buffer-transport-design.md`). Instagram
+always posts directly. Which way a platform posts is decided by its
+connection, so going back is a reconnect, not a code change.
+
+Setup (the Buffer account is turkey.rsg@gmail.com, free plan, 3 channels):
+
+1. In Buffer, connect the LinkedIn Page (choose "LinkedIn Page", not the
+   profile) and X.
+2. Buffer, Settings > API: create a key with `account:read`, `posts:read` and
+   `posts:write` only. In a separate terminal:
+   `npx wrangler pages secret put BUFFER_API_KEY --project-name website`.
+3. `BUFFER_KEY_EXPIRES` in `wrangler.toml` is the day the key expires, as
+   Buffer shows it (keys last a year). Deploy.
+4. Connections: "Connect through Buffer" on LinkedIn and on X.
+
+Buffer fetches the images from `PUBLIC_BLOG_IMAGES_URL`. The free plan allows
+250 API calls a day; a post costs about seven per platform. The daily job
+checks the channels once (a channel disconnected or locked in Buffer marks
+the connection broken and mails the admins) and mails the admins 30, 14 and
+3 days before the key expires. To renew it: a new key in Buffer, the
+`wrangler pages secret put` above, the new date in `BUFFER_KEY_EXPIRES`,
+deploy, then delete the old key in Buffer. `BUFFER_KEY_EXPIRES` is read
+when it is used, so the new date counts as soon as it is deployed. Comments
+are answered in Buffer's Community tab; Buffer's API has no comments or
+messages yet.
+
+If Buffer's answer to a create is lost, the target looks for the post in the
+channel's list for ten minutes before sending it again. A target switched
+between Buffer and a direct connection while a post was in flight ends
+`failed` with "uncertain": check the account before pressing Retry.
+
 ### If a post's answer is lost
 
 If a create call's answer is lost (a timeout, say), the next tick deals with it
@@ -836,6 +872,8 @@ account and, if it did not go out, create the post again.
 - LinkedIn retires each API version about a year after release: bump
   `LI_VERSION` in `functions/_lib/social/linkedin.ts` to a current `YYYYMM`
   once a year.
+- Buffer API key: renew it before `BUFFER_KEY_EXPIRES` (the admins are
+  mailed 30, 14 and 3 days before); see [Buffer](#buffer-linkedin-and-x).
 - At handover: reconnect LinkedIn as one of the incoming Page Super admins,
   reconnect X if the account's password changed, and keep the X card or
   credits with the incoming lead.
