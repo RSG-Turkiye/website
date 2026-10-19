@@ -19,7 +19,8 @@ import { notificationText, notifyEach, adminEmails } from '../../../_lib/social-
  */
 async function refreshInstagram(env: Env, now: number, panelUrl: string): Promise<boolean> {
   const row = await getConnection(env.DB, 'instagram');
-  if (!row || !needsRefresh(row, now)) return false;
+  // Through Buffer there is no Instagram token to renew (checkBuffer looks after it).
+  if (!row || isBufferRow(row) || !needsRefresh(row, now)) return false;
   const token = await readAccessToken(env, row);
   const result = token ? await refreshInstagramToken(token) : { ok: false as const, status: 0, auth: true, reason: 'stored token unreadable' };
   if (result.ok) {
@@ -127,10 +128,10 @@ async function keepXAlive(env: Env, now: number, panelUrl: string): Promise<'ref
 }
 
 const BUFFER_REMIND_DAYS = [30, 14, 3];
-const BUFFER_LABEL = { linkedin: 'LinkedIn', x: 'X' } as const;
+const BUFFER_LABEL = { instagram: 'Instagram', linkedin: 'LinkedIn', x: 'X' } as const;
 
 /**
- * Buffer-backed LinkedIn and X (spec 2026-10-19 §4): one channels call a day
+ * Buffer-backed Instagram, LinkedIn and X (spec 2026-10-19 §4): one channels call a day
  * when any connection goes through Buffer. A channel that is gone,
  * disconnected or locked in Buffer marks its connection broken and mails the
  * admins once. A connection this check broke ("buffer: ..." error) is marked
@@ -140,11 +141,11 @@ const BUFFER_LABEL = { linkedin: 'LinkedIn', x: 'X' } as const;
  * (BUFFER_KEY_EXPIRES, read live, so a rotated key counts at once).
  */
 export async function checkBuffer(env: Env, now: number, panelUrl: string): Promise<'ok' | 'broken' | 'reminded' | 'none'> {
-  const rows = (await Promise.all((['linkedin', 'x'] as const).map((p) => getConnection(env.DB, p))))
-    .filter((r): r is ConnectionRow & { platform: 'linkedin' | 'x' } => isBufferRow(r))
+  const rows = (await Promise.all((['instagram', 'linkedin', 'x'] as const).map((p) => getConnection(env.DB, p))))
+    .filter((r): r is ConnectionRow & { platform: 'instagram' | 'linkedin' | 'x' } => isBufferRow(r))
     .map((r) => withLiveExpiry(r, env)!);
   if (rows.length === 0) return 'none';
-  const mail = async (platform: 'linkedin' | 'x', note: string) =>
+  const mail = async (platform: 'instagram' | 'linkedin' | 'x', note: string) =>
     notifyEach(env, await adminEmails(env.DB), notificationText('connection_broken', { label: BUFFER_LABEL[platform], when: null, note, panelUrl, platform: BUFFER_LABEL[platform] }));
 
   let result: 'ok' | 'broken' | 'reminded' = 'ok';

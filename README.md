@@ -827,16 +827,23 @@ the post to Buffer with "share now", then reads back the link (spec
 always posts directly. Which way a platform posts is decided by its
 connection, so going back is a reconnect, not a code change.
 
+Instagram can go through Buffer too ("Connect through Buffer" on its row);
+its direct connection stays the default. Through Buffer, Instagram has no
+messages: the DM tab says so, and nothing that uses the Instagram token (the
+daily refresh, the DM poll and endpoints) runs. "Connect directly" on the
+Instagram row switches back.
+
 Setup (the Buffer account is turkey.rsg@gmail.com, free plan, 3 channels):
 
 1. In Buffer, connect the LinkedIn Page (choose "LinkedIn Page", not the
-   profile) and X.
+   profile), X and, if wanted, the Instagram professional account.
 2. Buffer, Settings > API: create a key with `account:read`, `posts:read` and
    `posts:write` only. In a separate terminal:
    `npx wrangler pages secret put BUFFER_API_KEY --project-name website`.
 3. `BUFFER_KEY_EXPIRES` in `wrangler.toml` is the day the key expires, as
    Buffer shows it (keys last a year). Deploy.
-4. Connections: "Connect through Buffer" on LinkedIn and on X.
+4. Connections: "Connect through Buffer" on LinkedIn and on X (and
+   Instagram, if it should post through Buffer).
 
 Buffer fetches the images from `PUBLIC_BLOG_IMAGES_URL`. The free plan allows
 250 API calls a day; a post costs about seven per platform. The daily job

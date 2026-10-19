@@ -25,8 +25,8 @@ export const PUBLISHERS: Partial<Record<SocialPlatform, PublishStepFn>> = {
   x: xPublishStep,
 };
 
-/** Platforms Buffer can carry for us (spec 2026-10-19). Instagram stays direct. */
-export const BUFFER_PLATFORMS: ReadonlySet<SocialPlatform> = new Set<SocialPlatform>(['linkedin', 'x']);
+/** Platforms Buffer can carry for us (spec 2026-10-19). Instagram too, when connected through Buffer; direct stays its default. */
+export const BUFFER_PLATFORMS: ReadonlySet<SocialPlatform> = new Set<SocialPlatform>(['linkedin', 'x', 'instagram']);
 
 /** The step for one target: Buffer's when the platform's connection is a Buffer one, the direct adapter otherwise. */
 export function publisherFor(platform: SocialPlatform, via?: 'buffer'): PublishStepFn | undefined {

@@ -11,7 +11,7 @@ import { connectionUpsert, requeueWaitingStatement, bufferKeyExpiry, BUFFER_SCOP
 import { runWithAudit, appendAudit } from './audit';
 import { listBufferChannels, channelFits, channelUsable, isAuthFailure, type BufferChannel } from './social/buffer';
 
-export type BufferPlatform = 'linkedin' | 'x';
+export type BufferPlatform = 'linkedin' | 'x' | 'instagram';
 
 /**
  * Which channel to save: the one asked for, or the only usable one that fits.

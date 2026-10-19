@@ -9,7 +9,7 @@ import type { Env } from '../../../../_lib/auth';
 import { getSessionUser, jsonResponse } from '../../../../_lib/auth';
 import { igGraph, type GraphResult } from '../../../../_lib/social/instagram';
 import { usableToken } from '../../../../_lib/social/tokens';
-import { getConnection } from '../../../../_lib/connections';
+import { getConnection, isBufferRow } from '../../../../_lib/connections';
 
 export const redactTokens = (v: unknown): unknown =>
   JSON.parse(JSON.stringify(v ?? null).replace(/access_token=[^&"\\]*/g, 'access_token=REDACTED'));
@@ -22,6 +22,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (user.is_admin !== 1) return jsonResponse({ error: 'Forbidden' }, 403);
   const now = Math.floor(Date.now() / 1000);
   const row = await getConnection(env.DB, 'instagram');
+  // A Buffer row's token is the Buffer key: it must never reach graph.instagram.com.
+  if (isBufferRow(row)) return jsonResponse({ token: 'via_buffer', scopes: row?.scopes ?? null });
   const tok = await usableToken(env as never, 'instagram', now);
   if (!tok.ok) return jsonResponse({ token: tok.why, scopes: row?.scopes ?? null });
   const id = tok.account.id;

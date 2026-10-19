@@ -7,17 +7,23 @@
  * tick runs every minute, so a last call never waits for the next poll.
  */
 import type { Env } from './auth';
-import { getConnection, markBroken } from './connections';
+import { getConnection, markBroken, isBufferRow } from './connections';
 import { usableToken } from './social/tokens';
 import { instagramDm, peerOf } from './social/instagram-dm';
 import { startRun, finishRun } from './dispatch-log';
 import { DM_SCOPE, POLL_EVERY, REFRESH_MIN_GAP, MAX_THREAD_FETCHES } from './social-dm';
 
 export type DmEnv = Pick<Env, 'DB' | 'TOKEN_ENC_KEY' | 'RSG_MAIL_FROM'> & Partial<Env>;
-export interface PollSummary { skipped?: 'paced' | 'not_connected' | 'needs_scope' | 'token'; fetched: number; updated: number; error?: string }
+export interface PollSummary { skipped?: 'paced' | 'not_connected' | 'needs_scope' | 'token' | 'via_buffer'; fetched: number; updated: number; error?: string }
 
-export async function dmStatus(env: DmEnv, now: number): Promise<'ok' | 'not_connected' | 'broken' | 'needs_scope'> {
+/**
+ * via_buffer: Instagram posts through Buffer, which has no messages API; the
+ * Buffer key must never be sent to graph.instagram.com. Not 'ok', so the
+ * digest and last-call mails stay quiet, as for a missing connection.
+ */
+export async function dmStatus(env: DmEnv, now: number): Promise<'ok' | 'not_connected' | 'broken' | 'needs_scope' | 'via_buffer'> {
   const row = await getConnection(env.DB, 'instagram');
+  if (isBufferRow(row)) return 'via_buffer';
   if (!row || !row.access_token_enc) return 'not_connected';
   const scopes = (row.scopes ?? '').split(/[,\s]+/);
   if (!scopes.includes(DM_SCOPE)) return 'needs_scope';
@@ -37,6 +43,7 @@ export async function pollDms(env: DmEnv, now: number, origin: string, opts: { f
 
   const status = await dmStatus(env, now);
   if (status === 'not_connected') return { ...summary, skipped: 'not_connected' };
+  if (status === 'via_buffer') return { ...summary, skipped: 'via_buffer' };
   if (status === 'needs_scope') return { ...summary, skipped: 'needs_scope' };
   const tok = await usableToken(env as never, 'instagram', now);
   if (!tok.ok) return { ...summary, skipped: 'token' };

@@ -15,7 +15,9 @@ export type Usable =
   /** via: 'buffer' when the connection posts through Buffer (token = the Buffer key, account.org its organisation). */
   | { ok: true; token: string; account: { id: string; name: string | null; org?: string | null }; via?: 'buffer' }
   /** unused: never connected. broken: needs a reconnect (justBroke: this call found out). unreadable: stored token cannot be opened. */
-  | { ok: false; why: 'unused' | 'unreadable' }
+  | { ok: false; why: 'unused' }
+  /** reason: what to tell the admins when it is not the stored token itself (the Buffer key secret missing). */
+  | { ok: false; why: 'unreadable'; reason?: string }
   | { ok: false; why: 'broken'; justBroke?: boolean; reason?: string }
   /** The provider could not be reached to renew the token; try again next tick. */
   | { ok: false; why: 'transient'; reason: string };
@@ -34,7 +36,8 @@ export async function usableToken(env: TokenEnv, platform: SocialPlatform, now: 
   if (status === 'broken' || !row?.account_id) return { ok: false, why: 'broken' };
   // A Buffer-backed row has no token to renew; the key is a secret, rotated by hand (spec §4).
   if (isBufferRow(row)) {
-    if (!env.BUFFER_API_KEY) return { ok: false, why: 'unreadable' };
+    // "buffer:" so the daily Buffer check heals it once the secret is back and the channel answers.
+    if (!env.BUFFER_API_KEY) return { ok: false, why: 'unreadable', reason: 'buffer: the BUFFER_API_KEY secret is not set' };
     return { ok: true, token: env.BUFFER_API_KEY, account: { id: row.account_id, name: row.account_name, org: bufferOrg(row) }, via: 'buffer' };
   }
   const r = REFRESH_ON_USE[platform];

@@ -45,8 +45,9 @@ export async function dispatchSocial(env: Env, now: number, origin: string) {
     if (cached) return cached;
     const u = await usableToken(env, platform, now);
     if (!u.ok && u.why === 'unreadable') {
-      await markBroken(db, platform, 'stored token unreadable', now);
-      await notifyEach(env, await adminEmails(db), brokenMail(platform, 'stored token unreadable'));
+      const reason = u.reason ?? 'stored token unreadable';
+      await markBroken(db, platform, reason, now);
+      await notifyEach(env, await adminEmails(db), brokenMail(platform, reason));
     }
     if (!u.ok && u.why === 'broken' && u.justBroke) await notifyEach(env, await adminEmails(db), brokenMail(platform, u.reason ?? ''));
     tokens.set(platform, u);

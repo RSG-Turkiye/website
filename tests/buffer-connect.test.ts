@@ -128,7 +128,7 @@ test('a Buffer row counts as connected, hands out the key with its organisation,
   } finally { s.restore(); }
   const keyless = world({});
   await bufferRow(keyless.env, 'x', null);
-  assert.deepEqual(await usableToken(keyless.env as never, 'x', END - 30 * 86400), { ok: false, why: 'unreadable' });
+  assert.deepEqual(await usableToken(keyless.env as never, 'x', END - 30 * 86400), { ok: false, why: 'unreadable', reason: 'buffer: the BUFFER_API_KEY secret is not set' });
 });
 
 test('a rotated key counts at once: the end date is read from the variable, not the stored row', async () => {

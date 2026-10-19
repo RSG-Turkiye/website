@@ -7,6 +7,7 @@
 import type { Env } from '../auth';
 import type { PublishStep, PostForPlatform, TargetState } from './types';
 import { stepFromError, classifyGraphError, graphReason, type GraphError } from './instagram-errors';
+import { foreignState } from './buffer';
 
 export const IG_GRAPH = 'https://graph.instagram.com/v25.0';
 export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_messages'];
@@ -172,7 +173,11 @@ async function createContainer(igUserId: string, token: string, params: Record<s
  * orphans expire on their own and cost only container quota.
  */
 export async function instagramPublishStep(input: { igUserId: string; token: string; post: PostForPlatform; state: TargetState }): Promise<PublishStep> {
-  const { igUserId, token, post, state } = input;
+  const { igUserId, token, post } = input;
+  // Switched back from Buffer while a post was in flight: Buffer may already have sent it.
+  const foreign = foreignState(input.state.containerId, 'ig');
+  if (foreign === 'started') return { kind: 'fail', reason: 'uncertain: a Buffer post may already have gone out before switching back; check the account, then retry', clearContainer: true };
+  const state = foreign === 'idle' ? { containerId: null } : input.state;
   if (state.containerId) {
     const s = await igGraph('GET', state.containerId, token, { fields: 'status_code,status' });
     if (!s.ok) {
