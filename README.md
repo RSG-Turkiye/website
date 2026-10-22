@@ -296,12 +296,12 @@ npx wrangler d1 execute rsg-members --remote --command="SELECT datetime(started_
 
 Three answers, three different problems:
 
-| What you see | What it means |
-| --- | --- |
-| No rows for the stalled period | The tick never ran. The cron Worker or its call to this endpoint is the problem, not the queue. |
-| Rows with `done = 0` | The tick started and was killed mid-way — a Worker over its 128 MB isolate limit looks exactly like this. |
-| Rows with `candidates = 0` while mail is queued | The tick ran and found nothing due. The candidate query or the clock is wrong, not the sending. |
-| `held` set | The tick deliberately did nothing, outside the 08:00–22:00 sending window. |
+| What you see                                    | What it means                                                                                             |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| No rows for the stalled period                  | The tick never ran. The cron Worker or its call to this endpoint is the problem, not the queue.           |
+| Rows with `done = 0`                            | The tick started and was killed mid-way — a Worker over its 128 MB isolate limit looks exactly like this. |
+| Rows with `candidates = 0` while mail is queued | The tick ran and found nothing due. The candidate query or the clock is wrong, not the sending.           |
+| `held` set                                      | The tick deliberately did nothing, outside the 08:00–22:00 sending window.                                |
 
 `phase` narrows a `done = 0` row down to where it stopped, in the order the
 work happens: `planned` (the queue was read), `resolved` (the attachment came
@@ -985,9 +985,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for a full guide on writing blog posts, t
 
 ## CI / GitHub Actions
 
-| Workflow | Trigger | What it does |
-|----------|---------|--------------|
-| **Build Check** | Every PR to `main` | For both sites: `astro check`, build and unit tests. The PR cannot be merged if any of them fails. |
-| **Translation Check** | PRs that touch blog posts or webinars | Comments when a new file has no translation in the other language. A reminder, not a blocker. |
-| **Learning Paths Link Check** | Mondays, plus manual | Checks every learning-path link and reports dead ones in an issue labelled `link-check`. |
-| **Dispatch scheduled mail** | Manual only | Sends due mail immediately. The real schedule is the `rsg-mail-cron` Worker; see [Scheduled sending](#sending-mail-as-rsg--required-setup). |
+| Workflow                      | Trigger                               | What it does                                                                                                                                |
+| ----------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Build Check**               | Every PR to `main`                    | For both sites: `astro check`, build and unit tests. The PR cannot be merged if any of them fails.                                          |
+| **Translation Check**         | PRs that touch blog posts or webinars | Comments when a new file has no translation in the other language. A reminder, not a blocker.                                               |
+| **Learning Paths Link Check** | Mondays, plus manual                  | Checks every learning-path link and reports dead ones in an issue labelled `link-check`.                                                    |
+| **Dispatch scheduled mail**   | Manual only                           | Sends due mail immediately. The real schedule is the `rsg-mail-cron` Worker; see [Scheduled sending](#sending-mail-as-rsg--required-setup). |
