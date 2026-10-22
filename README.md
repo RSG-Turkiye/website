@@ -1,110 +1,129 @@
-# RSG Turkey Website
+# RSG-Türkiye Website
 
-Official website of [RSG-Türkiye](https://rsg-turkiye.iscbsc.org) — the ISCB Regional Student Group for computational biology and bioinformatics in Turkey.
+The website of [RSG-Türkiye](https://rsg-turkiye.iscbsc.org), the ISCB Regional
+Student Group for computational biology and bioinformatics in Türkiye.
 
-Built with [Astro](https://astro.build) and [Tailwind CSS v4](https://tailwindcss.com). Deployed automatically via Cloudflare Pages on every push.
-
-| | |
-|---|---|
-| **Production** | [rsg-turkiye.iscbsc.org](https://rsg-turkiye.iscbsc.org) |
-| **Stable (Cloudflare)** | [website-dkh.pages.dev](https://website-dkh.pages.dev) |
-| **Dev branch** | [website-dev-vi6.pages.dev](https://website-dev-vi6.pages.dev) |
+| Site          | Address                                                                      |
+| ------------- | ---------------------------------------------------------------------------- |
+| **Main site** | [rsg-turkiye.iscbsc.org](https://rsg-turkiye.iscbsc.org)                     |
 | **Symposium** | [symposium.rsg-turkiye.iscbsc.org](https://symposium.rsg-turkiye.iscbsc.org) |
 
----
+Always share these addresses. The underlying `*.pages.dev`, `*.r2.dev` and
+`*.workers.dev` addresses are blocked by ISPs in Türkiye.
 
-## Tech Stack
-
-| Tool | Purpose |
-|------|---------|
-| [Astro 5](https://astro.build) | Static site generator |
-| [Tailwind CSS v4](https://tailwindcss.com) | Styling |
-| [Astro Content Collections](https://docs.astro.build/en/guides/content-collections/) | Blog posts and webinars as Markdown files |
-| [Cloudflare Pages](https://pages.cloudflare.com) | Hosting and CI/CD |
+**New here?** Read this file for how the site works and how to run it.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers adding blog posts, webinars and
+translations without any coding. [CLAUDE.md](CLAUDE.md) lists the rules
+that are never broken and the known traps; it is written for AI coding agents
+and is just as useful for people.
 
 ---
 
-## Project Structure
+## What the site is
+
+Two Astro sites in one repository:
+
+- **Main site** (repo root): public pages in Turkish and English (blog,
+  webinars, learning paths, events, podcast), member accounts with Google
+  sign-in, and an admin panel at `/admin`. The panel runs the organisation's
+  e-mail, social media publishing, symposium content, certificates, blog
+  submissions and announcements.
+- **Symposium site** (`symposium_website/`): a separate static Astro project
+  with its own Cloudflare Pages project. It reads its editable content from
+  the main site's API at build time.
+
+## Tech stack
+
+| Tool                                             | Purpose                                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| [Astro 7](https://astro.build)                   | Pages, built mostly as static HTML                                                    |
+| [Tailwind CSS v4](https://tailwindcss.com)       | Styling                                                                               |
+| [Cloudflare Pages](https://pages.cloudflare.com) | Hosting; builds and deploys on every push to `main`                                   |
+| Cloudflare Pages Functions (`functions/`)        | The API: sign-in, members, admin panel, mail, social                                  |
+| Cloudflare D1 (`rsg-members`)                    | Database: users, roles, queues, logs                                                  |
+| Cloudflare R2                                    | Files: `rsg-blog-images` (served via `/api/images`), `rsg-mail-attachments` (private) |
+| Cloudflare Workers (`workers/`)                  | Cron jobs: `mail-cron` every minute, `symposium-cron` nightly                         |
+
+Everything runs on the free plans, under the organisation's shared account
+(`turkey.rsg@gmail.com`). No personal accounts.
+
+## Project structure
 
 ```
 /
-├── public/                  Static assets (images, flags, logo)
 ├── src/
-│   ├── components/
-│   │   ├── learning-paths/  ResourceCard, ProgressBar, LevelSwitcher, DomainCard
-│   │   └── …                Other reusable components
-│   ├── content/
-│   │   ├── blog/
-│   │   │   ├── en/          English blog posts
-│   │   │   └── tr/          Turkish blog posts
-│   │   ├── webinars/
-│   │   │   ├── en/          English webinar pages
-│   │   │   └── tr/          Turkish webinar pages
-│   │   ├── lp-domains/      Learning path domain metadata (one file per domain)
-│   │   ├── lp-levels/       Learning path content (one file per domain × level)
-│   │   └── lp-roadmap/      Beginner roadmap stages (one file per stage)
-│   ├── data/                Static data (committees, announcements)
-│   ├── i18n/                Translation strings (ui.ts)
-│   ├── layouts/             Page layouts (BaseLayout.astro)
-│   ├── pages/
-│   │   ├── blog/[slug].astro
-│   │   ├── webinars/[slug].astro
-│   │   ├── learning-paths/
-│   │   │   ├── index.astro         Learning paths hub
-│   │   │   ├── roadmap.astro       Sequential beginner path
-│   │   │   └── [domain].astro      Dynamic domain pages
-│   │   └── tr/              Turkish routes (mirrors pages/)
-│   └── styles/              Global CSS
-├── astro.config.mjs
-├── content.config.ts        Content collection schemas
-└── package.json
+│   ├── pages/            Routes. English at the root, Turkish under tr/
+│   ├── content/          Markdown: blog, webinars, learning paths (lp-*)
+│   ├── content.config.ts Content schemas
+│   ├── data/             Typed data: committees, events, workshops, privacy text
+│   ├── i18n/ui.ts        UI strings in both languages
+│   ├── components/, layouts/, styles/
+│   ├── lib/              Build-time helpers
+│   └── scripts/admin/    Admin panel client code
+├── functions/
+│   ├── api/              API endpoints
+│   ├── auth/             Google sign-in
+│   └── _lib/             Shared server code (auth, mail, social, github, …)
+├── db/schema.sql         D1 schema, with numbered migration notes at the top
+├── workers/              mail-cron and symposium-cron Workers
+├── tests/                Unit tests; tests/browser/ holds Playwright checks
+├── symposium_website/    The symposium site
+└── docs/superpowers/     Design specs and plans for past features
 ```
 
 ---
 
-## Local Development
+## Local development
 
 **Prerequisites:** Node.js 22+ (see `.nvmrc`)
 
 ```bash
-# Install dependencies
 npm install
-
-# Start dev server at http://localhost:4321
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+npm run dev          # dev server at http://localhost:4321
+npm test             # unit tests
+npx astro check      # type check
+npm run build        # production build
+npm run preview      # serve the production build
 ```
+
+Pages that call the API need a local D1 and secrets; most static pages work
+without them.
 
 ---
 
-## How the Site Works
+## How the site works
 
-### Bilingual Content (EN / TR)
+### Bilingual content (EN / TR)
 
-The site supports English and Turkish. Language is determined by **directory**, not frontmatter:
+Language is set by **directory**, not frontmatter:
 
 - `src/content/blog/en/my-post.md` → `/blog/my-post`
 - `src/content/blog/tr/my-post.md` → `/tr/blog/my-post`
 
-UI strings (navigation, buttons, labels) are translated in `src/i18n/ui.ts`.
+UI strings (navigation, buttons, labels) live in `src/i18n/ui.ts`.
 
-### Automatic Translation Links
+### Translation links
 
-If an English article and a Turkish article share the **same filename**, the site automatically shows a "Read in Turkish / Read in English" button on each article page, and the language switcher navigates between them directly.
+An English and a Turkish entry with the **same filename** are paired
+automatically: each page shows a "Read in Turkish / Read in English" link and
+the language switcher moves between them. When the Turkish file needs a
+Turkish slug, put the same `translationKey` in both files instead.
 
-Example:
 ```
 blog/en/crispr-genome-editing.md   ←→   blog/tr/crispr-genome-editing.md
 ```
 
 ### Deployment
 
-Pushing to `main` triggers an automatic Cloudflare Pages build and deploy. No manual steps needed.
+Pushing to `main` triggers a Cloudflare Pages build and deploy of both
+sites. Two things are **not** part of a deploy and are done by hand:
+
+- **Database changes.** New tables and columns are applied with `wrangler d1
+  execute` as described in the numbered notes at the top of `db/schema.sql`.
+  Apply them **before** merging code that needs them.
+- **Secrets.** Set with `npx wrangler pages secret put <NAME> --project-name
+  website` in your own terminal. Pages reads secrets only when it deploys, so
+  redeploy after changing one.
 
 > **Before going live with a new domain:** Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) and add the new domain's callback URL to the OAuth client's **Authorized redirect URIs**:
 > ```
@@ -120,7 +139,7 @@ The member blog submission feature (members write a post on `/account`, an admin
    ```
    wrangler pages secret put GITHUB_PAT --project-name website
    ```
-2. **An R2 bucket**, `rsg-blog-images`, with public access enabled (`wrangler r2 bucket create rsg-blog-images` then `wrangler r2 bucket dev-url enable rsg-blog-images`) — its public URL goes in `wrangler.toml`'s `PUBLIC_BLOG_IMAGES_URL`.
+2. **An R2 bucket**, `rsg-blog-images` (`wrangler r2 bucket create rsg-blog-images`). It does not need public access: images are served through the site's own `/api/images/<key>`, and `PUBLIC_BLOG_IMAGES_URL` in `wrangler.toml` points there. Do not use the bucket's `r2.dev` address; it is blocked in Türkiye.
 3. **`GITHUB_NOTIFY_USERNAME`** in `wrangler.toml`'s `[vars]` — the GitHub username of whoever should be notified the moment a member submits a post (before any admin approves it, so nothing sits unnoticed). This **must be a different account than whoever `GITHUB_PAT` belongs to** — GitHub never sends a notification to an account for actions that account itself performed, so the PAT's own account can never be notified this way. **Update this whenever the person responsible for reviewing submissions changes** (e.g. a new committee president) — it's a plain config value, no code change needed.
 
 #### Sending mail as RSG — required setup
@@ -216,37 +235,29 @@ member, 300/day across everyone, in `functions/_lib/mail.ts`) sit under that so
 members hit a clean error rather than Gmail starting to reject mail. Raise them
 only if the ceiling itself rises.
 
-**Scheduled sending.** A member can pick a send time; a GitHub Actions workflow
-(`.github/workflows/mail-dispatch.yml`) calls `/api/mail/dispatch` every 15
-minutes to send what is due. It needs a shared secret in two places, the same
-value in both:
+**Scheduled sending.** A member can pick a send time. The `rsg-mail-cron`
+Worker (`workers/mail-cron/`) calls `/api/mail/dispatch` every minute to send
+what is due; mail goes out only between 08:00 and 22:00 Istanbul time. The call
+is authenticated with a shared secret, set to the same value in both places:
 
 ```
 wrangler pages secret put MAIL_SYNC_SECRET --project-name website
+cd workers/mail-cron && npx wrangler secret put MAIL_SYNC_SECRET
 ```
 
-and as a repository secret named `MAIL_SYNC_SECRET` under Settings → Secrets and
-variables → Actions.
+The same secret is also a repository secret (Settings → Secrets and variables
+→ Actions) for `.github/workflows/mail-dispatch.yml`, which is a manual "run
+now" button only. **Do not add a `schedule:` to that workflow.** GitHub's
+scheduler never fired reliably for this repository, and two schedulers on one
+queue send every message twice.
 
 **Order matters.** The `scheduled_emails` table (migration item 5 at the top of
-`db/schema.sql`) must exist before this deploys, and the cron starts firing the
-moment `mail-dispatch.yml` is on the default branch — not when you get around
-to finishing setup. Run the migration and set both copies of the secret before
-that happens; every run in between fails, since `/api/mail/scheduled` and
-`/api/mail/dispatch` both 500 without the table, and dispatch 403s without the
-secret.
+`db/schema.sql`) must exist and both copies of the secret must be set before the
+Worker is deployed; until then every tick fails.
 
-Two things silently stop the queue, and neither produces an error anyone sees:
-
-- **GitHub runs a scheduled workflow as whoever last committed its cron.** Commit
-  changes to that file from RSG's shared bot account. If a personal account owns
-  the schedule and that person later leaves the organisation, it stops.
-- **On a public repository, scheduled workflows are disabled after 60 days of
-  repository inactivity.** GitHub emails the owner and someone must re-enable
-  them. A quiet stretch after a symposium is exactly when this happens.
-
-If mail stops going out at its scheduled time, check the workflow's run history
-first — a disabled schedule shows as no runs at all.
+If mail stops going out at its scheduled time, the admin panel's status banner
+says "The scheduler is not running". Check the `rsg-mail-cron` Worker in the
+Cloudflare dashboard, then read `dispatch_runs` as described below.
 
 ### Reading replies (Conversations)
 
@@ -592,9 +603,8 @@ approve, reject and cancel, event modes, editors).
 
 ### What does not exist yet
 
-Phase 2a published nothing; Instagram arrives in phase 3a and LinkedIn and X
-follow it (below). The phone quick story (phase 3) and `/links` (phase 4) are
-still to come.
+Publishing is described in the next section. The phone quick story and a
+`/links` page are not built.
 
 Caption length is counted conservatively on purpose: an emoji outside the
 basic plane counts as two characters, so a post that passes here will not be
@@ -894,6 +904,9 @@ When the committee changes:
 - Grant the incoming team their roles in Members, and remove the outgoing
   team's.
 - Make sure at least two people are admins.
+- Change `GITHUB_NOTIFY_USERNAME` in `wrangler.toml` to the GitHub username of
+  whoever now reviews blog submissions.
+- Go through [Yearly upkeep](#yearly-upkeep) for the social accounts.
 - Export the Log (JSON) from the Log pane and keep it with the year's records.
   The panel only keeps a year of history.
 
@@ -933,13 +946,16 @@ speakerAffiliation: "MIT"
 description: "Brief summary of the talk."
 youtubeUrl: "https://youtu.be/xxxx"
 slidesUrl: ""              # optional
-image: ""                  # speaker photo URL (optional)
+speakerPhoto: ""           # speaker photo URL (optional)
+image: ""                  # card image (optional)
 topic: "Structural Biology" # shown as a badge
 keyTakeaways:
   - "First key point"
   - "Second key point"
 year: 2025
 type: bioinfonet           # or: student
+domains: [genomics]        # learning path domains this talk belongs to (optional)
+draft: false
 ```
 
 ### Learning Paths (`src/content/lp-domains/`, `lp-levels/`, `lp-roadmap/`)
@@ -947,6 +963,8 @@ type: bioinfonet           # or: student
 Curated resource paths organised by domain and experience level. All content is Markdown — no code changes needed to add or update resources.
 
 **Domains:** genomics, ml, structural, metagenomics (more can be added by creating a new `lp-domains/` file)
+
+**Resource ids:** every resource has an `id`. It is the key under which members' progress is saved, so never change or reuse one; reorder, add and delete freely. `tests/lp-resource-ids.test.ts` checks this.
 
 **Levels:** explorer → practitioner → researcher → specialist
 
@@ -967,10 +985,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for a full guide on writing blog posts, t
 
 ## CI / GitHub Actions
 
-Three workflows run in this repository. Two run automatically on every pull request; the third runs on a schedule, not on PRs.
-
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| **Build Check** | All PRs to `main` | Runs `astro check` (type checking) then `npm run build`. The PR cannot be merged if either fails. |
-| **Translation Check** | PRs that touch `src/content/` | Detects newly added content files that don't have a matching translation in the other language, and posts a reminder comment. Not a blocker — just a nudge for the Translation Committee. |
-| **Dispatch scheduled mail** | Every 15 minutes (`schedule`), plus manual `workflow_dispatch` | Calls `/api/mail/dispatch` to send queued mail that is due. See [Scheduled sending](#sending-mail-as-rsg--required-setup) above. |
+| **Build Check** | Every PR to `main` | For both sites: `astro check`, build and unit tests. The PR cannot be merged if any of them fails. |
+| **Translation Check** | PRs that touch blog posts or webinars | Comments when a new file has no translation in the other language. A reminder, not a blocker. |
+| **Learning Paths Link Check** | Mondays, plus manual | Checks every learning-path link and reports dead ones in an issue labelled `link-check`. |
+| **Dispatch scheduled mail** | Manual only | Sends due mail immediately. The real schedule is the `rsg-mail-cron` Worker; see [Scheduled sending](#sending-mail-as-rsg--required-setup). |
