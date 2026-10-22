@@ -6,7 +6,13 @@ import { CERT_FILE, certKey, corsHeaders, downloadFilename, isKind } from '../..
 
 const SYMPOSIUM_ORIGIN = 'https://symposium.rsg-turkiye.iscbsc.org';
 
-const serve: PagesFunction<Env> = async ({ params, env, request }) => {
+/** True unless this is a viewer fetching a later part of a file it already
+ * has the start of: those requests are the same opening, not a new one. */
+export function startsAtZero(range: string | null): boolean {
+  return range === null || /^bytes=0-/.test(range.trim());
+}
+
+const serve: PagesFunction<Env> = async ({ params, env, request, waitUntil }) => {
   // CORS on both outcomes: the symposium page HEADs the file before framing
   // it, and must be able to read a 404 as "gone" rather than a network error.
   const notFound = () => {
@@ -28,6 +34,17 @@ const serve: PagesFunction<Env> = async ({ params, env, request }) => {
 
   const filename = downloadFilename(row.year, row.kind, row.name);
   const download = new URL(request.url).searchParams.get('download') === '1';
+
+  // Count a view or a download. HEAD is the symposium page checking the file
+  // still exists, so it is not counted. A failed count never stops the file
+  // being served. Only totals are ever shown, to admins.
+  if (request.method === 'GET' && startsAtZero(request.headers.get('Range'))) {
+    const column = download ? 'downloads' : 'views';
+    const count = env.DB.prepare(
+      `UPDATE symposium_certificates SET ${column} = ${column} + 1 WHERE id = ?`
+    ).bind(id).run().catch(() => undefined);
+    if (waitUntil) waitUntil(count); else await count;
+  }
   const headers = corsHeaders(request);
   headers.set('Content-Type', 'application/pdf');
   headers.set('Content-Disposition', `${download ? 'attachment' : 'inline'}; filename="${filename}"`);

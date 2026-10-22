@@ -5,7 +5,7 @@
  */
 export type RoleFlags = { admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean; sender: boolean };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
 export type CountKey = 'email' | 'social' | 'blog' | 'membership' | 'dm' | 'socialTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it). */
@@ -30,6 +30,7 @@ const adminOnly = (r: RoleFlags) => r.admin;
 
 export const SECTIONS: Section[] = [
   { id: 'genel', group: null, label: 'admin.nav.overview', subs: [], visible: () => true },
+  { id: 'istatistik', group: null, label: 'admin.stats.heading', subs: [], visible: adminOnly },
   {
     id: 'eposta', group: 'iletisim', label: 'admin.nav.email', count: 'email', visible: (r) => r.admin || r.sender,
     subs: [

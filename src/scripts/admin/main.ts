@@ -22,6 +22,7 @@ import { setupCompose, loadQueued } from './sections/mail-compose';
 import { setupInbox, showInbox } from './sections/mail-inbox';
 import { setupDm, showDm } from './sections/social-dm';
 import { setupSymposium, loadSymposium } from './sections/symposium';
+import { loadStats } from './sections/stats';
 
 // Init
 
@@ -94,6 +95,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   const onShow: Partial<Record<SectionId, () => Promise<void>>> = {
     // Overview's System block is filled by the health check, whichever finishes first.
     genel: loadOverview,
+    istatistik: onFirstShow(loadStats, 'admin.stats.loadFailed'),
     baglantilar: onFirstShow(loadConnections, 'admin.connections.loadFailed'),
     kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
     sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),

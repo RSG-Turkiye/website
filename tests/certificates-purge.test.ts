@@ -16,6 +16,7 @@ function setup() {
   add.run('old', 'a@example.org', 'A', NOW - 40 * 86400, NOW - 10);
   add.run('gone', 'b@example.org', 'B', NOW - 40 * 86400, NOW - 10);
   add.run('new', 'c@example.org', 'C', NOW, NOW + 86400);
+  db.prepare("UPDATE symposium_certificates SET views = 1, downloads = 2 WHERE id = 'old'").run();
   db.prepare('INSERT INTO certificate_lookups (ip_hash, at) VALUES (?, ?)').run('h', NOW - 2 * 86400);
   db.prepare('INSERT INTO certificate_lookups (ip_hash, at) VALUES (?, ?)').run('h', NOW - 60);
   const r2 = fakeR2();
@@ -52,4 +53,23 @@ test('a second run finds nothing', async () => {
   const { env } = setup();
   await purge(env, 's3cret');
   assert.deepEqual(await (await purge(env, 's3cret')).json(), { ok: true, certificates: 0, lookups: 0 });
+});
+
+test('the purge keeps the counts, without names or addresses, and adds them up across nights', async () => {
+  const { env, db } = setup();
+  await purge(env, 's3cret');
+  const stats = () => db.prepare('SELECT * FROM certificate_stats').all().map((r) => ({ ...r }));
+  assert.deepEqual(stats(), [{ year: 2026, certificates: 2, people: 2, viewed: 1, downloaded: 1 }]);
+  // The next night purges a later upload of the same year.
+  db.prepare("UPDATE symposium_certificates SET expires_at = ?, views = 3 WHERE id = 'new'").run(NOW - 1);
+  await purge(env, 's3cret');
+  assert.deepEqual(stats(), [{ year: 2026, certificates: 3, people: 3, viewed: 2, downloaded: 1 }]);
+});
+
+test('one person with several certificates is one person', async () => {
+  const { env, db } = setup();
+  db.prepare("UPDATE symposium_certificates SET email = 'a@example.org', kind = 'workshop', downloads = 1 WHERE id = 'gone'").run();
+  await purge(env, 's3cret');
+  assert.deepEqual({ ...db.prepare('SELECT certificates, people, viewed, downloaded FROM certificate_stats').get() },
+    { certificates: 2, people: 1, viewed: 1, downloaded: 1 });
 });

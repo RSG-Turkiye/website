@@ -7,7 +7,7 @@ const none: RoleFlags = { admin: false, announcer: false, symposium: false, soci
 const ids = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
-  assert.deepEqual(ids({ ...none, admin: true }), ['genel', 'eposta', 'sosyal', 'duyurular', 'blog', 'sempozyum', 'kullanicilar', 'baglantilar', 'kayit']);
+  assert.deepEqual(ids({ ...none, admin: true }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'blog', 'sempozyum', 'kullanicilar', 'baglantilar', 'kayit']);
 });
 
 test('one section: no Overview, and the panel lands in it', () => {
