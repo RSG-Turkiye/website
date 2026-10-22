@@ -1,0 +1,64 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout pageTitle="Mentorluk, RSG-Türkiye" description="RSG-Türkiye üyeleri arasında mentor bulmak ya da mentor olmak.">
+  <div class="bg-navy py-12 text-center">
+    <div class="max-w-7xl mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white">Mentorluk</h1>
+    </div>
+  </div>
+
+  <section class="bg-white py-14">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-base text-gray-700 leading-relaxed mb-10">Biyoinformatiğe yeni başlayan biri için en büyük fark, takıldığında soru sorabileceği birini tanımaktır. RSG-Türkiye üyeleri profillerinde mentorluk yapmaya açık olduklarını ya da mentor aradıklarını belirtebilir; bu sayfa ikisini buluşturur.</p>
+
+      <h2 class="text-xl font-semibold text-navy mb-6">Nasıl işler?</h2>
+      <ol class="flex flex-col gap-6 mb-10">
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">1</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">Profilini oluştur</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">Giriş yap ve <a href="/tr/account/setup/" class="text-navy-mid hover:underline">profilini</a> doldur. Araştırma ilgi alanlarını seçmen, doğru kişiyle eşleşmeni kolaylaştırır.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">2</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">Rozetini aç</h3>
+              <p class="text-sm text-gray-600 leading-relaxed"><strong>Mentorluk Yapmaya Açık</strong> ya da <strong>Mentor Arıyor</strong> rozetini profiline ekle. İstediğin zaman kaldırabilirsin.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">3</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">Birini bul</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">Aşağıdaki bağlantılar üye listesini o rozete göre süzülmüş açar. İlgi alanına göre daraltabilirsin.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-navy text-white text-sm font-bold flex items-center justify-center">4</span>
+            <div>
+              <h3 class="font-semibold text-navy mb-1">İletişime geç</h3>
+              <p class="text-sm text-gray-600 leading-relaxed">Kısa bir mesajla kendini tanıt: neyle uğraştığını ve neye takıldığını yaz. Üyelere RSG-Türkiye Slack çalışma alanından ulaşabilirsin.</p>
+            </div>
+          </li>
+      </ol>
+
+      <div class="flex flex-wrap gap-3 mb-12">
+        <a href="/tr/members/?badge=open_to_mentor" class="inline-flex items-center px-5 py-2.5 rounded-md bg-navy text-white text-sm font-semibold hover:bg-navy-mid transition-colors no-underline">Mentor bul →</a>
+        <a href="/tr/members/?badge=seeking_mentor" class="inline-flex items-center px-5 py-2.5 rounded-md border border-navy text-navy text-sm font-semibold hover:bg-navy-light transition-colors no-underline">Mentor arayanları gör →</a>
+      </div>
+
+      <div class="rounded-lg border border-border bg-[#F7F7F6] p-6">
+        <h2 class="text-sm font-semibold text-navy mb-3">Bilmen gerekenler</h2>
+        <ul class="flex flex-col gap-2 list-disc pl-5">
+            <li class="text-sm text-gray-600 leading-relaxed">Bu resmi bir program değil: üyeler arasında gönüllü, karşılıklı bir eşleşme. Ne kadar sık görüşeceğinize birlikte karar verirsiniz.</li>
+            <li class="text-sm text-gray-600 leading-relaxed">Üye listesini görmek için giriş yapman gerekir. Listede yalnızca profilini herkese açık bırakan üyeler görünür.</li>
+            <li class="text-sm text-gray-600 leading-relaxed">Öğrenme yollarında ilerlerken takıldığın bir konu varsa, mentor aramak için iyi bir başlangıç noktasıdır.</li>
+        </ul>
+        <a href="/tr/learning-paths/" class="inline-block mt-4 text-sm font-semibold text-navy-mid hover:underline no-underline">Öğrenme yollarına göz at →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
