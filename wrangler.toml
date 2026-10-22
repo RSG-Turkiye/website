@@ -33,7 +33,7 @@ BUFFER_KEY_EXPIRES = "2027-10-19"
 # went live (YYYY-MM-DD); periods before it show a dash instead of a zero.
 # See README, "Statistics".
 CF_ACCOUNT_ID = "3408a71c05e0d833ff9ccd9750d249af"
-WEB_ANALYTICS_SINCE = ""
+WEB_ANALYTICS_SINCE = "2026-10-23"
 # The address members' mail is sent from. Gmail accepts any address verified
 # as a "send mail as" alias on the sending account, so switching to
 # rsg-turkey@iscbsc.org once that alias works is a change to this line only --
