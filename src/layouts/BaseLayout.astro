@@ -128,7 +128,7 @@ const alternateHref = (path: string) => new URL(path, site).href;
 
     <!-- Visit counts, cookieless (src/data/web-analytics.ts) -->
     {WEB_ANALYTICS_TOKEN && !UNCOUNTED.test(Astro.url.pathname) && (
-      <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: WEB_ANALYTICS_TOKEN })}></script>
+      <script is:inline type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: WEB_ANALYTICS_TOKEN })}></script>
     )}
 
     <!-- Structured Data: Organization -->
