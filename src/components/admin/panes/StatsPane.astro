@@ -1,0 +1,46 @@
+---
+/**
+ * The Statistics section (admins only). Most figures come from
+ * /api/admin/stats; what the site publishes (blog posts, webinars) is known
+ * at build time, so it is handed to the script here instead of being asked
+ * of D1. src/scripts/admin/sections/stats.ts renders it all.
+ */
+import { getCollection } from 'astro:content';
+import { useTranslations } from '../../../i18n/ui';
+import { slugOf } from '../../../lib/translations';
+
+interface Props { lang: 'en' | 'tr' }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+// One date per piece of content, not per language: an English post and its
+// Turkish translation are one post.
+function published<T extends { id: string; data: { translationKey?: string; draft?: boolean } }>(
+  entries: T[], date: (e: T) => Date,
+): number[] {
+  const first = new Map<string, number>();
+  for (const e of entries) {
+    if (e.data.draft) continue;
+    const key = e.data.translationKey || slugOf(e.id);
+    const at = Math.floor(date(e).getTime() / 1000);
+    first.set(key, Math.min(first.get(key) ?? at, at));
+  }
+  return [...first.values()];
+}
+const blog = published((await getCollection('blog')).filter((e) => e.data.type !== 'webinar'), (e) => e.data.pubDate);
+const webinars = published(await getCollection('webinars'), (e) => e.data.date);
+const areas = Object.fromEntries(
+  (await getCollection('lpDomains')).filter((e) => e.id.startsWith(`${lang}/`)).map((e) => [slugOf(e.id), e.data.name]),
+);
+const content = JSON.stringify({ blog, webinars, areas });
+---
+<section data-section="istatistik">
+  <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.stats.heading')}</h2>
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-4 lg:mb-3">
+    <p class="text-sm text-gray-500 max-w-prose">{t('admin.stats.intro')}</p>
+    <label class="text-sm text-gray-600">{t('admin.stats.year')}
+      <select id="statsYear" class="block mt-1 px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border bg-white text-sm text-navy focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid"></select>
+    </label>
+  </div>
+  <div id="statsBody" data-content={content}></div>
+</section>

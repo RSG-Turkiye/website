@@ -35,6 +35,7 @@ import AdminNav from './AdminNav.astro';
 import SymposiumPane from './panes/SymposiumPane.astro';
 import SocialPane from './panes/SocialPane.astro';
 import MailPane from './panes/MailPane.astro';
+import StatsPane from './panes/StatsPane.astro';
 import { useTranslations } from '../../i18n/ui';
 
 interface Props {
@@ -107,6 +108,7 @@ const t = useTranslations(lang);
             <div id="sectionBody" class="lg:text-sm lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:p-1 lg:-m-1">
 
         <section data-section="genel"><div id="overview"></div></section>
+        <StatsPane lang={lang} />
 
         <section id="userManagementSection" data-section="kullanicilar" class="lg:h-full">
         <div data-sub="liste" class="lg:h-full fit-col">

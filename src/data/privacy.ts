@@ -3,7 +3,7 @@
 // the matching line too. tests/privacy-page.test.ts pins the retention numbers
 // to the constants that enforce them.
 
-export const PRIVACY_UPDATED = '2026-10-13';
+export const PRIVACY_UPDATED = '2026-10-23';
 export const PRIVACY_CONTACT = 'turkey.rsg@gmail.com';
 
 export interface PrivacySection {
@@ -39,7 +39,8 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
           'Session cookie: one cookie, rsg_session, keeps you signed in for 30 days. It is not used for tracking or advertising, and the site sets no other cookies.',
           'Email with members: messages we send to members through our Gmail account, and the replies we receive, are kept so the team can follow a conversation.',
           'Blog submissions: the title, text, author name and images you send.',
-          'Certificates: for symposium certificates we hold the participant\'s name and email address. When you look up a certificate we store a one-way hash of your IP address, not the address itself, to limit repeated lookups.',
+          'Certificates: for symposium certificates we hold the participant\'s name and email address. When you look up a certificate we store a one-way hash of your IP address, not the address itself, to limit repeated lookups. We count how many times each certificate is viewed and downloaded; the team sees only totals, never who.',
+          'Visit counts: this site and the symposium site use Cloudflare Web Analytics, which counts page views without cookies and without identifying you. We see totals only: which pages are read, from which country, on what kind of device, and which site linked here. It is not loaded on your account pages or the admin panel.',
           'Admin activity: actions taken in the admin panel are logged with the team member who took them.',
           'Your browser also stores a few small settings locally (for example, a dismissed notice). These never leave your device.',
         ],
@@ -47,7 +48,7 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
       {
         heading: 'What we do not collect',
         items: [
-          'No analytics or advertising trackers.',
+          'No advertising trackers, and no cookies for measuring visits.',
           'The membership form on the Join page is a Google Form. What you enter there goes to Google and to our team through Google, not to this website.',
         ],
       },
@@ -64,7 +65,7 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
       {
         heading: 'Who else receives data',
         items: [
-          'Cloudflare hosts the site, its database and its file storage.',
+          'Cloudflare hosts the site, its database and its file storage, and counts visits (see above).',
           'Google: sign-in, the Gmail account we use to write to members, the Join page form, the events calendar on the home page, and the Inter font. The font and calendar are loaded by your browser, so Google sees your IP address when you open those pages.',
           'YouTube: webinar recordings are embedded from YouTube.',
           'GitHub: approved blog posts are published through our public GitHub repository.',
@@ -102,7 +103,8 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
           'Oturum çerezi: Tek bir çerez, rsg_session, sizi 30 gün boyunca oturumda tutar. İzleme ya da reklam için kullanılmaz; site başka çerez koymaz.',
           'Üyelerle yazışmalar: Gmail hesabımızdan üyelere gönderdiğimiz mesajlar ve gelen yanıtlar, ekip bir yazışmayı takip edebilsin diye saklanır.',
           'Blog gönderileri: Gönderdiğiniz başlık, metin, yazar adı ve görseller.',
-          'Sertifikalar: Sempozyum sertifikaları için katılımcının adını ve e-posta adresini tutarız. Sertifika sorguladığınızda, tekrarlanan sorguları sınırlamak için IP adresinizin kendisini değil, tek yönlü bir özetini (hash) saklarız.',
+          'Sertifikalar: Sempozyum sertifikaları için katılımcının adını ve e-posta adresini tutarız. Sertifika sorguladığınızda, tekrarlanan sorguları sınırlamak için IP adresinizin kendisini değil, tek yönlü bir özetini (hash) saklarız. Her sertifikanın kaç kez görüntülendiğini ve indirildiğini sayarız; ekip sadece toplamları görür, kimin olduğunu görmez.',
+          'Ziyaret sayıları: Bu site ve sempozyum sitesi Cloudflare Web Analytics kullanır; sayfa görüntülemelerini çerez kullanmadan ve sizi tanımlamadan sayar. Biz sadece toplamları görürüz: hangi sayfaların okunduğu, hangi ülkeden, ne tür cihazdan girildiği ve hangi sitenin buraya bağlantı verdiği. Hesap sayfalarınızda ve yönetim panelinde yüklenmez.',
           'Yönetici işlemleri: Yönetim panelinde yapılan işlemler, yapan ekip üyesiyle birlikte kaydedilir.',
           'Tarayıcınız ayrıca birkaç küçük ayarı (örneğin kapattığınız bir duyuruyu) yerel olarak saklar. Bunlar cihazınızdan çıkmaz.',
         ],
@@ -110,7 +112,7 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
       {
         heading: 'Toplamadıklarımız',
         items: [
-          'Analitik ya da reklam izleyicisi yoktur.',
+          'Reklam izleyicisi yoktur; ziyaretleri saymak için çerez kullanılmaz.',
           'Bize Katıl sayfasındaki üyelik formu bir Google Formu\'dur. Oraya girdikleriniz bu siteye değil, Google\'a ve Google üzerinden ekibimize gider.',
         ],
       },
@@ -127,7 +129,7 @@ export const PRIVACY: Record<'en' | 'tr', PrivacyNotice> = {
       {
         heading: 'Veriler kimlere gider',
         items: [
-          'Cloudflare siteyi, veritabanını ve dosya depolamayı barındırır.',
+          'Cloudflare siteyi, veritabanını ve dosya depolamayı barındırır ve ziyaretleri sayar (yukarıya bakın).',
           'Google: giriş, üyelere yazdığımız Gmail hesabı, Bize Katıl sayfasındaki form, ana sayfadaki etkinlik takvimi ve Inter yazı tipi. Yazı tipi ve takvim tarayıcınız tarafından yüklenir; bu sayfaları açtığınızda Google IP adresinizi görür.',
           'YouTube: Webinar kayıtları YouTube\'dan gömülür.',
           'GitHub: Onaylanan blog yazıları herkese açık GitHub depomuz üzerinden yayınlanır.',

@@ -253,6 +253,20 @@
 --      wrangler d1 execute rsg-members --remote --command="CREATE INDEX IF NOT EXISTS social_dm_digest_log_sent ON social_dm_digest_log(sent_at)"
 --
 
+-- 8h. Certificate view and download counter. Two columns on
+--    symposium_certificates and a new table, certificate_stats, that keeps
+--    the counts after the 30-day purge deletes the certificates. ALTER TABLE
+--    ADD COLUMN is NOT idempotent -- run each once, then re-apply the file
+--    for the table:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_certificates ADD COLUMN views INTEGER NOT NULL DEFAULT 0"
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE symposium_certificates ADD COLUMN downloads INTEGER NOT NULL DEFAULT 0"
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Run them BEFORE deploying: the admin list reads the columns, and the
+--    nightly purge writes certificate_stats before it deletes anything (it
+--    fails, and keeps the certificates, until the table exists). Serving a
+--    certificate never fails on the counter; it only stops counting.
+--
+
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   google_id     TEXT UNIQUE NOT NULL,
@@ -722,7 +736,9 @@ CREATE TABLE IF NOT EXISTS symposium_certificates (
   size_bytes  INTEGER NOT NULL,
   uploaded_by TEXT NOT NULL,
   uploaded_at INTEGER NOT NULL,
-  expires_at  INTEGER NOT NULL
+  expires_at  INTEGER NOT NULL,
+  views       INTEGER NOT NULL DEFAULT 0,  -- times the PDF was opened in the page
+  downloads   INTEGER NOT NULL DEFAULT 0   -- times "Download" was used
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cert_year_email_kind ON symposium_certificates(year, email, kind);
 CREATE INDEX IF NOT EXISTS idx_cert_email ON symposium_certificates(email);
@@ -735,6 +751,19 @@ CREATE TABLE IF NOT EXISTS certificate_lookups (
   at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_cert_lookups ON certificate_lookups(ip_hash, at);
+
+-- What became of a year's purged certificates, as counts only: no names,
+-- no addresses, so it can be kept for good. The purge adds to it in the
+-- same batch that deletes the rows. People are counted per purge night, so
+-- someone whose certificates were uploaded on two different days is counted
+-- twice; uploads for a year normally go up together.
+CREATE TABLE IF NOT EXISTS certificate_stats (
+  year         INTEGER PRIMARY KEY,
+  certificates INTEGER NOT NULL,
+  people       INTEGER NOT NULL,
+  viewed       INTEGER NOT NULL,  -- people who opened at least one certificate in the page
+  downloaded   INTEGER NOT NULL   -- people who downloaded at least one
+);
 
 -- Who did what in the admin panel, kept a year. Each row carries the hash of
 -- the row before it, so a row changed or removed after the fact breaks the

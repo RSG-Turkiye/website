@@ -130,6 +130,50 @@ test('a HEAD from the symposium page carries CORS, on 200 and on 404, so the pag
   assert.equal(gone.headers.get('Access-Control-Allow-Origin'), ORIGIN);
 });
 
+const counts = (db: import('node:sqlite').DatabaseSync, id: string) =>
+  ({ ...db.prepare('SELECT views, downloads FROM symposium_certificates WHERE id = ?').get(id) }) as { views: number; downloads: number };
+
+test('viewing and downloading are counted separately', async () => {
+  const { env, db } = setup();
+  assert.deepEqual(counts(db, ID1), { views: 0, downloads: 0 });
+  await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf`), env, { file: `${ID1}.pdf` });
+  assert.deepEqual(counts(db, ID1), { views: 1, downloads: 0 });
+  await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf?download=1`), env, { file: `${ID1}.pdf` });
+  await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf?download=1`), env, { file: `${ID1}.pdf` });
+  assert.deepEqual(counts(db, ID1), { views: 1, downloads: 2 });
+  assert.deepEqual(counts(db, ID2), { views: 0, downloads: 0 }, 'other certificates untouched');
+});
+
+test('the page\'s HEAD check and a viewer\'s later ranges are not counted; the first range is', async () => {
+  const { env, db } = setup();
+  await call(file.onRequestHead, new Request(`${API}/${ID1}.pdf`, { method: 'HEAD', headers: { Origin: ORIGIN } }), env, { file: `${ID1}.pdf` });
+  await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf`, { headers: { Range: 'bytes=4-7' } }), env, { file: `${ID1}.pdf` });
+  assert.deepEqual(counts(db, ID1), { views: 0, downloads: 0 });
+  await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf`, { headers: { Range: 'bytes=0-3' } }), env, { file: `${ID1}.pdf` });
+  assert.deepEqual(counts(db, ID1), { views: 1, downloads: 0 });
+});
+
+test('a failing counter still serves the file', async () => {
+  const { env, db } = setup();
+  db.exec('ALTER TABLE symposium_certificates DROP COLUMN downloads');
+  const res = await call(file.onRequestGet, new Request(`${API}/${ID1}.pdf`), env, { file: `${ID1}.pdf` });
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), '%PDF-1.7 x');
+});
+
+test('the counter is handed to waitUntil when the runtime offers it', async () => {
+  const { env, db } = setup();
+  const pending: Promise<unknown>[] = [];
+  const res = await (file.onRequestGet as (c: unknown) => Promise<Response>)({
+    request: new Request(`${API}/${ID1}.pdf`), env, params: { file: `${ID1}.pdf` },
+    waitUntil: (p: Promise<unknown>) => pending.push(p),
+  });
+  assert.equal(res.status, 200);
+  assert.equal(pending.length, 1);
+  await Promise.all(pending);
+  assert.equal(counts(db, ID1).views, 1);
+});
+
 test('status lists unexpired years with counts and no personal data', async () => {
   const { env } = setup();
   const res = await call(status.onRequestGet, new Request(`${API}/status`), env);

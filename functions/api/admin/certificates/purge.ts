@@ -1,4 +1,5 @@
-// Retention: certificates and their email addresses are kept 30 days. The
+// Retention: certificates and their email addresses are kept 30 days; only
+// their counts outlive them, in certificate_stats. The
 // symposium-cron Worker calls this nightly with the archive secret, before
 // it rebuilds the symposium site, so the home page band goes with the last
 // certificate. An R2 lifecycle rule on certificates/ (31 days) is the safety
@@ -20,7 +21,25 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   for (let i = 0; i < results.length; i += 1000) {
     await env.MAIL_ATTACHMENTS.delete(results.slice(i, i + 1000).map((r) => certKey(r.id)));
   }
-  const certs = await env.DB.prepare('DELETE FROM symposium_certificates WHERE expires_at <= ?').bind(now).run();
+  // The counts go into certificate_stats in the same batch that deletes the
+  // rows, so a certificate is never both counted and kept, or deleted and
+  // not counted. Several nights can purge the same year (uploads on
+  // different days), hence the running sum.
+  const [, certs] = await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO certificate_stats (year, certificates, people, viewed, downloaded)
+       SELECT year, SUM(n), COUNT(*), SUM(v > 0), SUM(d > 0) FROM (
+         SELECT year, email, COUNT(*) AS n, SUM(views) AS v, SUM(downloads) AS d
+         FROM symposium_certificates WHERE expires_at <= ? GROUP BY year, email
+       ) WHERE true GROUP BY year
+       ON CONFLICT(year) DO UPDATE SET
+         certificates = certificates + excluded.certificates,
+         people = people + excluded.people,
+         viewed = viewed + excluded.viewed,
+         downloaded = downloaded + excluded.downloaded`
+    ).bind(now),
+    env.DB.prepare('DELETE FROM symposium_certificates WHERE expires_at <= ?').bind(now),
+  ]);
   const lookups = await env.DB.prepare('DELETE FROM certificate_lookups WHERE at < ?').bind(now - 86400).run();
   return jsonResponse({ ok: true, certificates: certs.meta.changes, lookups: lookups.meta.changes });
 };

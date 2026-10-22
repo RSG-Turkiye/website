@@ -895,6 +895,42 @@ account and, if it did not go out, create the post again.
   reconnect X if the account's password changed, and keep the X card or
   credits with the incoming lead.
 
+## Statistics
+
+Admin panel → **Statistics** (`#istatistik`, admins only) shows counts, never
+who: visits, accounts, learning-path progress, published content and blog
+submissions, e-mail, social posts and symposium certificates. Columns compare
+this month, last month, this year and last year in Türkiye time; an earlier
+year (the selector) compares itself with the year before. Every view is
+written to the Log as `read.stats`. Code: `functions/api/admin/stats.ts`,
+`functions/_lib/stats.ts`, `src/scripts/admin/sections/stats.ts`.
+
+**Certificates** are counted when a participant opens one in the page
+(`views`) or uses Download (`downloads`), columns on `symposium_certificates`
+(migration 8h). The nightly purge folds a year's counts into
+`certificate_stats`, which holds numbers only, before it deletes the
+certificates, so the counts outlive them.
+
+**Visits** come from Cloudflare Web Analytics: cookieless, no consent banner,
+described on the privacy page. Setup, once:
+
+1. Cloudflare dashboard → Web Analytics → Add a site, for
+   `rsg-turkiye.iscbsc.org` and for `symposium.rsg-turkiye.iscbsc.org`, with
+   the JS snippet option (the DNS is not on Cloudflare). Each gives a token.
+   It is public, printed in every page.
+2. Put the tokens in `src/data/web-analytics.ts` (main site) and
+   `symposium_website/src/lib/web-analytics.ts`. The beacon is left out of
+   `/admin` and `/account` pages.
+3. Create an API token with **Account → Account Analytics → Read** only, and
+   in your own terminal:
+   `npx wrangler pages secret put CF_ANALYTICS_TOKEN --project-name website`.
+4. Set `WEB_ANALYTICS_SINCE` in `wrangler.toml` to the day the beacon went
+   live. Periods before it show a dash rather than a misleading zero.
+
+Cloudflare samples these events and visitors with ad blockers are not
+counted, so the numbers are somewhat low; the panel says so. For a local
+preview, `CF_GRAPHQL_URL` can point the reader at a stand-in endpoint.
+
 ## Yearly handover
 
 When the committee changes:
