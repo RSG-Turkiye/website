@@ -35,10 +35,7 @@
       "socialMedia": [
         {
           "platform": "linkedin",
-          "url": {
-            "en": "https://www.linkedin.com/in/g%C3%B6k%C3%A7e-ko%C3%A7ak-535b76250/",
-            "tr": "https://www.linkedin.com/in/g%C3%B6k%C3%A7e-ko%C3%A7ak-535b76250/?skipRedirect=true"
-          }
+          "url": "https://www.linkedin.com/in/g%C3%B6k%C3%A7e-ko%C3%A7ak-535b76250/"
         }
       ],
       "consent": true

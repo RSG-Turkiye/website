@@ -53,9 +53,9 @@ Everything runs on the free plans, under the organisation's shared account
 /
 ├── src/
 │   ├── pages/            Routes. English at the root, Turkish under tr/
-│   ├── content/          Markdown: blog, webinars, learning paths (lp-*)
+│   ├── content/          Markdown (blog, webinars, learning paths) and JSON (events, workshops, resources, committees, pages)
 │   ├── content.config.ts Content schemas
-│   ├── data/             Typed data: committees, events, workshops, privacy text
+│   ├── data/             Schemas and helpers for the JSON collections, privacy text, podcast
 │   ├── i18n/ui.ts        UI strings in both languages
 │   ├── components/, layouts/, styles/
 │   ├── lib/              Build-time helpers
@@ -1009,6 +1009,20 @@ type: bioinfonet           # or: student
 domains: [genomics]        # learning path domains this talk belongs to (optional)
 draft: false
 ```
+
+### Events, workshops, resources, committees and page texts (`src/content/*/*.json`)
+
+These are JSON collections, one file per entry (page texts: one file per page). No code change is needed to edit them. The admin panel will edit them as pull requests (CMS plan 3); until then, edit the files by hand.
+
+| Collection | Where | Notes |
+| --- | --- | --- |
+| Events | `src/content/events/<id>.json` | The home page, the events page and the calendar. The file name is the event `id`. |
+| Workshops | `src/content/workshops/` | The workshops page. |
+| Resources | `src/content/resources/` | The `/resources` page, in both languages. Not the learning paths; those are Markdown (below). |
+| Committees | `src/content/committees/` | `/about`. Published profiles, with the member's consent (`consent: true`). E-mail addresses are not allowed; the schema refuses them. |
+| Page texts | `src/content/pages/{home,about,join,resources}.json` | The visible wording of those pages, as `{ en, tr }` pairs. |
+
+The schemas and helpers are in `src/data/*.ts`; the loaders are in `src/lib/get-*.ts` and `src/lib/page-text.ts`. A file that does not match its schema fails the build. `tests/content-not-in-code.test.ts` fails if a data array comes back into `src/data` or a page.
 
 ### Learning Paths (`src/content/lp-domains/`, `lp-levels/`, `lp-roadmap/`)
 

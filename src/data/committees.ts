@@ -2,8 +2,7 @@
  * The committees on /about and /tr/about, one JSON file per committee in
  * src/content/committees. They used to be two parallel arrays, one per
  * language; everything that differed between them (committee name and
- * description, role, education) is `{ en, tr }` now. One LinkedIn link
- * differed too, so a link's `url` may be `{ en, tr }` as well as a string.
+ * description, role, education) is `{ en, tr }` now.
  *
  * These are published profiles, in git with each member's consent
  * (`consent: true`); e-mail addresses are not, and the schema refuses one.
@@ -40,7 +39,7 @@ const memberSchema = z
         z
           .object({
             platform: z.enum(["twitter", "linkedin", "facebook", "github", "instagram"]),
-            url: z.union([z.string(), bilingual]),
+            url: z.string(),
           })
           .strict(),
       )
@@ -106,7 +105,7 @@ export function committeesFor(list: CommitteeEntry[], lang: Lang): Committee[] {
       ...(m.socialMedia && {
         socialMedia: m.socialMedia.map((s) => ({
           platform: s.platform,
-          url: typeof s.url === "string" ? s.url : s.url[lang],
+          url: s.url,
         })),
       }),
     })),

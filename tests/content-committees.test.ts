@@ -84,9 +84,9 @@ test('descriptions, education and links are picked per language', () => {
   assert.equal(tr[0].description, 'Organizasyonu vizyon ve strateji ile yönetmek.');
   assert.deepEqual(en[0].members[0].education, [{ degree: 'MSc', field: 'Bioinformatics and Systems Biology', institution: 'Gebze Technical University' }]);
   assert.deepEqual(tr[0].members[0].education, [{ degree: 'Yüksek Lisans', field: 'Bioinformatik ve Sistem Biyolojisi', institution: 'Gebze Teknik Üniversitesi' }]);
-  // The one link that differed between the two arrays still differs.
-  assert.doesNotMatch(en[4].members[0].socialMedia![0].url, /skipRedirect/);
-  assert.match(tr[4].members[0].socialMedia![0].url, /\?skipRedirect=true$/);
+  // A link's url is one string for both languages.
+  assert.equal(en[4].members[0].socialMedia![0].url, tr[4].members[0].socialMedia![0].url);
+  assert.doesNotMatch(tr[4].members[0].socialMedia![0].url, /skipRedirect/);
   for (const c of [...en, ...tr]) {
     for (const m of c.members) {
       assert.ok(!('email' in m));

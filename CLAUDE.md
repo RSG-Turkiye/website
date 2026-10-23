@@ -23,10 +23,11 @@ anyone.
 
 ## Rules that are never broken
 
-1. **This repository is public.** No personal data, member names, e-mail
-   addresses, internal meeting notes or internal assessments go into code,
-   commits, PRs or issues. Write issues around the work, not around people.
-   Use roles ("social media team"), never names.
+1. **This repository is public.** No personal data, e-mail addresses,
+   internal meeting notes or internal assessments go into code, commits, PRs
+   or issues. Member names appear only in published committee profiles
+   (rule 4). Write issues around the work, not around people. Use roles
+   ("social media team"), never names, everywhere else.
 2. **Never publish a `*.pages.dev`, `*.r2.dev` or `*.workers.dev` URL to
    users.** All three are blocked by ISPs in Türkiye. Always use the custom
    domains. R2 files are served through the site's own `/api/images/<key>`.
@@ -66,10 +67,11 @@ anyone.
 | Path                              | What                                                                                                                                                  |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/pages/`                      | Routes. English at the root, Turkish under `src/pages/tr/`, mirroring each other.                                                                     |
-| `src/content/`                    | Markdown content: blog, webinars, learning paths. Schemas in `src/content.config.ts`.                                                                 |
-| `src/data/`                       | Typed data: committees, events, workshops, privacy text, podcast.                                                                                     |
+| `src/content/`                    | Content. Markdown: blog, webinars, learning paths. JSON, one file per entry: workshops, events, resources, committees, pages (page texts). Schemas in `src/content.config.ts`. |
+| `src/data/`                       | Zod schemas and helpers for the JSON collections (no data arrays; `tests/content-not-in-code.test.ts`), plus privacy text and podcast.                 |
 | `src/i18n/ui.ts`                  | UI strings in both languages.                                                                                                                         |
-| `src/lib/`                        | Build-time helpers (feeds, tags, hreflang, learning paths).                                                                                           |
+| `src/lib/`                        | Build-time helpers (feeds, tags, hreflang, learning paths), the `get-*.ts` collection loaders and `page-text.ts`.                                     |
+| `scripts/compare-builds.ts`       | `npx tsx scripts/compare-builds.ts <before> <after>`: diffs two builds' .html/.xml/.txt (exit 1 on a difference). Normalises hashed asset names, entity spelling and whitespace runs. Use it for any change that should not alter pages. |
 | `src/scripts/admin/`              | The admin panel's client code.                                                                                                                        |
 | `functions/api/`                  | Cloudflare Pages Functions, the site's API.                                                                                                           |
 | `functions/_lib/`                 | Shared server code: `auth.ts` (session and permission checks), `mail*.ts`, `social-*.ts`, `github.ts` (opens PRs), `symposium.ts`, `certificates.ts`. |
