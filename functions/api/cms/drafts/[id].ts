@@ -1,7 +1,7 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayEdit, readJson } from '../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof, readJson } from '../../../_lib/cms-api';
 import { canTransition, checkSameId, newEntryId, newPaths, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
@@ -51,18 +51,19 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
     }
   }
   const data = JSON.stringify(v.data);
+  const nonce = newNonce();
 
   const done = await runGuardedWithAudit(
     env.DB,
-    env.DB.prepare('UPDATE content_drafts SET data = ?, entry_id = ?, base_shas = ?, updated_at = ? WHERE id = ? AND status = ? AND updated_at = ?')
-      .bind(data, entryId, baseShas, gate.now, row.id, row.status, row.updated_at),
-    { condition: 'EXISTS (SELECT 1 FROM content_drafts WHERE id = ? AND updated_at = ? AND data = ?)', binds: [row.id, gate.now, data] },
+    env.DB.prepare('UPDATE content_drafts SET data = ?, entry_id = ?, base_shas = ?, updated_at = ?, write_nonce = ? WHERE id = ? AND status = ? AND write_nonce IS ?')
+      .bind(data, entryId, baseShas, gate.now, nonce, row.id, row.status, row.write_nonce),
+    nonceProof(row.id, nonce),
     [],
     { userId: gate.user.id, action: 'cms.draft.update', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: entryId } },
     gate.now,
   );
   if (!done) return changed();
-  return jsonResponse({ draft: draftJson({ ...row, data, entry_id: entryId, base_shas: baseShas, updated_at: gate.now }, true) });
+  return jsonResponse({ draft: draftJson({ ...row, data, entry_id: entryId, base_shas: baseShas, updated_at: gate.now, write_nonce: nonce }, true) });
 };
 
 /** Discard. The row stays, as `discarded`, so the log's target still exists. */
@@ -74,10 +75,12 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const { row } = found;
   if (!mayEdit(gate, row)) return forbidden();
   if (!canTransition('discard', row.status)) return badState();
+  const nonce = newNonce();
   const done = await runGuardedWithAudit(
     env.DB,
-    env.DB.prepare(`UPDATE content_drafts SET status = 'discarded', updated_at = ? WHERE id = ? AND status = ?`).bind(gate.now, row.id, row.status),
-    { condition: `EXISTS (SELECT 1 FROM content_drafts WHERE id = ? AND status = 'discarded' AND updated_at = ?)`, binds: [row.id, gate.now] },
+    env.DB.prepare(`UPDATE content_drafts SET status = 'discarded', updated_at = ?, write_nonce = ? WHERE id = ? AND status = ? AND write_nonce IS ?`)
+      .bind(gate.now, nonce, row.id, row.status, row.write_nonce),
+    nonceProof(row.id, nonce),
     [],
     { userId: gate.user.id, action: 'cms.draft.discard', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, from: row.status } },
     gate.now,

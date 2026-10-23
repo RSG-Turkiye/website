@@ -1,7 +1,7 @@
 import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, loadDraft, mayApprove, readJson } from '../../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, loadDraft, mayApprove, newNonce, nonceProof, readJson } from '../../../../_lib/cms-api';
 import { canTransition } from '../../../../_lib/cms-drafts';
 
 const MAX_NOTE = 2000;
@@ -21,11 +21,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const reviewNote = note.trim() || null;
 
   // The note is not logged: the log keeps ids and codes.
+  const nonce = newNonce();
   const done = await runGuardedWithAudit(
     env.DB,
-    env.DB.prepare(`UPDATE content_drafts SET status = 'rejected', reviewer_id = ?, review_note = ?, updated_at = ? WHERE id = ? AND status = 'submitted'`)
-      .bind(gate.user.id, reviewNote, gate.now, row.id),
-    { condition: `EXISTS (SELECT 1 FROM content_drafts WHERE id = ? AND status = 'rejected' AND reviewer_id = ? AND updated_at = ?)`, binds: [row.id, gate.user.id, gate.now] },
+    env.DB.prepare(`UPDATE content_drafts SET status = 'rejected', reviewer_id = ?, review_note = ?, updated_at = ?, write_nonce = ?
+                    WHERE id = ? AND status = 'submitted' AND write_nonce IS ?`)
+      .bind(gate.user.id, reviewNote, gate.now, nonce, row.id, row.write_nonce),
+    nonceProof(row.id, nonce),
     [],
     { userId: gate.user.id, action: 'cms.draft.reject', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id } },
     gate.now,

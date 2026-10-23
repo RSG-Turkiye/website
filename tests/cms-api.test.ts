@@ -54,6 +54,9 @@ class FakeGitHub {
   branches = new Map<string, Map<string, string>>();
   prs: { title: string; body: string; head: string; number: number }[] = [];
   requests: Req[] = [];
+  resets: string[] = [];
+  /** Run (once) when a pull request is about to be opened. */
+  beforePulls: (() => Promise<void>) | null = null;
   /** What POST /pulls answers. */
   pulls: 'ok' | 'no-commits' | 'error' = 'ok';
 
@@ -70,6 +73,13 @@ class FakeGitHub {
       if (this.branches.has(name)) return json({ message: 'Reference already exists' }, 422);
       this.branches.set(name, new Map(this.main));
       return json({}, 201);
+    }
+    if (method === 'PATCH' && p.startsWith('/git/refs/heads/')) {
+      const name = p.slice('/git/refs/heads/'.length);
+      if (!this.branches.has(name) || !body.force) return json({ message: 'nope' }, 422);
+      this.branches.set(name, new Map(this.main));
+      this.resets.push(name);
+      return json({});
     }
     if (p.startsWith('/contents/')) {
       const path = decodeURIComponent(p.slice('/contents/'.length));
@@ -114,6 +124,11 @@ globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
   const method = init?.method ?? 'GET';
   const body = init?.body ? JSON.parse(String(init.body)) : undefined;
   gh.requests.push({ method, path: url.pathname + url.search, body });
+  if (method === 'POST' && url.pathname.endsWith('/pulls') && gh.beforePulls) {
+    const hook = gh.beforePulls;
+    gh.beforePulls = null;
+    await hook();
+  }
   return gh.handle(method, url, body);
 }) as never;
 
@@ -142,6 +157,10 @@ function setup() {
 
 type Env = ReturnType<typeof setup>['env'];
 const ORIGIN = { Origin: 'https://rsg-turkiye.iscbsc.org' };
+
+/** The shas an editor's copy came from, as GET /api/cms/entry gives them. */
+const loaded = (...paths: string[]) =>
+  Object.fromEntries(paths.map((p) => [p, gh.main.has(p) ? blobSha(gh.main.get(p)!) : null]));
 
 const req = (env: Env, handler: unknown, method: string, path: string, as?: string, body?: unknown, params?: Record<string, string>) =>
   call(handler, method, path, { env, as, body, params, headers: ORIGIN });
@@ -268,7 +287,7 @@ test('create, save, submit, approve: a pull request is opened and every step is 
 
 test('the pull request title and body carry no @ and no name, whoever wrote and approved it', async () => {
   const { env } = setup();
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'x' } });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'x' }, base_shas: loaded('src/content/events/symposium-2026.json') });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   await on(env, approve.onRequestPost, 'POST', body.draft.id, 'admin', {}, '/approve');
   const pr = gh.prs[0];
@@ -360,7 +379,7 @@ test('mutating calls from another origin are refused', async () => {
 test('approval refuses with changed_since when the file changed on main, and opens nothing', async () => {
   const { env, row } = setup();
   const path = 'src/content/events/symposium-2026.json';
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' } });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' }, base_shas: loaded(path) });
   assert.equal(body.draft.base_shas[path], blobSha(FILES[path]));
   const id = body.draft.id;
   await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
@@ -487,7 +506,7 @@ test('a schema-invalid save answers with an error per field and keeps the last g
 
 test('an update cannot rename the file', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), id: 'symposium-2026b' } });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), id: 'symposium-2026b' }, base_shas: loaded('src/content/events/symposium-2026.json') });
   assert.equal(res.status, 422);
   assert.ok(body.errors.id);
 });
@@ -496,12 +515,12 @@ test('an update cannot rename the file', async () => {
 
 test('a delete draft produces null files and deletes them on the branch', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'delete', entry_id: 'meetup-izmir-2025' });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'delete', entry_id: 'meetup-izmir-2025', base_shas: loaded('src/content/events/meetup-izmir-2025.json') });
   assert.equal(res.status, 201);
   const files = filesFor({ ...body.draft, data: JSON.stringify(body.draft.data), base_shas: JSON.stringify(body.draft.base_shas) });
   assert.deepEqual(files, [{ path: 'src/content/events/meetup-izmir-2025.json', content: null }]);
 
-  const pair = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: 'molecular-simulations' });
+  const pair = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: 'molecular-simulations', base_shas: loaded('src/content/webinars/en/molecular-simulations.md', 'src/content/webinars/tr/molekuler-simulasyonlar.md') });
   const pairFiles = filesFor({ ...pair.body.draft, data: JSON.stringify(pair.body.draft.data), base_shas: JSON.stringify(pair.body.draft.base_shas) });
   assert.deepEqual(pairFiles.map((f) => f.content), [null, null]);
   assert.deepEqual(pairFiles.map((f) => f.path).sort(), ['src/content/webinars/en/molecular-simulations.md', 'src/content/webinars/tr/molekuler-simulasyonlar.md']);
@@ -547,7 +566,7 @@ test('send back, edit, resubmit; discard; each writes its row', async () => {
 
 test('content already on main: the draft is published, logged as a merge with noop', async () => {
   const { env, audit, row } = setup();
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026() });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: loaded('src/content/events/symposium-2026.json') });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   gh.pulls = 'no-commits';
   const res = await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve');
@@ -617,4 +636,163 @@ test('a draft left in approved by a crash can be approved again once it is stale
   db.prepare(`UPDATE content_drafts SET updated_at = ? WHERE id = ?`).run(now - 400, id);
   assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
   assert.equal(row(id).status, 'pr_open');
+});
+
+// ── fix round 1: races, required shas, branch reset, pair edges ───────────────
+
+/** env whose first `n` draft reads all wait until every one of them has read:
+ * n requests that act on the same row as it was before any of them wrote. */
+function racing(env: Env, n: number): Env {
+  const db = (env as any).DB;
+  let reads = 0;
+  let waiting: (() => void)[] = [];
+  const DB = {
+    ...db,
+    prepare(sql: string) {
+      const st = db.prepare(sql);
+      if (!sql.startsWith('SELECT * FROM content_drafts WHERE id = ?')) return st;
+      return {
+        ...st,
+        bind(...a: unknown[]) {
+          const b = st.bind(...a);
+          return {
+            ...b,
+            async first() {
+              const row = await b.first();
+              if (++reads <= n) {
+                await new Promise<void>((resolve) => {
+                  waiting.push(resolve);
+                  if (waiting.length === n) { waiting.forEach((f) => f()); waiting = []; }
+                });
+              }
+              return row;
+            },
+          };
+        },
+      };
+    },
+  };
+  return { ...(env as any), DB } as never;
+}
+
+test('two submits of the same row at once: one lands, one log row', async () => {
+  const { env, audit, row } = setup();
+  const { body } = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  const id = body.draft.id;
+  const r = racing(env, 2);
+  const results = await Promise.all([1, 2].map(() => on(r, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit')));
+  assert.deepEqual(results.map((x) => x.status).sort(), [200, 409]);
+  assert.equal(row(id).status, 'submitted');
+  assert.equal(audit().filter((a) => a.action === 'cms.draft.submit').length, 1);
+});
+
+test('two approvals of the same row at once: one claim, one log row, one pull request', async () => {
+  const { env, audit, row } = setup();
+  const { body } = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  const id = body.draft.id;
+  await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
+  const r = racing(env, 2);
+  const results = await Promise.all(['approver', 'admin'].map((as) => on(r, approve.onRequestPost, 'POST', id, as, {}, '/approve')));
+  assert.deepEqual(results.map((x) => x.status).sort(), [200, 409]);
+  assert.equal(audit().filter((a) => a.action === 'cms.draft.approve').length, 1);
+  assert.equal(audit().filter((a) => a.action === 'cms.pr.open').length, 1);
+  assert.equal(gh.prs.length, 1);
+  assert.equal(row(id).status, 'pr_open');
+});
+
+test('a slow approval overtaken by a retry writes no outcome and answers superseded', async () => {
+  const { env, db, audit, row } = setup();
+  const { body } = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  const id = body.draft.id;
+  await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
+  // Attempt A has claimed the draft and is talking to GitHub. It takes long
+  // enough to look crashed, so attempt B re-claims and finishes first.
+  let b: Response | null = null;
+  gh.beforePulls = async () => {
+    db.prepare('UPDATE content_drafts SET updated_at = updated_at - 400 WHERE id = ?').run(id);
+    b = await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve');
+  };
+  const a = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
+  assert.equal(b!.status, 200);
+  assert.equal(a.status, 409);
+  assert.equal((await a.json() as any).code, 'superseded');
+  const after = row(id);
+  assert.equal(after.status, 'pr_open');
+  assert.equal(after.reviewer_id, 'admin');
+  assert.equal(after.pr_url, 'https://github.com/RSG-Turkiye/website/pull/41', 'B\'s pull request, not overwritten by A');
+  assert.equal(audit().filter((x) => x.action === 'cms.pr.open').length, 1);
+  assert.equal(audit().filter((x) => x.action === 'cms.draft.approve').length, 2);
+});
+
+test('an update or delete without the shas the editor loaded is refused', async () => {
+  const { env } = setup();
+  for (const action of ['update', 'delete']) {
+    const { res, body } = await create(env, 'editor', { type: 'events', action, entry_id: 'symposium-2026', data: symposium2026() });
+    assert.equal(res.status, 400, action);
+    assert.equal(body.code, 'base_shas_required');
+  }
+  assert.equal(gh.requests.length, 0, 'refused before asking GitHub');
+});
+
+test('a retried draft renamed after a failure commits only its current files', async () => {
+  const { env, row } = setup();
+  const { body } = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  const id = body.draft.id;
+  await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
+  gh.pulls = 'error';
+  const realError = console.error;
+  console.error = () => {};
+  try {
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 502);
+  } finally {
+    console.error = realError;
+  }
+  const branch = `cms/${id}`;
+  assert.ok(gh.branches.get(branch)!.has('src/content/events/meetup-ankara-2027.json'), 'the failed attempt left its file');
+
+  gh.pulls = 'ok';
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), id: 'meetup-ankara-2028' } })).status, 200);
+  await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
+  assert.equal(row(id).status, 'pr_open');
+  assert.deepEqual(gh.resets, [branch]);
+  const files = gh.branches.get(branch)!;
+  assert.ok(files.has('src/content/events/meetup-ankara-2028.json'));
+  assert.ok(!files.has('src/content/events/meetup-ankara-2027.json'), 'no orphan from the earlier attempt');
+});
+
+test('a webinar delete covers both sides even when one is missing on main, and rechecks it', async () => {
+  const { env } = setup();
+  const en = 'src/content/webinars/en/molecular-simulations.md';
+  const tr = 'src/content/webinars/tr/molekuler-simulasyonlar.md';
+  gh.main.delete(tr);
+  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: 'molecular-simulations', base_shas: loaded(en, tr) });
+  assert.equal(res.status, 201);
+  assert.deepEqual(body.draft.base_shas, { [en]: blobSha(FILES[en]), [tr]: null });
+  await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
+
+  gh.main.set(tr, FILES[tr]);
+  const refused = await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve');
+  assert.equal(refused.status, 409);
+  assert.deepEqual((await refused.json() as any).paths, [tr]);
+
+  gh.main.delete(tr);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve')).status, 200);
+  assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: en }]);
+});
+
+test('a new webinar may not reuse a published pair\'s translationKey or file name', async () => {
+  const { env } = setup();
+  const side = (title: string, key = '') => ({
+    frontmatter: { title, translationKey: key, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet' },
+    body: '\n',
+  });
+  const byKey = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk', 'molecular-simulations'), tr: side('Yeni', 'molecular-simulations') } });
+  assert.equal(byKey.res.status, 409);
+  assert.equal(byKey.body.code, 'exists');
+  const byName = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Molekuler Simulasyonlar'), tr: side('Molekuler Simulasyonlar') } });
+  assert.equal(byName.res.status, 409);
+  assert.equal(byName.body.code, 'exists');
+  const fine = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
+  assert.equal(fine.res.status, 201);
 });

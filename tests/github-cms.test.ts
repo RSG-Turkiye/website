@@ -109,6 +109,53 @@ test('a null content deletes the file with its sha on the branch', async () => {
   });
 });
 
+test('resetBranch forces an existing branch back to main before committing; without it the branch is left alone', async () => {
+  for (const resetBranch of [true, undefined]) {
+    const handler = contentPrHandler(new Map());
+    await withFetch(
+      (method, url, body) => {
+        if (method === 'POST' && url.pathname.endsWith('/git/refs')) return json({ message: 'Reference already exists' }, 422);
+        if (method === 'PATCH' && url.pathname.endsWith('/git/refs/heads/cms/d-1')) return json({});
+        return handler(method, url, body);
+      },
+      async (requests) => {
+        const result = await openContentPR(
+          { branchPrefix: 'cms', branchSlug: 'd-1', files: [{ path: 'a.json', content: '{}\n' }], title: 't', prBody: 'b', retitle: false, resetBranch },
+          env,
+        );
+        assert.equal(result.success, true);
+        const patches = requests.filter((r) => r.method === 'PATCH');
+        if (resetBranch) {
+          assert.deepEqual(patches.map((r) => [r.path, r.body]), [[`${REPO}/git/refs/heads/cms/d-1`, { sha: 'base-sha', force: true }]]);
+          const order = requests.map((r) => r.method);
+          assert.ok(order.indexOf('PATCH') < order.indexOf('PUT'), 'reset before the commit');
+        } else {
+          assert.equal(patches.length, 0);
+        }
+      },
+    );
+  }
+});
+
+test('a failed branch reset is an error result carrying the status only', async () => {
+  const handler = contentPrHandler(new Map());
+  await withFetch(
+    (method, url, body) => {
+      if (method === 'POST' && url.pathname.endsWith('/git/refs')) return json({ message: 'exists' }, 422);
+      if (method === 'PATCH') return new Response('secret-ish GitHub body', { status: 500 });
+      return handler(method, url, body);
+    },
+    async () => {
+      const result = await openContentPR(
+        { branchPrefix: 'cms', branchSlug: 'd-1', files: [{ path: 'a.json', content: '{}\n' }], title: 't', prBody: 'b', retitle: false, resetBranch: true },
+        env,
+      );
+      assert.equal(result.success, false);
+      assert.ok(!result.success && 'error' in result && !result.error.includes('secret-ish'));
+    },
+  );
+});
+
 test('deleting a file already gone from the branch is skipped, so a retry converges', async () => {
   const branchFiles = new Map<string, string>();
   await withFetch(contentPrHandler(branchFiles), async (requests) => {

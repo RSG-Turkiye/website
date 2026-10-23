@@ -22,6 +22,8 @@ export interface CmsIndexEntry {
   title: string;
   /** Webinars only: the two files of the pair (null when a side is missing). */
   paths?: { en: string | null; tr: string | null };
+  /** Webinars only, when set: the translationKey that ties the pair. */
+  key?: string;
 }
 
 export type CmsIndex = Record<CmsTypeKey, CmsIndexEntry[]>;
@@ -35,11 +37,11 @@ export function buildCmsIndex(files: Record<string, string>): CmsIndex {
 
   const events = under(cmsType("events")!.dir, ".json").map((p) => {
     const d = JSON.parse(files[p]) as { title: { en: string }; start: string };
-    return { entry: { id: base(p), title: d.title.en }, key: d.start };
+    return { entry: { id: base(p), title: d.title.en }, sort: d.start };
   });
   const workshops = under(cmsType("workshops")!.dir, ".json").map((p) => {
     const d = JSON.parse(files[p]) as { title: string; year: number };
-    return { entry: { id: base(p), title: d.title }, key: String(d.year) };
+    return { entry: { id: base(p), title: d.title }, sort: String(d.year) };
   });
 
   const webinarType = cmsType("webinars")!;
@@ -53,19 +55,21 @@ export function buildCmsIndex(files: Record<string, string>): CmsIndex {
   const asEntries: TranslatableEntry[] = parsed.map((w) => ({ id: `${w.lang}/${w.slug}`, data: { translationKey: w.fm.translationKey } }));
   const pathOf = (lang: string, slug: string | null) => (slug === null ? null : `${webinarType.dir}/${lang}/${slug}.md`);
   const claimed = new Set<string>();
-  const webinars: { entry: CmsIndexEntry; key: string }[] = parsed.filter((w) => w.lang === "en").map((w) => {
+  const webinars: { entry: CmsIndexEntry; sort: string }[] = parsed.filter((w) => w.lang === "en").map((w) => {
     const tr = pathOf("tr", counterpartSlug(asEntries, `en/${w.slug}`, "tr"));
     if (tr) claimed.add(tr);
-    return { entry: { id: w.slug, title: String(w.fm.title ?? w.slug), paths: { en: w.path, tr } }, key: String(w.fm.date ?? "") };
+    const key = w.fm.translationKey?.trim();
+    return { entry: { id: w.slug, title: String(w.fm.title ?? w.slug), paths: { en: w.path, tr }, ...(key ? { key } : {}) }, sort: String(w.fm.date ?? "") };
   });
   // A Turkish file with no English twin is still an entry, under its own name.
   const ids = new Set(webinars.map((w) => w.entry.id));
   for (const w of parsed) {
     if (w.lang !== "tr" || claimed.has(w.path) || ids.has(w.slug)) continue;
-    webinars.push({ entry: { id: w.slug, title: String(w.fm.title ?? w.slug), paths: { en: null, tr: w.path } }, key: String(w.fm.date ?? "") });
+    const key = w.fm.translationKey?.trim();
+    webinars.push({ entry: { id: w.slug, title: String(w.fm.title ?? w.slug), paths: { en: null, tr: w.path }, ...(key ? { key } : {}) }, sort: String(w.fm.date ?? "") });
   }
 
-  const newestFirst = <T extends { key: string; entry: CmsIndexEntry }>(list: T[]) =>
-    list.sort((a, b) => b.key.localeCompare(a.key) || a.entry.id.localeCompare(b.entry.id)).map((x) => x.entry);
+  const newestFirst = <T extends { sort: string; entry: CmsIndexEntry }>(list: T[]) =>
+    list.sort((a, b) => b.sort.localeCompare(a.sort) || a.entry.id.localeCompare(b.entry.id)).map((x) => x.entry);
   return { events: newestFirst(events), workshops: newestFirst(workshops), webinars: newestFirst(webinars) };
 }

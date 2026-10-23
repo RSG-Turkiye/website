@@ -136,3 +136,11 @@ export function githubFailed(e: unknown): Response {
 export const invalid = (errors: Record<string, string>) => fail(422, 'invalid', 'Some fields are not valid', { errors });
 export const badState = () => fail(409, 'bad_state', 'This draft cannot do that in its current state');
 export const changed = () => fail(409, 'draft_changed', 'Someone changed this draft in the meantime; reload it');
+
+export const newNonce = () => crypto.randomUUID();
+
+/** The AuditProof for a guarded content_drafts write that stored `nonce`. */
+export const nonceProof = (id: string, nonce: string) => ({
+  condition: 'EXISTS (SELECT 1 FROM content_drafts WHERE id = ? AND write_nonce = ?)',
+  binds: [id, nonce],
+});

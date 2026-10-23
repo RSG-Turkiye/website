@@ -2,7 +2,7 @@ import type { Env } from '../../_lib/auth';
 import { generateId, jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import {
-  cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, readJson, rightsIn,
+  cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, rightsIn,
 } from '../../_lib/cms-api';
 import { checkSameId, DRAFT_ACTIONS, langOf, newEntryId, newPaths, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
 import { fileShasOnBase, filesOnBase } from '../../_lib/github';
@@ -75,6 +75,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
     const taken = paths.filter((p) => onMain[p] !== null);
     if (taken.length) return fail(409, 'exists', 'An entry with this id is already published; open it instead', { paths: taken });
+    if (type.format === 'markdown-pair') {
+      // A pair is found by translationKey, else by file name
+      // (src/lib/translations.ts): either one shared with a published pair
+      // would tie the new files to it.
+      const index = await loadCmsIndex(request, env);
+      if (!index) return indexUnavailable();
+      const key = String((data as PairData).en.frontmatter.translationKey ?? '').trim();
+      const slugOf = (p: string | null) => p?.slice(p.lastIndexOf('/') + 1, -'.md'.length);
+      const clash = (index[type.key] ?? []).find((e) =>
+        e.id === entryId || slugOf(e.paths?.en ?? null) === entryId || slugOf(e.paths?.tr ?? null) === entryId || (key !== '' && e.key === key));
+      if (clash) return fail(409, 'exists', 'A published webinar already has this name or translationKey; open it instead', { entry_id: clash.id });
+    }
     baseShas = Object.fromEntries(paths.map((p) => [p, null]));
   } else {
     try {
@@ -82,11 +94,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     } catch {
       return fail(400, 'bad_id', 'Not a valid entry id');
     }
+    // The shas of the copy the editor loaded (GET /api/cms/entry): the
+    // draft is checked against those, not against whatever main has now.
+    const sent = body.base_shas as Record<string, unknown> | undefined | null;
+    if (sent === undefined || sent === null) return fail(400, 'base_shas_required', 'Send the base_shas GET /api/cms/entry returned');
+    if (typeof sent !== 'object' || Array.isArray(sent)) return fail(400, 'bad_request', 'base_shas is an object of path to sha');
     if (action === 'update') {
       const renamed = checkSameId(type, entryId, data);
       if (renamed) return invalid(renamed);
     }
-    let paths = entryPaths(type, entryId, type.format === 'json' ? null : await loadCmsIndex(request, env));
+    const paths = entryPaths(type, entryId, type.format === 'json' ? null : await loadCmsIndex(request, env));
     if (paths === 'no_index') return indexUnavailable();
     if (!paths) return fail(404, 'not_found', 'No such entry');
     let files: Awaited<ReturnType<typeof filesOnBase>>;
@@ -96,16 +113,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       return githubFailed(e);
     }
     if (paths.every((p) => files[p] === null)) return fail(404, 'not_found', 'No such entry');
-    // A delete removes what is there; an update also writes a missing side.
-    if (action === 'delete') paths = paths.filter((p) => files[p] !== null);
+    // Both sides of a pair, always: a side missing on main is null, and
+    // approval checks it is still missing (a delete then skips it).
     baseShas = Object.fromEntries(paths.map((p) => [p, files[p]?.sha ?? null]));
-
-    if (body.base_shas !== undefined) {
-      const sent = body.base_shas as Record<string, unknown> | null;
-      if (typeof sent !== 'object' || sent === null || Array.isArray(sent)) return fail(400, 'bad_request', 'base_shas is an object of path to sha');
-      const stale = paths.filter((p) => (sent[p] ?? null) !== baseShas[p]);
-      if (stale.length) return fail(409, 'changed_since', 'The entry changed on the site since you opened it', { paths: stale });
-    }
+    const stale = paths.filter((p) => (sent[p] ?? null) !== baseShas[p]);
+    if (stale.length) return fail(409, 'changed_since', 'The entry changed on the site since you opened it', { paths: stale });
 
     if (action === 'update' && type.format === 'markdown-pair') {
       // Keep each file's frontmatter text, so keys the draft does not change
@@ -127,12 +139,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: entryId, action, data: JSON.stringify(data), base_shas: JSON.stringify(baseShas),
     status: 'draft', author_id: gate.user.id, reviewer_id: null, review_note: null, pr_url: null, pr_number: null, failure: null,
-    created_at: gate.now, updated_at: gate.now,
+    write_nonce: newNonce(), created_at: gate.now, updated_at: gate.now,
   };
   await runWithAudit(env.DB, [env.DB.prepare(
-    `INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
-  ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.created_at, row.updated_at)],
+    `INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, write_nonce, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)`,
+  ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.write_nonce, row.created_at, row.updated_at)],
   { userId: gate.user.id, action: 'cms.draft.create', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action } },
   gate.now);
   return jsonResponse({ draft: draftJson(row, true) }, 201);

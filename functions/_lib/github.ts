@@ -26,6 +26,12 @@ type OpenPrParams = {
    * rather than silently retitle -- the more dangerous of the two -- an
    * existing pull request that was not its own. */
   retitle: boolean;
+  /** When the branch already exists, force it back to main's current sha
+   * before committing, so the pull request carries exactly `files` and
+   * nothing an earlier attempt left there (a CMS draft that was renamed
+   * after a failed attempt). Off for the blog and symposium flows, which
+   * keep their earlier behaviour. */
+  resetBranch?: boolean;
 };
 
 export type OpenPrResult =
@@ -95,7 +101,7 @@ async function getBaseBranchSha(env: Env): Promise<string> {
   return data.object.sha;
 }
 
-async function createBranch(branchName: string, baseSha: string, env: Env): Promise<void> {
+async function createBranch(branchName: string, baseSha: string, env: Env, reset = false): Promise<void> {
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs`,
     {
@@ -108,12 +114,23 @@ async function createBranch(branchName: string, baseSha: string, env: Env): Prom
     // Branch name already exists (e.g. a prior failed attempt left it
     // behind). Treat as usable rather than failing -- the commit step
     // will fail loudly on its own if this branch is actually unusable.
+    if (reset) await resetBranchTo(branchName, baseSha, env);
     return;
   }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Failed to create branch ${branchName} (${res.status}): ${body}`);
   }
+}
+
+/** Force `branchName` to `sha`. Status code only in the error. */
+async function resetBranchTo(branchName: string, sha: string, env: Env): Promise<void> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/${branchName}`,
+    { method: 'PATCH', body: JSON.stringify({ sha, force: true }) },
+    env
+  );
+  if (!res.ok) throw new Error(`Failed to reset branch ${branchName} (${res.status})`);
 }
 
 /**
@@ -424,7 +441,7 @@ export async function openContentPR(params: OpenPrParams, env: Env): Promise<Ope
   const branchName = `${params.branchPrefix}/${params.branchSlug}`;
   try {
     const baseSha = await getBaseBranchSha(env);
-    await createBranch(branchName, baseSha, env);
+    await createBranch(branchName, baseSha, env, params.resetBranch === true);
     for (const file of params.files) {
       if (file.content === null) {
         await deleteFile(branchName, file.path, `Delete ${file.path}`, env);

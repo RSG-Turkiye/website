@@ -1,7 +1,7 @@
 import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
-import { runGuardedWithAudit, runWithAudit } from '../../../../_lib/audit';
-import { badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove } from '../../../../_lib/cms-api';
+import { runGuardedWithAudit } from '../../../../_lib/audit';
+import { badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, newNonce, nonceProof } from '../../../../_lib/cms-api';
 import { canTransition, filesFor, prBody, prTitle, STALE_APPROVAL_SECONDS, validateDraft, type DraftRow } from '../../../../_lib/cms-drafts';
 import { fileShasOnBase, openContentPR, pullNumberFromUrl } from '../../../../_lib/github';
 
@@ -52,37 +52,59 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     return fail(422, 'unwritable', 'This draft could not be turned into files');
   }
 
+  // The claim names the row as read (its nonce), so an approval decided on
+  // a row that changed meanwhile does not land.
+  const claim = newNonce();
   const claimed = await runGuardedWithAudit(
     env.DB,
-    env.DB.prepare(`UPDATE content_drafts SET status = 'approved', reviewer_id = ?, updated_at = ?
-                    WHERE id = ? AND (status = 'submitted' OR (status = 'approved' AND updated_at < ?))`)
-      .bind(gate.user.id, gate.now, row.id, staleBefore),
-    { condition: `EXISTS (SELECT 1 FROM content_drafts WHERE id = ? AND status = 'approved' AND reviewer_id = ? AND updated_at = ?)`, binds: [row.id, gate.user.id, gate.now] },
+    env.DB.prepare(`UPDATE content_drafts SET status = 'approved', reviewer_id = ?, updated_at = ?, write_nonce = ?
+                    WHERE id = ? AND write_nonce IS ? AND (status = 'submitted' OR (status = 'approved' AND updated_at < ?))`)
+      .bind(gate.user.id, gate.now, claim, row.id, row.write_nonce, staleBefore),
+    nonceProof(row.id, claim),
     [],
     { userId: gate.user.id, action: 'cms.draft.approve', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action } },
     gate.now,
   );
   if (!claimed) return badState();
 
-  const result = await openContentPR({ branchPrefix: 'cms', branchSlug: row.id, files, title: prTitle(row), prBody: prBody(row), retitle: false }, env);
+  const result = await openContentPR(
+    { branchPrefix: 'cms', branchSlug: row.id, files, title: prTitle(row), prBody: prBody(row), retitle: false, resetBranch: true },
+    env,
+  );
   const now = Math.floor(Date.now() / 1000);
-  const settle = (sql: string, binds: unknown[]) => env.DB.prepare(`UPDATE content_drafts SET ${sql}, updated_at = ? WHERE id = ? AND status = 'approved'`).bind(...binds, now, row.id);
   const details = { type: row.type, entry_id: row.entry_id };
+  // The outcome lands only on this attempt's claim. If a later attempt
+  // re-claimed the draft meanwhile (this one was slow enough to look
+  // crashed), that attempt owns the outcome, and this one writes nothing.
+  const settle = (set: string, binds: unknown[], entry: { action: string; details: Record<string, unknown> }) => {
+    const nonce = newNonce();
+    return runGuardedWithAudit(
+      env.DB,
+      env.DB.prepare(`UPDATE content_drafts SET ${set}, updated_at = ?, write_nonce = ? WHERE id = ? AND status = 'approved' AND write_nonce = ?`)
+        .bind(...binds, now, nonce, row.id, claim),
+      nonceProof(row.id, nonce),
+      [],
+      { userId: gate.user.id, targetType: 'content_draft', targetId: row.id, ...entry },
+      now,
+    );
+  };
+  const superseded = () => fail(409, 'superseded', 'Another approval of this draft took over; reload it');
 
   if (result.success) {
     const prNumber = pullNumberFromUrl(result.prUrl);
-    await runWithAudit(env.DB, [settle(`status = 'pr_open', pr_url = ?, pr_number = ?, failure = NULL`, [result.prUrl, prNumber])],
-      { userId: gate.user.id, action: 'cms.pr.open', targetType: 'content_draft', targetId: row.id, details: { ...details, pr_number: prNumber } }, now);
+    const done = await settle(`status = 'pr_open', pr_url = ?, pr_number = ?, failure = NULL`, [result.prUrl, prNumber],
+      { action: 'cms.pr.open', details: { ...details, pr_number: prNumber } });
+    if (!done) return superseded();
   } else if ('reason' in result) {
     // GitHub found nothing to propose: main already has exactly this content.
-    await runWithAudit(env.DB, [settle(`status = 'published', failure = NULL`, [])],
-      { userId: gate.user.id, action: 'cms.pr.merged', targetType: 'content_draft', targetId: row.id, details: { ...details, noop: true } }, now);
+    const done = await settle(`status = 'published', failure = NULL`, [], { action: 'cms.pr.merged', details: { ...details, noop: true } });
+    if (!done) return superseded();
   } else {
     // GitHub's text stays in the server log; the draft and the log get a code.
     console.error('cms: opening the pull request failed', row.id, result.error);
-    await runWithAudit(env.DB, [settle(`status = 'pr_failed', failure = 'github_failed'`, [])],
-      { userId: gate.user.id, action: 'cms.pr.failed', targetType: 'content_draft', targetId: row.id, details: { ...details, code: 'github_failed' } }, now);
-    return fail(502, 'github_failed', 'The pull request could not be opened; the draft is marked failed and can be sent again');
+    const done = await settle(`status = 'pr_failed', failure = 'github_failed'`, [], { action: 'cms.pr.failed', details: { ...details, code: 'github_failed' } });
+    if (!done) return superseded();
+    return fail(502, 'github_failed', 'GitHub refused the pull request. The draft is marked as failed; send it for approval again to retry.');
   }
   const after = await env.DB.prepare('SELECT * FROM content_drafts WHERE id = ?').bind(row.id).first<DraftRow>();
   return jsonResponse({ draft: draftJson(after!, false), ...('reason' in result ? { noop: true } : {}) });

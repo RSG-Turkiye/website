@@ -32,6 +32,9 @@ export interface DraftRow {
   pr_url: string | null;
   pr_number: number | null;
   failure: string | null;
+  /** A fresh random value on every write. A write names the nonce it read
+   * (so it acts on the row it saw) and proves its own landed. */
+  write_nonce: string | null;
   created_at: number;
   updated_at: number;
 }

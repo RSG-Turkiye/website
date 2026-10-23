@@ -1026,6 +1026,7 @@ CREATE TABLE IF NOT EXISTS content_drafts (
   pr_url      TEXT,
   pr_number   INTEGER,
   failure     TEXT,                   -- short reason shown in the panel
+  write_nonce TEXT,                   -- random per write: a guarded write proves it landed (audit.ts AuditProof)
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL
 );
