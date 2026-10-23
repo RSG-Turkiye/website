@@ -272,6 +272,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // and they need opposite fixes. See dispatch-log.ts.
   const runId = await startRun(env.DB, crypto.randomUUID(), now);
 
+  // Role grants with an end date stop working within the hour, so the sweep
+  // runs on the hourly tick before the sending-window check: a grant that
+  // ends at night must not stay effective until morning. A failure is logged
+  // and never blocks mail.
+  if (isPruneTick(now)) {
+    try {
+      await expireGrants(env.DB, now);
+    } catch (err) {
+      console.error('expireGrants failed', err);
+    }
+  }
+
   // The queue delivers during waking hours only. Cloudflare invokes this
   // Worker whenever it likes -- on 2026-09-05 that was 04:10 and 07:38 in the
   // morning -- and nobody chose those hours for their mail. Rows simply wait:
@@ -620,12 +632,6 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   });
   // Hourly rather than every minute; see isPruneTick.
   if (isPruneTick(now)) {
-    // Same hourly tick. A failure here must never block mail, nor the prune.
-    try {
-      await expireGrants(env.DB, now);
-    } catch (err) {
-      console.error('expireGrants failed', err);
-    }
     await pruneRuns(env.DB, now);
   }
 
