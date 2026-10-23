@@ -262,7 +262,7 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
 }
 
 /** The form field a type's file name comes from, for errors about the id. */
-const ID_FIELD: Record<string, string> = { events: 'id', workshops: 'repo', webinars: 'en.frontmatter.title' };
+export const ID_FIELD: Record<string, string> = { events: 'id', workshops: 'repo', webinars: 'en.frontmatter.title' };
 
 /** The file id a new entry gets, from validated data. */
 export function newEntryId(type: CmsType, data: unknown): Validated<string> {

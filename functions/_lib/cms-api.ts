@@ -79,6 +79,9 @@ export function draftJson(row: DraftRow, withData: boolean) {
     stale_merge: mergedTooLong(row, Math.floor(Date.now() / 1000)),
     created_at: row.created_at,
     updated_at: row.updated_at,
+    /** The version this answer describes: a save sends it back, and a save
+     * made on an older version is refused (draft_changed). */
+    write_nonce: row.write_nonce,
     ...(withData ? { data: JSON.parse(row.data) as unknown, base_shas: JSON.parse(row.base_shas) as Record<string, string | null> } : {}),
   };
 }

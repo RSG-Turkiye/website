@@ -1385,3 +1385,57 @@ test('each index entry carries its date, for the panel\'s list', () => {
   assert.ok(INDEX.workshops.every((w) => /^\d{4}$/.test(w.date ?? '')));
   assert.equal(INDEX.webinars.find((w) => w.id === 'ai-approaches-biomolecular-representation')!.date, '2024-04-16');
 });
+
+// ── Task 7, fix round 1 ───────────────────────────────────────────────────────
+
+test('a save names the version it was made on: a stale write_nonce is draft_changed, nothing stored', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  const id = made.body.draft.id;
+  const seen = made.body.draft.write_nonce;
+  assert.equal(typeof seen, 'string');
+  const first = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), note: 'tab 1' }, write_nonce: seen });
+  assert.equal(first.status, 200);
+  const after = (await first.json() as any).draft.write_nonce;
+  assert.notEqual(after, seen);
+  // Another tab still holding the first version.
+  const stale = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), note: 'tab 2' }, write_nonce: seen });
+  assert.equal(stale.status, 409);
+  assert.equal((await stale.json() as any).code, 'draft_changed');
+  assert.equal(JSON.parse(row(id).data).note, 'tab 1');
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), note: 'tab 1 again' }, write_nonce: after })).status, 200);
+});
+
+test('renaming a new entry onto a published one is refused on the field its name comes from', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  const id = made.body.draft.id;
+  const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), id: 'symposium-2026' } });
+  assert.equal(res.status, 422);
+  assert.match((await res.json() as any).errors.id, /already/);
+  assert.equal(row(id).entry_id, 'meetup-ankara-2027');
+
+  const side = (title: string) => ({ frontmatter: { title, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet' }, body: '\n' });
+  const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
+  assert.equal(w.res.status, 201);
+  const clash = await on(env, draft.onRequestPatch, 'PATCH', w.body.draft.id, 'editor', { data: { en: side('Molekuler Simulasyonlar'), tr: side('Yeni') } });
+  assert.equal(clash.status, 422);
+  assert.ok((await clash.json() as any).errors['en.frontmatter.title']);
+});
+
+test('the live list leaves out other people\'s new entries, keeps one\'s own', async () => {
+  const { env } = setup();
+  await submitted(env, 'editor');
+  const other = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor2')).json() as any;
+  assert.deepEqual(other.live, []);
+  const own = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor')).json() as any;
+  assert.deepEqual(own.live.map((l: any) => l.entry_id), ['meetup-ankara-2027']);
+});
+
+test('a webinar\'s year is its date\'s year', () => {
+  const side = (year: number) => ({ frontmatter: { title: 't', date: '2027-01-15', speaker: 'S', description: 'd', year, type: 'bioinfonet' }, body: '' });
+  assert.equal(validateDraft(WEBINARS, { en: side(2027), tr: side(2027) }).ok, true);
+  const bad = validateDraft(WEBINARS, { en: side(2026), tr: side(2027) }) as any;
+  assert.equal(bad.ok, false);
+  assert.ok(bad.errors['en.frontmatter.year']);
+});

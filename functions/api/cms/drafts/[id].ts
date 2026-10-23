@@ -1,9 +1,10 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, readJson } from '../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, readJson, refusePairClash } from '../../../_lib/cms-api';
+import { fileShasOnBase } from '../../../_lib/github';
 import { closePr, deleteBranch } from '../../../_lib/github';
-import { canTransition, checkSameId, newEntryId, newPaths, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { canTransition, checkSameId, ID_FIELD, newEntryId, newPaths, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -33,6 +34,9 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   if (!canTransition('save', row.status)) return badState();
   const body = await readJson(request);
   if (!body) return fail(400, 'bad_request', 'Send a JSON object of at most 256 KB');
+  // A save made on an older version (another tab, another device) would
+  // undo what was saved since: refused, and the panel says so.
+  if (body.write_nonce !== undefined && body.write_nonce !== row.write_nonce) return changed();
 
   const v = validateDraft(type, body.data, 'lenient');
   if (!v.ok) return invalid(v.errors);
@@ -42,6 +46,19 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
     const id = newEntryId(type, v.data);
     if (!id.ok) return invalid(id.errors);
     entryId = id.data;
+    const taken = { [ID_FIELD[type.key]]: 'An entry with this name already exists' };
+    if (entryId !== row.entry_id) {
+      // A new name: the file must not be on main (as when the draft began).
+      let onMain: Record<string, string | null>;
+      try {
+        onMain = await fileShasOnBase(newPaths(type, entryId), env);
+      } catch (e) {
+        return githubFailed(e);
+      }
+      if (Object.values(onMain).some((sha) => sha !== null)) return invalid(taken);
+    }
+    const clash = await refusePairClash(request, env, type, entryId, 'create', v.data);
+    if (clash) return clash.status === 409 ? invalid(taken) : clash;
     // Checked against main at approval, as every path is.
     baseShas = JSON.stringify(Object.fromEntries(newPaths(type, entryId).map((p) => [p, null])));
   } else {

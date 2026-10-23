@@ -35,6 +35,11 @@ export const webinarSchema = z.object({
   // Example: domains: [genomics, ml]
   domains: z.array(z.string()).default([]),
   draft: z.boolean().default(false),
-});
+})
+  // Every file agrees today; the panel derives `year` from `date`.
+  .refine((w) => !(w.date instanceof Date) || Number.isNaN(w.date.getTime()) || typeof w.year !== "number" || w.year === w.date.getUTCFullYear(), {
+    message: "year is not the date's year",
+    path: ["year"],
+  });
 
 export type Webinar = z.infer<typeof webinarSchema>;
