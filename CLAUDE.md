@@ -52,6 +52,12 @@ anyone.
 8. **Learning-path resource `id`s never change and are never reused.** They
    are the keys under which members' progress is saved. Reorder, add and
    delete freely. `tests/lp-resource-ids.test.ts` enforces this.
+9. **Everything done in the admin panel goes in the activity log.** Write
+   the change and its audit row together with `runWithAudit`
+   (`functions/_lib/audit.ts`). `tests/audit-coverage.test.ts` fails on a
+   new admin endpoint that changes something without logging it. Log rows
+   are kept a year, so they carry ids and counts, never data that is
+   deleted sooner, such as a certificate holder's name or address.
 
 ## Where things live
 

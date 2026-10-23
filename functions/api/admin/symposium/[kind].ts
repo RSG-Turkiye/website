@@ -7,6 +7,7 @@
 // `kind` comes straight from the URL, so it is untrusted: an unknown value
 // is a 404, not a 500 from a query against a table name we made up.
 import type { Env } from '../../../_lib/auth';
+import { runWithAudit } from '../../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, canManageSymposium } from '../../../_lib/auth';
 import { KIND_TABLES, rowFromInput, rowToInput, triggerRebuild, conflictingSlug } from '../../../_lib/symposium';
 import type {
@@ -158,7 +159,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const id = generateId();
 
   const { sql, values } = insertStatement(kind, row, id, sort);
-  await env.DB.prepare(sql).bind(...values).run();
+  await runWithAudit(env.DB, [env.DB.prepare(sql).bind(...values)], {
+    userId: user.id, action: `symposium.${kind}.create`, targetType: kind, targetId: id,
+    details: { year, label: (row as { name?: string; title?: string }).name ?? (row as { title?: string }).title ?? null },
+  });
 
   // The write is already committed at this point. A dead or misconfigured
   // hook must not turn a saved edit into a failed request -- see

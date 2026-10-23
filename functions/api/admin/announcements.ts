@@ -1,6 +1,7 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId, canManageAnnouncements } from '../../_lib/auth';
 import { triggerRebuild } from '../../_lib/symposium';
+import { runWithAudit } from '../../_lib/audit';
 import {
   announcementSite,
   announcementText,
@@ -90,7 +91,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const id = generateId();
   const now = Math.floor(Date.now() / 1000);
 
-  await env.DB.prepare(
+  await runWithAudit(env.DB, [env.DB.prepare(
     `INSERT INTO announcements
       (id, site, title, description, button_text, button_url, show_as_popup, expires_at, created_by, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -108,7 +109,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     expiresAt.value,
     user.id,
     now
-  ).run();
+  )], { userId: user.id, action: 'announcement.create', targetType: 'announcement', targetId: id, details: { site: site.value, title: title.value } }, now);
 
   // A symposium announcement lives on a statically built site that reads it
   // at build time, so without this it appears at the next nightly rebuild --

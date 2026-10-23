@@ -3,6 +3,7 @@
 // is the only write path onto `symposium_edition` -- everything else about
 // an edition (speakers, sessions, committee) is future tasks' territory.
 import type { Env } from '../../../_lib/auth';
+import { runWithAudit } from '../../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../../_lib/auth';
 import { editionRowFromInput, editionYearAllowed, rowToEditionInput, triggerRebuild } from '../../../_lib/symposium';
 import type { EditionRow, EditionInput } from '../../../_lib/symposium';
@@ -74,7 +75,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
 
   const now = Math.floor(Date.now() / 1000);
 
-  await env.DB.prepare(
+  await runWithAudit(env.DB, [env.DB.prepare(
     `INSERT INTO symposium_edition
       (year, registration_url, registration_deadline, abstract_url, abstract_deadline, venue_public, city_public, updated_by, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -97,7 +98,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
     row.city_public,
     user.id,
     now
-  ).run();
+  )], { userId: user.id, action: 'symposium.edition.update', targetType: 'symposium_year', targetId: String(row.year) }, now);
 
   // The write is already committed at this point. A dead or misconfigured
   // hook must not turn a saved edit into a failed request -- see

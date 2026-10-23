@@ -49,6 +49,8 @@ function harness(status: string) {
     DB: {
       prepare(sql: string) {
         return {
+          // The audit log reads its chain head without binding anything.
+          async first() { return null; },
           bind: (..._v: unknown[]) => ({
             async first() {
               if (/FROM sessions/.test(sql)) return { user_id: 'admin-1' };

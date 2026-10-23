@@ -1,4 +1,5 @@
 import type { Env } from '../../../_lib/auth';
+import { appendAudit } from '../../../_lib/audit';
 import { getSessionUser, jsonResponse } from '../../../_lib/auth';
 import { renderPlainWithLinks } from '../../../_lib/markdown';
 
@@ -33,6 +34,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       ).bind(id, user.id).first<ThreadRecord>();
 
   if (!thread) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  await appendAudit(env.DB, { userId: user.id, action: 'read.mail_thread', targetType: 'mail_thread', targetId: id });
 
   const messages = await env.DB.prepare(
     `SELECT id, direction, from_email, from_name, subject, body_text,

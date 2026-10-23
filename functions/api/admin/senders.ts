@@ -1,11 +1,13 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
 import { parseRecipients } from '../../_lib/mail';
+import { runWithAudit } from '../../_lib/audit';
 
 /**
  * users.is_sender is the authority for "may this user send"; sender_grants is
  * the record of how they came to be allowed. Both are written together, here,
- * so no caller can set one without the other.
+ * with the audit row, so no caller can set one without the other or without
+ * the change being logged.
  */
 export async function grantSender(
   env: Env,
@@ -14,7 +16,7 @@ export async function grantSender(
   grantedBy: string,
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
-  await env.DB.batch([
+  await runWithAudit(env.DB, [
     env.DB.prepare('UPDATE users SET is_sender = 1 WHERE id = ?').bind(userId),
     // Idempotent: if this user already has a live (unrevoked) grant row, skip
     // the insert. Without this, re-granting an already-active sender (e.g. a
@@ -28,12 +30,12 @@ export async function grantSender(
          SELECT 1 FROM sender_grants WHERE user_id = ? AND revoked_at IS NULL
        )`
     ).bind(generateId(), userId, team, grantedBy, now, userId),
-  ]);
+  ], { userId: grantedBy, action: 'role.change', targetType: 'user', targetId: userId, details: { role: 'is_sender', value: 1, team } }, now);
 }
 
 export async function revokeSender(env: Env, userId: string, revokedBy: string): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
-  await env.DB.batch([
+  await runWithAudit(env.DB, [
     env.DB.prepare('UPDATE users SET is_sender = 0 WHERE id = ?').bind(userId),
     env.DB.prepare(
       `UPDATE sender_grants SET revoked_by = ?, revoked_at = ?
@@ -43,7 +45,7 @@ export async function revokeSender(env: Env, userId: string, revokedBy: string):
          ORDER BY granted_at DESC LIMIT 1
        )`
     ).bind(revokedBy, now, userId),
-  ]);
+  ], { userId: revokedBy, action: 'role.change', targetType: 'user', targetId: userId, details: { role: 'is_sender', value: 0 } }, now);
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {

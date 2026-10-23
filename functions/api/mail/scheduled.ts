@@ -1,4 +1,5 @@
 import type { Env } from '../../_lib/auth';
+import { runWithAudit, appendAudit } from '../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
 import { validateCompose } from '../../_lib/mail';
 import { validateScheduledAt } from '../../_lib/schedule';
@@ -109,7 +110,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   // Kept, they would carry the old schedule's clock into the new one -- a row
   // stamped today and moved to tomorrow was retired at the first tick of
   // tomorrow without a single new attempt.
-  await env.DB.prepare(
+  await runWithAudit(env.DB, [env.DB.prepare(
     `UPDATE scheduled_emails
      SET recipients = ?, subject = ?, body = ?,
          attachment_ids = ?, scheduled_at = ?, updated_at = ?,
@@ -124,7 +125,10 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     Math.floor(Date.now() / 1000),
     body.id,
     user.id,
-  ).run();
+  )], {
+    userId: user.id, action: 'mail.scheduled.update', targetType: 'scheduled_email', targetId: body.id,
+    details: { subject: body.subject.trim(), recipients: validation.recipients.length, at: when.scheduledAt },
+  });
 
   return jsonResponse({ ok: true });
 };
@@ -156,5 +160,6 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(body.id, user.id).run();
 
   if (res.meta.changes === 0) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  await appendAudit(env.DB, { userId: user.id, action: 'mail.scheduled.cancel', targetType: 'scheduled_email', targetId: body.id });
   return jsonResponse({ ok: true });
 };

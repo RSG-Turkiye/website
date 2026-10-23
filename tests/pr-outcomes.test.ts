@@ -281,6 +281,7 @@ function fakeDb(editionsRows: FakeRow[]) {
   const runCalls: Array<{ sql: string; args: unknown[] }> = [];
   function makeStmt(sql: string, boundArgs: unknown[] = []) {
     return {
+      sql,
       bind: (...args: unknown[]) => makeStmt(sql, args),
       all: async <T,>() => {
         if (sql.includes('FROM symposium_edition') && sql.includes('ORDER BY year ASC')) {
@@ -305,7 +306,13 @@ function fakeDb(editionsRows: FakeRow[]) {
       first: async () => null,
     };
   }
-  return { DB: { prepare: (sql: string) => makeStmt(sql) } as never, runCalls };
+  // A batch runs its statements in order, as D1 does; the audit row it
+  // carries is left out of runCalls so the assertions see only the edition.
+  const batch = async (stmts: { run(): Promise<unknown>; sql?: string }[]) => {
+    for (const st of stmts) if (!st.sql?.includes('audit_log')) await st.run();
+    return [];
+  };
+  return { DB: { prepare: (sql: string) => makeStmt(sql), batch } as never, runCalls };
 }
 
 function makeGithubFetch(markdownByYear: Record<number, string>) {

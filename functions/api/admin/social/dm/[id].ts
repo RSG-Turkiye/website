@@ -1,5 +1,6 @@
 /** One DM conversation, fetched live from Instagram; opening it marks it read for the whole team. */
 import type { Env } from '../../../../_lib/auth';
+import { appendAudit } from '../../../../_lib/audit';
 import { getSessionUser, jsonResponse, canSocialPublish } from '../../../../_lib/auth';
 import { markBroken } from '../../../../_lib/connections';
 import { usableToken } from '../../../../_lib/social/tokens';
@@ -16,6 +17,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   const row = await env.DB.prepare(`SELECT * FROM social_dm_threads WHERE id = ?`).bind(id).first<DmThreadRow>();
   if (!row) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   const now = Math.floor(Date.now() / 1000);
+  await appendAudit(env.DB, { userId: user.id, action: 'read.dm_thread', targetType: 'dm_thread', targetId: id }, now);
   if (row.last_inbound_at) {
     await env.DB.prepare(`UPDATE social_dm_threads SET read_at = ?, read_by = ? WHERE id = ?`).bind(now, user.id, id).run();
     row.read_at = now;

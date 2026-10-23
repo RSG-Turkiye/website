@@ -4,6 +4,7 @@
 // to wait for tonight's run. Gated exactly like edition.ts's PUT: this is a
 // browser session, not the cron Worker's shared secret.
 import type { Env } from '../../../_lib/auth';
+import { appendAudit } from '../../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../../_lib/auth';
 import { snapshotEdition } from './archive';
 import type { EditionCandidateRow, ArchiveResult } from './archive';
@@ -32,6 +33,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const result: ArchiveResult = await snapshotEdition(edition, env);
+  await appendAudit(env.DB, {
+    userId: user.id, action: 'symposium.snapshot', targetType: 'symposium_year', targetId: String(edition.year),
+    details: { status: result.status, pr: 'prUrl' in result ? result.prUrl : null },
+  });
 
   switch (result.status) {
     case 'snapshotted':

@@ -1,4 +1,5 @@
 import type { Env } from '../../../../_lib/auth';
+import { appendAudit } from '../../../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../../../_lib/auth';
 import { checkRateLimit, MAX_BODY_LENGTH } from '../../../../_lib/mail';
 import { sendAndLog, type ComposeInput } from '../../../../_lib/compose';
@@ -79,6 +80,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   };
 
   const results = await sendAndLog(env, composeInput, []);
+  await appendAudit(env.DB, {
+    userId: user.id, action: 'mail.reply', targetType: 'mail_thread', targetId: thread.id,
+    details: { sent: results.filter((r) => r.status === 'sent').length },
+  });
 
   // Re-read the thread so the member sees their reply immediately instead of
   // waiting for the next cron tick. Failing here costs nothing permanent: the

@@ -6,6 +6,7 @@
 // `kind` is untrusted (it's a URL segment): an unknown value is a 404, not a
 // 500 from a query against a table name we made up.
 import type { Env } from '../../../../_lib/auth';
+import { runWithAudit } from '../../../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium } from '../../../../_lib/auth';
 import { KIND_TABLES, rowFromInput, triggerRebuild, conflictingSlug } from '../../../../_lib/symposium';
 import type {
@@ -130,7 +131,10 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
   }
 
   const { sql, values } = updateStatement(kind, row, id);
-  await env.DB.prepare(sql).bind(...values).run();
+  await runWithAudit(env.DB, [env.DB.prepare(sql).bind(...values)], {
+    userId: user.id, action: `symposium.${kind}.update`, targetType: kind, targetId: id,
+    details: { year: existing.year, label: (row as { name?: string; title?: string }).name ?? (row as { title?: string }).title ?? null },
+  });
 
   const rebuild = await triggerRebuild(env);
   return jsonResponse({ ok: true, rebuild });
@@ -150,7 +154,10 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   if (!existing) return jsonResponse({ error: 'Not found' }, 404);
 
   const table = KIND_TABLES[kind];
-  await env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(id).run();
+  await runWithAudit(env.DB, [env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(id)], {
+    userId: user.id, action: `symposium.${kind}.delete`, targetType: kind, targetId: id,
+    details: { year: existing.year },
+  });
 
   const rebuild = await triggerRebuild(env);
   return jsonResponse({ ok: true, rebuild });

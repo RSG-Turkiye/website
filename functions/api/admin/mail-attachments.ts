@@ -1,4 +1,5 @@
 import type { Env } from '../../_lib/auth';
+import { runWithAudit } from '../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
 import { MAX_ATTACHMENT_BYTES } from '../../_lib/mail';
 
@@ -62,11 +63,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const key = `${id}.${ALLOWED_TYPES[contentType]}`;
   await env.MAIL_ATTACHMENTS.put(key, bytes, { httpMetadata: { contentType } });
 
-  await env.DB.prepare(
+  await runWithAudit(env.DB, [env.DB.prepare(
     `INSERT INTO mail_attachments
       (id, filename, r2_key, content_type, size_bytes, uploaded_by, uploaded_at, is_active)
      VALUES (?, ?, ?, ?, ?, ?, ?, 1)`
-  ).bind(id, filename, key, contentType, bytes.byteLength, user.id, Math.floor(Date.now() / 1000)).run();
+  ).bind(id, filename, key, contentType, bytes.byteLength, user.id, Math.floor(Date.now() / 1000))], {
+    userId: user.id, action: 'mail.attachment.upload', targetType: 'mail_attachment', targetId: id,
+    details: { filename, size: bytes.byteLength },
+  });
 
   return jsonResponse({ ok: true, id });
 };
@@ -94,8 +98,11 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
 
   // Deactivate rather than delete: sent_emails rows reference these ids, and
   // the log has to stay readable.
-  await env.DB.prepare('UPDATE mail_attachments SET is_active = ? WHERE id = ?')
-    .bind(body.is_active ? 1 : 0, body.id).run();
+  await runWithAudit(env.DB, [env.DB.prepare('UPDATE mail_attachments SET is_active = ? WHERE id = ?')
+    .bind(body.is_active ? 1 : 0, body.id)], {
+    userId: user.id, action: body.is_active ? 'mail.attachment.activate' : 'mail.attachment.deactivate',
+    targetType: 'mail_attachment', targetId: body.id,
+  });
 
   return jsonResponse({ ok: true });
 };
