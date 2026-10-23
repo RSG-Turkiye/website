@@ -1,13 +1,13 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CommitteeCard from '../../layouts/CommitteeCard.astro';
-import { getCommittees } from '../../data/committees';
+import { getCommittees } from '../../lib/get-committees';
 import { useTranslations } from '../../i18n/ui';
 
 const lang = 'tr';
 const t = useTranslations(lang);
 const pageTitle = "Hakkımızda - RSG-Türkiye";
-const committees = getCommittees(lang);
+const committees = await getCommittees(lang);
 
 const singleColCommittees = committees.filter(c => c.members.length < 2);
 const lastSingleAlone = singleColCommittees.length % 3 === 1;

@@ -4,6 +4,7 @@ import { glob } from "astro/loaders";
 import { workshopSchema } from "./data/workshops";
 import { eventSchema } from "./data/events";
 import { resourceSchema as linkSchema } from "./data/resources";
+import { committeeSchema } from "./data/committees";
 
 // Blog posts are organized by language:
 //   src/content/blog/en/<slug>.md  → /blog/<slug>
@@ -207,4 +208,12 @@ const resources = defineCollection({
   schema: linkSchema,
 });
 
-export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources };
+// committees -- one JSON file per committee on /about, published with each
+// member's consent and without e-mail addresses (see src/data/committees.ts;
+// src/lib/get-committees.ts loads them).
+const committees = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/committees" }),
+  schema: committeeSchema,
+});
+
+export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees };

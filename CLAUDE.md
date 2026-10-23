@@ -37,7 +37,9 @@ anyone.
    D1 hits its daily limit, writes fail and the submission is lost.
 4. **Personal data never goes into git**, not even a private repo, because git
    history cannot be deleted. It lives in D1 or in the organisation's Google
-   Drive, where deleting actually deletes.
+   Drive, where deleting actually deletes. Published committee profiles,
+   with the member's consent, are content and may be in git
+   (`src/content/committees`); their e-mail addresses are not.
 5. **Nothing leaves the organisation without a human pressing send.** E-mails
    to faculty, speakers and members, social posts and DMs are drafted by the
    site and approved by a person.

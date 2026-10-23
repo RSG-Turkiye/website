@@ -1,0 +1,106 @@
+{
+  "order": 0,
+  "name": {
+    "en": "Chair",
+    "tr": "Yönetim Kurulu"
+  },
+  "description": {
+    "en": "Leading the organization with vision and strategy.",
+    "tr": "Organizasyonu vizyon ve strateji ile yönetmek."
+  },
+  "members": [
+    {
+      "name": "Emre Taha Çevik",
+      "role": {
+        "en": "President",
+        "tr": "Başkan"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199905/rsgturkey/committee/emre-taha-cevik.png",
+      "education": [
+        {
+          "degree": {
+            "en": "MSc",
+            "tr": "Yüksek Lisans"
+          },
+          "field": {
+            "en": "Bioinformatics and Systems Biology",
+            "tr": "Bioinformatik ve Sistem Biyolojisi"
+          },
+          "institution": {
+            "en": "Gebze Technical University",
+            "tr": "Gebze Teknik Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/emrecev/"
+        }
+      ],
+      "consent": true
+    },
+    {
+      "name": "Gizem Beyza Anık",
+      "role": {
+        "en": "Vice President",
+        "tr": "Başkan Yardımcısı"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199906/rsgturkey/committee/gizem-beyza-anik.jpg",
+      "education": [
+        {
+          "degree": {
+            "en": "Graduated",
+            "tr": "Mezun"
+          },
+          "field": {
+            "en": "Biology",
+            "tr": "Biyoloji"
+          },
+          "institution": {
+            "en": "Marmara University",
+            "tr": "Marmara Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/gizem-beyza-a-2859b2226/"
+        }
+      ],
+      "consent": true
+    },
+    {
+      "name": "Sude Karaoğlan",
+      "role": {
+        "en": "Secretary",
+        "tr": "Sekreter"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199910/rsgturkey/committee/sude-karaoglan.jpg",
+      "education": [
+        {
+          "degree": {
+            "en": "Undergraduate",
+            "tr": "Lisans"
+          },
+          "field": {
+            "en": "Bioengineering",
+            "tr": "Biyomühendislik"
+          },
+          "institution": {
+            "en": "Gebze Technical University",
+            "tr": "Gebze Teknik Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/sudekaraoglan/"
+        }
+      ],
+      "consent": true
+    }
+  ]
+}

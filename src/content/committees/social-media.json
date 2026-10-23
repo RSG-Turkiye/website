@@ -1,0 +1,44 @@
+{
+  "order": 3,
+  "name": {
+    "en": "Social Media Committee",
+    "tr": "Sosyal Medya Komitesi"
+  },
+  "description": {
+    "en": "Managing social media accounts and community engagement.",
+    "tr": "Sosyal medya hesaplarını ve topluluk katılımını yönetmek."
+  },
+  "members": [
+    {
+      "name": "Zeynep Ateşgil",
+      "role": {
+        "en": "Social Media Leader",
+        "tr": "Sosyal Medya Ekibi Lideri"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199947/rsgturkey/committee/zeynep-atesegil.jpg",
+      "education": [
+        {
+          "degree": {
+            "en": "BSc",
+            "tr": "Lisans"
+          },
+          "field": {
+            "en": "Molecular Biology and Genetics",
+            "tr": "Molecular Biology and Genetics"
+          },
+          "institution": {
+            "en": "Uludağ University",
+            "tr": "Uludağ Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/zeynep-ate%C5%9Fgil/"
+        }
+      ],
+      "consent": true
+    }
+  ]
+}
