@@ -7,6 +7,7 @@ import { call } from './lib/social';
 import { resolveExpiry, roleDef } from '../functions/_lib/roles';
 import * as users from '../functions/api/admin/users';
 import * as senders from '../functions/api/admin/senders';
+import { expireGrants } from '../functions/_lib/role-grants';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
 const ORIGIN = { Origin: 'https://rsg-turkiye.iscbsc.org' };
@@ -175,6 +176,36 @@ test('revoking a sender ends the grant and the sender_grants row', async () => {
   assert.ok((db.prepare(`SELECT revoked_at FROM sender_grants WHERE user_id = 'u2'`).get() as { revoked_at: number }).revoked_at);
   const actions = db.prepare(`SELECT action FROM audit_log ORDER BY seq`).all().map((r) => (r as { action: string }).action);
   assert.deepEqual(actions, ['role.grant', 'role.revoke']);
+});
+
+test('a sender grant that runs out closes its record, so the next grant records the new team', async () => {
+  const { db, env } = setup();
+  const post = (body: unknown) => call(senders.onRequestPost, 'POST', '/api/admin/senders', { env, as: 'admin', headers: ORIGIN, body });
+  const end = nowS() + 60;
+  assert.equal((await post({ emails: 'two@example.org', team: 'Team A', duration: { until: end } })).status, 200);
+  assert.equal(await expireGrants((env as { DB: D1Database }).DB, end + 1), 1);
+  assert.equal(col(db, 'u2', 'is_sender'), 0);
+  assert.equal((await post({ emails: 'two@example.org', team: 'Team B' })).status, 200);
+  const rec = db.prepare(`SELECT team, revoked_at, revoked_by FROM sender_grants WHERE user_id = 'u2' ORDER BY granted_at, rowid`).all().map((r) => ({ ...r }));
+  assert.deepEqual(rec, [
+    { team: 'Team A', revoked_at: end, revoked_by: null },
+    { team: 'Team B', revoked_at: null, revoked_by: null },
+  ]);
+  const res = await call(senders.onRequestGet, 'GET', '/api/admin/senders', { env, as: 'admin' });
+  const body = (await res.json()) as { senders: { user_id: string; team: string | null }[] };
+  assert.deepEqual(body.senders.filter((s) => s.user_id === 'u2').map((s) => s.team), ['Team B']);
+});
+
+test('a sender who also holds a permanent sender grant keeps the record open when the timed one runs out', async () => {
+  const { db, env } = setup();
+  const post = (body: unknown) => call(senders.onRequestPost, 'POST', '/api/admin/senders', { env, as: 'admin', headers: ORIGIN, body });
+  const end = nowS() + 60;
+  assert.equal((await post({ emails: 'two@example.org', team: 'Team A', duration: { until: end } })).status, 200);
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('perm', 'u2', 'sender', NULL, NULL, 1)`).run();
+  assert.equal(await expireGrants((env as { DB: D1Database }).DB, end + 1), 1);
+  assert.equal(col(db, 'u2', 'is_sender'), 1);
+  assert.deepEqual(db.prepare(`SELECT team, revoked_at FROM sender_grants WHERE user_id = 'u2'`).all().map((r) => ({ ...r })),
+    [{ team: 'Team A', revoked_at: null }]);
 });
 
 test('GET filter=roles carries each user\'s live grants, staying under the 100-bind cap for 150 users', async () => {

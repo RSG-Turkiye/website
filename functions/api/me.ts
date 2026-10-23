@@ -31,7 +31,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     'SELECT badge_code FROM user_achievement_badges WHERE user_id = ?'
   ).bind(user.id).all<{ badge_code: string }>();
 
-  const grants = await activeGrants(env.DB, user.id, Math.floor(Date.now() / 1000));
+  // The header renders from this response, so a missing role_grants table
+  // (migration 8i not applied yet) must not take the whole answer down.
+  let grants: Awaited<ReturnType<typeof activeGrants>> = [];
+  try {
+    grants = await activeGrants(env.DB, user.id, Math.floor(Date.now() / 1000));
+  } catch (err) {
+    console.error('/api/me: activeGrants failed', err);
+  }
 
   const res = jsonResponse({
     user: {

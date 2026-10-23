@@ -4,7 +4,7 @@
 // audit row (runWithAudit). The one definition of "held" is LIVE below.
 
 import { runWithAudit } from './audit';
-import { ROLES, roleDef, parseDuration, defaultDuration, resolveExpiry, type RoleDef, type RoleKey } from './roles';
+import { ROLES, roleDef, parseDuration, defaultDuration, resolveExpiry, addMonths, type RoleDef, type RoleKey } from './roles';
 
 /** A grant that counts right now. Binds one parameter: now. */
 export const LIVE = 'revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)';
@@ -75,24 +75,42 @@ export async function grantRole(
 
 /**
  * Ends every live grant of `role`. Taking away social also takes away
- * social_publisher, which cannot work without it; the reverse leaves social.
- * The audit row's expiresAt is when the revoked grant would have ended.
+ * social_publisher, which cannot work without it. Taking away
+ * social_publisher leaves the social it implied, but no longer than an edit
+ * role may run: a live social grant ending later than a month from now (or
+ * never) is cut back to a month, so revoking a leader does not leave a
+ * year-long editor behind. The audit row's expiresAt is when the revoked
+ * grant would have ended; `capped` lists the implied roles that were cut back.
  */
 export async function revokeRole(
   db: D1Database,
   p: { userId: string; role: RoleKey; by: string; extra?: D1PreparedStatement[] },
   now: number,
 ): Promise<void> {
-  if (!roleDef(p.role)) throw new Error(`unknown role: ${p.role}`);
+  const def = roleDef(p.role);
+  if (!def) throw new Error(`unknown role: ${p.role}`);
   const current = await liveEnd(db, p.userId, p.role, now);
   const roles = ROLES.filter((r) => r.key === p.role || r.implies?.includes(p.role)).map((r) => r.key);
+  const cap = addMonths(now, 1);
+  const capped: RoleKey[] = [];
+  const caps: D1PreparedStatement[] = [];
+  for (const implied of def.implies ?? []) {
+    const left = await liveEnd(db, p.userId, implied, now);
+    if (left.held && endsLater(left.end, cap)) capped.push(implied);
+    caps.push(db.prepare(
+      `UPDATE role_grants SET expires_at = ? WHERE user_id = ? AND role = ? AND ${LIVE} AND (expires_at IS NULL OR expires_at > ?)`,
+    ).bind(cap, p.userId, implied, now, cap));
+  }
   await runWithAudit(db, [
     ...roles.map((role) => endLive(db, p.userId, role, p.by, now)),
+    ...caps,
     syncColumnsStatement(db, p.userId, now),
     ...(p.extra ?? []),
   ], {
     userId: p.by, action: 'role.revoke', targetType: 'user', targetId: p.userId,
-    details: { role: p.role, expiresAt: current.end },
+    details: capped.length
+      ? { role: p.role, expiresAt: current.end, capped: Object.fromEntries(capped.map((r) => [r, cap])) }
+      : { role: p.role, expiresAt: current.end },
   }, now);
 }
 
@@ -144,27 +162,47 @@ export async function requestedExpiry(
  * statement when nothing is due; it reads idx_role_grants_expiry. Each user
  * gets one batch: end their due grants, recompute columns, one role.expire
  * audit row. A grant ends at its own expires_at, not at the time of the sweep.
- * Returns how many grants it ended.
+ * When sender runs out, the user's open sender_grants record is closed in the
+ * same batch, as revokeSender does, so the next grant writes a fresh record
+ * with its own team. One user's failure is logged and the sweep goes on; the
+ * next tick retries it. Returns how many grants it ended.
  */
 export async function expireGrants(db: D1Database, now: number): Promise<number> {
   const { results } = await db.prepare(
-    'SELECT user_id, role FROM role_grants WHERE revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at <= ?',
-  ).bind(now).all<{ user_id: string; role: string }>();
+    'SELECT user_id, role, expires_at FROM role_grants WHERE revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at <= ?',
+  ).bind(now).all<{ user_id: string; role: string; expires_at: number }>();
   if (results.length === 0) return 0;
-  const byUser = new Map<string, Set<string>>();
+  const byUser = new Map<string, { role: string; expires_at: number }[]>();
   for (const r of results) {
-    if (!byUser.has(r.user_id)) byUser.set(r.user_id, new Set());
-    byUser.get(r.user_id)!.add(r.role);
+    if (!byUser.has(r.user_id)) byUser.set(r.user_id, []);
+    byUser.get(r.user_id)!.push(r);
   }
-  for (const [userId, roles] of byUser) {
-    await runWithAudit(db, [
+  let ended = 0;
+  for (const [userId, due] of byUser) {
+    const roles = [...new Set(due.map((g) => g.role))];
+    const statements = [
       db.prepare(
         'UPDATE role_grants SET revoked_at = expires_at, revoked_by = NULL WHERE user_id = ? AND revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at <= ?',
       ).bind(userId, now),
       syncColumnsStatement(db, userId, now),
-    ], {
-      userId: null, action: 'role.expire', targetType: 'user', targetId: userId, details: { roles: [...roles] },
-    }, now);
+    ];
+    const senderEnds = due.filter((g) => g.role === 'sender').map((g) => g.expires_at);
+    if (senderEnds.length) {
+      // Only when no other sender grant is still live: a permanent grant
+      // alongside the timed one keeps the record open.
+      statements.push(db.prepare(
+        `UPDATE sender_grants SET revoked_at = ?, revoked_by = NULL WHERE user_id = ? AND revoked_at IS NULL
+         AND NOT EXISTS (SELECT 1 FROM role_grants WHERE user_id = ? AND role = 'sender' AND ${LIVE})`,
+      ).bind(Math.max(...senderEnds), userId, userId, now));
+    }
+    try {
+      await runWithAudit(db, statements, {
+        userId: null, action: 'role.expire', targetType: 'user', targetId: userId, details: { roles },
+      }, now);
+      ended += due.length;
+    } catch (err) {
+      console.error(`expireGrants: user ${userId} failed`, err);
+    }
   }
-  return results.length;
+  return ended;
 }

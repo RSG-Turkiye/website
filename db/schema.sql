@@ -117,8 +117,14 @@
 --     reachable by is_admin accounts and by nobody else unless the role was
 --     granted by hand. The admin user list can now show and set it like any
 --     other role, and the hand-written form is kept only for a database with
---     no admin account to do it from:
+--     no admin account to do it from. Since 8i the is_* columns are a cache
+--     of role_grants, and a column set without a grant is wiped by the next
+--     role change for that user, so the hand recovery writes a permanent
+--     grant first and then the column:
+--       wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, note) SELECT lower(hex(randomblob(16))), id, 'symposium', NULL, NULL, unixepoch(), 'manual recovery' FROM users WHERE email = 'someone@example.com'"
 --       wrangler d1 execute rsg-members --remote --command="UPDATE users SET is_symposium = 1 WHERE email = 'someone@example.com'"
+--     The same two commands, with role 'admin' and is_admin, recover an
+--     admin account if every admin grant has lapsed.
 --
 -- 7g. The mail queue's exactly-once columns. Both are nullable and additive,
 --     so existing rows keep working; a queue row with no claimed_at is simply

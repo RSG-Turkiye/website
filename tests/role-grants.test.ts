@@ -3,9 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
-import { grantRole, revokeRole, activeGrants, expireGrants } from '../functions/_lib/role-grants';
+import { grantRole, revokeRole, activeGrants, expireGrants, syncColumnsStatement } from '../functions/_lib/role-grants';
+import { addMonths } from '../functions/_lib/roles';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
+/** The text of one numbered migration note, e.g. note('8i'). */
+const note = (id: string) => {
+  const start = SCHEMA.indexOf(`-- ${id}.`);
+  assert.ok(start >= 0, `note ${id} not found`);
+  const next = SCHEMA.slice(start + 1).search(/\n--\s*\n|\n\s*\n/);
+  return SCHEMA.slice(start, next < 0 ? undefined : start + 1 + next);
+};
 const NOW = 1_800_000_000;
 const DAY = 86400;
 const MONTH = 30 * DAY;
@@ -158,6 +166,38 @@ test('revoking social also revokes social_publisher; revoking social_publisher l
   assert.equal(flag(db, 'is_social_publisher'), 0);
 });
 
+test('revoking a permanent social_publisher cuts the social it implied back to one month', async () => {
+  const { db, DB } = setup();
+  await grantRole(DB, { userId: 'u1', role: 'social_publisher', expiresAt: null, by: 'admin' }, NOW);
+  await revokeRole(DB, { userId: 'u1', role: 'social_publisher', by: 'admin' }, NOW + 1);
+  assert.deepEqual(live(db, 'social', NOW + 1).map((g) => g.expires_at), [addMonths(NOW + 1, 1)]);
+  assert.equal(flag(db, 'is_social'), 1);
+  assert.equal(flag(db, 'is_social_publisher'), 0);
+  assert.deepEqual(audits(db).at(-1)!.details, { role: 'social_publisher', expiresAt: null, capped: { social: addMonths(NOW + 1, 1) } });
+});
+
+test('a social grant already ending within the month is left as it is when the publisher goes', async () => {
+  const { db, DB } = setup();
+  await grantRole(DB, { userId: 'u1', role: 'social_publisher', expiresAt: NOW + 10 * DAY, by: 'admin' }, NOW);
+  await revokeRole(DB, { userId: 'u1', role: 'social_publisher', by: 'admin' }, NOW + 1);
+  assert.deepEqual(live(db, 'social', NOW + 1).map((g) => g.expires_at), [NOW + 10 * DAY]);
+  assert.deepEqual(audits(db).at(-1)!.details, { role: 'social_publisher', expiresAt: NOW + 10 * DAY });
+});
+
+test('the 7f hand recovery leaves a role that survives the next column sync', async () => {
+  const { db, DB } = setup();
+  const commands = [...note('7f').matchAll(/--command="([^"]+)"/g)].map((m) => m[1].replaceAll('someone@example.com', 'one@example.org'));
+  assert.equal(commands.length, 2);
+  for (const c of commands) db.exec(c);
+  assert.equal(flag(db, 'is_symposium'), 1);
+  await syncColumnsStatement(DB, 'u1', NOW).run();
+  assert.equal(flag(db, 'is_symposium'), 1);
+  const [g] = live(db, 'symposium', NOW);
+  assert.equal(g.expires_at, null);
+  assert.equal(g.granted_by, null);
+  assert.equal((db.prepare("SELECT note FROM role_grants WHERE user_id = 'u1'").get() as { note: string }).note, 'manual recovery');
+});
+
 test('activeGrants leaves out revoked and expired grants', async () => {
   const { db, DB } = setup();
   const add = db.prepare('INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, revoked_at) VALUES (?, ?, ?, ?, NULL, 0, ?)');
@@ -178,8 +218,8 @@ test('the 8i backfill, run twice, gives one permanent grant per existing flag', 
   db.exec("UPDATE users SET is_admin = 1, is_writer = 1 WHERE id = 'admin'");
   db.exec("UPDATE users SET is_social = 1, is_social_publisher = 1, is_sender = 1 WHERE id = 'u1'");
   // The note's own commands, so the test checks what an operator would run.
-  const backfill = [...SCHEMA.matchAll(/--command="(INSERT INTO role_grants [^"]+)"/g)].map((m) => m[1]);
-  const reconcile = [...SCHEMA.matchAll(/--command="(UPDATE role_grants [^"]+)"/g)].map((m) => m[1]);
+  const backfill = [...note('8i').matchAll(/--command="(INSERT INTO role_grants [^"]+)"/g)].map((m) => m[1]);
+  const reconcile = [...note('8i').matchAll(/--command="(UPDATE role_grants [^"]+)"/g)].map((m) => m[1]);
   assert.equal(reconcile.length, 7, 'one reconcile statement per role');
   assert.equal(backfill.length, 7, 'one backfill statement per role');
   for (let run = 0; run < 2; run++) for (const s of backfill) db.exec(s);
@@ -196,7 +236,7 @@ test('the 8i backfill, run twice, gives one permanent grant per existing flag', 
 
 test('re-running the 8i backfill and reconcile catches roles changed by the old panel in between', () => {
   const { db } = setup();
-  const commands = (verb: string) => [...SCHEMA.matchAll(new RegExp(`--command="(${verb} role_grants [^"]+)"`, 'g'))].map((m) => m[1]);
+  const commands = (verb: string) => [...note('8i').matchAll(new RegExp(`--command="(${verb} role_grants [^"]+)"`, 'g'))].map((m) => m[1]);
   const backfill = commands('INSERT INTO');
   const reconcile = commands('UPDATE');
   db.exec("UPDATE users SET is_writer = 1, is_sender = 1 WHERE id = 'u1'");
@@ -292,4 +332,24 @@ test('with nothing due, expireGrants runs one indexed SELECT and writes nothing'
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
   const plan = (db.prepare(`EXPLAIN QUERY PLAN ${prepared[0]}`).all(NOW) as { detail: string }[]).map((r) => r.detail);
   assert.ok(plan.some((d) => d.includes('USING INDEX idx_role_grants_expiry')), `no expiry index: ${plan.join(' / ')}`);
+});
+
+test('one user failing does not stop the sweep for the others', async () => {
+  const { db, DB } = setup();
+  seed(db, 'writer', NOW - 5, 'u1');
+  seed(db, 'writer', NOW - 3, 'admin');
+  db.exec("UPDATE users SET is_writer = 1");
+  db.exec("CREATE TRIGGER no_u1 BEFORE INSERT ON audit_log WHEN NEW.target_id = 'u1' BEGIN SELECT RAISE(ABORT, 'audit down for u1'); END");
+  const errors: unknown[] = [];
+  const orig = console.error;
+  console.error = (...a: unknown[]) => { errors.push(a); };
+  try {
+    assert.equal(await expireGrants(DB, NOW), 1);
+  } finally {
+    console.error = orig;
+  }
+  assert.equal(errors.length, 1);
+  assert.equal(flag(db, 'is_writer'), 1, "u1's batch rolled back");
+  assert.equal((db.prepare("SELECT is_writer AS v FROM users WHERE id = 'admin'").get() as { v: number }).v, 0);
+  assert.deepEqual(audits(db).map((r) => r.target_id), ['admin']);
 });

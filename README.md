@@ -938,7 +938,7 @@ When the committee changes:
 - After changing the Gmail password, go to admin panel > Connections > Gmail >
   Reconnect.
 - Grant the incoming team their roles in Users and roles → Roles, and remove
-  the outgoing team's. Roles now end on their own: each grant has an end date,
+  the outgoing team's. Roles end on their own: each grant has an end date,
   and the hourly sweep takes the role away after it. Renew a role before its
   date in the same view; a renewed role starts a new grant.
 - Make sure at least two people are admins.
