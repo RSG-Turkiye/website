@@ -1,0 +1,26 @@
+{
+  "section": "md-drug",
+  "order": 3,
+  "title": {
+    "en": "TeachOpenCADD",
+    "tr": "TeachOpenCADD"
+  },
+  "description": {
+    "en": "Open-source, Python-based platform covering ligand-based and structure-based drug design in Jupyter notebooks.",
+    "tr": "Jupyter notebook tabanlı bilgisayar destekli ilaç tasarımı öğretim platformu. Açık kaynaklı, Python tabanlı; ligand ve yapı tabanlı yaklaşımları kapsar."
+  },
+  "url": "https://projects.volkamerlab.org/teachopencadd",
+  "tags": {
+    "en": [
+      "CADD",
+      "drug-design",
+      "jupyter"
+    ],
+    "tr": [
+      "CADD",
+      "ilaç-tasarımı",
+      "jupyter"
+    ]
+  },
+  "opensource": true
+}

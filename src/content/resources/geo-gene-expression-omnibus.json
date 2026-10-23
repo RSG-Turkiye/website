@@ -1,0 +1,24 @@
+{
+  "section": "databases",
+  "order": 5,
+  "title": {
+    "en": "GEO: Gene Expression Omnibus",
+    "tr": "GEO: Gen Ekspresyonu Omnibus"
+  },
+  "description": {
+    "en": "Public repository for high-throughput gene expression and functional genomics data (microarray, RNA-seq, ChIP-seq, etc.).",
+    "tr": "Yüksek işlem hacimli gen ekspresyonu ve fonksiyonel genomik verileri (mikrodizi, RNA-seq, ChIP-seq vb.) için herkese açık depo."
+  },
+  "url": "https://www.ncbi.nlm.nih.gov/geo",
+  "tags": {
+    "en": [
+      "gene-expression",
+      "transcriptomics"
+    ],
+    "tr": [
+      "gen-ekspresyonu",
+      "transkriptomik"
+    ]
+  },
+  "opensource": false
+}

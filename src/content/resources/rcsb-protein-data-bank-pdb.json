@@ -1,0 +1,24 @@
+{
+  "section": "databases",
+  "order": 2,
+  "title": {
+    "en": "RCSB Protein Data Bank (PDB)",
+    "tr": "RCSB Protein Veri Bankası (PDB)"
+  },
+  "description": {
+    "en": "Archive of 3D structural data of proteins, nucleic acids, and complexes determined by X-ray, NMR, and cryo-EM.",
+    "tr": "X-ışını, NMR ve kryo-EM ile belirlenen proteinlerin, nükleik asitlerin ve kompleks yapıların 3B yapısal verilerinin arşivi."
+  },
+  "url": "https://www.rcsb.org",
+  "tags": {
+    "en": [
+      "protein-structure",
+      "3d"
+    ],
+    "tr": [
+      "protein-yapısı",
+      "3b"
+    ]
+  },
+  "opensource": false
+}

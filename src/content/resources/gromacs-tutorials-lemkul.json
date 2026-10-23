@@ -1,0 +1,26 @@
+{
+  "section": "md-drug",
+  "order": 0,
+  "title": {
+    "en": "GROMACS Tutorials (Lemkul)",
+    "tr": "GROMACS Eğitimleri (Lemkul)"
+  },
+  "description": {
+    "en": "The most widely used GROMACS tutorial series by Justin Lemkul. Covers protein-ligand systems, membranes, and free energy calculations.",
+    "tr": "Justin Lemkul'un en yaygın kullanılan GROMACS eğitim serisi. Protein-ligand sistemleri, membranlar, serbest enerji hesaplamaları ve daha fazlasını kapsar."
+  },
+  "url": "http://www.mdtutorials.com/gmx",
+  "tags": {
+    "en": [
+      "GROMACS",
+      "MD",
+      "tutorials"
+    ],
+    "tr": [
+      "GROMACS",
+      "MD",
+      "eğitimler"
+    ]
+  },
+  "opensource": true
+}

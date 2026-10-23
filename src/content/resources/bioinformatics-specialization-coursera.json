@@ -1,0 +1,26 @@
+{
+  "section": "learning",
+  "order": 8,
+  "title": {
+    "en": "Bioinformatics Specialization (Coursera)",
+    "tr": "Bioinformatics Specialization (Coursera)"
+  },
+  "description": {
+    "en": "Seven-course specialization by Pavel Pevzner and Phillip Compeau (UC San Diego) covering algorithms and sequence analysis.",
+    "tr": "Pavel Pevzner ve Phillip Compeau'nun (UC San Diego) hazırladığı, algoritmaları ve dizi analizini kapsayan yedi derslik uzmanlaşma programı."
+  },
+  "url": "https://www.coursera.org/specializations/bioinformatics",
+  "tags": {
+    "en": [
+      "algorithms",
+      "coursera",
+      "sequence-analysis"
+    ],
+    "tr": [
+      "algoritmalar",
+      "coursera",
+      "dizi-analizi"
+    ]
+  },
+  "opensource": false
+}

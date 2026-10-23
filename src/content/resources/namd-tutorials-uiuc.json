@@ -1,0 +1,26 @@
+{
+  "section": "md-drug",
+  "order": 1,
+  "title": {
+    "en": "NAMD Tutorials (UIUC)",
+    "tr": "NAMD Eğitimleri (UIUC)"
+  },
+  "description": {
+    "en": "Official NAMD tutorials from the Theoretical and Computational Biophysics Group at UIUC. Covers equilibration, steered MD, and free energy perturbation.",
+    "tr": "Illinois Üniversitesi Teorik ve Hesaplamalı Biyofizik Grubu'nun resmi NAMD eğitimleri. Dengeleme, yönlendirilmiş MD, serbest enerji ve daha fazlasını kapsar."
+  },
+  "url": "https://www.ks.uiuc.edu/Training/Tutorials",
+  "tags": {
+    "en": [
+      "NAMD",
+      "MD",
+      "tutorials"
+    ],
+    "tr": [
+      "NAMD",
+      "MD",
+      "eğitimler"
+    ]
+  },
+  "opensource": true
+}

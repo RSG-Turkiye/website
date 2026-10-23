@@ -1,0 +1,26 @@
+{
+  "section": "databases",
+  "order": 0,
+  "title": {
+    "en": "NCBI",
+    "tr": "NCBI"
+  },
+  "description": {
+    "en": "Home of GenBank, PubMed, BLAST, RefSeq, and many other essential life-sciences databases and tools.",
+    "tr": "Ulusal Biyoteknoloji Bilgi Merkezi: GenBank, PubMed, BLAST, RefSeq ve daha pek çok temel veritabanının evi."
+  },
+  "url": "https://www.ncbi.nlm.nih.gov",
+  "tags": {
+    "en": [
+      "genomics",
+      "literature",
+      "sequences"
+    ],
+    "tr": [
+      "genomik",
+      "literatür",
+      "diziler"
+    ]
+  },
+  "opensource": false
+}

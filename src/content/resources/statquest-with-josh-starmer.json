@@ -1,0 +1,26 @@
+{
+  "section": "learning",
+  "order": 6,
+  "title": {
+    "en": "StatQuest with Josh Starmer",
+    "tr": "StatQuest: Josh Starmer"
+  },
+  "description": {
+    "en": "Clearly explained statistics and machine learning concepts, with a strong focus on biology and bioinformatics applications.",
+    "tr": "Biyoloji ve biyoinformatiğe odaklanan, açık anlatımıyla istatistik ve makine öğrenimi kavramlarını ele alan YouTube kanalı."
+  },
+  "url": "https://www.youtube.com/@statquest",
+  "tags": {
+    "en": [
+      "statistics",
+      "machine-learning",
+      "youtube"
+    ],
+    "tr": [
+      "istatistik",
+      "makine-öğrenimi",
+      "youtube"
+    ]
+  },
+  "opensource": false
+}

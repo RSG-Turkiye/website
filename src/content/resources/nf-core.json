@@ -1,0 +1,26 @@
+{
+  "section": "tools",
+  "order": 0,
+  "title": {
+    "en": "nf-core",
+    "tr": "nf-core"
+  },
+  "description": {
+    "en": "A community effort to collect curated, peer-reviewed Nextflow pipelines. 100+ analysis pipelines ready to run, covering RNA-seq, ChIP-seq, scRNA-seq, variant calling, and more.",
+    "tr": "Küratörlü, hakemli Nextflow pipeline'larını bir araya getiren topluluk girişimi. RNA-seq, ChIP-seq, tek hücre, varyant çağırma ve daha fazlasını kapsayan 100+ pipeline."
+  },
+  "url": "https://nf-co.re",
+  "tags": {
+    "en": [
+      "nextflow",
+      "pipelines",
+      "community"
+    ],
+    "tr": [
+      "nextflow",
+      "pipeline",
+      "topluluk"
+    ]
+  },
+  "opensource": true
+}

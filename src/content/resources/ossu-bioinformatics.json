@@ -1,0 +1,24 @@
+{
+  "section": "learning",
+  "order": 1,
+  "title": {
+    "en": "OSSU Bioinformatics",
+    "tr": "OSSU Bioinformatics"
+  },
+  "description": {
+    "en": "A free, open-source self-paced curriculum for a complete bioinformatics education, curated from top university courses.",
+    "tr": "Kapsamlı bir biyoinformatik eğitimi için ücretsiz, açık kaynaklı ve kendi hızınızda ilerleyebileceğiniz müfredat."
+  },
+  "url": "https://github.com/ossu/bioinformatics",
+  "tags": {
+    "en": [
+      "curriculum",
+      "self-paced"
+    ],
+    "tr": [
+      "müfredat",
+      "kendi-hızında"
+    ]
+  },
+  "opensource": true
+}

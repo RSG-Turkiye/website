@@ -1,0 +1,24 @@
+{
+  "section": "tools",
+  "order": 7,
+  "title": {
+    "en": "Cytoscape",
+    "tr": "Cytoscape"
+  },
+  "description": {
+    "en": "Open-source platform for visualizing and analyzing biological networks and pathways.",
+    "tr": "Biyolojik ağları ve yolları görselleştirmek ve analiz etmek için açık kaynaklı platform."
+  },
+  "url": "https://cytoscape.org",
+  "tags": {
+    "en": [
+      "networks",
+      "visualization"
+    ],
+    "tr": [
+      "ağlar",
+      "görselleştirme"
+    ]
+  },
+  "opensource": true
+}

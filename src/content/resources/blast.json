@@ -1,0 +1,24 @@
+{
+  "section": "tools",
+  "order": 6,
+  "title": {
+    "en": "BLAST",
+    "tr": "BLAST"
+  },
+  "description": {
+    "en": "Basic Local Alignment Search Tool: find regions of similarity between nucleotide or protein sequences and database entries.",
+    "tr": "Temel Yerel Hizalama Arama Aracı: nükleotid veya protein dizileri ile veritabanı girdileri arasındaki benzerlik bölgelerini bulun."
+  },
+  "url": "https://blast.ncbi.nlm.nih.gov",
+  "tags": {
+    "en": [
+      "sequence-search",
+      "alignment"
+    ],
+    "tr": [
+      "dizi-arama",
+      "hizalama"
+    ]
+  },
+  "opensource": true
+}

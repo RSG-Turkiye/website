@@ -1,0 +1,24 @@
+{
+  "section": "tools",
+  "order": 8,
+  "title": {
+    "en": "IGV: Integrative Genomics Viewer",
+    "tr": "IGV: Bütünleşik Genomik Görüntüleyici"
+  },
+  "description": {
+    "en": "High-performance desktop and web application for interactive exploration of genomic data.",
+    "tr": "Genomik verilerin interaktif olarak keşfedilmesi için yüksek performanslı masaüstü ve web uygulaması."
+  },
+  "url": "https://igv.org",
+  "tags": {
+    "en": [
+      "genome-browser",
+      "visualization"
+    ],
+    "tr": [
+      "genom-tarayıcısı",
+      "görselleştirme"
+    ]
+  },
+  "opensource": true
+}

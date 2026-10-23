@@ -1,0 +1,26 @@
+{
+  "section": "learning",
+  "order": 5,
+  "title": {
+    "en": "TeachOpenCADD",
+    "tr": "TeachOpenCADD"
+  },
+  "description": {
+    "en": "Jupyter-based teaching platform for computer-aided drug design using open-source Python tools. By the Volkamer Lab at Charité Berlin.",
+    "tr": "Açık kaynaklı araçlar ve Python kullanan bilgisayar destekli ilaç tasarımı (CADD) öğretim platformu. Charité Berlin'deki Volkamer Lab tarafından geliştirilmiştir."
+  },
+  "url": "https://projects.volkamerlab.org/teachopencadd",
+  "tags": {
+    "en": [
+      "CADD",
+      "drug-design",
+      "python"
+    ],
+    "tr": [
+      "CADD",
+      "ilaç-tasarımı",
+      "python"
+    ]
+  },
+  "opensource": true
+}

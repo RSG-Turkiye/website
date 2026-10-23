@@ -1,0 +1,26 @@
+{
+  "section": "tools",
+  "order": 5,
+  "title": {
+    "en": "Snakemake",
+    "tr": "Snakemake"
+  },
+  "description": {
+    "en": "Python-based workflow management system for reproducible and scalable data analyses.",
+    "tr": "Tekrarlanabilir ve ölçeklenebilir veri analizleri için Python tabanlı iş akışı yönetim sistemi."
+  },
+  "url": "https://snakemake.readthedocs.io",
+  "tags": {
+    "en": [
+      "workflow",
+      "python",
+      "pipelines"
+    ],
+    "tr": [
+      "iş-akışı",
+      "python",
+      "pipeline"
+    ]
+  },
+  "opensource": true
+}

@@ -1,0 +1,24 @@
+{
+  "section": "databases",
+  "order": 1,
+  "title": {
+    "en": "UniProt",
+    "tr": "UniProt"
+  },
+  "description": {
+    "en": "Comprehensive protein sequence and functional annotation database, covering Swiss-Prot (curated) and TrEMBL (automated).",
+    "tr": "Swiss-Prot (küratörlü) ve TrEMBL (otomatik) bölümlerini kapsayan kapsamlı protein dizisi ve fonksiyonel açıklama veritabanı."
+  },
+  "url": "https://www.uniprot.org",
+  "tags": {
+    "en": [
+      "proteins",
+      "annotation"
+    ],
+    "tr": [
+      "proteinler",
+      "açıklama"
+    ]
+  },
+  "opensource": false
+}
