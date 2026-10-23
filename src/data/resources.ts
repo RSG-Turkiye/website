@@ -13,7 +13,7 @@
 
 import { z } from "astro/zod";
 
-const bilingual = z.object({ en: z.string(), tr: z.string() });
+const bilingual = z.object({ en: z.string(), tr: z.string() }).strict();
 
 export const resourceSections = ["learning", "md-drug", "databases", "tools", "community"] as const;
 
@@ -24,9 +24,9 @@ export const resourceSchema = z.object({
   title: bilingual,
   description: bilingual,
   url: z.string(),
-  tags: z.object({ en: z.array(z.string()), tr: z.array(z.string()) }),
+  tags: z.object({ en: z.array(z.string()), tr: z.array(z.string()) }).strict(),
   opensource: z.boolean(),
-});
+}).strict();
 
 export type ResourceEntry = z.infer<typeof resourceSchema>;
 export type ResourceSection = (typeof resourceSections)[number];

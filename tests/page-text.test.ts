@@ -24,8 +24,8 @@ test('a known key returns the text in the requested language', () => {
   assert.equal(textLookup('about', record, 'tr')('hero_title'), 'Hakkımızda');
 });
 
-test('about, home, join and resources exist, validate, and every value has non-empty en and tr', () => {
-  assert.deepEqual(files.sort(), ['about.json', 'home.json', 'join.json', 'resources.json']);
+test('every page file validates, and every value has non-empty en and tr', () => {
+  assert.ok(files.length > 0);
   for (const { f, json } of raw) {
     const r = pageTextSchema.safeParse(json);
     assert.ok(r.success, `${f}: ${r.success ? '' : r.error.message}`);

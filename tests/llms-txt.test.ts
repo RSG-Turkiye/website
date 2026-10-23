@@ -49,7 +49,7 @@ test('every link to this site in the built llms.txt is a page that exists', { sk
 test('every listed workshop repository is public on GitHub', { skip: process.env.CHECK_NETWORK !== '1' && 'network check; set CHECK_NETWORK=1' }, async () => {
   const { workshopUrl } = await import('../src/data/workshops');
   const dir = new URL('../src/content/workshops/', import.meta.url).pathname;
-  for (const f of readdirSync(dir)) {
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
     const w = JSON.parse(readFileSync(dir + f, 'utf8'));
     const res = await fetch(workshopUrl(w), { method: 'HEAD', redirect: 'follow' });
     assert.equal(res.status, 200, workshopUrl(w));

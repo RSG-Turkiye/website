@@ -151,3 +151,30 @@ test('whitespace inside <script> and <style> still counts', () => {
   assert.ok(!same('<script>a\n  b</script>', '<script>a b</script>'));
   assert.ok(!same('<style>a\n  b</style>', '<style>a b</style>'));
 });
+
+test('diffRegions finds every separate change, not only the first', async () => {
+  const { diffRegions } = await import('../scripts/compare-builds');
+  assert.deepEqual(diffRegions('<p>a b c</p>', '<p>a b c</p>'), []);
+  const one = diffRegions('<p>one two three</p>', '<p>one TWO three</p>');
+  assert.deepEqual(one?.map((r) => [r.before, r.after]), [['two', 'TWO']]);
+  const filler = ' x'.repeat(200);
+  const two = diffRegions(`<p>a${filler}</p><p>b</p>`, `<p>A${filler}</p><p>B</p>`);
+  assert.deepEqual(two?.map((r) => [r.before, r.after]), [['a', 'A'], ['b', 'B']]);
+  // Words changed side by side, with only spaces between, are one region.
+  assert.equal(diffRegions('<p>a b c d</p>', '<p>a X Y d</p>')?.length, 1);
+  // An insertion and a deletion count too.
+  assert.deepEqual(diffRegions('<p>a</p><p>b</p>', '<p>a</p><i>n</i><p>b</p>')?.map((r) => r.after), ['<i>n</i>']);
+  assert.deepEqual(diffRegions('<p>a</p><i>n</i><p>b</p>', '<p>a</p><p>b</p>')?.map((r) => r.before), ['<i>n</i>']);
+  assert.equal(diffRegions('a b c d e f', 'A B C D E F', 3), null);
+});
+
+test('CLI reports a second change in the same file', () => {
+  const filler = ' x'.repeat(300);
+  const a = build({ 'p/index.html': `<p>first${filler}</p><p>second</p>` });
+  const b = build({ 'p/index.html': `<p>FIRST${filler}</p><p>SECOND</p>` });
+  const r = cli(a, b);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /2 differing regions/);
+  assert.match(r.stdout, /\[second\]/);
+  assert.match(r.stdout, /\[SECOND\]/);
+});

@@ -12,6 +12,7 @@
  */
 
 import { z } from "astro/zod";
+import { imageUrl } from "./image-url";
 
 type Lang = "en" | "tr";
 
@@ -21,7 +22,7 @@ const memberSchema = z
   .object({
     name: z.string(),
     role: bilingual,
-    image: z.string(),
+    image: imageUrl,
     education: z
       .array(
         z

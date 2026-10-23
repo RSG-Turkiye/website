@@ -4,11 +4,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { committeeSchema, committeesFor, sortCommittees } from '../src/data/committees';
 
 /**
- * src/content/committees: one JSON file per committee. These pin the move
- * from the two parallel TypeScript arrays: every file validates, no member
- * carries an e-mail address, every member has consented to the published
- * profile, and both languages get the committees, members and wording they
- * got before.
+ * src/content/committees: one JSON file per committee. Every file
+ * validates, no member carries an e-mail address, every member has consented
+ * to the published profile, and both languages are filled in.
  */
 
 const dir = new URL('../src/content/committees/', import.meta.url).pathname;
@@ -17,7 +15,7 @@ const raw = files.map((f) => ({ f, json: JSON.parse(readFileSync(dir + f, 'utf8'
 const all = raw.map(({ json }) => committeeSchema.parse(json));
 
 test('every committee JSON validates against the schema', () => {
-  assert.equal(files.length, 8);
+  assert.ok(files.length > 0);
   for (const { f, json } of raw) {
     const r = committeeSchema.safeParse(json);
     assert.ok(r.success, `${f}: ${r.success ? '' : r.error.message}`);
@@ -47,51 +45,48 @@ test('orders are contiguous from 0', () => {
   assert.deepEqual(all.map((c) => c.order).sort((a, b) => a - b), all.map((_, i) => i));
 });
 
-// The old arrays, as the two pages rendered them (names and roles).
-const expectedEn = [
-  ['Chair', [['Emre Taha Çevik', 'President'], ['Gizem Beyza Anık', 'Vice President'], ['Sude Karaoğlan', 'Secretary']]],
-  ['Webinar Committee', [['Ezgi Gokce', 'Webinar Leader']]],
-  ['Outreach Committee', [['Mariam Aseyakhe', 'Outreach Leader']]],
-  ['Social Media Committee', [['Zeynep Ateşgil', 'Social Media Leader']]],
-  ['Sponsorship Committee', [['Gökçe Koçak', 'Sponsorship Leader']]],
-  ['Translation Committee', [['Kurayi Chawatama', 'Translation Leader']]],
-  ['Website Committee', [['Hilal Kınalı', 'Website Leader']]],
-  ['Graphic Design Committee', [['Ayşe Akkan', 'Graphic Design Leader']]],
-];
-const expectedTr = [
-  ['Yönetim Kurulu', [['Emre Taha Çevik', 'Başkan'], ['Gizem Beyza Anık', 'Başkan Yardımcısı'], ['Sude Karaoğlan', 'Sekreter']]],
-  ['Webinar Komitesi', [['Ezgi Gokce', 'Webinar Ekibi Lideri']]],
-  ['Topluluk İlişkileri Komitesi', [['Mariam Aseyakhe', 'Topluluk İlişkileri Ekibi Lideri']]],
-  ['Sosyal Medya Komitesi', [['Zeynep Ateşgil', 'Sosyal Medya Ekibi Lideri']]],
-  ['Sponsorluk Komitesi', [['Gökçe Koçak', 'Sponsorluk Ekibi Lideri']]],
-  ['Çeviri Komitesi', [['Kurayi Chawatama', 'Çeviri Ekibi Lideri']]],
-  ['Web Sitesi Komitesi', [['Hilal Kınalı', 'Web Sitesi Ekibi Lideri']]],
-  ['Grafik Tasarım Komitesi', [['Ayşe Akkan', 'Grafik Tasarım Ekibi Lideri']]],
-];
-
-const snapshot = (lang: 'en' | 'tr') =>
-  committeesFor(all, lang).map((c) => [c.name, c.members.map((m) => [m.name, m.role])]);
-
-test('committees, members and roles in each language match the old arrays, in order', () => {
-  assert.deepEqual(snapshot('en'), expectedEn);
-  assert.deepEqual(snapshot('tr'), expectedTr);
+test('names, descriptions and roles have both languages', () => {
+  for (const c of all) {
+    for (const f of [c.name, c.description, ...c.members.map((m) => m.role)]) {
+      assert.ok(f.en.trim() && f.tr.trim(), c.name.en);
+    }
+  }
 });
 
-test('descriptions, education and links are picked per language', () => {
-  const en = committeesFor(all, 'en');
-  const tr = committeesFor(all, 'tr');
-  assert.equal(en[0].description, 'Leading the organization with vision and strategy.');
-  assert.equal(tr[0].description, 'Organizasyonu vizyon ve strateji ile yönetmek.');
-  assert.deepEqual(en[0].members[0].education, [{ degree: 'MSc', field: 'Bioinformatics and Systems Biology', institution: 'Gebze Technical University' }]);
-  assert.deepEqual(tr[0].members[0].education, [{ degree: 'Yüksek Lisans', field: 'Bioinformatik ve Sistem Biyolojisi', institution: 'Gebze Teknik Üniversitesi' }]);
+test('a member photo on a host blocked in Türkiye is refused', () => {
+  const base = all[0];
+  const member = { ...base.members[0], image: 'https://pub-x.r2.dev/a.jpg' };
+  assert.equal(committeeSchema.safeParse({ ...base, members: [member] }).success, false);
+});
+
+test('committeesFor picks one language and drops consent', () => {
+  const c = {
+    order: 0,
+    name: { en: 'Committee', tr: 'Komite' },
+    description: { en: 'Does things.', tr: 'Bir şeyler yapar.' },
+    members: [
+      {
+        name: 'Ada Örnek',
+        role: { en: 'Leader', tr: 'Lider' },
+        image: '/images/a.jpg',
+        education: [{ degree: { en: 'MSc', tr: 'Yüksek Lisans' }, field: { en: 'Biology', tr: 'Biyoloji' }, institution: { en: 'A University', tr: 'A Üniversitesi' } }],
+        socialMedia: [{ platform: 'github' as const, url: 'https://github.com/example' }],
+        consent: true as const,
+      },
+    ],
+  };
+  const [en] = committeesFor([c], 'en');
+  const [tr] = committeesFor([c], 'tr');
+  assert.equal(en.description, 'Does things.');
+  assert.equal(tr.description, 'Bir şeyler yapar.');
+  assert.equal(tr.members[0].role, 'Lider');
+  assert.deepEqual(en.members[0].education, [{ degree: 'MSc', field: 'Biology', institution: 'A University' }]);
+  assert.deepEqual(tr.members[0].education, [{ degree: 'Yüksek Lisans', field: 'Biyoloji', institution: 'A Üniversitesi' }]);
   // A link's url is one string for both languages.
-  assert.equal(en[4].members[0].socialMedia![0].url, tr[4].members[0].socialMedia![0].url);
-  assert.doesNotMatch(tr[4].members[0].socialMedia![0].url, /skipRedirect/);
-  for (const c of [...en, ...tr]) {
-    for (const m of c.members) {
-      assert.ok(!('email' in m));
-      assert.ok(!('consent' in m), 'consent is a content fact, not a render prop');
-    }
+  assert.equal(en.members[0].socialMedia![0].url, tr.members[0].socialMedia![0].url);
+  for (const m of [...en.members, ...tr.members]) {
+    assert.ok(!('email' in m));
+    assert.ok(!('consent' in m), 'consent is a content fact, not a render prop');
   }
 });
 

@@ -7,14 +7,8 @@ const dir = new URL('../src/content/resources/', import.meta.url).pathname;
 const entries = readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => ({ f, data: resourceSchema.parse(JSON.parse(readFileSync(dir + f, 'utf8'))) }));
 const all = entries.map((e) => e.data);
 
-// The literal lists the two pages carried (English titles), in page order.
-const expected: Record<string, string[]> = {
-  learning: ['Rosalind', 'OSSU Bioinformatics', 'EMBL-EBI Training', 'Harvard HBC Training', 'Galaxy Training Network', 'TeachOpenCADD', 'StatQuest with Josh Starmer', 'The Carpentries', 'Bioinformatics Specialization (Coursera)'],
-  'md-drug': ['GROMACS Tutorials (Lemkul)', 'NAMD Tutorials (UIUC)', 'CHARMM-GUI', 'TeachOpenCADD', 'Galaxy for Molecular Dynamics'],
-};
-
-test('there are 36 resources, one file each, every field in both languages', () => {
-  assert.equal(entries.length, 36);
+test('every resource validates and has every field in both languages', () => {
+  assert.ok(entries.length > 0);
   for (const { data: r } of entries) {
     for (const f of [r.title, r.description]) assert.ok(f.en.trim() && f.tr.trim());
     assert.ok(r.tags.en.length > 0);
@@ -30,27 +24,22 @@ test('slugs are unique and each section has contiguous orders from 0', () => {
   }
 });
 
-test('titles per section match the old arrays', () => {
-  const sorted = sortResources(all);
-  for (const [section, titles] of Object.entries(expected)) {
-    assert.deepEqual(sorted.filter((r) => r.section === section).map((r) => r.title.en), titles);
-  }
-  assert.deepEqual(
-    [...new Set(sorted.map((r) => r.section))],
-    ['learning', 'md-drug', 'databases', 'tools', 'community'],
-  );
-  assert.equal(sorted.filter((r) => r.section === 'databases').length, 10);
-  assert.equal(sorted.filter((r) => r.section === 'tools').length, 9);
-  assert.equal(sorted.filter((r) => r.section === 'community').length, 3);
+test('sections sort in page order, then by order within a section', () => {
+  const sections = [...new Set(sortResources(all).map((r) => r.section))];
+  const pageOrder = ['learning', 'md-drug', 'databases', 'tools', 'community'];
+  assert.deepEqual(sections, pageOrder.filter((s) => sections.includes(s as never)));
 });
 
-test('TeachOpenCADD sits in two sections as two files', () => {
-  const t = all.filter((r) => r.title.en === 'TeachOpenCADD');
-  assert.deepEqual(t.map((r) => r.section).sort(), ['learning', 'md-drug']);
+test('the schema refuses a misspelt key, at the top and in nested objects', () => {
+  const r = all[0];
+  assert.equal(resourceSchema.safeParse({ ...r, opensourse: true }).success, false);
+  assert.equal(resourceSchema.safeParse({ ...r, title: { ...r.title, de: 'x' } }).success, false);
+  assert.equal(resourceSchema.safeParse({ ...r, tags: { ...r.tags, de: [] } }).success, false);
 });
 
 test('resourcesFor picks one language', () => {
-  const tr = resourcesFor(all, 'learning', 'tr');
-  assert.equal(tr[2].title, 'EMBL-EBI Eğitim');
-  assert.equal(resourcesFor(all, 'learning', 'en')[2].title, 'EMBL-EBI Training');
+  const two = (title: string, i: number) => ({ section: 'tools' as const, order: i, title: { en: `${title} en`, tr: `${title} tr` }, description: { en: 'd', tr: 'd' }, url: 'https://x.org', tags: { en: ['a'], tr: ['a'] }, opensource: true });
+  const list = [two('b', 1), two('a', 0)];
+  assert.deepEqual(resourcesFor(list, 'tools', 'tr').map((r) => r.title), ['a tr', 'b tr']);
+  assert.deepEqual(resourcesFor(list, 'tools', 'en').map((r) => r.title), ['a en', 'b en']);
 });

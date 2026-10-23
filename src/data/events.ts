@@ -24,40 +24,55 @@
  */
 
 import { z } from "astro/zod";
+import { imageUrl } from "./image-url";
 
-const bilingual = z.object({ en: z.string(), tr: z.string() });
+const bilingual = z.object({ en: z.string(), tr: z.string() }).strict();
 
-export const eventSchema = z.object({
-  /** Also the file name: src/content/events/<id>.json. */
-  id: z.string(),
-  type: z.enum(["symposium", "workshop", "hackathon", "meetup"]),
-  /** First day, as YYYY-MM-DD, read as UTC midnight -- the same instant
-   * `new Date("2026-10-10")` gives. Used only for ordering and the status. */
-  start: z.coerce.date(),
-  /** Last day, when the event runs longer than one. Defaults to `start`. */
-  end: z.coerce.date().optional(),
-  /** Why a date or detail is what it is, for the next maintainer: JSON has no
-   * comments. Never rendered. */
-  note: z.string().optional(),
-  title: bilingual,
-  /** The date as a reader should see it. `start`/`end` drive the logic; this
-   * drives the page, so "3 – 4 October 2023" does not have to be derived. */
-  when: bilingual,
-  location: bilingual,
-  description: bilingual,
-  /** Public pages that show the event or what came out of it: the nf-core
-   * local-site page, a merged pull request, the materials repository
-   * (github.com/RSG-Turkiye/<repo>, labelled "Workshop materials"). */
-  links: z.array(z.object({ label: bilingual, url: z.string() })).optional(),
-  /** Part of RSG-Türkiye's nf-core / Nextflow work, which /workshops groups. */
-  nfcore: z.boolean().optional(),
-  /** A photo or poster, served from R2 through /api/images (r2.dev is blocked
-   * in Türkiye). `thumb` is about 720px for the card, `full` up to 1600px for
-   * a click. Posters use fit "contain" so the card does not crop their text. */
-  image: z
-    .object({ thumb: z.string(), full: z.string(), alt: bilingual, fit: z.enum(["cover", "contain"]).optional() })
-    .optional(),
-});
+/** A calendar day as YYYY-MM-DD, nothing else: not a timestamp, not a number,
+ * not 2026-02-30. Read as UTC midnight, the instant `new Date("2026-10-10")`
+ * gives. */
+const isoDay = z.iso.date().transform((s) => new Date(s));
+
+export const eventSchema = z
+  .object({
+    /** Also the file name: src/content/events/<id>.json. */
+    id: z.string(),
+    type: z.enum(["symposium", "workshop", "hackathon", "meetup"]),
+    /** First day, as YYYY-MM-DD, read as UTC midnight -- the same instant
+     * `new Date("2026-10-10")` gives. Used only for ordering and the status. */
+    start: isoDay,
+    /** Last day, when the event runs longer than one. Defaults to `start`. */
+    end: isoDay.optional(),
+    /** Why a date or detail is what it is, for the next maintainer: JSON has no
+     * comments. Never rendered. */
+    note: z.string().optional(),
+    title: bilingual,
+    /** The date as a reader should see it. `start`/`end` drive the logic; this
+     * drives the page, so "3 – 4 October 2023" does not have to be derived. */
+    when: bilingual,
+    location: bilingual,
+    description: bilingual,
+    /** Public pages that show the event or what came out of it: the nf-core
+     * local-site page, a merged pull request, the materials repository
+     * (github.com/RSG-Turkiye/<repo>, labelled "Workshop materials"). */
+    links: z.array(z.object({ label: bilingual, url: z.string() }).strict()).optional(),
+    /** Part of RSG-Türkiye's nf-core / Nextflow work, which /workshops groups. */
+    nfcore: z.boolean().optional(),
+    /** A photo or poster, served from R2 through /api/images (r2.dev is blocked
+     * in Türkiye). `thumb` is about 720px for the card, `full` up to 1600px for
+     * a click. Posters use fit "contain" so the card does not crop their text. */
+    image: z
+      .object({ thumb: imageUrl, full: imageUrl, alt: bilingual, fit: z.enum(["cover", "contain"]).optional() })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  // Zod still runs this when a date itself failed (it then holds the raw
+  // input), so it only compares two real dates.
+  .refine((e) => !(e.start instanceof Date && e.end instanceof Date) || e.end.getTime() >= e.start.getTime(), {
+    message: "end is before start",
+    path: ["end"],
+  });
 
 export type CommunityEvent = z.infer<typeof eventSchema>;
 export type EventType = CommunityEvent["type"];

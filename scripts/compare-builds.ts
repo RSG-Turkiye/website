@@ -29,6 +29,10 @@
  * entities are still equated). `<script>` and `<style>` are not HTML text at
  * all, so neither step touches them.
  *
+ * For each changed file the CLI reports every separate region that differs,
+ * not only the first, so a second change in a file that was changed on
+ * purpose cannot hide behind the first.
+ *
  *   npx tsx scripts/compare-builds.ts <before> <after>   (exit 1 on any difference)
  */
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
@@ -94,6 +98,86 @@ export function compareBuilds(before: string, after: string): { changed: string[
   };
 }
 
+// Tags, runs of other text and runs of whitespace: a page is mostly one long
+// line once whitespace is folded, so the diff works on these, not on lines.
+const tokens = (s: string) => s.match(/<[^>]*>?|[^<\s]+|\s+/g) ?? [];
+
+/** One differing region: where it starts in each text, and its text there. */
+export type Region = { at: number; before: string; after: string };
+
+/**
+ * The separate regions in which two texts differ, in order, from a token diff
+ * (Myers). Changes separated only by whitespace are one region. Returns null
+ * when the texts differ in more than `maxEdits` tokens, which is too many to
+ * list usefully.
+ */
+export function diffRegions(x: string, y: string, maxEdits = 2000): Region[] | null {
+  const a = tokens(x);
+  const b = tokens(y);
+  let lo = 0;
+  while (lo < a.length && lo < b.length && a[lo] === b[lo]) lo++;
+  let ha = a.length;
+  let hb = b.length;
+  while (ha > lo && hb > lo && a[ha - 1] === b[hb - 1]) { ha--; hb--; }
+  const n = ha - lo;
+  const m = hb - lo;
+  const max = Math.min(n + m, maxEdits);
+  const off = max + 1;
+  const v = new Int32Array(2 * max + 3);
+  const trace: Int32Array[] = [];
+  let found = -1;
+  outer: for (let d = 0; d <= max; d++) {
+    trace.push(v.slice());
+    for (let k = -d; k <= d; k += 2) {
+      let i = k === -d || (k !== d && v[off + k - 1] < v[off + k + 1]) ? v[off + k + 1] : v[off + k - 1] + 1;
+      let j = i - k;
+      while (i < n && j < m && a[lo + i] === b[lo + j]) { i++; j++; }
+      v[off + k] = i;
+      if (i >= n && j >= m) { found = d; break outer; }
+    }
+  }
+  if (found < 0) return null;
+  // Walk back from the end, marking which tokens of each side are unchanged.
+  const keepA = new Uint8Array(n);
+  const keepB = new Uint8Array(m);
+  let i = n;
+  let j = m;
+  for (let d = found; d >= 0; d--) {
+    const w = trace[d];
+    const k = i - j;
+    const pk = k === -d || (k !== d && w[off + k - 1] < w[off + k + 1]) ? k + 1 : k - 1;
+    const pi = d === 0 ? 0 : w[off + pk];
+    const pj = d === 0 ? 0 : pi - pk;
+    while (i > pi && j > pj) { i--; j--; keepA[i] = 1; keepB[j] = 1; }
+    i = pi;
+    j = pj;
+  }
+  // Character offsets of each token, to report positions and text.
+  const starts = (t: string[]) => { const o = [0]; for (const s of t) o.push(o[o.length - 1] + s.length); return o; };
+  const sa = starts(a);
+  const sb = starts(b);
+  const regions: Region[] = [];
+  let p = 0;
+  let q = 0;
+  while (p < n || q < m) {
+    if (p < n && q < m && keepA[p] && keepB[q]) { p++; q++; continue; }
+    const p0 = p;
+    const q0 = q;
+    // Extend over changed tokens, and over unchanged whitespace between them.
+    for (;;) {
+      while (p < n && !keepA[p]) p++;
+      while (q < m && !keepB[q]) q++;
+      let p2 = p;
+      let q2 = q;
+      while (p2 < n && q2 < m && keepA[p2] && keepB[q2] && /^\s+$/.test(a[lo + p2])) { p2++; q2++; }
+      if (p2 > p && ((p2 < n && !keepA[p2]) || (q2 < m && !keepB[q2]))) { p = p2; q = q2; continue; }
+      break;
+    }
+    regions.push({ at: sa[lo + p0], before: x.slice(sa[lo + p0], sa[lo + p]), after: y.slice(sb[lo + q0], sb[lo + q]) });
+  }
+  return regions;
+}
+
 // realpath on both sides: a symlinked path to this script must still run it.
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const [before, after] = process.argv.slice(2);
@@ -110,15 +194,21 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   }
   for (const f of r.added) console.log(`added:   ${f}`);
   for (const f of r.removed) console.log(`removed: ${f}`);
+  const SHOW = 10;
   for (const f of r.changed) {
-    // Pages are mostly one line once whitespace is folded, so show the first
-    // differing character with some context rather than a line.
     const x = normalise(readFileSync(join(before, f), 'utf8'), f);
     const y = normalise(readFileSync(join(after, f), 'utf8'), f);
-    let i = 0;
-    while (i < x.length && x[i] === y[i]) i++;
-    const at = Math.max(0, i - 80);
-    console.log(`changed: ${f}\n  at character ${i}\n  - ${x.slice(at, i + 120)}\n  + ${y.slice(at, i + 120)}`);
+    const regions = diffRegions(x, y);
+    if (!regions) {
+      console.log(`changed: ${f}\n  too many differences to list`);
+      continue;
+    }
+    console.log(`changed: ${f}\n  ${regions.length} differing region${regions.length === 1 ? '' : 's'}`);
+    for (const g of regions.slice(0, SHOW)) {
+      const ctx = x.slice(Math.max(0, g.at - 60), g.at);
+      console.log(`  at character ${g.at}\n  - ${ctx}[${g.before.slice(0, 200)}]\n  + ${ctx}[${g.after.slice(0, 200)}]`);
+    }
+    if (regions.length > SHOW) console.log(`  ... and ${regions.length - SHOW} more`);
   }
   const n = r.added.length + r.removed.length + r.changed.length;
   console.log(n === 0 ? 'builds are identical' : `${n} file(s) differ`);
