@@ -1,0 +1,110 @@
+{
+  "hero_subtitle": {
+    "en": "Our events are open to everyone. Membership is for people doing research in bioinformatics.",
+    "tr": "Etkinliklerimiz herkese açık. Üyelik, biyoinformatik alanında araştırma yapanlar için."
+  },
+  "follow_title": {
+    "en": "Follow us",
+    "tr": "Bizi takip et"
+  },
+  "follow_text": {
+    "en": "Anyone can follow us: webinars, symposium news and calls are announced here first.",
+    "tr": "Herkes bizi takip edebilir: webinarlar, sempozyum haberleri ve çağrılar önce burada duyurulur."
+  },
+  "benefits_title": {
+    "en": "Why join?",
+    "tr": "Neden katılmalısın?"
+  },
+  "benefit_1_title": {
+    "en": "International Network",
+    "tr": "Uluslararası Ağ"
+  },
+  "benefit_1_desc": {
+    "en": "Connect with researchers worldwide through ISCB Student Council affiliation",
+    "tr": "ISCB Öğrenci Konseyi bağlantısı ile dünya çapında araştırmacılarla bağlantı kurun"
+  },
+  "benefit_2_title": {
+    "en": "Learning Opportunities",
+    "tr": "Öğrenme Fırsatları"
+  },
+  "benefit_2_desc": {
+    "en": "Access to webinars, workshops, and educational resources",
+    "tr": "Webinarlara, atölyelere ve eğitim kaynaklarına erişim"
+  },
+  "benefit_3_title": {
+    "en": "Community Support",
+    "tr": "Topluluk Desteği"
+  },
+  "benefit_3_desc": {
+    "en": "Join a supportive community of computational biology enthusiasts",
+    "tr": "Hesaplamalı biyoloji meraklılarından oluşan destekleyici bir topluluğa katılın"
+  },
+  "benefit_4_title": {
+    "en": "Career Development",
+    "tr": "Kariyer Gelişimi"
+  },
+  "benefit_4_desc": {
+    "en": "Career fairs, networking events, and professional development opportunities",
+    "tr": "Kariyer fuarları, ağ oluşturma etkinlikleri ve profesyonel gelişim fırsatları"
+  },
+  "benefit_5_title": {
+    "en": "Collaboration",
+    "tr": "İşbirliği"
+  },
+  "benefit_5_desc": {
+    "en": "Opportunities to collaborate on research projects and events",
+    "tr": "Araştırma projelerinde ve etkinliklerde işbirliği fırsatları"
+  },
+  "benefit_6_title": {
+    "en": "Event Access",
+    "tr": "Etkinlik Erişimi"
+  },
+  "benefit_6_desc": {
+    "en": "Priority access to symposiums, workshops, and special events",
+    "tr": "Sempozyumlara, atölyelere ve özel etkinliklere öncelikli erişim"
+  },
+  "membership_title": {
+    "en": "Membership Application",
+    "tr": "Üyelik Başvurusu"
+  },
+  "membership_text": {
+    "en": "Membership is by application. Tell us briefly about your research and your institution.",
+    "tr": "Üyelik başvuruyla olur. Araştırmanızı ve kurumunuzu kısaca yazın."
+  },
+  "faq_title": {
+    "en": "Frequently Asked Questions",
+    "tr": "Sıkça Sorulan Sorular"
+  },
+  "faq_1_q": {
+    "en": "How can I join RSG-Turkiye?",
+    "tr": "RSG-Türkiye'ye nasıl katılabilirim?"
+  },
+  "faq_1_a": {
+    "en": "Our events are open to everyone. Membership is for people doing research in computational biology and bioinformatics: fill out the application above with your research and institution. Questions: turkey.rsg@gmail.com.",
+    "tr": "Etkinliklerimiz herkese açık. Üyelik, hesaplamalı biyoloji ve biyoinformatik alanında araştırma yapanlar için: yukarıdaki başvuru formuna araştırmanızı ve kurumunuzu yazın. Sorularınız için: turkey.rsg@gmail.com."
+  },
+  "faq_2_q": {
+    "en": "Are your events open to international participants?",
+    "tr": "Etkinlikleriniz uluslararası katılımcılara açık mı?"
+  },
+  "faq_2_a": {
+    "en": "Yes! Many of our events, especially webinars, are open to international participants. We welcome collaboration and participation from researchers worldwide.",
+    "tr": "Evet! Etkinliklerimizin çoğu, özellikle webinarlar, uluslararası katılımcılara açıktır. Dünyanın dört bir yanından araştırmacıların katılımını memnuniyetle karşılıyoruz."
+  },
+  "faq_3_q": {
+    "en": "How can I stay updated about upcoming events?",
+    "tr": "Yaklaşan etkinliklerden nasıl haberdar olabilirim?"
+  },
+  "faq_3_a": {
+    "en": "Follow us on Twitter, LinkedIn, or YouTube, or check this website regularly for event announcements.",
+    "tr": "Twitter, LinkedIn veya YouTube'da bizi takip edebilir, Slack kanalımıza katılabilir ya da etkinlik duyuruları için bu web sitesini düzenli olarak ziyaret edebilirsiniz."
+  },
+  "faq_4_q": {
+    "en": "Can I propose a webinar or workshop topic?",
+    "tr": "Webinar veya atölye konusu önerebilir miyim?"
+  },
+  "faq_4_a": {
+    "en": "Absolutely! We welcome suggestions for webinar topics and workshop themes. Contact us at turkey.rsg@gmail.com with your proposal.",
+    "tr": "Kesinlikle! Webinar konuları ve atölye temaları için önerilerinizi bekliyoruz. Teklifinizle birlikte turkey.rsg@gmail.com adresinden bize ulaşın."
+  }
+}

@@ -1,34 +1,38 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { pageText } from '../lib/page-text';
 
 const pageTitle = "Join Us - RSG-Turkiye";
+// The h1 stays literal text: in an expression Astro escapes the apostrophe
+// in the Turkish title as &#39;, so the built page would change.
+const tx = await pageText('join', 'en');
 
 const faqs = [
   {
-    q: "How can I join RSG-Turkiye?",
-    a: "Our events are open to everyone. Membership is for people doing research in computational biology and bioinformatics: fill out the application above with your research and institution. Questions: turkey.rsg@gmail.com.",
+    q: tx('faq_1_q'),
+    a: tx('faq_1_a'),
   },
   {
-    q: "Are your events open to international participants?",
-    a: "Yes! Many of our events, especially webinars, are open to international participants. We welcome collaboration and participation from researchers worldwide.",
+    q: tx('faq_2_q'),
+    a: tx('faq_2_a'),
   },
   {
-    q: "How can I stay updated about upcoming events?",
-    a: "Follow us on Twitter, LinkedIn, or YouTube, or check this website regularly for event announcements.",
+    q: tx('faq_3_q'),
+    a: tx('faq_3_a'),
   },
   {
-    q: "Can I propose a webinar or workshop topic?",
-    a: "Absolutely! We welcome suggestions for webinar topics and workshop themes. Contact us at turkey.rsg@gmail.com with your proposal.",
+    q: tx('faq_4_q'),
+    a: tx('faq_4_a'),
   },
 ];
 
 const benefits = [
-  { title: 'International Network', desc: 'Connect with researchers worldwide through ISCB Student Council affiliation' },
-  { title: 'Learning Opportunities', desc: 'Access to webinars, workshops, and educational resources' },
-  { title: 'Community Support', desc: 'Join a supportive community of computational biology enthusiasts' },
-  { title: 'Career Development', desc: 'Career fairs, networking events, and professional development opportunities' },
-  { title: 'Collaboration', desc: 'Opportunities to collaborate on research projects and events' },
-  { title: 'Event Access', desc: 'Priority access to symposiums, workshops, and special events' },
+  { title: tx('benefit_1_title'), desc: tx('benefit_1_desc') },
+  { title: tx('benefit_2_title'), desc: tx('benefit_2_desc') },
+  { title: tx('benefit_3_title'), desc: tx('benefit_3_desc') },
+  { title: tx('benefit_4_title'), desc: tx('benefit_4_desc') },
+  { title: tx('benefit_5_title'), desc: tx('benefit_5_desc') },
+  { title: tx('benefit_6_title'), desc: tx('benefit_6_desc') },
 ];
 ---
 
@@ -38,14 +42,14 @@ const benefits = [
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
       <h1 class="text-3xl font-bold text-white">Join RSG-Turkiye</h1>
-      <p class="text-white/70 mt-2">Our events are open to everyone. Membership is for people doing research in bioinformatics.</p>
+      <p class="text-white/70 mt-2">{tx('hero_subtitle')}</p>
     </div>
   </div>
 
   <section id="follow" class="bg-[#F7F7F6] py-10 border-b border-border scroll-mt-20">
     <div class="max-w-6xl mx-auto px-6">
-      <h2 class="text-xl font-semibold text-navy mb-2">Follow us</h2>
-      <p class="text-sm text-gray-600 mb-4">Anyone can follow us: webinars, symposium news and calls are announced here first.</p>
+      <h2 class="text-xl font-semibold text-navy mb-2">{tx('follow_title')}</h2>
+      <p class="text-sm text-gray-600 mb-4">{tx('follow_text')}</p>
       <div class="flex flex-wrap gap-2">
           <a href="https://instagram.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 rounded-md border border-navy text-navy text-sm font-medium hover:bg-navy-light transition-colors no-underline">Instagram</a>
           <a href="https://linkedin.com/company/rsgturkey" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 rounded-md border border-navy text-navy text-sm font-medium hover:bg-navy-light transition-colors no-underline">LinkedIn</a>
@@ -61,7 +65,7 @@ const benefits = [
 
         <!-- Benefits -->
         <div>
-          <h2 class="text-xl font-semibold text-navy mb-6">Why join?</h2>
+          <h2 class="text-xl font-semibold text-navy mb-6">{tx('benefits_title')}</h2>
           <ul class="flex flex-col">
             {benefits.map((b) => (
               <li class="py-3 border-b border-border flex flex-col gap-0.5">
@@ -74,8 +78,8 @@ const benefits = [
 
         <!-- Form embed -->
         <div>
-          <h2 id="membership" class="text-xl font-semibold text-navy mb-2 scroll-mt-20">Membership Application</h2>
-          <p class="text-sm text-gray-600 mb-6">Membership is by application. Tell us briefly about your research and your institution.</p>
+          <h2 id="membership" class="text-xl font-semibold text-navy mb-2 scroll-mt-20">{tx('membership_title')}</h2>
+          <p class="text-sm text-gray-600 mb-6">{tx('membership_text')}</p>
           <iframe
             src="https://docs.google.com/forms/d/e/1FAIpQLSeo8lI8mijdndi2Z0hURHUbn2mvJPkbW9OrsgQ2bH9iGfyS_g/viewform?embedded=true"
             width="100%"
@@ -97,7 +101,7 @@ const benefits = [
   <!-- FAQ -->
   <section class="bg-[#F7F7F6] py-14 border-t border-border">
     <div class="max-w-2xl mx-auto px-6">
-      <h2 class="text-xl font-semibold text-navy text-center mb-8">Frequently Asked Questions</h2>
+      <h2 class="text-xl font-semibold text-navy text-center mb-8">{tx('faq_title')}</h2>
       <div class="flex flex-col gap-2">
         {faqs.map((faq) => (
           <div class="bg-white border border-border rounded-lg overflow-hidden">

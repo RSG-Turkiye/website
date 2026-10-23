@@ -2,12 +2,17 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CommitteeCard from '../layouts/CommitteeCard.astro';
 import { getCommittees } from '../lib/get-committees';
+import { pageText } from '../lib/page-text';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "About Us - RSG-Turkiye";
 const committees = await getCommittees(lang);
+// The ISCB button label stays literal text: in an expression Astro escapes
+// the apostrophe in the Turkish label as &#39; and folds the newlines around
+// it into spaces, so the built page would change.
+const tx = await pageText('about', lang);
 
 const singleColCommittees = committees.filter(c => c.members.length < 2);
 const lastSingleAlone = singleColCommittees.length % 3 === 1;
@@ -55,16 +60,16 @@ const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
           ],
           [
             {
-              title: 'Journal Club',
-              desc: 'We read and discuss current bioinformatics papers together: regular meetups that build academic reading habits and critical thinking.',
+              title: tx('journal_club_title'),
+              desc: tx('journal_club_desc'),
             },
             {
-              title: 'International Network',
-              desc: 'Through ISCB Student Council membership, opportunities to connect with researchers worldwide and participate in international conferences.',
+              title: tx('international_network_title'),
+              desc: tx('international_network_desc'),
             },
             {
-              title: 'Opportunity Sharing',
-              desc: 'MSc, PhD, and PostDoc positions, scholarships, and conference opportunities shared instantly with members via our Slack channel.',
+              title: tx('opportunity_sharing_title'),
+              desc: tx('opportunity_sharing_desc'),
             },
           ],
         ].map((row, rowIndex) => (
@@ -92,11 +97,11 @@ const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
     <div class="max-w-7xl mx-auto px-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
         <div>
-          <h2 class="text-2xl font-semibold text-navy mb-4">ISCB Student Council Affiliation</h2>
-          <p class="text-gray-600 leading-relaxed mb-3">We are proud to be a member of the International Society for Computational Biology (ISCB) Student Council.</p>
-          <p class="text-gray-600 leading-relaxed mb-4">The ISCB Student Council provides a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics worldwide.</p>
+          <h2 class="text-2xl font-semibold text-navy mb-4">{tx('iscb_title')}</h2>
+          <p class="text-gray-600 leading-relaxed mb-3">{tx('iscb_intro')}</p>
+          <p class="text-gray-600 leading-relaxed mb-4">{tx('iscb_detail')}</p>
           <ul class="space-y-2">
-            {['Access to international conferences and events', 'Networking opportunities with global researchers', 'Educational resources and training programs', 'Collaboration opportunities with other RSGs'].map((item) => (
+            {[tx('iscb_benefit_1'), tx('iscb_benefit_2'), tx('iscb_benefit_3'), tx('iscb_benefit_4')].map((item) => (
               <li class="flex items-start gap-2 text-gray-600 text-sm">
                 <span class="text-navy font-bold mt-0.5">✓</span>
                 {item}
@@ -106,8 +111,8 @@ const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
         </div>
         <div class="text-center p-8 bg-navy-light border border-[#C4CEEA] rounded-lg">
           <img src="/logo/iscb-logo.png" alt="ISCB Student Council" class="max-h-16 mx-auto mb-4" />
-          <h4 class="font-semibold text-navy mb-1">ISCB Student Council</h4>
-          <p class="text-sm text-gray-600 mb-4">International Society for Computational Biology</p>
+          <h4 class="font-semibold text-navy mb-1">{tx('iscb_card_title')}</h4>
+          <p class="text-sm text-gray-600 mb-4">{tx('iscb_card_subtitle')}</p>
           <a href="https://iscbsc.org/" target="_blank" rel="noopener noreferrer"
             class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
             Visit ISCB Student Council

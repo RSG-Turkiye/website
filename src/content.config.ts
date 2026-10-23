@@ -5,6 +5,7 @@ import { workshopSchema } from "./data/workshops";
 import { eventSchema } from "./data/events";
 import { resourceSchema as linkSchema } from "./data/resources";
 import { committeeSchema } from "./data/committees";
+import { pageTextSchema } from "./data/page-text";
 
 // Blog posts are organized by language:
 //   src/content/blog/en/<slug>.md  → /blog/<slug>
@@ -216,4 +217,12 @@ const committees = defineCollection({
   schema: committeeSchema,
 });
 
-export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees };
+// pages -- the hand-written text of a page, one JSON file per page (about,
+// join), each key mapping to { en, tr } (see src/data/page-text.ts;
+// src/lib/page-text.ts reads it and throws on an unknown key).
+const pages = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/pages" }),
+  schema: pageTextSchema,
+});
+
+export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees, pages };
