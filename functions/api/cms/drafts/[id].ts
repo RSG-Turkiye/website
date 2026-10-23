@@ -76,9 +76,22 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const { row } = found;
   if (!mayEdit(gate, row)) return forbidden();
   if (!canTransition('discard', row.status)) return badState();
-  // A failed attempt may have left cms/<id> (and an open pull request on
-  // it). Removing it is best effort: a failure is logged, noted in the log
-  // row, and never blocks the discard.
+  const nonce = newNonce();
+  const done = await runGuardedWithAudit(
+    env.DB,
+    env.DB.prepare(`UPDATE content_drafts SET status = 'discarded', updated_at = ?, write_nonce = ? WHERE id = ? AND status = ? AND write_nonce IS ?`)
+      .bind(gate.now, nonce, row.id, row.status, row.write_nonce),
+    nonceProof(row.id, nonce),
+    [],
+    { userId: gate.user.id, action: 'cms.draft.discard', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, from: row.status } },
+    gate.now,
+  );
+  if (!done) return changed();
+  // Only after the discard landed: before it, a resubmit and approval in
+  // between would make cms/<id> a live pull request's branch. A failed
+  // attempt may have left the branch (and an open pull request on it).
+  // Best effort: the discard is the one log row; a failure goes to the
+  // server log and the answer.
   let branch: 'deleted' | 'absent' | 'failed' | undefined;
   if (row.status === 'pr_failed') {
     try {
@@ -88,16 +101,5 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
       branch = 'failed';
     }
   }
-  const nonce = newNonce();
-  const done = await runGuardedWithAudit(
-    env.DB,
-    env.DB.prepare(`UPDATE content_drafts SET status = 'discarded', updated_at = ?, write_nonce = ? WHERE id = ? AND status = ? AND write_nonce IS ?`)
-      .bind(gate.now, nonce, row.id, row.status, row.write_nonce),
-    nonceProof(row.id, nonce),
-    [],
-    { userId: gate.user.id, action: 'cms.draft.discard', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, from: row.status, ...(branch ? { branch } : {}) } },
-    gate.now,
-  );
-  if (!done) return changed();
-  return jsonResponse({ ok: true });
+  return jsonResponse({ ok: true, ...(branch ? { branch } : {}) });
 };

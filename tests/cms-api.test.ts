@@ -999,8 +999,9 @@ test('discarding a failed draft deletes its branch, best effort', async () => {
     const res = await quiet(() => on(env, draft.onRequestDelete, 'DELETE', id, 'editor'));
     assert.equal(res.status, 200, outcome);
     assert.equal(row(id).status, 'discarded');
-    const details = JSON.parse(audit().at(-1)!.details);
-    assert.equal(details.branch, outcome === 'ok' ? 'deleted' : 'failed');
+    assert.equal((await res.json() as any).branch, outcome === 'ok' ? 'deleted' : 'failed');
+    assert.equal(audit().at(-1)!.action, 'cms.draft.discard');
+    assert.equal(audit().filter((a) => a.action === 'cms.draft.discard').length, 1, 'one row per state change');
     assert.equal(gh.branches.has(`cms/${id}`), outcome !== 'ok');
   }
 });
@@ -1015,4 +1016,55 @@ test('the approval queue is newest first and says when it is capped', async () =
   assert.equal(body.more, true);
   assert.equal(body.queue[0].entry_id, 'e-200');
   assert.equal(body.queue[199].entry_id, 'e-1');
+});
+
+// ── fix round 3 ───────────────────────────────────────────────────────────────
+
+/** env that runs `between` once, right after the first draft read: another
+ * request changing the row while this one decides. */
+function afterFirstRead(env: Env, between: () => void): Env {
+  const db = (env as any).DB;
+  let done = false;
+  const DB = {
+    ...db,
+    prepare(sql: string) {
+      const st = db.prepare(sql);
+      if (!sql.startsWith('SELECT * FROM content_drafts WHERE id = ?')) return st;
+      return { ...st, bind(...a: unknown[]) {
+        const b = st.bind(...a);
+        return { ...b, async first() { const row = await b.first(); if (!done) { done = true; between(); } return row; } };
+      } };
+    },
+  };
+  return { ...(env as any), DB } as never;
+}
+
+test('a discard that loses its race deletes no branch', async () => {
+  const { env, db, row, audit } = setup();
+  const id = await submitted(env);
+  gh.pulls = 'error';
+  await quiet(() => on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve'));
+  assert.equal(row(id).status, 'pr_failed');
+  // While the discard decides, the author resubmits and an approver approves:
+  // cms/<id> is now a live pull request's branch.
+  const raced = afterFirstRead(env, () => {
+    db.prepare(`UPDATE content_drafts SET status = 'pr_open', write_nonce = 'someone-else' WHERE id = ?`).run(id);
+  });
+  const res = await on(raced, draft.onRequestDelete, 'DELETE', id, 'editor');
+  assert.equal(res.status, 409);
+  assert.ok(gh.branches.has(`cms/${id}`), 'the branch is untouched');
+  assert.ok(!gh.requests.some((r) => r.method === 'DELETE' && r.path.includes('/git/refs/')));
+  assert.equal(row(id).status, 'pr_open');
+  assert.equal(audit().filter((a) => a.action === 'cms.draft.discard').length, 0);
+});
+
+test('an unknown key inside an array element is refused and nothing is stored', async () => {
+  const { env, db } = setup();
+  for (const k of ['constructor', '__proto__', 'colour']) {
+    const link = { label: { en: 'Materials', tr: 'Materyaller' }, url: 'https://github.com/RSG-Turkiye/x', [k]: 'x' };
+    const { res, body } = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), links: [link] } });
+    assert.equal(res.status, 422, k);
+    assert.ok(Object.hasOwn(body.errors, `links.0.${k}`), `${k}: ${JSON.stringify(body.errors)}`);
+  }
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
 });
