@@ -179,6 +179,8 @@ test('the 8i backfill, run twice, gives one permanent grant per existing flag', 
   db.exec("UPDATE users SET is_social = 1, is_social_publisher = 1, is_sender = 1 WHERE id = 'u1'");
   // The note's own commands, so the test checks what an operator would run.
   const backfill = [...SCHEMA.matchAll(/--command="(INSERT INTO role_grants [^"]+)"/g)].map((m) => m[1]);
+  const reconcile = [...SCHEMA.matchAll(/--command="(UPDATE role_grants [^"]+)"/g)].map((m) => m[1]);
+  assert.equal(reconcile.length, 7, 'one reconcile statement per role');
   assert.equal(backfill.length, 7, 'one backfill statement per role');
   for (let run = 0; run < 2; run++) for (const s of backfill) db.exec(s);
   const rows = db.prepare('SELECT user_id, role, expires_at, granted_by FROM role_grants ORDER BY user_id, role').all()
@@ -190,4 +192,25 @@ test('the 8i backfill, run twice, gives one permanent grant per existing flag', 
     { user_id: 'u1', role: 'social', expires_at: null, granted_by: null },
     { user_id: 'u1', role: 'social_publisher', expires_at: null, granted_by: null },
   ]);
+});
+
+test('re-running the 8i backfill and reconcile catches roles changed by the old panel in between', () => {
+  const { db } = setup();
+  const commands = (verb: string) => [...SCHEMA.matchAll(new RegExp(`--command="(${verb} role_grants [^"]+)"`, 'g'))].map((m) => m[1]);
+  const backfill = commands('INSERT INTO');
+  const reconcile = commands('UPDATE');
+  db.exec("UPDATE users SET is_writer = 1, is_sender = 1 WHERE id = 'u1'");
+  for (const s of backfill) db.exec(s);
+  // The old panel, still deployed, changes the columns directly.
+  db.exec("UPDATE users SET is_writer = 0, is_announcer = 1 WHERE id = 'u1'");
+  for (let run = 0; run < 2; run++) for (const s of [...backfill, ...reconcile]) db.exec(s);
+  const liveNow = db.prepare("SELECT role, expires_at FROM role_grants WHERE user_id = 'u1' AND revoked_at IS NULL ORDER BY role").all()
+    .map((r) => ({ ...r }));
+  assert.deepEqual(liveNow, [
+    { role: 'announcer', expires_at: null },
+    { role: 'sender', expires_at: null },
+  ]);
+  const writer = db.prepare("SELECT revoked_at FROM role_grants WHERE user_id = 'u1' AND role = 'writer'").all() as { revoked_at: number | null }[];
+  assert.equal(writer.length, 1);
+  assert.notEqual(writer[0].revoked_at, null);
 });

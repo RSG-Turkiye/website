@@ -282,12 +282,26 @@
 --      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'writer', NULL, NULL, unixepoch() FROM users WHERE is_writer = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'writer' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
 --      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'sender', NULL, NULL, unixepoch() FROM users WHERE is_sender = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'sender' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
 --      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'social', NULL, NULL, unixepoch() FROM users WHERE is_social = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'social' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
---    Run both steps BEFORE deploying the code that grants and removes roles
---    through role_grants (functions/_lib/role-grants.ts, wired into the admin
---    panel by the roles-with-expiry branch). That code recomputes every
---    is_* column of a user from their live grants whenever one of their
---    roles changes. Without the backfill, the first change to anyone's roles
---    silently takes away every other role they hold.
+--    Then reconcile: end any backfilled grant whose column has since gone
+--    back to 0. Also idempotent:
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'admin' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_admin = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'announcer' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_announcer = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'symposium' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_symposium = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'social_publisher' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_social_publisher = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'writer' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_writer = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'sender' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_sender = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'social' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_social = 1)"
+--    Why both: the code that grants and removes roles through role_grants
+--    (functions/_lib/role-grants.ts, wired into the admin panel by the
+--    roles-with-expiry branch) recomputes every is_* column of a user from
+--    their live grants whenever one of their roles changes. Until it is
+--    deployed, the old panel still writes the columns directly, so a role
+--    added after the backfill has no grant (and would be silently taken away
+--    by the first change to that user's roles), and a role removed after it
+--    still has a live grant (and would come back).
+--    Order: apply the file and run the backfill. Then, immediately before
+--    the code deploys, run the backfill AND the reconcile again, and change
+--    no roles in the admin panel between that and the deploy.
 --
 
 CREATE TABLE IF NOT EXISTS users (
