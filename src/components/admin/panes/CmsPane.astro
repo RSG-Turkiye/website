@@ -1,0 +1,39 @@
+---
+/**
+ * The Etkinlikler section: events, workshops and webinars as published,
+ * the person's drafts and, for approvers, the approval queue. One list per
+ * sub-page; one editor (#cmsEditor), which src/scripts/admin/sections/cms.ts
+ * moves into the sub-page on screen and fills per entry, so the unsaved-work
+ * guard is wired once. The lists start with a line of text so a sub-page is
+ * never blank while it loads.
+ */
+import { useTranslations } from '../../../i18n/ui';
+
+interface Props { lang: 'en' | 'tr' }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const subs = [
+  ['etkinlikler', 'admin.cms.type.events'],
+  ['atolyeler', 'admin.cms.type.workshops'],
+  ['webinarlar', 'admin.cms.type.webinars'],
+  ['taslaklar', 'admin.cms.nav.drafts'],
+  ['onay', 'admin.cms.nav.queue'],
+] as const;
+---
+<section data-section="icerik-etkinlikler">
+  <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.cms.section')}</h2>
+  {subs.map(([id, label]) => (
+    <div data-sub={id}>
+      <h3 class="sr-only">{t(label)}</h3>
+      <div data-cms-body><p class="text-sm text-gray-500">{t('admin.cms.loading')}</p></div>
+    </div>
+  ))}
+  <div id="cmsEditor" class="hidden">
+    <div id="cmsHead"></div>
+    <div id="cmsReview"></div>
+    <form id="cmsForm" novalidate>
+      <div id="cmsFields"></div>
+      <div id="cmsBar" data-cms-sticky class="sticky bottom-0 lg:-bottom-1 z-10 mt-3 -mx-1 px-1 py-2 bg-[#F7F7F6] border-t border-border"></div>
+    </form>
+  </div>
+</section>

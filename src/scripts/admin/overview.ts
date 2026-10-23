@@ -9,6 +9,8 @@ const CARDS: { key: string; section: string; label: string }[] = [
   { key: 'social', section: 'sosyal/onay', label: 'admin.overview.social' },
   { key: 'dm', section: 'sosyal/dm', label: 'admin.overview.dm' },
   { key: 'blog', section: 'blog', label: 'admin.overview.blog' },
+  { key: 'cmsQueue', section: 'icerik-etkinlikler/onay', label: 'admin.overview.cmsQueue' },
+  { key: 'cmsMine', section: 'icerik-etkinlikler/taslaklar', label: 'admin.overview.cmsMine' },
 ];
 
 export async function loadOverview(): Promise<void> {

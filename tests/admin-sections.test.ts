@@ -8,7 +8,7 @@ const none: RoleFlags = { admin: false, announcer: false, symposium: false, soci
 const ids = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
-  assert.deepEqual(ids({ ...none, admin: true }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'blog', 'sempozyum', 'kullanicilar', 'baglantilar', 'kayit']);
+  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'blog', 'sempozyum', 'icerik-etkinlikler', 'kullanicilar', 'baglantilar', 'kayit']);
 });
 
 test('one section: no Overview, and the panel lands in it', () => {
@@ -117,9 +117,25 @@ test('content rights come from the live grants /api/me carries', () => {
 
 test('an approver who is not an admin gets the Roles sub-page only, to grant their group\'s edit role', () => {
   const r = rolesFromMe({ grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] });
-  assert.deepEqual(ids(r), ['kullanicilar']);
-  assert.equal(landing(r), 'kullanicilar');
+  // Their own group's content section too, so Overview leads.
+  assert.deepEqual(ids(r), ['genel', 'icerik-etkinlikler', 'kullanicilar']);
+  assert.equal(landing(r), 'genel');
   const users = SECTIONS.find((s) => s.id === 'kullanicilar')!;
   assert.deepEqual(subsFor(users, r).map((s) => s.id), ['yetkiler']);
   assert.deepEqual(subsFor(users, { ...none, admin: true }).map((s) => s.id), ['liste', 'yetkiler']);
+});
+
+test('Etkinlikler: editors, approvers and admins; the approval queue for approvers only', () => {
+  const cms = SECTIONS.find((s) => s.id === 'icerik-etkinlikler')!;
+  const editor = { ...none, cms: { etkinlikler: { edit: true, approve: false } } };
+  const approverR = { ...none, cms: { etkinlikler: { edit: true, approve: true } } };
+  assert.equal(cms.group, 'icerik');
+  assert.deepEqual(ids(editor), ['icerik-etkinlikler']);
+  assert.equal(landing(editor), 'icerik-etkinlikler');
+  assert.deepEqual(subsFor(cms, editor).map((s) => s.id), ['etkinlikler', 'atolyeler', 'webinarlar', 'taslaklar']);
+  assert.deepEqual(subsFor(cms, approverR).map((s) => s.id), ['etkinlikler', 'atolyeler', 'webinarlar', 'taslaklar', 'onay']);
+  assert.ok(!ids(none).includes('icerik-etkinlikler'));
+  const fromMe = rolesFromMe({ grants: [{ role: 'content.etkinlikler.edit' }] });
+  assert.ok(ids(fromMe).includes('icerik-etkinlikler'), 'a grant opens it');
+  for (const sub of cms.subs) assert.ok(sub.label in ui.tr && sub.label in ui.en, sub.label);
 });
