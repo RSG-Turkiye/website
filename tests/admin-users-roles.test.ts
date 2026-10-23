@@ -231,7 +231,7 @@ test('GET filter=roles carries each user\'s live grants, staying under the 100-b
   }
   const over = bindLog.filter((b) => b.count > 100);
   assert.deepEqual(over, [], 'no statement binds more than 100 parameters');
-  const grantQueries = bindLog.filter((b) => /role_grants/.test(b.sql));
+  const grantQueries = bindLog.filter((b) => /FROM role_grants WHERE user_id IN/.test(b.sql));
   assert.ok(grantQueries.length >= 1 && grantQueries.length <= Math.ceil(body.users.length / 90) + 1, `${grantQueries.length} grant queries`);
 });
 
@@ -343,4 +343,33 @@ test('GET for an approver: holders of the roles they grant, and a search, trimme
   assert.equal((await get('u3', 'filter=members&search=four')).status, 403);
   assert.equal((await get('u4', 'filter=roles')).status, 403);
   assert.equal((await get('u2', 'filter=roles')).status, 403);
+});
+
+test('an approver\'s search is literal, at least three characters, and ten people at most', async () => {
+  const { db, env } = setupApprover();
+  const add = db.prepare('INSERT INTO users (id, google_id, email, created_at, last_login) VALUES (?, ?, ?, ?, 1)');
+  add.run('lit', 'g-lit', 'a_b@example.org', 50);
+  add.run('wild', 'g-wild', 'axb@example.org', 51);
+  for (let i = 0; i < 15; i++) add.run(`bulk${i}`, `g-bulk${i}`, `bulk${i}@example.org`, 100 + i);
+  const search = async (q: string) => {
+    const res = await call(users.onRequestGet, 'GET', `/api/admin/users?${new URLSearchParams({ filter: 'all', search: q })}`, { env, as: 'u3' });
+    return { status: res.status, body: (await res.json()) as { users?: { id: string }[]; code?: string } };
+  };
+  for (const q of ['%%%', '___', '\\\\\\', '%_%']) {
+    const r = await search(q);
+    assert.equal(r.status, 200, q);
+    assert.deepEqual(r.body.users, [], `${q} is not a wildcard`);
+  }
+  assert.deepEqual((await search('a_b')).body.users!.map((u) => u.id), ['lit'], '_ matches only itself');
+  for (const q of ['@', '%', '_', 'fo', ' fo ']) {
+    const r = await search(q);
+    assert.equal(r.status, 400, q);
+    assert.equal(r.body.code, 'search_too_short', q);
+  }
+  assert.deepEqual((await search('fou')).body.users!.map((u) => u.id), ['u4']);
+  const bulk = await search('bulk');
+  assert.equal(bulk.body.users!.length, 10);
+  // An admin's search is unchanged.
+  const res = await call(users.onRequestGet, 'GET', '/api/admin/users?filter=all&search=bulk', { env, as: 'admin' });
+  assert.equal(((await res.json()) as { users: unknown[] }).users.length, 15);
 });

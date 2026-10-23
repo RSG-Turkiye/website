@@ -14,24 +14,30 @@ const inList = (n: number) => Array.from({ length: n }, () => '?').join(', ');
  * What an approver who is not an admin sees: just enough for the Roles view
  * to show and change the roles they may grant. Holders of those roles, or a
  * search (never the whole directory), with id, e-mail, name and those grants.
+ * The search is literal (LIKE wildcards escaped), at least three characters,
+ * and returns ten people at most, so it cannot be used to page through
+ * everyone's e-mail address.
  */
 async function approverList(db: D1Database, url: URL, roles: string[], now: number): Promise<Response> {
   const filter = url.searchParams.get('filter') ?? 'all';
   const search = url.searchParams.get('search')?.trim() ?? '';
   let where: string;
   let binds: (string | number)[];
+  let limit = 100;
   if (filter === 'roles') {
     where = `EXISTS (SELECT 1 FROM role_grants WHERE user_id = u.id AND role IN (${inList(roles.length)}) AND ${LIVE})`;
     binds = [...roles, now];
   } else if (filter === 'all' && search) {
-    where = '(u.email LIKE ? OR p.username LIKE ? OR p.display_name LIKE ?)';
-    const q = `%${search}%`;
+    if ([...search].length < 3) return jsonResponse({ error: 'Search too short', code: 'search_too_short' }, 400);
+    where = "(u.email LIKE ? ESCAPE '\\' OR p.username LIKE ? ESCAPE '\\' OR p.display_name LIKE ? ESCAPE '\\')";
+    const q = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
     binds = [q, q, q];
+    limit = 10;
   } else {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
   const { results } = await db.prepare(
-    `SELECT u.id, u.email, p.display_name FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE ${where} ORDER BY u.created_at DESC LIMIT 100`,
+    `SELECT u.id, u.email, p.display_name FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE ${where} ORDER BY u.created_at DESC LIMIT ${limit}`,
   ).bind(...binds).all<{ id: string; email: string; display_name: string | null; grants?: unknown }>();
   const grants = await activeGrantsFor(db, results.map((r) => r.id), now);
   for (const r of results) r.grants = (grants.get(r.id) ?? []).filter((g) => roles.includes(g.role));

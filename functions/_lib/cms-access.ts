@@ -26,5 +26,5 @@ export async function editsAnyGroup(db: D1Database, user: Pick<User, 'id' | 'is_
  * for everyone else, so role_grants is read only when they say no.
  */
 export async function canOpenAdminPanel(db: D1Database, user: User, now: number): Promise<boolean> {
-  return canSeeAdminPanel(user) || canSeeAdminPanel(user, await editsAnyGroup(db, user, now));
+  return canSeeAdminPanel(user) || await editsAnyGroup(db, user, now);
 }
