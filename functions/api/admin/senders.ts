@@ -1,51 +1,58 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
 import { parseRecipients } from '../../_lib/mail';
-import { runWithAudit } from '../../_lib/audit';
+import { grantRole, revokeRole, requestedExpiry } from '../../_lib/role-grants';
+import { roleDef } from '../../_lib/roles';
 
 /**
- * users.is_sender is the authority for "may this user send"; sender_grants is
- * the record of how they came to be allowed. Both are written together, here,
- * with the audit row, so no caller can set one without the other or without
- * the change being logged.
+ * The sender role is a grant like any other (role_grants, mirrored in
+ * users.is_sender); sender_grants is the record of which team someone sends
+ * for. grantRole and revokeRole write both, with the audit row, in one batch,
+ * so no caller can set one without the other or without the change being
+ * logged.
  */
 export async function grantSender(
   env: Env,
   userId: string,
   team: string | null,
   grantedBy: string,
+  expiresAt: number | null,
+  now: number,
 ): Promise<void> {
-  const now = Math.floor(Date.now() / 1000);
-  await runWithAudit(env.DB, [
-    env.DB.prepare('UPDATE users SET is_sender = 1 WHERE id = ?').bind(userId),
-    // Idempotent: if this user already has a live (unrevoked) grant row, skip
-    // the insert. Without this, re-granting an already-active sender (e.g. a
-    // duplicate address in a bulk paste) creates a second live row that
-    // revokeSender's "newest unrevoked" subquery can never reach, leaving it
-    // dangling as a permanently "live" grant under a revoked user.
-    env.DB.prepare(
-      `INSERT INTO sender_grants (id, user_id, team, granted_by, granted_at)
-       SELECT ?, ?, ?, ?, ?
-       WHERE NOT EXISTS (
-         SELECT 1 FROM sender_grants WHERE user_id = ? AND revoked_at IS NULL
-       )`
-    ).bind(generateId(), userId, team, grantedBy, now, userId),
-  ], { userId: grantedBy, action: 'role.change', targetType: 'user', targetId: userId, details: { role: 'is_sender', value: 1, team } }, now);
+  await grantRole(env.DB, {
+    userId, role: 'sender', expiresAt, by: grantedBy,
+    extra: [
+      // Idempotent: if this user already has a live (unrevoked) record row,
+      // skip the insert. Without this, re-granting an already-active sender
+      // (e.g. a duplicate address in a bulk paste) creates a second live row
+      // that revokeSender's "newest unrevoked" subquery can never reach,
+      // leaving it dangling as a permanently "live" record under a revoked user.
+      env.DB.prepare(
+        `INSERT INTO sender_grants (id, user_id, team, granted_by, granted_at)
+         SELECT ?, ?, ?, ?, ?
+         WHERE NOT EXISTS (
+           SELECT 1 FROM sender_grants WHERE user_id = ? AND revoked_at IS NULL
+         )`
+      ).bind(generateId(), userId, team, grantedBy, now, userId),
+    ],
+  }, now);
 }
 
 export async function revokeSender(env: Env, userId: string, revokedBy: string): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
-  await runWithAudit(env.DB, [
-    env.DB.prepare('UPDATE users SET is_sender = 0 WHERE id = ?').bind(userId),
-    env.DB.prepare(
-      `UPDATE sender_grants SET revoked_by = ?, revoked_at = ?
-       WHERE id = (
-         SELECT id FROM sender_grants
-         WHERE user_id = ? AND revoked_at IS NULL
-         ORDER BY granted_at DESC LIMIT 1
-       )`
-    ).bind(revokedBy, now, userId),
-  ], { userId: revokedBy, action: 'role.change', targetType: 'user', targetId: userId, details: { role: 'is_sender', value: 0 } }, now);
+  await revokeRole(env.DB, {
+    userId, role: 'sender', by: revokedBy,
+    extra: [
+      env.DB.prepare(
+        `UPDATE sender_grants SET revoked_by = ?, revoked_at = ?
+         WHERE id = (
+           SELECT id FROM sender_grants
+           WHERE user_id = ? AND revoked_at IS NULL
+           ORDER BY granted_at DESC LIMIT 1
+         )`
+      ).bind(revokedBy, now, userId),
+    ],
+  }, now);
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -86,7 +93,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ error: 'Malformed request', code: 'malformed_request' }, 400);
   }
 
-  const body = parsed as { emails: unknown; team?: unknown };
+  const body = parsed as { emails: unknown; team?: unknown; duration?: unknown };
 
   // request.json<T>()'s generic is compile-time only -- it does not check
   // that the caller actually sent strings. Reject the wrong shape here, with
@@ -103,6 +110,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (emails.length === 0) return jsonResponse({ error: 'No emails given', code: 'no_emails' }, 400);
   if (emails.length > 200) return jsonResponse({ error: 'Too many emails', code: 'too_many_emails' }, 400);
 
+  // One end for the whole paste, resolved before anyone is granted, so a
+  // duration that is too long fails the request instead of half of it.
+  const now = Math.floor(Date.now() / 1000);
+  const expiry = await requestedExpiry(env.DB, roleDef('sender')!, body.duration, now, { id: user.id, isAdmin: true });
+  if (!expiry.ok) return jsonResponse({ error: 'Invalid duration', code: expiry.code }, 400);
+
   const team = body.team?.trim() || null;
   const granted: string[] = [];
   const unknown: string[] = [];
@@ -114,7 +127,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       unknown.push(email);
       continue;
     }
-    await grantSender(env, row.id, team, user.id);
+    await grantSender(env, row.id, team, user.id, expiry.expiresAt, now);
     granted.push(email);
   }
 

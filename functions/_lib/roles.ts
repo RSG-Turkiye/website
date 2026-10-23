@@ -41,6 +41,27 @@ export type Duration =
   | { until: number }
   | { permanent: true };
 
+/**
+ * The request body's `duration`, if it has the shape of a Duration: exactly
+ * one of months, until or permanent. Whether the values are allowed is
+ * resolveExpiry's question, so { months: 5 } passes here and fails there.
+ */
+export function parseDuration(x: unknown): Duration | null {
+  if (x === null || typeof x !== 'object' || Array.isArray(x)) return null;
+  const keys = Object.keys(x);
+  if (keys.length !== 1) return null;
+  const o = x as Record<string, unknown>;
+  if (keys[0] === 'months' && typeof o.months === 'number') return { months: o.months as 1 };
+  if (keys[0] === 'until' && typeof o.until === 'number') return { until: o.until };
+  if (keys[0] === 'permanent' && o.permanent === true) return { permanent: true };
+  return null;
+}
+
+/** What the panel's plain on/off switch means: leaders keep it, editors renew monthly. */
+export function defaultDuration(def: RoleDef): Duration {
+  return def.level === 'leader' ? { permanent: true } : { months: 1 };
+}
+
 export type ExpiryResult =
   | { ok: true; expiresAt: number | null }
   | { ok: false; code: 'too_long' | 'permanent_not_allowed' | 'in_the_past' | 'bad_duration' | 'not_allowed' };

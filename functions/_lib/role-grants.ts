@@ -4,10 +4,10 @@
 // audit row (runWithAudit). The one definition of "held" is LIVE below.
 
 import { runWithAudit } from './audit';
-import { ROLES, roleDef, type RoleKey } from './roles';
+import { ROLES, roleDef, parseDuration, defaultDuration, resolveExpiry, type RoleDef, type RoleKey } from './roles';
 
 /** A grant that counts right now. Binds one parameter: now. */
-const LIVE = 'revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)';
+export const LIVE = 'revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)';
 
 const COLUMN_ROLES = ROLES.filter((r) => r.column);
 
@@ -101,4 +101,38 @@ export async function activeGrants(db: D1Database, userId: string, now: number):
   const { results } = await db.prepare(`SELECT role, expires_at FROM role_grants WHERE user_id = ? AND ${LIVE}`)
     .bind(userId, now).all<{ role: string; expires_at: number | null }>();
   return results;
+}
+
+/**
+ * Live grants of many users at once, for the admin panel's role list. D1
+ * refuses a statement with more than 100 bound parameters, so the ids go in
+ * chunks, each with room for `now`.
+ */
+export async function activeGrantsFor(
+  db: D1Database, userIds: string[], now: number,
+): Promise<Map<string, { role: string; expires_at: number | null }[]>> {
+  const byUser = new Map<string, { role: string; expires_at: number | null }[]>(userIds.map((id) => [id, []]));
+  const CHUNK = 99;
+  for (let i = 0; i < userIds.length; i += CHUNK) {
+    const ids = userIds.slice(i, i + CHUNK);
+    const { results } = await db.prepare(
+      `SELECT user_id, role, expires_at FROM role_grants WHERE user_id IN (${ids.map(() => '?').join(', ')}) AND ${LIVE} ORDER BY role`,
+    ).bind(...ids, now).all<{ user_id: string; role: string; expires_at: number | null }>();
+    for (const r of results) byUser.get(r.user_id)?.push({ role: r.role, expires_at: r.expires_at });
+  }
+  return byUser;
+}
+
+/**
+ * When a grant asked for by an admin-panel request ends: the body's
+ * `duration` (absent means the role's default), checked against what the
+ * granter may give. `malformed_request` when it is not a Duration at all.
+ */
+export async function requestedExpiry(
+  db: D1Database, def: RoleDef, duration: unknown, now: number, granter: { id: string; isAdmin: boolean },
+): Promise<{ ok: true; expiresAt: number | null } | { ok: false; code: string }> {
+  const d = duration === undefined ? defaultDuration(def) : parseDuration(duration);
+  if (!d) return { ok: false, code: 'malformed_request' };
+  const activeRoles = (await activeGrants(db, granter.id, now)).map((g) => g.role);
+  return resolveExpiry(def, d, now, { isAdmin: granter.isAdmin, activeRoles });
 }
