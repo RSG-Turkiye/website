@@ -25,6 +25,8 @@ function codes(): string[] {
   for (const kind of ['speakers', 'sessions', 'committee']) for (const verb of ['create', 'update', 'delete']) found.add(`symposium.${kind}.${verb}`);
   for (const a of ['verify', 'unverify', 'award_badge', 'revoke_badge', 'set_rank']) found.add(`user.${a}`);
   for (const s of ['published', 'partially_published', 'failed']) found.add(`social.post.${s}`);
+  // cms-shepherd.ts passes its codes to settle() positionally.
+  for (const s of ['merged', 'published', 'failed']) found.add(`cms.pr.${s}`);
   return [...found].sort();
 }
 
