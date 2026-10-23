@@ -1,0 +1,26 @@
+{
+  "section": "databases",
+  "order": 8,
+  "title": {
+    "en": "Human Cell Atlas",
+    "tr": "Human Cell Atlas"
+  },
+  "description": {
+    "en": "International effort to map every cell type in the human body using single-cell genomics and spatial transcriptomics.",
+    "tr": "Tek hücreli genomik ve uzamsal transkriptomik kullanarak insan vücudundaki her hücre tipini haritalamaya yönelik uluslararası girişim."
+  },
+  "url": "https://www.humancellatlas.org",
+  "tags": {
+    "en": [
+      "single-cell",
+      "atlas",
+      "transcriptomics"
+    ],
+    "tr": [
+      "tek-hücreli",
+      "atlas",
+      "transkriptomik"
+    ]
+  },
+  "opensource": false
+}

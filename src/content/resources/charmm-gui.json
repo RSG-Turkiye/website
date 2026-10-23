@@ -1,0 +1,28 @@
+{
+  "section": "md-drug",
+  "order": 2,
+  "title": {
+    "en": "CHARMM-GUI",
+    "tr": "CHARMM-GUI"
+  },
+  "description": {
+    "en": "Web platform for building complex biomolecular systems. Generates ready-to-run input files for GROMACS, NAMD, AMBER, and CHARMM.",
+    "tr": "Karmaşık biyomoleküler sistemler oluşturmak için web tabanlı platform. GROMACS, NAMD, AMBER ve CHARMM için çalışmaya hazır girdi dosyaları üretir."
+  },
+  "url": "https://www.charmm-gui.org",
+  "tags": {
+    "en": [
+      "system-builder",
+      "GROMACS",
+      "NAMD",
+      "AMBER"
+    ],
+    "tr": [
+      "sistem-oluşturucu",
+      "GROMACS",
+      "NAMD",
+      "AMBER"
+    ]
+  },
+  "opensource": false
+}

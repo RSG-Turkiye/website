@@ -1,0 +1,26 @@
+{
+  "section": "learning",
+  "order": 4,
+  "title": {
+    "en": "Galaxy Training Network",
+    "tr": "Galaxy Eğitim Ağı"
+  },
+  "description": {
+    "en": "Hundreds of free, community-developed tutorials for data analysis using Galaxy: from genomics to proteomics and imaging.",
+    "tr": "Galaxy kullanarak veri analizi için yüzlerce ücretsiz, topluluk tarafından geliştirilmiş eğitim: genomikten proteomike ve görüntülemeye kadar."
+  },
+  "url": "https://training.galaxyproject.org",
+  "tags": {
+    "en": [
+      "tutorials",
+      "galaxy",
+      "community"
+    ],
+    "tr": [
+      "eğitimler",
+      "galaxy",
+      "topluluk"
+    ]
+  },
+  "opensource": true
+}

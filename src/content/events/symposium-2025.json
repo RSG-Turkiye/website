@@ -1,0 +1,22 @@
+{
+  "id": "symposium-2025",
+  "type": "symposium",
+  "start": "2025-10-30",
+  "end": "2025-11-02",
+  "title": {
+    "en": "12th RSG-Türkiye Student Symposium",
+    "tr": "12. RSG-Türkiye Öğrenci Sempozyumu"
+  },
+  "when": {
+    "en": "30 October – 2 November 2025",
+    "tr": "30 Ekim – 2 Kasım 2025"
+  },
+  "location": {
+    "en": "Istanbul Medipol University",
+    "tr": "İstanbul Medipol Üniversitesi"
+  },
+  "description": {
+    "en": "Held in collaboration with HIBIT 2025: workshops on 30 October and the symposium programme on 2 November.",
+    "tr": "HIBIT 2025 ile birlikte düzenlendi: 30 Ekim'de çalıştaylar, 2 Kasım'da sempozyum programı."
+  }
+}

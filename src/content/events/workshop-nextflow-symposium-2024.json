@@ -1,0 +1,47 @@
+{
+  "id": "workshop-nextflow-symposium-2024",
+  "type": "workshop",
+  "nfcore": true,
+  "start": "2024-11-15",
+  "title": {
+    "en": "Nextflow & nf-core Workshop (11th Symposium)",
+    "tr": "Nextflow ve nf-core Atölyesi (11. Sempozyum)"
+  },
+  "when": {
+    "en": "15 November 2024",
+    "tr": "15 Kasım 2024"
+  },
+  "location": {
+    "en": "Mehmet Akif Ersoy Culture and Art Center, Pendik, Istanbul",
+    "tr": "Mehmet Akif Ersoy Kültür Sanat Merkezi, Pendik, İstanbul"
+  },
+  "description": {
+    "en": "A hands-on session at the 11th Student Symposium with Dr. Kübra Narcı on building reproducible pipelines with Nextflow and nf-core.",
+    "tr": "11. Öğrenci Sempozyumu'nda Dr. Kübra Narcı ile Nextflow ve nf-core kullanarak tekrarlanabilir iş akışları kurma üzerine uygulamalı oturum."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Recording",
+        "tr": "Kayıt"
+      },
+      "url": "https://www.youtube.com/watch?v=rj6gTkhWDj0"
+    },
+    {
+      "label": {
+        "en": "Symposium programme",
+        "tr": "Sempozyum programı"
+      },
+      "url": "https://symposium.rsg-turkiye.iscbsc.org/editions/2024/"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/afb17645-a73e-4a1c-af5c-ca8f04eb3f54.jpg",
+    "full": "/api/images/ae500d31-27f0-4169-ad28-200cfbb0535d.jpg",
+    "alt": {
+      "en": "Group photo from the 11th Student Symposium, November 2024",
+      "tr": "11. Öğrenci Sempozyumu grup fotoğrafı, Kasım 2024"
+    },
+    "fit": "cover"
+  }
+}

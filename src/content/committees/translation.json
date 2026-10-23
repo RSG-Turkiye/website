@@ -1,0 +1,44 @@
+{
+  "order": 5,
+  "name": {
+    "en": "Translation Committee",
+    "tr": "Çeviri Komitesi"
+  },
+  "description": {
+    "en": "Managing multilingual content and translations.",
+    "tr": "Çok dilli içerik ve çevirileri yönetmek."
+  },
+  "members": [
+    {
+      "name": "Kurayi Chawatama",
+      "role": {
+        "en": "Translation Leader",
+        "tr": "Çeviri Ekibi Lideri"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199953/rsgturkey/committee/kurayi-chawatama.png",
+      "education": [
+        {
+          "degree": {
+            "en": "Undergraduate",
+            "tr": "Lisans"
+          },
+          "field": {
+            "en": "Molecular Biology and Genetics",
+            "tr": "Moleküler Biyoloji ve Genetik"
+          },
+          "institution": {
+            "en": "Bursa Uludağ University",
+            "tr": "Bursa Uludağ Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/kurayi-chawatama/"
+        }
+      ],
+      "consent": true
+    }
+  ]
+}

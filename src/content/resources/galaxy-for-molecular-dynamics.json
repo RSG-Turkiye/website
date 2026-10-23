@@ -1,0 +1,26 @@
+{
+  "section": "md-drug",
+  "order": 4,
+  "title": {
+    "en": "Galaxy for Molecular Dynamics",
+    "tr": "Galaxy ile Moleküler Dinamik"
+  },
+  "description": {
+    "en": "Galaxy-based workflows for MD simulation analysis: integrates GROMACS, MDAnalysis, and visualization tools in reproducible pipelines.",
+    "tr": "MD simülasyon analizi için Galaxy tabanlı iş akışları: GROMACS, MDAnalysis ve görselleştirme araçlarını tekrarlanabilir bir pipeline'da entegre eder."
+  },
+  "url": "https://usegalaxy.eu/workflows",
+  "tags": {
+    "en": [
+      "galaxy",
+      "GROMACS",
+      "reproducible"
+    ],
+    "tr": [
+      "galaxy",
+      "GROMACS",
+      "tekrarlanabilir"
+    ]
+  },
+  "opensource": true
+}

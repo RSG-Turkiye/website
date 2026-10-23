@@ -1,0 +1,26 @@
+{
+  "section": "databases",
+  "order": 9,
+  "title": {
+    "en": "GTEx Portal",
+    "tr": "GTEx Portalı"
+  },
+  "description": {
+    "en": "Gene expression data across human tissues and the genetic variants (eQTLs) that regulate them.",
+    "tr": "İnsan dokularındaki gen ekspresyonu verileri ve bunları düzenleyen genetik varyantlar (eQTL'ler)."
+  },
+  "url": "https://gtexportal.org",
+  "tags": {
+    "en": [
+      "gene-expression",
+      "eQTL",
+      "tissues"
+    ],
+    "tr": [
+      "gen-ekspresyonu",
+      "eQTL",
+      "dokular"
+    ]
+  },
+  "opensource": false
+}

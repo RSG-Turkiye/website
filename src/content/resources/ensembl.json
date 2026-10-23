@@ -1,0 +1,26 @@
+{
+  "section": "databases",
+  "order": 4,
+  "title": {
+    "en": "Ensembl",
+    "tr": "Ensembl"
+  },
+  "description": {
+    "en": "Genome browser and annotation database for vertebrate and model organism genomes, maintained by EMBL-EBI.",
+    "tr": "EMBL-EBI tarafından yönetilen, omurgalı ve model organizma genomları için genom tarayıcısı ve açıklama veritabanı."
+  },
+  "url": "https://www.ensembl.org",
+  "tags": {
+    "en": [
+      "genome",
+      "annotation",
+      "browser"
+    ],
+    "tr": [
+      "genom",
+      "açıklama",
+      "tarayıcı"
+    ]
+  },
+  "opensource": false
+}

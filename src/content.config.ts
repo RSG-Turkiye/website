@@ -1,6 +1,11 @@
 import { defineCollection } from "astro:content";
 import { z } from "astro/zod";
 import { glob } from "astro/loaders";
+import { workshopSchema } from "./data/workshops";
+import { eventSchema } from "./data/events";
+import { resourceSchema as linkSchema } from "./data/resources";
+import { committeeSchema } from "./data/committees";
+import { pageTextSchema } from "./data/page-text";
 
 // Blog posts are organized by language:
 //   src/content/blog/en/<slug>.md  → /blog/<slug>
@@ -182,4 +187,42 @@ const lpRoadmap = defineCollection({
   }),
 });
 
-export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap };
+// workshops — one JSON file per workshop, named after its repo (see the
+// schema in src/data/workshops.ts for what the fields mean).
+const workshops = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/workshops" }),
+  schema: workshopSchema,
+});
+
+// events — one JSON file per event, named by its id (see the schema in
+// src/data/events.ts for what the fields mean; src/lib/get-events.ts loads
+// and sorts them).
+const events = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/events" }),
+  schema: eventSchema,
+});
+
+// resources — one JSON file per link on /resources, named after its title
+// (see src/data/resources.ts; src/lib/get-resources.ts loads and sorts them).
+const resources = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/resources" }),
+  schema: linkSchema,
+});
+
+// committees -- one JSON file per committee on /about, published with each
+// member's consent and without e-mail addresses (see src/data/committees.ts;
+// src/lib/get-committees.ts loads them).
+const committees = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/committees" }),
+  schema: committeeSchema,
+});
+
+// pages -- the hand-written text of a page, one JSON file per page (about,
+// join), each key mapping to { en, tr } (see src/data/page-text.ts;
+// src/lib/page-text.ts reads it and throws on an unknown key).
+const pages = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/pages" }),
+  schema: pageTextSchema,
+});
+
+export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees, pages };

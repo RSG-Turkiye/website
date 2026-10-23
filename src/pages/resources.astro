@@ -1,74 +1,32 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { loadResources } from '../lib/get-resources';
+import { resourcesFor } from '../data/resources';
+import { pageText } from '../lib/page-text';
+const tx = await pageText('resources', 'en');
 const pageTitle = "Resources - RSG-Turkiye";
 
 const sections = [
-  { id: "learning",  label: "Learning" },
-  { id: "md-drug",   label: "MD & Drug Design" },
-  { id: "databases", label: "Databases" },
-  { id: "tools",     label: "Tools & Software" },
-  { id: "community", label: "Community" },
+  { id: "learning",  label: tx('section_learning') },
+  { id: "md-drug",   label: tx('section_md_drug') },
+  { id: "databases", label: tx('section_databases') },
+  { id: "tools",     label: tx('section_tools') },
+  { id: "community", label: tx('section_community') },
 ];
 
-type Resource = { title: string; description: string; url: string; tags: string[]; opensource: boolean };
-
-const learningResources: Resource[] = [
-  { title: "Rosalind", description: "Learn bioinformatics by solving problems. Covers Python, algorithms, and classical bioinformatics problems interactively.", url: "https://rosalind.info", tags: ["beginner", "algorithms", "python"], opensource: false },
-  { title: "OSSU Bioinformatics", description: "A free, open-source self-paced curriculum for a complete bioinformatics education, curated from top university courses.", url: "https://github.com/ossu/bioinformatics", tags: ["curriculum", "self-paced"], opensource: true },
-  { title: "EMBL-EBI Training", description: "Free online training courses in bioinformatics, genomics, proteomics, and data analysis from the European Bioinformatics Institute.", url: "https://www.ebi.ac.uk/training", tags: ["courses", "genomics", "proteomics"], opensource: false },
-  { title: "Harvard HBC Training", description: "Workshop materials from the Harvard Chan Bioinformatics Core covering RNA-seq, ChIP-seq, scRNA-seq, and more.", url: "https://hbctraining.github.io/main", tags: ["workshops", "rna-seq", "single-cell"], opensource: true },
-  { title: "Galaxy Training Network", description: "Hundreds of free, community-developed tutorials for data analysis using Galaxy: from genomics to proteomics and imaging.", url: "https://training.galaxyproject.org", tags: ["tutorials", "galaxy", "community"], opensource: true },
-  { title: "TeachOpenCADD", description: "Jupyter-based teaching platform for computer-aided drug design using open-source Python tools. By the Volkamer Lab at Charité Berlin.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "drug-design", "python"], opensource: true },
-  { title: "StatQuest with Josh Starmer", description: "Clearly explained statistics and machine learning concepts, with a strong focus on biology and bioinformatics applications.", url: "https://www.youtube.com/@statquest", tags: ["statistics", "machine-learning", "youtube"], opensource: false },
-  { title: "The Carpentries", description: "Hands-on lessons for Shell, Git, Python, and R: designed for researchers with no programming background.", url: "https://carpentries.org", tags: ["programming", "data-skills"], opensource: true },
-  { title: "Bioinformatics Specialization (Coursera)", description: "Seven-course specialization by Pavel Pevzner and Phillip Compeau (UC San Diego) covering algorithms and sequence analysis.", url: "https://www.coursera.org/specializations/bioinformatics", tags: ["algorithms", "coursera", "sequence-analysis"], opensource: false },
-];
-
-const mdResources: Resource[] = [
-  { title: "GROMACS Tutorials (Lemkul)", description: "The most widely used GROMACS tutorial series by Justin Lemkul. Covers protein-ligand systems, membranes, and free energy calculations.", url: "http://www.mdtutorials.com/gmx", tags: ["GROMACS", "MD", "tutorials"], opensource: true },
-  { title: "NAMD Tutorials (UIUC)", description: "Official NAMD tutorials from the Theoretical and Computational Biophysics Group at UIUC. Covers equilibration, steered MD, and free energy perturbation.", url: "https://www.ks.uiuc.edu/Training/Tutorials", tags: ["NAMD", "MD", "tutorials"], opensource: true },
-  { title: "CHARMM-GUI", description: "Web platform for building complex biomolecular systems. Generates ready-to-run input files for GROMACS, NAMD, AMBER, and CHARMM.", url: "https://www.charmm-gui.org", tags: ["system-builder", "GROMACS", "NAMD", "AMBER"], opensource: false },
-  { title: "TeachOpenCADD", description: "Open-source, Python-based platform covering ligand-based and structure-based drug design in Jupyter notebooks.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "drug-design", "jupyter"], opensource: true },
-  { title: "Galaxy for Molecular Dynamics", description: "Galaxy-based workflows for MD simulation analysis: integrates GROMACS, MDAnalysis, and visualization tools in reproducible pipelines.", url: "https://usegalaxy.eu/workflows", tags: ["galaxy", "GROMACS", "reproducible"], opensource: true },
-];
-
-const databases: Resource[] = [
-  { title: "NCBI", description: "Home of GenBank, PubMed, BLAST, RefSeq, and many other essential life-sciences databases and tools.", url: "https://www.ncbi.nlm.nih.gov", tags: ["genomics", "literature", "sequences"], opensource: false },
-  { title: "UniProt", description: "Comprehensive protein sequence and functional annotation database, covering Swiss-Prot (curated) and TrEMBL (automated).", url: "https://www.uniprot.org", tags: ["proteins", "annotation"], opensource: false },
-  { title: "RCSB Protein Data Bank (PDB)", description: "Archive of 3D structural data of proteins, nucleic acids, and complexes determined by X-ray, NMR, and cryo-EM.", url: "https://www.rcsb.org", tags: ["protein-structure", "3d"], opensource: false },
-  { title: "AlphaFold Protein Structure Database", description: "AI-predicted protein structures for nearly all known proteins, produced by DeepMind and EMBL-EBI.", url: "https://alphafold.ebi.ac.uk", tags: ["protein-structure", "AI", "prediction"], opensource: false },
-  { title: "Ensembl", description: "Genome browser and annotation database for vertebrate and model organism genomes, maintained by EMBL-EBI.", url: "https://www.ensembl.org", tags: ["genome", "annotation", "browser"], opensource: false },
-  { title: "GEO: Gene Expression Omnibus", description: "Public repository for high-throughput gene expression and functional genomics data (microarray, RNA-seq, ChIP-seq, etc.).", url: "https://www.ncbi.nlm.nih.gov/geo", tags: ["gene-expression", "transcriptomics"], opensource: false },
-  { title: "STRING", description: "Database of known and predicted protein–protein interactions, integrating experiments, text mining, and comparative genomics.", url: "https://string-db.org", tags: ["protein-interactions", "networks"], opensource: false },
-  { title: "KEGG", description: "Kyoto Encyclopedia of Genes and Genomes: reference database for biological pathways, diseases, drugs, and genomes.", url: "https://www.kegg.jp", tags: ["pathways", "metabolism"], opensource: false },
-  { title: "Human Cell Atlas", description: "International effort to map every cell type in the human body using single-cell genomics and spatial transcriptomics.", url: "https://www.humancellatlas.org", tags: ["single-cell", "atlas", "transcriptomics"], opensource: false },
-  { title: "GTEx Portal", description: "Gene expression data across human tissues and the genetic variants (eQTLs) that regulate them.", url: "https://gtexportal.org", tags: ["gene-expression", "eQTL", "tissues"], opensource: false },
-];
-
-const tools: Resource[] = [
-  { title: "nf-core", description: "A community effort to collect curated, peer-reviewed Nextflow pipelines. 100+ analysis pipelines ready to run, covering RNA-seq, ChIP-seq, scRNA-seq, variant calling, and more.", url: "https://nf-co.re", tags: ["nextflow", "pipelines", "community"], opensource: true },
-  { title: "Galaxy Project", description: "Web-based platform for accessible, reproducible bioinformatics analysis: no command line required.", url: "https://usegalaxy.org", tags: ["web-platform", "reproducible", "beginners"], opensource: true },
-  { title: "Bioconductor", description: "Open-source R packages for bioinformatics: differential expression, ChIP-seq, single-cell, and more.", url: "https://www.bioconductor.org", tags: ["R", "packages", "genomics"], opensource: true },
-  { title: "GATK", description: "Genome Analysis Toolkit by the Broad Institute: industry-standard tools for variant discovery in high-throughput sequencing data.", url: "https://gatk.broadinstitute.org", tags: ["variant-calling", "WGS", "WES"], opensource: true },
-  { title: "Nextflow", description: "Reactive workflow framework for scalable and reproducible bioinformatics pipelines across HPC and cloud environments.", url: "https://www.nextflow.io", tags: ["workflow", "pipelines", "HPC"], opensource: true },
-  { title: "Snakemake", description: "Python-based workflow management system for reproducible and scalable data analyses.", url: "https://snakemake.readthedocs.io", tags: ["workflow", "python", "pipelines"], opensource: true },
-  { title: "BLAST", description: "Basic Local Alignment Search Tool: find regions of similarity between nucleotide or protein sequences and database entries.", url: "https://blast.ncbi.nlm.nih.gov", tags: ["sequence-search", "alignment"], opensource: true },
-  { title: "Cytoscape", description: "Open-source platform for visualizing and analyzing biological networks and pathways.", url: "https://cytoscape.org", tags: ["networks", "visualization"], opensource: true },
-  { title: "IGV: Integrative Genomics Viewer", description: "High-performance desktop and web application for interactive exploration of genomic data.", url: "https://igv.org", tags: ["genome-browser", "visualization"], opensource: true },
-];
-
-const community: Resource[] = [
-  { title: "Biostars", description: "Question & answer forum for bioinformatics: search before posting, the answer is probably already there.", url: "https://www.biostars.org", tags: ["forum", "Q&A"], opensource: false },
-  { title: "ISCB Student Council", description: "International organization for students and young researchers in computational biology, affiliated with ISCB.", url: "https://www.iscb.org/iscb-student-council", tags: ["community", "networking"], opensource: false },
-  { title: "RSG-Turkiye GitHub", description: "Our organization's GitHub: past training materials, scripts, and resources from RSG-Turkiye events.", url: "https://github.com/RSG-Turkiye", tags: ["training", "open-source"], opensource: true },
-];
+const all = await loadResources();
+const learningResources = resourcesFor(all, "learning", "en");
+const mdResources = resourcesFor(all, "md-drug", "en");
+const databases = resourcesFor(all, "databases", "en");
+const tools = resourcesFor(all, "tools", "en");
+const community = resourcesFor(all, "community", "en");
 
 const allSections = [
-  { id: "learning",  label: "Learning",              items: learningResources },
-  { id: "md-drug",   label: "MD & Drug Design",      items: mdResources },
-  { id: "databases", label: "Databases",             items: databases },
-  { id: "tools",     label: "Tools & Software",      items: tools },
-  { id: "community", label: "Community",             items: community },
+  { id: "learning",  label: tx('section_learning'),        items: learningResources },
+  { id: "md-drug",   label: tx('section_md_drug'),         items: mdResources },
+  { id: "databases", label: tx('section_databases'),       items: databases },
+  { id: "tools",     label: tx('section_tools'),           items: tools },
+  { id: "community", label: tx('section_community'),       items: community },
 ];
 ---
 
@@ -77,8 +35,8 @@ const allSections = [
 
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
-      <h1 class="text-3xl font-bold text-white">Resources</h1>
-      <p class="text-white/70 mt-2">Curated bioinformatics learning materials, databases, and tools</p>
+      <h1 class="text-3xl font-bold text-white">{tx('hero_title')}</h1>
+      <p class="text-white/70 mt-2">{tx('hero_subtitle')}</p>
     </div>
   </div>
 
@@ -88,7 +46,7 @@ const allSections = [
 
         <!-- Sticky sidebar -->
         <aside class="hidden lg:flex flex-col gap-1 sticky top-8">
-          <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Sections</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tx('sidebar_sections_heading')}</p>
           {sections.map(s => (
             <a href={`#${s.id}`} data-nav={s.id}
               class="nav-link text-sm text-gray-500 hover:text-navy py-1.5 border-l-2 border-transparent hover:border-navy pl-3 no-underline transition-all duration-150">
@@ -98,11 +56,11 @@ const allSections = [
 
           <!-- Search -->
           <div class="mt-6 pt-5 border-t border-border">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Search</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{tx('sidebar_search_heading')}</p>
             <input
               id="resourceSearch"
               type="text"
-              placeholder="Filter resources…"
+              placeholder={tx('search_placeholder')}
               class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
             />
           </div>
@@ -110,13 +68,13 @@ const allSections = [
           <!-- Legend -->
           <div class="mt-4">
             <span class="inline-flex items-center gap-1.5 text-xs text-green-700 font-medium px-2 py-1 rounded bg-green-50 border border-green-200">
-              ✓ Open Source
+              ✓ {tx('open_source_badge')}
             </span>
-            <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">Freely available or open-source tools and materials.</p>
+            <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">{tx('open_source_legend')}</p>
           </div>
 
           <!-- No results -->
-          <p id="noResults" class="hidden text-xs text-gray-500 mt-4 italic">No matches found.</p>
+          <p id="noResults" class="hidden text-xs text-gray-500 mt-4 italic">{tx('sidebar_no_matches')}</p>
         </aside>
 
         <!-- Main content -->
@@ -129,14 +87,14 @@ const allSections = [
                matched. This sits in the main column, at every width. -->
           <div id="activeFilter" class="hidden items-center gap-3 rounded-xl border border-border bg-navy-light px-4 py-3">
             <p class="text-sm text-navy min-w-0 flex-1">
-              Showing matches for <span id="activeFilterTerm" class="font-semibold"></span>
+              {tx('active_filter_lead')} <span id="activeFilterTerm" class="font-semibold"></span>
             </p>
             <button id="clearFilter" type="button"
               class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border border-navy-mid text-navy-mid hover:bg-navy hover:text-white transition-colors">
-              Clear
+              {tx('clear_filter_button')}
             </button>
           </div>
-          <p id="noResultsMain" class="hidden text-sm text-gray-500 italic">No matches found.</p>
+          <p id="noResultsMain" class="hidden text-sm text-gray-500 italic">{tx('main_no_matches')}</p>
           {allSections.map(section => (
             <div id={section.id} class="resource-section">
               <div class="flex items-baseline gap-3 mb-6">
@@ -144,7 +102,7 @@ const allSections = [
                   {section.label}
                 </h2>
                 <span class="section-count text-xs font-medium text-gray-500 tabular-nums">
-                  {section.items.length} resources
+                  {section.items.length} {tx('section_count_unit')}
                 </span>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -163,7 +121,7 @@ const allSections = [
                       </a>
                       {item.opensource && (
                         <span class="shrink-0 inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200 whitespace-nowrap">
-                          ✓ Open Source
+                          ✓ {tx('open_source_badge')}
                         </span>
                       )}
                     </div>

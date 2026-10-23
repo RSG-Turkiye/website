@@ -1,0 +1,66 @@
+{
+  "journal_club_title": {
+    "en": "Journal Club",
+    "tr": "Makale Kulübü"
+  },
+  "journal_club_desc": {
+    "en": "We read and discuss current bioinformatics papers together: regular meetups that build academic reading habits and critical thinking.",
+    "tr": "Güncel biyoinformatik makalelerini birlikte okuyup tartışıyoruz. Akademik okuma alışkanlığını ve eleştirel düşünceyi destekleyen düzenli buluşmalar."
+  },
+  "international_network_title": {
+    "en": "International Network",
+    "tr": "Uluslararası Ağ"
+  },
+  "international_network_desc": {
+    "en": "Through ISCB Student Council membership, opportunities to connect with researchers worldwide and participate in international conferences.",
+    "tr": "ISCB Öğrenci Konseyi üyeliği sayesinde dünya genelindeki araştırmacılarla bağlantı kurma ve uluslararası konferanslara katılım fırsatları."
+  },
+  "opportunity_sharing_title": {
+    "en": "Opportunity Sharing",
+    "tr": "Fırsat Paylaşımı"
+  },
+  "opportunity_sharing_desc": {
+    "en": "MSc, PhD, and PostDoc positions, scholarships, and conference opportunities shared instantly with members via our Slack channel.",
+    "tr": "MSc, PhD ve PostDoc pozisyonları, burs ve konferans fırsatları Slack kanalımız üzerinden anında üyelerimizle paylaşılıyor."
+  },
+  "iscb_title": {
+    "en": "ISCB Student Council Affiliation",
+    "tr": "ISCB Öğrenci Konseyi Üyeliği"
+  },
+  "iscb_intro": {
+    "en": "We are proud to be a member of the International Society for Computational Biology (ISCB) Student Council.",
+    "tr": "Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi üyesi olmaktan gurur duyuyoruz."
+  },
+  "iscb_detail": {
+    "en": "The ISCB Student Council provides a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics worldwide.",
+    "tr": "ISCB Öğrenci Konseyi, dünya çapında hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve doktora sonrası araştırmacılar arasında iletişim ve etkileşim için çerçeve sağlar."
+  },
+  "iscb_benefit_conferences": {
+    "en": "Access to international conferences and events",
+    "tr": "Uluslararası konferans ve etkinliklere erişim"
+  },
+  "iscb_benefit_networking": {
+    "en": "Networking opportunities with global researchers",
+    "tr": "Küresel araştırmacılarla ağ oluşturma fırsatları"
+  },
+  "iscb_benefit_training": {
+    "en": "Educational resources and training programs",
+    "tr": "Eğitim kaynakları ve eğitim programları"
+  },
+  "iscb_benefit_collaboration": {
+    "en": "Collaboration opportunities with other RSGs",
+    "tr": "Diğer RSG'lerle işbirliği fırsatları"
+  },
+  "iscb_card_title": {
+    "en": "ISCB Student Council",
+    "tr": "ISCB Öğrenci Konseyi"
+  },
+  "iscb_card_subtitle": {
+    "en": "International Society for Computational Biology",
+    "tr": "Uluslararası Hesaplamalı Biyoloji Derneği"
+  },
+  "iscb_button": {
+    "en": "Visit ISCB Student Council",
+    "tr": "ISCB Öğrenci Konseyi'ni Ziyaret Et"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "meetup-izmir-2025",
+  "type": "meetup",
+  "start": "2025-11-30",
+  "title": {
+    "en": "İzmir Get-Together",
+    "tr": "İzmir Buluşması"
+  },
+  "when": {
+    "en": "30 November 2025",
+    "tr": "30 Kasım 2025"
+  },
+  "location": {
+    "en": "Alsancak, İzmir",
+    "tr": "Alsancak, İzmir"
+  },
+  "description": {
+    "en": "An informal afternoon for people in bioinformatics around İzmir: updates from RSG-Türkiye, research projects, and how to get involved with RSG-Türkiye and the ISCB Student Council.",
+    "tr": "İzmir'deki biyoinformatikçiler için samimi bir buluşma: RSG-Türkiye'den haberler, araştırma projeleri ve RSG-Türkiye ile ISCB Öğrenci Konseyi'ne nasıl katılınacağı."
+  },
+  "image": {
+    "thumb": "/api/images/2fab51a2-9e24-4f5e-aab4-35b3f25d583b.jpg",
+    "full": "/api/images/eb81e2be-93c3-4a02-9469-f7402dba53ad.jpg",
+    "alt": {
+      "en": "Participants of the İzmir get-together, November 2025",
+      "tr": "Kasım 2025, İzmir buluşmasının katılımcıları"
+    },
+    "fit": "cover"
+  }
+}

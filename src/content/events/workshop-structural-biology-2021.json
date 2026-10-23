@@ -1,0 +1,47 @@
+{
+  "id": "workshop-structural-biology-2021",
+  "type": "workshop",
+  "start": "2021-12-18",
+  "end": "2021-12-19",
+  "title": {
+    "en": "Structural Biology Workshop",
+    "tr": "Yapısal Biyoloji Atölyesi"
+  },
+  "when": {
+    "en": "18 – 19 December 2021",
+    "tr": "18 – 19 Aralık 2021"
+  },
+  "location": {
+    "en": "Online",
+    "tr": "Çevrimiçi"
+  },
+  "description": {
+    "en": "An introduction to computational structural biology: protein structure determination, molecular docking with HADDOCK, SwissDock and PRISM, and molecular dynamics with NAMD.",
+    "tr": "Hesaplamalı yapısal biyolojiye giriş: protein yapı belirleme, HADDOCK, SwissDock ve PRISM ile moleküler yerleştirme, NAMD ile moleküler dinamik."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Recordings (4 parts)",
+        "tr": "Kayıtlar (4 bölüm)"
+      },
+      "url": "https://www.youtube.com/watch?v=sy7dOi1tFhQ"
+    },
+    {
+      "label": {
+        "en": "Workshop materials",
+        "tr": "Atölye materyalleri"
+      },
+      "url": "https://github.com/RSG-Turkiye/Computational_Structural_Biology_Workshop"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/8c40868f-2120-426b-9313-ec02b88239d3.jpg",
+    "full": "/api/images/25b31a68-4983-41f4-b0a5-89e5be53d468.jpg",
+    "alt": {
+      "en": "Introduction to Computational Structural Biology Workshop title card",
+      "tr": "Hesaplamalı Yapısal Biyolojiye Giriş Atölyesi başlık görseli"
+    },
+    "fit": "cover"
+  }
+}

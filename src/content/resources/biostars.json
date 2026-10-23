@@ -1,0 +1,24 @@
+{
+  "section": "community",
+  "order": 0,
+  "title": {
+    "en": "Biostars",
+    "tr": "Biostars"
+  },
+  "description": {
+    "en": "Question & answer forum for bioinformatics: search before posting, the answer is probably already there.",
+    "tr": "Biyoinformatik için soru-cevap forumu: göndermeden önce arayın, cevap büyük ihtimalle zaten oradadır."
+  },
+  "url": "https://www.biostars.org",
+  "tags": {
+    "en": [
+      "forum",
+      "Q&A"
+    ],
+    "tr": [
+      "forum",
+      "soru-cevap"
+    ]
+  },
+  "opensource": false
+}

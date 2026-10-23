@@ -1,0 +1,41 @@
+{
+  "id": "hackathon-nfcore-2025",
+  "type": "hackathon",
+  "nfcore": true,
+  "start": "2025-03-24",
+  "end": "2025-03-26",
+  "title": {
+    "en": "nf-core Hackathon: RSG-Türkiye local site",
+    "tr": "nf-core Hackathon: RSG-Türkiye yerel ekibi"
+  },
+  "when": {
+    "en": "24 – 26 March 2025",
+    "tr": "24 – 26 Mart 2025"
+  },
+  "location": {
+    "en": "Istanbul Kent University, Istanbul",
+    "tr": "İstanbul Kent Üniversitesi, İstanbul"
+  },
+  "description": {
+    "en": "Our first official local site of the global nf-core hackathon, with two days of Nextflow training on site. The team led a project to improve nf-core/scdownstream: doublet detection with scDblFinder, cell-type annotation beyond human data, and documentation.",
+    "tr": "Küresel nf-core hackathon'unun ilk resmi yerel ekibimiz; yerinde iki günlük Nextflow eğitimiyle. Ekip nf-core/scdownstream'i geliştirme projesini yürüttü: scDblFinder ile çift hücre tespiti, insan dışı türler için hücre tipi atama ve dokümantasyon."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "nf-co.re event page",
+        "tr": "nf-co.re etkinlik sayfası"
+      },
+      "url": "https://nf-co.re/events/2025/hackathon-march-2025/rsg-turkiye"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/989469af-59cd-4c07-b8e1-3c019effad4e.jpg",
+    "full": "/api/images/b9570e40-a9fa-4807-9928-092242b1ad3f.jpg",
+    "alt": {
+      "en": "The team at the nf-core hackathon local site in Istanbul, March 2025",
+      "tr": "Mart 2025, İstanbul nf-core hackathon yerel ekibinden ekip"
+    },
+    "fit": "cover"
+  }
+}

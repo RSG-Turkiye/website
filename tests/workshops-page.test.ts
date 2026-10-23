@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { events } from '../src/data/events';
+import { readEvents } from './lib/events';
 
 /**
  * /workshops shows RSG-Türkiye's nf-core work (#225), its other hackathons and
- * its workshops, all from src/data/events.ts. The nf-core local sites in
+ * its workshops, all from src/content/events. The nf-core local sites in
  * particular were real and public on nf-co.re, and on none of our pages.
  */
+const events = readEvents();
 const DIST = new URL('../dist/', import.meta.url).pathname;
 const built = existsSync(`${DIST}workshops/index.html`);
 

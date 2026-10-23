@@ -1,0 +1,44 @@
+{
+  "order": 1,
+  "name": {
+    "en": "Webinar Committee",
+    "tr": "Webinar Komitesi"
+  },
+  "description": {
+    "en": "Organizing our webinar series and educational events.",
+    "tr": "Webinar serimizi ve eğitim etkinliklerimizi organize etmek."
+  },
+  "members": [
+    {
+      "name": "Ezgi Gokce",
+      "role": {
+        "en": "Webinar Leader",
+        "tr": "Webinar Ekibi Lideri"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199910/rsgturkey/committee/ezgi-gokce.jpg",
+      "education": [
+        {
+          "degree": {
+            "en": "BSc",
+            "tr": "Lisans"
+          },
+          "field": {
+            "en": "Biology",
+            "tr": "Biyoloji"
+          },
+          "institution": {
+            "en": "Hacettepe University",
+            "tr": "Hacettepe Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/ezgigokceaydore/"
+        }
+      ],
+      "consent": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "symposium-2023",
+  "type": "symposium",
+  "start": "2023-10-03",
+  "end": "2023-10-04",
+  "title": {
+    "en": "10th RSG-Türkiye Student Symposium",
+    "tr": "10. RSG-Türkiye Öğrenci Sempozyumu"
+  },
+  "when": {
+    "en": "3 – 4 October 2023",
+    "tr": "3 – 4 Ekim 2023"
+  },
+  "location": {
+    "en": "METU Informatics Institute, Ankara",
+    "tr": "ODTÜ Enformatik Enstitüsü, Ankara"
+  },
+  "description": {
+    "en": "A decade of annual symposiums, with keynotes on AI in medicine and computational imaging, and a panel on bioinformatics in Turkish clinical practice.",
+    "tr": "Yıllık sempozyumların onuncu yılı; tıpta yapay zekâ ve hesaplamalı görüntüleme üzerine açılış konuşmaları ve Türkiye'de klinik biyoinformatik üzerine bir panel."
+  }
+}

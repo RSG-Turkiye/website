@@ -1,0 +1,47 @@
+{
+  "id": "hackathon-combine-2024",
+  "type": "hackathon",
+  "start": "2024-09-23",
+  "end": "2024-09-25",
+  "title": {
+    "en": "Single-cell RNA-seq Hackathon with RSG-Australia (COMBINE)",
+    "tr": "RSG-Avustralya (COMBINE) ile Tek Hücre RNA-seq Hackathon'u"
+  },
+  "when": {
+    "en": "23 – 25 September 2024",
+    "tr": "23 – 25 Eylül 2024"
+  },
+  "location": {
+    "en": "Hybrid and online",
+    "tr": "Hibrit ve çevrimiçi"
+  },
+  "description": {
+    "en": "A joint event with RSG-Australia (COMBINE): a Seurat workshop day, an online hackathon day, and a joint presentation and awards session.",
+    "tr": "RSG-Avustralya (COMBINE) ile ortak etkinlik: bir Seurat atölyesi günü, bir çevrimiçi hackathon günü ve ortak sunum ve ödül oturumu."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Seurat workshop recording",
+        "tr": "Seurat atölyesi kaydı"
+      },
+      "url": "https://www.youtube.com/watch?v=Q3HJGraN7D8"
+    },
+    {
+      "label": {
+        "en": "Workshop materials",
+        "tr": "Atölye materyalleri"
+      },
+      "url": "https://github.com/RSG-Turkiye/RSG-Single-Cell-Workshop2024"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/786c3e87-96d3-43a1-b67b-f48a4aa74fb5.jpg",
+    "full": "/api/images/a8580b20-a1dd-4162-8a4b-8f282d6317a8.jpg",
+    "alt": {
+      "en": "RSG-Türkiye and COMBINE (RSG Australia) RNA-seq hackathon title graphic",
+      "tr": "RSG-Türkiye ve COMBINE (RSG Avustralya) RNA-seq hackathon başlık görseli"
+    },
+    "fit": "contain"
+  }
+}

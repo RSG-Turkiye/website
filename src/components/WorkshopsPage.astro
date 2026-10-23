@@ -4,15 +4,17 @@
  * Nextflow work leads (#225: two official nf-core hackathon local sites, a
  * merged module, Nextflow training in Turkish, none of it on the site
  * before), then the other hackathons, then every workshop, with its public
- * materials where they exist. Everything comes from src/data/events.ts, the
+ * materials where they exist. Everything comes from src/content/events, the
  * list /events renders, so the two pages cannot disagree.
  */
-import { events, statusOf } from "../data/events";
+import { statusOf } from "../data/events";
+import { loadEvents } from "../lib/get-events";
 import YearRail from "./YearRail.astro";
 import WorkshopsAside from "./WorkshopsAside.astro";
 
 interface Props { lang: "en" | "tr" }
 const { lang } = Astro.props;
+const events = await loadEvents();
 const now = new Date();
 const newest = (a: { start: Date }, b: { start: Date }) => b.start.getTime() - a.start.getTime();
 const nfcore = events.filter((e) => e.nfcore).sort(newest);

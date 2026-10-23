@@ -1,131 +1,98 @@
 # Komite Üyeleri Yönetim Rehberi
 
-Bu rehber, RSG Turkey web sitesindeki komite üyelerinin bilgilerini nasıl yöneteceğinizi açıklar.
+Bu rehber, `/about` ve `/tr/about` sayfalarındaki komitelerin ve üyelerin
+nasıl güncelleneceğini anlatır.
 
-## 📁 Dosya Yapısı
+## Dosyalar
 
-Komite üyelerinin bilgileri `src/data/committees.ts` dosyasında saklanır. Bu dosya:
-- TypeScript interface'leri tanımlar
-- İngilizce ve Türkçe komite verilerini içerir
-- Dil bazlı veri erişimi için helper fonksiyon sağlar
+Her komite `src/content/committees/` klasöründe ayrı bir JSON dosyasıdır
+(örneğin `website.json`). Dosya adı küçük harf, rakam ve tireden oluşur
+(`[a-z0-9-]+.json`). Kod değişikliği gerekmez: dosyayı düzenleyip pull
+request açmak yeterlidir.
 
-## 🔧 Yeni Üye Ekleme
+Şema `src/data/committees.ts` dosyasındadır. Şemaya uymayan bir dosya
+(eksik alan, yanlış yazılmış bir anahtar, fazladan bir alan) build'i
+durdurur ve hata mesajı hangi dosya ve alan olduğunu söyler.
 
-### 1. Veri Dosyasını Düzenleme
+Yönetim paneli ileride bu dosyaları da düzenleyecek (değişiklikleri pull
+request olarak açarak). O zamana kadar dosyalar elle düzenlenir.
 
-`src/data/committees.ts` dosyasını açın ve ilgili komiteye yeni üye ekleyin:
+## Bir komite dosyası
 
-```typescript
+```json
 {
-  name: "Dr. Ahmet Yılmaz",
-  role: "Member",
-  image: "/images/members/ahmet-yilmaz.jpg", // Fotoğraf yolu
-  institution: "İstanbul Üniversitesi",
-  email: "ahmet.yilmaz@example.com",
-  socialMedia: [
-    { platform: "linkedin", url: "https://linkedin.com/in/ahmet-yilmaz" },
-    { platform: "twitter", url: "https://twitter.com/ahmetyilmaz" },
-  ],
+  "order": 6,
+  "name": { "en": "Website Committee", "tr": "Web Sitesi Komitesi" },
+  "description": {
+    "en": "Managing website development and maintenance.",
+    "tr": "Web sitesi geliştirme ve bakımını yönetmek."
+  },
+  "members": [
+    {
+      "name": "Ada Örnek",
+      "role": { "en": "Website Leader", "tr": "Web Sitesi Ekibi Lideri" },
+      "image": "https://res.cloudinary.com/.../ada-ornek.jpg",
+      "education": [
+        {
+          "degree": { "en": "MSc", "tr": "Yüksek Lisans" },
+          "field": { "en": "Bioinformatics", "tr": "Biyoinformatik" },
+          "institution": { "en": "Example University", "tr": "Örnek Üniversitesi" },
+          "year": "2027"
+        }
+      ],
+      "socialMedia": [
+        { "platform": "linkedin", "url": "https://www.linkedin.com/in/..." }
+      ],
+      "consent": true
+    }
+  ]
 }
 ```
 
-### 2. Fotoğraf Ekleme
+### Alanlar
 
-Üye fotoğraflarını `public/images/members/` klasörüne ekleyin:
-- Önerilen boyut: 300x300 piksel
-- Format: JPG veya PNG
-- Dosya adı: küçük harfler ve tire ile ayrılmış (örn: `ahmet-yilmaz.jpg`)
+| Alan | Zorunlu | Açıklama |
+| --- | --- | --- |
+| `order` | evet | Komitenin sayfadaki sırası, 0'dan başlar. Sıralar boşluksuz olmalı (0, 1, 2, ...); iki komite aynı sırayı alamaz. |
+| `name`, `description` | evet | `{ "en": ..., "tr": ... }`: iki dil de dolu olmalı. |
+| `members` | evet | Üyeler, sayfada göründükleri sırayla. |
+| `members[].name` | evet | Üyenin adı, her iki dilde aynı. |
+| `members[].role` | evet | `{ en, tr }`. |
+| `members[].image` | evet | Fotoğrafın adresi: tam bir `https://` adresi ya da sitedeki bir yol. `*.r2.dev`, `*.pages.dev` ve `*.workers.dev` Türkiye'de engelli olduğu için şema bunları reddeder. |
+| `members[].education` | hayır | `degree`, `field`, `institution` her biri `{ en, tr }`; `year` isteğe bağlı bir metin. |
+| `members[].socialMedia` | hayır | `platform` şunlardan biri: `linkedin`, `twitter`, `github`, `instagram`, `facebook`. `url` iki dilde aynıdır. |
+| `members[].consent` | evet | Her zaman `true`. Üye, profilinin sitede ve herkese açık git deposunda yayımlanmasını kabul etmiştir. Onay yoksa üye dosyaya eklenmez. |
 
-### 3. Sosyal Medya Linkleri
+**E-posta alanı yoktur.** Depo herkese açıktır ve git geçmişi silinemez; bu
+yüzden e-posta adresleri dosyalara yazılmaz. Şema `email` alanını reddeder.
+Komiteye ulaşmak isteyenler sitedeki iletişim yollarını kullanır.
 
-Desteklenen platformlar:
-- `linkedin` - LinkedIn profili
-- `twitter` - Twitter/X hesabı
-- `facebook` - Facebook sayfası
-- `github` - GitHub profili
-- `instagram` - Instagram hesabı
+## Üye eklemek
 
-## 📝 Veri Yapısı
+1. Üyeden profilinin yayımlanması için onay alın.
+2. Fotoğrafı yükleyin ve adresini alın (mevcut fotoğraflar Cloudinary'de).
+3. İlgili komite dosyasında `members` listesine yukarıdaki biçimde bir nesne
+   ekleyin; `"consent": true` unutulmamalı.
+4. Hem İngilizce hem Türkçe metinleri doldurun.
+5. `npm test` ve `npm run build` çalıştırın, sonra pull request açın.
 
-### CommitteeMember Interface
+## Üye çıkarmak
 
-```typescript
-interface CommitteeMember {
-  name: string;           // Üye adı
-  role: string;           // Komitedeki rolü
-  image: string;          // Fotoğraf yolu
-  institution: string;    // Kurum/üniversite
-  email?: string;         // E-posta (opsiyonel)
-  socialMedia?: {         // Sosyal medya linkleri (opsiyonel)
-    platform: 'twitter' | 'linkedin' | 'facebook' | 'github' | 'instagram';
-    url: string;
-  }[];
-}
-```
+Üyenin nesnesini `members` listesinden silin. Fotoğrafı da artık
+kullanılmıyorsa barındırıldığı yerden kaldırın. Üye onayını geri çekerse de
+aynısı yapılır.
 
-### Committee Interface
+## Komite eklemek veya çıkarmak
 
-```typescript
-interface Committee {
-  name: string;           // Komite adı
-  description: string;    // Komite açıklaması
-  members: CommitteeMember[]; // Komite üyeleri
-}
-```
+Yeni bir komite için yeni bir dosya oluşturun (`src/content/committees/<ad>.json`)
+ve ona bir `order` verin. Bir komiteyi kaldırırken dosyasını silin ve kalan
+komitelerin `order` değerlerini boşluk kalmayacak şekilde yeniden numaralandırın.
 
-## 🌐 Çok Dilli Destek
+Bir dosyayı sildikten sonra yerelde build almadan önce
+`rm -rf node_modules/.astro .astro dist` çalıştırın; Astro'nun önbelleği
+silinen dosyaları tutar.
 
-Veriler hem İngilizce hem Türkçe olarak saklanır:
-- `committeesEn` - İngilizce komite verileri
-- `committeesTr` - Türkçe komite verileri
-- `getCommittees(lang)` - Dil bazlı veri erişimi
+## Yıllık devir
 
-## 🔄 Güncelleme Örnekleri
-
-### Yeni Komite Ekleme
-
-```typescript
-{
-  name: "Yeni Komite",
-  description: "Yeni komite açıklaması",
-  members: [
-    // Üye listesi
-  ],
-}
-```
-
-### Mevcut Üyeyi Güncelleme
-
-```typescript
-{
-  name: "Dr. Güncellenmiş İsim",
-  role: "Yeni Rol",
-  image: "/images/members/yeni-foto.jpg",
-  institution: "Yeni Kurum",
-  email: "yeni@email.com",
-  socialMedia: [
-    { platform: "linkedin", url: "https://linkedin.com/in/yeni" },
-  ],
-}
-```
-
-## ✅ En İyi Uygulamalar
-
-1. **Fotoğraf Kalitesi**: Yüksek kaliteli, profesyonel fotoğraflar kullanın
-2. **Dosya Adlandırma**: Tutarlı dosya adlandırma kuralları uygulayın
-3. **Veri Doğruluğu**: E-posta ve sosyal medya linklerini test edin
-4. **Güncel Tutma**: Üye bilgilerini düzenli olarak güncelleyin
-5. **Yedekleme**: Değişikliklerden önce dosyaları yedekleyin
-
-## 🚀 Avantajlar
-
-Bu sistem sayesinde:
-- ✅ Komite üyelerinin bilgilerini tek dosyadan yönetebilirsiniz
-- ✅ Tip güvenliği ile hata riskini azaltırsınız
-- ✅ Çok dilli destek ile uluslararası erişim sağlarsınız
-- ✅ Sosyal medya linkleri ile iletişimi kolaylaştırırsınız
-- ✅ E-posta linkleri ile doğrudan iletişim sağlarsınız
-
-## 📞 Destek
-
-Herhangi bir sorun yaşarsanız veya yardıma ihtiyacınız olursa, lütfen proje ekibiyle iletişime geçin.
+Yönetim değiştiğinde giden üyeleri çıkarın, gelenleri ekleyin ve rolleri
+güncelleyin. README'deki "Yearly handover" bölümü diğer adımları listeler.

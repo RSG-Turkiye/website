@@ -1,0 +1,24 @@
+{
+  "section": "learning",
+  "order": 7,
+  "title": {
+    "en": "The Carpentries",
+    "tr": "The Carpentries"
+  },
+  "description": {
+    "en": "Hands-on lessons for Shell, Git, Python, and R: designed for researchers with no programming background.",
+    "tr": "Araştırmacılar için tasarlanmış Shell, Git, Python ve R derslerini içeren uygulamalı veri ve hesaplama becerileri materyalleri."
+  },
+  "url": "https://carpentries.org",
+  "tags": {
+    "en": [
+      "programming",
+      "data-skills"
+    ],
+    "tr": [
+      "programlama",
+      "veri-becerileri"
+    ]
+  },
+  "opensource": true
+}

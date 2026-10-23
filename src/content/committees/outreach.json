@@ -1,0 +1,44 @@
+{
+  "order": 2,
+  "name": {
+    "en": "Outreach Committee",
+    "tr": "Topluluk İlişkileri Komitesi"
+  },
+  "description": {
+    "en": "Managing community engagement and international connections.",
+    "tr": "Topluluk katılımını ve uluslararası bağlantıları yönetmek."
+  },
+  "members": [
+    {
+      "name": "Mariam Aseyakhe",
+      "role": {
+        "en": "Outreach Leader",
+        "tr": "Topluluk İlişkileri Ekibi Lideri"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199912/rsgturkey/committee/mariam-aseyakhe.jpg",
+      "education": [
+        {
+          "degree": {
+            "en": "MSc",
+            "tr": "Yüksek Lisans"
+          },
+          "field": {
+            "en": "Biological Sciences of Global Health",
+            "tr": "Biological Sciences of Global Health"
+          },
+          "institution": {
+            "en": "Univeristy of Ibn Zohr",
+            "tr": "Ibn Zohr Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/mariam-aseyakhe-766424306/"
+        }
+      ],
+      "consent": true
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "section": "tools",
+  "order": 3,
+  "title": {
+    "en": "GATK",
+    "tr": "GATK"
+  },
+  "description": {
+    "en": "Genome Analysis Toolkit by the Broad Institute: industry-standard tools for variant discovery in high-throughput sequencing data.",
+    "tr": "Broad Enstitüsü'nün Genom Analiz Araç Seti: yüksek işlem hacimli dizileme verilerinde varyant keşfi için endüstri standardı araçlar."
+  },
+  "url": "https://gatk.broadinstitute.org",
+  "tags": {
+    "en": [
+      "variant-calling",
+      "WGS",
+      "WES"
+    ],
+    "tr": [
+      "varyant-çağırma",
+      "WGS",
+      "WES"
+    ]
+  },
+  "opensource": true
+}

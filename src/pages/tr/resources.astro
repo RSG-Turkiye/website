@@ -1,74 +1,32 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { loadResources } from '../../lib/get-resources';
+import { resourcesFor } from '../../data/resources';
+import { pageText } from '../../lib/page-text';
+const tx = await pageText('resources', 'tr');
 const pageTitle = "Kaynaklar - RSG-Türkiye";
 
 const sections = [
-  { id: "learning",  label: "Öğrenme" },
-  { id: "md-drug",   label: "MD & İlaç Tasarımı" },
-  { id: "databases", label: "Veritabanları" },
-  { id: "tools",     label: "Araçlar & Yazılımlar" },
-  { id: "community", label: "Topluluk" },
+  { id: "learning",  label: tx('section_learning') },
+  { id: "md-drug",   label: tx('section_md_drug') },
+  { id: "databases", label: tx('section_databases') },
+  { id: "tools",     label: tx('section_tools') },
+  { id: "community", label: tx('section_community') },
 ];
 
-type Resource = { title: string; description: string; url: string; tags: string[]; opensource: boolean };
-
-const learningResources: Resource[] = [
-  { title: "Rosalind", description: "Problem çözerek biyoinformatik öğrenin. Python, algoritmalar ve klasik biyoinformatik problemlerini interaktif olarak kapsar.", url: "https://rosalind.info", tags: ["başlangıç", "algoritmalar", "python"], opensource: false },
-  { title: "OSSU Bioinformatics", description: "Kapsamlı bir biyoinformatik eğitimi için ücretsiz, açık kaynaklı ve kendi hızınızda ilerleyebileceğiniz müfredat.", url: "https://github.com/ossu/bioinformatics", tags: ["müfredat", "kendi-hızında"], opensource: true },
-  { title: "EMBL-EBI Eğitim", description: "Avrupa Biyoinformatik Enstitüsü'nden biyoinformatik, genomik, proteomik ve veri analizi alanlarında ücretsiz çevrimiçi kurslar.", url: "https://www.ebi.ac.uk/training", tags: ["kurslar", "genomik", "proteomik"], opensource: false },
-  { title: "Harvard HBC Eğitim Materyalleri", description: "Harvard Chan Biyoinformatik Çekirdeği'nin RNA-seq, ChIP-seq, tek hücreli RNA-seq ve daha fazlasını kapsayan atölye materyalleri.", url: "https://hbctraining.github.io/main", tags: ["atölyeler", "rna-seq", "tek-hücreli"], opensource: true },
-  { title: "Galaxy Eğitim Ağı", description: "Galaxy kullanarak veri analizi için yüzlerce ücretsiz, topluluk tarafından geliştirilmiş eğitim: genomikten proteomike ve görüntülemeye kadar.", url: "https://training.galaxyproject.org", tags: ["eğitimler", "galaxy", "topluluk"], opensource: true },
-  { title: "TeachOpenCADD", description: "Açık kaynaklı araçlar ve Python kullanan bilgisayar destekli ilaç tasarımı (CADD) öğretim platformu. Charité Berlin'deki Volkamer Lab tarafından geliştirilmiştir.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "ilaç-tasarımı", "python"], opensource: true },
-  { title: "StatQuest: Josh Starmer", description: "Biyoloji ve biyoinformatiğe odaklanan, açık anlatımıyla istatistik ve makine öğrenimi kavramlarını ele alan YouTube kanalı.", url: "https://www.youtube.com/@statquest", tags: ["istatistik", "makine-öğrenimi", "youtube"], opensource: false },
-  { title: "The Carpentries", description: "Araştırmacılar için tasarlanmış Shell, Git, Python ve R derslerini içeren uygulamalı veri ve hesaplama becerileri materyalleri.", url: "https://carpentries.org", tags: ["programlama", "veri-becerileri"], opensource: true },
-  { title: "Bioinformatics Specialization (Coursera)", description: "Pavel Pevzner ve Phillip Compeau'nun (UC San Diego) hazırladığı, algoritmaları ve dizi analizini kapsayan yedi derslik uzmanlaşma programı.", url: "https://www.coursera.org/specializations/bioinformatics", tags: ["algoritmalar", "coursera", "dizi-analizi"], opensource: false },
-];
-
-const mdResources: Resource[] = [
-  { title: "GROMACS Eğitimleri (Lemkul)", description: "Justin Lemkul'un en yaygın kullanılan GROMACS eğitim serisi. Protein-ligand sistemleri, membranlar, serbest enerji hesaplamaları ve daha fazlasını kapsar.", url: "http://www.mdtutorials.com/gmx", tags: ["GROMACS", "MD", "eğitimler"], opensource: true },
-  { title: "NAMD Eğitimleri (UIUC)", description: "Illinois Üniversitesi Teorik ve Hesaplamalı Biyofizik Grubu'nun resmi NAMD eğitimleri. Dengeleme, yönlendirilmiş MD, serbest enerji ve daha fazlasını kapsar.", url: "https://www.ks.uiuc.edu/Training/Tutorials", tags: ["NAMD", "MD", "eğitimler"], opensource: true },
-  { title: "CHARMM-GUI", description: "Karmaşık biyomoleküler sistemler oluşturmak için web tabanlı platform. GROMACS, NAMD, AMBER ve CHARMM için çalışmaya hazır girdi dosyaları üretir.", url: "https://www.charmm-gui.org", tags: ["sistem-oluşturucu", "GROMACS", "NAMD", "AMBER"], opensource: false },
-  { title: "TeachOpenCADD", description: "Jupyter notebook tabanlı bilgisayar destekli ilaç tasarımı öğretim platformu. Açık kaynaklı, Python tabanlı; ligand ve yapı tabanlı yaklaşımları kapsar.", url: "https://projects.volkamerlab.org/teachopencadd", tags: ["CADD", "ilaç-tasarımı", "jupyter"], opensource: true },
-  { title: "Galaxy ile Moleküler Dinamik", description: "MD simülasyon analizi için Galaxy tabanlı iş akışları: GROMACS, MDAnalysis ve görselleştirme araçlarını tekrarlanabilir bir pipeline'da entegre eder.", url: "https://usegalaxy.eu/workflows", tags: ["galaxy", "GROMACS", "tekrarlanabilir"], opensource: true },
-];
-
-const databases: Resource[] = [
-  { title: "NCBI", description: "Ulusal Biyoteknoloji Bilgi Merkezi: GenBank, PubMed, BLAST, RefSeq ve daha pek çok temel veritabanının evi.", url: "https://www.ncbi.nlm.nih.gov", tags: ["genomik", "literatür", "diziler"], opensource: false },
-  { title: "UniProt", description: "Swiss-Prot (küratörlü) ve TrEMBL (otomatik) bölümlerini kapsayan kapsamlı protein dizisi ve fonksiyonel açıklama veritabanı.", url: "https://www.uniprot.org", tags: ["proteinler", "açıklama"], opensource: false },
-  { title: "RCSB Protein Veri Bankası (PDB)", description: "X-ışını, NMR ve kryo-EM ile belirlenen proteinlerin, nükleik asitlerin ve kompleks yapıların 3B yapısal verilerinin arşivi.", url: "https://www.rcsb.org", tags: ["protein-yapısı", "3b"], opensource: false },
-  { title: "AlphaFold Protein Yapısı Veritabanı", description: "DeepMind ve EMBL-EBI tarafından üretilen, neredeyse tüm bilinen proteinler için yapay zeka tarafından tahmin edilmiş protein yapıları.", url: "https://alphafold.ebi.ac.uk", tags: ["protein-yapısı", "YZ", "tahmin"], opensource: false },
-  { title: "Ensembl", description: "EMBL-EBI tarafından yönetilen, omurgalı ve model organizma genomları için genom tarayıcısı ve açıklama veritabanı.", url: "https://www.ensembl.org", tags: ["genom", "açıklama", "tarayıcı"], opensource: false },
-  { title: "GEO: Gen Ekspresyonu Omnibus", description: "Yüksek işlem hacimli gen ekspresyonu ve fonksiyonel genomik verileri (mikrodizi, RNA-seq, ChIP-seq vb.) için herkese açık depo.", url: "https://www.ncbi.nlm.nih.gov/geo", tags: ["gen-ekspresyonu", "transkriptomik"], opensource: false },
-  { title: "STRING", description: "Deney, metin madenciliği ve genomikten elde edilen verileri entegre eden bilinen ve tahmin edilen protein-protein etkileşim veritabanı.", url: "https://string-db.org", tags: ["protein-etkileşimleri", "ağlar"], opensource: false },
-  { title: "KEGG", description: "Kyoto Genlerin ve Genomiğin Ansiklopedisi: biyolojik yollar, hastalıklar, ilaçlar ve genomlar için referans veritabanı.", url: "https://www.kegg.jp", tags: ["yollar", "metabolizma"], opensource: false },
-  { title: "Human Cell Atlas", description: "Tek hücreli genomik ve uzamsal transkriptomik kullanarak insan vücudundaki her hücre tipini haritalamaya yönelik uluslararası girişim.", url: "https://www.humancellatlas.org", tags: ["tek-hücreli", "atlas", "transkriptomik"], opensource: false },
-  { title: "GTEx Portalı", description: "İnsan dokularındaki gen ekspresyonu verileri ve bunları düzenleyen genetik varyantlar (eQTL'ler).", url: "https://gtexportal.org", tags: ["gen-ekspresyonu", "eQTL", "dokular"], opensource: false },
-];
-
-const tools: Resource[] = [
-  { title: "nf-core", description: "Küratörlü, hakemli Nextflow pipeline'larını bir araya getiren topluluk girişimi. RNA-seq, ChIP-seq, tek hücre, varyant çağırma ve daha fazlasını kapsayan 100+ pipeline.", url: "https://nf-co.re", tags: ["nextflow", "pipeline", "topluluk"], opensource: true },
-  { title: "Galaxy Project", description: "Komut satırı gerektirmeyen, erişilebilir ve tekrarlanabilir biyoinformatik analiz için web tabanlı platform.", url: "https://usegalaxy.org", tags: ["web-platformu", "tekrarlanabilir", "başlangıç"], opensource: true },
-  { title: "Bioconductor", description: "Diferansiyel ekspresyon, ChIP-seq, tek hücreli analiz ve daha fazlası için açık kaynaklı R paketleri.", url: "https://www.bioconductor.org", tags: ["R", "paketler", "genomik"], opensource: true },
-  { title: "GATK", description: "Broad Enstitüsü'nün Genom Analiz Araç Seti: yüksek işlem hacimli dizileme verilerinde varyant keşfi için endüstri standardı araçlar.", url: "https://gatk.broadinstitute.org", tags: ["varyant-çağırma", "WGS", "WES"], opensource: true },
-  { title: "Nextflow", description: "HPC ve bulut ortamlarında ölçeklenebilir ve tekrarlanabilir biyoinformatik pipeline'ları için reaktif iş akışı çerçevesi.", url: "https://www.nextflow.io", tags: ["iş-akışı", "pipeline", "HPC"], opensource: true },
-  { title: "Snakemake", description: "Tekrarlanabilir ve ölçeklenebilir veri analizleri için Python tabanlı iş akışı yönetim sistemi.", url: "https://snakemake.readthedocs.io", tags: ["iş-akışı", "python", "pipeline"], opensource: true },
-  { title: "BLAST", description: "Temel Yerel Hizalama Arama Aracı: nükleotid veya protein dizileri ile veritabanı girdileri arasındaki benzerlik bölgelerini bulun.", url: "https://blast.ncbi.nlm.nih.gov", tags: ["dizi-arama", "hizalama"], opensource: true },
-  { title: "Cytoscape", description: "Biyolojik ağları ve yolları görselleştirmek ve analiz etmek için açık kaynaklı platform.", url: "https://cytoscape.org", tags: ["ağlar", "görselleştirme"], opensource: true },
-  { title: "IGV: Bütünleşik Genomik Görüntüleyici", description: "Genomik verilerin interaktif olarak keşfedilmesi için yüksek performanslı masaüstü ve web uygulaması.", url: "https://igv.org", tags: ["genom-tarayıcısı", "görselleştirme"], opensource: true },
-];
-
-const community: Resource[] = [
-  { title: "Biostars", description: "Biyoinformatik için soru-cevap forumu: göndermeden önce arayın, cevap büyük ihtimalle zaten oradadır.", url: "https://www.biostars.org", tags: ["forum", "soru-cevap"], opensource: false },
-  { title: "ISCB Öğrenci Konseyi", description: "ISCB bünyesindeki, hesaplamalı biyoloji öğrencileri ve genç araştırmacılar için uluslararası organizasyon.", url: "https://www.iscb.org/iscb-student-council", tags: ["topluluk", "ağ-oluşturma"], opensource: false },
-  { title: "RSG-Türkiye GitHub", description: "Organizasyonumuzun GitHub sayfası: RSG-Türkiye etkinliklerinden geçmiş eğitim materyalleri, scriptler ve kaynaklar.", url: "https://github.com/RSG-Turkiye", tags: ["eğitim", "açık-kaynak"], opensource: true },
-];
+const all = await loadResources();
+const learningResources = resourcesFor(all, "learning", "tr");
+const mdResources = resourcesFor(all, "md-drug", "tr");
+const databases = resourcesFor(all, "databases", "tr");
+const tools = resourcesFor(all, "tools", "tr");
+const community = resourcesFor(all, "community", "tr");
 
 const allSections = [
-  { id: "learning",  label: "Öğrenme",                items: learningResources },
-  { id: "md-drug",   label: "MD & İlaç Tasarımı",     items: mdResources },
-  { id: "databases", label: "Veritabanları",           items: databases },
-  { id: "tools",     label: "Araçlar & Yazılımlar",   items: tools },
-  { id: "community", label: "Topluluk",                items: community },
+  { id: "learning",  label: tx('section_learning'),        items: learningResources },
+  { id: "md-drug",   label: tx('section_md_drug'),         items: mdResources },
+  { id: "databases", label: tx('section_databases'),       items: databases },
+  { id: "tools",     label: tx('section_tools'),           items: tools },
+  { id: "community", label: tx('section_community'),       items: community },
 ];
 ---
 
@@ -77,8 +35,8 @@ const allSections = [
 
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
-      <h1 class="text-3xl font-bold text-white">Kaynaklar</h1>
-      <p class="text-white/70 mt-2">Seçilmiş biyoinformatik öğrenme materyalleri, veritabanları ve araçlar</p>
+      <h1 class="text-3xl font-bold text-white">{tx('hero_title')}</h1>
+      <p class="text-white/70 mt-2">{tx('hero_subtitle')}</p>
     </div>
   </div>
 
@@ -88,7 +46,7 @@ const allSections = [
 
         <!-- Sticky sidebar -->
         <aside class="hidden lg:flex flex-col gap-1 sticky top-8">
-          <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Bölümler</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tx('sidebar_sections_heading')}</p>
           {sections.map(s => (
             <a href={`#${s.id}`} data-nav={s.id}
               class="nav-link text-sm text-gray-500 hover:text-navy py-1.5 border-l-2 border-transparent hover:border-navy pl-3 no-underline transition-all duration-150">
@@ -98,11 +56,11 @@ const allSections = [
 
           <!-- Search -->
           <div class="mt-6 pt-5 border-t border-border">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">Arama</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{tx('sidebar_search_heading')}</p>
             <input
               id="resourceSearch"
               type="text"
-              placeholder="Kaynakları filtrele…"
+              placeholder={tx('search_placeholder')}
               class="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-navy-mid transition-colors"
             />
           </div>
@@ -110,13 +68,13 @@ const allSections = [
           <!-- Legend -->
           <div class="mt-4">
             <span class="inline-flex items-center gap-1.5 text-xs text-green-700 font-medium px-2 py-1 rounded bg-green-50 border border-green-200">
-              ✓ Açık Kaynak
+              ✓ {tx('open_source_badge')}
             </span>
-            <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">Ücretsiz erişilebilir veya açık kaynaklı araç ve materyaller.</p>
+            <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">{tx('open_source_legend')}</p>
           </div>
 
           <!-- No results -->
-          <p id="noResults" class="hidden text-xs text-gray-500 mt-4 italic">Eşleşen kaynak bulunamadı.</p>
+          <p id="noResults" class="hidden text-xs text-gray-500 mt-4 italic">{tx('sidebar_no_matches')}</p>
         </aside>
 
         <!-- Main content -->
@@ -129,14 +87,14 @@ const allSections = [
                matched. This sits in the main column, at every width. -->
           <div id="activeFilter" class="hidden items-center gap-3 rounded-xl border border-border bg-navy-light px-4 py-3">
             <p class="text-sm text-navy min-w-0 flex-1">
-              Şunun sonuçları: <span id="activeFilterTerm" class="font-semibold"></span>
+              {tx('active_filter_lead')} <span id="activeFilterTerm" class="font-semibold"></span>
             </p>
             <button id="clearFilter" type="button"
               class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border border-navy-mid text-navy-mid hover:bg-navy hover:text-white transition-colors">
-              Clear
+              {tx('clear_filter_button')}
             </button>
           </div>
-          <p id="noResultsMain" class="hidden text-sm text-gray-500 italic">Eşleşme bulunamadı.</p>
+          <p id="noResultsMain" class="hidden text-sm text-gray-500 italic">{tx('main_no_matches')}</p>
           {allSections.map(section => (
             <div id={section.id} class="resource-section">
               <div class="flex items-baseline gap-3 mb-6">
@@ -144,7 +102,7 @@ const allSections = [
                   {section.label}
                 </h2>
                 <span class="section-count text-xs font-medium text-gray-500 tabular-nums">
-                  {section.items.length} kaynak
+                  {section.items.length} {tx('section_count_unit')}
                 </span>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -163,7 +121,7 @@ const allSections = [
                       </a>
                       {item.opensource && (
                         <span class="shrink-0 inline-flex items-center gap-1 text-xs text-green-700 font-medium px-1.5 py-0.5 rounded bg-green-50 border border-green-200 whitespace-nowrap">
-                          ✓ Açık Kaynak
+                          ✓ {tx('open_source_badge')}
                         </span>
                       )}
                     </div>

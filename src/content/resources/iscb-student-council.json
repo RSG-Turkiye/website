@@ -1,0 +1,24 @@
+{
+  "section": "community",
+  "order": 1,
+  "title": {
+    "en": "ISCB Student Council",
+    "tr": "ISCB Öğrenci Konseyi"
+  },
+  "description": {
+    "en": "International organization for students and young researchers in computational biology, affiliated with ISCB.",
+    "tr": "ISCB bünyesindeki, hesaplamalı biyoloji öğrencileri ve genç araştırmacılar için uluslararası organizasyon."
+  },
+  "url": "https://www.iscb.org/iscb-student-council",
+  "tags": {
+    "en": [
+      "community",
+      "networking"
+    ],
+    "tr": [
+      "topluluk",
+      "ağ-oluşturma"
+    ]
+  },
+  "opensource": false
+}

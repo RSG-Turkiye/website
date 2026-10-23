@@ -1,0 +1,6 @@
+{
+  "year": 2019,
+  "title": "Python for Bioinformatics (AnkaPy)",
+  "topics": "Python, Biopython (FASTA, BLAST, Entrez), numpy, pandas, matplotlib",
+  "repo": "AnkaPy"
+}

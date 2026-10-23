@@ -1,0 +1,30 @@
+{
+  "id": "meetup-istanbul-2025",
+  "type": "meetup",
+  "start": "2025-11-21",
+  "title": {
+    "en": "Istanbul Get-Together",
+    "tr": "İstanbul Buluşması"
+  },
+  "when": {
+    "en": "21 November 2025",
+    "tr": "21 Kasım 2025"
+  },
+  "location": {
+    "en": "Üsküdar, Istanbul",
+    "tr": "Üsküdar, İstanbul"
+  },
+  "description": {
+    "en": "About fifteen people in bioinformatics met to talk about their work, the field's future in academia and industry, and starting out.",
+    "tr": "Biyoinformatikle uğraşan yaklaşık on beş kişi işlerini, alanın akademideki ve sektördeki geleceğini ve yola nasıl çıkılacağını konuştu."
+  },
+  "image": {
+    "thumb": "/api/images/e5098302-099c-4648-9065-3a03268dca0a.jpg",
+    "full": "/api/images/8250037d-1a9d-4f5a-890d-558454ec671d.jpg",
+    "alt": {
+      "en": "Participants of the Istanbul get-together, November 2025",
+      "tr": "Kasım 2025, İstanbul buluşmasının katılımcıları"
+    },
+    "fit": "cover"
+  }
+}

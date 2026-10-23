@@ -1,34 +1,36 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { pageText } from '../../lib/page-text';
 
 const pageTitle = "Bize Katıl - RSG-Türkiye";
+const tx = await pageText('join', 'tr');
 
 const faqs = [
   {
-    q: "RSG-Türkiye'ye nasıl katılabilirim?",
-    a: "Etkinliklerimiz herkese açık. Üyelik, hesaplamalı biyoloji ve biyoinformatik alanında araştırma yapanlar için: yukarıdaki başvuru formuna araştırmanızı ve kurumunuzu yazın. Sorularınız için: turkey.rsg@gmail.com.",
+    q: tx('faq_how_to_join_q'),
+    a: tx('faq_how_to_join_a'),
   },
   {
-    q: "Etkinlikleriniz uluslararası katılımcılara açık mı?",
-    a: "Evet! Etkinliklerimizin çoğu, özellikle webinarlar, uluslararası katılımcılara açıktır. Dünyanın dört bir yanından araştırmacıların katılımını memnuniyetle karşılıyoruz.",
+    q: tx('faq_international_q'),
+    a: tx('faq_international_a'),
   },
   {
-    q: "Yaklaşan etkinliklerden nasıl haberdar olabilirim?",
-    a: "Twitter, LinkedIn veya YouTube'da bizi takip edebilir, Slack kanalımıza katılabilir ya da etkinlik duyuruları için bu web sitesini düzenli olarak ziyaret edebilirsiniz.",
+    q: tx('faq_stay_updated_q'),
+    a: tx('faq_stay_updated_a'),
   },
   {
-    q: "Webinar veya atölye konusu önerebilir miyim?",
-    a: "Kesinlikle! Webinar konuları ve atölye temaları için önerilerinizi bekliyoruz. Teklifinizle birlikte turkey.rsg@gmail.com adresinden bize ulaşın.",
+    q: tx('faq_propose_topic_q'),
+    a: tx('faq_propose_topic_a'),
   },
 ];
 
 const benefits = [
-  { title: 'Uluslararası Ağ', desc: 'ISCB Öğrenci Konseyi bağlantısı ile dünya çapında araştırmacılarla bağlantı kurun' },
-  { title: 'Öğrenme Fırsatları', desc: 'Webinarlara, atölyelere ve eğitim kaynaklarına erişim' },
-  { title: 'Topluluk Desteği', desc: 'Hesaplamalı biyoloji meraklılarından oluşan destekleyici bir topluluğa katılın' },
-  { title: 'Kariyer Gelişimi', desc: 'Kariyer fuarları, ağ oluşturma etkinlikleri ve profesyonel gelişim fırsatları' },
-  { title: 'İşbirliği', desc: 'Araştırma projelerinde ve etkinliklerde işbirliği fırsatları' },
-  { title: 'Etkinlik Erişimi', desc: 'Sempozyumlara, atölyelere ve özel etkinliklere öncelikli erişim' },
+  { title: tx('benefit_network_title'), desc: tx('benefit_network_desc') },
+  { title: tx('benefit_learning_title'), desc: tx('benefit_learning_desc') },
+  { title: tx('benefit_community_title'), desc: tx('benefit_community_desc') },
+  { title: tx('benefit_career_title'), desc: tx('benefit_career_desc') },
+  { title: tx('benefit_collaboration_title'), desc: tx('benefit_collaboration_desc') },
+  { title: tx('benefit_events_title'), desc: tx('benefit_events_desc') },
 ];
 ---
 
@@ -37,15 +39,15 @@ const benefits = [
 
   <div class="bg-navy py-12 text-center">
     <div class="max-w-7xl mx-auto px-6">
-      <h1 class="text-3xl font-bold text-white">RSG-Türkiye'ye Katıl</h1>
-      <p class="text-white/70 mt-2">Etkinliklerimiz herkese açık. Üyelik, biyoinformatik alanında araştırma yapanlar için.</p>
+      <h1 class="text-3xl font-bold text-white">{tx('hero_title')}</h1>
+      <p class="text-white/70 mt-2">{tx('hero_subtitle')}</p>
     </div>
   </div>
 
   <section id="follow" class="bg-[#F7F7F6] py-10 border-b border-border scroll-mt-20">
     <div class="max-w-6xl mx-auto px-6">
-      <h2 class="text-xl font-semibold text-navy mb-2">Bizi takip et</h2>
-      <p class="text-sm text-gray-600 mb-4">Herkes bizi takip edebilir: webinarlar, sempozyum haberleri ve çağrılar önce burada duyurulur.</p>
+      <h2 class="text-xl font-semibold text-navy mb-2">{tx('follow_title')}</h2>
+      <p class="text-sm text-gray-600 mb-4">{tx('follow_text')}</p>
       <div class="flex flex-wrap gap-2">
           <a href="https://instagram.com/rsgturkey" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 rounded-md border border-navy text-navy text-sm font-medium hover:bg-navy-light transition-colors no-underline">Instagram</a>
           <a href="https://linkedin.com/company/rsgturkey" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 rounded-md border border-navy text-navy text-sm font-medium hover:bg-navy-light transition-colors no-underline">LinkedIn</a>
@@ -61,7 +63,7 @@ const benefits = [
 
         <!-- Benefits -->
         <div>
-          <h2 class="text-xl font-semibold text-navy mb-6">Neden katılmalısın?</h2>
+          <h2 class="text-xl font-semibold text-navy mb-6">{tx('benefits_title')}</h2>
           <ul class="flex flex-col">
             {benefits.map((b) => (
               <li class="py-3 border-b border-border flex flex-col gap-0.5">
@@ -74,8 +76,8 @@ const benefits = [
 
         <!-- Form embed -->
         <div>
-          <h2 id="membership" class="text-xl font-semibold text-navy mb-2 scroll-mt-20">Üyelik Başvurusu</h2>
-          <p class="text-sm text-gray-600 mb-6">Üyelik başvuruyla olur. Araştırmanızı ve kurumunuzu kısaca yazın.</p>
+          <h2 id="membership" class="text-xl font-semibold text-navy mb-2 scroll-mt-20">{tx('membership_title')}</h2>
+          <p class="text-sm text-gray-600 mb-6">{tx('membership_text')}</p>
           <iframe
             src="https://docs.google.com/forms/d/e/1FAIpQLSeo8lI8mijdndi2Z0hURHUbn2mvJPkbW9OrsgQ2bH9iGfyS_g/viewform?embedded=true"
             width="100%"
@@ -97,7 +99,7 @@ const benefits = [
   <!-- FAQ -->
   <section class="bg-[#F7F7F6] py-14 border-t border-border">
     <div class="max-w-2xl mx-auto px-6">
-      <h2 class="text-xl font-semibold text-navy text-center mb-8">Sıkça Sorulan Sorular</h2>
+      <h2 class="text-xl font-semibold text-navy text-center mb-8">{tx('faq_title')}</h2>
       <div class="flex flex-col gap-2">
         {faqs.map((faq) => (
           <div class="bg-white border border-border rounded-lg overflow-hidden">

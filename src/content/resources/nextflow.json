@@ -1,0 +1,26 @@
+{
+  "section": "tools",
+  "order": 4,
+  "title": {
+    "en": "Nextflow",
+    "tr": "Nextflow"
+  },
+  "description": {
+    "en": "Reactive workflow framework for scalable and reproducible bioinformatics pipelines across HPC and cloud environments.",
+    "tr": "HPC ve bulut ortamlarında ölçeklenebilir ve tekrarlanabilir biyoinformatik pipeline'ları için reaktif iş akışı çerçevesi."
+  },
+  "url": "https://www.nextflow.io",
+  "tags": {
+    "en": [
+      "workflow",
+      "pipelines",
+      "HPC"
+    ],
+    "tr": [
+      "iş-akışı",
+      "pipeline",
+      "HPC"
+    ]
+  },
+  "opensource": true
+}

@@ -1,0 +1,26 @@
+{
+  "section": "learning",
+  "order": 2,
+  "title": {
+    "en": "EMBL-EBI Training",
+    "tr": "EMBL-EBI Eğitim"
+  },
+  "description": {
+    "en": "Free online training courses in bioinformatics, genomics, proteomics, and data analysis from the European Bioinformatics Institute.",
+    "tr": "Avrupa Biyoinformatik Enstitüsü'nden biyoinformatik, genomik, proteomik ve veri analizi alanlarında ücretsiz çevrimiçi kurslar."
+  },
+  "url": "https://www.ebi.ac.uk/training",
+  "tags": {
+    "en": [
+      "courses",
+      "genomics",
+      "proteomics"
+    ],
+    "tr": [
+      "kurslar",
+      "genomik",
+      "proteomik"
+    ]
+  },
+  "opensource": false
+}

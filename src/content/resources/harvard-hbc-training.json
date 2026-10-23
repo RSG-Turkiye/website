@@ -1,0 +1,26 @@
+{
+  "section": "learning",
+  "order": 3,
+  "title": {
+    "en": "Harvard HBC Training",
+    "tr": "Harvard HBC Eğitim Materyalleri"
+  },
+  "description": {
+    "en": "Workshop materials from the Harvard Chan Bioinformatics Core covering RNA-seq, ChIP-seq, scRNA-seq, and more.",
+    "tr": "Harvard Chan Biyoinformatik Çekirdeği'nin RNA-seq, ChIP-seq, tek hücreli RNA-seq ve daha fazlasını kapsayan atölye materyalleri."
+  },
+  "url": "https://hbctraining.github.io/main",
+  "tags": {
+    "en": [
+      "workshops",
+      "rna-seq",
+      "single-cell"
+    ],
+    "tr": [
+      "atölyeler",
+      "rna-seq",
+      "tek-hücreli"
+    ]
+  },
+  "opensource": true
+}

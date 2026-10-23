@@ -1,0 +1,55 @@
+{
+  "id": "hackathon-nfcore-2026",
+  "type": "hackathon",
+  "nfcore": true,
+  "start": "2026-03-11",
+  "end": "2026-03-13",
+  "title": {
+    "en": "nf-core Hackathon: Istanbul local site",
+    "tr": "nf-core Hackathon: İstanbul yerel ekibi"
+  },
+  "when": {
+    "en": "11 – 13 March 2026",
+    "tr": "11 – 13 Mart 2026"
+  },
+  "location": {
+    "en": "Istanbul Kent University, Istanbul",
+    "tr": "İstanbul Kent Üniversitesi, İstanbul"
+  },
+  "description": {
+    "en": "Our second official local site of the global nf-core hackathon. A beginner project reviewed the Turkish translation of the Hello Nextflow and Hello nf-core training; an advanced one worked on nf-core/scdownstream, adding scDblFinder doublet detection as a module.",
+    "tr": "Küresel nf-core hackathon'unun ikinci resmi yerel ekibimiz. Başlangıç projesi Hello Nextflow ve Hello nf-core eğitimlerinin Türkçe çevirisini gözden geçirdi; ileri proje nf-core/scdownstream üzerinde çalışıp scDblFinder çift hücre tespitini modül olarak ekledi."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "nf-co.re event page",
+        "tr": "nf-co.re etkinlik sayfası"
+      },
+      "url": "https://nf-co.re/events/2026/hackathon-march-2026/istanbul"
+    },
+    {
+      "label": {
+        "en": "scDblFinder module (merged)",
+        "tr": "scDblFinder modülü (birleştirildi)"
+      },
+      "url": "https://github.com/nf-core/scdownstream/pull/261"
+    },
+    {
+      "label": {
+        "en": "Nextflow training in Turkish",
+        "tr": "Türkçe Nextflow eğitimi"
+      },
+      "url": "https://training.nextflow.io/latest/tr/"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/5b6da566-0ae3-4bc7-aa4c-0c233266d4d4.jpg",
+    "full": "/api/images/8d0e7b7f-f441-4876-9f22-e586a295c443.jpg",
+    "alt": {
+      "en": "Participants working at the nf-core hackathon local site at Istanbul Kent University, March 2026",
+      "tr": "Mart 2026, İstanbul Kent Üniversitesi nf-core hackathon yerel ekibinde çalışan katılımcılar"
+    },
+    "fit": "cover"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "section": "tools",
+  "order": 2,
+  "title": {
+    "en": "Bioconductor",
+    "tr": "Bioconductor"
+  },
+  "description": {
+    "en": "Open-source R packages for bioinformatics: differential expression, ChIP-seq, single-cell, and more.",
+    "tr": "Diferansiyel ekspresyon, ChIP-seq, tek hücreli analiz ve daha fazlası için açık kaynaklı R paketleri."
+  },
+  "url": "https://www.bioconductor.org",
+  "tags": {
+    "en": [
+      "R",
+      "packages",
+      "genomics"
+    ],
+    "tr": [
+      "R",
+      "paketler",
+      "genomik"
+    ]
+  },
+  "opensource": true
+}

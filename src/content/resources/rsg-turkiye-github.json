@@ -1,0 +1,24 @@
+{
+  "section": "community",
+  "order": 2,
+  "title": {
+    "en": "RSG-Turkiye GitHub",
+    "tr": "RSG-Türkiye GitHub"
+  },
+  "description": {
+    "en": "Our organization's GitHub: past training materials, scripts, and resources from RSG-Turkiye events.",
+    "tr": "Organizasyonumuzun GitHub sayfası: RSG-Türkiye etkinliklerinden geçmiş eğitim materyalleri, scriptler ve kaynaklar."
+  },
+  "url": "https://github.com/RSG-Turkiye",
+  "tags": {
+    "en": [
+      "training",
+      "open-source"
+    ],
+    "tr": [
+      "eğitim",
+      "açık-kaynak"
+    ]
+  },
+  "opensource": true
+}

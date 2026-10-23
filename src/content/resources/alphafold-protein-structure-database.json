@@ -1,0 +1,26 @@
+{
+  "section": "databases",
+  "order": 3,
+  "title": {
+    "en": "AlphaFold Protein Structure Database",
+    "tr": "AlphaFold Protein Yapısı Veritabanı"
+  },
+  "description": {
+    "en": "AI-predicted protein structures for nearly all known proteins, produced by DeepMind and EMBL-EBI.",
+    "tr": "DeepMind ve EMBL-EBI tarafından üretilen, neredeyse tüm bilinen proteinler için yapay zeka tarafından tahmin edilmiş protein yapıları."
+  },
+  "url": "https://alphafold.ebi.ac.uk",
+  "tags": {
+    "en": [
+      "protein-structure",
+      "AI",
+      "prediction"
+    ],
+    "tr": [
+      "protein-yapısı",
+      "YZ",
+      "tahmin"
+    ]
+  },
+  "opensource": false
+}

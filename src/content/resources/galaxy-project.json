@@ -1,0 +1,26 @@
+{
+  "section": "tools",
+  "order": 1,
+  "title": {
+    "en": "Galaxy Project",
+    "tr": "Galaxy Project"
+  },
+  "description": {
+    "en": "Web-based platform for accessible, reproducible bioinformatics analysis: no command line required.",
+    "tr": "Komut satırı gerektirmeyen, erişilebilir ve tekrarlanabilir biyoinformatik analiz için web tabanlı platform."
+  },
+  "url": "https://usegalaxy.org",
+  "tags": {
+    "en": [
+      "web-platform",
+      "reproducible",
+      "beginners"
+    ],
+    "tr": [
+      "web-platformu",
+      "tekrarlanabilir",
+      "başlangıç"
+    ]
+  },
+  "opensource": true
+}

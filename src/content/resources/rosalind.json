@@ -1,0 +1,26 @@
+{
+  "section": "learning",
+  "order": 0,
+  "title": {
+    "en": "Rosalind",
+    "tr": "Rosalind"
+  },
+  "description": {
+    "en": "Learn bioinformatics by solving problems. Covers Python, algorithms, and classical bioinformatics problems interactively.",
+    "tr": "Problem çözerek biyoinformatik öğrenin. Python, algoritmalar ve klasik biyoinformatik problemlerini interaktif olarak kapsar."
+  },
+  "url": "https://rosalind.info",
+  "tags": {
+    "en": [
+      "beginner",
+      "algorithms",
+      "python"
+    ],
+    "tr": [
+      "başlangıç",
+      "algoritmalar",
+      "python"
+    ]
+  },
+  "opensource": false
+}

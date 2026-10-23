@@ -1,13 +1,15 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CommitteeCard from '../../layouts/CommitteeCard.astro';
-import { getCommittees } from '../../data/committees';
+import { getCommittees } from '../../lib/get-committees';
+import { pageText } from '../../lib/page-text';
 import { useTranslations } from '../../i18n/ui';
 
 const lang = 'tr';
 const t = useTranslations(lang);
 const pageTitle = "Hakkımızda - RSG-Türkiye";
-const committees = getCommittees(lang);
+const committees = await getCommittees(lang);
+const tx = await pageText('about', lang);
 
 const singleColCommittees = committees.filter(c => c.members.length < 2);
 const lastSingleAlone = singleColCommittees.length % 3 === 1;
@@ -51,16 +53,16 @@ const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
           ],
           [
             {
-              title: 'Makale Kulübü',
-              desc: 'Güncel biyoinformatik makalelerini birlikte okuyup tartışıyoruz. Akademik okuma alışkanlığını ve eleştirel düşünceyi destekleyen düzenli buluşmalar.',
+              title: tx('journal_club_title'),
+              desc: tx('journal_club_desc'),
             },
             {
-              title: 'Uluslararası Ağ',
-              desc: 'ISCB Öğrenci Konseyi üyeliği sayesinde dünya genelindeki araştırmacılarla bağlantı kurma ve uluslararası konferanslara katılım fırsatları.',
+              title: tx('international_network_title'),
+              desc: tx('international_network_desc'),
             },
             {
-              title: 'Fırsat Paylaşımı',
-              desc: 'MSc, PhD ve PostDoc pozisyonları, burs ve konferans fırsatları Slack kanalımız üzerinden anında üyelerimizle paylaşılıyor.',
+              title: tx('opportunity_sharing_title'),
+              desc: tx('opportunity_sharing_desc'),
             },
           ],
         ].map((row, rowIndex) => (
@@ -87,11 +89,11 @@ const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
     <div class="max-w-7xl mx-auto px-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
         <div>
-          <h2 class="text-2xl font-semibold text-navy mb-4">ISCB Öğrenci Konseyi Üyeliği</h2>
-          <p class="text-gray-600 leading-relaxed mb-3">Uluslararası Hesaplamalı Biyoloji Derneği (ISCB) Öğrenci Konseyi üyesi olmaktan gurur duyuyoruz.</p>
-          <p class="text-gray-600 leading-relaxed mb-4">ISCB Öğrenci Konseyi, dünya çapında hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve doktora sonrası araştırmacılar arasında iletişim ve etkileşim için çerçeve sağlar.</p>
+          <h2 class="text-2xl font-semibold text-navy mb-4">{tx('iscb_title')}</h2>
+          <p class="text-gray-600 leading-relaxed mb-3">{tx('iscb_intro')}</p>
+          <p class="text-gray-600 leading-relaxed mb-4">{tx('iscb_detail')}</p>
           <ul class="space-y-2">
-            {['Uluslararası konferans ve etkinliklere erişim', 'Küresel araştırmacılarla ağ oluşturma fırsatları', 'Eğitim kaynakları ve eğitim programları', "Diğer RSG'lerle işbirliği fırsatları"].map((item) => (
+            {[tx('iscb_benefit_conferences'), tx('iscb_benefit_networking'), tx('iscb_benefit_training'), tx('iscb_benefit_collaboration')].map((item) => (
               <li class="flex items-start gap-2 text-gray-600 text-sm">
                 <span class="text-navy font-bold mt-0.5">✓</span>
                 {item}
@@ -101,11 +103,11 @@ const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
         </div>
         <div class="text-center p-8 bg-navy-light border border-[#C4CEEA] rounded-lg">
           <img src="/logo/iscb-logo.png" alt="ISCB Student Council" class="max-h-16 mx-auto mb-4" />
-          <h4 class="font-semibold text-navy mb-1">ISCB Öğrenci Konseyi</h4>
-          <p class="text-sm text-gray-600 mb-4">Uluslararası Hesaplamalı Biyoloji Derneği</p>
+          <h4 class="font-semibold text-navy mb-1">{tx('iscb_card_title')}</h4>
+          <p class="text-sm text-gray-600 mb-4">{tx('iscb_card_subtitle')}</p>
           <a href="https://www.iscb.org/iscb-student-council" target="_blank" rel="noopener noreferrer"
             class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
-            ISCB Öğrenci Konseyi'ni Ziyaret Et
+            {tx('iscb_button')}
           </a>
         </div>
       </div>

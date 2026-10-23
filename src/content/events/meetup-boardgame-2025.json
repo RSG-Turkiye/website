@@ -1,0 +1,30 @@
+{
+  "id": "meetup-boardgame-2025",
+  "type": "meetup",
+  "start": "2025-09-20",
+  "title": {
+    "en": "Board Game Meetup",
+    "tr": "Board Game Buluşması"
+  },
+  "when": {
+    "en": "20 September 2025",
+    "tr": "20 Eylül 2025"
+  },
+  "location": {
+    "en": "Istanbul",
+    "tr": "İstanbul"
+  },
+  "description": {
+    "en": "An afternoon of board games, for getting to know the community outside talks and workshops.",
+    "tr": "Konuşmaların ve atölyelerin dışında topluluğu tanımak için kutu oyunlarıyla bir öğleden sonra."
+  },
+  "image": {
+    "thumb": "/api/images/44ff5299-9061-4808-8bb6-237764aec6cf.jpg",
+    "full": "/api/images/7259b0fd-b27e-4faf-9cae-21c4ae5bb1bb.jpg",
+    "alt": {
+      "en": "Announcement of the board game meetup in Istanbul, 20 September 2025",
+      "tr": "20 Eylül 2025 İstanbul board game buluşması duyurusu"
+    },
+    "fit": "contain"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "order": 6,
+  "name": {
+    "en": "Website Committee",
+    "tr": "Web Sitesi Komitesi"
+  },
+  "description": {
+    "en": "Managing website development and maintenance.",
+    "tr": "Web sitesi geliştirme ve bakımını yönetmek."
+  },
+  "members": [
+    {
+      "name": "Hilal Kınalı",
+      "role": {
+        "en": "Website Leader",
+        "tr": "Web Sitesi Ekibi Lideri"
+      },
+      "image": "https://res.cloudinary.com/dyuf14ra5/image/upload/f_auto,q_auto,c_limit,w_600/v1774199962/rsgturkey/committee/hilal-kinali.jpg",
+      "education": [
+        {
+          "degree": {
+            "en": "Undergraduate",
+            "tr": "Lisans"
+          },
+          "field": {
+            "en": "Molecular Biology and Genetics",
+            "tr": "Moleküler Biyoloji ve Genetik"
+          },
+          "institution": {
+            "en": "Acıbadem University",
+            "tr": "Acıbadem Üniversitesi"
+          }
+        }
+      ],
+      "socialMedia": [
+        {
+          "platform": "linkedin",
+          "url": "https://www.linkedin.com/in/hilal-k%C4%B1nal%C4%B1-558260330/"
+        }
+      ],
+      "consent": true
+    }
+  ]
+}
