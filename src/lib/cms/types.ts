@@ -35,7 +35,8 @@ export interface CmsType {
 /** A file name without extension: lower-case letters, digits and hyphens.
  * Returns the id, or throws. */
 export function checkId(id: string): string {
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) {
+  // The typeof first: RegExp.test coerces, so undefined would pass as "undefined".
+  if (typeof id !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
     throw new Error(`Invalid id ${JSON.stringify(id)}: use lower-case letters, digits and hyphens`);
   }
   return id;

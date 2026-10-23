@@ -634,6 +634,30 @@ export async function fileShasOnBase(paths: string[], env: Env): Promise<Record<
   return Object.fromEntries(entries);
 }
 
+/**
+ * Each path's text and blob sha on `main`, or `null` for a path that is not
+ * there. One request per file answers both, so the sha a CMS draft records
+ * is the sha of exactly the text it was started from. Errors carry the
+ * status code only.
+ */
+export async function filesOnBase(paths: string[], env: Env): Promise<Record<string, { content: string; sha: string } | null>> {
+  const entries = await Promise.all(
+    paths.map(async (path): Promise<[string, { content: string; sha: string } | null]> => {
+      const res = await githubRequest(
+        `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodePath(path)}?ref=${GITHUB_BASE_BRANCH}`,
+        { method: 'GET' },
+        env
+      );
+      if (res.status === 404) return [path, null];
+      if (!res.ok) throw new Error(`Failed to read ${path} on ${GITHUB_BASE_BRANCH} (${res.status})`);
+      const data = await res.json<{ sha: string; content?: string; encoding?: string }>();
+      if (data.encoding !== 'base64' || typeof data.content !== 'string') throw new Error(`Unexpected contents response for ${path}`);
+      return [path, { sha: data.sha, content: Buffer.from(data.content, 'base64').toString('utf-8') }];
+    })
+  );
+  return Object.fromEntries(entries);
+}
+
 export type PrStatus = {
   state: 'open' | 'merged' | 'closed';
   /** GitHub's own value, passed through: 'clean', 'behind' (needs

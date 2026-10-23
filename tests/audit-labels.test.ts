@@ -44,3 +44,9 @@ test('the symposium family reads naturally in both languages', () => {
   assert.equal(auditLabel('symposium.committee.create', 'tr'), 'Sempozyumda komite üyesi ekledi');
   assert.equal(auditLabel('symposium.speakers.delete', 'en'), 'Removed a speaker');
 });
+
+test('the CMS codes have their names', () => {
+  assert.equal(auditLabel('cms.draft.submit', 'tr'), 'Taslağı onaya gönderdi');
+  assert.equal(auditLabel('cms.pr.merged', 'tr'), 'İçerik yayına çıktı');
+  assert.equal(auditLabel('cms.pr.failed', 'en'), 'Content pull request failed');
+});

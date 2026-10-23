@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { CMS_TYPES, cmsType } from '../src/lib/cms/types';
+import { CMS_TYPES, checkId, cmsType } from '../src/lib/cms/types';
 import {
   serializeJson, parseJson, serializeMarkdown, parseMarkdown, markdownPairPaths, jsonPath,
 } from '../src/lib/cms/serialize';
@@ -285,4 +285,12 @@ test('jsonPath checks the id; idFrom never returns an invalid one', () => {
   assert.throws(() => jsonPath(webinars, 'x'), /json/);
   assert.throws(() => webinars.idFrom({ frontmatter: { title: '—!?' } }), /no letters or digits/);
   assert.throws(() => workshops.idFrom({ repo: '__' }), /no letters or digits/);
+});
+
+test('checkId refuses anything that is not a string, before the pattern sees it', () => {
+  // RegExp.test coerces its argument: undefined became "undefined", a valid slug.
+  for (const bad of [undefined, null, 42, ['a'], { toString: () => 'a' }]) {
+    assert.throws(() => checkId(bad as never), /Invalid id/);
+  }
+  assert.equal(checkId('symposium-2026'), 'symposium-2026');
 });

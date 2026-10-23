@@ -31,6 +31,16 @@ const FIXED: Record<string, Label> = {
   'blog.approve': { en: 'Approved a blog submission', tr: 'Blog başvurusunu onayladı' },
   'blog.reject': { en: 'Declined a blog submission', tr: 'Blog başvurusunu geri çevirdi' },
 
+  'cms.draft.create': { en: 'Created a content draft', tr: 'Taslak oluşturdu' },
+  'cms.draft.update': { en: 'Edited a content draft', tr: 'Taslağı düzenledi' },
+  'cms.draft.submit': { en: 'Sent a content draft for approval', tr: 'Taslağı onaya gönderdi' },
+  'cms.draft.approve': { en: 'Approved a content draft', tr: 'Taslağı onayladı' },
+  'cms.draft.reject': { en: 'Sent a content draft back', tr: 'Taslağı geri gönderdi' },
+  'cms.draft.discard': { en: 'Deleted a content draft', tr: 'Taslağı sildi' },
+  'cms.pr.open': { en: 'Content pull request opened', tr: 'İçerik PR\'ı açıldı' },
+  'cms.pr.merged': { en: 'Content went live', tr: 'İçerik yayına çıktı' },
+  'cms.pr.failed': { en: 'Content pull request failed', tr: 'İçerik PR\'ı başarısız' },
+
   'mail.send': { en: 'Sent an e-mail', tr: 'E-posta gönderdi' },
   'mail.reply': { en: 'Replied in a conversation', tr: 'Konuşmaya cevap yazdı' },
   'mail.schedule': { en: 'Scheduled an e-mail', tr: 'E-posta zamanladı' },

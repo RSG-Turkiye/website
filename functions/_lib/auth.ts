@@ -35,6 +35,9 @@ export interface Env {
   /** X app (console.x.com, OAuth 2.0, confidential client). Pages secrets. */
   X_CLIENT_ID?: string;
   X_CLIENT_SECRET?: string;
+  /** The Pages static-asset binding. The CMS reads the build-time
+   * /cms-index.json through it; absent in node tests. */
+  ASSETS?: Fetcher;
 }
 
 export interface User {
