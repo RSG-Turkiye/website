@@ -70,7 +70,7 @@ let loadError: string | null = null;
 let queueMore = false;
 const entries: Partial<Record<TypeKey, Entry[]>> = {};
 const shown: Partial<Record<TypeKey, number>> = {};
-let lists: { mine: Draft[]; queue: Draft[]; live: { type: string; entry_id: string; status: string }[] } | null = null;
+let lists: { mine: Draft[]; queue: Draft[]; inflight: Draft[]; live: { type: string; entry_id: string; status: string }[] } | null = null;
 
 interface Editor {
   model: TypeModel;
@@ -216,9 +216,9 @@ async function loadEntries(model: TypeModel, fresh = false): Promise<Entry[] | n
 
 async function loadLists(): Promise<typeof lists> {
   // Fresh each time: whether an entry is busy must be what it is now.
-  const r = await api<{ mine: Draft[]; queue: Draft[]; more?: boolean; live?: { type: string; entry_id: string; status: string }[] }>('GET', '/api/cms/drafts');
+  const r = await api<{ mine: Draft[]; queue: Draft[]; inflight?: Draft[]; more?: boolean; live?: { type: string; entry_id: string; status: string }[] }>('GET', '/api/cms/drafts');
   if (!r.ok) { loadError = r.code; lists = null; return null; }
-  lists = { mine: r.body.mine ?? [], queue: r.body.queue ?? [], live: r.body.live ?? [] };
+  lists = { mine: r.body.mine ?? [], queue: r.body.queue ?? [], inflight: r.body.inflight ?? [], live: r.body.live ?? [] };
   queueMore = r.body.more === true;
   return lists;
 }
@@ -362,7 +362,14 @@ async function showQueue(): Promise<void> {
       subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
       chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.primary}">${esc(tk('admin.cms.review'))}</a>`,
       attrs: `data-cms-queue="${esc(d.id)}"`, stack: true,
-    })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>${more}`;
+    })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>${more}
+    <h2 class="text-sm font-semibold text-navy mt-6 lg:mt-4 mb-2">${esc(tk('admin.cms.inflightHeading'))}</h2>
+    <div class="flex flex-col gap-2">${(lists?.inflight ?? []).map((d) => row({
+      title: titleOf(d.type, d.entry_id, d.action),
+      subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${statusLine(d)}`,
+      chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.secondary}">${esc(tk('admin.cms.open'))}</a>`,
+      attrs: `data-cms-inflight="${esc(d.id)}"`, stack: true,
+    })).join('') || emptyState(tk('admin.cms.inflightEmpty'))}</div>`;
 }
 
 // ── The editor ───────────────────────────────────────────────────────────────
@@ -479,10 +486,13 @@ function renderBar(ed: Editor): void {
   if (!bar) return;
   const status = ed.draft ? sv(ed.draft) : null;
   const menu: string[] = [];
-  if (ed.draft && (status?.editable || ed.draft.status === 'submitted') && ed.draft.status !== 'merged') menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discard'))}</button>`);
+  // The author can always let go of a failed draft, whatever the reason.
+  const ownDiscard = ed.draft && (status?.editable || ed.draft.status === 'submitted' || ed.draft.status === 'pr_failed') && ed.draft.status !== 'merged';
+  if (ownDiscard) menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discard'))}</button>`);
   if (approver && ed.draft?.status === 'pr_open') menu.push(`<button type="button" data-cms-cancel class="${BTN.danger}">${esc(tk('admin.cms.cancelPr'))}</button>`);
-  if (approver && ed.draft && status?.next === 'discard') menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discardMerged'))}</button>`);
-  if (approver && !ed.draft && ed.entryId) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
+  if (approver && ed.draft && status?.next === 'discard' && !ownDiscard) menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discardMerged'))}</button>`);
+  // Not while the entry is busy, or the form read-only for any other reason.
+  if (approver && !ed.draft && ed.entryId && !ed.readOnly) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
   const editable = !ed.readOnly;
   const live = ed.draft?.status === 'published'
     ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined), lang)}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
@@ -1215,7 +1225,12 @@ async function openReview(id: string, route: string): Promise<void> {
   }
   const note = model.key === 'events' && approver && !noteChanged ? String((draft.data as Record<string, unknown> | undefined)?.note ?? '') : '';
   // Someone who cannot approve sees the changes, not the buttons.
-  const waiting = approver && (draft.status === 'submitted' || sv(draft).line === 'admin.cms.status.approvedStale');
+  const stale = sv(draft).line === 'admin.cms.status.approvedStale';
+  const waiting = approver && (draft.status === 'submitted' || stale);
+  // On its way or stuck: its one way out, for approvers.
+  const way = !approver || waiting ? '' : draft.status === 'pr_open' ? 'cancel' : ['merged', 'pr_failed'].includes(draft.status) ? 'discard' : '';
+  // An approval that never finished is approved again to finish it, changes or none.
+  if (stale) nothing = unreadable;
   $('cmsReview')!.innerHTML = `<div class="bg-white rounded-2xl border border-border p-4 lg:p-3">${bodyHtml}
       ${note ? `<div class="mt-3 rounded-lg bg-[#F7F7F6] px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(tk('admin.cms.f.note'))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(note)}</p></div>` : ''}
     </div>
@@ -1232,7 +1247,11 @@ async function openReview(id: string, route: string): Promise<void> {
         <details class="relative" data-cms-menu><summary class="${BTN.ghost} list-none cursor-pointer" aria-label="${esc(tk('admin.cms.more.menu'))}">…</summary>
           <div class="absolute right-0 bottom-full mb-2 z-10 flex flex-col gap-2 p-2 bg-white rounded-xl border border-border shadow-lg min-w-48">
             <button type="button" id="cmsReviewDiscard" class="${BTN.danger}">${esc(tk('admin.cms.discard'))}</button></div></details>
-      </div></div>` : ''}`;
+      </div></div>` : ''}
+    ${way ? `<div data-cms-sticky class="sticky bottom-0 lg:-bottom-1 z-10 mt-3 -mx-1 px-1 py-2 bg-[#F7F7F6] border-t border-border">
+      <div class="flex flex-wrap items-center gap-2">${way === 'cancel'
+        ? `<button type="button" id="cmsReviewCancel" class="${BTN.danger}">${esc(tk('admin.cms.cancelPr'))}</button>`
+        : `<button type="button" id="cmsReviewDiscard" class="${BTN.danger}">${esc(tk(draft.status === 'merged' ? 'admin.cms.discardMerged' : 'admin.cms.discard'))}</button>`}</div></div>` : ''}`;
   wireReview(ed);
   liftBars();
   if (!approver) notice(esc(tk('admin.cms.review.readOnly')), 'info');
@@ -1274,6 +1293,14 @@ function wireReview(ed: Editor): void {
     if (!text) return;
     const r = await api('POST', `/api/cms/drafts/${id}/reject`, { note: text });
     if (editor !== ed) return;
+    if (!r.ok) { notice(esc(errorText(r))); return; }
+    lists = null;
+    void refreshCounts();
+    location.hash = `${SECTION}/onay`;
+  });
+  const cancel = $<HTMLButtonElement>('cmsReviewCancel');
+  if (cancel) armConfirm(cancel, tk('admin.cms.confirm'), async () => {
+    const r = await api('POST', `/api/cms/drafts/${id}/cancel`, {});
     if (!r.ok) { notice(esc(errorText(r))); return; }
     lists = null;
     void refreshCounts();

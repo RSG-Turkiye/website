@@ -3,8 +3,8 @@ import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { fileShasOnBase } from '../../../_lib/github';
-import { closePr, deleteBranch } from '../../../_lib/github';
-import { canTransition, checkSameId, ID_FIELD, newEntryId, newPaths, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
+import { canTransition, checkSameId, ID_FIELD, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -104,6 +104,11 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   if (!mayEdit(gate, row)) return forbidden();
   if (!canTransition('discard', row.status)) return badState();
   if (row.status === 'merged' && !mayApprove(gate, row)) return forbidden();
+  if (row.status === 'approved') {
+    if (!mayApprove(gate, row)) return forbidden();
+    // Not while the approval may still be opening its pull request.
+    if (row.updated_at >= gate.now - STALE_APPROVAL_SECONDS) return badState();
+  }
   const nonce = newNonce();
   const done = await runGuardedWithAudit(
     env.DB,
@@ -121,6 +126,23 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   // Best effort: the discard is the one log row; a failure goes to the
   // server log and the answer.
   let branch: 'deleted' | 'absent' | 'failed' | undefined;
+  if (row.status === 'approved') {
+    // The crashed approval may have opened a pull request: close it, so a
+    // discarded draft cannot be merged by hand, then drop the branch.
+    try {
+      const pr = await prForBranch(`cms/${row.id}`, env);
+      const n = pr && pr.state === 'open' ? pullNumberFromUrl(pr.url) : null;
+      if (n !== null) await closePr(n, env);
+    } catch (e) {
+      console.error('cms: closing the pull request of a discarded approval failed', row.id, e);
+    }
+    try {
+      branch = await deleteBranch(`cms/${row.id}`, env);
+    } catch (e) {
+      console.error('cms: deleting the branch of a discarded approval failed', row.id, e);
+      branch = 'failed';
+    }
+  }
   if (row.status === 'pr_failed') {
     try {
       branch = await deleteBranch(`cms/${row.id}`, env);

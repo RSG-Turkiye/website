@@ -95,7 +95,8 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       if (state.draftsFail) return json({ error: 'x', code: state.draftsFail === 401 ? 'unauthenticated' : 'boom' }, state.draftsFail);
       const all = [...state.drafts.values()];
       return json({ mine: all.filter((d) => d.author_id === user.id).map(({ data, base_shas, ...d }) => d),
-        queue: who === 'approver' ? all.filter((d) => d.status === 'submitted' || d.status === 'approved').map(({ data, base_shas, ...d }) => d) : [], more: state.more, live: state.live });
+        queue: who === 'approver' ? all.filter((d) => d.status === 'submitted' || d.status === 'approved').map(({ data, base_shas, ...d }) => d) : [], more: state.more, live: state.live,
+        inflight: who === 'approver' ? all.filter((d) => ['pr_open', 'merged', 'pr_failed'].includes(d.status) || (d.status === 'approved' && d.updated_at < NOW - 300)).map(({ data, base_shas, ...d }) => d) : [] });
     }
     if (p === '/api/cms/drafts' && method === 'POST') {
       if (state.postDelay) await new Promise((res) => setTimeout(res, state.postDelay));
@@ -128,6 +129,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
         if (state.nextApprove) { const [s, v] = state.nextApprove; state.nextApprove = null; return json(v, s); }
         d.status = 'pr_open'; d.pr_number = 7; return json({ draft: d });
       }
+      if (m[2] === 'cancel') { d.status = 'pr_failed'; d.failure = 'cancelled'; return json({ draft: d }); }
       if (m[2] === 'reject') { d.status = 'rejected'; d.review_note = body.note; return json({ draft: d }); }
     }
     if (method !== 'GET') return r.fulfill({ status: 204, body: '' });
@@ -631,6 +633,54 @@ await section('F11) a copy on offer goes with its form: a new entry saved, then 
   await page.waitForTimeout(300);
   ok(await page.locator('#cmsBackup:not(.hidden)').count() === 0, 'the next new form offers nothing');
   await page.close();
+});
+
+await section('X1) no draft without an exit', async () => {
+  const mk = (s, n, o) => s.drafts.set(`00000000-0000-4000-8000-00000000040${n}`, draftRow({ id: `00000000-0000-4000-8000-00000000040${n}`, entry_id: `meetup-${n}`, data: { ...SYM, id: `meetup-${n}` }, ...o }));
+  const { page, calls } = await open(browser, 'approver', '#icerik-etkinlikler/onay', { width: 1440, height: 900 }, (s) => {
+    mk(s, 1, { status: 'pr_open', pr_number: 9 });
+    mk(s, 2, { status: 'merged', stale_merge: true });
+    mk(s, 3, { status: 'pr_failed', failure: 'merged but the site never showed it' });
+    mk(s, 4, { status: 'approved', updated_at: NOW - 900, entry_id: 'symposium-2026', data: SYM, base_shas: { [PATH]: 'sha-1' } });
+  });
+  ok(await waitFor(page, () => /Süren ve takılanlar/.test(document.querySelector('[data-sub="onay"]')?.textContent ?? '')), '"Süren ve takılanlar" under the queue');
+  ok(await page.locator('[data-cms-inflight]').count() === 4, 'with the pull request, the late merge, the failure and the unfinished approval');
+  await page.click('[data-cms-inflight="00000000-0000-4000-8000-000000000401"] a');
+  await page.waitForSelector('#cmsReviewCancel');
+  await page.click('#cmsReviewCancel'); await page.click('#cmsReviewCancel');
+  ok(await waitFor(page, () => location.hash === '#icerik-etkinlikler/onay'), 'a pull request on its way can be stopped from its review');
+  ok(calls.some((c) => c.path.endsWith('000000000401/cancel')), 'through /cancel');
+  for (const n of [2, 3]) {
+    await page.evaluate((h) => { location.hash = h; }, `#icerik-etkinlikler/onay/00000000-0000-4000-8000-00000000040${n}`);
+    await page.waitForSelector('#cmsReviewDiscard');
+    await page.click('#cmsReviewDiscard'); await page.click('#cmsReviewDiscard');
+    await waitFor(page, () => location.hash === '#icerik-etkinlikler/onay');
+    ok(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(`00000000040${n}`)), `draft ${n} discarded from its review`);
+  }
+  await page.evaluate(() => { location.hash = '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000404'; });
+  await page.waitForSelector('#cmsApprove');
+  ok(await page.locator('#cmsApprove').isEnabled(), 'an unfinished approval with no changes can still be approved again');
+  ok(await page.locator('#cmsReviewDiscard').count() === 1, 'or discarded');
+  await page.close();
+});
+
+await section('X2) the author lets go of a failed draft; no removal while the entry is busy', async () => {
+  const id = '00000000-0000-4000-8000-000000000501';
+  let r = await open(browser, 'editor', `#icerik-etkinlikler/taslaklar/${id}`, { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(id, draftRow({ id, entry_id: 'symposium-2026', status: 'pr_failed', failure: 'merged but the site never showed it', data: SYM }));
+  });
+  await r.page.waitForSelector('[data-cms-menu]', { state: 'attached' });
+  ok(await r.page.locator('[data-cms-discard]').count() === 1, 'the author can delete a draft that failed, whatever the reason');
+  await r.page.close();
+  r = await open(browser, 'approver', '#icerik-etkinlikler/etkinlikler/symposium-2026', { width: 1440, height: 900 }, (s) => { s.live = [{ type: 'events', entry_id: 'symposium-2026', status: 'pr_open' }]; });
+  await r.page.waitForSelector('[data-field-wrap="title"]');
+  await r.page.waitForTimeout(300);
+  ok(await r.page.locator('[data-cms-delete-entry]').count() === 0, '"Siteden kaldır" is not offered while the entry is busy');
+  await r.page.close();
+  r = await open(browser, 'approver', '#icerik-etkinlikler/etkinlikler/symposium-2026', { width: 1440, height: 900 });
+  await r.page.waitForSelector('[data-field-wrap="title"]');
+  ok(await r.page.locator('[data-cms-delete-entry]').count() === 1, 'and is offered when it is free');
+  await r.page.close();
 });
 
 console.log('11) phone: no sideways scroll on the list, the form and the review');

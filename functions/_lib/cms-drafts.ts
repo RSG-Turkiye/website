@@ -64,8 +64,9 @@ export const TRANSITIONS = {
   save: ['draft', 'rejected', 'pr_failed'],
   submit: ['draft', 'rejected', 'pr_failed'],
   /** From `merged` only by an approver (the endpoint checks): the way out
-   * when the site never shows a merged change. */
-  discard: ['draft', 'submitted', 'rejected', 'pr_failed', 'merged'],
+   * when the site never shows a merged change. From `approved` only by an
+   * approver and only once it is stale: an approval that crashed half way. */
+  discard: ['draft', 'submitted', 'rejected', 'pr_failed', 'merged', 'approved'],
   reject: ['submitted'],
   approve: ['submitted'],
   /** An approver closes the pull request on purpose (→ pr_failed, 'cancelled'). */

@@ -1457,3 +1457,42 @@ test('a save of a new webinar that keeps its name and translationKey does not re
   assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { en: side('Fresher Talk', { translationKey: 'k' }), tr: side('Yeni', { translationKey: 'k' }) } })).status, 200);
   assert.equal(reads, 2, 'a new name is checked');
 });
+
+// ── final fix wave ────────────────────────────────────────────────────────────
+
+test('an approval that never finished can be discarded by an approver, once stale; its pull request is closed', async () => {
+  const { env, db, row, audit } = setup();
+  const id = await submitted(env);
+  db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = ? WHERE id = ?`).run(Math.floor(Date.now() / 1000) - 10, id);
+  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', id, 'approver')).status, 409, 'not while an approval may still be running');
+  db.prepare(`UPDATE content_drafts SET updated_at = ? WHERE id = ?`).run(Math.floor(Date.now() / 1000) - 600, id);
+  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', id, 'editor')).status, 403, 'the author cannot');
+  // The crashed attempt got as far as a pull request.
+  gh.prs.push({ title: 't', body: 'b', head: `cms/${id}`, number: 77, state: 'open', merged: false });
+  gh.branches.set(`cms/${id}`, new Map(gh.main));
+  const res = await on(env, draft.onRequestDelete, 'DELETE', id, 'approver');
+  assert.equal(res.status, 200);
+  assert.equal(row(id).status, 'discarded');
+  assert.equal(gh.prs[0].state, 'closed', 'nobody can merge it by hand afterwards');
+  const last = audit().at(-1)!;
+  assert.equal(last.action, 'cms.draft.discard');
+  assert.equal(JSON.parse(last.details).from, 'approved');
+});
+
+test('approvers get the drafts that are on their way or stuck; editors do not', async () => {
+  const { env, db } = setup();
+  const now = Math.floor(Date.now() / 1000);
+  const add = db.prepare(`INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, created_at, updated_at)
+    VALUES (?, 'events', ?, 'update', '{}', '{}', ?, 'editor', 1, ?)`);
+  add.run('00000000-0000-4000-8000-000000000a01', 'a', 'pr_open', now - 60);
+  add.run('00000000-0000-4000-8000-000000000a02', 'b', 'merged', now - 60);
+  add.run('00000000-0000-4000-8000-000000000a03', 'c', 'pr_failed', now - 60);
+  add.run('00000000-0000-4000-8000-000000000a04', 'd', 'approved', now - 600);
+  add.run('00000000-0000-4000-8000-000000000a05', 'e', 'approved', now - 10);
+  add.run('00000000-0000-4000-8000-000000000a06', 'f', 'published', now - 60);
+  add.run('00000000-0000-4000-8000-000000000a07', 'g', 'draft', now - 60);
+  const body = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'approver')).json() as any;
+  assert.deepEqual(body.inflight.map((d: any) => d.entry_id).sort(), ['a', 'b', 'c', 'd']);
+  const ed = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor2')).json() as any;
+  assert.deepEqual(ed.inflight, []);
+});

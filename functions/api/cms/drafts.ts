@@ -36,6 +36,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
      WHERE (d.status = 'submitted' OR (d.status = 'approved' AND d.updated_at < ?))
        AND d.type IN (${approvable.map(() => '?').join(', ')}) ORDER BY d.updated_at DESC LIMIT ${QUEUE_CAP + 1}`,
   ).bind(gate.now - STALE_APPROVAL_SECONDS, ...approvable).all<DraftRow>();
+  // For approvers: what is on its way or stuck in their groups, each with
+  // its way out (cancel a pull request; discard a merge the site never
+  // showed, a failure, or an approval that never finished).
+  const inflight = approvable.length === 0 ? { results: [] as DraftRow[] } : await env.DB.prepare(
+    `SELECT ${COLUMNS}, p.display_name AS author_name, '' AS data, '{}' AS base_shas FROM content_drafts d ${AUTHOR}
+     WHERE (d.status IN ('pr_open', 'merged', 'pr_failed') OR (d.status = 'approved' AND d.updated_at < ?))
+       AND d.type IN (${approvable.map(() => '?').join(', ')}) ORDER BY d.updated_at DESC LIMIT ${QUEUE_CAP}`,
+  ).bind(gate.now - STALE_APPROVAL_SECONDS, ...approvable).all<DraftRow>();
   // Which entries a live draft holds, so the panel offers no second draft
   // that submit would refuse (entry_busy). Not whose draft it is. Someone
   // else's new entry is not listed: it is not published, so it has no row.
@@ -51,6 +59,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     mine: mine.results.filter((r) => editable.has(r.type)).map((r) => draftJson(r, false)),
     queue: queue.results.slice(0, QUEUE_CAP).map((r) => draftJson(r, false)),
     more: queue.results.length > QUEUE_CAP,
+    inflight: inflight.results.map((r) => draftJson(r, false)),
     live: live.results.map((r) => ({ type: r.type, entry_id: r.entry_id, status: r.status })),
   });
 };

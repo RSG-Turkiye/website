@@ -1452,6 +1452,8 @@ export const ui = {
     'admin.cms.rebase.note': 'The old draft\'s send-back note: {note}',
     'admin.cms.queueMore': '{n} more drafts are waiting',
     'admin.cms.listFailed': 'The list could not be loaded. Try again in a moment.',
+    'admin.cms.inflightHeading': 'On their way or stuck',
+    'admin.cms.inflightEmpty': 'Nothing is on its way or stuck.',
   },
   tr: {
     // Navigation
@@ -2877,6 +2879,8 @@ export const ui = {
     'admin.cms.rebase.note': 'Eski taslağın geri gönderme notu: {note}',
     'admin.cms.queueMore': '{n} taslak daha var',
     'admin.cms.listFailed': 'Liste yüklenemedi. Birazdan yeniden deneyin.',
+    'admin.cms.inflightHeading': 'Süren ve takılanlar',
+    'admin.cms.inflightEmpty': 'Süren ya da takılan bir taslak yok.',
   },
 } as const;
 
