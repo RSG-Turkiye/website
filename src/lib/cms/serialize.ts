@@ -20,7 +20,7 @@
  */
 
 import { Document, isMap, isScalar, isSeq, parseDocument, Scalar, YAMLSeq, type Pair } from "yaml";
-import type { CmsType } from "./types";
+import { checkId, type CmsType } from "./types";
 
 // ── JSON ─────────────────────────────────────────────────────────────────────
 
@@ -30,10 +30,43 @@ export function parseJson(_type: CmsType, text: string): unknown {
   return JSON.parse(text);
 }
 
-/** Two-space indent, keys in the entry's own order, a trailing newline: the
- * format of every existing file. */
-export function serializeJson(_type: CmsType, data: unknown): string {
-  return `${JSON.stringify(data, null, 2)}\n`;
+/** Two-space indent, keys in the schema's order, a trailing newline: the
+ * format of every existing file. Keys are reordered so that an entry built in
+ * any order (a new one from the panel's form) is written like the others. */
+export function serializeJson(type: CmsType, data: unknown): string {
+  return `${JSON.stringify(inSchemaOrder(type.schema, data), null, 2)}\n`;
+}
+
+type ZodDef = { type: string; innerType?: unknown; in?: unknown; element?: unknown; shape?: Record<string, unknown> };
+const defOf = (schema: unknown): ZodDef | undefined => (schema as { _zod?: { def: ZodDef } } | undefined)?._zod?.def;
+
+/** The schema under optional/default/nullable/pipe wrappers. */
+function unwrap(schema: unknown): unknown {
+  let s = schema;
+  for (let def = defOf(s); def; def = defOf(s)) {
+    if (def.innerType) s = def.innerType;
+    else if (def.type === "pipe" && def.in) s = def.in;
+    else break;
+  }
+  return s;
+}
+
+/** `value` with object keys in the schema's shape order, recursively; keys
+ * the schema does not know follow in their own order. */
+function inSchemaOrder(schema: unknown, value: unknown): unknown {
+  const def = defOf(unwrap(schema));
+  if (Array.isArray(value)) return def?.type === "array" ? value.map((v) => inSchemaOrder(def.element, v)) : value;
+  if (value === null || typeof value !== "object" || def?.type !== "object" || !def.shape) return value;
+  const shape = def.shape;
+  const obj = value as Record<string, unknown>;
+  const keys = [...Object.keys(shape).filter((k) => k in obj), ...Object.keys(obj).filter((k) => !(k in shape))];
+  return Object.fromEntries(keys.map((k) => [k, k in shape ? inSchemaOrder(shape[k], obj[k]) : obj[k]]));
+}
+
+/** `<dir>/<id>.json`, after checking the id is a file-name slug. */
+export function jsonPath(type: CmsType, id: string): string {
+  if (type.format !== "json") throw new Error(`${type.key} is not a json type`);
+  return `${type.dir}/${checkId(id)}.json`;
 }
 
 // ── Markdown ─────────────────────────────────────────────────────────────────
@@ -74,7 +107,7 @@ export function serializeMarkdown(type: CmsType, entry: MarkdownEntry): string {
  * src/lib/translations.ts, not with this. */
 export function markdownPairPaths(type: CmsType, id: string): { en: string; tr: string } {
   if (type.format !== "markdown-pair") throw new Error(`${type.key} is not a markdown-pair type`);
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) throw new Error(`Invalid id: ${JSON.stringify(id)}`);
+  checkId(id);
   return { en: `${type.dir}/en/${id}.md`, tr: `${type.dir}/tr/${id}.md` };
 }
 
@@ -85,6 +118,13 @@ const PLAIN_KEYS = new Set(["date", "type", "lang"]);
 
 /** Scalar style to use for a value, given the style it had (if any). */
 type Style = { scalar?: Scalar.Type; item?: Scalar.Type };
+
+/** A value with a line break is written double-quoted with `\n` escapes,
+ * whatever its style was: a plain or block scalar would run over several
+ * lines and swallow a trailing `# comment` on the key's line into the value. */
+function scalarType(value: string, wanted: Scalar.Type | undefined): Scalar.Type | undefined {
+  return /[\n\r]/.test(value) ? "QUOTE_DOUBLE" : wanted;
+}
 
 function normalise(value: unknown): unknown {
   // A Date would be written as a timestamp; frontmatter dates are days.
@@ -98,15 +138,17 @@ function renderPair(key: string, value: unknown, style: Style): string {
   const pair = (doc.contents as { items: Pair[] }).items[0];
   const node = pair.value;
   if (isScalar(node)) {
-    if (typeof node.value === "string") node.type = style.scalar ?? (PLAIN_KEYS.has(key) ? "PLAIN" : "QUOTE_DOUBLE");
+    if (typeof node.value === "string") node.type = scalarType(node.value, style.scalar ?? (PLAIN_KEYS.has(key) ? "PLAIN" : "QUOTE_DOUBLE"));
   } else if (isSeq(node)) {
     node.flow = node.items.length === 0;
     for (const item of node.items) {
-      if (isScalar(item) && typeof item.value === "string") item.type = style.item ?? "QUOTE_DOUBLE";
+      if (isScalar(item) && typeof item.value === "string") item.type = scalarType(item.value, style.item ?? "QUOTE_DOUBLE");
     }
   }
   // lineWidth 0: never fold a long description over several lines.
-  return doc.toString({ lineWidth: 0 });
+  // doubleQuotedMinMultiLineLength: a quoted value with line breaks is written
+  // as "a\nb" on one line, never folded across lines.
+  return doc.toString({ lineWidth: 0, doubleQuotedMinMultiLineLength: Infinity });
 }
 
 /**

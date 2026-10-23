@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { CMS_TYPES, cmsType } from '../src/lib/cms/types';
 import {
-  serializeJson, parseJson, serializeMarkdown, parseMarkdown, markdownPairPaths,
+  serializeJson, parseJson, serializeMarkdown, parseMarkdown, markdownPairPaths, jsonPath,
 } from '../src/lib/cms/serialize';
 import { jsonSchemaFor } from '../src/lib/cms/json-schema';
 import { webinarSchema } from '../src/data/webinars';
@@ -211,7 +211,7 @@ test('markdownPairPaths puts the id under en/ and tr/', () => {
     en: 'src/content/webinars/en/some-talk.md',
     tr: 'src/content/webinars/tr/some-talk.md',
   });
-  assert.throws(() => markdownPairPaths(webinars, '../escape'), /id/);
+  assert.throws(() => markdownPairPaths(webinars, '../escape'), /Invalid id/);
   assert.throws(() => markdownPairPaths(events, 'x'), /markdown/);
 });
 
@@ -237,4 +237,52 @@ test('jsonSchemaFor: webinars are the frontmatter plus a required body string, d
   assert.ok(!s.required.includes('slidesUrl'), 'defaulted fields are optional on input');
   assert.equal(s.properties.date.type, 'string');
   assert.equal(s.properties.date.format, 'date');
+});
+
+test('a multi-line value on a key with a trailing comment stays one line; the comment stays a comment', () => {
+  const text = read('src/content/webinars/en/physics-based-and-ai-methods-for-protein-interaction-analysis-2025.md');
+  const p = parseMarkdown(webinars, text);
+  const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, type: 'a\nb', slidesUrl: 'x\n---\ny' } });
+  assert.match(out, /^type: "a\\nb" {3}# use "student" for student webinar series$/m);
+  assert.match(out, /^slidesUrl: "x\\n---\\ny" {4}# leave empty string if none: ""$/m);
+  assert.equal(changedLines(text, out).length, 2);
+  const back = parseMarkdown(webinars, out);
+  assert.equal(back.frontmatter.type, 'a\nb');
+  assert.equal(back.frontmatter.slidesUrl, 'x\n---\ny');
+  assert.equal(back.body, p.body);
+  // A plain-style key and a list item with a line break are quoted too.
+  const plain = parseMarkdown(webinars, read('src/content/webinars/en/accessing-multi-omics-data-tumour-profiling-aashil-batavia.md'));
+  const out2 = serializeMarkdown(webinars, {
+    ...plain, frontmatter: { ...plain.frontmatter, speaker: 'x\ny', keyTakeaways: ['p\nq'] },
+  });
+  assert.match(out2, /^speaker: "x\\ny"$/m);
+  assert.match(out2, /^ {2}- "p\\nq"$/m);
+});
+
+test('serializeJson writes keys in schema order, nested objects and lists too', () => {
+  const out = serializeJson(events, {
+    when: { tr: 'b', en: 'a' },
+    id: 'x',
+    links: [{ url: 'u', label: { tr: 't', en: 'e' } }],
+    type: 'meetup',
+  });
+  assert.equal(out, `${JSON.stringify({
+    id: 'x', type: 'meetup', when: { en: 'a', tr: 'b' }, links: [{ label: { en: 'e', tr: 't' }, url: 'u' }],
+  }, null, 2)}\n`);
+  assert.equal(
+    serializeJson(workshops, { repo: 'R', extra: 1, year: 2020 }),
+    `${JSON.stringify({ year: 2020, repo: 'R', extra: 1 }, null, 2)}\n`,
+  );
+});
+
+test('jsonPath checks the id; idFrom never returns an invalid one', () => {
+  assert.equal(jsonPath(events, 'meetup-izmir-2025'), 'src/content/events/meetup-izmir-2025.json');
+  for (const bad of ['../x', 'Foo Bar', '']) {
+    assert.throws(() => jsonPath(events, bad), /Invalid id/);
+    assert.throws(() => markdownPairPaths(webinars, bad), /Invalid id/);
+    assert.throws(() => events.idFrom({ id: bad }), /Invalid id/);
+  }
+  assert.throws(() => jsonPath(webinars, 'x'), /json/);
+  assert.throws(() => webinars.idFrom({ frontmatter: { title: '—!?' } }), /no letters or digits/);
+  assert.throws(() => workshops.idFrom({ repo: '__' }), /no letters or digits/);
 });

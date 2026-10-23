@@ -19,6 +19,8 @@ export function jsonSchemaFor(type: CmsType): Record<string, unknown> {
 
   const shape = (type.schema as z.ZodObject).shape;
   const withBody = z.object({ ...shape, body: z.string() });
+  // Only webinars need `unrepresentable`: their date is z.coerce.date(), which
+  // the override below replaces; events and workshops have no such field.
   return z.toJSONSchema(withBody, {
     io: "input",
     override: (ctx) => {

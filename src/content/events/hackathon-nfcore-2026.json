@@ -1,7 +1,6 @@
 {
   "id": "hackathon-nfcore-2026",
   "type": "hackathon",
-  "nfcore": true,
   "start": "2026-03-11",
   "end": "2026-03-13",
   "title": {
@@ -43,6 +42,7 @@
       "url": "https://training.nextflow.io/latest/tr/"
     }
   ],
+  "nfcore": true,
   "image": {
     "thumb": "/api/images/5b6da566-0ae3-4bc7-aa4c-0c233266d4d4.jpg",
     "full": "/api/images/8d0e7b7f-f441-4876-9f22-e586a295c443.jpg",
