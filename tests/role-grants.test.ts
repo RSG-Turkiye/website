@@ -55,6 +55,20 @@ test('when the audit insert fails, neither the grant nor the column changes', as
   assert.equal(flag(db, 'is_writer'), 0);
 });
 
+test('extra statements land in the same batch, and roll back with it', async () => {
+  const { db, DB } = setup();
+  db.exec("INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES ('u1', 'one', 'One', 0)");
+  const extra = () => [DB.prepare("UPDATE profiles SET bio = 'x' WHERE user_id = 'u1'")];
+  const bio = () => (db.prepare("SELECT bio FROM profiles WHERE user_id = 'u1'").get() as { bio: string | null }).bio;
+  await grantRole(DB, { userId: 'u1', role: 'sender', expiresAt: NOW + MONTH, by: 'admin', extra: extra() }, NOW);
+  assert.equal(bio(), 'x');
+  db.exec("UPDATE profiles SET bio = NULL");
+  db.exec("CREATE TRIGGER no_audit BEFORE INSERT ON audit_log BEGIN SELECT RAISE(ABORT, 'audit down'); END");
+  await assert.rejects(revokeRole(DB, { userId: 'u1', role: 'sender', by: 'admin', extra: extra() }, NOW + 1), /audit down/);
+  assert.equal(bio(), null);
+  assert.equal(flag(db, 'is_sender'), 1);
+});
+
 test('granting social_publisher for a month also makes social active until the same end', async () => {
   const { db, DB } = setup();
   await grantRole(DB, { userId: 'u1', role: 'social_publisher', expiresAt: NOW + MONTH, by: 'admin' }, NOW);

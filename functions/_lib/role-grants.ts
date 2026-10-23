@@ -59,7 +59,9 @@ export async function grantRole(
       if (role === def.key) kept = true;
       continue;
     }
-    if (current.held) statements.push(endLive(db, p.userId, role, p.by, now));
+    // Unconditional, though a no-op when nothing is live: the audit retry re-runs
+    // this batch after a concurrent writer, and this keeps that to one live row.
+    statements.push(endLive(db, p.userId, role, p.by, now));
     statements.push(db.prepare(
       'INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, note) VALUES (?, ?, ?, ?, ?, ?, ?)',
     ).bind(crypto.randomUUID(), p.userId, role, p.expiresAt, p.by, now, p.note ?? null));
