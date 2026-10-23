@@ -68,6 +68,8 @@ export function draftJson(row: DraftRow, withData: boolean) {
     action: row.action,
     status: row.status,
     author_id: row.author_id,
+    /** The author's display name, or null (the panel then says "an editor"). */
+    author_name: row.author_name ?? null,
     reviewer_id: row.reviewer_id,
     review_note: row.review_note,
     pr_url: row.pr_url,

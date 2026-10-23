@@ -18,7 +18,7 @@ test('an admin gets every count', async () => {
   seed(db);
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { email: 1, social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await res.json(), { email: 1, social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1, cmsMine: 0, cmsQueue: 0, cmsTotal: 0 });
 });
 
 function addSender(db: import('node:sqlite').DatabaseSync) {
@@ -59,7 +59,7 @@ test('a count whose query fails is left out; the others are still returned', asy
   t.mock.method(console, 'error', (...a: unknown[]) => { logged.push(a); });
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1 });
+  assert.deepEqual(await res.json(), { social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1, cmsMine: 0, cmsQueue: 0, cmsTotal: 0 });
   assert.equal(logged.length, 1);
 });
 
@@ -79,4 +79,34 @@ test('socialTotal is approvals plus unread DMs; an editor gets neither', async (
   const ed = await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ed' })).json() as Record<string, number>;
   assert.equal(ed.socialTotal, undefined);
   assert.equal(ed.social, undefined);
+});
+
+function seedCms(db: import('node:sqlite').DatabaseSync) {
+  const now = Math.floor(Date.now() / 1000);
+  for (const [id, role] of [['ced', 'content.etkinlikler.edit'], ['cap', 'content.etkinlikler.approve']]) {
+    db.prepare(`INSERT INTO users (id, google_id, email, created_at, last_login) VALUES (?, ?, ?, 1, 1)`).run(id, `g-${id}`, `${id}@example.org`);
+    db.prepare(`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, 4000000000, 1)`).run(`s-${id}`, id);
+    db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES (?, ?, ?, NULL, NULL, 1)`).run(`g-${id}`, id, role);
+  }
+  const add = db.prepare(`INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, created_at, updated_at)
+    VALUES (?, 'events', ?, 'update', '{}', '{}', ?, ?, 1, ?)`);
+  add.run('d1', 'a', 'rejected', 'ced', now);
+  add.run('d2', 'b', 'pr_failed', 'ced', now);
+  add.run('d3', 'c', 'draft', 'ced', now);
+  add.run('d4', 'd', 'submitted', 'ced', now);
+  add.run('d5', 'e', 'submitted', 'cap', now);
+  add.run('d6', 'f', 'approved', 'cap', now - 3600); // an approval that never finished
+  add.run('d7', 'g', 'approved', 'cap', now); // one under way
+  add.run('d8', 'h', 'rejected', 'cap', now);
+}
+
+test('content counts: an editor\'s drafts that need action; an approver\'s queue too', async () => {
+  const { env, db } = setupSocial();
+  seedCms(db);
+  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ced' })).json(), { cmsMine: 2, cmsTotal: 2 });
+  assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'cap' })).json(), { cmsMine: 1, cmsQueue: 3, cmsTotal: 4 });
+  const admin = await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' })).json() as Record<string, number>;
+  assert.deepEqual([admin.cmsMine, admin.cmsQueue, admin.cmsTotal], [0, 3, 3]);
+  const pub = await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json() as Record<string, number>;
+  assert.equal(pub.cmsMine, undefined, 'no content role, no content count');
 });

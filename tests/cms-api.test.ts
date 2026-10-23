@@ -564,7 +564,8 @@ test('a schema-invalid save answers with an error per field and keeps the last g
   const { env, row } = setup();
   const { body } = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
   const id = body.draft.id;
-  const bad = { ...newEvent(), start: 'next spring', title: { en: 'Only English' }, colour: 'red' };
+  // A save is lenient about what is missing, never about what is wrong.
+  const bad = { ...newEvent(), start: 'next spring', title: { en: 'Only English', tr: 5 }, colour: 'red' };
   const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: bad });
   assert.equal(res.status, 422);
   const out = await res.json() as any;
@@ -1293,4 +1294,94 @@ test('the approval queue holds drafts stuck in approved past the stale time, not
   insert.run('00000000-0000-4000-8000-000000000002', 'in-flight', now - 10);
   const body = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'approver')).json() as any;
   assert.deepEqual(body.queue.map((d: any) => d.entry_id), ['stuck']);
+});
+
+// ── Task 7: the panel's server side ───────────────────────────────────────────
+
+test('every published entry still validates under the stricter schemas', () => {
+  const WORKSHOPS = cmsType('workshops')!;
+  for (const [path, text] of Object.entries(FILES)) {
+    if (path.startsWith('src/content/events/')) assert.deepEqual(validateDraft(EVENTS, JSON.parse(text)), { ok: true, data: JSON.parse(text) }, path);
+    if (path.startsWith('src/content/workshops/')) assert.equal(validateDraft(WORKSHOPS, JSON.parse(text)).ok, true, path);
+  }
+  for (const w of INDEX.webinars) {
+    const side = (p: string | null | undefined) => p ? parseMarkdown(WEBINARS, FILES[p]) : null;
+    const pair = { en: side(w.paths?.en), tr: side(w.paths?.tr) };
+    const v = validateDraft(WEBINARS, pair);
+    assert.equal(v.ok, true, `${w.id}: ${JSON.stringify(v.ok ? null : v.errors)}`);
+  }
+});
+
+test('the required display texts may not be empty at submit', () => {
+  const v = validateDraft(EVENTS, { ...newEvent(), when: { en: '6 March', tr: '' }, description: { en: '', tr: 'x' } });
+  assert.equal(v.ok, false);
+  assert.deepEqual(Object.keys((v as any).errors).sort(), ['description.en', 'when.tr']);
+  const w = validateDraft(cmsType('workshops')!, { year: 2026, title: '', topics: '', repo: '' });
+  assert.deepEqual(Object.keys((w as any).errors).sort(), ['repo', 'title', 'topics']);
+});
+
+test('lenient: missing or empty is allowed, unknown keys, wrong types and bad formats are not', () => {
+  const partial = { id: 'meetup-x', title: { en: 'Meetup', tr: '' }, links: [{ label: { en: 'Site' }, url: '' }] };
+  assert.deepEqual(validateDraft(EVENTS, partial, 'lenient'), { ok: true, data: partial });
+  assert.equal(validateDraft(EVENTS, partial).ok, false, 'strict still refuses it');
+  const wrong = validateDraft(EVENTS, { id: 'meetup-x', start: '6 March', title: { en: 5 }, colour: 'red', type: 'party' }, 'lenient') as any;
+  assert.equal(wrong.ok, false);
+  assert.deepEqual(Object.keys(wrong.errors).sort(), ['colour', 'start', 'title.en', 'type']);
+  // Nested unknown keys too, and the webinar pair's shape.
+  assert.equal(validateDraft(EVENTS, { links: [{ label: { en: '', de: 'x' } }] }, 'lenient').ok, false);
+  assert.equal(validateDraft(WEBINARS, { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } }, 'lenient').ok, true);
+  assert.equal(validateDraft(WEBINARS, { en: { frontmatter: { year: 'x' }, body: '' }, tr: { frontmatter: {}, body: '' } }, 'lenient').ok, false);
+  assert.equal(validateDraft(WEBINARS, { en: { frontmatter: {}, body: '' } }, 'lenient').ok, false, 'both sides, always');
+});
+
+test('save and create are lenient; submit is strict, with an error per field', async () => {
+  const { env, row } = setup();
+  const start = { id: 'meetup-ankara-2027', title: { en: 'Ankara meetup', tr: '' } };
+  const made = await create(env, 'editor', { type: 'events', action: 'create', data: start });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  const id = made.body.draft.id;
+  const more = { ...start, type: 'meetup', when: { en: '6 March 2027', tr: '' } };
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: more })).status, 200);
+  assert.deepEqual(JSON.parse(row(id).data), more);
+  // Still a wrong type is refused at save.
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...more, start: 20270306 } })).status, 422);
+  const res = await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
+  assert.equal(res.status, 422);
+  const errors = (await res.json() as any).errors;
+  for (const k of ['start', 'title.tr', 'when.tr', 'location', 'description']) assert.ok(errors[k], k);
+  assert.equal(row(id).status, 'draft');
+  // A new entry still needs what its file name comes from.
+  const nameless = await create(env, 'editor', { type: 'events', action: 'create', data: { title: { en: 'x', tr: '' } } });
+  assert.equal(nameless.res.status, 422);
+  assert.ok(nameless.body.errors.id);
+});
+
+test('a draft carries its author\'s display name, never an id or address in its place', async () => {
+  const { env, db } = setup();
+  const id = await submitted(env);
+  const one = async (as: string) => (await (await on(env, draft.onRequestGet, 'GET', id, as)).json() as any).draft;
+  assert.equal((await one('approver')).author_name, null, 'no profile: null, and the panel says "an editor"');
+  db.prepare(`INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES ('editor', 'ed', 'Ece Editör', 1)`).run();
+  assert.equal((await one('approver')).author_name, 'Ece Editör');
+  const lists = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'approver')).json() as any;
+  assert.equal(lists.queue[0].author_name, 'Ece Editör');
+  const mine = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor')).json() as any;
+  assert.equal(mine.mine[0].author_name, 'Ece Editör');
+});
+
+test('the drafts list says which entries are held by a live draft, without saying whose', async () => {
+  const { env } = setup();
+  const path = 'src/content/events/symposium-2026.json';
+  await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: loaded(path) });
+  const other = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor2')).json() as any;
+  assert.deepEqual(other.mine, []);
+  assert.deepEqual(other.live, [{ type: 'events', entry_id: 'symposium-2026', status: 'submitted' }]);
+  const none = await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'member');
+  assert.equal(none.status, 403);
+});
+
+test('each index entry carries its date, for the panel\'s list', () => {
+  assert.equal(INDEX.events.find((e) => e.id === 'symposium-2026')!.date, '2026-10-10');
+  assert.ok(INDEX.workshops.every((w) => /^\d{4}$/.test(w.date ?? '')));
+  assert.equal(INDEX.webinars.find((w) => w.id === 'ai-approaches-biomolecular-representation')!.date, '2024-04-16');
 });

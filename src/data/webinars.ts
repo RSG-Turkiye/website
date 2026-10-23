@@ -13,15 +13,15 @@ import { z } from "astro/zod";
  * Functions (the panel CMS) can use it without astro:content.
  */
 export const webinarSchema = z.object({
-  title: z.string(),
+  title: z.string().min(1),
   /** Ties this entry to its other-language twin when the slugs differ. */
   translationKey: z.string().default(""),
   date: z.coerce.date(),
-  speaker: z.string(),
+  speaker: z.string().min(1),
   speakerAffiliation: z.string().default(""),
   speakerTitle: z.string().default(""),
   speakerPhoto: z.string().default(""),
-  description: z.string(),
+  description: z.string().min(1),
   youtubeUrl: z.string().default(""),
   slidesUrl: z.string().default(""),
   lang: z.enum(["en", "tr"]).optional(), // kept for legacy frontmatter; language now inferred from directory

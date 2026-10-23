@@ -4,12 +4,15 @@ import { runWithAudit } from '../../_lib/audit';
 import {
   cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
-import { checkSameId, DRAFT_ACTIONS, langOf, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
+import { checkSameId, DRAFT_ACTIONS, langOf, LIVE_STATUSES, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
 import { fileShasOnBase, filesOnBase } from '../../_lib/github';
 import { CMS_TYPES, checkId, cmsType } from '../../../src/lib/cms/types';
 import { parseMarkdown } from '../../../src/lib/cms/serialize';
 
-const LIST_COLUMNS = 'id, type, entry_id, action, status, author_id, reviewer_id, review_note, pr_url, pr_number, failure, created_at, updated_at';
+const COLUMNS = ['id', 'type', 'entry_id', 'action', 'status', 'author_id', 'reviewer_id', 'review_note', 'pr_url', 'pr_number', 'failure', 'created_at', 'updated_at']
+  .map((c) => `d.${c}`).join(', ');
+/** The author's display name, for the approver's "sent by". */
+const AUTHOR = 'LEFT JOIN profiles p ON p.user_id = d.author_id';
 
 const QUEUE_CAP = 200;
 
@@ -25,19 +28,28 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const approvable = CMS_TYPES.filter((t) => rightsIn(gate.rights, t.group).approve).map((t) => t.key as string);
 
   const mine = await env.DB.prepare(
-    `SELECT ${LIST_COLUMNS}, '' AS data, '{}' AS base_shas FROM content_drafts
-     WHERE author_id = ? AND status != 'discarded' ORDER BY updated_at DESC LIMIT 200`,
+    `SELECT ${COLUMNS}, p.display_name AS author_name, '' AS data, '{}' AS base_shas FROM content_drafts d ${AUTHOR}
+     WHERE d.author_id = ? AND d.status != 'discarded' ORDER BY d.updated_at DESC LIMIT 200`,
   ).bind(gate.user.id).all<DraftRow>();
   const queue = approvable.length === 0 ? { results: [] as DraftRow[] } : await env.DB.prepare(
-    `SELECT ${LIST_COLUMNS}, '' AS data, '{}' AS base_shas FROM content_drafts
-     WHERE (status = 'submitted' OR (status = 'approved' AND updated_at < ?))
-       AND type IN (${approvable.map(() => '?').join(', ')}) ORDER BY updated_at DESC LIMIT ${QUEUE_CAP + 1}`,
+    `SELECT ${COLUMNS}, p.display_name AS author_name, '' AS data, '{}' AS base_shas FROM content_drafts d ${AUTHOR}
+     WHERE (d.status = 'submitted' OR (d.status = 'approved' AND d.updated_at < ?))
+       AND d.type IN (${approvable.map(() => '?').join(', ')}) ORDER BY d.updated_at DESC LIMIT ${QUEUE_CAP + 1}`,
   ).bind(gate.now - STALE_APPROVAL_SECONDS, ...approvable).all<DraftRow>();
+  // Which entries a live draft holds, so the panel offers no second draft
+  // that submit would refuse (entry_busy). Not whose draft it is.
+  const types = [...editable];
+  const live = types.length === 0 ? { results: [] as { type: string; entry_id: string; status: string }[] } : await env.DB.prepare(
+    `SELECT type, entry_id, status FROM content_drafts
+     WHERE status IN (${LIVE_STATUSES.map(() => '?').join(', ')}) AND type IN (${types.map(() => '?').join(', ')})
+     ORDER BY type, entry_id LIMIT 500`,
+  ).bind(...LIVE_STATUSES, ...types).all<{ type: string; entry_id: string; status: string }>();
 
   return jsonResponse({
     mine: mine.results.filter((r) => editable.has(r.type)).map((r) => draftJson(r, false)),
     queue: queue.results.slice(0, QUEUE_CAP).map((r) => draftJson(r, false)),
     more: queue.results.length > QUEUE_CAP,
+    live: live.results.map((r) => ({ type: r.type, entry_id: r.entry_id, status: r.status })),
   });
 };
 
@@ -61,9 +73,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!DRAFT_ACTIONS.includes(action)) return fail(400, 'bad_action', 'action is create, update or delete');
 
   // Validated before anything reads an id out of it (idFrom, jsonPath).
+  // Leniently: a draft may start incomplete; submit checks it in full.
   let data: unknown = {};
   if (action !== 'delete') {
-    const v = validateDraft(type, body.data);
+    const v = validateDraft(type, body.data, 'lenient');
     if (!v.ok) return invalid(v.errors);
     data = v.data;
   }

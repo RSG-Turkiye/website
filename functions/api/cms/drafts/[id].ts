@@ -12,12 +12,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   const found = await loadDraft(env, params.id);
   if (!found.ok) return found.response;
   if (!mayEdit(gate, found.row)) return forbidden();
-  return jsonResponse({ draft: draftJson(found.row, true) });
+  const author = await env.DB.prepare('SELECT display_name FROM profiles WHERE user_id = ?').bind(found.row.author_id).first<{ display_name: string }>();
+  return jsonResponse({ draft: draftJson({ ...found.row, author_name: author?.display_name ?? null }, true) });
 };
 
 /**
  * Save `{ data }`. Only while the draft is with its author (TRANSITIONS.save);
- * the status does not change. A new entry's id follows its data, so its file
+ * the status does not change. Checked leniently: what is missing or empty may
+ * stay so until submit, which checks the whole entry. A new entry's id follows its data, so its file
  * name follows a changed event id or webinar title; an update keeps its files.
  */
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -32,7 +34,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   const body = await readJson(request);
   if (!body) return fail(400, 'bad_request', 'Send a JSON object of at most 256 KB');
 
-  const v = validateDraft(type, body.data);
+  const v = validateDraft(type, body.data, 'lenient');
   if (!v.ok) return invalid(v.errors);
   let entryId = row.entry_id;
   let baseShas = row.base_shas;

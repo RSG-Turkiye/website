@@ -40,6 +40,8 @@ export interface DraftRow {
   last_checked_at: number | null;
   created_at: number;
   updated_at: number;
+  /** Not a column: the author's profile display name, where a query joined it. */
+  author_name?: string | null;
 }
 
 /** One language of a webinar. `source` is the original frontmatter text,
@@ -119,11 +121,8 @@ export const FAILURE = {
   check: (name: string) => `check failed: ${name}`,
 } as const;
 
-/** What the panel shows for these, in both languages. */
-export const STATUS_NOTES = {
-  merged: { tr: 'Yayına çıkıyor, birkaç dakika', en: 'Going live, a few minutes' },
-  mergedStale: { tr: 'Birleşti ama site güncellenmedi, yöneticiye haber ver', en: 'Merged, but the site has not updated; tell an admin' },
-} as const;
+// What the panel shows for each status lives in src/i18n/ui.ts
+// (admin.cms.status.*), with the rest of the panel's words.
 
 /** Whether a merged draft has waited for the site longer than MERGED_STALE_SECONDS. */
 export function mergedTooLong(row: Pick<DraftRow, 'status' | 'updated_at'>, now: number): boolean {
@@ -149,10 +148,37 @@ function setOnce(into: FieldErrors, key: string, message: string): void {
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-type Issue = { path: PropertyKey[]; message: string; code?: string; keys?: string[] };
+type Issue = { path: PropertyKey[]; message: string; code?: string; keys?: string[]; minimum?: unknown };
 
-function issuesToErrors(issues: Issue[], prefix: string, into: FieldErrors): void {
+/**
+ * How strictly a draft is checked. `strict` (submit, approve): the full
+ * schema. `lenient` (save, autosave, starting a draft): the same, except that
+ * a value that is missing or empty is not an error yet, so work in progress
+ * can be kept. Unknown keys, wrong types and malformed values are refused
+ * either way.
+ */
+export type CheckMode = 'strict' | 'lenient';
+
+/** The input value an issue is about. */
+function valueAt(data: unknown, path: PropertyKey[]): unknown {
+  let v = data;
+  for (const k of path) {
+    if (v === null || typeof v !== 'object' || !Object.hasOwn(v, k as string)) return undefined;
+    v = (v as Record<PropertyKey, unknown>)[k];
+  }
+  return v;
+}
+
+/** An issue that only says the value is not there yet: missing, or an empty text. */
+function onlyIncomplete(issue: Issue, data: unknown): boolean {
+  const v = valueAt(data, issue.path);
+  if (v === undefined) return issue.code !== 'unrecognized_keys';
+  return v === '' && (issue.code === 'too_small' || issue.code === 'invalid_format');
+}
+
+function issuesToErrors(issues: Issue[], prefix: string, into: FieldErrors, mode: CheckMode = 'strict', data?: unknown): void {
   for (const issue of issues) {
+    if (mode === 'lenient' && onlyIncomplete(issue, data)) continue;
     const at = [prefix, ...issue.path.map(String)].filter((s) => s !== '').join('.');
     if (issue.code === 'unrecognized_keys' && issue.keys) {
       for (const k of issue.keys) setOnce(into, at ? `${at}.${k}` : k, 'Unknown field');
@@ -203,13 +229,13 @@ function unknownKeys(schema: unknown, value: unknown, at: string, into: FieldErr
  * Dates and add defaults the file never had), trimmed to the known shape for
  * webinars.
  */
-export function validateDraft(type: CmsType, data: unknown): Validated {
+export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 'strict'): Validated {
   const errors: FieldErrors = {};
   if (type.format === 'json') {
     if (!isObject(data)) return { ok: false, errors: { '': 'The entry must be an object' } };
     unknownKeys(type.schema, data, '', errors);
     const r = type.schema.safeParse(data);
-    if (!r.success) issuesToErrors(r.error.issues as Issue[], '', errors);
+    if (!r.success) issuesToErrors(r.error.issues as Issue[], '', errors, mode, data);
     return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data };
   }
 
@@ -221,7 +247,7 @@ export function validateDraft(type: CmsType, data: unknown): Validated {
     if (typeof side.body !== 'string') errors[`${lang}.body`] = 'Must be text';
     unknownKeys(type.schema, side.frontmatter, `${lang}.frontmatter`, errors);
     const r = type.schema.safeParse(side.frontmatter);
-    if (!r.success) issuesToErrors(r.error.issues as Issue[], `${lang}.frontmatter`, errors);
+    if (!r.success) issuesToErrors(r.error.issues as Issue[], `${lang}.frontmatter`, errors, mode, side.frontmatter);
     const declared = side.frontmatter.lang;
     if (declared !== undefined && declared !== lang) setOnce(errors, `${lang}.frontmatter.lang`, `Must be "${lang}" or left out`);
     out[lang] = { frontmatter: side.frontmatter, body: String(side.body ?? '') };

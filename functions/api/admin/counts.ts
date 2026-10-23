@@ -6,7 +6,9 @@
  */
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse } from '../../_lib/auth';
-import { canOpenAdminPanel } from '../../_lib/cms-access';
+import { canOpenAdminPanel, groupRights } from '../../_lib/cms-access';
+import { STALE_APPROVAL_SECONDS } from '../../_lib/cms-drafts';
+import { CMS_TYPES } from '../../../src/lib/cms/types';
 
 const WEEK = 7 * 86400;
 
@@ -37,6 +39,21 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   // The Sosyal menu badge: approvals plus unread messages. A missing dm count (migration not applied) adds nothing.
   if (typeof out.social === 'number') out.socialTotal = out.social + (out.dm ?? 0);
   if (admin) await count('blog', `SELECT COUNT(*) AS n FROM blog_submissions WHERE status = 'pending'`);
+  // Content drafts: my own that need me (sent back, or failed), and for
+  // approvers the queue (/api/cms/drafts' rule: submitted, or an approval
+  // that never finished). cmsTotal is the menu badge.
+  const rights = await groupRights(env.DB, user, now);
+  const editable = CMS_TYPES.filter((t) => rights[t.group]?.edit).map((t) => t.key as string);
+  const approvable = CMS_TYPES.filter((t) => rights[t.group]?.approve).map((t) => t.key as string);
+  const inTypes = (keys: string[]) => keys.map(() => '?').join(', ');
+  if (editable.length) {
+    await count('cmsMine', `SELECT COUNT(*) AS n FROM content_drafts WHERE author_id = ? AND status IN ('rejected', 'pr_failed') AND type IN (${inTypes(editable)})`, user.id, ...editable);
+  }
+  if (approvable.length) {
+    await count('cmsQueue', `SELECT COUNT(*) AS n FROM content_drafts
+      WHERE (status = 'submitted' OR (status = 'approved' AND updated_at < ?)) AND type IN (${inTypes(approvable)})`, now - STALE_APPROVAL_SECONDS, ...approvable);
+  }
+  if (typeof out.cmsMine === 'number' || typeof out.cmsQueue === 'number') out.cmsTotal = (out.cmsMine ?? 0) + (out.cmsQueue ?? 0);
   if (social) await count('scheduledThisWeek', `SELECT COUNT(*) AS n FROM social_posts WHERE status = 'scheduled' AND scheduled_at BETWEEN ? AND ?`, now, now + WEEK);
   return jsonResponse(out);
 };

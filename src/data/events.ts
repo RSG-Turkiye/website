@@ -27,6 +27,8 @@ import { z } from "astro/zod";
 import { imageUrl } from "./image-url";
 
 const bilingual = z.object({ en: z.string(), tr: z.string() }).strict();
+/** A text every reader sees: empty in either language is refused. */
+const filled = z.object({ en: z.string().min(1), tr: z.string().min(1) }).strict();
 
 /** A calendar day as YYYY-MM-DD, nothing else: not a timestamp, not a number,
  * not 2026-02-30. Read as UTC midnight, the instant `new Date("2026-10-10")`
@@ -46,12 +48,12 @@ export const eventSchema = z
     /** Why a date or detail is what it is, for the next maintainer: JSON has no
      * comments. Never rendered. */
     note: z.string().optional(),
-    title: bilingual,
+    title: filled,
     /** The date as a reader should see it. `start`/`end` drive the logic; this
      * drives the page, so "3 – 4 October 2023" does not have to be derived. */
-    when: bilingual,
-    location: bilingual,
-    description: bilingual,
+    when: filled,
+    location: filled,
+    description: filled,
     /** Public pages that show the event or what came out of it: the nf-core
      * local-site page, a merged pull request, the materials repository
      * (github.com/RSG-Turkiye/<repo>, labelled "Workshop materials"). */
