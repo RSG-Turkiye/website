@@ -22,11 +22,12 @@ import { uploadImage } from '../../image-upload';
 import { AutosaveQueue } from '../../social/autosave';
 import { BTN, armConfirm, chip, emptyState, guardUnsaved, row, revealInPanel } from '../ui-kit';
 import { dateLocale, lang, t, tf } from '../context';
-import { refreshCounts } from '../shell';
+import { refreshCounts, noteAddress } from '../shell';
 import {
   MODELS, TYPE_KEYS, applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
   placeOf, previewHtml, same, statusView, suggestedId, visibleFields, withId,
-  type DraftSummary, type FieldDef, type ImageObject, type StatusView, type TypeKey, type TypeModel, type Values,
+  backupChoice, backupStorageKey, othersBackupKeys, parseBackup, uploadErrorKey,
+  type Backup, type DraftSummary, type FieldDef, type ImageObject, type StatusView, type TypeKey, type TypeModel, type Values,
 } from '../cms-form';
 import { diffEntry } from '../cms-diff';
 import { readField, readValues, renderAll, renderDiff, renderField, show } from '../cms-render';
@@ -42,7 +43,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 interface Entry { id: string; title: string; date?: string; paths?: { en: string | null; tr: string | null }; shas?: Record<string, string> }
 interface Draft extends DraftSummary {
-  pr_url: string | null; created_at: number;
+  pr_url: string | null; created_at: number; write_nonce?: string | null;
   data?: unknown; base_shas?: Record<string, string | null>;
 }
 type Answer<T> = { ok: true; status: number; body: T } | { ok: false; status: number; code: string; body: Record<string, any> };
@@ -62,6 +63,11 @@ async function api<T = Record<string, any>>(method: string, path: string, body?:
 // ── State ────────────────────────────────────────────────────────────────────
 
 let approver = false;
+/** The signed-in person: backups in this browser are theirs only. */
+let userId = '';
+/** Why the last list load failed (an API code), for the message in its place. */
+let loadError: string | null = null;
+let queueMore = false;
 const entries: Partial<Record<TypeKey, Entry[]>> = {};
 const shown: Partial<Record<TypeKey, number>> = {};
 let lists: { mine: Draft[]; queue: Draft[]; live: { type: string; entry_id: string; status: string }[] } | null = null;
@@ -84,6 +90,10 @@ interface Editor {
   /** The entry as the site has it now, when it changed since the draft began. */
   fresh: { data: unknown; base_shas: Record<string, string | null> } | null;
   halfOk: boolean;
+  /** Saved elsewhere since this was loaded: no more saves from here until reloaded. */
+  conflict: boolean;
+  /** The "session ended" notice is already up. */
+  signedOutShown: boolean;
 }
 let editor: Editor | null = null;
 let guard: { reset(): void } | null = null;
@@ -108,18 +118,22 @@ function liftBars(): void {
   document.querySelectorAll<HTMLElement>('[data-cms-sticky]').forEach((b) => { b.style.bottom = h ? `${h}px` : ''; });
 }
 
-export function setupCms(opts: { approver: boolean }): void {
+export function setupCms(opts: { approver: boolean; userId: string }): void {
   approver = opts.approver;
+  userId = opts.userId;
+  pruneBackups();
   PHONE?.addEventListener('change', liftBars);
   const strip = document.getElementById('podcastStrip');
   if (strip) new MutationObserver(liftBars).observe(strip, { attributes: true, attributeFilter: ['hidden'] });
   const form = $<HTMLFormElement>('cmsForm');
   if (!form || guard) return;
+  // exact: any move away from the form's own address asks first, within the
+  // section too (Geri, a type tab, Taslaklarım).
   guard = guardUnsaved(form, SECTION, () => {
     // Leaving discards: the copy in this browser goes too.
     if (editor) dropBackup(editor.backupKey);
     closeEditor();
-  });
+  }, { exact: true });
   form.addEventListener('submit', (e) => e.preventDefault());
   form.addEventListener('input', onInput);
   form.addEventListener('change', (e) => {
@@ -183,6 +197,8 @@ function closeEditor(): void {
 /** The address, without the shell showing the route again (the editor stays as it is). */
 function replaceAddress(hash: string): void {
   history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+  // The shell's idea of where it is, so a refused move comes back here.
+  noteAddress(hash);
   if (editor) editor.route = hash;
 }
 
@@ -191,16 +207,31 @@ function replaceAddress(hash: string): void {
 async function loadEntries(model: TypeModel, fresh = false): Promise<Entry[] | null> {
   if (!fresh && entries[model.key]) return entries[model.key]!;
   const r = await api<{ entries: Entry[] }>('GET', `/api/cms/entries?type=${model.key}`);
-  if (!r.ok) return null;
+  if (!r.ok) { loadError = r.code; return null; }
   entries[model.key] = r.body.entries;
   return r.body.entries;
 }
 
 async function loadLists(): Promise<typeof lists> {
-  const r = await api<{ mine: Draft[]; queue: Draft[]; live?: { type: string; entry_id: string; status: string }[] }>('GET', '/api/cms/drafts');
-  if (!r.ok) return lists;
+  // Fresh each time: whether an entry is busy must be what it is now.
+  const r = await api<{ mine: Draft[]; queue: Draft[]; more?: boolean; live?: { type: string; entry_id: string; status: string }[] }>('GET', '/api/cms/drafts');
+  if (!r.ok) { loadError = r.code; lists = null; return null; }
   lists = { mine: r.body.mine ?? [], queue: r.body.queue ?? [], live: r.body.live ?? [] };
+  queueMore = r.body.more === true;
   return lists;
+}
+
+/** A list that could not be loaded says so (and how to sign in), never "nothing here". */
+function loadFailed(host: HTMLElement): void {
+  host.innerHTML = loadError === 'unauthenticated'
+    ? `<p class="text-sm text-[#8a1c1c]" data-cms-load-failed>${esc(tk('admin.cms.error.unauthenticated'))} <a href="/auth/login?next=${encodeURIComponent(location.pathname + location.hash)}" class="underline">${esc(tk('admin.cms.signIn'))}</a></p>`
+    : `<p class="text-sm text-[#8a1c1c]" data-cms-load-failed>${esc(tk(loadError === 'index_unavailable' ? 'admin.cms.error.index_unavailable' : 'admin.cms.listFailed'))}</p>`;
+}
+
+/** The files of a published entry, for its live page (a webinar's Turkish name may differ). */
+function entryPaths(type: string, entryId: string, fallback: Record<string, unknown> | undefined): string[] {
+  const e = entries[type as TypeKey]?.find((x) => x.id === entryId);
+  return e?.paths ? [e.paths.en, e.paths.tr].filter((p): p is string => !!p) : Object.keys(fallback ?? {});
 }
 
 const titleOf = (type: string, entryId: string, action?: string): string => {
@@ -245,8 +276,9 @@ async function showList(model: TypeModel): Promise<void> {
   const host = listHost(model.sub);
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
-  const [list] = await Promise.all([loadEntries(model, true), loadLists()]);
-  if (!list) { host.innerHTML = emptyState(tk('admin.cms.error.index_unavailable')); return; }
+  loadError = null;
+  const [list, got] = await Promise.all([loadEntries(model, true), loadLists()]);
+  if (!list || !got) { loadFailed(host); return; }
   const n = shown[model.key] ?? PAGE;
   const draftFor = (id: string) => (lists?.mine ?? []).find((d) => d.type === model.key && d.entry_id === id && sv(d).editable);
   const liveFor = (id: string) => (lists?.live ?? []).find((d) => d.type === model.key && d.entry_id === id);
@@ -280,7 +312,7 @@ function draftRow(d: Draft, href: string): string {
   const v = sv(d);
   const next: Record<string, string> = { continue: 'admin.cms.continue', fix: 'admin.cms.fix', retry: 'admin.cms.retry', openSite: 'admin.cms.openSite', discard: 'admin.cms.open' };
   const trailing = v.next === 'openSite'
-    ? `<a href="${livePath(d.type, d.entry_id, Object.keys(d.base_shas ?? {}), lang)}" target="_blank" rel="noopener" class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
+    ? `<a href="${livePath(d.type, d.entry_id, entryPaths(d.type, d.entry_id, d.base_shas), lang)}" target="_blank" rel="noopener" data-cms-open-site class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
     : `<a href="${href}" class="${BTN.secondary}">${esc(tk(v.next ? next[v.next] : 'admin.cms.open'))}</a>`;
   const action = d.action === 'delete' ? ` · ${tk('admin.cms.action.delete')}` : '';
   return row({
@@ -294,7 +326,9 @@ async function showDrafts(): Promise<void> {
   const host = listHost('taslaklar');
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
-  await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  loadError = null;
+  const [got] = await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  if (!got) { loadFailed(host); return; }
   const mine = (lists?.mine ?? []);
   const forMe = mine.filter((d) => sv(d).needsMe);
   const rest = mine.filter((d) => !sv(d).needsMe);
@@ -309,27 +343,59 @@ async function showQueue(): Promise<void> {
   const host = listHost('onay');
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
-  await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  loadError = null;
+  const [got] = await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  if (!got) { loadFailed(host); return; }
   const queue = lists?.queue ?? [];
-  host.innerHTML = `<h2 class="text-sm font-semibold text-navy mb-2">${esc(tk('admin.cms.queueHeading'))}</h2>
+  // More than the list holds: how many more, from the menu's own count.
+  let more = '';
+  if (queueMore) {
+    const c = await api<Record<string, number>>('GET', '/api/admin/counts');
+    const n = c.ok ? (c.body.cmsQueue ?? 0) - queue.length : 0;
+    if (n > 0) more = `<p data-cms-queue-more class="mt-3 text-sm text-gray-600">${esc(tk('admin.cms.queueMore', { n }))}</p>`;
+  }
+  host.innerHTML = `${myDraftsRow()}<h2 class="text-sm font-semibold text-navy mb-2">${esc(tk('admin.cms.queueHeading'))}</h2>
     <div class="flex flex-col gap-2">${queue.map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
       subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
       chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.primary}">${esc(tk('admin.cms.review'))}</a>`,
       attrs: `data-cms-queue="${esc(d.id)}"`, stack: true,
-    })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>`;
+    })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>${more}`;
 }
 
 // ── The editor ───────────────────────────────────────────────────────────────
 
-function backupGet(key: string): { data: unknown; at: number } | null {
-  try { const raw = localStorage.getItem(`rsg:cms:${key}`); return raw ? JSON.parse(raw) : null; } catch { return null; }
+/** This person's copy, or null; anything that is not a backup is deleted. */
+function backupGet(key: string): Backup | null {
+  try {
+    const raw = localStorage.getItem(backupStorageKey(userId, key));
+    const b = parseBackup(raw);
+    if (raw !== null && !b) localStorage.removeItem(backupStorageKey(userId, key));
+    return b;
+  } catch { return null; }
 }
-function backupPut(key: string, data: unknown): boolean {
-  try { localStorage.setItem(`rsg:cms:${key}`, JSON.stringify({ data, at: now() })); return true; } catch { return false; }
+/** Keeps the form's data in this browser, with the version it was made on. */
+function backupPut(ed: Editor, data: unknown): boolean {
+  const b: Backup = { data, at: now(), updated_at: ed.draft?.updated_at ?? null, base_shas: ed.draft ? (ed.draft.base_shas ?? null) : ed.baseShas };
+  try { localStorage.setItem(backupStorageKey(userId, ed.backupKey), JSON.stringify(b)); return true; } catch { return false; }
 }
 function dropBackup(key: string): void {
-  try { localStorage.removeItem(`rsg:cms:${key}`); } catch { /* private mode: nothing stored */ }
+  try { localStorage.removeItem(backupStorageKey(userId, key)); } catch { /* private mode: nothing stored */ }
+}
+
+/**
+ * Someone else's copies (another person signed in on this browser before)
+ * go, and so do this person's that are too old to trust.
+ */
+function pruneBackups(): void {
+  try {
+    const keys = Object.keys(localStorage);
+    for (const k of othersBackupKeys(keys, userId)) localStorage.removeItem(k);
+    for (const k of keys.filter((x) => x.startsWith(backupStorageKey(userId, '')))) {
+      const b = parseBackup(localStorage.getItem(k));
+      if (!b || backupChoice(b, { updated_at: null, base_shas: null }, now()) === 'expired') localStorage.removeItem(k);
+    }
+  } catch { /* storage blocked: nothing kept */ }
 }
 
 function head(opts: { title: string; back: string; chipHtml?: string; line?: string; banner?: boolean }): void {
@@ -378,6 +444,7 @@ function renderForm(ed: Editor, values: Values): void {
   const box = $('cmsFields')!;
   box.innerHTML = `
     <div id="cmsErrors" class="hidden mb-3 rounded-xl border border-red-200 bg-red-tint px-3 py-2 text-sm text-[#8a1c1c]" role="alert"></div>
+    <div id="cmsBackup" class="hidden mb-3"></div>
     <div id="cmsChanged" class="hidden mb-3"></div>
     <div class="bg-white rounded-2xl border border-border p-4 lg:p-3 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-3">
       <h3 class="lg:col-span-3 text-sm font-semibold text-navy">${esc(tk('admin.cms.group.main'))}</h3>
@@ -411,7 +478,7 @@ function renderBar(ed: Editor): void {
   if (approver && !ed.draft && ed.entryId) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
   const editable = !ed.readOnly;
   const live = ed.draft?.status === 'published'
-    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, Object.keys(ed.draft.base_shas ?? {}), lang)}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
+    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined), lang)}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
   bar.innerHTML = `<div class="flex flex-wrap items-center gap-2">
       ${editable ? `<button type="button" id="cmsSave" class="${BTN.secondary}">${esc(tk('admin.cms.save'))}</button>
       <button type="button" id="cmsSubmit" class="${BTN.primary}">${esc(tk(ed.draft?.status === 'rejected' ? 'admin.cms.resubmit' : ed.draft?.status === 'pr_failed' ? 'admin.cms.retry' : 'admin.cms.submit'))}</button>` : ''}
@@ -438,7 +505,7 @@ function wireBar(ed: Editor): void {
 function newEditor(model: TypeModel, route: string, base: unknown, extra: Partial<Editor>): Editor {
   return {
     model, route, draft: null, entryId: null, baseShas: null, base, readOnly: false, backupKey: `new:${model.key}`,
-    edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, ...extra,
+    edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, conflict: false, signedOutShown: false, ...extra,
   };
 }
 
@@ -446,18 +513,82 @@ function newEditor(model: TypeModel, route: string, base: unknown, extra: Partia
 function start(ed: Editor): void {
   editor = ed;
   let values = formValues(ed.model, ed.base);
-  const backup = ed.readOnly ? null : backupGet(ed.backupKey);
-  const restored = !!backup && !same(backup.data, ed.base);
+  let backup = ed.readOnly ? null : backupGet(ed.backupKey);
+  if (backup && same(backup.data, ed.base)) { dropBackup(ed.backupKey); backup = null; }
+  const choice = backup ? backupChoice(backup, { updated_at: ed.draft?.updated_at ?? null, base_shas: ed.draft ? null : ed.baseShas }, now()) : null;
+  if (choice === 'expired') dropBackup(ed.backupKey);
+  // Restored on its own only when it cannot be older than what was saved;
+  // otherwise the person compares the two and chooses.
+  const restored = choice === 'restore';
   if (restored) values = formValues(ed.model, backup!.data);
   renderForm(ed, values);
   guard?.reset();
-  if (!ed.readOnly) ed.autosave = new AutosaveQueue(async () => { await save(true); }, AUTOSAVE_MS);
+  if (!ed.readOnly) ed.autosave = autosaveFor(ed);
+  if (choice === 'ask') offerBackup(ed, backup!);
   if (restored) {
     notice(esc(tk('admin.cms.restored')), 'info');
     ed.edits++;
     // Counts as unsaved: guardUnsaved and autosave both hear it.
     $<HTMLFormElement>('cmsForm')!.dispatchEvent(new Event('input'));
   }
+}
+
+function autosaveFor(ed: Editor): AutosaveQueue {
+  // Bound to this editor: a save it scheduled never sends another form's data.
+  return new AutosaveQueue(async () => { await save(ed, true); }, AUTOSAVE_MS);
+}
+
+/**
+ * Side by side, per field that differs: another version (the site's, or the
+ * copy in this browser) and the form, with a button that copies the other
+ * version's value into the form. Never a merge on its own.
+ */
+function drawCompare(ed: Editor, box: HTMLElement, o: {
+  other: () => Values; title: string; sub?: string; otherLabel: string; formLabel: string; take: string; none: string; footer: string; footerId: string; onFooter: () => void;
+}): void {
+  const draw = () => {
+    const form = currentValues(ed);
+    const other = o.other();
+    const fields = fieldsFor(ed.model).filter((f) => !f.readOnly && !f.approverOnly && !same(other[f.key], form[f.key]));
+    const text = (f: FieldDef, v: unknown) => esc(show(f, ed.model.format === 'markdown-pair' ? pairText(v) : v));
+    box.innerHTML = `<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 lg:p-3">
+      <p class="text-sm font-semibold text-amber-900">${esc(o.title)}</p>
+      ${o.sub ? `<p class="text-xs text-amber-800 mt-0.5 break-all">${esc(o.sub)}</p>` : ''}
+      <div class="flex flex-col gap-2 mt-3">${fields.map((f) => `<div data-changed-field="${f.key}" class="bg-white rounded-xl border border-border p-3 lg:p-2">
+        <div class="flex flex-wrap items-center justify-between gap-2"><p class="text-sm font-medium text-navy">${esc(tk(f.label))}</p>
+          <button type="button" data-take="${f.key}" class="${BTN.secondary}">${esc(o.take)}</button></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-2">
+          <div class="min-w-0 rounded-lg bg-[#F7F7F6] px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(o.otherLabel)}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${text(f, other[f.key])}</p></div>
+          <div class="min-w-0 rounded-lg bg-white border border-border px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(o.formLabel)}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${text(f, form[f.key])}</p></div>
+        </div></div>`).join('') || `<p class="text-sm text-amber-800">${esc(o.none)}</p>`}</div>
+      <div class="mt-3"><button type="button" id="${o.footerId}" data-compare-footer class="${BTN.primary}">${esc(o.footer)}</button></div></div>`;
+    box.querySelectorAll<HTMLButtonElement>('[data-take]').forEach((b) => b.addEventListener('click', () => {
+      const f = ed.model.fields.find((x) => x.key === b.dataset.take)!;
+      redraw(ed, f, other[f.key]);
+      draw();
+    }));
+    box.querySelector('[data-compare-footer]')?.addEventListener('click', o.onFooter);
+  };
+  box.classList.remove('hidden');
+  draw();
+}
+
+/** An older copy in this browser: say so, and offer to compare or delete it. */
+function offerBackup(ed: Editor, backup: Backup): void {
+  const box = $('cmsBackup');
+  if (!box) return;
+  const drop = () => { dropBackup(ed.backupKey); box.classList.add('hidden'); box.innerHTML = ''; };
+  box.classList.remove('hidden');
+  box.innerHTML = `<div class="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+    <span class="flex-1 min-w-0">${esc(tk('admin.cms.backup.ask'))}</span>
+    <button type="button" data-backup-compare class="${BTN.secondary}">${esc(tk('admin.cms.backup.compare'))}</button>
+    <button type="button" data-backup-drop class="${BTN.danger}">${esc(tk('admin.cms.backup.drop'))}</button></div>`;
+  box.querySelector('[data-backup-drop]')!.addEventListener('click', drop);
+  box.querySelector('[data-backup-compare]')!.addEventListener('click', () => drawCompare(ed, box, {
+    other: () => formValues(ed.model, backup.data), title: tk('admin.cms.backup.ask'),
+    otherLabel: tk('admin.cms.backup.device'), formLabel: tk('admin.cms.backup.saved'), take: tk('admin.cms.backup.take'),
+    none: tk('admin.cms.backup.none'), footer: tk('admin.cms.backup.drop'), footerId: 'cmsBackupDrop', onFooter: drop,
+  }));
 }
 
 function currentValues(ed: Editor): Values {
@@ -482,7 +613,9 @@ function onInput(e: Event): void {
     if (title) title.textContent = titleFrom(ed.model, values) || tk('admin.cms.untitled');
   }
   updateFileName(ed, values);
-  backupPut(ed.backupKey, currentData(ed));
+  // Editing what is on the site: from the first change on, this is a draft.
+  if (!$('cmsBanner')) $('cmsNotice')?.insertAdjacentHTML('beforebegin', `<p id="cmsBanner" class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">${esc(tk('admin.cms.notLiveBanner'))}</p>`);
+  backupPut(ed, currentData(ed));
   ed.autosave?.touch();
 }
 
@@ -561,7 +694,7 @@ async function onImageFile(input: HTMLInputElement): Promise<void> {
       const st = $('cmsFields')?.querySelector<HTMLElement>(`[data-image-status="${f.key}"]`);
       if (st) st.textContent = tk('admin.cms.image.uploaded');
     } catch (err) {
-      if (status) status.textContent = err instanceof Error ? err.message : tk('admin.cms.image.failed');
+      if (status) status.textContent = tk(uploadErrorKey(err instanceof Error ? err.message : ''));
     } finally {
       input.disabled = false;
       input.value = '';
@@ -593,7 +726,7 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
     start(newEditor(model, route, emptyData(model), { backupKey: `new:${model.key}` }));
     return;
   }
-  const [r] = await Promise.all([api<{ data: unknown; base_shas: Record<string, string | null> }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(entryId)}`), lists ? null : loadLists()]);
+  const [r] = await Promise.all([api<{ data: unknown; base_shas: Record<string, string | null> }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(entryId)}`), loadLists()]);
   if (editor !== placeholder) return;
   if (!r.ok) {
     head({ title: tk('admin.cms.notFoundTitle'), back });
@@ -686,31 +819,12 @@ function showChanged(ed: Editor, fresh: { data: unknown; base_shas: Record<strin
   ed.fresh = fresh;
   const box = $('cmsChanged');
   if (!box) return;
-  const draw = () => {
-    const draftValues = currentValues(ed);
-    const site = formValues(ed.model, fresh.data);
-    const fields = fieldsFor(ed.model).filter((f) => !f.readOnly && !f.approverOnly && !same(site[f.key], draftValues[f.key]));
-    const files = Object.keys(fresh.base_shas).filter((p) => (ed.draft?.base_shas?.[p] ?? ed.baseShas?.[p] ?? null) !== fresh.base_shas[p]);
-    box.innerHTML = `<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 lg:p-3">
-      <p class="text-sm font-semibold text-amber-900">${esc(tk('admin.cms.changed.title'))}</p>
-      <p class="text-xs text-amber-800 mt-0.5 break-all">${esc(tk('admin.cms.changed.files', { files: files.join(', ') }))}</p>
-      <div class="flex flex-col gap-2 mt-3">${fields.map((f) => `<div data-changed-field="${f.key}" class="bg-white rounded-xl border border-border p-3 lg:p-2">
-        <div class="flex flex-wrap items-center justify-between gap-2"><p class="text-sm font-medium text-navy">${esc(tk(f.label))}</p>
-          <button type="button" data-take="${f.key}" class="${BTN.secondary}">${esc(tk('admin.cms.changed.take'))}</button></div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-2">
-          <div class="min-w-0 rounded-lg bg-[#F7F7F6] px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(tk('admin.cms.changed.site'))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(show(f, ed.model.format === 'markdown-pair' ? pairText(site[f.key]) : site[f.key]))}</p></div>
-          <div class="min-w-0 rounded-lg bg-white border border-border px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(tk('admin.cms.changed.draft'))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(show(f, ed.model.format === 'markdown-pair' ? pairText(draftValues[f.key]) : draftValues[f.key]))}</p></div>
-        </div></div>`).join('') || `<p class="text-sm text-amber-800">${esc(tk('admin.cms.changed.none'))}</p>`}</div>
-      <div class="mt-3"><button type="button" id="cmsRebase" class="${BTN.primary}">${esc(tk('admin.cms.changed.continue'))}</button></div></div>`;
-    box.querySelectorAll<HTMLButtonElement>('[data-take]').forEach((b) => b.addEventListener('click', () => {
-      const f = ed.model.fields.find((x) => x.key === b.dataset.take)!;
-      redraw(ed, f, site[f.key]);
-      draw();
-    }));
-    $('cmsRebase')?.addEventListener('click', () => void rebase(ed));
-  };
-  box.classList.remove('hidden');
-  draw();
+  const files = Object.keys(fresh.base_shas).filter((p) => (ed.draft?.base_shas?.[p] ?? ed.baseShas?.[p] ?? null) !== fresh.base_shas[p]);
+  drawCompare(ed, box, {
+    other: () => formValues(ed.model, fresh.data), title: tk('admin.cms.changed.title'), sub: tk('admin.cms.changed.files', { files: files.join(', ') }),
+    otherLabel: tk('admin.cms.changed.site'), formLabel: tk('admin.cms.changed.draft'), take: tk('admin.cms.changed.take'),
+    none: tk('admin.cms.changed.none'), footer: tk('admin.cms.changed.continue'), footerId: 'cmsRebase', onFooter: () => void rebase(ed),
+  });
   const submitBtn = $<HTMLButtonElement>('cmsSubmit');
   if (submitBtn) submitBtn.disabled = true;
   revealInPanel(box, 'start');
@@ -738,7 +852,12 @@ async function rebase(ed: Editor): Promise<void> {
   }
   const made = await api<{ draft: Draft }>('POST', '/api/cms/drafts', { type: ed.model.key, action: 'update', entry_id: ed.draft.entry_id, data, base_shas: ed.fresh.base_shas });
   if (!made.ok) { notice(esc(errorText(made))); return; }
-  await api('DELETE', `/api/cms/drafts/${ed.draft.id}`);
+  const gone = await api('DELETE', `/api/cms/drafts/${ed.draft.id}`);
+  // Said on the new draft: whether the old one is gone, and the note it was sent back with.
+  const note = ed.draft.status === 'rejected' && ed.draft.review_note ? ` ${esc(tk('admin.cms.rebase.note', { note: ed.draft.review_note }))}` : '';
+  pendingNotice = gone.ok
+    ? { html: `${esc(tk('admin.cms.rebase.done'))}${note}`, tone: 'info' }
+    : { html: `${esc(tk('admin.cms.rebase.discardFailed'))}${note}`, tone: 'error' };
   dropBackup(ed.backupKey);
   guard?.reset();
   closeEditor();
@@ -754,21 +873,25 @@ async function saveNow(): Promise<boolean> {
   const ed = editor;
   if (!ed || ed.readOnly) return true;
   ed.autosave?.stop();
-  const ok = await save(false);
-  if (editor === ed && !ed.readOnly) ed.autosave = new AutosaveQueue(async () => { await save(true); }, AUTOSAVE_MS);
+  const ok = await save(ed, false);
+  if (editor === ed && !ed.readOnly && !ed.conflict) ed.autosave = autosaveFor(ed);
   return ok;
 }
 
-function save(auto: boolean): Promise<boolean> {
-  // One at a time: a save asked for while one runs waits for it, then saves what is there.
-  const run = (saving ?? Promise.resolve(true)).then(() => doSave(auto));
+/**
+ * Saves the form of `ed`, the editor that asked. One at a time: a save
+ * asked for while one runs waits for it, then saves what is there. If
+ * another form has been opened meanwhile, it sends nothing; its copy in
+ * this browser stays.
+ */
+function save(ed: Editor, auto: boolean): Promise<boolean> {
+  const run = (saving ?? Promise.resolve(true)).then(() => doSave(ed, auto));
   saving = run.finally(() => { if (saving === run) saving = null; }) as Promise<boolean>;
   return run;
 }
 
-async function doSave(auto: boolean): Promise<boolean> {
-  const ed = editor;
-  if (!ed || ed.readOnly) return true;
+async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
+  if (editor !== ed || ed.readOnly || ed.conflict) return false;
   if (ed.uploads.size) { setSaveState(tk('admin.cms.image.waiting')); await Promise.all([...ed.uploads]); }
   if (editor !== ed) return false;
   const values = currentValues(ed);
@@ -788,7 +911,8 @@ async function doSave(auto: boolean): Promise<boolean> {
       ? { type: ed.model.key, action: 'update', entry_id: ed.entryId, data, base_shas: ed.baseShas }
       : { type: ed.model.key, action: 'create', data });
   } else {
-    r = await api<{ draft: Draft }>('PATCH', `/api/cms/drafts/${ed.draft.id}`, { data });
+    // The version this form was made on: a save from an older one is refused.
+    r = await api<{ draft: Draft }>('PATCH', `/api/cms/drafts/${ed.draft.id}`, { data, write_nonce: ed.draft.write_nonce });
   }
   if (editor !== ed) return r.ok;
   if (!r.ok) return saveFailed(ed, r, auto, data);
@@ -808,24 +932,41 @@ async function doSave(auto: boolean): Promise<boolean> {
     dropBackup(ed.backupKey);
     guard?.reset();
   } else {
-    backupPut(ed.backupKey, currentData(ed));
+    backupPut(ed, currentData(ed));
   }
+  ed.signedOutShown = false;
   setSaveState(tk('admin.cms.saved', { time: clock(now()) }));
   return true;
 }
 
 function saveFailed(ed: Editor, r: { status: number; code: string; body: Record<string, any> }, auto: boolean, data: unknown): boolean {
-  backupPut(ed.backupKey, data);
+  backupPut(ed, data);
   if (r.code === 'unauthenticated') {
     // The form stays as it is; the copy in this browser keeps it after signing in.
     setSaveState(tk('admin.cms.notSavedBackedUp'));
-    notice(`<p>${esc(tk('admin.cms.error.unauthenticated'))} <a href="/auth/login?next=${encodeURIComponent(location.pathname + location.hash)}" target="_blank" rel="noopener" class="underline">${esc(tk('admin.cms.signIn'))}</a></p>`);
+    // Once: an autosave that fails again does not scroll the page to it again.
+    if (!ed.signedOutShown) {
+      ed.signedOutShown = true;
+      notice(`<p>${esc(tk('admin.cms.error.unauthenticated'))} <a href="/auth/login?next=${encodeURIComponent(location.pathname + location.hash)}" target="_blank" rel="noopener" class="underline">${esc(tk('admin.cms.signIn'))}</a></p>`);
+    }
     return false;
   }
-  if (r.code === 'draft_changed' && auto) {
-    // A late autosave raced something: try again later, quietly.
+  if (r.code === 'draft_changed') {
+    // Saved from another tab or device since this was loaded. No more saves
+    // from here; the copy in this browser stays, and a reload offers it.
+    ed.conflict = true;
+    ed.autosave?.stop();
+    ed.autosave = null;
     setSaveState(tk('admin.cms.notSavedBackedUp'));
-    ed.autosave?.touch();
+    notice(`<p>${esc(tk('admin.cms.error.draft_changed'))}</p><div class="mt-2"><button type="button" id="cmsReload" class="${BTN.secondary}">${esc(tk('admin.cms.reload'))}</button></div>`, 'warn');
+    $('cmsReload')?.addEventListener('click', () => {
+      const id = ed.draft!.id;
+      guard?.reset();
+      closeEditor();
+      void openDraft(id, `${SECTION}/taslaklar/${id}`);
+    });
+    const s = $<HTMLButtonElement>('cmsSubmit');
+    if (s) s.disabled = true;
     return false;
   }
   if (r.code === 'invalid') {
@@ -869,7 +1010,8 @@ function showErrors(errors: Record<string, string>, focus: boolean): void {
   if (!ed) return;
   const items = Object.entries(errors).map(([path, msg]) => ({ ...placeLabel(ed.model, path), msg: tk(messageKey(msg)) }));
   if (!items.length) return;
-  const box = $('cmsErrors')!;
+  const box = $('cmsErrors');
+  if (!box) return;
   box.innerHTML = `<p class="font-semibold">${esc(tk('admin.cms.errors.count', { n: items.length }))}</p>
     <ul class="mt-1 flex flex-col gap-0.5">${items.map((it, i) => `<li><button type="button" data-goto="${i}" class="text-left underline min-h-11 lg:min-h-0">${esc(it.label)}: ${esc(it.msg)}</button></li>`).join('')}</ul>`;
   box.classList.remove('hidden');
@@ -994,15 +1136,24 @@ async function openReview(id: string, route: string): Promise<void> {
   editor = placeholder;
   const r = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
   if (editor !== placeholder) return;
-  if (!r.ok) { head({ title: tk('admin.cms.goneTitle'), back }); notice(esc(tk('admin.cms.gone'))); return; }
+  if (!r.ok) {
+    head({ title: tk('admin.cms.goneTitle'), back });
+    notice(r.code === 'unauthenticated' ? esc(tk('admin.cms.error.unauthenticated'))
+      : `<p>${esc(tk('admin.cms.gone'))} <a href="${SECTION}/taslaklar" data-cms-to-drafts class="underline">${esc(tk('admin.cms.toMyDrafts'))}</a></p>`);
+    return;
+  }
   const draft = r.body.draft;
   const model = modelFor(draft.type)!;
   await loadEntries(model);
   let published: unknown = null;
+  // Without the published version there is nothing to compare with (or, for
+  // a delete, nothing to show): no approval on a guess.
+  let unreadable = false;
   if (draft.action !== 'create') {
     const e = await api<{ data: unknown }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(draft.entry_id)}`);
     if (editor !== placeholder) return;
     if (e.ok) published = e.body.data;
+    else unreadable = true;
   }
   const ed = newEditor(model, route, draft.data ?? {}, { draft, readOnly: true });
   editor = ed;
@@ -1012,19 +1163,26 @@ async function openReview(id: string, route: string): Promise<void> {
   head({ title, back, chipHtml: statusChip(draft), line: `${tk(model.label)} · ${tk('admin.cms.sentBy', { name: draft.author_name || tk('admin.cms.anEditor'), time: when(draft.updated_at) })}` });
   let bodyHtml: string;
   let nothing = false;
-  if (draft.action === 'create') {
+  // The note is an approver's field; a change to it alone is a change.
+  let noteChanged = false;
+  if (unreadable) {
+    bodyHtml = `<p data-cms-unreadable class="text-sm text-[#8a1c1c]">${esc(tk('admin.cms.review.unreadable'))}</p>`;
+    nothing = true;
+  } else if (draft.action === 'create') {
     bodyHtml = `<p class="text-sm font-semibold text-navy mb-1">${esc(tk('admin.cms.review.new'))}</p>${renderAll(model, values, fields.filter((f) => !f.approverOnly))}`;
   } else if (draft.action === 'delete') {
-    bodyHtml = `<p class="text-sm font-semibold text-red mb-1">${esc(tk('admin.cms.review.delete'))}</p>${published ? renderAll(model, formValues(model, published), fields.filter((f) => !f.approverOnly)) : ''}`;
+    bodyHtml = `<p class="text-sm font-semibold text-red mb-1">${esc(tk('admin.cms.review.delete'))}</p>${renderAll(model, formValues(model, published), fields.filter((f) => !f.approverOnly))}`;
   } else {
-    const diff = diffEntry(model, published ?? emptyData(model), draft.data, fields.filter((f) => !f.approverOnly));
+    const diff = diffEntry(model, published ?? emptyData(model), draft.data, fields);
+    noteChanged = diff.changed.some((c) => c.field.approverOnly);
     nothing = diff.changed.length === 0;
     bodyHtml = nothing ? `<p class="text-sm text-gray-600">${esc(tk('admin.cms.review.nothing'))}</p>`
       : `<p class="text-sm font-semibold text-navy">${esc(tk('admin.cms.review.changed', { n: diff.changed.length }))}</p>
         <div class="flex flex-wrap gap-1 mt-1 mb-2">${diff.changed.map((c) => chip(tk(c.field.label), 'navy')).join('')}</div>${renderDiff(diff)}`;
   }
-  const note = model.key === 'events' && approver ? String((draft.data as Record<string, unknown> | undefined)?.note ?? '') : '';
-  const waiting = draft.status === 'submitted' || sv(draft).line === 'admin.cms.status.approvedStale';
+  const note = model.key === 'events' && approver && !noteChanged ? String((draft.data as Record<string, unknown> | undefined)?.note ?? '') : '';
+  // Someone who cannot approve sees the changes, not the buttons.
+  const waiting = approver && (draft.status === 'submitted' || sv(draft).line === 'admin.cms.status.approvedStale');
   $('cmsReview')!.innerHTML = `<div class="bg-white rounded-2xl border border-border p-4 lg:p-3">${bodyHtml}
       ${note ? `<div class="mt-3 rounded-lg bg-[#F7F7F6] px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(tk('admin.cms.f.note'))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(note)}</p></div>` : ''}
     </div>
@@ -1044,8 +1202,10 @@ async function openReview(id: string, route: string): Promise<void> {
       </div></div>` : ''}`;
   wireReview(ed);
   liftBars();
+  if (!approver) notice(esc(tk('admin.cms.review.readOnly')), 'info');
+  else if (unreadable) notice(esc(tk('admin.cms.review.unreadable')));
   // An approval that crashed half way: approving again finishes it.
-  if (draft.status === 'approved') notice(esc(statusLine(draft)), 'warn');
+  else if (draft.status === 'approved') notice(esc(statusLine(draft)), 'warn');
 }
 
 function wireReview(ed: Editor): void {

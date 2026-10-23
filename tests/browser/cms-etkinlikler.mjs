@@ -34,10 +34,10 @@ const ENTRIES = {
     ...Array.from({ length: 24 }, (_, i) => ({ id: `meetup-${i}`, title: `Meetup ${i}`, date: `2025-0${(i % 9) + 1}-01`, shas: {} })),
   ],
   workshops: [{ id: 'nextflow', title: 'Nextflow', date: '2024', shas: {} }],
-  webinars: [{ id: 'w1', title: 'A webinar', date: '2024-04-16', paths: { en: 'src/content/webinars/en/w1.md', tr: 'src/content/webinars/tr/w1.md' }, shas: {} }],
+  webinars: [{ id: 'w1', title: 'A webinar', date: '2024-04-16', paths: { en: 'src/content/webinars/en/w1.md', tr: 'src/content/webinars/tr/w1-tr.md' }, shas: {} }],
 };
-const draftRow = (o) => ({ type: 'events', action: 'update', status: 'draft', author_id: 'u2', author_name: 'Ece Editör', reviewer_id: null, review_note: null,
-  pr_url: null, pr_number: null, failure: null, stale_merge: false, created_at: NOW - 600, updated_at: NOW - 300, ...o });
+const draftRow = (o) => ({ type: 'events', action: 'update', status: 'draft', author_id: 'u2', author_name: 'Editör A', reviewer_id: null, review_note: null,
+  pr_url: null, pr_number: null, failure: null, stale_merge: false, created_at: NOW - 600, updated_at: NOW - 300, write_nonce: 'n0', ...o });
 
 /**
  * One page with its own mock server. `who` is 'editor' or 'approver'.
@@ -49,6 +49,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
   const state = {
     drafts: new Map(), live: [], entryShas: { [PATH]: 'sha-1' }, entryData: SYM,
     nextPost: null, nextPatch: null, nextSubmit: null, nextApprove: null, signedOut: false,
+    postDelay: 0, entryFail: false, failDelete: false, draftsFail: 0, more: false, queueCount: null, uploadDelay: 0, uploadFail: null,
   };
   const calls = [];
   setup(state);
@@ -60,13 +61,20 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
     const url = new URL(req.url());
     const p = url.pathname;
     const method = req.method();
-    const body = req.postData() ? JSON.parse(req.postData()) : undefined;
+    let body;
+    try { body = req.postData() ? JSON.parse(req.postData()) : undefined; } catch { body = undefined; } // an image upload is not JSON
     const json = (v, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(v) });
     if (p.startsWith('/api/cms')) calls.push({ method, path: p + url.search, body });
     if (state.signedOut && p.startsWith('/api/cms') && method !== 'GET') return json({ error: 'Not signed in', code: 'unauthenticated' }, 401);
     if (p === '/api/me') return json({ user, profile: {} });
     if (p === '/api/admin/health') return json({ issues: [], canFix: false });
-    if (p === '/api/admin/counts') return json(who === 'approver' ? { cmsMine: 0, cmsQueue: 1, cmsTotal: 1 } : { cmsMine: 1, cmsTotal: 1 });
+    if (p === '/api/admin/counts') return json(who === 'approver' ? { cmsMine: 0, cmsQueue: state.queueCount ?? 1, cmsTotal: 1 } : { cmsMine: 1, cmsTotal: 1 });
+    if (p === '/api/blog-submissions/upload-image') {
+      if (state.uploadDelay) await new Promise((res) => setTimeout(res, state.uploadDelay));
+      if (state.uploadFail) return json({ error: state.uploadFail }, 400);
+      return json({ url: '/api/images/uploaded.webp', key: 'uploaded.webp', width: 10, height: 10 });
+    }
+    if (p === '/api/cms/entry' && state.entryFail) return json({ error: 'GitHub did not answer', code: 'github_failed' }, 502);
     if (p === '/api/cms/entries') return json({ type: url.searchParams.get('type'), entries: ENTRIES[url.searchParams.get('type')] ?? [] });
     if (p === '/api/cms/entry') {
       // The symposium as the fixture has it; any other entry as itself, so a click-through shows its own title.
@@ -77,11 +85,13 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       return json({ type, id, data: { ...SYM, id, note: undefined, start: e.date, end: undefined, title: { en: e.title, tr: e.title } }, base_shas: { [`src/content/events/${id}.json`]: `sha-${id}` } });
     }
     if (p === '/api/cms/drafts' && method === 'GET') {
+      if (state.draftsFail) return json({ error: 'x', code: state.draftsFail === 401 ? 'unauthenticated' : 'boom' }, state.draftsFail);
       const all = [...state.drafts.values()];
       return json({ mine: all.filter((d) => d.author_id === user.id).map(({ data, base_shas, ...d }) => d),
-        queue: who === 'approver' ? all.filter((d) => d.status === 'submitted').map(({ data, base_shas, ...d }) => d) : [], more: false, live: state.live });
+        queue: who === 'approver' ? all.filter((d) => d.status === 'submitted' || d.status === 'approved').map(({ data, base_shas, ...d }) => d) : [], more: state.more, live: state.live });
     }
     if (p === '/api/cms/drafts' && method === 'POST') {
+      if (state.postDelay) await new Promise((res) => setTimeout(res, state.postDelay));
       if (state.nextPost) { const [s, v] = state.nextPost; state.nextPost = null; return json(v, s); }
       const id = `00000000-0000-4000-8000-00000000000${state.drafts.size + 1}`;
       const d = draftRow({ id, action: body.action, entry_id: body.entry_id ?? body.data?.id ?? 'x', author_id: user.id, data: body.data ?? {}, base_shas: body.base_shas ?? {} });
@@ -95,10 +105,14 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       if (!m[2] && method === 'GET') return json({ draft: d });
       if (!m[2] && method === 'PATCH') {
         if (state.nextPatch) { const [s, v] = state.nextPatch; state.nextPatch = null; return json(v, s); }
-        d.data = body.data; d.updated_at = Math.floor(Date.now() / 1000);
+        if (body.write_nonce !== undefined && body.write_nonce !== d.write_nonce) return json({ error: 'changed', code: 'draft_changed' }, 409);
+        d.data = body.data; d.updated_at = Math.floor(Date.now() / 1000); d.write_nonce = `n${Math.random()}`;
         return json({ draft: d });
       }
-      if (!m[2] && method === 'DELETE') { d.status = 'discarded'; return json({ ok: true }); }
+      if (!m[2] && method === 'DELETE') {
+        if (state.failDelete) return json({ error: 'x', code: 'bad_state' }, 409);
+        d.status = 'discarded'; return json({ ok: true });
+      }
       if (m[2] === 'submit') {
         if (state.nextSubmit) { const [s, v] = state.nextSubmit; state.nextSubmit = null; return json(v, s); }
         d.status = 'submitted'; return json({ draft: d });
@@ -148,6 +162,12 @@ if (process.env.DEMO) {
 }
 
 const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
+
+/** A part of the check: a throw (a missing element) counts as a failure and the rest still runs. */
+async function section(title, run) {
+  console.log(title);
+  try { await run(); } catch (e) { ok(false, `${title.split(')')[0]}: ${String(e.message ?? e).split('\n')[0]}`); }
+}
 
 console.log('1) the list: published events, newest first, "Daha fazla", my drafts row');
 {
@@ -204,14 +224,17 @@ console.log('2) open an entry, edit, save (POST then PATCH), send for approval')
 console.log('3) a draft with errors: plain words next to the fields, a summary, focus on the first');
 {
   const { page } = await open(browser, 'editor', '#icerik-etkinlikler/taslaklar/00000000-0000-4000-8000-000000000009', { width: 1280, height: 680 }, (s) => {
-    s.drafts.set('00000000-0000-4000-8000-000000000009', draftRow({ id: '00000000-0000-4000-8000-000000000009', entry_id: 'symposium-2026', data: { ...SYM, title: { ...SYM.title, tr: '' } }, base_shas: { [PATH]: 'sha-1' } }));
+    s.drafts.set('00000000-0000-4000-8000-000000000009', draftRow({ id: '00000000-0000-4000-8000-000000000009', entry_id: 'symposium-2026', data: { ...SYM, title: { ...SYM.title, tr: '' }, links: [{ label: { en: 'Programme', tr: '' }, url: 'https://example.org/a' }] }, base_shas: { [PATH]: 'sha-1' } }));
     s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'title.tr': 'Too small: expected string to have >=1 characters', 'links.1.url': 'Invalid input: expected string, received undefined' } }];
   });
   await page.waitForSelector('#cmsSubmit');
   ok(await waitFor(page, () => document.getElementById('cmsTitle')?.textContent?.length > 0), 'the deep link a pull request carries opens the draft');
   await page.click('#cmsSubmit');
-  // The half-translated warning comes first: the Turkish title is empty.
+  // The half-translated warning comes first, for the optional link label only:
+  // the empty Turkish title is a field error (required).
   ok(await waitFor(page, () => !!document.getElementById('cmsHalfSend')), 'a text in one language only is flagged before sending');
+  const half = await page.textContent('#cmsNotice');
+  ok(half.includes('Bağlantılar') && !half.includes('Başlık'), `only the optional text is in the warning: "${half.replace(/\s+/g, ' ').slice(0, 120)}"`);
   await page.click('#cmsHalfSend');
   ok(await waitFor(page, () => /2 alan düzeltilmeli/.test(document.getElementById('cmsErrors')?.textContent ?? '')), 'a summary: "2 alan düzeltilmeli"');
   const summary = await page.textContent('#cmsErrors');
@@ -267,7 +290,7 @@ console.log('6) an expired session keeps the form and says so');
   ok(await waitFor(page, () => /Oturumunuz kapandı/.test(document.getElementById('cmsNotice')?.textContent ?? '')), '"Oturumunuz kapandı. Yazdıklarınız burada duruyor."');
   ok(await page.inputValue('[data-field="description"][data-lang="tr"]') === 'Uzun bir açıklama yazdım.', 'the text is still in the form');
   ok((await page.textContent('#cmsSaveState')).includes('bu cihazda yedeklendi'), '"Kaydedilemedi, bu cihazda yedeklendi"');
-  const kept = await page.evaluate(() => localStorage.getItem('rsg:cms:edit:events:symposium-2026'));
+  const kept = await page.evaluate(() => localStorage.getItem('rsg:cms:u2:edit:events:symposium-2026'));
   ok(!!kept && kept.includes('Uzun bir açıklama yazdım.'), 'and kept in this browser');
   // Reopening restores it.
   await page.reload({ waitUntil: 'networkidle' });
@@ -287,7 +310,7 @@ console.log('7) the approver: the queue, the diff field by field, approve, send 
     s.drafts.set(id2, draftRow({ id: id2, status: 'submitted', entry_id: 'symposium-2026', author_id: 'u2', data: SYM, base_shas: { [PATH]: 'sha-1' } }));
   });
   ok(await waitFor(page, () => document.querySelectorAll('[data-cms-queue]').length === 2), 'the queue lists what waits');
-  ok((await page.textContent(`[data-cms-queue="${id}"]`)).includes('Gönderen: Ece Editör'), 'with the author\'s name, never an address');
+  ok((await page.textContent(`[data-cms-queue="${id}"]`)).includes('Gönderen: Editör A'), 'with the author\'s name, never an address');
   await page.click(`[data-cms-queue="${id}"] a`);
   ok(await waitFor(page, () => /alan değişti/.test(document.getElementById('cmsReview')?.textContent ?? '')), '"N alan değişti"');
   const review = await page.textContent('#cmsReview');
@@ -352,8 +375,10 @@ console.log('9) status words in my drafts; a missing deep link');
     mk(4, { status: 'pr_failed', failure: 'merged but the site never showed it' });
     mk(5, { status: 'published', base_shas: { [PATH]: 'x' } });
     mk(6, { status: 'pr_open' });
+    mk(7, { status: 'published', type: 'webinars', entry_id: 'w1', base_shas: { 'src/content/webinars/en/w1.md': 'a', 'src/content/webinars/tr/w1.md': 'b' } });
   });
-  ok(await waitFor(page, () => document.querySelectorAll('[data-cms-draft]').length === 6), 'every draft is listed');
+  ok(await waitFor(page, () => document.querySelectorAll('[data-cms-draft]').length === 7), 'every draft is listed');
+  ok(await page.getAttribute('[data-cms-draft="00000000-0000-4000-8000-000000000107"] a[target=_blank]', 'href', { timeout: 3000 }).catch(() => null) === '/tr/webinars/w1-tr/', '"Siteyi aç" for a webinar goes to its Turkish page');
   const txt = async (n) => (await page.textContent(`[data-cms-draft="00000000-0000-4000-8000-00000000010${n}"]`)).replace(/\s+/g, ' ');
   ok((await txt(1)).includes('Geri gönderildi: Tarih yanlış') && (await txt(1)).includes('Düzelt ve yeniden gönder'), 'sent back, with the note and "Düzelt ve yeniden gönder"');
   ok((await txt(2)).includes('Yayınlanamadı: Sitenin otomatik kontrolü bu değişikliği kabul etmedi: build') && (await txt(2)).includes('Yeniden dene'), 'a failed check in plain words, with "Yeniden dene"');
@@ -377,6 +402,189 @@ console.log('10) a live draft makes its row read-only');
   ok(t.includes('Yayına çıkıyor') && await page.locator('[data-cms-entry="symposium-2026"] [data-cms-edit]').count() === 0, 'no "Düzenle" while it is going live');
   await page.close();
 }
+
+await section('F1) leaving the form inside the section asks first, before and after the first save', async () => {
+  const { page } = await open(browser, 'editor', '#icerik-etkinlikler/etkinlikler/symposium-2026', { width: 1440, height: 800 });
+  await page.waitForSelector('[data-field="when"][data-lang="tr"]');
+  await page.fill('[data-field="when"][data-lang="tr"]', 'değişti');
+  await page.click('[data-cms-back]');
+  ok(await waitFor(page, () => [...document.querySelectorAll('#cmsEditor div')].some((d) => /Kaydedilmemiş değişiklikler var/.test(d.textContent) && !d.classList.contains('hidden'))), '"Geri" with unsaved changes asks');
+  ok(await page.evaluate(() => location.hash) === '#icerik-etkinlikler/etkinlikler/symposium-2026', 'and stays put');
+  await page.click('text=Düzenlemeye devam et');
+  await page.click('#cmsSave');
+  await waitFor(page, () => /taslaklar\//.test(location.hash));
+  const draftHash = await page.evaluate(() => location.hash);
+  await page.fill('[data-field="when"][data-lang="tr"]', 'yine değişti');
+  await page.click('#subNav [data-sub-link="atolyeler"]');
+  ok(await waitFor(page, () => [...document.querySelectorAll('#cmsEditor div')].some((d) => /Kaydedilmemiş değişiklikler var/.test(d.textContent) && !d.classList.contains('hidden'))), 'a type tab after the first save asks too');
+  await page.click('text=Düzenlemeye devam et');
+  ok(await page.evaluate(() => location.hash) === draftHash, `"Keep editing" keeps the draft's address (${draftHash})`);
+  await page.close();
+});
+
+await section('F2) a local copy never silently wins; other people\'s copies go; signing out clears them', async () => {
+  const id = '00000000-0000-4000-8000-000000000301';
+  const { page } = await open(browser, 'editor', '#icerik-etkinlikler/taslaklar', { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(id, draftRow({ id, entry_id: 'symposium-2026', updated_at: NOW - 60, data: SYM, base_shas: { [PATH]: 'sha-1' } }));
+  });
+  // A copy made on an older version of the draft, and one of another person.
+  await page.evaluate(([key, older, now]) => {
+    localStorage.setItem(key, JSON.stringify({ data: { ...older, when: { en: 'x', tr: 'Bu cihazdaki tarih' } }, at: now - 30, updated_at: now - 3600, base_shas: null }));
+    localStorage.setItem('rsg:cms:someone-else:new:events', JSON.stringify({ data: {}, at: now, updated_at: null, base_shas: null }));
+  }, [`rsg:cms:u2:${id}`, SYM, NOW]);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.evaluate((h) => { location.hash = h; }, `#icerik-etkinlikler/taslaklar/${id}`);
+  await page.waitForSelector('[data-field="when"][data-lang="tr"]');
+  ok(await page.inputValue('[data-field="when"][data-lang="tr"]') === SYM.when.tr, 'the saved version is what the form shows');
+  ok(await waitFor(page, () => /daha eski bir kopya var/.test(document.getElementById('cmsBackup')?.textContent ?? '')), '"Bu tarayıcıda kaydedilmemiş daha eski bir kopya var"');
+  await page.click('[data-backup-compare]');
+  ok((await page.textContent('#cmsBackup')).includes('Bu cihazdaki tarih') && (await page.textContent('#cmsBackup')).includes('Kayıtlı'), 'compared field by field');
+  await page.click('#cmsBackup [data-take="when"]');
+  ok(await page.inputValue('[data-field="when"][data-lang="tr"]') === 'Bu cihazdaki tarih', '"Bu cihazdakini al" copies it in');
+  ok(await page.evaluate(() => localStorage.getItem('rsg:cms:someone-else:new:events')) === null, 'another person\'s copy is gone');
+  // Signing out from the header.
+  await page.route('**/auth/logout', (r) => r.fulfill({ contentType: 'text/html', body: '<p>signed out</p>' }));
+  await page.evaluate(() => { localStorage.setItem('rsg:cms:u2:new:events', '{"data":{},"at":1}'); document.querySelector('form[action="/auth/logout"]').requestSubmit(); });
+  await page.waitForURL('**/auth/logout');
+  ok(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('rsg:cms:')).length) === 0, 'signing out leaves no content copies');
+  await page.close();
+});
+
+await section('F3) a save belongs to the form that asked for it', async () => {
+  const { page, calls, state } = await open(browser, 'editor', '#icerik-etkinlikler/etkinlikler/symposium-2026', { width: 1440, height: 900 });
+  await page.waitForSelector('[data-field="when"][data-lang="tr"]');
+  state.postDelay = 1500;
+  await page.fill('[data-field="when"][data-lang="tr"]', 'bir');
+  await page.click('#cmsSave');
+  await page.fill('[data-field="when"][data-lang="tr"]', 'iki');
+  await page.click('#cmsSave');
+  // Away to another entry while those saves wait.
+  await page.evaluate(() => { location.hash = '#icerik-etkinlikler/etkinlikler/meetup-1'; });
+  await page.click('text=Değişiklikleri at').catch(() => {});
+  await page.waitForTimeout(3500);
+  const posts = calls.filter((c) => c.method === 'POST' && c.path === '/api/cms/drafts');
+  ok(posts.length >= 1 && posts.every((c) => c.body.entry_id === 'symposium-2026'), `no save went out with the other entry's form (${posts.map((c) => c.body.entry_id).join(', ')})`);
+  await page.close();
+});
+
+await section('F4) a save made on an older version is refused and says so', async () => {
+  const id = '00000000-0000-4000-8000-000000000302';
+  const { page, calls, state } = await open(browser, 'editor', `#icerik-etkinlikler/taslaklar/${id}`, { width: 1366, height: 768 }, (s) => {
+    s.drafts.set(id, draftRow({ id, entry_id: 'symposium-2026', data: SYM, base_shas: { [PATH]: 'sha-1' } }));
+  });
+  await page.waitForSelector('[data-field="when"][data-lang="tr"]');
+  state.drafts.get(id).write_nonce = 'other-tab';
+  await page.fill('[data-field="when"][data-lang="tr"]', 'bu sekme');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /başka bir sekmede veya cihazda değişti/.test(document.getElementById('cmsNotice')?.textContent ?? '')), '"Bu taslak başka bir sekmede veya cihazda değişti"');
+  ok(calls.find((c) => c.method === 'PATCH')?.body?.write_nonce === 'n0', 'the PATCH named the version it was made on');
+  ok(await visible(page, '#cmsReload') && await page.locator('#cmsSubmit').isDisabled(), '"Yeniden yükle", and no sending from here');
+  ok(await page.inputValue('[data-field="when"][data-lang="tr"]') === 'bu sekme', 'the text stays in the form');
+  await page.close();
+});
+
+await section('F5) review: an unreadable published version, a non-approver, a note-only change', async () => {
+  const id = '00000000-0000-4000-8000-000000000303';
+  const mk = (s, o = {}) => s.drafts.set(id, draftRow({ id, status: 'submitted', entry_id: 'symposium-2026', data: SYM, base_shas: { [PATH]: 'sha-1' }, ...o }));
+  let r = await open(browser, 'approver', `#icerik-etkinlikler/onay/${id}`, { width: 1440, height: 900 }, (s) => { mk(s, { data: { ...SYM, when: { ...SYM.when, tr: 'y' } } }); s.entryFail = true; });
+  ok(await waitFor(r.page, () => /Yayındaki sürüm okunamadı/.test(document.getElementById('cmsReview')?.textContent ?? '')), '"Yayındaki sürüm okunamadı, birazdan yeniden deneyin"');
+  ok(await r.page.locator('#cmsApprove').isDisabled(), 'and no approval on a guess');
+  await r.page.close();
+  r = await open(browser, 'approver', `#icerik-etkinlikler/onay/${id}`, { width: 1440, height: 900 }, (s) => mk(s, { data: { ...SYM, note: 'Changed note' } }));
+  await r.page.waitForSelector('#cmsApprove');
+  ok(await r.page.locator('#cmsApprove').isEnabled() && (await r.page.textContent('#cmsReview')).includes('1 alan değişti'), 'a change to the internal note alone is a change');
+  await r.page.close();
+  r = await open(browser, 'editor', `#icerik-etkinlikler/onay/${id}`, { width: 1440, height: 900 }, (s) => mk(s, { data: { ...SYM, when: { ...SYM.when, tr: 'y' } } }));
+  await waitFor(r.page, () => /alan değişti|onaylayabilir/.test(document.getElementById('cmsEditor')?.textContent ?? ''));
+  ok(await r.page.locator('#cmsApprove, #cmsReject').count() === 0, 'a non-approver sees no approve or send-back');
+  await r.page.close();
+  r = await open(browser, 'approver', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-0000000003ff', { width: 1440, height: 900 });
+  ok(await waitFor(r.page, () => !!document.querySelector('#cmsNotice [data-cms-to-drafts]')), 'a missing draft on onay/ links to Taslaklarım');
+  await r.page.close();
+});
+
+await section('F6) opening an entry asks again whether it is busy', async () => {
+  const { page, state } = await open(browser, 'editor', '#icerik-etkinlikler/etkinlikler', { width: 1440, height: 900 });
+  await page.waitForSelector('[data-cms-entry="symposium-2026"] [data-cms-edit]');
+  state.live = [{ type: 'events', entry_id: 'symposium-2026', status: 'submitted' }];
+  await page.click('[data-cms-entry="symposium-2026"] [data-cms-edit]');
+  ok(await waitFor(page, () => /onay bekliyor/.test(document.getElementById('cmsStatus')?.textContent ?? '')), 'busy wording');
+  ok(await page.locator('#cmsSave').count() === 0, 'and read-only');
+  await page.close();
+});
+
+await section('F7) moving onto the site\'s version: a failed delete of the old draft is said', async () => {
+  const id = '00000000-0000-4000-8000-000000000304';
+  const { page } = await open(browser, 'editor', `#icerik-etkinlikler/taslaklar/${id}`, { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(id, draftRow({ id, status: 'rejected', review_note: 'Yeri kontrol edin', entry_id: 'symposium-2026', data: SYM, base_shas: { [PATH]: 'sha-0' } }));
+    s.failDelete = true;
+  });
+  await page.waitForSelector('#cmsRebase');
+  await page.click('#cmsRebase');
+  ok(await waitFor(page, () => /eski taslak silinemedi/.test(document.getElementById('cmsNotice')?.textContent ?? '')), 'the old draft could not be deleted: said');
+  ok((await page.textContent('#cmsNotice')).includes('Yeri kontrol edin'), 'and the old send-back note is carried over');
+  await page.close();
+});
+
+await section('F8) list failures, required marks, the 401 notice once, upload errors, queue overflow, banner', async () => {
+  let r = await open(browser, 'editor', '#icerik-etkinlikler/taslaklar', { width: 1440, height: 900 }, (s) => { s.draftsFail = 500; });
+  ok(await waitFor(r.page, () => /Liste yüklenemedi/.test(document.querySelector('[data-sub="taslaklar"]')?.textContent ?? '')), 'a failed list says so, not "no drafts"');
+  ok(!(await r.page.textContent('[data-sub="taslaklar"]')).includes('Taslağınız yok'), 'never "Taslağınız yok"');
+  await r.page.close();
+  r = await open(browser, 'editor', '#icerik-etkinlikler/etkinlikler', { width: 1440, height: 900 }, (s) => { s.draftsFail = 401; });
+  ok(await waitFor(r.page, () => /Oturumunuz kapandı/.test(document.querySelector('[data-sub="etkinlikler"]')?.textContent ?? '')), 'a 401 says to sign in');
+  await r.page.close();
+
+  r = await open(browser, 'editor', '#icerik-etkinlikler/etkinlikler/symposium-2026', { width: 1440, height: 900 });
+  await r.page.waitForSelector('[data-field-wrap="title"]');
+  ok((await r.page.textContent('[data-field-wrap="title"] p')).includes('*'), 'a required field is marked');
+  ok(await r.page.locator('#cmsBanner').count() === 0, 'no draft banner before a change');
+  await r.page.fill('[data-field="location"][data-lang="tr"]', 'Ankara!');
+  ok(await visible(r.page, '#cmsBanner'), 'the banner once the form has a change');
+  r.state.signedOut = true;
+  await r.page.click('#cmsSave');
+  await waitFor(r.page, () => /Oturumunuz kapandı/.test(document.getElementById('cmsNotice')?.textContent ?? ''));
+  const scrolls = await r.page.evaluate(async () => {
+    let n = 0;
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (...a) { if (this.id === 'cmsNotice') n++; return orig.apply(this, a); };
+    document.getElementById('cmsSave').click();
+    await new Promise((res) => setTimeout(res, 800));
+    return n;
+  });
+  ok(scrolls === 0, `a second failed save does not bring the notice back (${scrolls})`);
+  r.state.signedOut = false;
+  r.state.uploadFail = 'Unsupported image type. Use JPEG, PNG, WebP, or GIF.';
+  await r.page.click('#cmsMore summary');
+  await r.page.setInputFiles('[data-image-file="image"]', { name: 'a.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') });
+  ok(await waitFor(r.page, () => /JPEG, PNG, WebP veya GIF/.test(document.querySelector('[data-image-status="image"]')?.textContent ?? '')), 'an upload error in plain Turkish');
+  await r.page.close();
+
+  r = await open(browser, 'approver', '#icerik-etkinlikler/onay', { width: 1440, height: 900 }, (s) => {
+    s.drafts.set('00000000-0000-4000-8000-000000000305', draftRow({ id: '00000000-0000-4000-8000-000000000305', status: 'submitted', entry_id: 'symposium-2026', data: SYM }));
+    s.more = true; s.queueCount = 205;
+  });
+  ok(await waitFor(r.page, () => /204 taslak daha var/.test(document.querySelector('[data-cms-queue-more]')?.textContent ?? '')), '"N taslak daha var"');
+  ok(await r.page.locator('[data-sub="onay"] [data-cms-mine]').count() === 1, 'the Taslaklarım row above the queue too');
+  await r.page.close();
+
+  r = await open(browser, 'editor', '#icerik-etkinlikler/webinarlar/_new', { width: 1440, height: 900 });
+  await r.page.waitForSelector('[data-field-wrap="year"]', { state: 'attached' });
+  ok(await r.page.locator('[data-field-wrap="year"] fieldset').evaluate((f) => f.disabled), 'a webinar\'s year is not typed: it comes from the date');
+  await r.page.close();
+});
+
+await section('F9) a new name that is taken is said on the title', async () => {
+  const id = '00000000-0000-4000-8000-000000000306';
+  const { page } = await open(browser, 'editor', `#icerik-etkinlikler/taslaklar/${id}`, { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(id, draftRow({ id, action: 'create', entry_id: 'meetup-x-2027', data: { ...SYM, id: 'meetup-x-2027' } }));
+    s.nextPatch = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { id: 'An entry with this name already exists' } }];
+  });
+  await page.waitForSelector('#cmsSave');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Başlık: Bu adla bir kayıt zaten var/.test(document.getElementById('cmsErrors')?.textContent ?? '')), '"Bu adla bir kayıt zaten var", on the title');
+  await page.close();
+});
 
 console.log('11) phone: no sideways scroll on the list, the form and the review');
 for (const [who, hash] of [['editor', '#icerik-etkinlikler/etkinlikler'], ['editor', '#icerik-etkinlikler/etkinlikler/symposium-2026'], ['editor', '#icerik-etkinlikler/webinarlar/_new'], ['approver', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000005']]) {

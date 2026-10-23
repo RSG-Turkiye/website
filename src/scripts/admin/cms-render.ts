@@ -137,7 +137,7 @@ export function renderField(model: TypeModel, f: FieldDef, v: unknown, opts: { r
   const ro = opts.readOnly || f.readOnly || f.approverOnly;
   const label = f.approverOnly ? tk('admin.cms.f.note') : tk(f.label);
   return `<div data-field-wrap="${f.key}" class="flex flex-col gap-1 min-w-0 ${isShort(f) ? '' : 'lg:col-span-3'}">
-    <p class="text-xs font-medium text-gray-600">${esc(label)}</p>
+    <p class="text-xs font-medium text-gray-600">${esc(label)}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}</p>
     ${f.help ? `<p class="text-xs text-gray-500 -mt-0.5">${esc(tk(f.help))}</p>` : ''}
     <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${body(model, f, v)}</fieldset>
     <p data-error="${f.key}" role="alert" class="hidden text-xs text-red"></p>

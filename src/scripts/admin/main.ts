@@ -133,7 +133,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   };
   // Content editors, approvers and admins: the form exists before the shell
   // opens a deep link to a draft.
-  if (roles.cms.etkinlikler?.edit) setupCms({ approver: roles.cms.etkinlikler.approve });
+  if (roles.cms.etkinlikler?.edit) setupCms({ approver: roles.cms.etkinlikler.approve, userId: String(data.user.id ?? '') });
   // Back from a Gmail reconnect: the shell opens Connections; say how it went.
   startShell(roles, { onShow, onSub });
   if (connected || connectionError) {

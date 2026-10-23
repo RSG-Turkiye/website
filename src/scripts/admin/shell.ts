@@ -166,6 +166,16 @@ function closeDrawer(): void {
   document.getElementById('navToggle')?.setAttribute('aria-expanded', 'false');
 }
 
+/**
+ * A section that moved the address itself (history.replaceState, without a
+ * reroute) tells the shell, so a refused move later comes back to it.
+ */
+export function noteAddress(hash: string): void {
+  shownHash = hash;
+  const r = parseHash(hash);
+  if (r && previous) previous = { ...previous, sub: r.sub, item: r.item };
+}
+
 export async function refreshCounts(): Promise<void> {
   let fresh: Record<string, number> = {};
   try {
