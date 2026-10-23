@@ -267,6 +267,29 @@
 --    certificate never fails on the counter; it only stops counting.
 --
 
+-- 8i. Roles with an end date. role_grants (below) records who holds which
+--    role, until when, and who granted or took it away; the users.is_*
+--    columns stay, as a cache of it that every permission check reads. New
+--    table, IF NOT EXISTS, so re-applying the file is safe:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Then backfill one permanent grant for every role someone already holds.
+--    Each statement skips a user who already has a live grant of that role,
+--    so running them twice adds nothing:
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'admin', NULL, NULL, unixepoch() FROM users WHERE is_admin = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'admin' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'announcer', NULL, NULL, unixepoch() FROM users WHERE is_announcer = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'announcer' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'symposium', NULL, NULL, unixepoch() FROM users WHERE is_symposium = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'symposium' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'social_publisher', NULL, NULL, unixepoch() FROM users WHERE is_social_publisher = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'social_publisher' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'writer', NULL, NULL, unixepoch() FROM users WHERE is_writer = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'writer' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'sender', NULL, NULL, unixepoch() FROM users WHERE is_sender = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'sender' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'social', NULL, NULL, unixepoch() FROM users WHERE is_social = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'social' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--    Run both steps BEFORE deploying the code that grants and removes roles
+--    through role_grants (functions/_lib/role-grants.ts, wired into the admin
+--    panel by the roles-with-expiry branch). That code recomputes every
+--    is_* column of a user from their live grants whenever one of their
+--    roles changes. Without the backfill, the first change to anyone's roles
+--    silently takes away every other role they hold.
+--
+
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
   google_id     TEXT UNIQUE NOT NULL,
@@ -785,6 +808,24 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, at);
+
+-- Who holds which role, and until when. users.is_* mirror the live rows
+-- (functions/_lib/role-grants.ts). Revoked and expired rows are kept: they
+-- are the history. A live grant: revoked_at IS NULL AND (expires_at IS NULL
+-- OR expires_at > now).
+CREATE TABLE IF NOT EXISTS role_grants (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role       TEXT NOT NULL,
+  expires_at INTEGER,            -- NULL: permanent
+  granted_by TEXT,               -- NULL: the 8i backfill
+  granted_at INTEGER NOT NULL,
+  revoked_by TEXT,
+  revoked_at INTEGER,
+  note       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_role_grants_user ON role_grants(user_id, revoked_at);
+CREATE INDEX IF NOT EXISTS idx_role_grants_expiry ON role_grants(revoked_at, expires_at);
 
 -- One row per external account the site talks to. Tokens are AES-GCM
 -- ciphertext (functions/_lib/token-vault.ts), never plaintext. A row may
