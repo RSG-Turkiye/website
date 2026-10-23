@@ -769,24 +769,42 @@ async function getPull(prNumber: number, env: Env): Promise<Pull> {
  * makes GitHub refuse if the branch moved since the caller looked.
  *
  * GitHub answers 202 and does the merge asynchronously; the new head shows
- * up on a later prStatus, and the checks run again on it. A refusal (422:
- * the head moved, or main does not merge cleanly) comes back as
- * `{ success: false, status }` for the caller to try again later or flag;
- * anything else unexpected throws a short error.
+ * up on a later prStatus, and the checks run again on it. A refusal (422)
+ * comes back as `{ success: false, status, reason }`: 'head-changed' when
+ * GitHub says the expected head sha did not match (look again next time),
+ * otherwise 'conflict' (main does not merge into the branch). The reason is
+ * read from GitHub's message, which is never passed on. Anything else
+ * unexpected throws a short error.
  */
 export async function updateBranch(
   prNumber: number,
   env: Env,
   expectedHeadSha?: string
-): Promise<{ success: true } | { success: false; status: number }> {
+): Promise<{ success: true } | { success: false; status: number; reason: 'head-changed' | 'conflict' }> {
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${prNumber}/update-branch`,
     { method: 'PUT', body: JSON.stringify(expectedHeadSha ? { expected_head_sha: expectedHeadSha } : {}) },
     env
   );
   if (res.ok) return { success: true };
-  if (res.status === 422) return { success: false, status: res.status };
+  if (res.status === 422) {
+    const text = await res.text().catch(() => '');
+    return { success: false, status: res.status, reason: /expected head sha/i.test(text) ? 'head-changed' : 'conflict' };
+  }
   throw new Error(`Failed to update the branch of pull ${prNumber} (${res.status})`);
+}
+
+/**
+ * Closes a pull request without merging it (the panel's "cancel"). Closing
+ * one that is already closed is fine; errors carry the status only.
+ */
+export async function closePr(prNumber: number, env: Env): Promise<void> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${prNumber}`,
+    { method: 'PATCH', body: JSON.stringify({ state: 'closed' }) },
+    env
+  );
+  if (!res.ok) throw new Error(`Failed to close pull ${prNumber} (${res.status})`);
 }
 
 export type MergeResult =

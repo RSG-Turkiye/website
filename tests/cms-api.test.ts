@@ -21,6 +21,7 @@ import * as draft from '../functions/api/cms/drafts/[id]';
 import * as submit from '../functions/api/cms/drafts/[id]/submit';
 import * as approve from '../functions/api/cms/drafts/[id]/approve';
 import * as reject from '../functions/api/cms/drafts/[id]/reject';
+import * as cancel from '../functions/api/cms/drafts/[id]/cancel';
 
 const ROOT = new URL('../', import.meta.url).pathname;
 const SCHEMA = readFileSync(`${ROOT}db/schema.sql`, 'utf8');
@@ -68,6 +69,8 @@ class FakeGitHub {
   prUrl: string | null = null;
   /** What POST /pulls answers. */
   pulls: 'ok' | 'no-commits' | 'error' = 'ok';
+  /** What PATCH /pulls/{n} (closing one) answers. */
+  closePulls: 'ok' | 'error' = 'ok';
 
   files(ref: string): Map<string, string> | undefined {
     return ref === 'main' ? this.main : this.commits.get(ref) ?? this.branches.get(ref);
@@ -144,6 +147,13 @@ class FakeGitHub {
       const number = this.prs.length + 41;
       this.prs.push({ title: body.title, body: body.body, head: body.head, number, state: 'open', merged: false });
       return json({ html_url: this.prUrl ?? `https://github.com/RSG-Turkiye/website/pull/${number}` }, 201);
+    }
+    if (method === 'PATCH' && /^\/pulls\/\d+$/.test(p)) {
+      if (this.closePulls === 'error') return json({ message: 'secret-detail-from-github' }, 500);
+      const pr = this.prs.find((x) => x.number === Number(p.slice('/pulls/'.length)));
+      if (!pr) return json({ message: 'Not Found' }, 404);
+      pr.state = body.state;
+      return json({ state: pr.state });
     }
     if (method === 'GET' && p === '/pulls') {
       const head = (url.searchParams.get('head') ?? '').replace('RSG-Turkiye:', '');
@@ -608,14 +618,14 @@ test('send back, edit, resubmit; discard; each writes its row', async () => {
   ]);
 });
 
-test('content already on main: the draft is published, logged as a merge with noop', async () => {
+test('content already on main: the draft is merged (the shepherd publishes it), logged as a merge with noop', async () => {
   const { env, audit, row } = setup();
   const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: loaded('src/content/events/symposium-2026.json') });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   gh.pulls = 'no-commits';
   const res = await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve');
   assert.equal(res.status, 200);
-  assert.equal(row(body.draft.id).status, 'published');
+  assert.equal(row(body.draft.id).status, 'merged');
   const last = audit().at(-1)!;
   assert.equal(last.action, 'cms.pr.merged');
   assert.equal(JSON.parse(last.details).noop, true);
@@ -875,7 +885,7 @@ test('the branch starts from the commit the shas were checked at, not from a mai
   assert.ok(!gh.requests.slice(from).some((r) => r.path.includes('/contents/') && r.path.endsWith('ref=main')), 'the approval reads no file against a moving main');
 });
 
-test('a stale approval adopts its own merged pull request: published, recovered, no changed_since', async () => {
+test('a stale approval adopts its own merged pull request: merged, recovered, no changed_since', async () => {
   const { env, db, audit, row } = setup();
   const path = 'src/content/events/symposium-2026.json';
   const data = { ...symposium2026(), note: 'draft' };
@@ -886,7 +896,7 @@ test('a stale approval adopts its own merged pull request: published, recovered,
   const res = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
   assert.equal(res.status, 200);
   const after = row(id);
-  assert.equal(after.status, 'published');
+  assert.equal(after.status, 'merged');
   assert.equal(after.pr_number, 77);
   const last = audit().at(-1)!;
   assert.equal(last.action, 'cms.pr.merged');
@@ -1067,4 +1077,96 @@ test('an unknown key inside an array element is refused and nothing is stored', 
     assert.ok(Object.hasOwn(body.errors, `links.0.${k}`), `${k}: ${JSON.stringify(body.errors)}`);
   }
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
+});
+
+// ── cancel: leaving pr_open on purpose ───────────────────────────────────────
+
+test('cancel: an approver closes the pull request; the draft is pr_failed "cancelled", logged', async () => {
+  const { env, row, audit } = setup();
+  const id = await submitted(env);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
+  assert.equal(row(id).status, 'pr_open');
+
+  // Not the author's to cancel, and not from any other status.
+  assert.equal((await on(env, cancel.onRequestPost, 'POST', id, 'editor', {}, '/cancel')).status, 403);
+  const other = await submitted(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-izmir-2027' } });
+  const refused = await on(env, cancel.onRequestPost, 'POST', other, 'approver', {}, '/cancel');
+  assert.equal(refused.status, 409);
+  assert.equal((await refused.json() as any).code, 'bad_state');
+
+  const res = await on(env, cancel.onRequestPost, 'POST', id, 'approver', {}, '/cancel');
+  assert.equal(res.status, 200);
+  const body = await res.json() as any;
+  assert.equal(body.draft.status, 'pr_failed');
+  assert.equal(body.draft.failure, 'cancelled');
+  assert.equal(row(id).status, 'pr_failed');
+  assert.equal(row(id).failure, 'cancelled');
+  assert.equal(gh.prs[0].state, 'closed');
+  assert.deepEqual(gh.requests.filter((r) => r.method === 'PATCH' && r.path.endsWith(`/pulls/${row(id).pr_number}`)).map((r) => r.body), [{ state: 'closed' }]);
+  const last = audit().at(-1)!;
+  assert.equal(last.action, 'cms.pr.cancel');
+  assert.equal(last.target_id, id);
+  assert.equal(JSON.parse(last.details).pr_number, row(id).pr_number);
+
+  // pr_failed can be sent again (it goes through openContentPR with resetBranch).
+  assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit')).status, 200);
+});
+
+test('cancel: GitHub refusing to close it changes nothing and logs nothing', async () => {
+  const { env, row, audit } = setup();
+  const id = await submitted(env);
+  await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
+  const logged = audit().length;
+  gh.closePulls = 'error';
+  const res = await on(env, cancel.onRequestPost, 'POST', id, 'admin', {}, '/cancel');
+  assert.equal(res.status, 502);
+  assert.ok(!(await res.text()).includes('secret-detail'));
+  assert.equal(row(id).status, 'pr_open');
+  assert.equal(audit().length, logged);
+});
+
+// ── one live draft per entry ─────────────────────────────────────────────────
+
+test('entry_busy: a second draft of an entry cannot be sent while another is in review or on its way', async () => {
+  const { env, db, row } = setup();
+  const path = 'src/content/events/symposium-2026.json';
+  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note }, base_shas: loaded(path) });
+  const first = await submitted(env, 'editor', body('one'));
+  const second = (await create(env, 'editor2', body('two'))).body.draft.id as string;
+
+  for (const status of ['submitted', 'approved', 'pr_open', 'merged']) {
+    db.prepare('UPDATE content_drafts SET status = ? WHERE id = ?').run(status, first);
+    const res = await on(env, submit.onRequestPost, 'POST', second, 'editor2', {}, '/submit');
+    assert.equal(res.status, 409, status);
+    const answer = await res.json() as any;
+    assert.equal(answer.code, 'entry_busy');
+    assert.ok(!JSON.stringify(answer).includes(first), 'whose draft holds it is not said');
+    assert.equal(row(second).status, 'draft');
+  }
+  // Once the first is finished (or failed), the second may go.
+  for (const status of ['pr_failed', 'published']) {
+    db.prepare('UPDATE content_drafts SET status = ? WHERE id = ?').run(status, first);
+  }
+  assert.equal((await on(env, submit.onRequestPost, 'POST', second, 'editor2', {}, '/submit')).status, 200);
+  // Other entries are not held.
+  assert.equal((await submitted(env, 'editor')) !== '', true);
+});
+
+test('entry_busy is part of the guarded write: a draft that becomes live meanwhile still blocks', async () => {
+  const { env, db, row } = setup();
+  const path = 'src/content/events/symposium-2026.json';
+  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note }, base_shas: loaded(path) });
+  const first = (await create(env, 'editor', body('one'))).body.draft.id as string;
+  const second = (await create(env, 'editor2', body('two'))).body.draft.id as string;
+  // The first is sent between the second's busy check and its write.
+  const real = (env as any).DB.prepare;
+  (env as any).DB.prepare = (sql: string) => {
+    if (sql.startsWith('UPDATE content_drafts SET status = \'submitted\'')) db.prepare("UPDATE content_drafts SET status = 'submitted' WHERE id = ?").run(first);
+    return real(sql);
+  };
+  const res = await on(env, submit.onRequestPost, 'POST', second, 'editor2', {}, '/submit');
+  (env as any).DB.prepare = real;
+  assert.equal(res.status, 409);
+  assert.equal((await res.json() as any).code, 'entry_busy');
+  assert.equal(row(second).status, 'draft');
 });

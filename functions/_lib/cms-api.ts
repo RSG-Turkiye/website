@@ -6,7 +6,7 @@
 
 import { checkCsrf, getSessionUser, jsonResponse, type Env, type User } from './auth';
 import { groupRights, type CmsGroup, type GroupRights } from './cms-access';
-import type { DraftRow, PairData } from './cms-drafts';
+import { mergedTooLong, type DraftRow, type PairData } from './cms-drafts';
 import { cmsType, type CmsType } from '../../src/lib/cms/types';
 import type { CmsIndex, CmsIndexEntry } from '../../src/lib/cms/cms-index';
 import { jsonPath } from '../../src/lib/cms/serialize';
@@ -73,6 +73,8 @@ export function draftJson(row: DraftRow, withData: boolean) {
     pr_url: row.pr_url,
     pr_number: row.pr_number,
     failure: row.failure,
+    /** Merged longer than MERGED_STALE_SECONDS and still not on the site. */
+    stale_merge: mergedTooLong(row, Math.floor(Date.now() / 1000)),
     created_at: row.created_at,
     updated_at: row.updated_at,
     ...(withData ? { data: JSON.parse(row.data) as unknown, base_shas: JSON.parse(row.base_shas) as Record<string, string | null> } : {}),

@@ -39,8 +39,11 @@ const FIXED: Record<string, Label> = {
   'cms.draft.reject': { en: 'Sent a content draft back', tr: 'Taslağı geri gönderdi' },
   'cms.draft.discard': { en: 'Deleted a content draft', tr: 'Taslağı sildi' },
   'cms.pr.open': { en: 'Content pull request opened', tr: 'İçerik PR\'ı açıldı' },
-  'cms.pr.merged': { en: 'Content went live', tr: 'İçerik yayına çıktı' },
+  'cms.pr.merged': { en: 'Content pull request merged', tr: 'İçerik PR\'ı birleştirildi' },
+  'cms.pr.published': { en: 'Content went live', tr: 'İçerik yayına çıktı' },
   'cms.pr.failed': { en: 'Content pull request failed', tr: 'İçerik PR\'ı başarısız' },
+  'cms.pr.cancel': { en: 'Cancelled a content PR', tr: 'İçerik PR\'ını iptal etti' },
+  'cms.draft.prune': { en: 'Removed finished content drafts older than 90 days', tr: '90 günden eski bitmiş taslaklar silindi' },
 
   'mail.send': { en: 'Sent an e-mail', tr: 'E-posta gönderdi' },
   'mail.reply': { en: 'Replied in a conversation', tr: 'Konuşmaya cevap yazdı' },

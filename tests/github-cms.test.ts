@@ -14,6 +14,7 @@ import {
   prStatus,
   updateBranch,
   mergePr,
+  closePr,
   REQUIRED_CHECKS,
 } from '../functions/_lib/github';
 
@@ -355,9 +356,31 @@ test('updateBranch PUTs update-branch with the expected head sha', async () => {
 
 test('updateBranch reports a 422 (head moved or conflict) as not updated, not a throw', async () => {
   await withFetch(
-    () => new Response('GITHUB-BODY-DETAIL', { status: 422 }),
+    () => new Response('GITHUB-BODY-DETAIL merge conflict between base and head', { status: 422 }),
     async () => {
-      assert.deepEqual(await updateBranch(12, env, 'head-1'), { success: false, status: 422 });
+      assert.deepEqual(await updateBranch(12, env, 'head-1'), { success: false, status: 422, reason: 'conflict' });
+    },
+  );
+  await withFetch(
+    () => json({ message: "expected head sha didn't match current head ref." }, 422),
+    async () => {
+      assert.deepEqual(await updateBranch(12, env, 'head-1'), { success: false, status: 422, reason: 'head-changed' });
+    },
+  );
+});
+
+test('closePr PATCHes the pull request closed; a failure carries the status only', async () => {
+  await withFetch(
+    (method, url) => (method === 'PATCH' && url.pathname === `${REPO}/pulls/12` ? json({ state: 'closed' }) : undefined),
+    async (requests) => {
+      await closePr(12, env);
+      assert.deepEqual(requests[0].body, { state: 'closed' });
+    },
+  );
+  await withFetch(
+    () => new Response('GITHUB-BODY-DETAIL', { status: 500 }),
+    async () => {
+      await assert.rejects(closePr(12, env), (e: Error) => e.message.includes('500') && !e.message.includes('GITHUB-BODY'));
     },
   );
 });
@@ -424,4 +447,60 @@ test('mergePr throws a short error on anything else', async () => {
       });
     },
   );
+});
+
+// ---------------------------------------------------------------- a retry makes new checks
+
+test('retrying a failed CMS pull request with resetBranch gives it a new head commit, so the checks run again', async () => {
+  // A small git: main and one branch, each a file map with a head sha that
+  // changes on every commit or reset. Checks run per head sha.
+  const main = { files: new Map([['src/content/events/a.json', '{"v":0}\n']]), head: 'main-1' };
+  let branch: { files: Map<string, string>; head: string } | null = null;
+  let commits = 0;
+  let prOpen = false;
+  const handler: Handler = (method, url, body) => {
+    const p = url.pathname.replace(REPO, '');
+    if (method === 'GET' && p === '/git/ref/heads/main') return json({ object: { sha: main.head } });
+    if (method === 'POST' && p === '/git/refs') {
+      if (branch) return json({ message: 'Reference already exists' }, 422);
+      branch = { files: new Map(main.files), head: main.head };
+      return json({}, 201);
+    }
+    if (method === 'PATCH' && p === '/git/refs/heads/cms/d-1') {
+      branch = { files: new Map(main.files), head: body.sha };
+      return json({});
+    }
+    if (p.startsWith('/contents/')) {
+      const path = decodeURIComponent(p.slice('/contents/'.length));
+      if (method === 'GET') {
+        const text = (url.searchParams.get('ref') === 'cms/d-1' ? branch!.files : main.files).get(path);
+        return text === undefined ? json({ message: 'Not Found' }, 404) : json({ sha: `blob-${text.length}`, content: Buffer.from(text).toString('base64') });
+      }
+      if (method === 'PUT') {
+        branch!.files.set(path, Buffer.from(body.content, 'base64').toString('utf8'));
+        branch!.head = `commit-${++commits}`;
+        return json({ content: {} }, 201);
+      }
+    }
+    if (method === 'POST' && p === '/pulls') {
+      if (prOpen) return json({ message: 'Validation Failed', errors: [{ message: 'A pull request already exists for RSG-Turkiye:cms/d-1.' }] }, 422);
+      prOpen = true;
+      return json({ html_url: 'https://github.com/RSG-Turkiye/website/pull/9' }, 201);
+    }
+    if (method === 'GET' && p === '/pulls') return json([{ html_url: 'https://github.com/RSG-Turkiye/website/pull/9', number: 9 }]);
+    return undefined;
+  };
+  const open = () => openContentPR(
+    { branchPrefix: 'cms', branchSlug: 'd-1', files: [{ path: 'src/content/events/a.json', content: '{"v":1}\n' }], title: 't', prBody: 'b', retitle: false, resetBranch: true, baseSha: main.head },
+    env,
+  );
+  await withFetch(handler, async () => {
+    assert.equal((await open()).success, true);
+    const first = branch!.head;
+    // The checks failed on `first`; the draft is sent and approved again, unchanged.
+    const retried = await open();
+    assert.deepEqual(retried, { success: true, prUrl: 'https://github.com/RSG-Turkiye/website/pull/9' });
+    assert.notEqual(branch!.head, first, 'a new head commit, so the required checks run again');
+    assert.equal(branch!.files.get('src/content/events/a.json'), '{"v":1}\n');
+  });
 });

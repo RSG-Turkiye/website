@@ -315,7 +315,13 @@
 --    is safe:
 --      wrangler d1 execute rsg-members --remote --file=db/schema.sql
 --    Run it BEFORE deploying: every /api/cms/drafts call reads the table and
---    fails with "no such table: content_drafts" until it exists.
+--    fails with "no such table: content_drafts" until it exists. The table
+--    was never released with an older shape, so its columns (last_checked_at)
+--    and statuses ('merged') live in the CREATE itself, not in an ALTER. A
+--    local database that already has an earlier copy of the table needs it
+--    dropped and re-created:
+--      wrangler d1 execute rsg-members --local --command="DROP TABLE content_drafts"
+--      wrangler d1 execute rsg-members --local --file=db/schema.sql
 --
 
 CREATE TABLE IF NOT EXISTS users (
@@ -1019,7 +1025,7 @@ CREATE TABLE IF NOT EXISTS content_drafts (
   action      TEXT NOT NULL CHECK (action IN ('create','update','delete')),
   data        TEXT NOT NULL,          -- JSON: the entry (or {en:{frontmatter,body}, tr:{...}} for markdown pairs)
   base_shas   TEXT NOT NULL DEFAULT '{}', -- JSON: path -> blob sha on main when the draft started (null = new file)
-  status      TEXT NOT NULL CHECK (status IN ('draft','submitted','approved','pr_open','pr_failed','published','rejected','discarded')),
+  status      TEXT NOT NULL CHECK (status IN ('draft','submitted','approved','pr_open','pr_failed','merged','published','rejected','discarded')),
   author_id   TEXT NOT NULL REFERENCES users(id),
   reviewer_id TEXT,
   review_note TEXT,
@@ -1027,8 +1033,10 @@ CREATE TABLE IF NOT EXISTS content_drafts (
   pr_number   INTEGER,
   failure     TEXT,                   -- short reason shown in the panel
   write_nonce TEXT,                   -- random per write: a guarded write proves it landed (audit.ts AuditProof)
+  last_checked_at INTEGER,            -- when the PR shepherd last looked (cms-shepherd.ts); oldest first, NULL first
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_content_drafts_status ON content_drafts(status, updated_at);
 CREATE INDEX IF NOT EXISTS idx_content_drafts_author ON content_drafts(author_id, status);
+CREATE INDEX IF NOT EXISTS idx_content_drafts_entry ON content_drafts(type, entry_id);

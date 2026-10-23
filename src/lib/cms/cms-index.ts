@@ -24,14 +24,23 @@ export interface CmsIndexEntry {
   paths?: { en: string | null; tr: string | null };
   /** Webinars only, when set: the translationKey that ties the pair. */
   key?: string;
+  /** Each of the entry's files (path → git blob sha) as this build saw it.
+   * The PR shepherd compares them with a merged draft's files to tell when
+   * the deployed site shows the change. Set when the caller passes shas. */
+  shas?: Record<string, string>;
 }
 
 export type CmsIndex = Record<CmsTypeKey, CmsIndexEntry[]>;
 
 const base = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.(json|md)$/, "");
 
-/** `files`: repository-relative path → file text, for every file under the three types' folders. */
-export function buildCmsIndex(files: Record<string, string>): CmsIndex {
+/**
+ * `files`: repository-relative path → file text, for every file under the
+ * three types' folders. `shas`: path → git blob sha (src/lib/cms/blob-sha.ts),
+ * passed by the build so each entry carries its files' shas; left out, the
+ * entries have none.
+ */
+export function buildCmsIndex(files: Record<string, string>, shas?: Record<string, string>): CmsIndex {
   const under = (dir: string, ext: string) =>
     Object.keys(files).filter((p) => p.startsWith(`${dir}/`) && p.endsWith(ext)).sort();
 
@@ -69,7 +78,18 @@ export function buildCmsIndex(files: Record<string, string>): CmsIndex {
     webinars.push({ entry: { id: w.slug, title: String(w.fm.title ?? w.slug), paths: { en: null, tr: w.path }, ...(key ? { key } : {}) }, sort: String(w.fm.date ?? "") });
   }
 
-  const newestFirst = <T extends { sort: string; entry: CmsIndexEntry }>(list: T[]) =>
-    list.sort((a, b) => b.sort.localeCompare(a.sort) || a.entry.id.localeCompare(b.entry.id)).map((x) => x.entry);
-  return { events: newestFirst(events), workshops: newestFirst(workshops), webinars: newestFirst(webinars) };
+  const withShas = (entry: CmsIndexEntry, paths: (string | null | undefined)[]): CmsIndexEntry => {
+    if (!shas) return entry;
+    const own = paths.filter((p): p is string => !!p && shas[p] !== undefined).map((p) => [p, shas[p]] as const);
+    return { ...entry, shas: Object.fromEntries(own) };
+  };
+  // The file the entry was read from (its id is that file's name).
+  const jsonPathOf = (key: CmsTypeKey, id: string) => `${cmsType(key)!.dir}/${id}.json`;
+  const newestFirst = <T extends { sort: string; entry: CmsIndexEntry }>(list: T[], paths: (e: CmsIndexEntry) => (string | null | undefined)[]) =>
+    list.sort((a, b) => b.sort.localeCompare(a.sort) || a.entry.id.localeCompare(b.entry.id)).map((x) => withShas(x.entry, paths(x.entry)));
+  return {
+    events: newestFirst(events, (e) => [jsonPathOf("events", e.id)]),
+    workshops: newestFirst(workshops, (e) => [jsonPathOf("workshops", e.id)]),
+    webinars: newestFirst(webinars, (e) => [e.paths?.en, e.paths?.tr]),
+  };
 }

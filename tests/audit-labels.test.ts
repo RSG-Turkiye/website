@@ -47,6 +47,10 @@ test('the symposium family reads naturally in both languages', () => {
 
 test('the CMS codes have their names', () => {
   assert.equal(auditLabel('cms.draft.submit', 'tr'), 'Taslağı onaya gönderdi');
-  assert.equal(auditLabel('cms.pr.merged', 'tr'), 'İçerik yayına çıktı');
+  assert.equal(auditLabel('cms.pr.merged', 'tr'), 'İçerik PR\'ı birleştirildi');
+  assert.equal(auditLabel('cms.pr.published', 'tr'), 'İçerik yayına çıktı');
+  assert.equal(auditLabel('cms.pr.cancel', 'tr'), 'İçerik PR\'ını iptal etti');
+  assert.equal(auditLabel('cms.pr.cancel', 'en'), 'Cancelled a content PR');
+  assert.equal(auditLabel('cms.draft.prune', 'en'), 'Removed finished content drafts older than 90 days');
   assert.equal(auditLabel('cms.pr.failed', 'en'), 'Content pull request failed');
 });

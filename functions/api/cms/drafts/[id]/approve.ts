@@ -20,12 +20,13 @@ import { fileShasOnBase, mainHeadSha, openContentPR, prForBranch, pullNumberFrom
  * Two steps, each with its own log row: the claim (→ approved,
  * cms.draft.approve), so two approvers cannot both open a pull request, and
  * then the outcome, which lands only on that claim (pr_open, cms.pr.open;
- * published when main already has the content, cms.pr.merged with noop; or
- * pr_failed, cms.pr.failed).
+ * merged when main already has the content, cms.pr.merged with noop; or
+ * pr_failed, cms.pr.failed). A merged draft is published by the PR shepherd
+ * (functions/_lib/cms-shepherd.ts) once the deployed site shows it.
  *
  * A draft left in `approved` by a crash may be approved again after
  * STALE_APPROVAL_SECONDS. If the first attempt got as far as a pull request,
- * that one is adopted (open → pr_open, merged → published) and its branch is
+ * that one is adopted (open → pr_open, merged → merged) and its branch is
  * left alone; otherwise the normal path runs.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -86,7 +87,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     if (existing && number !== null && (existing.state === 'merged' || existing.state === 'open')) {
       if (!(await takeClaim())) return badState();
       const done = existing.state === 'merged'
-        ? await settle(`status = 'published', pr_url = ?, pr_number = ?, failure = NULL`, [existing.url, number],
+        ? await settle(`status = 'merged', pr_url = ?, pr_number = ?, failure = NULL`, [existing.url, number],
           { action: 'cms.pr.merged', details: { ...details, pr_number: number, recovered: true } })
         : await settle(`status = 'pr_open', pr_url = ?, pr_number = ?, failure = NULL`, [existing.url, number],
           { action: 'cms.pr.open', details: { ...details, pr_number: number, recovered: true } });
@@ -149,7 +150,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   }
   if ('reason' in result) {
     // GitHub found nothing to propose: main already has exactly this content.
-    const done = await settle(`status = 'published', failure = NULL`, [], { action: 'cms.pr.merged', details: { ...details, noop: true } });
+    // `merged`, not `published`: the PR shepherd publishes it once the
+    // deployed site shows these files.
+    const done = await settle(`status = 'merged', failure = NULL`, [], { action: 'cms.pr.merged', details: { ...details, noop: true } });
     return done ? answer({ noop: true }) : superseded();
   }
   // GitHub's text stays in the server log; the draft and the log get a code.

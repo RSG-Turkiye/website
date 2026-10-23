@@ -14,7 +14,7 @@ import type { CmsType } from '../../src/lib/cms/types';
 import { checkId, cmsType } from '../../src/lib/cms/types';
 import { jsonPath, markdownPairPaths, serializeJson, serializeMarkdown, type Frontmatter } from '../../src/lib/cms/serialize';
 
-export type DraftStatus = 'draft' | 'submitted' | 'approved' | 'pr_open' | 'pr_failed' | 'published' | 'rejected' | 'discarded';
+export type DraftStatus = 'draft' | 'submitted' | 'approved' | 'pr_open' | 'pr_failed' | 'merged' | 'published' | 'rejected' | 'discarded';
 export type DraftAction = 'create' | 'update' | 'delete';
 export const DRAFT_ACTIONS: readonly DraftAction[] = ['create', 'update', 'delete'];
 
@@ -35,6 +35,9 @@ export interface DraftRow {
   /** A fresh random value on every write. A write names the nonce it read
    * (so it acts on the row it saw) and proves its own landed. */
   write_nonce: string | null;
+  /** When the PR shepherd last looked at it (cms-shepherd.ts). Bookkeeping
+   * only: it changes neither updated_at nor write_nonce. */
+  last_checked_at: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -61,9 +64,61 @@ export const TRANSITIONS = {
   discard: ['draft', 'submitted', 'rejected', 'pr_failed'],
   reject: ['submitted'],
   approve: ['submitted'],
+  /** An approver closes the pull request on purpose (→ pr_failed, 'cancelled'). */
+  cancel: ['pr_open'],
 } as const satisfies Record<string, readonly DraftStatus[]>;
 
+/*
+ * After the pull request opens, the PR shepherd (cms-shepherd.ts) moves the
+ * draft on: pr_open → merged when GitHub merged it, merged → published once
+ * the deployed site's /cms-index.json shows its files, or pr_open →
+ * pr_failed with a short reason.
+ */
+
 export const STALE_APPROVAL_SECONDS = 300;
+
+/**
+ * A draft in one of these holds its entry: another draft of the same
+ * (type, entry_id) may not be submitted meanwhile, or two full-file rewrites
+ * could race and the later one undo the earlier. `merged` counts too: its
+ * change is on main but not yet on the site.
+ */
+export const LIVE_STATUSES: readonly DraftStatus[] = ['submitted', 'approved', 'pr_open', 'merged'];
+
+/** pr_open longer than this (checks pending, or GitHub still 'unknown' or
+ * 'blocked') ends in pr_failed. Measured from updated_at, which only a
+ * status change moves. */
+export const PR_OPEN_MAX_SECONDS = 6 * 3600;
+
+/** merged longer than this: the deploy did not show up. The draft stays
+ * `merged` (it is never called published without the site showing it) and
+ * the panel says so. */
+export const MERGED_STALE_SECONDS = 2 * 3600;
+
+/** Drafts that are finished (published, discarded, rejected) and older than
+ * this are deleted on the hourly tick. The activity log keeps their history.
+ * pr_failed drafts are left alone. */
+export const DRAFT_RETENTION_SECONDS = 90 * 86400;
+
+/** The short reasons the shepherd and the cancel action store in `failure`. */
+export const FAILURE = {
+  closed: 'closed on GitHub',
+  conflict: 'conflicts with a newer change; start a new draft',
+  timeout: 'checks did not finish',
+  cancelled: 'cancelled',
+  check: (name: string) => `check failed: ${name}`,
+} as const;
+
+/** What the panel shows for these, in both languages. */
+export const STATUS_NOTES = {
+  merged: { tr: 'Yayına çıkıyor, birkaç dakika', en: 'Going live, a few minutes' },
+  mergedStale: { tr: 'Birleşti ama site güncellenmedi, yöneticiye haber ver', en: 'Merged, but the site has not updated; tell an admin' },
+} as const;
+
+/** Whether a merged draft has waited for the site longer than MERGED_STALE_SECONDS. */
+export function mergedTooLong(row: Pick<DraftRow, 'status' | 'updated_at'>, now: number): boolean {
+  return row.status === 'merged' && now - row.updated_at > MERGED_STALE_SECONDS;
+}
 
 export function canTransition(step: keyof typeof TRANSITIONS, status: DraftStatus): boolean {
   return (TRANSITIONS[step] as readonly DraftStatus[]).includes(status);

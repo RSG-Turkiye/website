@@ -134,7 +134,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: entryId, action, data: JSON.stringify(data), base_shas: JSON.stringify(baseShas),
     status: 'draft', author_id: gate.user.id, reviewer_id: null, review_note: null, pr_url: null, pr_number: null, failure: null,
-    write_nonce: newNonce(), created_at: gate.now, updated_at: gate.now,
+    write_nonce: newNonce(), last_checked_at: null, created_at: gate.now, updated_at: gate.now,
   };
   await runWithAudit(env.DB, [env.DB.prepare(
     `INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, write_nonce, created_at, updated_at)
