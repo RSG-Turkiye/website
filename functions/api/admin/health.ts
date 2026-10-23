@@ -1,5 +1,6 @@
 import type { Env } from '../../_lib/auth';
-import { getSessionUser, jsonResponse, canSeeAdminPanel } from '../../_lib/auth';
+import { getSessionUser, jsonResponse } from '../../_lib/auth';
+import { canOpenAdminPanel } from '../../_lib/cms-access';
 import { listConnections, withLiveExpiry } from '../../_lib/connections';
 import { healthIssues } from '../../_lib/health';
 
@@ -12,7 +13,7 @@ import { healthIssues } from '../../_lib/health';
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
-  if (!canSeeAdminPanel(user)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!(await canOpenAdminPanel(env.DB, user, Math.floor(Date.now() / 1000)))) return jsonResponse({ error: 'Forbidden' }, 403);
   const canFix = user.is_admin === 1;
 
   try {

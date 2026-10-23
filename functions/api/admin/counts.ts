@@ -5,14 +5,15 @@
  * caller's own unread threads, for admins and senders alike.
  */
 import type { Env } from '../../_lib/auth';
-import { getSessionUser, jsonResponse, canSeeAdminPanel } from '../../_lib/auth';
+import { getSessionUser, jsonResponse } from '../../_lib/auth';
+import { canOpenAdminPanel } from '../../_lib/cms-access';
 
 const WEEK = 7 * 86400;
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
-  if (!canSeeAdminPanel(user)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!(await canOpenAdminPanel(env.DB, user, Math.floor(Date.now() / 1000)))) return jsonResponse({ error: 'Forbidden' }, 403);
 
   const admin = user.is_admin === 1;
   const publisher = admin || user.is_social_publisher === 1;

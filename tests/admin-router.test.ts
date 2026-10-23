@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseHash, toHash, resolveRoute } from '../src/scripts/admin/router';
 import type { RoleFlags } from '../src/scripts/admin/sections';
 
-const none: RoleFlags = { admin: false, announcer: false, symposium: false, social: false, socialPublisher: false, sender: false };
+const none: RoleFlags = { admin: false, announcer: false, symposium: false, social: false, socialPublisher: false, sender: false, cms: { etkinlikler: { edit: false, approve: false } }, canGrant: [] };
 const admin = { ...none, admin: true };
 
 test('hash round trip', () => {

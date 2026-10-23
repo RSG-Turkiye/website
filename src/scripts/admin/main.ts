@@ -10,10 +10,10 @@ import { setupConnections, loadConnections } from '../admin-connections';
 import { setupAudit, loadAudit } from '../admin-audit';
 import { setupSocial, loadSocial, showSocialTab, type Tab } from '../social';
 import { lang, t, tf, showToast } from './context';
-import { landing, rolesFromMe, type SectionId } from './sections';
+import { landing, rolesFromMe, grantedRoles, type SectionId } from './sections';
 import { startShell, refreshCounts } from './shell';
 import { loadOverview } from './overview';
-import { loadUsers, setupUsersFilters, setCurrentUserId, loadRolesView } from './sections/users';
+import { loadUsers, setupUsersFilters, setCurrentUserId, setGranter, loadRolesView } from './sections/users';
 import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } from './sections/announcements';
 import { loadBlogSubmissions } from './sections/blog';
 import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload } from './sections/mail';
@@ -77,6 +77,8 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
 
   // The shell runs a section's loader as soon as it shows it, so whatever
   // a loader needs is wired before the shell starts.
+  // A non-admin approver opens the Roles tab with just the cards they may grant.
+  setGranter({ isAdmin: isFullAdmin, activeRoles: grantedRoles(data.user) });
   if (isFullAdmin) {
     // Before the shell starts: opening /admin#kullanicilar/yetkiler renders
     // the role cards, which lock one's own Admin chip, straight away.

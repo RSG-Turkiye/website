@@ -3,7 +3,17 @@
  * routing and Overview all read. Visibility mirrors the server's role checks;
  * it never grants anything the server would refuse.
  */
-export type RoleFlags = { admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean; sender: boolean };
+import { rightsFromRoles, grantableBy, type GroupRights, type RoleKey } from '../../../functions/_lib/roles';
+
+/**
+ * `cms`: edit and approve rights per content group (from live grants; those
+ * roles have no is_* column). `canGrant`: the roles a non-admin approver may
+ * hand out, which is what opens the Roles sub-page to them.
+ */
+export type RoleFlags = {
+  admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean; sender: boolean;
+  cms: GroupRights; canGrant: RoleKey[];
+};
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
 export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
 export type CountKey = 'email' | 'social' | 'blog' | 'membership' | 'dm' | 'socialTotal';
@@ -68,9 +78,10 @@ export const SECTIONS: Section[] = [
   // Part 3 (membership) makes this visible.
   { id: 'uyelik', group: 'topluluk', label: 'admin.nav.membership', count: 'membership', subs: [], visible: () => false },
   {
-    id: 'kullanicilar', group: 'topluluk', label: 'admin.nav.users', visible: adminOnly,
+    // An approver comes in for the Roles sub-page, to grant their group's edit role.
+    id: 'kullanicilar', group: 'topluluk', label: 'admin.nav.users', visible: (r) => r.admin || r.canGrant.length > 0,
     subs: [
-      { id: 'liste', label: 'admin.nav.usersList' },
+      { id: 'liste', label: 'admin.nav.usersList', adminOnly: true },
       { id: 'yetkiler', label: 'admin.nav.roles' },
     ],
   },
@@ -102,10 +113,18 @@ export function defaultSentScope(admin: boolean, sender: boolean): SentScope {
 }
 
 const yes = (v: unknown) => v === true || v === 1;
+/** The roles of /api/me's live `grants`. */
+export function grantedRoles(u: Record<string, unknown>): string[] {
+  return Array.isArray(u.grants) ? u.grants.map((g) => (g as { role?: unknown })?.role).filter((r): r is string => typeof r === 'string') : [];
+}
+
 export function rolesFromMe(u: Record<string, unknown>): RoleFlags {
   const socialPublisher = yes(u.is_social_publisher);
+  const admin = yes(u.is_admin);
+  const roles = grantedRoles(u);
   return {
-    admin: yes(u.is_admin), announcer: yes(u.is_announcer), symposium: yes(u.is_symposium),
+    admin, announcer: yes(u.is_announcer), symposium: yes(u.is_symposium),
     social: yes(u.is_social) || socialPublisher, socialPublisher, sender: yes(u.is_sender),
+    cms: rightsFromRoles(roles, admin), canGrant: admin ? [] : grantableBy(roles),
   };
 }
