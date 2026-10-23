@@ -228,6 +228,24 @@ CREATE INDEX IF NOT EXISTS idx_content_drafts_author ON content_drafts(author_id
   - Checks pending → nothing.
   - At most 5 GitHub calls per tick in total, oldest first, so a backlog can't exhaust the rate limit.
 
+**Amendments (2026-10-24, from the GLM and DeepSeek review of this plan). These are binding:**
+- **Conflicts.** `mergeable_state: 'dirty'`, or an `updateBranch` 422 caused by a conflict, sets the draft to `pr_failed` with the reason "conflicts with a newer change; start a new draft". Never loop on it.
+- **Age cap.** If a draft has stayed `pr_open` for more than 6 hours (pending checks, `unknown`, or `blocked`), set it to `pr_failed` with "checks did not finish". `unknown` and `blocked` are only "ask again later" until the cap.
+- **Retries make new checks.** Retrying a `pr_failed` draft goes through `openContentPR` with `resetBranch`. The branch is reset to `main` and the files are committed again, which creates a new head commit, so the checks run again. A test asserts that the head sha changes on retry.
+- **One live draft per entry.** Submitting a draft is refused with 409 `entry_busy` while another draft of the same `(type, entry_id)` is `submitted`, `approved` or `pr_open`. This change goes in `cms-drafts.ts`, the submit endpoint and their tests. Otherwise a stale full-file rewrite could revert a newer merge.
+- **Budget in fetches, round robin.**
+  - Count HTTP requests, not helper calls: at most 12 GitHub fetches per tick, because Workers free has about 50 subrequests per invocation, shared with the mail work.
+  - Run the shepherd after the mail work in the tick.
+  - Add `last_checked_at INTEGER` to `CREATE TABLE content_drafts` (the table is unreleased, so this is not an ALTER). Pick drafts by `last_checked_at` ascending (nulls first), so slow PRs cannot starve newer ones.
+- **Guarded writes.** Every shepherd state change uses the `write_nonce` pattern with `runGuardedWithAudit` (`WHERE status='pr_open' AND write_nonce=?`). Two overlapping ticks then write each change and audit row exactly once.
+- **"Published" only when the site shows it.** Merging sets the new status `merged` ("Yayına çıkıyor, birkaç dakika"). The draft becomes `published` when the deployed site's `/cms-index.json` shows the draft's files, read through `env.ASSETS`.
+  - Have `src/pages/cms-index.json.ts` include each file's git blob sha, computed at build as sha1 of `"blob <len>\0" + bytes`. Compare it with the PR's file shas.
+  - For a delete, the entry is absent.
+  - Add `merged` to the status CHECK list.
+  - If `merged` lasts more than 2 hours, show "Birleşti ama site güncellenmedi, yöneticiye haber ver" and stay `merged`. Never claim `published` falsely.
+- **Retention.** Once an hour, on the prune tick, delete `published`, `discarded` and `rejected` drafts older than 90 days. The audit log keeps the history. Leave `pr_failed` drafts alone.
+- **Native GitHub auto-merge was considered and not used.** It needs an owner setting, and with strict up-to-date protection it still does not update behind branches, so `updateBranch` stays. Write a comment saying so.
+
 - [ ] **Step 1: Write the failing tests.** Cover each branch above with a fake GitHub:
   - Two drafts where the second is behind after the first merges. It is updated on the next tick and merged on the one after (Review Focus 1).
   - Failing checks lead to `pr_failed` with a reason (Review Focus 2).
@@ -264,6 +282,20 @@ What changes for the person using it:
 - Approvers see the queue. For each entry they see the changes against the published version, field by field, old → new, and they approve or send back with a note.
 - "Changed since you started" shows which file changed and offers "Reload and reapply my changes".
 - A published draft links to the live page.
+
+**Amendments (2026-10-24, from the GLM and DeepSeek review; binding):**
+- **Labels say what happens.** Use "Kaydet (siteye gitmez)" and "Onaya gönder". A banner on every draft says "Bu taslak henüz sitede değil". After approval the panel says publishing takes a few minutes, and shows Yayına çıkıyor, then Yayında.
+- **Don't lose work.** Autosave the draft at most every 20 s once it has changed. Add a `beforeunload` and in-panel navigation guard for unsaved changes. If the session has expired, say so and keep the form contents.
+- **No silent re-apply.** Replace "Reload and reapply my changes" with a side-by-side view: what is on the site now on one side, the draft on the other. The editor copies across what they want and keeps the draft. No automatic merge.
+- **Ids are not typed by people.** For a new entry, derive the id or file name from the title (or from `repo` for workshops) using the registry's `idFrom`, show it read-only, and let it change only while the draft is new.
+- **Approver diff by item.** Arrays show added, removed and moved items, not "the whole list changed". `{en,tr}` fields show both languages.
+- **Both languages are required on submit.** Before submitting, warn about any `{en,tr}` field where one language is empty. The schema already rejects empty required strings; this warning catches what reaches the server as valid but half-translated.
+- **Errors in plain words.** Map API codes to Turkish and English sentences: `changed_since`, `entry_busy`, `superseded`, `github_failed`, a failed check name ("Sitenin otomatik kontrolü bu değişikliği kabul etmedi: …"), conflict, and timeout. Show field errors with the field's label, not a path like `links[0].url`.
+- **Markdown preview.** The webinar `body` gets a simple rendered preview toggle. Use the site's own markdown renderer if one runs client-side; otherwise use plain paragraphs and links, and don't add a library just for this.
+- **Delete flow.** An approver can delete an entry: a confirm step, then a delete draft, which goes through approval like any other change.
+- **Badges.** The section's menu badge counts my drafts that need action (`rejected`, `pr_failed`), and for approvers the `submitted` queue. Wire it into the existing counts endpoint, `/api/admin/counts`.
+- **Deep links.** Route `#icerik-etkinlikler/taslaklar/<id>`, the link the PR body uses, so it opens that draft.
+- **Test the real schemas.** `tests/cms-form.test.ts` converts every `CMS_TYPES` schema with `jsonSchemaFor`, and asserts the renderer handles every keyword that appears in the output. A hand-built fixture alone is not enough.
 
 - [ ] **Step 1: Write the failing tests.**
   - `cms-form.test.ts`: the event schema plus symposium-2026 → form model → data deep-equals the input. An edited `when.tr` comes back changed. A webinar `body` round-trips.
