@@ -1,6 +1,7 @@
 import type { Env } from '../_lib/auth';
 import { getSessionUser, jsonResponse, hasSignedInMarker, signedInMarker, clearSignedInMarker, SESSION_DURATION } from '../_lib/auth';
 import { getCurrentRank } from '../_lib/rank';
+import { activeGrants } from '../_lib/role-grants';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
@@ -30,6 +31,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     'SELECT badge_code FROM user_achievement_badges WHERE user_id = ?'
   ).bind(user.id).all<{ badge_code: string }>();
 
+  const grants = await activeGrants(env.DB, user.id, Math.floor(Date.now() / 1000));
+
   const res = jsonResponse({
     user: {
       id: user.id,
@@ -42,6 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       is_symposium: user.is_symposium === 1,
       is_social: user.is_social === 1,
       is_social_publisher: user.is_social_publisher === 1,
+      grants,
     },
     profile: profile ?? null,
     badges: badges.results.map(b => b.badge),
