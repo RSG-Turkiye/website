@@ -114,6 +114,32 @@ const visible = (page, sel) => page.locator(sel).first().isVisible().catch(() =>
 const waitFor = (page, fn, arg, timeout = 5000) => page.waitForFunction(fn, arg, { timeout }).then(() => true, () => false);
 const noSideScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 
+/*
+ * DEMO=editor or DEMO=approver: no checks; a visible browser on the panel
+ * with this file's mock server and a few seeded drafts, to click through by
+ * hand. Saving, sending, approving and sending back all work, in memory
+ * only; nothing reaches GitHub or a database. Close the window to stop.
+ *
+ *   npm run build && npx astro preview --port 4329 &
+ *   DEMO=approver BASE=http://localhost:4329 node tests/browser/cms-etkinlikler.mjs
+ */
+if (process.env.DEMO) {
+  const demo = await chromium.launch({ headless: false, ...(process.env.CHROME ? { executablePath: process.env.CHROME } : {}) });
+  const who = process.env.DEMO === 'approver' ? 'approver' : 'editor';
+  const me = who === 'approver' ? 'u1' : 'u2';
+  const { page } = await open(demo, who, '#icerik-etkinlikler', { width: 1440, height: 900 }, (s) => {
+    const mk = (n, o) => s.drafts.set(`00000000-0000-4000-8000-00000000020${n}`, draftRow({ id: `00000000-0000-4000-8000-00000000020${n}`, author_id: me, ...o }));
+    mk(1, { status: 'submitted', author_id: 'u2', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: '10–11 Ekim 2026, ODTÜ' }, links: [SYM.links[1], SYM.links[0]] }, base_shas: { [PATH]: 'sha-1' } });
+    mk(2, { status: 'rejected', entry_id: 'meetup-3', review_note: 'Tarihi kontrol edin.', data: { ...SYM, id: 'meetup-3' } });
+    mk(3, { status: 'pr_failed', entry_id: 'meetup-4', failure: 'check failed: build', data: { ...SYM, id: 'meetup-4' } });
+    mk(4, { status: 'pr_open', entry_id: 'meetup-5', data: { ...SYM, id: 'meetup-5' } });
+    mk(5, { status: 'published', entry_id: 'meetup-6', data: { ...SYM, id: 'meetup-6' } });
+  });
+  await new Promise((resolve) => page.on('close', resolve));
+  await demo.close();
+  process.exit(0);
+}
+
 const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 
 console.log('1) the list: published events, newest first, "Daha fazla", my drafts row');
