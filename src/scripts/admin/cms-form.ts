@@ -98,7 +98,8 @@ export const MODELS: Record<TypeKey, TypeModel> = {
       { key: 'youtubeUrl', kind: 'text', label: 'admin.cms.f.youtubeUrl', help: 'admin.cms.h.youtubeUrl', group: 'main' },
       { key: 'description', kind: 'textarea', perLang: true, label: 'admin.cms.f.description', group: 'main', required: true },
       { key: 'body', kind: 'markdown', perLang: true, label: 'admin.cms.f.body', help: 'admin.cms.h.body', group: 'more' },
-      { key: 'year', kind: 'number', label: 'admin.cms.f.year', group: 'more', required: true },
+      // Derived from the date (applyValues), shown so the reader sees what the file gets.
+      { key: 'year', kind: 'number', label: 'admin.cms.f.year', help: 'admin.cms.h.year', group: 'more', readOnly: true },
       { key: 'type', kind: 'select', label: 'admin.cms.f.webinarType', options: ['bioinfonet', 'student'], group: 'more', required: true },
       { key: 'topic', kind: 'text', perLang: true, label: 'admin.cms.f.topic', group: 'more' },
       { key: 'keyTakeaways', kind: 'strings', perLang: true, label: 'admin.cms.f.keyTakeaways', group: 'more' },
@@ -245,6 +246,14 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
       else writeOne(f, out[lang].frontmatter, v[lang]);
     }
   }
+  // A webinar's year is its date's year (the schema checks it): never typed.
+  if (model.key === 'webinars') {
+    for (const lang of ['en', 'tr'] as const) {
+      const fm = out[lang].frontmatter;
+      const y = /^(\d{4})-\d{2}-\d{2}$/.exec(str(fm.date));
+      if (y && fm.year !== Number(y[1])) fm.year = Number(y[1]);
+    }
+  }
   return out;
 }
 
@@ -292,7 +301,8 @@ export function halfTranslated(model: TypeModel, values: Values): { key: string;
   const half = (b: Bi | undefined) => !!b && (str(b.en).trim() === '') !== (str(b.tr).trim() === '');
   for (const f of model.fields) {
     const v = values[f.key];
-    if (f.readOnly || f.approverOnly || v === undefined) continue;
+    // A required text half-filled is a field error at submit, not a warning.
+    if (f.readOnly || f.approverOnly || f.required || v === undefined) continue;
     if (model.format === 'markdown-pair') {
       if (!f.perLang) continue;
       const b = v as Bi<unknown>;
@@ -348,6 +358,8 @@ export function messageKey(message: string): string {
   if (/gives the file its name/.test(m)) return 'admin.cms.v.idFixed';
   if (/no letters or digits|Invalid id/.test(m)) return 'admin.cms.v.idMissing';
   if (/same as the English side/.test(m)) return 'admin.cms.v.keySame';
+  if (/already exists/.test(m)) return 'admin.cms.v.exists';
+  if (/not the date's year/.test(m)) return 'admin.cms.v.year';
   return 'admin.cms.v.invalid';
 }
 
@@ -441,4 +453,68 @@ export function livePath(typeKey: string, entryId: string, paths: string[], lang
 /** The body of renderBody's HTML document (functions/_lib/markdown.ts). */
 export function previewHtml(rendered: string): string {
   return rendered.replace(/^<html><body>/, '').replace(/<\/body><\/html>$/, '');
+}
+
+// ── Local backups ────────────────────────────────────────────────────────────
+
+/** A form's unsaved copy in this browser. */
+export interface Backup {
+  data: unknown;
+  /** When it was written (seconds). */
+  at: number;
+  /** The draft version it was made on (the draft's updated_at), or null before a draft exists. */
+  updated_at: number | null;
+  /** The files it was read at, for an edit of a published entry. */
+  base_shas: Record<string, string | null> | null;
+}
+
+/** A backup older than this is dropped unread. */
+export const BACKUP_MAX_AGE = 14 * 86400;
+
+/** Per signed-in person: someone else on this browser never sees it. */
+export const backupStorageKey = (userId: string, key: string) => `rsg:cms:${userId}:${key}`;
+
+/** The panel's backups that belong to anyone but `userId` (and old unkeyed ones). */
+export function othersBackupKeys(keys: string[], userId: string): string[] {
+  return keys.filter((k) => k.startsWith('rsg:cms:') && !k.startsWith(`rsg:cms:${userId}:`));
+}
+
+const isShas = (v: unknown) => isObj(v) && Object.values(v).every((x) => x === null || typeof x === 'string');
+
+/** A stored backup, or null for anything that is not one. */
+export function parseBackup(raw: string | null): Backup | null {
+  if (!raw) return null;
+  let v: unknown;
+  try { v = JSON.parse(raw); } catch { return null; }
+  if (!isObj(v) || !('data' in v) || typeof v.at !== 'number') return null;
+  const updated = v.updated_at === undefined || v.updated_at === null ? null : v.updated_at;
+  const shas = v.base_shas === undefined || v.base_shas === null ? null : v.base_shas;
+  if (updated !== null && typeof updated !== 'number') return null;
+  if (shas !== null && !isShas(shas)) return null;
+  return { data: v.data, at: v.at, updated_at: updated as number | null, base_shas: shas as Record<string, string | null> | null };
+}
+
+/**
+ * What to do with a backup against what the server returned. It wins on its
+ * own only when it was made on that very version and after it (a draft), or
+ * on the same files (an edit of a published entry), or when there is nothing
+ * on the server yet (a new entry). Otherwise the person compares and chooses.
+ */
+export function backupChoice(b: Backup, server: { updated_at: number | null; base_shas: Record<string, string | null> | null }, now: number): 'restore' | 'ask' | 'expired' {
+  if (now - b.at > BACKUP_MAX_AGE) return 'expired';
+  if (server.updated_at !== null) return b.updated_at === server.updated_at && b.at >= server.updated_at ? 'restore' : 'ask';
+  if (server.base_shas) return b.base_shas && same(b.base_shas, server.base_shas) ? 'restore' : 'ask';
+  return 'restore';
+}
+
+/** The image upload's error (functions/api/blog-submissions/upload-image.ts) as an i18n key. */
+export function uploadErrorKey(message: string): string {
+  const m = message ?? '';
+  if (/Unsupported image type/.test(m)) return 'admin.cms.image.err.type';
+  if (/too large/.test(m)) return 'admin.cms.image.err.size';
+  if (/^Image is \d+x\d+px/.test(m)) return 'admin.cms.image.err.dimensions';
+  if (/does not look like/.test(m)) return 'admin.cms.image.err.notImage';
+  if (/Not authenticated/.test(m)) return 'admin.cms.error.unauthenticated';
+  if (/Forbidden/.test(m)) return 'admin.cms.error.forbidden';
+  return 'admin.cms.image.failed';
 }

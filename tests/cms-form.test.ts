@@ -225,7 +225,7 @@ test('half-translated texts are found, whole and empty ones are not', () => {
   const values = formValues(MODELS.events, data);
   assert.deepEqual(halfTranslated(MODELS.events, values), []);
   const half = { ...values, location: { en: 'Ankara', tr: '' }, links: [{ label: { en: 'Site', tr: '' }, url: 'https://x' }] };
-  assert.deepEqual(halfTranslated(MODELS.events, half).map((h) => h.key), ['location', 'links']);
+  assert.deepEqual(halfTranslated(MODELS.events, half).map((h) => h.key), ['links'], 'location is required: its field error covers it');
   const w = formValues(MODELS.webinars, pair('ai-approaches-biomolecular-representation'));
   assert.deepEqual(halfTranslated(MODELS.webinars, { ...w, topic: { en: 'ML', tr: '' } }).map((h) => h.key), ['topic']);
 });
@@ -278,4 +278,68 @@ test('every admin.cms key the panel\'s scripts look up exists in both languages'
   for (const s of ['create', 'update', 'delete']) assert.ok(`admin.cms.action.${s}` in ui.tr, s);
   for (const s of ['added', 'removed', 'moved', 'same']) assert.ok(`admin.cms.diff.${s}` in ui.tr, s);
   for (const m of Object.values(MODELS)) for (const f of m.fields) for (const o of f.options ?? []) assert.ok(`admin.cms.opt.${o}` in ui.tr && `admin.cms.opt.${o}` in ui.en, o);
+});
+
+// ── Task 7, fix round 1 ───────────────────────────────────────────────────────
+
+import { backupChoice, backupStorageKey, othersBackupKeys, parseBackup, uploadErrorKey, BACKUP_MAX_AGE } from '../src/scripts/admin/cms-form';
+
+test('a local backup is restored only when it is newer than, and based on, what the server has', () => {
+  const now = 1_000_000;
+  const b = (o: Record<string, unknown>) => ({ data: { x: 1 }, at: now - 60, updated_at: null, base_shas: null, ...o });
+  // A draft: same version it was made on, and newer than it.
+  assert.equal(backupChoice(b({ updated_at: now - 300 }), { updated_at: now - 300, base_shas: null }, now), 'restore');
+  // Another tab or device saved since: never silently.
+  assert.equal(backupChoice(b({ updated_at: now - 900 }), { updated_at: now - 300, base_shas: null }, now), 'ask');
+  assert.equal(backupChoice(b({ at: now - 400, updated_at: now - 300 }), { updated_at: now - 300, base_shas: null }, now), 'ask');
+  // A published entry: the files must still be the ones it was read at.
+  assert.equal(backupChoice(b({ base_shas: { a: '1' } }), { updated_at: null, base_shas: { a: '1' } }, now), 'restore');
+  assert.equal(backupChoice(b({ base_shas: { a: '1' } }), { updated_at: null, base_shas: { a: '2' } }, now), 'ask');
+  // A new entry has nothing on the server to be older than.
+  assert.equal(backupChoice(b({}), { updated_at: null, base_shas: null }, now), 'restore');
+  assert.equal(backupChoice(b({ at: now - BACKUP_MAX_AGE - 1 }), { updated_at: null, base_shas: null }, now), 'expired');
+});
+
+test('backups are per person, and anything that is not one is ignored', () => {
+  assert.equal(backupStorageKey('u1', 'new:events'), 'rsg:cms:u1:new:events');
+  assert.deepEqual(othersBackupKeys(['rsg:cms:u1:a', 'rsg:cms:u2:b', 'rsg:cms:legacy', 'rsg:podcast', 'rsg_me_cache'], 'u1'), ['rsg:cms:u2:b', 'rsg:cms:legacy']);
+  assert.equal(parseBackup('not json'), null);
+  assert.equal(parseBackup(JSON.stringify({ data: {}, at: 'yesterday' })), null);
+  assert.equal(parseBackup(JSON.stringify([1, 2])), null);
+  assert.deepEqual(parseBackup(JSON.stringify({ data: { a: 1 }, at: 5, updated_at: 3, base_shas: { p: null } })), { data: { a: 1 }, at: 5, updated_at: 3, base_shas: { p: null } });
+});
+
+test('a webinar\'s year follows its date and is not typed', () => {
+  const year = MODELS.webinars.fields.find((f) => f.key === 'year')!;
+  assert.ok(year.readOnly);
+  const base = emptyData(MODELS.webinars);
+  const values = formValues(MODELS.webinars, base);
+  const out = applyValues(MODELS.webinars, base, { ...values, date: { en: '2027-02-03', tr: '2027-02-03' } }) as any;
+  assert.equal(out.en.frontmatter.year, 2027);
+  assert.equal(out.tr.frontmatter.year, 2027);
+});
+
+test('required fields are marked; the half-translation warning is only for optional ones', () => {
+  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const values = formValues(MODELS.events, data);
+  // A required field half-filled is a field error at submit, not this warning.
+  assert.deepEqual(halfTranslated(MODELS.events, { ...values, title: { en: 'x', tr: '' } }), []);
+  assert.ok(MODELS.events.fields.find((f) => f.key === 'title')!.required);
+  assert.equal(messageKey('An entry with this name already exists'), 'admin.cms.v.exists');
+});
+
+test('image upload errors in plain words', () => {
+  assert.equal(uploadErrorKey('Unsupported image type. Use JPEG, PNG, WebP, or GIF.'), 'admin.cms.image.err.type');
+  assert.equal(uploadErrorKey('Image too large (max 5MB)'), 'admin.cms.image.err.size');
+  assert.equal(uploadErrorKey('Image is 4000x3000px. The limit is 2000px'), 'admin.cms.image.err.dimensions');
+  assert.equal(uploadErrorKey('That file does not look like a JPEG, PNG, WebP or GIF.'), 'admin.cms.image.err.notImage');
+  assert.equal(uploadErrorKey('Not authenticated'), 'admin.cms.error.unauthenticated');
+  assert.equal(uploadErrorKey('Upload failed (500)'), 'admin.cms.image.failed');
+  for (const k of ['type', 'size', 'dimensions', 'notImage']) assert.ok(`admin.cms.image.err.${k}` in ui.tr && `admin.cms.image.err.${k}` in ui.en, k);
+});
+
+test('a change to the internal note alone is a change the approver sees', () => {
+  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const d = diffEntry(MODELS.events, data, { ...data, note: 'updated' }, visibleFields(MODELS.events, true));
+  assert.deepEqual(d.changed.map((c) => c.field.key), ['note']);
 });
