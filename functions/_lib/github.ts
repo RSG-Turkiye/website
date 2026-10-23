@@ -882,14 +882,15 @@ export async function prForBranch(branchName: string, env: Env): Promise<BranchP
 }
 
 /** Deletes a branch (closing any open pull request from it). 'absent' when
- * GitHub answers 404; 'failed' on a 422, which the caller cannot read as
- * "gone" (the branch, and a pull request on it, may still be there). Only
- * for cms/ branches. Other errors throw, carrying the status only. */
+ * GitHub answers 404, or 422 "Reference does not exist" (what it says for
+ * a branch already deleted); 'failed' on any other 422, which the caller
+ * cannot read as "gone" (the branch, and a pull request on it, may still be
+ * there). Only for cms/ branches. Other errors throw, carrying the status only. */
 export async function deleteBranch(branchName: string, env: Env): Promise<'deleted' | 'absent' | 'failed'> {
   if (!branchName.startsWith('cms/')) throw new Error('deleteBranch is only for cms/ branches');
   const res = await githubRequest(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/${branchName}`, { method: 'DELETE' }, env);
   if (res.status === 404) return 'absent';
-  if (res.status === 422) return 'failed';
+  if (res.status === 422) return /reference does not exist/i.test(await res.text().catch(() => '')) ? 'absent' : 'failed';
   if (!res.ok) throw new Error(`Failed to delete branch ${branchName} (${res.status})`);
   return 'deleted';
 }

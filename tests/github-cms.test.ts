@@ -547,10 +547,15 @@ test('every GitHub request carries a timeout signal', async () => {
   });
 });
 
-test('deleteBranch: only a 404 is "absent"; a 422 is "failed"', async () => {
-  for (const [status, out] of [[204, 'deleted'], [404, 'absent'], [422, 'failed']] as const) {
-    await withFetch(() => new Response(status === 204 ? null : '{}', { status }), async () => {
-      assert.equal(await deleteBranch('cms/x', env), out, String(status));
+test('deleteBranch: 404, or a 422 saying the reference does not exist, is "absent"; any other 422 is "failed"', async () => {
+  for (const [status, text, out] of [
+    [204, null, 'deleted'],
+    [404, '{}', 'absent'],
+    [422, '{"message":"Reference does not exist"}', 'absent'],
+    [422, '{"message":"Validation failed"}', 'failed'],
+  ] as const) {
+    await withFetch(() => new Response(text, { status }), async () => {
+      assert.equal(await deleteBranch('cms/x', env), out, `${status} ${text}`);
     });
   }
 });
