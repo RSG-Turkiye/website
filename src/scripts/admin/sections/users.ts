@@ -334,31 +334,45 @@ function trDative(spoken: string): string {
   return /[aıoueiöü]$/.test(spoken) ? `y${v}` : v;
 }
 
-/** "until 23 Nov" / "23 Kas'a kadar", with the year only when it is not this year. */
-function untilLabel(ts: number): string {
-  const day = istanbulDay(ts);
+/**
+ * "until 30 Nov" / "30 Kasım'a kadar", with the year only when it is not this
+ * year. `ends` is the first moment without the role, so the day shown is the
+ * one of the second before it: a date picked as "until 30 Nov" ends at 00:00
+ * on 1 Dec and shows 30 Nov; a grant by months ends mid-day and shows that day.
+ */
+function untilLabel(ends: number): string {
+  const last = ends - 1;
+  const day = istanbulDay(last);
   const year = Number(day.slice(0, 4));
   const withYear = year !== Number(istanbulDay(nowSeconds()).slice(0, 4));
-  const date = new Date(ts * 1000).toLocaleDateString(dateLocale, {
-    day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'Europe/Istanbul',
+  const date = new Date(last * 1000).toLocaleDateString(dateLocale, {
+    day: 'numeric', month: lang === 'tr' ? 'long' : 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'Europe/Istanbul',
   });
   if (lang !== 'tr') return tf('admin.roles.until', { date });
-  // The ending follows the word read last: the full month name, or the year's last spoken number.
+  // The ending follows the word read last: the month name, or the year's last spoken number.
   const spoken = withYear
     ? TR_UNITS[year % 10] || TR_TENS[Math.floor(year / 10) % 10] || (year % 1000 ? 'yüz' : 'bin')
     : TR_MONTHS[Number(day.slice(5, 7)) - 1];
   return tf('admin.roles.until', { date: `${date}'${trDative(spoken)}` });
 }
 
+/** The live grant's end for this person and role; null when permanent or when only the legacy flag is set. */
+const grantEnd = (u: User, r: RoleSwitch): number | null =>
+  (u.grants as Grant[] | undefined)?.find((g) => g.role === r.role)?.expires_at ?? null;
+
 /**
- * The duration choice, for adding and renewing alike. A chosen date ends at
- * the start of that day in Istanbul, so the latest date offered is one the
- * rule accepts and the earliest is tomorrow.
+ * The duration choice, for adding and renewing alike. A picked date is
+ * inclusive: the role is held through that day and ends at 00:00 Istanbul the
+ * next day. So the earliest date is today and the latest is the last day whose
+ * following midnight the rule still accepts. Istanbul has no DST, so a day is
+ * always 86400 s. Renewing a dated grant preselects the longest month count,
+ * never Permanent, which stays an explicit choice.
  */
-function durationPicker(r: RoleSwitch, who: string, confirmLabel: string): string {
+function durationPicker(r: RoleSwitch, who: string, confirmLabel: string, renewing = false): string {
   const now = nowSeconds();
   const { months, permanent, latest, leader } = allowedDurations(r, now);
-  const preset = leader && permanent ? 'permanent' : String(months[0]);
+  const preset = renewing ? String(months[months.length - 1]) : leader && permanent ? 'permanent' : String(months[0]);
+  const lastDay = istanbulDay(latest - DAY);
   const choices: [string, string][] = [
     ...months.map((m): [string, string] => [String(m), m === 1 ? t('admin.roles.oneMonth') : tf('admin.roles.months', { n: m })]),
     ['date', t('admin.roles.untilDate')],
@@ -372,29 +386,53 @@ function durationPicker(r: RoleSwitch, who: string, confirmLabel: string): strin
         ${choices.map(([v, label]) => `<option value="${v}"${v === preset ? ' selected' : ''}>${escapeHtml(label)}</option>`).join('')}
       </select>
       <input data-until type="date" aria-label="${escapeHtml(t('admin.roles.endDate'))}"
-        min="${istanbulDay(now + DAY)}" max="${istanbulDay(latest)}" value="${istanbulDay(latest)}" class="hidden ${field}" />
-      <button type="button" data-picker-confirm class="${BTN.primary}">${escapeHtml(confirmLabel)}</button>
-      <button type="button" data-picker-cancel class="${BTN.ghost}">${t('admin.roles.cancel')}</button>
+        min="${istanbulDay(now)}" max="${lastDay}" value="${lastDay}" class="hidden ${field}" />
+      <div class="flex items-center gap-2">
+        <button type="button" data-picker-confirm class="${BTN.primary}">${escapeHtml(confirmLabel)}</button>
+        <button type="button" data-picker-cancel class="${BTN.ghost}">${t('admin.roles.cancel')}</button>
+      </div>
     </div>
+    <p data-not-later class="hidden mt-2 text-xs text-gray-600"></p>
   </div>`;
 }
 
-/** Wires a picker rendered into `slot`; `onConfirm` gets the chosen duration and the button to disable. */
-function armPicker(slot: HTMLElement, onConfirm: (d: Duration, btn: HTMLButtonElement) => void, onCancel: () => void): void {
+/**
+ * Wires a picker rendered into `slot`; `onConfirm` gets the chosen duration
+ * and the button to disable. With `currentEnd` (a renew), a choice that would
+ * not end later disables the button and says why: the server would keep the
+ * old grant, and a "done" toast would claim a change that did not happen.
+ */
+function armPicker(slot: HTMLElement, onConfirm: (d: Duration, btn: HTMLButtonElement) => void, onCancel: () => void, currentEnd: number | null = null): void {
   const select = slot.querySelector('[data-duration]') as unknown as HTMLSelectElement;
   const until = slot.querySelector<HTMLInputElement>('[data-until]')!;
+  const confirm = slot.querySelector('[data-picker-confirm]') as HTMLButtonElement;
+  const note = slot.querySelector<HTMLElement>('[data-not-later]')!;
+  const chosen = (): Duration | null => {
+    if (select.value === 'permanent') return { permanent: true };
+    if (select.value === 'date') {
+      const start = istanbulInputToEpoch(`${until.value}T00:00`);
+      return start === undefined ? null : { until: start + DAY };
+    }
+    return { months: Number(select.value) as 1 };
+  };
+  const check = () => {
+    if (currentEnd === null) return;
+    const d = chosen();
+    const end = !d ? null : 'until' in d ? d.until : 'months' in d ? addMonths(nowSeconds(), d.months) : Infinity;
+    const notLater = end !== null && end <= currentEnd;
+    confirm.disabled = notLater;
+    note.textContent = notLater ? tf('admin.roles.notLater', { until: untilLabel(currentEnd) }) : '';
+    note.classList.toggle('hidden', !notLater);
+  };
   select.addEventListener('change', () => {
     until.classList.toggle('hidden', select.value !== 'date');
     if (select.value === 'date') until.focus();
+    check();
   });
-  const confirm = slot.querySelector('[data-picker-confirm]') as HTMLButtonElement;
+  until.addEventListener('input', check);
+  until.addEventListener('change', check);
   confirm.addEventListener('click', () => {
-    let d: Duration | null = null;
-    if (select.value === 'permanent') d = { permanent: true };
-    else if (select.value === 'date') {
-      const at = istanbulInputToEpoch(`${until.value}T00:00`);
-      if (at !== undefined) d = { until: at };
-    } else d = { months: Number(select.value) as 1 };
+    const d = chosen();
     if (!d) {
       showToast(t('admin.roles.err.badDuration'), true);
       return;
@@ -402,6 +440,7 @@ function armPicker(slot: HTMLElement, onConfirm: (d: Duration, btn: HTMLButtonEl
     onConfirm(d, confirm);
   });
   slot.querySelector('[data-picker-cancel]')!.addEventListener('click', onCancel);
+  check();
   select.focus();
 }
 
@@ -410,7 +449,7 @@ type Grant = { role: string; expires_at: number | null };
 function personChip(u: User, r: RoleSwitch, now: number): string {
   const name = escapeHtml(displayName(u));
   // A holder with no live grant row (the legacy flag alone) shows no date.
-  const ends = (u.grants as Grant[] | undefined)?.find((g) => g.role === r.role)?.expires_at ?? null;
+  const ends = grantEnd(u, r);
   const soon = ends !== null && ends - now <= 7 * DAY;
   const icon = `shrink-0 min-w-11 min-h-11 lg:min-w-7 lg:min-h-7 px-2 inline-flex items-center justify-center rounded-full text-gray-500 ${FOCUS}`;
   const renew = ends === null ? '' : `
@@ -469,8 +508,8 @@ export function renderRolesView(users: User[]): void {
       if (remove) armConfirm(remove, CONFIRM(), () => doAction(p.dataset.person!, r.off, remove));
       p.querySelector('[data-renew]')?.addEventListener('click', () => {
         const u = users.find((x) => String(x.id) === p.dataset.person)!;
-        renewSlot.innerHTML = durationPicker(r, displayName(u), t('admin.roles.renew'));
-        armPicker(renewSlot, (d, btn) => void doAction(p.dataset.person!, r.on, btn, undefined, d), () => { renewSlot.innerHTML = ''; });
+        renewSlot.innerHTML = durationPicker(r, displayName(u), t('admin.roles.renew'), true);
+        armPicker(renewSlot, (d, btn) => void doAction(p.dataset.person!, r.on, btn, undefined, d), () => { renewSlot.innerHTML = ''; }, grantEnd(u, r));
       });
     });
 

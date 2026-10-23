@@ -68,6 +68,9 @@ const holders = [
     grants: [{ role: 'writer', expires_at: NOW + 3 * DAY }] },
   { id: 'u5', email: 'kalici@example.org', display_name: 'Kalıcı Admin', is_member: 1, is_admin: 1, created_at: 1,
     grants: [{ role: 'admin', expires_at: null }] },
+  // Picked as a date: ends at 00:00 Istanbul, ten days on.
+  { id: 'u6', email: 'tarihli@example.org', display_name: 'Tarihli Lider', is_member: 1, is_symposium: 1, created_at: 1,
+    grants: [{ role: 'symposium', expires_at: Math.floor((NOW + 3 * 3600) / DAY) * DAY - 3 * 3600 + 10 * DAY }] },
 ];
 const json = (value) => (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(value) });
 await page.route('**/api/admin/blog-submissions**', json({ submissions: [] }));
@@ -125,6 +128,10 @@ await page.goto(BASE + '/admin#kullanicilar/yetkiler', { waitUntil: 'networkidle
 await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person="u3"]');
 const chipText = (card, id) => page.textContent(`#rolesView [data-role-card="${card}"] [data-person="${id}"]`).then((s) => (s ?? '').replace(/\s+/g, ' '));
 const istanbulDay = (ts) => new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', timeZone: 'Europe/Istanbul' });
+const u6End = holders[3].grants[0].expires_at;
+const u6Chip = await chipText('is_symposium', 'u6');
+ok(u6Chip.includes(` ${istanbulDay(u6End - 1)} `) && !u6Chip.includes(` ${istanbulDay(u6End)} `),
+  `gece yarısı biten yetki son günü gösterir (${istanbulDay(u6End - 1)}): "${u6Chip.trim()}"`);
 const writerChip = await chipText('is_writer', 'u3');
 ok(/\d/.test(writerChip) && writerChip.includes(istanbulDay(NOW + 20 * DAY)), `bitiş tarihi çipte görünür: "${writerChip.trim()}"`);
 const adminChip = await chipText('is_admin', 'u5');
@@ -154,23 +161,24 @@ await page.selectOption('#rolesView [data-role-card="is_writer"] [data-duration]
 const until = page.locator('#rolesView [data-role-card="is_writer"] [data-until]');
 ok(await until.isVisible(), 'tarih seçilince tarih alanı görünür');
 const max = await until.getAttribute('max');
-const monthAway = new Date((NOW + 3 * 3600) * 1000);
-monthAway.setUTCMonth(monthAway.getUTCMonth() + 1);
-const expectedMax = monthAway.toISOString().slice(0, 10);
-ok(max === expectedMax || max === ymd(NOW + 31 * DAY) || max === ymd(NOW + 30 * DAY), `tarih en çok bir ay sonrası: max=${max}, beklenen ${expectedMax}`);
-ok(max < ymd(NOW + 32 * DAY), 'tarih bir aydan uzağa gitmez');
-// The latest date offered must be one the server accepts: the rule in
-// functions/_lib/roles.ts (addMonths in Türkiye time, keeping the hour).
+const min = await until.getAttribute('min');
+// The server's limit: addMonths(now, 1) in Türkiye time, keeping the hour
+// (functions/_lib/roles.ts). A picked date is inclusive, so it is sent as
+// 00:00 of the next day, and the last date offered is the last whose next
+// midnight is within the limit.
+const TR = 3 * 3600;
+const d0 = new Date((NOW + TR) * 1000);
+const lastOfNext = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 2, 0)).getUTCDate();
+const limit = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, Math.min(d0.getUTCDate(), lastOfNext),
+  d0.getUTCHours(), d0.getUTCMinutes(), d0.getUTCSeconds()) / 1000 - TR;
+ok(max === ymd(limit - DAY), `en geç tarih izin verilen son gün: max=${max}, beklenen ${ymd(limit - DAY)}`);
+ok(min === ymd(NOW), `en erken tarih bugün: min=${min}`);
 await page.click('#rolesView [data-role-card="is_writer"] [data-picker-confirm]');
 for (let i = 0; i < 60 && !bodies.length; i++) await new Promise((r) => setTimeout(r, 50));
 const sent = bodies[0]?.duration?.until;
-const TR = 3 * 3600;
-const d0 = new Date((NOW + TR) * 1000);
-const last = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 2, 0)).getUTCDate();
-const limit = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, Math.min(d0.getUTCDate(), last),
-  d0.getUTCHours(), d0.getUTCMinutes(), d0.getUTCSeconds()) / 1000 - TR;
-ok(typeof sent === 'number' && sent > NOW && sent <= limit && ymd(sent) === max,
-  `en geç tarih sunucunun kabul edeceği gün başı: until=${sent} (${sent && new Date(sent * 1000).toISOString()}), sınır ${limit}`);
+ok(typeof sent === 'number' && sent > NOW && sent <= limit, `sunucu kabul eder: until=${sent} <= ${limit}`);
+ok(typeof sent === 'number' && ymd(sent - 1) === max && ymd(sent) !== max && (sent + TR) % DAY === 0,
+  `seçilen gün dahil: ertesi günün 00:00'ı gider (${sent && new Date(sent * 1000).toISOString()})`);
 bodies.length = 0;
 
 await pick('is_symposium', 'organiser', 'u2');
@@ -193,6 +201,20 @@ for (let i = 0; i < 60 && bodies.length < 2; i++) await new Promise((r) => setTi
 ok(JSON.stringify(bodies[1]) === JSON.stringify({ user_id: 'u3', action: 'make_writer', duration: { months: 1 } }),
   `yenile aynı kuralla gönderir: ${JSON.stringify(bodies[1])}`);
 
+await page.waitForSelector('#rolesView [data-role-card="is_symposium"] [data-person="u6"] [data-renew]');
+await page.click('#rolesView [data-role-card="is_symposium"] [data-person="u6"] [data-renew]');
+await page.waitForSelector('#rolesView [data-role-card="is_symposium"] [data-renew-slot] [data-duration]');
+const renewSel = '#rolesView [data-role-card="is_symposium"] [data-renew-slot]';
+ok(await page.$eval(`${renewSel} [data-duration]`, (x) => x.value) === '12', 'süreli lider yetkisini yenilerken 12 ay seçili, Süresiz değil');
+ok((await page.$$eval(`${renewSel} [data-duration] option`, (os) => os.map((o) => o.value))).includes('permanent'), 'Süresiz yine seçilebilir');
+await page.selectOption(`${renewSel} [data-duration]`, 'date');
+await page.fill(`${renewSel} [data-until]`, ymd(NOW));
+ok(await page.locator(`${renewSel} [data-picker-confirm]`).isDisabled(), 'şimdiki bitişten erken bir tarihte Yenile kapalı');
+ok(await page.locator(`${renewSel} [data-not-later]`).isVisible(), 'nedenini söyler');
+await page.selectOption(`${renewSel} [data-duration]`, '1');
+ok(await page.locator(`${renewSel} [data-picker-confirm]`).isEnabled(), 'daha geç bir bitişte Yenile açılır');
+await page.click(`${renewSel} [data-picker-cancel]`);
+
 console.log('7) sunucunun 400 kodu son sözdür');
 await page.route('**/api/admin/users**', (r) => r.request().method() === 'PATCH'
   ? r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Invalid duration', code: 'too_long' }) })
@@ -207,7 +229,8 @@ console.log('8) Türkçe çip');
 await page.goto(BASE + '/tr/admin#kullanicilar/yetkiler', { waitUntil: 'networkidle' });
 await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person="u3"]');
 const trChip = await chipText('is_writer', 'u3');
-ok(/\d+ \S+'y?[ae] kadar/.test(trChip), `tarih Türkçe ekle yazılır: "${trChip.trim()}"`);
+const trMonth = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][Number(ymd(NOW + 20 * DAY - 1).slice(5, 7)) - 1];
+ok(new RegExp(`\\d+ ${trMonth}'[ae] kadar`).test(trChip), `tarih tam ay adı ve ekle yazılır (${trMonth}): "${trChip.trim()}"`);
 
 await browser.close();
 console.log(bad.length ? `\n${bad.length} SORUN:\n - ` + bad.join('\n - ') : '\nHEPSİ GEÇTİ');
