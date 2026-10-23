@@ -462,8 +462,10 @@ export interface Backup {
   data: unknown;
   /** When it was written (seconds). */
   at: number;
-  /** The draft version it was made on (the draft's updated_at), or null before a draft exists. */
+  /** The draft's updated_at when it was made, or null before a draft exists. Shown, not compared. */
   updated_at: number | null;
+  /** The draft version it was typed on (the write_nonce this tab last received), or null. */
+  write_nonce: string | null;
   /** The files it was read at, for an edit of a published entry. */
   base_shas: Record<string, string | null> | null;
 }
@@ -489,20 +491,24 @@ export function parseBackup(raw: string | null): Backup | null {
   if (!isObj(v) || !('data' in v) || typeof v.at !== 'number') return null;
   const updated = v.updated_at === undefined || v.updated_at === null ? null : v.updated_at;
   const shas = v.base_shas === undefined || v.base_shas === null ? null : v.base_shas;
+  const nonce = v.write_nonce === undefined || v.write_nonce === null ? null : v.write_nonce;
   if (updated !== null && typeof updated !== 'number') return null;
+  if (nonce !== null && typeof nonce !== 'string') return null;
   if (shas !== null && !isShas(shas)) return null;
-  return { data: v.data, at: v.at, updated_at: updated as number | null, base_shas: shas as Record<string, string | null> | null };
+  return { data: v.data, at: v.at, updated_at: updated as number | null, write_nonce: nonce as string | null, base_shas: shas as Record<string, string | null> | null };
 }
 
 /**
  * What to do with a backup against what the server returned. It wins on its
- * own only when it was made on that very version and after it (a draft), or
- * on the same files (an edit of a published entry), or when there is nothing
- * on the server yet (a new entry). Otherwise the person compares and chooses.
+ * own only when it was typed on the very version the server has now (a
+ * draft: the same write_nonce, which this tab received before typing; no
+ * clocks compared), or on the same files (an edit of a published entry), or
+ * when there is nothing on the server yet (a new entry). Otherwise the
+ * person compares and chooses. `server.write_nonce` is set for a draft.
  */
-export function backupChoice(b: Backup, server: { updated_at: number | null; base_shas: Record<string, string | null> | null }, now: number): 'restore' | 'ask' | 'expired' {
+export function backupChoice(b: Backup, server: { write_nonce: string | null; base_shas: Record<string, string | null> | null }, now: number): 'restore' | 'ask' | 'expired' {
   if (now - b.at > BACKUP_MAX_AGE) return 'expired';
-  if (server.updated_at !== null) return b.updated_at === server.updated_at && b.at >= server.updated_at ? 'restore' : 'ask';
+  if (server.write_nonce !== null) return b.write_nonce === server.write_nonce ? 'restore' : 'ask';
   if (server.base_shas) return b.base_shas && same(b.base_shas, server.base_shas) ? 'restore' : 'ask';
   return 'restore';
 }
@@ -517,4 +523,14 @@ export function uploadErrorKey(message: string): string {
   if (/Not authenticated/.test(m)) return 'admin.cms.error.unauthenticated';
   if (/Forbidden/.test(m)) return 'admin.cms.error.forbidden';
   return 'admin.cms.image.failed';
+}
+
+/** Where a copy being offered (Karşılaştır / Sil) is kept, so typing meanwhile never overwrites it. */
+export const offeredKey = (key: string) => `${key}:offered`;
+
+/** Whether two JSON values are the same data, whatever the order of object keys. */
+export function sameData(a: unknown, b: unknown): boolean {
+  const canon = (v: unknown): unknown => Array.isArray(v) ? v.map(canon)
+    : isObj(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v;
+  return JSON.stringify(canon(a)) === JSON.stringify(canon(b));
 }

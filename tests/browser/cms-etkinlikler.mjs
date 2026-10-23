@@ -74,6 +74,13 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       if (state.uploadFail) return json({ error: state.uploadFail }, 400);
       return json({ url: '/api/images/uploaded.webp', key: 'uploaded.webp', width: 10, height: 10 });
     }
+    if (p.startsWith('/api/cms/drafts/') && method === 'PATCH' && state.abortNextPatch) {
+      // The save lands, but its answer never comes back.
+      state.abortNextPatch = false;
+      const d = state.drafts.get(p.split('/').pop());
+      d.data = body.data; d.write_nonce = `n${Math.random()}`; d.updated_at = Math.floor(Date.now() / 1000);
+      return r.abort('failed');
+    }
     if (p === '/api/cms/entry' && state.entryFail) return json({ error: 'GitHub did not answer', code: 'github_failed' }, 502);
     if (p === '/api/cms/entries') return json({ type: url.searchParams.get('type'), entries: ENTRIES[url.searchParams.get('type')] ?? [] });
     if (p === '/api/cms/entry') {
@@ -429,7 +436,7 @@ await section('F2) a local copy never silently wins; other people\'s copies go; 
   });
   // A copy made on an older version of the draft, and one of another person.
   await page.evaluate(([key, older, now]) => {
-    localStorage.setItem(key, JSON.stringify({ data: { ...older, when: { en: 'x', tr: 'Bu cihazdaki tarih' } }, at: now - 30, updated_at: now - 3600, base_shas: null }));
+    localStorage.setItem(key, JSON.stringify({ data: { ...older, when: { en: 'x', tr: 'Bu cihazdaki tarih' } }, at: now - 30, updated_at: now - 3600, write_nonce: 'an-older-version', base_shas: null }));
     localStorage.setItem('rsg:cms:someone-else:new:events', JSON.stringify({ data: {}, at: now, updated_at: null, base_shas: null }));
   }, [`rsg:cms:u2:${id}`, SYM, NOW]);
   await page.reload({ waitUntil: 'networkidle' });
@@ -437,7 +444,13 @@ await section('F2) a local copy never silently wins; other people\'s copies go; 
   await page.waitForSelector('[data-field="when"][data-lang="tr"]');
   ok(await page.inputValue('[data-field="when"][data-lang="tr"]') === SYM.when.tr, 'the saved version is what the form shows');
   ok(await waitFor(page, () => /daha eski bir kopya var/.test(document.getElementById('cmsBackup')?.textContent ?? '')), '"Bu tarayıcıda kaydedilmemiş daha eski bir kopya var"');
+  // Typing before choosing does not overwrite the copy on offer, and a reload offers it again.
+  await page.fill('[data-field="location"][data-lang="tr"]', 'Yazdım, seçmeden');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('[data-field="when"][data-lang="tr"]');
+  ok(await waitFor(page, () => /daha eski bir kopya var/.test(document.getElementById('cmsBackup')?.textContent ?? '')), 'after typing and a reload, the older copy is still offered');
   await page.click('[data-backup-compare]');
+  ok((await page.textContent('#cmsBackup')).includes('Bu cihazdaki tarih'), 'and it is the copy that was offered, not what was typed since');
   ok((await page.textContent('#cmsBackup')).includes('Bu cihazdaki tarih') && (await page.textContent('#cmsBackup')).includes('Kayıtlı'), 'compared field by field');
   await page.click('#cmsBackup [data-take="when"]');
   ok(await page.inputValue('[data-field="when"][data-lang="tr"]') === 'Bu cihazdaki tarih', '"Bu cihazdakini al" copies it in');
@@ -583,6 +596,23 @@ await section('F9) a new name that is taken is said on the title', async () => {
   await page.waitForSelector('#cmsSave');
   await page.click('#cmsSave');
   ok(await waitFor(page, () => /Başlık: Bu adla bir kayıt zaten var/.test(document.getElementById('cmsErrors')?.textContent ?? '')), '"Bu adla bir kayıt zaten var", on the title');
+  await page.close();
+});
+
+await section('F10) a save whose answer was lost does not look like someone else\'s change', async () => {
+  const id = '00000000-0000-4000-8000-000000000307';
+  const { page, calls, state } = await open(browser, 'editor', `#icerik-etkinlikler/taslaklar/${id}`, { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(id, draftRow({ id, entry_id: 'symposium-2026', data: SYM, base_shas: { [PATH]: 'sha-1' } }));
+  });
+  await page.waitForSelector('[data-field="when"][data-lang="tr"]');
+  state.abortNextPatch = true;
+  await page.fill('[data-field="when"][data-lang="tr"]', 'kayboldu');
+  await page.click('#cmsSave');
+  await waitFor(page, () => /yedeklendi/.test(document.getElementById('cmsSaveState')?.textContent ?? ''));
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'the next save goes through');
+  ok(!/başka bir sekmede/.test(await page.textContent('#cmsNotice')), 'no "changed elsewhere"');
+  ok(calls.filter((c) => c.method === 'GET' && c.path.endsWith(id)).length === 2 && calls.filter((c) => c.method === 'PATCH').length === 3, 'the draft was read once and the save sent again');
   await page.close();
 });
 

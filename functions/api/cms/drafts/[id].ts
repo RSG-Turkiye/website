@@ -57,8 +57,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
       }
       if (Object.values(onMain).some((sha) => sha !== null)) return invalid(taken);
     }
-    const clash = await refusePairClash(request, env, type, entryId, 'create', v.data);
-    if (clash) return clash.status === 409 ? invalid(taken) : clash;
+    // A pair can clash by name or by translationKey: checked when either changed.
+    const keyOf = (d: unknown) => ['en', 'tr'].map((l) => String((d as PairData | null)?.[l as 'en' | 'tr']?.frontmatter?.translationKey ?? '').trim()).join('\n');
+    if (entryId !== row.entry_id || keyOf(v.data) !== keyOf(JSON.parse(row.data))) {
+      const clash = await refusePairClash(request, env, type, entryId, 'create', v.data);
+      if (clash) return clash.status === 409 ? invalid(taken) : clash;
+    }
     // Checked against main at approval, as every path is.
     baseShas = JSON.stringify(Object.fromEntries(newPaths(type, entryId).map((p) => [p, null])));
   } else {

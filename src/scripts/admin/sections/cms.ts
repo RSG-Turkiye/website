@@ -26,7 +26,7 @@ import { refreshCounts, noteAddress } from '../shell';
 import {
   MODELS, TYPE_KEYS, applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
   placeOf, previewHtml, same, statusView, suggestedId, visibleFields, withId,
-  backupChoice, backupStorageKey, othersBackupKeys, parseBackup, uploadErrorKey,
+  backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type FieldDef, type ImageObject, type StatusView, type TypeKey, type TypeModel, type Values,
 } from '../cms-form';
 import { diffEntry } from '../cms-diff';
@@ -94,6 +94,8 @@ interface Editor {
   conflict: boolean;
   /** The "session ended" notice is already up. */
   signedOutShown: boolean;
+  /** What the last save sent when its answer never came (it may have landed). */
+  lostSave: { data: unknown } | null;
 }
 let editor: Editor | null = null;
 let guard: { reset(): void } | null = null;
@@ -376,7 +378,7 @@ function backupGet(key: string): Backup | null {
 }
 /** Keeps the form's data in this browser, with the version it was made on. */
 function backupPut(ed: Editor, data: unknown): boolean {
-  const b: Backup = { data, at: now(), updated_at: ed.draft?.updated_at ?? null, base_shas: ed.draft ? (ed.draft.base_shas ?? null) : ed.baseShas };
+  const b: Backup = { data, at: now(), updated_at: ed.draft?.updated_at ?? null, write_nonce: ed.draft?.write_nonce ?? null, base_shas: ed.draft ? (ed.draft.base_shas ?? null) : ed.baseShas };
   try { localStorage.setItem(backupStorageKey(userId, ed.backupKey), JSON.stringify(b)); return true; } catch { return false; }
 }
 function dropBackup(key: string): void {
@@ -393,7 +395,7 @@ function pruneBackups(): void {
     for (const k of othersBackupKeys(keys, userId)) localStorage.removeItem(k);
     for (const k of keys.filter((x) => x.startsWith(backupStorageKey(userId, '')))) {
       const b = parseBackup(localStorage.getItem(k));
-      if (!b || backupChoice(b, { updated_at: null, base_shas: null }, now()) === 'expired') localStorage.removeItem(k);
+      if (!b || backupChoice(b, { write_nonce: null, base_shas: null }, now()) === 'expired') localStorage.removeItem(k);
     }
   } catch { /* storage blocked: nothing kept */ }
 }
@@ -505,7 +507,7 @@ function wireBar(ed: Editor): void {
 function newEditor(model: TypeModel, route: string, base: unknown, extra: Partial<Editor>): Editor {
   return {
     model, route, draft: null, entryId: null, baseShas: null, base, readOnly: false, backupKey: `new:${model.key}`,
-    edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, conflict: false, signedOutShown: false, ...extra,
+    edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, conflict: false, signedOutShown: false, lostSave: null, ...extra,
   };
 }
 
@@ -513,10 +515,21 @@ function newEditor(model: TypeModel, route: string, base: unknown, extra: Partia
 function start(ed: Editor): void {
   editor = ed;
   let values = formValues(ed.model, ed.base);
+  // A copy offered earlier and not yet decided on is offered again, as it was.
+  let toOffer = ed.readOnly ? null : backupGet(offeredKey(ed.backupKey));
   let backup = ed.readOnly ? null : backupGet(ed.backupKey);
   if (backup && same(backup.data, ed.base)) { dropBackup(ed.backupKey); backup = null; }
-  const choice = backup ? backupChoice(backup, { updated_at: ed.draft?.updated_at ?? null, base_shas: ed.draft ? null : ed.baseShas }, now()) : null;
+  const choice = backup ? backupChoice(backup, { write_nonce: ed.draft?.write_nonce ?? null, base_shas: ed.draft ? null : ed.baseShas }, now()) : null;
   if (choice === 'expired') dropBackup(ed.backupKey);
+  if (choice === 'ask') {
+    // Moved to a key of its own, which typing never writes, until the person
+    // chooses (Karşılaştır / Sil). An older copy already on offer stays.
+    if (!toOffer) {
+      toOffer = backup;
+      try { localStorage.setItem(backupStorageKey(userId, offeredKey(ed.backupKey)), JSON.stringify(backup)); } catch { /* not kept */ }
+    }
+    dropBackup(ed.backupKey);
+  }
   // Restored on its own only when it cannot be older than what was saved;
   // otherwise the person compares the two and chooses.
   const restored = choice === 'restore';
@@ -524,7 +537,7 @@ function start(ed: Editor): void {
   renderForm(ed, values);
   guard?.reset();
   if (!ed.readOnly) ed.autosave = autosaveFor(ed);
-  if (choice === 'ask') offerBackup(ed, backup!);
+  if (toOffer) offerBackup(ed, toOffer);
   if (restored) {
     notice(esc(tk('admin.cms.restored')), 'info');
     ed.edits++;
@@ -577,7 +590,7 @@ function drawCompare(ed: Editor, box: HTMLElement, o: {
 function offerBackup(ed: Editor, backup: Backup): void {
   const box = $('cmsBackup');
   if (!box) return;
-  const drop = () => { dropBackup(ed.backupKey); box.classList.add('hidden'); box.innerHTML = ''; };
+  const drop = () => { dropBackup(offeredKey(ed.backupKey)); box.classList.add('hidden'); box.innerHTML = ''; };
   box.classList.remove('hidden');
   box.innerHTML = `<div class="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
     <span class="flex-1 min-w-0">${esc(tk('admin.cms.backup.ask'))}</span>
@@ -913,6 +926,21 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   } else {
     // The version this form was made on: a save from an older one is refused.
     r = await api<{ draft: Draft }>('PATCH', `/api/cms/drafts/${ed.draft.id}`, { data, write_nonce: ed.draft.write_nonce });
+    if (!r.ok && r.code === 'network') ed.lostSave = { data };
+    else if (!r.ok && r.code === 'draft_changed' && ed.lostSave && editor === ed) {
+      // The earlier save whose answer was lost may be what changed the
+      // version. If the draft holds exactly what it sent, that was this tab:
+      // take the new version and save again. Asked once.
+      const lost = ed.lostSave;
+      ed.lostSave = null;
+      const now2 = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${ed.draft.id}`);
+      if (editor !== ed) return false;
+      if (now2.ok && sameData(now2.body.draft.data, lost.data)) {
+        ed.draft = { ...ed.draft, ...now2.body.draft };
+        r = await api<{ draft: Draft }>('PATCH', `/api/cms/drafts/${ed.draft.id}`, { data, write_nonce: ed.draft.write_nonce });
+      }
+    }
+    if (r.ok) ed.lostSave = null;
   }
   if (editor !== ed) return r.ok;
   if (!r.ok) return saveFailed(ed, r, auto, data);

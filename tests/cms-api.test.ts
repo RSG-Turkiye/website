@@ -1439,3 +1439,21 @@ test('a webinar\'s year is its date\'s year', () => {
   assert.equal(bad.ok, false);
   assert.ok(bad.errors['en.frontmatter.year']);
 });
+
+test('a save of a new webinar that keeps its name and translationKey does not re-read the index', async () => {
+  const { env } = setup();
+  const side = (title: string, extra: Record<string, unknown> = {}) => ({ frontmatter: { title, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet', ...extra }, body: '\n' });
+  const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
+  assert.equal(w.res.status, 201);
+  const assets = (env as any).ASSETS;
+  const real = assets.fetch;
+  let reads = 0;
+  assets.fetch = async (r: Request) => { reads++; return real(r); };
+  const id = w.body.draft.id;
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { en: side('Fresh Talk', { description: 'longer' }), tr: side('Yeni') } })).status, 200);
+  assert.equal(reads, 0, 'same name, same translationKey: no clash to check');
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { en: side('Fresh Talk', { translationKey: 'k' }), tr: side('Yeni', { translationKey: 'k' }) } })).status, 200);
+  assert.equal(reads, 1, 'a new translationKey is checked');
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { en: side('Fresher Talk', { translationKey: 'k' }), tr: side('Yeni', { translationKey: 'k' }) } })).status, 200);
+  assert.equal(reads, 2, 'a new name is checked');
+});

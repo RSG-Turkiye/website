@@ -282,22 +282,35 @@ test('every admin.cms key the panel\'s scripts look up exists in both languages'
 
 // ── Task 7, fix round 1 ───────────────────────────────────────────────────────
 
-import { backupChoice, backupStorageKey, othersBackupKeys, parseBackup, uploadErrorKey, BACKUP_MAX_AGE } from '../src/scripts/admin/cms-form';
+import { backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey, BACKUP_MAX_AGE } from '../src/scripts/admin/cms-form';
 
-test('a local backup is restored only when it is newer than, and based on, what the server has', () => {
+test('a local backup is restored only when it was made on the version the server has now', () => {
   const now = 1_000_000;
-  const b = (o: Record<string, unknown>) => ({ data: { x: 1 }, at: now - 60, updated_at: null, base_shas: null, ...o });
-  // A draft: same version it was made on, and newer than it.
-  assert.equal(backupChoice(b({ updated_at: now - 300 }), { updated_at: now - 300, base_shas: null }, now), 'restore');
-  // Another tab or device saved since: never silently.
-  assert.equal(backupChoice(b({ updated_at: now - 900 }), { updated_at: now - 300, base_shas: null }, now), 'ask');
-  assert.equal(backupChoice(b({ at: now - 400, updated_at: now - 300 }), { updated_at: now - 300, base_shas: null }, now), 'ask');
+  const b = (o: Record<string, unknown>) => ({ data: { x: 1 }, at: now - 60, updated_at: null, write_nonce: null, base_shas: null, ...o });
+  // A draft: the copy names the version it was typed on; only that version lets it win.
+  assert.equal(backupChoice(b({ write_nonce: 'v2' }), { write_nonce: 'v2', base_shas: null }, now), 'restore');
+  // Saved from another tab or device since (or by this tab, with the answer lost): never silently.
+  assert.equal(backupChoice(b({ write_nonce: 'v1' }), { write_nonce: 'v2', base_shas: null }, now), 'ask');
+  assert.equal(backupChoice(b({ write_nonce: null }), { write_nonce: 'v2', base_shas: null }, now), 'ask');
+  // No client clock in it: a copy "newer" by the clock but on another version still asks.
+  assert.equal(backupChoice(b({ at: now + 9999, write_nonce: 'v1' }), { write_nonce: 'v2', base_shas: null }, now), 'ask');
   // A published entry: the files must still be the ones it was read at.
-  assert.equal(backupChoice(b({ base_shas: { a: '1' } }), { updated_at: null, base_shas: { a: '1' } }, now), 'restore');
-  assert.equal(backupChoice(b({ base_shas: { a: '1' } }), { updated_at: null, base_shas: { a: '2' } }, now), 'ask');
+  assert.equal(backupChoice(b({ base_shas: { a: '1' } }), { write_nonce: null, base_shas: { a: '1' } }, now), 'restore');
+  assert.equal(backupChoice(b({ base_shas: { a: '1' } }), { write_nonce: null, base_shas: { a: '2' } }, now), 'ask');
   // A new entry has nothing on the server to be older than.
-  assert.equal(backupChoice(b({}), { updated_at: null, base_shas: null }, now), 'restore');
-  assert.equal(backupChoice(b({ at: now - BACKUP_MAX_AGE - 1 }), { updated_at: null, base_shas: null }, now), 'expired');
+  assert.equal(backupChoice(b({}), { write_nonce: null, base_shas: null }, now), 'restore');
+  assert.equal(backupChoice(b({ at: now - BACKUP_MAX_AGE - 1 }), { write_nonce: null, base_shas: null }, now), 'expired');
+});
+
+test('the copy being offered has a key of its own, which typing never writes', () => {
+  assert.equal(offeredKey('draft-1'), 'draft-1:offered');
+  assert.notEqual(backupStorageKey('u1', offeredKey('draft-1')), backupStorageKey('u1', 'draft-1'));
+});
+
+test('a lost save is recognised by its data, whatever the key order', () => {
+  assert.ok(sameData({ a: 1, b: { c: [1, { d: 2, e: 3 }] } }, { b: { c: [1, { e: 3, d: 2 }] }, a: 1 }));
+  assert.ok(!sameData({ a: 1 }, { a: 2 }));
+  assert.ok(!sameData({ a: [1, 2] }, { a: [2, 1] }));
 });
 
 test('backups are per person, and anything that is not one is ignored', () => {
@@ -306,7 +319,8 @@ test('backups are per person, and anything that is not one is ignored', () => {
   assert.equal(parseBackup('not json'), null);
   assert.equal(parseBackup(JSON.stringify({ data: {}, at: 'yesterday' })), null);
   assert.equal(parseBackup(JSON.stringify([1, 2])), null);
-  assert.deepEqual(parseBackup(JSON.stringify({ data: { a: 1 }, at: 5, updated_at: 3, base_shas: { p: null } })), { data: { a: 1 }, at: 5, updated_at: 3, base_shas: { p: null } });
+  assert.deepEqual(parseBackup(JSON.stringify({ data: { a: 1 }, at: 5, updated_at: 3, write_nonce: 'v1', base_shas: { p: null } })), { data: { a: 1 }, at: 5, updated_at: 3, write_nonce: 'v1', base_shas: { p: null } });
+  assert.equal(parseBackup(JSON.stringify({ data: {}, at: 5, write_nonce: 7 })), null);
 });
 
 test('a webinar\'s year follows its date and is not typed', () => {
