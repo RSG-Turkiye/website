@@ -82,7 +82,7 @@ function imageField(f: FieldDef, v: unknown): string {
     <input type="hidden" data-field="${f.key}" data-image-value value="${esc(JSON.stringify(v ?? (f.image === 'url' ? '' : null)))}" />
     <div class="flex flex-wrap items-center gap-3">
       ${url ? `<img src="${esc(url)}" alt="" class="w-20 h-14 rounded-lg object-cover border border-border bg-[#F7F7F6]" />` : ''}
-      <label class="${BTN.secondary} cursor-pointer">${esc(t((url ? 'admin.cms.image.replace' : 'admin.cms.image.choose') as never))}
+      <label class="relative ${BTN.secondary} cursor-pointer">${esc(t((url ? 'admin.cms.image.replace' : 'admin.cms.image.choose') as never))}
         <input type="file" data-image-file="${f.key}" accept="image/jpeg,image/png,image/webp,image/gif" class="sr-only" /></label>
       ${url ? `<button type="button" data-image-remove="${f.key}" class="${BTN.ghost} text-red hover:text-red">${esc(t('admin.cms.image.remove' as never))}</button>` : ''}
       <p data-image-status="${f.key}" class="text-xs text-gray-500"></p>
@@ -137,7 +137,7 @@ export function renderField(model: TypeModel, f: FieldDef, v: unknown, opts: { r
   const ro = opts.readOnly || f.readOnly || f.approverOnly;
   const label = f.approverOnly ? tk('admin.cms.f.note') : tk(f.label);
   return `<div data-field-wrap="${f.key}" class="flex flex-col gap-1 min-w-0 ${isShort(f) ? '' : 'lg:col-span-3'}">
-    <p class="text-xs font-medium text-gray-600">${esc(label)}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}</p>
+    <p class="relative text-xs font-medium text-gray-600">${esc(label)}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}</p>
     ${f.help ? `<p class="text-xs text-gray-500 -mt-0.5">${esc(tk(f.help))}</p>` : ''}
     <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${body(model, f, v)}</fieldset>
     <p data-error="${f.key}" role="alert" class="hidden text-xs text-red"></p>
