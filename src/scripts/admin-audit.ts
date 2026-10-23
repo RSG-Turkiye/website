@@ -2,6 +2,7 @@
 import { escapeHtml } from './escape-html';
 import { formatDateTime } from './format-time';
 import { row as uiRow, emptyState, showInlineFlex } from './admin/ui-kit';
+import { auditLabel } from '../lib/audit-labels';
 
 export interface AuditDeps {
   t: (key: string) => string;
@@ -37,8 +38,11 @@ function filters(): URLSearchParams {
 function row(r: Row): string {
   const target = [r.target_type, r.target_id].filter(Boolean).join(': ');
   const who = r.user_email ?? deps.t('admin.audit.system');
-  const subtitle = [formatDateTime(r.at, deps.lang), who, target].filter(Boolean).join(' · ');
-  const card = uiRow({ title: r.action, subtitle });
+  // The readable name leads; the code stays in the subtitle, since it is what
+  // the Action filter matches. An unknown code is shown as it is.
+  const label = auditLabel(r.action, deps.lang);
+  const subtitle = [formatDateTime(r.at, deps.lang), who, target, label ? r.action : ''].filter(Boolean).join(' · ');
+  const card = uiRow({ title: label ?? r.action, subtitle });
   if (r.details === '{}') return card;
   // Details sit in a disclosure beneath the row, so a long payload never widens the page.
   return `<div>${card}<details class="mt-1 px-4"><summary class="cursor-pointer text-xs text-gray-500 min-h-11 lg:min-h-0 flex items-center">${escapeHtml(deps.t('admin.audit.col.details'))}</summary><pre class="whitespace-pre-wrap break-all text-xs text-gray-600 pb-2">${escapeHtml(r.details)}</pre></details></div>`;
