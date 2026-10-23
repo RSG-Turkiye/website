@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
-import { grantRole, revokeRole, activeGrants } from '../functions/_lib/role-grants';
+import { grantRole, revokeRole, activeGrants, expireGrants } from '../functions/_lib/role-grants';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
 const NOW = 1_800_000_000;
@@ -213,4 +213,83 @@ test('re-running the 8i backfill and reconcile catches roles changed by the old 
   const writer = db.prepare("SELECT revoked_at FROM role_grants WHERE user_id = 'u1' AND role = 'writer'").all() as { revoked_at: number | null }[];
   assert.equal(writer.length, 1);
   assert.notEqual(writer[0].revoked_at, null);
+});
+
+const seed = (db: DatabaseSync, role: string, expiresAt: number | null, userId = 'u1') =>
+  db.prepare('INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), userId, role, expiresAt, 'admin', NOW - DAY);
+
+test('expireGrants ends a grant that ran out, clears the column and logs role.expire', async () => {
+  const { db, DB } = setup();
+  seed(db, 'writer', NOW);
+  db.exec("UPDATE users SET is_writer = 1 WHERE id = 'u1'");
+  assert.equal(await expireGrants(DB, NOW + 1), 1);
+  assert.equal(flag(db, 'is_writer'), 0);
+  const [g] = grants(db, 'writer');
+  assert.equal(g.revoked_at, NOW);
+  assert.equal(g.revoked_by, null);
+  assert.deepEqual(audits(db), [{
+    user_id: null, action: 'role.expire', target_type: 'user', target_id: 'u1', details: { roles: ['writer'] },
+  }]);
+});
+
+test('a grant that has not run out yet is left alone', async () => {
+  const { db, DB } = setup();
+  seed(db, 'writer', NOW + 10);
+  db.exec("UPDATE users SET is_writer = 1 WHERE id = 'u1'");
+  assert.equal(await expireGrants(DB, NOW), 0);
+  assert.equal(flag(db, 'is_writer'), 1);
+});
+
+test('a user who also holds the role for good keeps it when the timed grant ends', async () => {
+  const { db, DB } = setup();
+  seed(db, 'writer', NOW);
+  seed(db, 'writer', null);
+  db.exec("UPDATE users SET is_writer = 1 WHERE id = 'u1'");
+  assert.equal(await expireGrants(DB, NOW + 1), 1);
+  assert.equal(flag(db, 'is_writer'), 1);
+  assert.equal(live(db, 'writer', NOW + 1).length, 1);
+});
+
+test('publisher expiring while editor runs longer keeps is_social', async () => {
+  const { db, DB } = setup();
+  seed(db, 'social_publisher', NOW);
+  seed(db, 'social', NOW + MONTH);
+  db.exec("UPDATE users SET is_social = 1, is_social_publisher = 1 WHERE id = 'u1'");
+  assert.equal(await expireGrants(DB, NOW + 1), 1);
+  assert.equal(flag(db, 'is_social_publisher'), 0);
+  assert.equal(flag(db, 'is_social'), 1);
+});
+
+test('each user gets one audit row listing all the roles that ended', async () => {
+  const { db, DB } = setup();
+  seed(db, 'writer', NOW - 5);
+  seed(db, 'editor', NOW - 4);
+  seed(db, 'writer', NOW - 3, 'admin');
+  assert.equal(await expireGrants(DB, NOW), 3);
+  const rows = audits(db);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every((r) => r.action === 'role.expire' && r.user_id === null));
+  const u1 = rows.find((r) => r.target_id === 'u1')!;
+  assert.deepEqual([...u1.details.roles].sort(), ['editor', 'writer']);
+});
+
+test('with nothing due, expireGrants runs one indexed SELECT and writes nothing', async () => {
+  const { db, DB } = setup();
+  seed(db, 'writer', NOW + MONTH);
+  seed(db, 'editor', null);
+  const prepared: string[] = [];
+  const spy = new Proxy(DB, {
+    get(target, prop) {
+      if (prop === 'prepare') return (q: string) => { prepared.push(q); return target.prepare(q); };
+      if (prop === 'batch') return () => { throw new Error('unexpected batch'); };
+      return (target as any)[prop];
+    },
+  }) as D1Database;
+  assert.equal(await expireGrants(spy, NOW), 0);
+  assert.equal(prepared.length, 1);
+  assert.match(prepared[0], /^\s*SELECT/i);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
+  const plan = (db.prepare(`EXPLAIN QUERY PLAN ${prepared[0]}`).all(NOW) as { detail: string }[]).map((r) => r.detail);
+  assert.ok(plan.some((d) => d.includes('USING INDEX idx_role_grants_expiry')), `no expiry index: ${plan.join(' / ')}`);
 });

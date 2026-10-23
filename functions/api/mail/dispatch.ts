@@ -9,6 +9,7 @@ import {
   splitRecipients,
   remainingRecipients,
 } from '../../_lib/mail-queue';
+import { expireGrants } from '../../_lib/role-grants';
 import { startRun, finishRun, markPhase, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
 import {
   resolveAttachments,
@@ -618,7 +619,15 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
     alreadySent,
   });
   // Hourly rather than every minute; see isPruneTick.
-  if (isPruneTick(now)) await pruneRuns(env.DB, now);
+  if (isPruneTick(now)) {
+    // Same hourly tick. A failure here must never block mail, nor the prune.
+    try {
+      await expireGrants(env.DB, now);
+    } catch (err) {
+      console.error('expireGrants failed', err);
+    }
+    await pruneRuns(env.DB, now);
+  }
 
   return jsonResponse({ ok: true, processed: due.results.length, sent, failed, retried, alreadySent });
 }

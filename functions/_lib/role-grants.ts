@@ -136,3 +136,35 @@ export async function requestedExpiry(
   const activeRoles = (await activeGrants(db, granter.id, now)).map((g) => g.role);
   return resolveExpiry(def, d, now, { isAdmin: granter.isAdmin, activeRoles });
 }
+
+/**
+ * Ends every grant whose end date has passed and rewrites the affected users'
+ * columns, so a timed role stops working within an hour of its end (the hourly
+ * tick in the mail dispatcher calls this). The due-grants query is the only
+ * statement when nothing is due; it reads idx_role_grants_expiry. Each user
+ * gets one batch: end their due grants, recompute columns, one role.expire
+ * audit row. A grant ends at its own expires_at, not at the time of the sweep.
+ * Returns how many grants it ended.
+ */
+export async function expireGrants(db: D1Database, now: number): Promise<number> {
+  const { results } = await db.prepare(
+    'SELECT user_id, role FROM role_grants WHERE revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at <= ?',
+  ).bind(now).all<{ user_id: string; role: string }>();
+  if (results.length === 0) return 0;
+  const byUser = new Map<string, Set<string>>();
+  for (const r of results) {
+    if (!byUser.has(r.user_id)) byUser.set(r.user_id, new Set());
+    byUser.get(r.user_id)!.add(r.role);
+  }
+  for (const [userId, roles] of byUser) {
+    await runWithAudit(db, [
+      db.prepare(
+        'UPDATE role_grants SET revoked_at = expires_at, revoked_by = NULL WHERE user_id = ? AND revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at <= ?',
+      ).bind(userId, now),
+      syncColumnsStatement(db, userId, now),
+    ], {
+      userId: null, action: 'role.expire', targetType: 'user', targetId: userId, details: { roles: [...roles] },
+    }, now);
+  }
+  return results.length;
+}
