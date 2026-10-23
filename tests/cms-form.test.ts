@@ -262,3 +262,20 @@ test('the live page of a published entry', () => {
   assert.equal(livePath('webinars', 'integrative-modeling-of-biomolecular-complexes', paths, 'tr'), '/tr/webinars/first-webinar-2018-integrative-modeling/');
   assert.equal(livePath('webinars', 'integrative-modeling-of-biomolecular-complexes', paths, 'en'), '/webinars/integrative-modeling-of-biomolecular-complexes/');
 });
+
+test('every admin.cms key the panel\'s scripts look up exists in both languages', () => {
+  const used = new Set<string>();
+  for (const f of ['cms-form', 'cms-render', 'cms-diff', 'sections/cms', 'sections', 'overview']) {
+    const src = read(`src/scripts/admin/${f}.ts`);
+    for (const m of src.matchAll(/'(admin\.(?:cms|overview\.cms)[\w.]*)'/g)) if (!m[1].endsWith('.')) used.add(m[1]);
+  }
+  assert.ok(used.size > 100, `found ${used.size}`);
+  for (const k of used) {
+    assert.ok(k in ui.en, `en missing ${k}`);
+    assert.ok(k in ui.tr, `tr missing ${k}`);
+  }
+  // Keys built from a code: every value they can take.
+  for (const s of ['create', 'update', 'delete']) assert.ok(`admin.cms.action.${s}` in ui.tr, s);
+  for (const s of ['added', 'removed', 'moved', 'same']) assert.ok(`admin.cms.diff.${s}` in ui.tr, s);
+  for (const m of Object.values(MODELS)) for (const f of m.fields) for (const o of f.options ?? []) assert.ok(`admin.cms.opt.${o}` in ui.tr && `admin.cms.opt.${o}` in ui.en, o);
+});

@@ -68,7 +68,14 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
     if (p === '/api/admin/health') return json({ issues: [], canFix: false });
     if (p === '/api/admin/counts') return json(who === 'approver' ? { cmsMine: 0, cmsQueue: 1, cmsTotal: 1 } : { cmsMine: 1, cmsTotal: 1 });
     if (p === '/api/cms/entries') return json({ type: url.searchParams.get('type'), entries: ENTRIES[url.searchParams.get('type')] ?? [] });
-    if (p === '/api/cms/entry') return json({ type: 'events', id: url.searchParams.get('id'), data: state.entryData, base_shas: state.entryShas });
+    if (p === '/api/cms/entry') {
+      // The symposium as the fixture has it; any other entry as itself, so a click-through shows its own title.
+      const id = url.searchParams.get('id');
+      const type = url.searchParams.get('type');
+      const e = (ENTRIES[type] ?? []).find((x) => x.id === id);
+      if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas });
+      return json({ type, id, data: { ...SYM, id, note: undefined, start: e.date, end: undefined, title: { en: e.title, tr: e.title } }, base_shas: { [`src/content/events/${id}.json`]: `sha-${id}` } });
+    }
     if (p === '/api/cms/drafts' && method === 'GET') {
       const all = [...state.drafts.values()];
       return json({ mine: all.filter((d) => d.author_id === user.id).map(({ data, base_shas, ...d }) => d),
@@ -277,7 +284,7 @@ console.log('7) the approver: the queue, the diff field by field, approve, send 
   const { page, calls, state } = await open(browser, 'approver', '#icerik-etkinlikler/onay', { width: 1280, height: 680 }, (s) => {
     const links = [SYM.links[1], SYM.links[0], { label: { en: 'Photos', tr: 'Fotoğraflar' }, url: 'https://example.org/c' }];
     s.drafts.set(id, draftRow({ id, status: 'submitted', entry_id: 'symposium-2026', author_id: 'u2', data: { ...SYM, when: { ...SYM.when, tr: '10-11 Ekim' }, links }, base_shas: { [PATH]: 'sha-1' } }));
-    s.drafts.set(id2, draftRow({ id: id2, status: 'submitted', entry_id: 'meetup-1', author_id: 'u2', data: { ...SYM, id: 'meetup-1' }, base_shas: {} }));
+    s.drafts.set(id2, draftRow({ id: id2, status: 'submitted', entry_id: 'symposium-2026', author_id: 'u2', data: SYM, base_shas: { [PATH]: 'sha-1' } }));
   });
   ok(await waitFor(page, () => document.querySelectorAll('[data-cms-queue]').length === 2), 'the queue lists what waits');
   ok((await page.textContent(`[data-cms-queue="${id}"]`)).includes('Gönderen: Ece Editör'), 'with the author\'s name, never an address');
