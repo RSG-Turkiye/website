@@ -318,8 +318,10 @@ test('GET filter=roles lists content-role holders, who have no is_* column', asy
   assert.ok(!body.users.some((u) => u.id === 'u4'), 'an ended grant is not a role');
 });
 
-test('GET for an approver: holders of the roles they grant, and a search, trimmed to what the Roles view needs', async () => {
-  const { env } = setupApprover();
+test('GET for an approver: holders of the roles they grant, and a search, never an e-mail address', async () => {
+  const { db, env } = setupApprover();
+  db.prepare('UPDATE users SET is_member = 1 WHERE id = ?').run('u4');
+  db.prepare(`INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES ('u4', 'fourth', 'Dört Kişi', 1)`).run();
   await patch(env, { user_id: 'u2', action: 'make_content.etkinlikler.edit' });
   await patch(env, { user_id: 'u2', action: 'make_writer' });
   const get = (as: string, qs: string) => call(users.onRequestGet, 'GET', `/api/admin/users?${qs}`, { env, as });
@@ -328,15 +330,26 @@ test('GET for an approver: holders of the roles they grant, and a search, trimme
   assert.equal(roles.status, 200);
   const rb = (await roles.json()) as { users: Record<string, unknown>[]; badge_catalog: unknown[] };
   assert.deepEqual(rb.users.map((u) => u.id), ['u2']);
-  assert.deepEqual(Object.keys(rb.users[0]).sort(), ['display_name', 'email', 'grants', 'id']);
+  assert.deepEqual(Object.keys(rb.users[0]).sort(), ['display_name', 'grants', 'id', 'username']);
   assert.deepEqual(rb.users[0].grants, [{ role: 'content.etkinlikler.edit', expires_at: (rb.users[0].grants as { expires_at: number }[])[0].expires_at }]);
   assert.deepEqual(rb.badge_catalog, []);
 
-  const found = await get('u3', 'filter=all&search=four');
+  const found = await get('u3', 'filter=all&search=D%C3%B6rt');
   assert.equal(found.status, 200);
   const fb = (await found.json()) as { users: Record<string, unknown>[] };
   assert.deepEqual(fb.users.map((u) => u.id), ['u4']);
-  assert.deepEqual(Object.keys(fb.users[0]).sort(), ['display_name', 'email', 'grants', 'id']);
+  assert.deepEqual(Object.keys(fb.users[0]).sort(), ['display_name', 'grants', 'id', 'username']);
+  assert.ok(!JSON.stringify(fb).includes('@'), 'no address in the answer');
+  // By username, and by the whole address (any case), which finds that one person.
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=fourth')).json()) as { users: { id: string }[] }).users.map((u) => u.id), ['u4']);
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=FOUR%40example.org')).json()) as { users: { id: string }[] }).users.map((u) => u.id), ['u4']);
+  // Part of an address finds nobody: the directory cannot be searched by address.
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=four%40')).json()) as { users: unknown[] }).users, []);
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=example.org')).json()) as { users: unknown[] }).users, []);
+  // Members only.
+  db.prepare('UPDATE users SET is_member = 0 WHERE id = ?').run('u4');
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=fourth')).json()) as { users: unknown[] }).users, []);
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=four%40example.org')).json()) as { users: unknown[] }).users, []);
 
   // No browsing the whole directory, and nothing for someone without an approver role.
   assert.equal((await get('u3', 'filter=all')).status, 403);
@@ -347,10 +360,11 @@ test('GET for an approver: holders of the roles they grant, and a search, trimme
 
 test('an approver\'s search is literal, at least three characters, and ten people at most', async () => {
   const { db, env } = setupApprover();
-  const add = db.prepare('INSERT INTO users (id, google_id, email, created_at, last_login) VALUES (?, ?, ?, ?, 1)');
-  add.run('lit', 'g-lit', 'a_b@example.org', 50);
-  add.run('wild', 'g-wild', 'axb@example.org', 51);
-  for (let i = 0; i < 15; i++) add.run(`bulk${i}`, `g-bulk${i}`, `bulk${i}@example.org`, 100 + i);
+  const add = db.prepare('INSERT INTO users (id, google_id, email, is_member, created_at, last_login) VALUES (?, ?, ?, 1, ?, 1)');
+  const prof = db.prepare('INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES (?, ?, ?, 1)');
+  add.run('lit', 'g-lit', 'lit@example.org', 50); prof.run('lit', 'lit', 'a_b');
+  add.run('wild', 'g-wild', 'wild@example.org', 51); prof.run('wild', 'wild', 'axb');
+  for (let i = 0; i < 15; i++) { add.run(`bulk${i}`, `g-bulk${i}`, `bulk${i}@example.org`, 100 + i); prof.run(`bulk${i}`, `b${i}`, `Bulk ${i}`); }
   const search = async (q: string) => {
     const res = await call(users.onRequestGet, 'GET', `/api/admin/users?${new URLSearchParams({ filter: 'all', search: q })}`, { env, as: 'u3' });
     return { status: res.status, body: (await res.json()) as { users?: { id: string }[]; code?: string } };
@@ -366,7 +380,6 @@ test('an approver\'s search is literal, at least three characters, and ten peopl
     assert.equal(r.status, 400, q);
     assert.equal(r.body.code, 'search_too_short', q);
   }
-  assert.deepEqual((await search('fou')).body.users!.map((u) => u.id), ['u4']);
   const bulk = await search('bulk');
   assert.equal(bulk.body.users!.length, 10);
   // An admin's search is unchanged.

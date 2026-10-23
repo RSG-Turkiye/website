@@ -78,7 +78,10 @@ const isSelfAdmin = (userId: string, flag: string) => flag === 'is_admin' && use
 /** The column when the role has one, else a live grant. */
 const held = (u: User, r: RoleSwitch): boolean =>
   !!u[r.flag] || !!(u.grants as Grant[] | undefined)?.some((g) => g.role === r.role);
-const displayName = (u: User): string => u.display_name || u.email;
+// A non-admin approver's list carries no address (the server leaves it out).
+const displayName = (u: User): string => u.display_name || u.username || u.email || '';
+/** The second line under a name: the address for an admin, the username otherwise. */
+const secondLine = (u: User): string => u.email || (u.username ? `@${u.username}` : '');
 
 /** The server's refusal codes for a duration, in the panel's language. */
 const DURATION_ERRORS: Record<string, Parameters<typeof t>[0]> = {
@@ -480,7 +483,7 @@ function personChip(u: User, r: RoleSwitch, now: number): string {
     <button type="button" data-remove="${r.off}" aria-label="${escapeHtml(tf('admin.roles.removePerson', { name: displayName(u) }))}"
       class="${icon} hover:text-red">×</button>`;
   return `<span data-person="${escapeHtml(String(u.id))}"${soon ? ' data-ends-soon' : ''} class="inline-flex items-center gap-1 max-w-full pl-3 ${remove || renew ? '' : 'pr-3 min-h-11 lg:min-h-7'} rounded-full ${soon ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'} text-xs">
-    <span class="truncate min-w-0" title="${escapeHtml(u.email)}">${name}</span>${ends === null ? '' : `<span class="shrink-0 whitespace-nowrap ${soon ? 'font-medium' : ''}">· ${escapeHtml(untilLabel(ends))}</span>`}${renew}${remove}
+    <span class="truncate min-w-0" title="${escapeHtml(secondLine(u))}">${name}</span>${ends === null ? '' : `<span class="shrink-0 whitespace-nowrap ${soon ? 'font-medium' : ''}">· ${escapeHtml(untilLabel(ends))}</span>`}${renew}${remove}
   </span>`;
 }
 
@@ -503,6 +506,8 @@ export function renderRolesView(users: User[]): void {
   const now = nowSeconds();
   const mine = granter.isAdmin ? null : grantableBy(granter.activeRoles) as string[];
   const cards = ROLE_SWITCHES.filter((r) => !mine || mine.includes(r.role));
+  // A non-admin's search matches names, usernames or a whole address.
+  const addHint = granter.isAdmin ? 'admin.roles.addPlaceholder' : 'admin.roles.addPlaceholderApprover';
   box.innerHTML = `<h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">${t('admin.nav.roles')}</h2>
     <div class="grid gap-3 lg:grid-cols-2">${cards.map((r) => {
       const people = users.filter((u) => held(u, r));
@@ -515,7 +520,7 @@ export function renderRolesView(users: User[]): void {
         <div data-renew-slot></div>
         <button type="button" data-add-role aria-expanded="false" class="mt-3 ${BTN.ghost} border border-dashed border-border">+ ${t('admin.roles.addPerson')}</button>
         <div data-add-box class="hidden mt-2">
-          <input data-add-input type="search" placeholder="${escapeHtml(t('admin.roles.addPlaceholder'))}" aria-label="${escapeHtml(t('admin.roles.addPlaceholder'))}"
+          <input data-add-input type="search" placeholder="${escapeHtml(t(addHint))}" aria-label="${escapeHtml(t(addHint))}"
             class="w-full min-h-11 lg:min-h-9 px-3 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus:border-navy-mid ${FOCUS}" />
           <div data-add-results class="flex flex-col gap-1 mt-2"></div>
         </div>
@@ -553,7 +558,7 @@ export function renderRolesView(users: User[]): void {
       results.innerHTML = matches.map((u) => `<button type="button" data-add-user="${escapeHtml(String(u.id))}"
         class="text-left min-h-11 lg:min-h-9 px-3 py-1 rounded-xl border border-border hover:border-navy-mid min-w-0 ${FOCUS}">
         <span class="block text-sm text-navy truncate">${escapeHtml(displayName(u))}</span>
-        <span class="block text-xs text-gray-500 truncate">${escapeHtml(u.email)}</span>
+        <span class="block text-xs text-gray-500 truncate">${escapeHtml(secondLine(u))}</span>
       </button>`).join('');
       results.querySelectorAll<HTMLButtonElement>('[data-add-user]').forEach((b) => {
         b.addEventListener('click', () => {

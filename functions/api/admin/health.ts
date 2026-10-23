@@ -1,11 +1,11 @@
 import type { Env } from '../../_lib/auth';
-import { getSessionUser, jsonResponse } from '../../_lib/auth';
-import { canOpenAdminPanel } from '../../_lib/cms-access';
+import { getSessionUser, jsonResponse, canSeeAdminPanel } from '../../_lib/auth';
 import { listConnections, withLiveExpiry } from '../../_lib/connections';
 import { healthIssues } from '../../_lib/health';
 
 /**
- * What the banner above every admin pane shows. Every panel role sees it;
+ * What the banner above every admin pane shows. Every panel role but the
+ * content roles sees it;
  * only an admin sees the provider's error text and gets the fix button. If
  * the tables are not there yet (deployed before the migration) it answers
  * with no issues rather than a 500 -- a banner that errors is worse than none.
@@ -13,7 +13,10 @@ import { healthIssues } from '../../_lib/health';
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
-  if (!(await canOpenAdminPanel(env.DB, user, Math.floor(Date.now() / 1000)))) return jsonResponse({ error: 'Forbidden' }, 403);
+  // Not content editors: the banner is about mail and social connections and
+  // the scheduler, which the Etkinlikler panel has nothing to do with. The
+  // panel's health fetch fails quietly for them and shows no banner.
+  if (!canSeeAdminPanel(user)) return jsonResponse({ error: 'Forbidden' }, 403);
   const canFix = user.is_admin === 1;
 
   try {

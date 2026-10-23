@@ -95,3 +95,9 @@ test('an X-shaped row (refresh token, two-hour access expiry, no refresh end) re
   assert.equal(x.status, 'connected');
   assert.equal(x.expiresAt, null);
 });
+
+test('health is not for content editors: connection and scheduler state is none of the CMS panel\'s business', async () => {
+  const { env, db } = setup({ is_member: 1 });
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('g1', 'u1', 'content.etkinlikler.approve', NULL, NULL, 1)`).run();
+  assert.equal((await call(health.onRequestGet, 'GET', '/api/admin/health', env)).status, 403);
+});

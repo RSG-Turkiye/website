@@ -243,7 +243,15 @@ const ap = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 ap.on('pageerror', (e) => bad.push('pageerror (onaylayıcı): ' + String(e).slice(0, 150)));
 await ap.route('**/api/me', json({ user: { id: 'u8', email: 'onay@example.org', is_admin: false,
   grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] }, profile: {} }));
-await ap.route('**/api/admin/users**', usersRoute);
+// What the server gives a non-admin approver: names and usernames, never an address.
+const noAddress = ({ id, display_name, username, grants }) => ({ id, display_name, username, grants: grants ?? [] });
+await ap.route('**/api/admin/users**', async (r) => {
+  if (r.request().method() !== 'GET') return usersRoute(r);
+  const url = new URL(r.request().url());
+  const all = [...users, ...holders];
+  const list = url.searchParams.get('filter') === 'roles' ? all.filter((u) => u.grants?.some((g) => g.role === 'content.etkinlikler.edit')) : all.filter((u) => `${u.display_name} ${u.username}`.toLowerCase().includes((url.searchParams.get('search') ?? '').toLowerCase()));
+  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ users: list.map(noAddress), badge_catalog: [] }) });
+});
 bodies.length = 0;
 await ap.goto(BASE + '/admin#kullanicilar/yetkiler', { waitUntil: 'networkidle' });
 await ap.waitForSelector('#rolesView [data-role-card]', { timeout: 5000 }).catch(() => {});
@@ -252,7 +260,12 @@ ok(JSON.stringify(apCards) === JSON.stringify(['content.etkinlikler.edit']), `ya
 ok(await ap.locator('#rolesView [data-person="u7"]').count() === 1, 'mevcut düzenleyici listelenir');
 const apCard = '#rolesView [data-role-card="content.etkinlikler.edit"]';
 await ap.click(`${apCard} [data-add-role]`);
-await ap.fill(`${apCard} [data-add-input]`, 'organiser');
+ok((await ap.getAttribute(`${apCard} [data-add-input]`, 'placeholder')) === 'Name, username or the whole e-mail address', 'the search says what it matches');
+await ap.fill(`${apCard} [data-add-input]`, 'Bir Üye');
+await ap.waitForSelector(`${apCard} [data-add-user="u2"]`, { timeout: 3000 }).catch(() => {});
+const apResult = (await ap.textContent(`${apCard} [data-add-results]`)) ?? '';
+ok(apResult.includes('Bir Üye') && apResult.includes('@uye') && !apResult.includes('example.org'), `a match shows a name and username, no address: "${apResult.trim()}"`);
+ok(!((await ap.textContent('#rolesView')) ?? '').includes('undefined'), 'nothing reads "undefined"');
 await ap.click(`${apCard} [data-add-user="u2"]`);
 await ap.waitForSelector(`${apCard} [data-duration]`, { timeout: 3000 }).catch(() => {});
 const apOpts = await ap.$$eval(`${apCard} [data-duration] option`, (os) => os.map((o) => o.value));
