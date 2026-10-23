@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { llmsTxt, SITE } from '../src/lib/llms-txt';
 
 const DIST = new URL('../dist/', import.meta.url).pathname;
@@ -47,8 +47,10 @@ test('every link to this site in the built llms.txt is a page that exists', { sk
 });
 
 test('every listed workshop repository is public on GitHub', { skip: process.env.CHECK_NETWORK !== '1' && 'network check; set CHECK_NETWORK=1' }, async () => {
-  const { WORKSHOPS, workshopUrl } = await import('../src/data/workshops');
-  for (const w of WORKSHOPS) {
+  const { workshopUrl } = await import('../src/data/workshops');
+  const dir = new URL('../src/content/workshops/', import.meta.url).pathname;
+  for (const f of readdirSync(dir)) {
+    const w = JSON.parse(readFileSync(dir + f, 'utf8'));
     const res = await fetch(workshopUrl(w), { method: 'HEAD', redirect: 'follow' });
     assert.equal(res.status, 200, workshopUrl(w));
   }

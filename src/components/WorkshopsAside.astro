@@ -2,17 +2,19 @@
 /**
  * The column beside /workshops on wide screens: what the list adds up to,
  * what comes next, where the materials are, and how to take part. Every
- * number is counted from src/data/events.ts and src/data/workshops.ts at
+ * number is counted from src/data/events.ts and src/content/workshops at
  * build time; none is typed in. Below xl it follows the list. The invitation
  * comes second so it stays in view even on short screens, where the end of
  * the column scrolls.
  */
 import { events, statusOf } from "../data/events";
-import { WORKSHOPS, workshopUrl } from "../data/workshops";
+import { workshopUrl } from "../data/workshops";
+import { getWorkshops } from "../lib/get-workshops";
 import { yearAblative } from "../lib/turkish-year";
 
 interface Props { lang: "en" | "tr" }
 const { lang } = Astro.props;
+const workshops = await getWorkshops();
 const now = new Date();
 const tr = lang === "tr";
 
@@ -26,7 +28,7 @@ const facts: [number, string][] = [
   [done.filter((e) => e.type === "workshop").length, tr ? "atölye" : "workshops"],
   [done.filter((e) => e.type === "hackathon").length, tr ? "hackathon" : "hackathons"],
   [done.filter((e) => e.nfcore && e.type === "hackathon").length, tr ? "resmi nf-core yerel ekibi" : "official nf-core local sites"],
-  [WORKSHOPS.length, tr ? "açık materyal reposu" : "open material repositories"],
+  [workshops.length, tr ? "açık materyal reposu" : "open material repositories"],
   [recordings, tr ? "YouTube'da kayıt" : "recordings on YouTube"],
 ];
 const fmt = (d: Date) => d.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -81,7 +83,7 @@ const fmt = (d: Date) => d.toLocaleDateString(tr ? "tr-TR" : "en-GB", { day: "nu
   <section>
     <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{tr ? "Açık materyaller" : "Open materials"}</h2>
     <ul class="flex flex-col gap-1.5">
-      {WORKSHOPS.map((w) => (
+      {workshops.map((w) => (
         <li class="flex gap-3 min-w-0">
           <span class="text-gray-500 tabular-nums shrink-0">{w.year}</span>
           <a href={workshopUrl(w)} target="_blank" rel="noopener noreferrer" title={w.title} class="truncate text-navy-mid hover:text-navy no-underline">{w.title}</a>

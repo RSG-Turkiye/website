@@ -4,7 +4,8 @@ import { symposiumCount, symposiumEditions } from '../lib/home-stats';
 import { FOUNDED_YEAR } from '../data/events';
 import { committeesEn } from '../data/committees';
 import { PRIVACY_CONTACT } from '../data/privacy';
-import { WORKSHOPS, workshopUrl } from '../data/workshops';
+import { workshopUrl } from '../data/workshops';
+import { getWorkshops } from '../lib/get-workshops';
 
 /** /llms.txt, built from the content; see src/lib/llms-txt.ts for what it is for. */
 export async function GET() {
@@ -19,7 +20,7 @@ export async function GET() {
     domains,
     // Who sits on them changes every term; what they do is what a reader needs.
     committees: committeesEn.map((c) => ({ name: c.name, description: c.description })),
-    workshops: WORKSHOPS.map((w) => ({ year: w.year, title: w.title, topics: w.topics, url: workshopUrl(w) })),
+    workshops: (await getWorkshops()).map((w) => ({ year: w.year, title: w.title, topics: w.topics, url: workshopUrl(w) })),
     contactEmail: PRIVACY_CONTACT,
   });
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
