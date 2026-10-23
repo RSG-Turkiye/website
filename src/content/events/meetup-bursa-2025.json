@@ -1,0 +1,30 @@
+{
+  "id": "meetup-bursa-2025",
+  "type": "meetup",
+  "start": "2025-10-18",
+  "title": {
+    "en": "Bursa Get-Together",
+    "tr": "Bursa Buluşması"
+  },
+  "when": {
+    "en": "18 October 2025",
+    "tr": "18 Ekim 2025"
+  },
+  "location": {
+    "en": "Nilüfer, Bursa",
+    "tr": "Nilüfer, Bursa"
+  },
+  "description": {
+    "en": "Eighteen people from universities across Bursa, in conversation circles on structural bioinformatics, AI in healthcare, genomics and systems biology.",
+    "tr": "Bursa'daki üniversitelerden on sekiz kişi; yapısal biyoinformatik, sağlıkta yapay zekâ, genomik ve sistem biyolojisi üzerine sohbet halkaları."
+  },
+  "image": {
+    "thumb": "/api/images/7e6d662e-bd8b-4521-a488-96af599baf67.jpg",
+    "full": "/api/images/1e1cdb85-ec65-47ba-b9ce-0f28d6e2110d.jpg",
+    "alt": {
+      "en": "Participants of the Bursa get-together, October 2025",
+      "tr": "Ekim 2025, Bursa buluşmasının katılımcıları"
+    },
+    "fit": "cover"
+  }
+}

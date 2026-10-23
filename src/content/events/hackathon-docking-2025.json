@@ -1,0 +1,31 @@
+{
+  "id": "hackathon-docking-2025",
+  "type": "hackathon",
+  "start": "2025-12-18",
+  "end": "2025-12-19",
+  "title": {
+    "en": "Dock'n Roll: Molecular Docking Hackathon",
+    "tr": "Dock'n Roll: Moleküler Yerleştirme Hackathon'u"
+  },
+  "when": {
+    "en": "18 – 19 December 2025",
+    "tr": "18 – 19 Aralık 2025"
+  },
+  "location": {
+    "en": "Yıldız Technical University, Istanbul",
+    "tr": "Yıldız Teknik Üniversitesi, İstanbul"
+  },
+  "description": {
+    "en": "A two-day molecular docking hackathon run with the YTÜ BİYOGEN student club.",
+    "tr": "YTÜ BİYOGEN öğrenci kulübüyle düzenlenen iki günlük moleküler yerleştirme hackathon'u."
+  },
+  "image": {
+    "thumb": "/api/images/1bfc58ff-1346-44f3-9038-b232f502aa95.jpg",
+    "full": "/api/images/61399fd8-6916-4186-827b-d7ba4d625dd9.jpg",
+    "alt": {
+      "en": "Organisers and winners at the Dock'n Roll docking hackathon, December 2025",
+      "tr": "Aralık 2025, Dock'n Roll docking hackathon'unda düzenleyiciler ve kazananlar"
+    },
+    "fit": "cover"
+  }
+}

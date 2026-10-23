@@ -1,0 +1,39 @@
+{
+  "id": "workshop-hibit-2025",
+  "type": "workshop",
+  "start": "2025-10-30",
+  "title": {
+    "en": "Workshops of the 12th Symposium (HIBIT 2025)",
+    "tr": "12. Sempozyum atölyeleri (HIBIT 2025)"
+  },
+  "when": {
+    "en": "30 October 2025",
+    "tr": "30 Ekim 2025"
+  },
+  "location": {
+    "en": "Istanbul Medipol University, Istanbul",
+    "tr": "İstanbul Medipol Üniversitesi, İstanbul"
+  },
+  "description": {
+    "en": "The workshop day of the 12th Student Symposium, held with HIBIT 2025: transcriptome analysis with Selcen Arı Yuka, and variant filtering with GenNext with Özkan Özdemir.",
+    "tr": "HIBIT 2025 ile birlikte düzenlenen 12. Öğrenci Sempozyumu'nun atölye günü: Selcen Arı Yuka ile transkriptom analizi ve Özkan Özdemir ile GenNext varyant filtreleme."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Symposium programme",
+        "tr": "Sempozyum programı"
+      },
+      "url": "https://symposium.rsg-turkiye.iscbsc.org/editions/2025/"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/785142e3-043c-4cad-a816-9b4b8c5bbcf7.jpg",
+    "full": "/api/images/a52c9977-a8b8-4643-9552-d576da61c932.jpg",
+    "alt": {
+      "en": "Participants at a workshop of the 12th Student Symposium (HIBIT 2025), Istanbul Medipol University",
+      "tr": "12. Öğrenci Sempozyumu (HIBIT 2025) atölyesinde katılımcılar, İstanbul Medipol Üniversitesi"
+    },
+    "fit": "cover"
+  }
+}

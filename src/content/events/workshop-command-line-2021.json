@@ -1,0 +1,40 @@
+{
+  "id": "workshop-command-line-2021",
+  "type": "workshop",
+  "start": "2021-09-12",
+  "end": "2021-09-13",
+  "title": {
+    "en": "Command Line Tools Workshop (8th Symposium)",
+    "tr": "Komut Satırı Araçları Atölyesi (8. Sempozyum)"
+  },
+  "when": {
+    "en": "12 – 13 September 2021",
+    "tr": "12 – 13 Eylül 2021"
+  },
+  "location": {
+    "en": "Online",
+    "tr": "Çevrimiçi"
+  },
+  "description": {
+    "en": "Linux for computational biology: the command line, sed, awk and grep, and git, then practicals on de novo genome assembly and the first steps of RNA-seq analysis.",
+    "tr": "Hesaplamalı biyoloji için Linux: komut satırı, sed, awk ve grep, git; ardından de novo genom birleştirme ve RNA-seq analizinin ilk adımları üzerine uygulamalar."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Workshop materials",
+        "tr": "Atölye materyalleri"
+      },
+      "url": "https://github.com/RSG-Turkiye/Workshop2021"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/66240719-2598-4c41-bd9c-ee344b99d001.jpg",
+    "full": "/api/images/22fed392-1bb6-4c32-baf6-3808d8acdd81.jpg",
+    "alt": {
+      "en": "Poster of the 8th Student Symposium with the command line tools workshop",
+      "tr": "Komut satırı araçları atölyesini içeren 8. Öğrenci Sempozyumu posteri"
+    },
+    "fit": "contain"
+  }
+}

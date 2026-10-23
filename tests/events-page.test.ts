@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, globSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { events, groupEvents, statusOf, type CommunityEvent } from '../src/data/events';
+import { groupEvents, statusOf, type CommunityEvent } from '../src/data/events';
+import { readEvents } from './lib/events';
 
 /**
  * The events page cannot advertise something that has already happened.
@@ -19,6 +20,7 @@ import { events, groupEvents, statusOf, type CommunityEvent } from '../src/data/
  */
 
 const SRC = new URL('../src/', import.meta.url).pathname;
+const events = readEvents();
 
 test('an event is upcoming until midnight after its last day, and then is not', () => {
   const oneDay: CommunityEvent = {
@@ -57,7 +59,7 @@ test('the events page has not fallen behind the symposium site', () => {
   assert.ok(
     newestListed >= newestEdition,
     `The symposium site lists a ${newestEdition} edition and /events stops at ` +
-      `${newestListed}. Add it to src/data/events.ts -- a visitor who lands on ` +
+      `${newestListed}. Add it to src/content/events -- a visitor who lands on ` +
       `/events should not be told the most recent symposium is an older one.`,
   );
 });
@@ -86,7 +88,7 @@ test('the two events pages read the one list rather than carrying their own', ()
     const text = readFileSync(join(SRC, page), 'utf8');
     assert.ok(
       /<EventList\b/.test(text),
-      `${page} should render <EventList>, which reads src/data/events.ts`,
+      `${page} should render <EventList>, which reads src/content/events`,
     );
     assert.ok(
       !/status:\s*["'](upcoming|completed)["']/.test(text),

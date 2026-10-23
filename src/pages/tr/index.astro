@@ -3,10 +3,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import EntryIndex from '../../components/EntryIndex.astro';
 import { useTranslations } from '../../i18n/ui';
 import { getCollection } from 'astro:content';
-import { events, groupEvents, yearsSinceFounding } from '../../data/events';
+import { groupEvents, yearsSinceFounding } from '../../data/events';
+import { loadEvents } from '../../lib/get-events';
 import { symposiumCount, symposiumEditions } from '../../lib/home-stats';
 
 const lang = 'tr';
+const events = await loadEvents();
 const nextEvent = groupEvents(events, new Date()).upcoming[0] ?? null;
 const t = useTranslations(lang);
 const pageTitle = "RSG-Türkiye - Hesaplamalı Biyoloji Topluluğu";

@@ -2,6 +2,7 @@ import { defineCollection } from "astro:content";
 import { z } from "astro/zod";
 import { glob } from "astro/loaders";
 import { workshopSchema } from "./data/workshops";
+import { eventSchema } from "./data/events";
 
 // Blog posts are organized by language:
 //   src/content/blog/en/<slug>.md  → /blog/<slug>
@@ -190,4 +191,12 @@ const workshops = defineCollection({
   schema: workshopSchema,
 });
 
-export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops };
+// events — one JSON file per event, named by its id (see the schema in
+// src/data/events.ts for what the fields mean; src/lib/get-events.ts loads
+// and sorts them).
+const events = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/events" }),
+  schema: eventSchema,
+});
+
+export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events };

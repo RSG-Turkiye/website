@@ -1,0 +1,40 @@
+{
+  "id": "workshop-single-cell-2020",
+  "type": "workshop",
+  "start": "2020-12-19",
+  "end": "2020-12-20",
+  "title": {
+    "en": "Introduction to Single-Cell Analysis",
+    "tr": "Tek Hücre Analizine Giriş"
+  },
+  "when": {
+    "en": "19 – 20 December 2020",
+    "tr": "19 – 20 Aralık 2020"
+  },
+  "location": {
+    "en": "Online",
+    "tr": "Çevrimiçi"
+  },
+  "description": {
+    "en": "Two days on single-cell sequencing: the theory of scRNA-seq, processing the data, and analysis with Seurat, then single-cell ATAC-seq.",
+    "tr": "Tek hücre dizileme üzerine iki gün: scRNA-seq'in kuramı, verinin işlenmesi ve Seurat ile analiz, ardından tek hücre ATAC-seq."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Workshop materials",
+        "tr": "Atölye materyalleri"
+      },
+      "url": "https://github.com/RSG-Turkiye/Single-Cell-Workshop2020"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/ad5efa55-a5ee-446f-9272-3c6d03497cb7.jpg",
+    "full": "/api/images/ba16d1e2-c7a3-485e-ae92-2ae0d1245901.jpg",
+    "alt": {
+      "en": "Announcement poster of the Introduction to Single-Cell Analysis workshop, December 2020",
+      "tr": "Tek Hücre Analizine Giriş atölyesinin duyuru posteri, Aralık 2020"
+    },
+    "fit": "contain"
+  }
+}

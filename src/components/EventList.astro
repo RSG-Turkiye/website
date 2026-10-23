@@ -6,7 +6,8 @@
  * copy of this markup. Two lists meant two things to update and, in
  * practice, neither got updated.
  */
-import { events, groupEvents, type CommunityEvent } from "../data/events";
+import { groupEvents, type CommunityEvent } from "../data/events";
+import { loadEvents } from "../lib/get-events";
 import { useTranslations } from "../i18n/ui";
 import YearRail from "./YearRail.astro";
 import EventsAside from "./EventsAside.astro";
@@ -21,6 +22,7 @@ const t = useTranslations(lang);
 // Build time. The page is rebuilt nightly, so "now" is at worst a day old --
 // and the boundary this decides is midnight after an event's last day.
 const now = new Date();
+const events = await loadEvents();
 const { upcoming, symposiums, workshops, hackathons, meetups } = groupEvents(events, now);
 
 const sections: { id: string; title: string; items: CommunityEvent[] }[] = [

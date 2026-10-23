@@ -1,0 +1,48 @@
+{
+  "id": "workshop-nextflow-2024",
+  "type": "workshop",
+  "nfcore": true,
+  "start": "2024-03-16",
+  "note": "16 March, from the workshop's own title slide and its recording files; an internal report said 3 March.",
+  "title": {
+    "en": "Reproducibility in Bioinformatics Analyses: Nextflow and nf-core",
+    "tr": "Biyoinformatik Analizlerde Tekrarlanabilirlik: Nextflow ve nf-core"
+  },
+  "when": {
+    "en": "16 March 2024",
+    "tr": "16 Mart 2024"
+  },
+  "location": {
+    "en": "Online",
+    "tr": "Çevrimiçi"
+  },
+  "description": {
+    "en": "A hands-on workshop with Dr. Kübra Narcı on standardising bioinformatics workflows: community best practices, containerised environments with Docker and Singularity, and running pipelines in the cloud.",
+    "tr": "Dr. Kübra Narcı ile biyoinformatik iş akışlarının standartlaştırılması üzerine uygulamalı atölye: topluluk iyi uygulamaları, Docker ve Singularity ile konteynerli ortamlar ve bulutta iş akışı çalıştırma."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Recording",
+        "tr": "Kayıt"
+      },
+      "url": "https://www.youtube.com/watch?v=AqNmIkoQrNo"
+    },
+    {
+      "label": {
+        "en": "Seqera blog: Nextflow in Türkiye",
+        "tr": "Seqera blogu: Türkiye'de Nextflow"
+      },
+      "url": "https://seqera.io/blog/bioinformatics-growth-in-turkiye/"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/e48a9ff4-aacd-4d5d-801a-07ad6e68f5bf.jpg",
+    "full": "/api/images/0705e4f2-b3da-4e89-be67-d4ec1209101c.jpg",
+    "alt": {
+      "en": "Title slide of the Nextflow and nf-core workshop, 16 March 2024",
+      "tr": "Nextflow ve nf-core atölyesinin açılış slaytı, 16 Mart 2024"
+    },
+    "fit": "contain"
+  }
+}

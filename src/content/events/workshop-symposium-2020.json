@@ -1,0 +1,40 @@
+{
+  "id": "workshop-symposium-2020",
+  "type": "workshop",
+  "start": "2020-10-24",
+  "end": "2020-10-25",
+  "title": {
+    "en": "R, Machine Learning and ggplot2 (7th Symposium workshops)",
+    "tr": "R, Makine Öğrenmesi ve ggplot2 (7. Sempozyum atölyeleri)"
+  },
+  "when": {
+    "en": "24 – 25 October 2020",
+    "tr": "24 – 25 Ekim 2020"
+  },
+  "location": {
+    "en": "Online",
+    "tr": "Çevrimiçi"
+  },
+  "description": {
+    "en": "The workshop sessions of the 7th Student Symposium: an introduction to R programming, machine learning in R, and data visualisation with ggplot2.",
+    "tr": "7. Öğrenci Sempozyumu'nun atölye oturumları: R programlamaya giriş, R ile makine öğrenmesi ve ggplot2 ile veri görselleştirme."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Workshop materials",
+        "tr": "Atölye materyalleri"
+      },
+      "url": "https://github.com/RSG-Turkiye/Workshop2020"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/4ba615b6-6222-407a-8843-cea8dcec5875.jpg",
+    "full": "/api/images/03a6a7b0-29d9-4dd4-93e7-e4b589e918bb.jpg",
+    "alt": {
+      "en": "Poster of the 7th Student Symposium with its workshop sessions",
+      "tr": "Atölye oturumlarını içeren 7. Öğrenci Sempozyumu posteri"
+    },
+    "fit": "contain"
+  }
+}

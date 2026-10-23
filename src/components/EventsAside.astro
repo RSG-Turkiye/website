@@ -4,16 +4,18 @@
  * the archive adds up to, an invitation, what comes next, and the archives
  * this page summarises. Every number is counted at build time (symposiums
  * from the symposium site's edition pages, webinars from the collection, the
- * rest from src/data/events.ts); none is typed in.
+ * rest from src/content/events); none is typed in.
  */
 import { getCollection } from "astro:content";
-import { events, statusOf } from "../data/events";
+import { statusOf } from "../data/events";
+import { loadEvents } from "../lib/get-events";
 import { symposiumCount, symposiumEditions } from "../lib/home-stats";
 import { FOUNDED_YEAR } from "../data/events";
 import { yearAblative } from "../lib/turkish-year";
 
 interface Props { lang: "en" | "tr" }
 const { lang } = Astro.props;
+const events = await loadEvents();
 const now = new Date();
 const tr = lang === "tr";
 const prefix = tr ? "/tr" : "";

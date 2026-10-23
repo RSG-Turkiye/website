@@ -1,0 +1,40 @@
+{
+  "id": "workshop-ankapy-2019",
+  "type": "workshop",
+  "start": "2019-11-25",
+  "end": "2019-11-29",
+  "title": {
+    "en": "AnkaPy: Python for Bioinformatics",
+    "tr": "AnkaPy: Biyoinformatik için Python"
+  },
+  "when": {
+    "en": "25 – 29 November 2019",
+    "tr": "25 – 29 Kasım 2019"
+  },
+  "location": {
+    "en": "Hacettepe University, Ankara",
+    "tr": "Hacettepe Üniversitesi, Ankara"
+  },
+  "description": {
+    "en": "A five-day Python workshop with Hacettepe University, the University of Ostrava and SOVA: programming basics, Biopython for FASTA, BLAST and Entrez, and numpy, pandas and matplotlib for data analysis.",
+    "tr": "Hacettepe Üniversitesi, Ostrava Üniversitesi ve SOVA ile beş günlük Python atölyesi: programlama temelleri, FASTA, BLAST ve Entrez için Biopython, veri analizi için numpy, pandas ve matplotlib."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Workshop materials",
+        "tr": "Atölye materyalleri"
+      },
+      "url": "https://github.com/RSG-Turkiye/AnkaPy"
+    }
+  ],
+  "image": {
+    "thumb": "/api/images/df865145-4598-4282-9068-9bed7c457058.jpg",
+    "full": "/api/images/cda81d91-f812-4beb-86bd-621536d46507.jpg",
+    "alt": {
+      "en": "The AnkaPy Python workshop classroom at Hacettepe University, November 2019",
+      "tr": "Kasım 2019, Hacettepe Üniversitesi AnkaPy Python atölyesi sınıfı"
+    },
+    "fit": "cover"
+  }
+}

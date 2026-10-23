@@ -1,0 +1,22 @@
+{
+  "id": "symposium-2024",
+  "type": "symposium",
+  "start": "2024-11-15",
+  "end": "2024-11-16",
+  "title": {
+    "en": "11th RSG-Türkiye Student Symposium",
+    "tr": "11. RSG-Türkiye Öğrenci Sempozyumu"
+  },
+  "when": {
+    "en": "15 – 16 November 2024",
+    "tr": "15 – 16 Kasım 2024"
+  },
+  "location": {
+    "en": "Mehmet Akif Ersoy Art Center, Pendik, Istanbul",
+    "tr": "Mehmet Akif Ersoy Sanat Merkezi, Pendik, İstanbul"
+  },
+  "description": {
+    "en": "The first symposium the RSG-Türkiye team organised entirely on its own, rather than as a satellite meeting to HIBIT.",
+    "tr": "RSG-Türkiye ekibinin HIBIT'in uydu etkinliği olarak değil, tümüyle kendi başına düzenlediği ilk sempozyum."
+  }
+}
