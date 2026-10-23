@@ -1,4 +1,8 @@
 {
+  "hero_title": {
+    "en": "Join RSG-Turkiye",
+    "tr": "RSG-Türkiye'ye Katıl"
+  },
   "hero_subtitle": {
     "en": "Our events are open to everyone. Membership is for people doing research in bioinformatics.",
     "tr": "Etkinliklerimiz herkese açık. Üyelik, biyoinformatik alanında araştırma yapanlar için."

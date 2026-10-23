@@ -89,3 +89,45 @@ test('CLI still runs when started through a symlink', () => {
   symlinkSync(script, link);
   assert.equal(cli(a, diff, link).status, 1);
 });
+
+// Browser-invisible differences: how Astro spells an apostrophe, and how it
+// lays out whitespace around an expression, do not change the rendered page.
+const same = (x: string, y: string) =>
+  compareBuilds(build({ 'p/index.html': x }), build({ 'p/index.html': y })).changed.length === 0;
+
+test("an escaped apostrophe or quote equals the plain character", () => {
+  assert.ok(same("<h1>RSG-Türkiye'ye Katıl</h1>", '<h1>RSG-Türkiye&#39;ye Katıl</h1>'));
+  assert.ok(same("<p>it's</p>", '<p>it&#x27;s</p>'));
+  assert.ok(same('<p>"q"</p>', '<p>&quot;q&#34;</p>'));
+});
+
+test('a multi-line label equals the same label on one line', () => {
+  assert.ok(same('<a href="/x">\n            Visit ISCB\n          </a>', '<a href="/x"> Visit ISCB </a>'));
+  assert.ok(same('<p>a\n\t b</p>', '<p>a b</p>'));
+});
+
+test('joined words, a changed word or a dropped space are still differences', () => {
+  assert.ok(!same('<p>a b</p>', '<p>ab</p>'));
+  assert.ok(!same('<p>Visit ISCB</p>', '<p>Visit ISBC</p>'));
+  assert.ok(!same('<a> Visit</a>', '<a>Visit</a>'));
+});
+
+test('escaped markup never equals real markup', () => {
+  assert.ok(!same('<p>&lt;b&gt;x&lt;/b&gt;</p>', '<p><b>x</b></p>'));
+  assert.ok(same('<p>&#60;b&#62; &#38;</p>', '<p>&lt;b&gt; &amp;</p>'));
+});
+
+test('whitespace inside <pre> and <textarea> still counts', () => {
+  assert.ok(!same('<pre>a\n  b</pre>', '<pre>a b</pre>'));
+  assert.ok(!same('<textarea>a\n\nb</textarea>', '<textarea>a b</textarea>'));
+  assert.ok(same('<pre>x</pre>\n\n<p>y</p>', '<pre>x</pre> <p>y</p>'));
+});
+
+test('CLI shows where a one-line page differs', () => {
+  const a = build({ 'p/index.html': '<p>' + 'x '.repeat(300) + 'one</p>' });
+  const b = build({ 'p/index.html': '<p>' + 'x '.repeat(300) + 'two</p>' });
+  const r = cli(a, b);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /one/);
+  assert.match(r.stdout, /two/);
+});

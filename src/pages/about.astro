@@ -9,9 +9,6 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const pageTitle = "About Us - RSG-Turkiye";
 const committees = await getCommittees(lang);
-// The ISCB button label stays literal text: in an expression Astro escapes
-// the apostrophe in the Turkish label as &#39; and folds the newlines around
-// it into spaces, so the built page would change.
 const tx = await pageText('about', lang);
 
 const singleColCommittees = committees.filter(c => c.members.length < 2);
@@ -115,7 +112,7 @@ const lastSingleCommittee = singleColCommittees[singleColCommittees.length - 1];
           <p class="text-sm text-gray-600 mb-4">{tx('iscb_card_subtitle')}</p>
           <a href="https://iscbsc.org/" target="_blank" rel="noopener noreferrer"
             class="inline-flex items-center px-4 py-2 rounded border border-navy text-navy text-sm font-medium hover:bg-navy hover:text-white transition-colors no-underline">
-            Visit ISCB Student Council
+            {tx('iscb_button')}
           </a>
         </div>
       </div>
