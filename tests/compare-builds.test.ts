@@ -98,7 +98,7 @@ const same = (x: string, y: string) =>
 test("an escaped apostrophe or quote equals the plain character", () => {
   assert.ok(same("<h1>RSG-Türkiye'ye Katıl</h1>", '<h1>RSG-Türkiye&#39;ye Katıl</h1>'));
   assert.ok(same("<p>it's</p>", '<p>it&#x27;s</p>'));
-  assert.ok(same('<p>"q"</p>', '<p>&quot;q&#34;</p>'));
+  assert.ok(same('<p>&quot;q&#34;</p>', '<p>&#x22;q&quot;</p>'));
 });
 
 test('a multi-line label equals the same label on one line', () => {
@@ -130,4 +130,24 @@ test('CLI shows where a one-line page differs', () => {
   assert.equal(r.status, 1);
   assert.match(r.stdout, /one/);
   assert.match(r.stdout, /two/);
+});
+
+const sameIn = (name: string, x: string, y: string) =>
+  compareBuilds(build({ [name]: x }), build({ [name]: y })).changed.length === 0;
+
+test('.txt and .xml stay byte-exact: their newlines carry meaning', () => {
+  assert.ok(!sameIn('llms.txt', 'a\nb', 'a b'));
+  assert.ok(!sameIn('robots.txt', "a\n\nb", 'a\nb'));
+  assert.ok(!sameIn('sitemap.xml', '<loc>it&#39;s</loc>', "<loc>it's</loc>"));
+  assert.ok(sameIn('feed.xml', '<link href="/_astro/a.Bx3k9aZq.css">', '<link href="/_astro/a.Qq77xx01.css">'));
+});
+
+test('&quot; is never decoded: inside an attribute it changes the markup', () => {
+  assert.ok(!same('<p title="a&quot;b">x</p>', '<p title="a"b">x</p>'));
+  assert.ok(!same('<p>&quot;q&quot;</p>', '<p>"q"</p>'));
+});
+
+test('whitespace inside <script> and <style> still counts', () => {
+  assert.ok(!same('<script>a\n  b</script>', '<script>a b</script>'));
+  assert.ok(!same('<style>a\n  b</style>', '<style>a b</style>'));
 });

@@ -35,19 +35,19 @@
     "en": "The ISCB Student Council provides a framework for communication and interaction among students and postdocs working in computational biology and bioinformatics worldwide.",
     "tr": "ISCB Öğrenci Konseyi, dünya çapında hesaplamalı biyoloji ve biyoinformatik alanlarında çalışan öğrenci ve doktora sonrası araştırmacılar arasında iletişim ve etkileşim için çerçeve sağlar."
   },
-  "iscb_benefit_1": {
+  "iscb_benefit_conferences": {
     "en": "Access to international conferences and events",
     "tr": "Uluslararası konferans ve etkinliklere erişim"
   },
-  "iscb_benefit_2": {
+  "iscb_benefit_networking": {
     "en": "Networking opportunities with global researchers",
     "tr": "Küresel araştırmacılarla ağ oluşturma fırsatları"
   },
-  "iscb_benefit_3": {
+  "iscb_benefit_training": {
     "en": "Educational resources and training programs",
     "tr": "Eğitim kaynakları ve eğitim programları"
   },
-  "iscb_benefit_4": {
+  "iscb_benefit_collaboration": {
     "en": "Collaboration opportunities with other RSGs",
     "tr": "Diğer RSG'lerle işbirliği fırsatları"
   },

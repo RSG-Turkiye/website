@@ -8,21 +8,26 @@
  * that changes whenever any bundled CSS or JS changes, so
  * `/_astro/<name>.<hash>.<ext>` is rewritten to `/_astro/<name>.<ext>` first.
  *
- * The promise is about the rendered page, not the bytes, so two differences a
- * browser cannot see are normalised away on both sides:
- *   - Entity spelling. Astro escapes `'` and `"` inside an expression
- *     (`&#39;`) but not in literal template text, so moving a sentence into a
- *     content file changes its bytes. `&#39;`, `&#x27;`, `&apos;` become `'`
- *     and `&quot;`, `&#34;`, `&#x22;` become `"`. The numeric forms of `&`, `<`
- *     and `>` become `&amp;`, `&lt;`, `&gt;`, but these three are never
- *     decoded to the bare character: `&lt;b&gt;` shows the text "<b>", `<b>`
- *     is bold, and that difference must still be reported.
- *   - Whitespace runs. Literal text keeps the newlines around a label;
- *     an expression gets a single space. Any run of spaces, tabs and newlines
- *     becomes one space, which is how HTML renders it. Inside `<pre>` and
- *     `<textarea>` whitespace is shown as written, so it is left alone there.
- * A run is never removed, only shortened, so "a b" against "ab", a dropped
- * space next to a tag, or any changed word is still a difference.
+ * The promise is about the rendered page, not the bytes, so in .html files
+ * two differences a browser cannot see are normalised away on both sides.
+ * .txt and .xml files (robots.txt, llms.txt, feeds, sitemaps) are compared
+ * byte for byte after the asset-hash step: their newlines and entities mean
+ * something, so a flattened llms.txt must fail.
+ *   - Entity spelling. Astro escapes `'` inside an expression (`&#39;`) but
+ *     not in literal template text, so moving a sentence into a content file
+ *     changes its bytes. `&#39;`, `&#x27;`, `&apos;` become `'`. For `"`, `&`,
+ *     `<` and `>` only the spelling is equated (`&#34;` -> `&quot;`,
+ *     `&#60;` -> `&lt;`, ...); they are never decoded to the bare character:
+ *     `&lt;b&gt;` shows the text "<b>" where `<b>` is bold, and
+ *     `title="a&quot;b"` parses differently from `title="a"b"`.
+ *   - Whitespace runs. Literal text keeps the newlines around a label; an
+ *     expression gets a single space. Any run of spaces, tabs and newlines
+ *     becomes one space, which is how HTML renders it. A run is shortened,
+ *     never removed, so "a b" against "ab", a dropped space next to a tag,
+ *     or any changed word is still a difference.
+ * `<pre>` and `<textarea>` show whitespace as written, so they keep it (their
+ * entities are still equated). `<script>` and `<style>` are not HTML text at
+ * all, so neither step touches them.
  *
  *   npx tsx scripts/compare-builds.ts <before> <after>   (exit 1 on any difference)
  */
@@ -53,27 +58,34 @@ const hashes = (s: string) => s.replace(/\/_astro\/([^"'\s)]*?)\.[A-Za-z0-9_-]{8
 const entities = (s: string) =>
   s
     .replace(/&(?:#0*39|#[xX]0*27|apos);/g, "'")
-    .replace(/&(?:#0*34|#[xX]0*22|quot);/g, '"')
+    .replace(/&(?:#0*34|#[xX]0*22);/g, '&quot;')
     .replace(/&(?:#0*38|#[xX]0*26);/g, '&amp;')
     .replace(/&(?:#0*60|#[xX]0*3[cC]);/g, '&lt;')
     .replace(/&(?:#0*62|#[xX]0*3[eE]);/g, '&gt;');
 
-// Split off <pre> and <textarea> elements (kept as written) from the rest.
-const VERBATIM = /(<(pre|textarea)\b[\s\S]*?<\/\2\s*>)/gi;
-const whitespace = (s: string) =>
+const fold = (s: string) => s.replace(/[ \t\r\n\f]+/g, ' ');
+
+// split() with these two groups yields [text, element, tag name, text, ...].
+const VERBATIM = /(<(pre|textarea|script|style)\b[\s\S]*?<\/\2\s*>)/gi;
+const html = (s: string) =>
   s
     .split(VERBATIM)
-    .map((part, i) => (i % 3 === 0 ? part.replace(/[ \t\r\n\f]+/g, ' ') : i % 3 === 1 ? part : ''))
+    .map((part, i, all) => {
+      if (i % 3 === 0) return fold(entities(part));
+      if (i % 3 === 2) return '';
+      return /^(pre|textarea)$/i.test(all[i + 1]) ? entities(part) : part;
+    })
     .join('');
 
-export const normalise = (s: string) => whitespace(entities(hashes(s)));
+/** A file's text as compared: see the header for what is ignored, and where. */
+export const normalise = (s: string, file: string) => (file.endsWith('.html') ? html(hashes(s)) : hashes(s));
 
 export function compareBuilds(before: string, after: string): { changed: string[]; added: string[]; removed: string[] } {
   const a = new Set(files(before));
   const b = new Set(files(after));
   const changed: string[] = [];
   for (const f of a) {
-    if (b.has(f) && normalise(readFileSync(join(before, f), 'utf8')) !== normalise(readFileSync(join(after, f), 'utf8'))) changed.push(f);
+    if (b.has(f) && normalise(readFileSync(join(before, f), 'utf8'), f) !== normalise(readFileSync(join(after, f), 'utf8'), f)) changed.push(f);
   }
   return {
     changed: changed.sort(),
@@ -101,8 +113,8 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   for (const f of r.changed) {
     // Pages are mostly one line once whitespace is folded, so show the first
     // differing character with some context rather than a line.
-    const x = normalise(readFileSync(join(before, f), 'utf8'));
-    const y = normalise(readFileSync(join(after, f), 'utf8'));
+    const x = normalise(readFileSync(join(before, f), 'utf8'), f);
+    const y = normalise(readFileSync(join(after, f), 'utf8'), f);
     let i = 0;
     while (i < x.length && x[i] === y[i]) i++;
     const at = Math.max(0, i - 80);
