@@ -937,14 +937,30 @@ When the committee changes:
 
 - After changing the Gmail password, go to admin panel > Connections > Gmail >
   Reconnect.
-- Grant the incoming team their roles in Members, and remove the outgoing
-  team's.
+- Grant the incoming team their roles in Users and roles → Roles, and remove
+  the outgoing team's. Roles now end on their own: each grant has an end date,
+  and the hourly sweep takes the role away after it. Renew a role before its
+  date in the same view; a renewed role starts a new grant.
 - Make sure at least two people are admins.
 - Change `GITHUB_NOTIFY_USERNAME` in `wrangler.toml` to the GitHub username of
   whoever now reviews blog submissions.
 - Go through [Yearly upkeep](#yearly-upkeep) for the social accounts.
 - Export the Log (JSON) from the Log pane and keep it with the year's records.
   The panel only keeps a year of history.
+
+### How roles work
+
+Every role is a grant in the `role_grants` table: who holds it, until when
+(or permanently), and who granted or ended it. Leader roles (admin,
+announcer, symposium, social publisher) can last up to 12 months, or be made
+permanent by an admin. Edit roles (writer, sender, social) last up to one
+month, then are renewed. The end date a person picks is inclusive: the role
+works through that whole day. The `users.is_*` columns are only a cache that
+permission checks read; they are rewritten from the live grants in the same
+batch as every change, and the hourly sweep in `/api/mail/dispatch` ends
+expired grants and rewrites the cache, day and night. The rules (the catalog,
+who may grant what, the allowed durations) are in `functions/_lib/roles.ts`;
+the database side is in `functions/_lib/role-grants.ts`.
 
 ---
 
