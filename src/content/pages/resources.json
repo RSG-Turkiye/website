@@ -1,0 +1,70 @@
+{
+  "hero_title": {
+    "en": "Resources",
+    "tr": "Kaynaklar"
+  },
+  "hero_subtitle": {
+    "en": "Curated bioinformatics learning materials, databases, and tools",
+    "tr": "Seçilmiş biyoinformatik öğrenme materyalleri, veritabanları ve araçlar"
+  },
+  "section_learning": {
+    "en": "Learning",
+    "tr": "Öğrenme"
+  },
+  "section_md_drug": {
+    "en": "MD & Drug Design",
+    "tr": "MD & İlaç Tasarımı"
+  },
+  "section_databases": {
+    "en": "Databases",
+    "tr": "Veritabanları"
+  },
+  "section_tools": {
+    "en": "Tools & Software",
+    "tr": "Araçlar & Yazılımlar"
+  },
+  "section_community": {
+    "en": "Community",
+    "tr": "Topluluk"
+  },
+  "sidebar_sections_heading": {
+    "en": "Sections",
+    "tr": "Bölümler"
+  },
+  "sidebar_search_heading": {
+    "en": "Search",
+    "tr": "Arama"
+  },
+  "search_placeholder": {
+    "en": "Filter resources…",
+    "tr": "Kaynakları filtrele…"
+  },
+  "open_source_badge": {
+    "en": "Open Source",
+    "tr": "Açık Kaynak"
+  },
+  "open_source_legend": {
+    "en": "Freely available or open-source tools and materials.",
+    "tr": "Ücretsiz erişilebilir veya açık kaynaklı araç ve materyaller."
+  },
+  "sidebar_no_matches": {
+    "en": "No matches found.",
+    "tr": "Eşleşen kaynak bulunamadı."
+  },
+  "active_filter_lead": {
+    "en": "Showing matches for",
+    "tr": "Şunun sonuçları:"
+  },
+  "clear_filter_button": {
+    "en": "Clear",
+    "tr": "Clear"
+  },
+  "main_no_matches": {
+    "en": "No matches found.",
+    "tr": "Eşleşme bulunamadı."
+  },
+  "section_count_unit": {
+    "en": "resources",
+    "tr": "kaynak"
+  }
+}

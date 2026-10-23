@@ -24,8 +24,8 @@ test('a known key returns the text in the requested language', () => {
   assert.equal(textLookup('about', record, 'tr')('hero_title'), 'Hakkımızda');
 });
 
-test('about and join exist, validate, and every value has non-empty en and tr', () => {
-  assert.deepEqual(files.sort(), ['about.json', 'join.json']);
+test('about, home, join and resources exist, validate, and every value has non-empty en and tr', () => {
+  assert.deepEqual(files.sort(), ['about.json', 'home.json', 'join.json', 'resources.json']);
   for (const { f, json } of raw) {
     const r = pageTextSchema.safeParse(json);
     assert.ok(r.success, `${f}: ${r.success ? '' : r.error.message}`);
@@ -45,6 +45,8 @@ test('every key the pages ask for exists in their JSON, and no JSON key is unuse
   const pages: Record<string, string[]> = {
     about: ['src/pages/about.astro', 'src/pages/tr/about.astro'],
     join: ['src/pages/join.astro', 'src/pages/tr/join.astro'],
+    home: ['src/pages/index.astro', 'src/pages/tr/index.astro'],
+    resources: ['src/pages/resources.astro', 'src/pages/tr/resources.astro'],
   };
   for (const [page, paths] of Object.entries(pages)) {
     const json = JSON.parse(readFileSync(dir + page + '.json', 'utf8'));

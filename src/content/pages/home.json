@@ -1,0 +1,14 @@
+{
+  "webinar_badge": {
+    "en": "Webinar",
+    "tr": "Webinar"
+  },
+  "event_badge": {
+    "en": "Event",
+    "tr": "Etkinlik"
+  },
+  "blog_badge": {
+    "en": "Blog",
+    "tr": "Blog"
+  }
+}

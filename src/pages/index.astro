@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import EntryIndex from '../components/EntryIndex.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
 import { getCollection } from 'astro:content';
+import { pageText } from '../lib/page-text';
 import { groupEvents, yearsSinceFounding } from '../data/events';
 import { loadEvents } from '../lib/get-events';
 import { symposiumCount, symposiumEditions } from '../lib/home-stats';
@@ -12,6 +13,7 @@ const events = await loadEvents();
 const nextEvent = groupEvents(events, new Date()).upcoming[0] ?? null;
 const eventsHref = lang === 'tr' ? '/tr/events/' : '/events/';
 const t = useTranslations(lang);
+const tx = await pageText('home', lang);
 const pageTitle = "RSG-Turkiye - Computational Biology Community";
 
 const latestPosts = (await getCollection('blog', ({ id, data }) => id.startsWith('en/') && !data.draft))
@@ -105,7 +107,7 @@ const latestWebinar = [...webinars].sort((a, b) => b.data.date.getTime() - a.dat
         <!-- Webinar card -->
         <div id="webinarCard" class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
-            Webinar
+            {tx('webinar_badge')}
           </span>
           {latestWebinar ? (
             <div class="flex-1 flex flex-col">
@@ -134,7 +136,7 @@ const latestWebinar = [...webinars].sort((a, b) => b.data.date.getTime() - a.dat
         <!-- Events card (live calendar) -->
         <div id="eventCard" class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
-            {lang === 'tr' ? 'Etkinlik' : 'Event'}
+            {tx('event_badge')}
           </span>
           <!--
             Rendered at build time from src/data/events.ts. The Google
@@ -167,7 +169,7 @@ const latestWebinar = [...webinars].sort((a, b) => b.data.date.getTime() - a.dat
         <!-- Blog card -->
         <div id="blogCard" class="bg-navy-light border border-[#C4CEEA] rounded-lg p-6 hover:border-navy-mid transition-colors flex flex-col">
           <span class="inline-block text-xs font-medium px-2.5 py-1 rounded bg-[#FDEAEA] text-red mb-4 self-start">
-            Blog
+            {tx('blog_badge')}
           </span>
           {latestPosts[0] ? (
             <div class="flex-1 flex flex-col">
