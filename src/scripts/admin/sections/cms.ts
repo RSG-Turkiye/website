@@ -314,7 +314,7 @@ async function showQueue(): Promise<void> {
   host.innerHTML = `<h2 class="text-sm font-semibold text-navy mb-2">${esc(tk('admin.cms.queueHeading'))}</h2>
     <div class="flex flex-col gap-2">${queue.map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
-      subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
+      subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
       chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.primary}">${esc(tk('admin.cms.review'))}</a>`,
       attrs: `data-cms-queue="${esc(d.id)}"`, stack: true,
     })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>`;
@@ -1044,6 +1044,8 @@ async function openReview(id: string, route: string): Promise<void> {
       </div></div>` : ''}`;
   wireReview(ed);
   liftBars();
+  // An approval that crashed half way: approving again finishes it.
+  if (draft.status === 'approved') notice(esc(statusLine(draft)), 'warn');
 }
 
 function wireReview(ed: Editor): void {

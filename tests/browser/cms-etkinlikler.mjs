@@ -295,6 +295,20 @@ console.log('8) an approval that meets a changed entry offers to send it back');
   await page.close();
 }
 
+console.log('8b) an approval that never finished is back in the queue, labelled');
+{
+  const id = '00000000-0000-4000-8000-000000000003';
+  const again = await open(browser, 'approver', `#icerik-etkinlikler/onay/${id}`, { width: 1440, height: 800 }, (s) => {
+    s.drafts.set(id, draftRow({ id, status: 'approved', updated_at: NOW - 900, entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'y' } }, base_shas: { [PATH]: 'sha-1' } }));
+  });
+  ok(await waitFor(again.page, () => /Onay yarım kaldı, yeniden deneyin/.test(document.getElementById('cmsNotice')?.textContent ?? '')), '"Onay yarım kaldı, yeniden deneyin"');
+  ok(await again.page.locator('#cmsApprove').isEnabled(), 'and it can be approved again');
+  await again.page.click('#cmsApprove');
+  ok(await waitFor(again.page, () => /birkaç dakika/.test(document.getElementById('cmsNotice')?.textContent ?? '')), 'which finishes it');
+  ok(again.calls.some((c) => c.path === `/api/cms/drafts/${id}/approve`), 'through /approve');
+  await again.page.close();
+}
+
 console.log('9) status words in my drafts; a missing deep link');
 {
   const { page } = await open(browser, 'editor', '#icerik-etkinlikler/taslaklar', { width: 1440, height: 900 }, (s) => {
