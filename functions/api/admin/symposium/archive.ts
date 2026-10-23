@@ -9,6 +9,7 @@
 // secret rather than getSessionUser/canManageSymposium. No admin ever calls
 // this directly.
 import type { Env } from '../../../_lib/auth';
+import { runWithAudit } from '../../../_lib/audit';
 import { jsonResponse } from '../../../_lib/auth';
 import { rowsToOverlay, archiveDecision } from '../../../_lib/symposium';
 import type {
@@ -186,9 +187,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       const prUrl = edition.archived_pr_url!;
       const state = await prState(prUrl, env);
       if (state.kind === 'merged') {
-        await env.DB.prepare(
+        await runWithAudit(env.DB, [env.DB.prepare(
           `UPDATE symposium_edition SET archived_at = ? WHERE year = ?`
-        ).bind(state.mergedAt, edition.year).run();
+        ).bind(state.mergedAt, edition.year)], {
+          userId: null, action: 'symposium.archived', targetType: 'symposium_year', targetId: String(edition.year), details: { pr: prUrl },
+        }, now);
         results.push({ year: edition.year, status: 'already-archived', prUrl });
       } else if (state.kind === 'unmerged') {
         results.push({ year: edition.year, status: 'pr-open', prUrl });
@@ -331,9 +334,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         // endpoint actually needs to record: the edition is retired and the
         // next run's archiveDecision must return 'skip' for it, rather than
         // trying the same no-op PR again forever.
-        await env.DB.prepare(
+        await runWithAudit(env.DB, [env.DB.prepare(
           `UPDATE symposium_edition SET archived_at = ? WHERE year = ?`
-        ).bind(now, edition.year).run();
+        ).bind(now, edition.year)], {
+          userId: null, action: 'symposium.archived', targetType: 'symposium_year', targetId: String(edition.year), details: { pr: null },
+        }, now);
         results.push({ year: edition.year, status: 'archived-no-pr' });
         continue;
       }
@@ -375,9 +380,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     // openContentPR call converges on the same PR (see its own doc comment)
     // and this UPDATE simply runs then instead -- no separate locking needed
     // on top of that.
-    await env.DB.prepare(
+    await runWithAudit(env.DB, [env.DB.prepare(
       `UPDATE symposium_edition SET archived_pr_url = ? WHERE year = ?`
-    ).bind(pr.prUrl, edition.year).run();
+    ).bind(pr.prUrl, edition.year)], {
+      userId: null, action: 'symposium.archive_pr', targetType: 'symposium_year', targetId: String(edition.year), details: { pr: pr.prUrl },
+    }, now);
 
     results.push({ year: edition.year, status: 'archived', prUrl: pr.prUrl });
   }

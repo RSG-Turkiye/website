@@ -7,6 +7,7 @@ import { getSessionUser, jsonResponse, checkCsrf, generateId, canManageSymposium
 import {
   normaliseEmail, isKind, isPdf, certKey, MAX_CERT_BYTES, RETENTION_SECONDS,
 } from '../../_lib/certificates';
+import { runWithAudit } from '../../_lib/audit';
 
 const bad = (code: string, error: string) => jsonResponse({ error, code }, 400);
 
@@ -82,15 +83,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     `INSERT INTO symposium_certificates (id, year, email, name, kind, size_bytes, uploaded_by, uploaded_at, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(id, year, email, name, kind, bytes.byteLength, user.id, now, expiresAt);
+  // Year and type only in the log: it is kept a year, the participant's name
+  // and address only 30 days.
+  const audit = {
+    userId: user.id, action: previous ? 'certificate.replace' : 'certificate.upload',
+    targetType: 'certificate', targetId: id, details: { year, kind, replaced: previous?.id ?? null },
+  };
   try {
-    if (previous) {
-      await env.DB.batch([
-        env.DB.prepare('DELETE FROM symposium_certificates WHERE id = ?').bind(previous.id),
-        insert,
-      ]);
-    } else {
-      await insert.run();
-    }
+    await runWithAudit(env.DB, previous
+      ? [env.DB.prepare('DELETE FROM symposium_certificates WHERE id = ?').bind(previous.id), insert]
+      : [insert], audit, now);
   } catch (err) {
     // Another upload for the same person and kind won the race (a double
     // click, two organisers at once). Take back this object so nothing is
@@ -116,6 +118,9 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
   for (let i = 0; i < results.length; i += 1000) {
     await env.MAIL_ATTACHMENTS.delete(results.slice(i, i + 1000).map((r) => certKey(r.id)));
   }
-  await env.DB.prepare('DELETE FROM symposium_certificates WHERE year = ?').bind(year).run();
+  await runWithAudit(env.DB, [env.DB.prepare('DELETE FROM symposium_certificates WHERE year = ?').bind(year)], {
+    userId: user.id, action: 'certificate.delete_year', targetType: 'symposium_year', targetId: String(year),
+    details: { deleted: results.length },
+  });
   return jsonResponse({ ok: true, deleted: results.length });
 };

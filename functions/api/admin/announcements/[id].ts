@@ -1,6 +1,7 @@
 import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageAnnouncements } from '../../../_lib/auth';
 import { triggerRebuild } from '../../../_lib/symposium';
+import { runWithAudit } from '../../../_lib/audit';
 import {
   announcementSite,
   announcementText,
@@ -59,7 +60,10 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
     .bind(id).first<{ site: string }>();
 
   bindings.push(id);
-  await env.DB.prepare(`UPDATE announcements SET ${fields.join(', ')} WHERE id = ?`).bind(...bindings).run();
+  await runWithAudit(env.DB, [env.DB.prepare(`UPDATE announcements SET ${fields.join(', ')} WHERE id = ?`).bind(...bindings)], {
+    userId: user.id, action: 'announcement.update', targetType: 'announcement', targetId: id,
+    details: { fields: fields.map((f) => f.split(' ')[0]) },
+  });
 
   const touchesSymposium = before?.site === 'symposium' || body.site === 'symposium';
   const rebuild = touchesSymposium ? await triggerRebuild(env) : null;
@@ -74,9 +78,12 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, params, env
   if (!canManageAnnouncements(user)) return jsonResponse({ error: 'Forbidden' }, 403);
 
   const id = params.id as string;
-  const before = await env.DB.prepare('SELECT site FROM announcements WHERE id = ?')
-    .bind(id).first<{ site: string }>();
-  await env.DB.prepare('DELETE FROM announcements WHERE id = ?').bind(id).run();
+  const before = await env.DB.prepare('SELECT site, title FROM announcements WHERE id = ?')
+    .bind(id).first<{ site: string; title: string }>();
+  await runWithAudit(env.DB, [env.DB.prepare('DELETE FROM announcements WHERE id = ?').bind(id)], {
+    userId: user.id, action: 'announcement.delete', targetType: 'announcement', targetId: id,
+    details: { site: before?.site ?? null, title: before?.title ?? null },
+  });
   // Deleting one has to take it off the symposium site too, and that site is
   // static: without a rebuild it stays up until the nightly cron.
   const rebuild = before?.site === 'symposium' ? await triggerRebuild(env) : null;

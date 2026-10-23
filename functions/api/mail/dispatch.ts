@@ -1,4 +1,5 @@
 import type { Env } from '../../_lib/auth';
+import { appendAudit } from '../../_lib/audit';
 import { jsonResponse } from '../../_lib/auth';
 import { checkRateLimit } from '../../_lib/mail';
 import { shouldGiveUp, withinSendingWindow, SEND_WINDOW } from '../../_lib/schedule';
@@ -233,6 +234,25 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
 
 /** Every distinct attachment in the candidate window, by size on disk. */
 
+/**
+ * The scheduler acting on someone's queued mail goes in the admin log under
+ * the person who queued it. Never throws: the row is already settled, and a
+ * failed log line must not turn into a retry that sends the mail again.
+ */
+async function auditOutcome(
+  env: Env, row: { id: string; sender_user_id: string; subject: string }, action: string,
+  details: Record<string, unknown>, now: number,
+): Promise<void> {
+  try {
+    await appendAudit(env.DB, {
+      userId: row.sender_user_id, action, targetType: 'scheduled_email', targetId: row.id,
+      details: { subject: row.subject, by: 'scheduler', ...details },
+    }, now);
+  } catch (err) {
+    console.error('audit write failed', err);
+  }
+}
+
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Without this, anyone could drain the queue early or burn the Gmail quota
   // by hammering the endpoint.
@@ -386,6 +406,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
     const drop = async (reason: string) => {
       await logFailure(env, input, reason);
       await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+      await auditOutcome(env, row, 'mail.scheduled.dropped', { reason }, now);
       failed++;
     };
 
@@ -541,6 +562,10 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       }
       if (firstFailure !== undefined) throw firstFailure;
       await markPhase(env.DB, runId, 'sent', row.id);
+      await auditOutcome(env, row, 'mail.scheduled.sent', {
+        sent: results.filter((r) => r.status === 'sent').length,
+        failed: results.filter((r) => r.status !== 'sent').length,
+      }, now);
       if (results.some(r => r.status === 'sent')) sent++; else failed++;
     } catch (err) {
       // Unlike malformed JSON, a throw here (a D1 hiccup, a transient R2 read
@@ -566,6 +591,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       } else if (shouldGiveUp(row.first_tried_at, now)) {
         await logFailure(env, input, 'Unexpected error, giving up after retry window: ' + message);
         await env.DB.prepare('DELETE FROM scheduled_emails WHERE id = ?').bind(row.id).run();
+        await auditOutcome(env, row, 'mail.scheduled.dropped', { reason: 'retry window elapsed' }, now);
         failed++;
       } else {
         // Only the reason. The attempt was counted before the work began, and

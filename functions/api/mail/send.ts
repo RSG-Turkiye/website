@@ -1,4 +1,5 @@
 import type { Env } from '../../_lib/auth';
+import { runWithAudit, appendAudit } from '../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf, generateId } from '../../_lib/auth';
 import { validateCompose, checkRateLimit } from '../../_lib/mail';
 import { attachmentSizes, resolveAttachments, sendAndLog, type ComposeInput } from '../../_lib/compose';
@@ -80,7 +81,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const nowSec = Math.floor(Date.now() / 1000);
     const id = generateId();
 
-    await env.DB.prepare(
+    await runWithAudit(env.DB, [env.DB.prepare(
       `INSERT INTO scheduled_emails
         (id, sender_user_id, recipients, subject, body,
          attachment_ids, scheduled_at, created_at, updated_at)
@@ -95,7 +96,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       when.scheduledAt,
       nowSec,
       nowSec,
-    ).run();
+    )], {
+      userId: user.id, action: 'mail.schedule', targetType: 'scheduled_email', targetId: id,
+      details: { subject: input.subject.trim(), recipients: recipients.length, at: when.scheduledAt },
+    }, nowSec);
 
     return jsonResponse({ ok: true, scheduled: true, id }, 201);
   }
@@ -123,7 +127,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (cost > INLINE_BUDGET) {
     const id = generateId();
     const nowSec = Math.floor(Date.now() / 1000);
-    await env.DB.prepare(
+    await runWithAudit(env.DB, [env.DB.prepare(
       `INSERT INTO scheduled_emails
         (id, sender_user_id, recipients, subject, body,
          attachment_ids, scheduled_at, created_at, updated_at)
@@ -138,7 +142,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       nowSec,
       nowSec,
       nowSec,
-    ).run();
+    )], {
+      userId: user.id, action: 'mail.schedule', targetType: 'scheduled_email', targetId: id,
+      details: { subject: input.subject.trim(), recipients: recipients.length, at: nowSec, reason: 'too_large_to_send_inline' },
+    }, nowSec);
     // Due immediately, so the next cron tick starts on it. The sender is told
     // it is going rather than told it failed.
     return jsonResponse({ ok: true, queued: true, id, code: 'too_large_to_send_inline' }, 202);
@@ -159,5 +166,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const results = await sendAndLog(env, composeInput, resolved.attachments);
   const anySent = results.some(r => r.status === 'sent');
+  // Who received it is in sent_emails; the log records that it happened.
+  await appendAudit(env.DB, {
+    userId: user.id, action: 'mail.send',
+    details: { subject: composeInput.subject, sent: results.filter((r) => r.status === 'sent').length, failed: results.filter((r) => r.status !== 'sent').length },
+  });
   return jsonResponse({ ok: anySent, results }, anySent ? 200 : 502);
 };

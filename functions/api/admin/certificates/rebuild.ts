@@ -4,9 +4,12 @@ import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { triggerRebuild } from '../../../_lib/symposium';
 import { organiser } from '../certificates';
+import { appendAudit } from '../../../_lib/audit';
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const user = await organiser(request, env, true);
   if (user instanceof Response) return user;
-  return jsonResponse({ ok: true, rebuild: await triggerRebuild(env) });
+  const rebuild = await triggerRebuild(env);
+  await appendAudit(env.DB, { userId: user.id, action: 'symposium.rebuild', details: { reason: 'certificates', state: rebuild.state } });
+  return jsonResponse({ ok: true, rebuild });
 };

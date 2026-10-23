@@ -7,6 +7,7 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { certKey } from '../../../_lib/certificates';
+import { appendAudit } from '../../../_lib/audit';
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const secret = request.headers.get('X-Archive-Secret');
@@ -41,5 +42,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     env.DB.prepare('DELETE FROM symposium_certificates WHERE expires_at <= ?').bind(now),
   ]);
   const lookups = await env.DB.prepare('DELETE FROM certificate_lookups WHERE at < ?').bind(now - 86400).run();
+  // Only a night that deleted something is worth a line in the log.
+  if (certs.meta.changes > 0) {
+    await appendAudit(env.DB, { userId: null, action: 'certificate.purge', details: { certificates: certs.meta.changes } }, now);
+  }
   return jsonResponse({ ok: true, certificates: certs.meta.changes, lookups: lookups.meta.changes });
 };

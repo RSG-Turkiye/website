@@ -3,16 +3,22 @@ import { jsonResponse } from '../../../_lib/auth';
 import { certKey } from '../../../_lib/certificates';
 import { triggerRebuild } from '../../../_lib/symposium';
 import { organiser } from '../certificates';
+import { runWithAudit } from '../../../_lib/audit';
 
 export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params }) => {
   const user = await organiser(request, env, true);
   if (user instanceof Response) return user;
   const id = String(params.id);
-  const row = await env.DB.prepare('SELECT id, year FROM symposium_certificates WHERE id = ?')
-    .bind(id).first<{ id: string; year: number }>();
+  const row = await env.DB.prepare('SELECT id, year, kind FROM symposium_certificates WHERE id = ?')
+    .bind(id).first<{ id: string; year: number; kind: string }>();
   if (!row) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   await env.MAIL_ATTACHMENTS.delete(certKey(row.id));
-  await env.DB.prepare('DELETE FROM symposium_certificates WHERE id = ?').bind(row.id).run();
+  // Year and type only: the log is kept a year, the participant's name and
+  // address only 30 days.
+  await runWithAudit(env.DB, [env.DB.prepare('DELETE FROM symposium_certificates WHERE id = ?').bind(row.id)], {
+    userId: user.id, action: 'certificate.delete', targetType: 'certificate', targetId: row.id,
+    details: { year: row.year, kind: row.kind },
+  });
 
   // The last one of its year: rebuild, or the symposium home page keeps
   // saying certificates are ready until the nightly build, and the button

@@ -177,12 +177,11 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       break;
     }
     case 'make_sender':
+      // grantSender and revokeSender write their own audit row.
       await grantSender(env, body.user_id, body.value?.trim() || null, user.id);
-      await appendAudit(env.DB, { userId: user.id, action: 'role.change', targetType: 'user', targetId: body.user_id, details: { role: 'is_sender', value: 1 } });
       break;
     case 'remove_sender':
       await revokeSender(env, body.user_id, user.id);
-      await appendAudit(env.DB, { userId: user.id, action: 'role.change', targetType: 'user', targetId: body.user_id, details: { role: 'is_sender', value: 0 } });
       break;
     default:
       return jsonResponse({ error: 'Unknown action' }, 400);

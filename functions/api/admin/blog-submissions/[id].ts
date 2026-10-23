@@ -2,6 +2,7 @@ import type { Env } from '../../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../../_lib/auth';
 import { openContentPR, fileExistsOnBaseBranch } from '../../../_lib/github';
 import { tagsFromRow } from '../../../_lib/blog-submission';
+import { runWithAudit } from '../../../_lib/audit';
 
 type SubmissionRow = {
   id: string;
@@ -100,7 +101,10 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
         ).bind(body.reason, now, admin.id, row.paired_submission_id)
       );
     }
-    await env.DB.batch(rejectStatements);
+    await runWithAudit(env.DB, rejectStatements, {
+      userId: admin.id, action: 'blog.reject', targetType: 'blog_submission', targetId: id,
+      details: { title: row.title, paired: row.paired_submission_id, reason: body.reason },
+    }, now);
     return jsonResponse({ ok: true });
   }
 
@@ -192,7 +196,10 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
   }
 
   try {
-    await env.DB.batch(updateStatements);
+    await runWithAudit(env.DB, updateStatements, {
+      userId: admin.id, action: 'blog.approve', targetType: 'blog_submission', targetId: id,
+      details: { title: row.title, slug, paired: pairedRow?.id ?? null, pr: result.prUrl },
+    }, now);
   } catch (e) {
     // The PR already exists and succeeded at this point -- a DB bookkeeping
     // failure here shouldn't be reported as if the approval itself failed.
