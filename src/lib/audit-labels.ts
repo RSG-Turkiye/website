@@ -9,6 +9,7 @@ type Label = { en: string; tr: string };
 
 const FIXED: Record<string, Label> = {
   'view.pane': { en: 'Opened a panel section', tr: 'Panelde bir bölüm açtı' },
+  'media.upload': { en: 'Uploaded an image', tr: 'Görsel yükledi' },
   'read.audit': { en: 'Read the log', tr: 'Kayıtları okudu' },
   'read.connections': { en: 'Read the connections', tr: 'Bağlantıları okudu' },
   'read.stats': { en: 'Read the statistics', tr: 'İstatistiklere baktı' },
