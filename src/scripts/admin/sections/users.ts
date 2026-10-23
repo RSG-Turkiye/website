@@ -5,19 +5,21 @@
  */
 import { RANK_LABELS, type Rank } from '../../../lib/badges';
 import { escapeHtml } from '../../escape-html';
-import { lang, t, tf, showToast, formatDate } from '../context';
+import { lang, t, tf, showToast, formatDate, dateLocale } from '../context';
 import { row, chip, switchControl, armConfirm, BTN, emptyState } from '../ui-kit';
 import { loadSenders } from './mail';
+import { roleDef, resolveExpiry, addMonths, type Duration } from '../../../../functions/_lib/roles';
+import { epochToIstanbulInput, istanbulInputToEpoch } from '../../../lib/istanbul-time';
 
 /** Each role as a switch: on → make_*, off → remove_*. Order and copy shown in the detail panel and on the Roles tab. */
 export const ROLE_SWITCHES = [
-  { flag: 'is_admin', on: 'make_admin', off: 'remove_admin', label: 'admin.roles.admin', hint: 'admin.roles.adminHint' },
-  { flag: 'is_announcer', on: 'make_announcer', off: 'remove_announcer', label: 'admin.roles.announcer', hint: 'admin.roles.announcerHint' },
-  { flag: 'is_writer', on: 'make_writer', off: 'remove_writer', label: 'admin.roles.writer', hint: 'admin.roles.writerHint' },
-  { flag: 'is_sender', on: 'make_sender', off: 'remove_sender', label: 'admin.roles.sender', hint: 'admin.roles.senderHint' },
-  { flag: 'is_symposium', on: 'make_symposium', off: 'remove_symposium', label: 'admin.roles.symposium', hint: 'admin.roles.symposiumHint' },
-  { flag: 'is_social', on: 'make_social', off: 'remove_social', label: 'admin.roles.social', hint: 'admin.roles.socialHint' },
-  { flag: 'is_social_publisher', on: 'make_social_publisher', off: 'remove_social_publisher', label: 'admin.roles.socialPublisher', hint: 'admin.roles.socialPublisherHint' },
+  { flag: 'is_admin', role: 'admin', on: 'make_admin', off: 'remove_admin', label: 'admin.roles.admin', hint: 'admin.roles.adminHint' },
+  { flag: 'is_announcer', role: 'announcer', on: 'make_announcer', off: 'remove_announcer', label: 'admin.roles.announcer', hint: 'admin.roles.announcerHint' },
+  { flag: 'is_writer', role: 'writer', on: 'make_writer', off: 'remove_writer', label: 'admin.roles.writer', hint: 'admin.roles.writerHint' },
+  { flag: 'is_sender', role: 'sender', on: 'make_sender', off: 'remove_sender', label: 'admin.roles.sender', hint: 'admin.roles.senderHint' },
+  { flag: 'is_symposium', role: 'symposium', on: 'make_symposium', off: 'remove_symposium', label: 'admin.roles.symposium', hint: 'admin.roles.symposiumHint' },
+  { flag: 'is_social', role: 'social', on: 'make_social', off: 'remove_social', label: 'admin.roles.social', hint: 'admin.roles.socialHint' },
+  { flag: 'is_social_publisher', role: 'social_publisher', on: 'make_social_publisher', off: 'remove_social_publisher', label: 'admin.roles.socialPublisher', hint: 'admin.roles.socialPublisherHint' },
 ] as const;
 
 type RoleSwitch = (typeof ROLE_SWITCHES)[number];
@@ -58,20 +60,30 @@ export function setCurrentUserId(id: string | null): void {
 const isSelfAdmin = (userId: string, flag: string) => flag === 'is_admin' && userId === meId;
 const displayName = (u: User): string => u.display_name || u.email;
 
+/** The server's refusal codes for a duration, in the panel's language. */
+const DURATION_ERRORS: Record<string, Parameters<typeof t>[0]> = {
+  too_long: 'admin.roles.err.tooLong',
+  permanent_not_allowed: 'admin.roles.err.permanentNotAllowed',
+  in_the_past: 'admin.roles.err.inThePast',
+  bad_duration: 'admin.roles.err.badDuration',
+  not_allowed: 'admin.roles.err.notAllowed',
+};
+
 /** True on success. A refusal or a network failure says so in a toast and returns false. */
-async function patchUser(userId: string, action: string, value?: string): Promise<boolean> {
+async function patchUser(userId: string, action: string, value?: string, duration?: Duration): Promise<boolean> {
   try {
     const res = await fetch('/api/admin/users', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, action, value }),
+      body: JSON.stringify({ user_id: userId, action, value, duration }),
     });
     if (res.ok) {
       showToast(t('admin.toast.done'));
       return true;
     }
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    showToast(err.error || t('admin.toast.error'), true);
+    const err = await res.json().catch(() => ({})) as { error?: string; code?: string };
+    const coded = err.code && Object.hasOwn(DURATION_ERRORS, err.code) ? t(DURATION_ERRORS[err.code]) : '';
+    showToast(coded || err.error || t('admin.toast.error'), true);
   } catch {
     showToast(t('admin.toast.error'), true);
   }
@@ -83,9 +95,9 @@ async function refreshAfterChange(): Promise<void> {
   await Promise.all([loadUsers(), rolesUsers ? loadRolesView() : Promise.resolve(), loadSenders()]);
 }
 
-export async function doAction(userId: string, action: string, control: HTMLButtonElement | HTMLSelectElement | HTMLInputElement, value?: string) {
+export async function doAction(userId: string, action: string, control: HTMLButtonElement | HTMLSelectElement | HTMLInputElement, value?: string, duration?: Duration) {
   control.disabled = true;
-  if (await patchUser(userId, action, value)) {
+  if (await patchUser(userId, action, value, duration)) {
     await refreshAfterChange();
     return;
   }
@@ -289,14 +301,127 @@ export async function loadRolesView(): Promise<void> {
   renderRolesView(data.users);
 }
 
-function personChip(u: User, r: RoleSwitch): string {
+// Durations
+
+const DAY = 86400;
+const MONTH_CHOICES = [1, 2, 3, 6, 12] as const;
+/** The Roles tab is admin-only, so the panel asks the rule as an admin would. */
+const AS_ADMIN = { isAdmin: true, activeRoles: [] as string[] };
+
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+/** YYYY-MM-DD of `ts` in Istanbul, whatever the browser's timezone. */
+const istanbulDay = (ts: number) => epochToIstanbulInput(ts).slice(0, 10);
+
+/**
+ * The choices the server would accept for this role now, from the same rule
+ * it runs (functions/_lib/roles.ts). Its 400 stays the final word.
+ */
+function allowedDurations(r: RoleSwitch, now: number) {
+  const def = roleDef(r.role)!;
+  const months = MONTH_CHOICES.filter((m) => resolveExpiry(def, { months: m }, now, AS_ADMIN).ok);
+  const permanent = resolveExpiry(def, { permanent: true }, now, AS_ADMIN).ok;
+  return { months, permanent, latest: addMonths(now, Math.max(...months)), leader: def.level === 'leader' };
+}
+
+const TR_MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+const TR_UNITS = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+const TR_TENS = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+
+/** The Turkish dative ending for a word as it is read aloud: Kasım → a, Ekim → e, altı → ya. */
+function trDative(spoken: string): string {
+  const vowels = spoken.match(/[aıoueiöü]/g) ?? ['a'];
+  const v = 'aıou'.includes(vowels[vowels.length - 1]) ? 'a' : 'e';
+  return /[aıoueiöü]$/.test(spoken) ? `y${v}` : v;
+}
+
+/** "until 23 Nov" / "23 Kas'a kadar", with the year only when it is not this year. */
+function untilLabel(ts: number): string {
+  const day = istanbulDay(ts);
+  const year = Number(day.slice(0, 4));
+  const withYear = year !== Number(istanbulDay(nowSeconds()).slice(0, 4));
+  const date = new Date(ts * 1000).toLocaleDateString(dateLocale, {
+    day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'Europe/Istanbul',
+  });
+  if (lang !== 'tr') return tf('admin.roles.until', { date });
+  // The ending follows the word read last: the full month name, or the year's last spoken number.
+  const spoken = withYear
+    ? TR_UNITS[year % 10] || TR_TENS[Math.floor(year / 10) % 10] || (year % 1000 ? 'yüz' : 'bin')
+    : TR_MONTHS[Number(day.slice(5, 7)) - 1];
+  return tf('admin.roles.until', { date: `${date}'${trDative(spoken)}` });
+}
+
+/**
+ * The duration choice, for adding and renewing alike. A chosen date ends at
+ * the start of that day in Istanbul, so the latest date offered is one the
+ * rule accepts and the earliest is tomorrow.
+ */
+function durationPicker(r: RoleSwitch, who: string, confirmLabel: string): string {
+  const now = nowSeconds();
+  const { months, permanent, latest, leader } = allowedDurations(r, now);
+  const preset = leader && permanent ? 'permanent' : String(months[0]);
+  const choices: [string, string][] = [
+    ...months.map((m): [string, string] => [String(m), m === 1 ? t('admin.roles.oneMonth') : tf('admin.roles.months', { n: m })]),
+    ['date', t('admin.roles.untilDate')],
+    ...(permanent ? [['permanent', t('admin.roles.permanent')] as [string, string]] : []),
+  ];
+  const field = `min-h-11 lg:min-h-9 text-sm px-3 rounded-xl border border-border text-navy bg-white focus:outline-none focus:border-navy-mid ${FOCUS}`;
+  return `<div data-picker class="mt-2 p-3 lg:p-2 rounded-xl border border-navy-mid bg-navy-light/40 min-w-0">
+    <p class="text-sm font-medium text-navy truncate mb-2">${escapeHtml(who)}</p>
+    <div class="flex flex-wrap items-center gap-2">
+      <select data-duration aria-label="${escapeHtml(t('admin.roles.duration'))}" class="${field}">
+        ${choices.map(([v, label]) => `<option value="${v}"${v === preset ? ' selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+      </select>
+      <input data-until type="date" aria-label="${escapeHtml(t('admin.roles.endDate'))}"
+        min="${istanbulDay(now + DAY)}" max="${istanbulDay(latest)}" value="${istanbulDay(latest)}" class="hidden ${field}" />
+      <button type="button" data-picker-confirm class="${BTN.primary}">${escapeHtml(confirmLabel)}</button>
+      <button type="button" data-picker-cancel class="${BTN.ghost}">${t('admin.roles.cancel')}</button>
+    </div>
+  </div>`;
+}
+
+/** Wires a picker rendered into `slot`; `onConfirm` gets the chosen duration and the button to disable. */
+function armPicker(slot: HTMLElement, onConfirm: (d: Duration, btn: HTMLButtonElement) => void, onCancel: () => void): void {
+  const select = slot.querySelector('[data-duration]') as unknown as HTMLSelectElement;
+  const until = slot.querySelector<HTMLInputElement>('[data-until]')!;
+  select.addEventListener('change', () => {
+    until.classList.toggle('hidden', select.value !== 'date');
+    if (select.value === 'date') until.focus();
+  });
+  const confirm = slot.querySelector('[data-picker-confirm]') as HTMLButtonElement;
+  confirm.addEventListener('click', () => {
+    let d: Duration | null = null;
+    if (select.value === 'permanent') d = { permanent: true };
+    else if (select.value === 'date') {
+      const at = istanbulInputToEpoch(`${until.value}T00:00`);
+      if (at !== undefined) d = { until: at };
+    } else d = { months: Number(select.value) as 1 };
+    if (!d) {
+      showToast(t('admin.roles.err.badDuration'), true);
+      return;
+    }
+    onConfirm(d, confirm);
+  });
+  slot.querySelector('[data-picker-cancel]')!.addEventListener('click', onCancel);
+  select.focus();
+}
+
+type Grant = { role: string; expires_at: number | null };
+
+function personChip(u: User, r: RoleSwitch, now: number): string {
   const name = escapeHtml(displayName(u));
+  // A holder with no live grant row (the legacy flag alone) shows no date.
+  const ends = (u.grants as Grant[] | undefined)?.find((g) => g.role === r.role)?.expires_at ?? null;
+  const soon = ends !== null && ends - now <= 7 * DAY;
+  const icon = `shrink-0 min-w-11 min-h-11 lg:min-w-7 lg:min-h-7 px-2 inline-flex items-center justify-center rounded-full text-gray-500 ${FOCUS}`;
+  const renew = ends === null ? '' : `
+    <button type="button" data-renew aria-label="${escapeHtml(tf('admin.roles.renewPerson', { name: displayName(u) }))}"
+      title="${escapeHtml(t('admin.roles.renew'))}" class="${icon} hover:text-navy">↻</button>`;
   // No × on one's own Admin chip: the server refuses it (see setCurrentUserId).
   const remove = isSelfAdmin(String(u.id), r.flag) ? '' : `
     <button type="button" data-remove="${r.off}" aria-label="${escapeHtml(tf('admin.roles.removePerson', { name: displayName(u) }))}"
-      class="shrink-0 min-w-11 min-h-11 lg:min-w-7 lg:min-h-7 px-2 inline-flex items-center justify-center rounded-full text-gray-500 hover:text-red ${FOCUS}">×</button>`;
-  return `<span data-person="${escapeHtml(String(u.id))}" class="inline-flex items-center gap-1 max-w-full pl-3 ${remove ? '' : 'pr-3 min-h-11 lg:min-h-7'} rounded-full bg-gray-100 text-xs text-gray-600">
-    <span class="truncate" title="${escapeHtml(u.email)}">${name}</span>${remove}
+      class="${icon} hover:text-red">×</button>`;
+  return `<span data-person="${escapeHtml(String(u.id))}"${soon ? ' data-ends-soon' : ''} class="inline-flex items-center gap-1 max-w-full pl-3 ${remove || renew ? '' : 'pr-3 min-h-11 lg:min-h-7'} rounded-full ${soon ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'} text-xs">
+    <span class="truncate min-w-0" title="${escapeHtml(u.email)}">${name}</span>${ends === null ? '' : `<span class="shrink-0 whitespace-nowrap ${soon ? 'font-medium' : ''}">· ${escapeHtml(untilLabel(ends))}</span>`}${renew}${remove}
   </span>`;
 }
 
@@ -316,6 +441,7 @@ export function renderRolesView(users: User[]): void {
   rolesUsers = users;
   const box = document.getElementById('rolesView');
   if (!box) return;
+  const now = nowSeconds();
   box.innerHTML = `<h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">${t('admin.nav.roles')}</h2>
     <div class="grid gap-3 lg:grid-cols-2">${ROLE_SWITCHES.map((r) => {
       const people = users.filter((u) => !!u[r.flag]);
@@ -323,8 +449,9 @@ export function renderRolesView(users: User[]): void {
         <h3 class="text-sm font-semibold text-navy">${t(r.label)}</h3>
         <p class="text-xs text-gray-500 mb-3">${t(r.hint)}</p>
         <div class="flex flex-wrap items-center gap-1">
-          ${people.length ? people.map((u) => personChip(u, r)).join('') : `<p class="text-xs text-gray-500">${t('admin.roles.nobody')}</p>`}
+          ${people.length ? people.map((u) => personChip(u, r, now)).join('') : `<p class="text-xs text-gray-500">${t('admin.roles.nobody')}</p>`}
         </div>
+        <div data-renew-slot></div>
         <button type="button" data-add-role aria-expanded="false" class="mt-3 ${BTN.ghost} border border-dashed border-border">+ ${t('admin.roles.addPerson')}</button>
         <div data-add-box class="hidden mt-2">
           <input data-add-input type="search" placeholder="${escapeHtml(t('admin.roles.addPlaceholder'))}" aria-label="${escapeHtml(t('admin.roles.addPlaceholder'))}"
@@ -336,9 +463,15 @@ export function renderRolesView(users: User[]): void {
 
   for (const r of ROLE_SWITCHES) {
     const card = box.querySelector<HTMLElement>(`[data-role-card="${r.flag}"]`)!;
+    const renewSlot = card.querySelector('[data-renew-slot]') as HTMLElement;
     card.querySelectorAll<HTMLElement>('[data-person]').forEach((p) => {
-      const btn = p.querySelector('button');
-      if (btn) armConfirm(btn, CONFIRM(), () => doAction(p.dataset.person!, r.off, btn));
+      const remove = p.querySelector<HTMLButtonElement>('[data-remove]');
+      if (remove) armConfirm(remove, CONFIRM(), () => doAction(p.dataset.person!, r.off, remove));
+      p.querySelector('[data-renew]')?.addEventListener('click', () => {
+        const u = users.find((x) => String(x.id) === p.dataset.person)!;
+        renewSlot.innerHTML = durationPicker(r, displayName(u), t('admin.roles.renew'));
+        armPicker(renewSlot, (d, btn) => void doAction(p.dataset.person!, r.on, btn, undefined, d), () => { renewSlot.innerHTML = ''; });
+      });
     });
 
     const toggle = card.querySelector('[data-add-role]') as HTMLButtonElement;
@@ -362,7 +495,11 @@ export function renderRolesView(users: User[]): void {
         <span class="block text-xs text-gray-500 truncate">${escapeHtml(u.email)}</span>
       </button>`).join('');
       results.querySelectorAll<HTMLButtonElement>('[data-add-user]').forEach((b) => {
-        b.addEventListener('click', () => doAction(b.dataset.addUser!, r.on, b));
+        b.addEventListener('click', () => {
+          const u = matches.find((x) => String(x.id) === b.dataset.addUser)!;
+          results.innerHTML = durationPicker(r, displayName(u), t('admin.roles.add'));
+          armPicker(results, (d, btn) => void doAction(b.dataset.addUser!, r.on, btn, undefined, d), () => void showMatches(latest));
+        });
       });
     };
     input.addEventListener('input', () => {

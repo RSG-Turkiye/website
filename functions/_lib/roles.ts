@@ -71,8 +71,10 @@ const OFFERED_MONTHS = [1, 2, 3, 6, 12];
 /**
  * `ts` plus whole calendar months in Türkiye time, keeping the time of day.
  * A day the target month lacks lands on its last day (31 Jan + 1 = 28 Feb).
+ * Exported for the admin panel's date picker, so its latest offered date is
+ * the one this rule accepts.
  */
-function addMonths(ts: number, months: number): number {
+export function addMonths(ts: number, months: number): number {
   const d = new Date((ts + TR_OFFSET) * 1000);
   const year = d.getUTCFullYear();
   const month = d.getUTCMonth() + months;
