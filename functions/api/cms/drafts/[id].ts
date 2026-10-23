@@ -2,6 +2,7 @@ import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof, readJson } from '../../../_lib/cms-api';
+import { deleteBranch } from '../../../_lib/github';
 import { canTransition, checkSameId, newEntryId, newPaths, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
@@ -75,6 +76,18 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const { row } = found;
   if (!mayEdit(gate, row)) return forbidden();
   if (!canTransition('discard', row.status)) return badState();
+  // A failed attempt may have left cms/<id> (and an open pull request on
+  // it). Removing it is best effort: a failure is logged, noted in the log
+  // row, and never blocks the discard.
+  let branch: 'deleted' | 'absent' | 'failed' | undefined;
+  if (row.status === 'pr_failed') {
+    try {
+      branch = await deleteBranch(`cms/${row.id}`, env);
+    } catch (e) {
+      console.error('cms: deleting the branch of a discarded draft failed', row.id, e);
+      branch = 'failed';
+    }
+  }
   const nonce = newNonce();
   const done = await runGuardedWithAudit(
     env.DB,
@@ -82,7 +95,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
       .bind(gate.now, nonce, row.id, row.status, row.write_nonce),
     nonceProof(row.id, nonce),
     [],
-    { userId: gate.user.id, action: 'cms.draft.discard', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, from: row.status } },
+    { userId: gate.user.id, action: 'cms.draft.discard', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, from: row.status, ...(branch ? { branch } : {}) } },
     gate.now,
   );
   if (!done) return changed();

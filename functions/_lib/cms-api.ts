@@ -6,7 +6,7 @@
 
 import { checkCsrf, getSessionUser, jsonResponse, type Env, type User } from './auth';
 import { groupRights, type CmsGroup, type GroupRights } from './cms-access';
-import type { DraftRow } from './cms-drafts';
+import type { DraftRow, PairData } from './cms-drafts';
 import { cmsType, type CmsType } from '../../src/lib/cms/types';
 import type { CmsIndex, CmsIndexEntry } from '../../src/lib/cms/cms-index';
 import { jsonPath } from '../../src/lib/cms/serialize';
@@ -144,3 +144,30 @@ export const nonceProof = (id: string, nonce: string) => ({
   condition: 'EXISTS (SELECT 1 FROM content_drafts WHERE id = ? AND write_nonce = ?)',
   binds: [id, nonce],
 });
+
+/**
+ * A webinar pair is found by translationKey, else by file name
+ * (src/lib/translations.ts). A draft whose key (either side) is another
+ * published pair's, or a new pair whose name is a published pair's, would
+ * tie its files to that pair. Its own pair (an update's entry) does not count.
+ */
+export function pairClash(type: CmsType, index: CmsIndex, entryId: string, action: string, data: PairData): CmsIndexEntry | null {
+  const keys = [data.en?.frontmatter?.translationKey, data.tr?.frontmatter?.translationKey]
+    .map((k) => String(k ?? '').trim())
+    .filter((k) => k !== '');
+  const slug = (p: string | null | undefined) => (p ? p.slice(p.lastIndexOf('/') + 1, -'.md'.length) : null);
+  return (index[type.key] ?? []).find((e) => {
+    if (action !== 'create' && e.id === entryId) return false;
+    if (e.key && keys.includes(e.key)) return true;
+    return action === 'create' && (e.id === entryId || slug(e.paths?.en) === entryId || slug(e.paths?.tr) === entryId);
+  }) ?? null;
+}
+
+/** pairClash as a response: 409 exists, 503 without the index, or null when clear (or not a pair). */
+export async function refusePairClash(request: Request, env: Env, type: CmsType, entryId: string, action: string, data: unknown): Promise<Response | null> {
+  if (type.format !== 'markdown-pair' || action === 'delete') return null;
+  const index = await loadCmsIndex(request, env);
+  if (!index) return indexUnavailable();
+  const clash = pairClash(type, index, entryId, action, data as PairData);
+  return clash ? fail(409, 'exists', 'A published webinar already has this name or translationKey', { entry_id: clash.id }) : null;
+}

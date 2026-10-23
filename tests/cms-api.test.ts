@@ -52,39 +52,75 @@ type Req = { method: string; path: string; body: any };
 class FakeGitHub {
   main = new Map<string, string>(Object.entries(FILES));
   branches = new Map<string, Map<string, string>>();
-  prs: { title: string; body: string; head: string; number: number }[] = [];
+  prs: { title: string; body: string; head: string; number: number; state: 'open' | 'closed'; merged: boolean }[] = [];
+  /** Commit sha → the tree at that commit. Main's head is derived from its files. */
+  commits = new Map<string, Map<string, string>>();
+  /** Branch → the commit it was created from or last reset to. */
+  branchBase = new Map<string, string>();
   requests: Req[] = [];
   resets: string[] = [];
   /** Run (once) when a pull request is about to be opened. */
   beforePulls: (() => Promise<void>) | null = null;
+  /** Run (once) right after a file is read at a commit sha (the approval's check). */
+  afterCheckedRead: (() => void) | null = null;
+  refDeletes: 'ok' | 'error' = 'ok';
+  /** Overrides the URL POST /pulls answers with. */
+  prUrl: string | null = null;
   /** What POST /pulls answers. */
   pulls: 'ok' | 'no-commits' | 'error' = 'ok';
 
   files(ref: string): Map<string, string> | undefined {
-    return ref === 'main' ? this.main : this.branches.get(ref);
+    return ref === 'main' ? this.main : this.commits.get(ref) ?? this.branches.get(ref);
+  }
+
+  head(): string {
+    const tree = [...this.main.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const sha = createHash('sha1').update(JSON.stringify(tree)).digest('hex');
+    if (!this.commits.has(sha)) this.commits.set(sha, new Map(this.main));
+    return sha;
+  }
+
+  /** A pull request as the list endpoint returns it. */
+  listed(pr: FakeGitHub['prs'][number]) {
+    return { html_url: `https://github.com/RSG-Turkiye/website/pull/${pr.number}`, number: pr.number, state: pr.state, merged_at: pr.merged ? '2026-10-24T00:00:00Z' : null };
   }
 
   handle(method: string, url: URL, body: any): Response {
     const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
     const p = url.pathname.replace('/repos/RSG-Turkiye/website', '');
-    if (method === 'GET' && p === '/git/ref/heads/main') return json({ object: { sha: 'a'.repeat(40) } });
+    if (method === 'GET' && p === '/git/ref/heads/main') return json({ object: { sha: this.head() } });
     if (method === 'POST' && p === '/git/refs') {
       const name = body.ref.replace('refs/heads/', '');
       if (this.branches.has(name)) return json({ message: 'Reference already exists' }, 422);
-      this.branches.set(name, new Map(this.main));
+      this.branches.set(name, new Map(this.commits.get(body.sha) ?? this.main));
+      this.branchBase.set(name, body.sha);
       return json({}, 201);
     }
     if (method === 'PATCH' && p.startsWith('/git/refs/heads/')) {
       const name = p.slice('/git/refs/heads/'.length);
-      if (!this.branches.has(name) || !body.force) return json({ message: 'nope' }, 422);
-      this.branches.set(name, new Map(this.main));
+      if (!this.branches.has(name) || !body.force || !this.commits.has(body.sha)) return json({ message: 'nope' }, 422);
+      this.branches.set(name, new Map(this.commits.get(body.sha)));
+      this.branchBase.set(name, body.sha);
       this.resets.push(name);
       return json({});
+    }
+    if (method === 'DELETE' && p.startsWith('/git/refs/heads/')) {
+      const name = p.slice('/git/refs/heads/'.length);
+      if (this.refDeletes === 'error') return json({ message: 'secret' }, 500);
+      if (!this.branches.delete(name)) return json({ message: 'Reference does not exist' }, 422);
+      for (const pr of this.prs) if (pr.head === name && pr.state === 'open' && !pr.merged) pr.state = 'closed';
+      return new Response(null, { status: 204 });
     }
     if (p.startsWith('/contents/')) {
       const path = decodeURIComponent(p.slice('/contents/'.length));
       if (method === 'GET') {
-        const content = this.files(url.searchParams.get('ref') ?? 'main')?.get(path);
+        const ref = url.searchParams.get('ref') ?? 'main';
+        const content = this.files(ref)?.get(path);
+        if (/^[0-9a-f]{40}$/.test(ref) && this.afterCheckedRead) {
+          const hook = this.afterCheckedRead;
+          this.afterCheckedRead = null;
+          hook();
+        }
         if (content === undefined) return json({ message: 'Not Found' }, 404);
         return json({ sha: blobSha(content), content: Buffer.from(content).toString('base64'), encoding: 'base64' });
       }
@@ -102,11 +138,19 @@ class FakeGitHub {
     if (method === 'POST' && p === '/pulls') {
       if (this.pulls === 'no-commits') return json({ message: 'Validation Failed', errors: [{ message: 'No commits between main and x' }] }, 422);
       if (this.pulls === 'error') return json({ message: 'Server Error: secret-detail-from-github' }, 500);
+      if (this.prs.some((x) => x.head === body.head && x.state === 'open')) {
+        return json({ message: 'Validation Failed', errors: [{ message: `A pull request already exists for RSG-Turkiye:${body.head}.` }] }, 422);
+      }
       const number = this.prs.length + 41;
-      this.prs.push({ title: body.title, body: body.body, head: body.head, number });
-      return json({ html_url: `https://github.com/RSG-Turkiye/website/pull/${number}` }, 201);
+      this.prs.push({ title: body.title, body: body.body, head: body.head, number, state: 'open', merged: false });
+      return json({ html_url: this.prUrl ?? `https://github.com/RSG-Turkiye/website/pull/${number}` }, 201);
     }
-    if (method === 'GET' && p === '/pulls') return json([]);
+    if (method === 'GET' && p === '/pulls') {
+      const head = (url.searchParams.get('head') ?? '').replace('RSG-Turkiye:', '');
+      const state = url.searchParams.get('state') ?? 'open';
+      const found = this.prs.filter((x) => x.head === head && (state === 'all' || x.state === state)).reverse();
+      return json(found.map((x) => this.listed(x)));
+    }
     throw new Error(`unexpected fake GitHub call: ${method} ${url}`);
   }
 
@@ -795,4 +839,180 @@ test('a new webinar may not reuse a published pair\'s translationKey or file nam
   assert.equal(byName.body.code, 'exists');
   const fine = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
   assert.equal(fine.res.status, 201);
+});
+
+// ── fix round 2 ───────────────────────────────────────────────────────────────
+
+const quiet = async <T>(run: () => Promise<T>): Promise<T> => {
+  const realError = console.error;
+  console.error = () => {};
+  try {
+    return await run();
+  } finally {
+    console.error = realError;
+  }
+};
+
+async function submitted(env: Env, as = 'editor', body: unknown = { type: 'events', action: 'create', data: newEvent() }) {
+  const made = await create(env, as, body);
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, as, {}, '/submit')).status, 200);
+  return made.body.draft.id as string;
+}
+
+test('the branch starts from the commit the shas were checked at, not from a main that moved since', async () => {
+  const { env, row } = setup();
+  const path = 'src/content/events/symposium-2026.json';
+  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' }, base_shas: loaded(path) });
+  const checked = gh.head();
+  // A hand edit merges right after the approval checked the file.
+  gh.afterCheckedRead = () => gh.main.set(path, FILES[path].replace('"Ankara"', '"Ankara, ODTÜ"'));
+  const from = gh.requests.length;
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
+  assert.equal(row(id).status, 'pr_open');
+  assert.notEqual(gh.head(), checked, 'main did move');
+  assert.equal(gh.branchBase.get(`cms/${id}`), checked, 'branched from the checked commit');
+  assert.ok(!gh.requests.slice(from).some((r) => r.path.includes('/contents/') && r.path.endsWith('ref=main')), 'the approval reads no file against a moving main');
+});
+
+test('a stale approval adopts its own merged pull request: published, recovered, no changed_since', async () => {
+  const { env, db, audit, row } = setup();
+  const path = 'src/content/events/symposium-2026.json';
+  const data = { ...symposium2026(), note: 'draft' };
+  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data, base_shas: loaded(path) });
+  db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = updated_at - 400 WHERE id = ?`).run(id);
+  gh.prs.push({ title: 't', body: 'b', head: `cms/${id}`, number: 77, state: 'closed', merged: true });
+  gh.main.set(path, serializeJson(EVENTS, data)); // its own merge moved the file
+  const res = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
+  assert.equal(res.status, 200);
+  const after = row(id);
+  assert.equal(after.status, 'published');
+  assert.equal(after.pr_number, 77);
+  const last = audit().at(-1)!;
+  assert.equal(last.action, 'cms.pr.merged');
+  assert.equal(JSON.parse(last.details).recovered, true);
+  assert.deepEqual(gh.resets, []);
+  assert.deepEqual(gh.writes(), []);
+});
+
+test('a stale approval adopts its own open pull request without touching the branch', async () => {
+  const { env, db, audit, row } = setup();
+  const id = await submitted(env);
+  db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = updated_at - 400 WHERE id = ?`).run(id);
+  gh.branches.set(`cms/${id}`, new Map(gh.main));
+  gh.prs.push({ title: 't', body: 'b', head: `cms/${id}`, number: 78, state: 'open', merged: false });
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
+  assert.equal(row(id).status, 'pr_open');
+  assert.equal(row(id).pr_number, 78);
+  assert.equal(JSON.parse(audit().at(-1)!.details).recovered, true);
+  assert.deepEqual(gh.resets, []);
+  assert.deepEqual(gh.writes(), []);
+  assert.equal(gh.prs.length, 1);
+});
+
+test('a stale approval whose pull request was closed (or never opened) runs the normal path', async () => {
+  for (const earlier of ['closed', 'none'] as const) {
+    const { env, db, row } = setup();
+    const id = await submitted(env);
+    db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = updated_at - 400 WHERE id = ?`).run(id);
+    if (earlier === 'closed') gh.prs.push({ title: 't', body: 'b', head: `cms/${id}`, number: 79, state: 'closed', merged: false });
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200, earlier);
+    assert.equal(row(id).status, 'pr_open');
+    assert.notEqual(row(id).pr_number, 79, earlier);
+    assert.ok(gh.branches.get(`cms/${id}`)!.has('src/content/events/meetup-ankara-2027.json'));
+  }
+});
+
+test('constructor, toString and __proto__ are unknown fields, at the top and nested', async () => {
+  const { env, db } = setup();
+  for (const k of ['constructor', 'toString', '__proto__']) {
+    const top = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), [k]: 'x' } });
+    assert.equal(top.res.status, 422, k);
+    assert.ok(Object.hasOwn(top.body.errors, k), `${k}: ${JSON.stringify(top.body.errors)}`);
+    const nested = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), title: { en: 'A', tr: 'B', [k]: 'x' } } });
+    assert.equal(nested.res.status, 422, k);
+    assert.ok(Object.hasOwn(nested.body.errors, `title.${k}`), `${k}: ${JSON.stringify(nested.body.errors)}`);
+    const fm = { title: 'T', date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet', [k]: 'x' };
+    const pair = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: { frontmatter: fm, body: '' }, tr: { frontmatter: fm, body: '' } } });
+    assert.equal(pair.res.status, 422, k);
+    assert.ok(Object.hasOwn(pair.body.errors, `en.frontmatter.${k}`), `${k}: ${JSON.stringify(pair.body.errors)}`);
+  }
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0, 'nothing stored');
+});
+
+test('a translationKey of another published pair is refused on update, at submit and at approval', async () => {
+  const { env, db } = setup();
+  const en = 'src/content/webinars/en/molecular-simulations.md';
+  const tr = 'src/content/webinars/tr/molekuler-simulasyonlar.md';
+  const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=molecular-simulations', 'editor')).json() as any;
+  const withKey = (key: string) => ({
+    en: { frontmatter: { ...current.data.en.frontmatter, translationKey: key }, body: current.data.en.body },
+    tr: { frontmatter: { ...current.data.tr.frontmatter, translationKey: key }, body: current.data.tr.body },
+  });
+  const upd = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'molecular-simulations', data: withKey('open-student-webinars'), base_shas: loaded(en, tr) });
+  assert.equal(upd.res.status, 409);
+  assert.equal(upd.body.code, 'exists');
+
+  // Its own key is fine; a save may then change it, and submit refuses.
+  const ok = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'molecular-simulations', data: withKey('molecular-simulations'), base_shas: loaded(en, tr) });
+  assert.equal(ok.res.status, 201);
+  const id = ok.body.draft.id;
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey('open-student-webinars') })).status, 200);
+  const sub = await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
+  assert.equal(sub.status, 409);
+  assert.equal((await sub.json() as any).code, 'exists');
+
+  // A row that reached the queue with a clashing key is refused at approval.
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey('molecular-simulations') })).status, 200);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit')).status, 200);
+  const stored = JSON.parse((db.prepare('SELECT data FROM content_drafts WHERE id = ?').get(id) as { data: string }).data);
+  stored.tr.frontmatter.translationKey = 'open-student-webinars';
+  stored.en.frontmatter.translationKey = 'open-student-webinars';
+  db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(stored), id);
+  const app = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
+  assert.equal(app.status, 409);
+  assert.equal((await app.json() as any).code, 'exists');
+  assert.equal(gh.prs.length, 0);
+});
+
+test('a pull request URL without a number settles pr_failed, never pr_open', async () => {
+  const { env, row, audit } = setup();
+  const id = await submitted(env);
+  gh.prUrl = 'https://github.com/someone-else/website/pull/5';
+  const res = await quiet(() => on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve'));
+  assert.equal(res.status, 502);
+  assert.equal(row(id).status, 'pr_failed');
+  assert.equal(row(id).failure, 'github_failed');
+  assert.equal(row(id).pr_number, null);
+  assert.equal(audit().at(-1)!.action, 'cms.pr.failed');
+});
+
+test('discarding a failed draft deletes its branch, best effort', async () => {
+  for (const outcome of ['ok', 'error'] as const) {
+    const { env, audit, row } = setup();
+    const id = await submitted(env);
+    gh.pulls = 'error';
+    await quiet(() => on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve'));
+    assert.equal(row(id).status, 'pr_failed');
+    assert.ok(gh.branches.has(`cms/${id}`));
+    gh.refDeletes = outcome;
+    const res = await quiet(() => on(env, draft.onRequestDelete, 'DELETE', id, 'editor'));
+    assert.equal(res.status, 200, outcome);
+    assert.equal(row(id).status, 'discarded');
+    const details = JSON.parse(audit().at(-1)!.details);
+    assert.equal(details.branch, outcome === 'ok' ? 'deleted' : 'failed');
+    assert.equal(gh.branches.has(`cms/${id}`), outcome !== 'ok');
+  }
+});
+
+test('the approval queue is newest first and says when it is capped', async () => {
+  const { env, db } = setup();
+  const insert = db.prepare(`INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, created_at, updated_at)
+    VALUES (?, 'events', ?, 'create', '{}', '{}', 'submitted', 'editor', 1, ?)`);
+  for (let i = 0; i < 201; i++) insert.run(`00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, `e-${i}`, 1000 + i);
+  const body = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'approver')).json() as any;
+  assert.equal(body.queue.length, 200);
+  assert.equal(body.more, true);
+  assert.equal(body.queue[0].entry_id, 'e-200');
+  assert.equal(body.queue[199].entry_id, 'e-1');
 });

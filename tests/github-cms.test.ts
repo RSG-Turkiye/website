@@ -137,6 +137,13 @@ test('resetBranch forces an existing branch back to main before committing; with
   }
 });
 
+test('resetBranch is refused for any branch outside cms/', async () => {
+  await assert.rejects(
+    openContentPR({ branchPrefix: 'blog-submission', branchSlug: 'x', files: [], title: 't', prBody: 'b', retitle: false, resetBranch: true }, env),
+    /only for cms/,
+  );
+});
+
 test('a failed branch reset is an error result carrying the status only', async () => {
   const handler = contentPrHandler(new Map());
   await withFetch(

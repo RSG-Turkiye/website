@@ -75,6 +75,13 @@ export function canTransition(step: keyof typeof TRANSITIONS, status: DraftStatu
 export type FieldErrors = Record<string, string>;
 export type Validated<T = unknown> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 
+/** The first message per field. Own-property test: on a plain object
+ * `errors['constructor']` is Object.prototype's, so `??=` would skip it. */
+function setOnce(into: FieldErrors, key: string, message: string): void {
+  // defineProperty, not assignment: `into['__proto__'] = ...` would call the setter.
+  if (!Object.hasOwn(into, key)) Object.defineProperty(into, key, { value: message, enumerable: true, writable: true, configurable: true });
+}
+
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 type Issue = { path: PropertyKey[]; message: string; code?: string; keys?: string[] };
@@ -83,10 +90,45 @@ function issuesToErrors(issues: Issue[], prefix: string, into: FieldErrors): voi
   for (const issue of issues) {
     const at = [prefix, ...issue.path.map(String)].filter((s) => s !== '').join('.');
     if (issue.code === 'unrecognized_keys' && issue.keys) {
-      for (const k of issue.keys) into[at ? `${at}.${k}` : k] ??= 'Unknown field';
+      for (const k of issue.keys) setOnce(into, at ? `${at}.${k}` : k, 'Unknown field');
     } else {
-      into[at] ??= issue.message;
+      setOnce(into, at, issue.message);
     }
+  }
+}
+
+type ZodDef = { type: string; innerType?: unknown; in?: unknown; element?: unknown; shape?: Record<string, unknown> };
+const defOf = (schema: unknown): ZodDef | undefined => (schema as { _zod?: { def: ZodDef } } | undefined)?._zod?.def;
+
+/** The schema under optional/default/nullable/pipe wrappers. */
+function unwrap(schema: unknown): unknown {
+  let s = schema;
+  for (let def = defOf(s); def; def = defOf(s)) {
+    if (def.innerType) s = def.innerType;
+    else if (def.type === 'pipe' && def.in) s = def.in;
+    else break;
+  }
+  return s;
+}
+
+/**
+ * Every key, at every level, that is not one of its object schema's own
+ * shape keys. Checked before zod, with Object.hasOwn: an `in` test lets
+ * `constructor`, `toString` and `__proto__` through, and they would be
+ * stored and written to the file.
+ */
+function unknownKeys(schema: unknown, value: unknown, at: string, into: FieldErrors): void {
+  const def = defOf(unwrap(schema));
+  if (!def) return;
+  if (Array.isArray(value)) {
+    if (def.type === 'array') value.forEach((v, i) => unknownKeys(def.element, v, at ? `${at}.${i}` : String(i), into));
+    return;
+  }
+  if (!isObject(value) || def.type !== 'object' || !def.shape) return;
+  for (const k of Object.keys(value)) {
+    const path = at ? `${at}.${k}` : k;
+    if (!Object.hasOwn(def.shape, k)) setOnce(into, path, 'Unknown field');
+    else unknownKeys(def.shape[k], value[k], path, into);
   }
 }
 
@@ -100,6 +142,7 @@ export function validateDraft(type: CmsType, data: unknown): Validated {
   const errors: FieldErrors = {};
   if (type.format === 'json') {
     if (!isObject(data)) return { ok: false, errors: { '': 'The entry must be an object' } };
+    unknownKeys(type.schema, data, '', errors);
     const r = type.schema.safeParse(data);
     if (!r.success) issuesToErrors(r.error.issues as Issue[], '', errors);
     return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data };
@@ -111,17 +154,18 @@ export function validateDraft(type: CmsType, data: unknown): Validated {
     const side = data[lang];
     if (!isObject(side) || !isObject(side.frontmatter)) { errors[lang] = 'Missing'; continue; }
     if (typeof side.body !== 'string') errors[`${lang}.body`] = 'Must be text';
+    unknownKeys(type.schema, side.frontmatter, `${lang}.frontmatter`, errors);
     const r = type.schema.safeParse(side.frontmatter);
     if (!r.success) issuesToErrors(r.error.issues as Issue[], `${lang}.frontmatter`, errors);
     const declared = side.frontmatter.lang;
-    if (declared !== undefined && declared !== lang) errors[`${lang}.frontmatter.lang`] ??= `Must be "${lang}" or left out`;
+    if (declared !== undefined && declared !== lang) setOnce(errors, `${lang}.frontmatter.lang`, `Must be "${lang}" or left out`);
     out[lang] = { frontmatter: side.frontmatter, body: String(side.body ?? '') };
   }
   // Pairs are tied by translationKey when it is set (src/lib/translations.ts):
   // two different keys would split the pair on the site.
   if (out.en && out.tr) {
     const key = (side: MarkdownSide) => String(side.frontmatter.translationKey ?? '').trim();
-    if (key(out.en) !== key(out.tr)) errors['tr.frontmatter.translationKey'] ??= 'Must be the same as the English side';
+    if (key(out.en) !== key(out.tr)) setOnce(errors, 'tr.frontmatter.translationKey', 'Must be the same as the English side');
   }
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data: out as PairData };
 }

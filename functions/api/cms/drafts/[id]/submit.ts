@@ -1,7 +1,7 @@
 import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof } from '../../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof, refusePairClash } from '../../../../_lib/cms-api';
 import { canTransition, validateDraft } from '../../../../_lib/cms-drafts';
 
 /** Send for approval. Clears an earlier send-back note and failure reason. */
@@ -16,6 +16,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (row.action !== 'delete') {
     const v = validateDraft(type, JSON.parse(row.data));
     if (!v.ok) return invalid(v.errors);
+    const clash = await refusePairClash(request, env, type, row.entry_id, row.action, v.data);
+    if (clash) return clash;
   }
   const nonce = newNonce();
   const done = await runGuardedWithAudit(

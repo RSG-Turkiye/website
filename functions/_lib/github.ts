@@ -32,6 +32,11 @@ type OpenPrParams = {
    * after a failed attempt). Off for the blog and symposium flows, which
    * keep their earlier behaviour. */
   resetBranch?: boolean;
+  /** The commit to start a new branch from, or reset an existing one to.
+   * Defaults to main's head read now. The CMS passes the commit it checked
+   * the draft's base shas against, so a merge landing in between shows up
+   * as a behind or conflicting pull request instead of being overwritten. */
+  baseSha?: string;
 };
 
 export type OpenPrResult =
@@ -438,9 +443,11 @@ export async function getFileOnBaseBranch(filePath: string, env: Env): Promise<s
  * reconcile a half-done attempt by hand.
  */
 export async function openContentPR(params: OpenPrParams, env: Env): Promise<OpenPrResult> {
+  // Force-resetting throws away commits; only the CMS's own branches may be.
+  if (params.resetBranch && params.branchPrefix !== 'cms') throw new Error('resetBranch is only for cms/ branches');
   const branchName = `${params.branchPrefix}/${params.branchSlug}`;
   try {
-    const baseSha = await getBaseBranchSha(env);
+    const baseSha = params.baseSha ?? await getBaseBranchSha(env);
     await createBranch(branchName, baseSha, env, params.resetBranch === true);
     for (const file of params.files) {
       if (file.content === null) {
@@ -634,16 +641,16 @@ function encodePath(path: string): string {
  * needs a second lookup to get from `main` to a tree sha, which is more
  * work than it saves at this size.
  */
-export async function fileShasOnBase(paths: string[], env: Env): Promise<Record<string, string | null>> {
+export async function fileShasOnBase(paths: string[], env: Env, ref: string = GITHUB_BASE_BRANCH): Promise<Record<string, string | null>> {
   const entries = await Promise.all(
     paths.map(async (path): Promise<[string, string | null]> => {
       const res = await githubRequest(
-        `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodePath(path)}?ref=${GITHUB_BASE_BRANCH}`,
+        `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`,
         { method: 'GET' },
         env
       );
       if (res.status === 404) return [path, null];
-      if (!res.ok) throw new Error(`Failed to read the sha of ${path} on ${GITHUB_BASE_BRANCH} (${res.status})`);
+      if (!res.ok) throw new Error(`Failed to read the sha of ${path} on ${ref} (${res.status})`);
       const data = await res.json<{ sha: string }>();
       return [path, data.sha];
     })
@@ -815,4 +822,36 @@ export async function mergePr(prNumber: number, env: Env, headSha: string): Prom
   if (!res.ok) throw new Error(`Failed to merge pull ${prNumber} (${res.status})`);
   const data = await res.json<{ sha: string }>();
   return { merged: true, sha: data.sha };
+}
+
+/** The commit main points at now. Read once by the CMS approval, which
+ * checks a draft's files at this commit and branches from it. */
+export function mainHeadSha(env: Env): Promise<string> {
+  return getBaseBranchSha(env);
+}
+
+export type BranchPr = { url: string; number: number; state: 'open' | 'closed' | 'merged' };
+
+/** The newest pull request (any state) whose head is `branchName`, or null. Errors carry the status only. */
+export async function prForBranch(branchName: string, env: Env): Promise<BranchPr | null> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls?head=${GITHUB_OWNER}:${encodeURIComponent(branchName)}&state=all&sort=created&direction=desc`,
+    { method: 'GET' },
+    env
+  );
+  if (!res.ok) throw new Error(`Failed to look up the pull request for ${branchName} (${res.status})`);
+  const list = await res.json<Array<{ html_url: string; number: number; state: string; merged_at: string | null }>>();
+  const pr = list[0];
+  if (!pr) return null;
+  return { url: pr.html_url, number: pr.number, state: pr.merged_at ? 'merged' : pr.state === 'open' ? 'open' : 'closed' };
+}
+
+/** Deletes a branch (closing any open pull request from it). 'absent' when
+ * there was none. Only for cms/ branches. Errors carry the status only. */
+export async function deleteBranch(branchName: string, env: Env): Promise<'deleted' | 'absent'> {
+  if (!branchName.startsWith('cms/')) throw new Error('deleteBranch is only for cms/ branches');
+  const res = await githubRequest(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/${branchName}`, { method: 'DELETE' }, env);
+  if (res.status === 404 || res.status === 422) return 'absent';
+  if (!res.ok) throw new Error(`Failed to delete branch ${branchName} (${res.status})`);
+  return 'deleted';
 }

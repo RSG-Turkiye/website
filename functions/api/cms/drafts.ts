@@ -2,7 +2,7 @@ import type { Env } from '../../_lib/auth';
 import { generateId, jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import {
-  cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, rightsIn,
+  cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
 import { checkSameId, DRAFT_ACTIONS, langOf, newEntryId, newPaths, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
 import { fileShasOnBase, filesOnBase } from '../../_lib/github';
@@ -11,7 +11,10 @@ import { parseMarkdown } from '../../../src/lib/cms/serialize';
 
 const LIST_COLUMNS = 'id, type, entry_id, action, status, author_id, reviewer_id, review_note, pr_url, pr_number, failure, created_at, updated_at';
 
-/** My drafts, newest first, and for approvers the drafts waiting for approval, oldest first. */
+const QUEUE_CAP = 200;
+
+/** My drafts and, for approvers, the drafts waiting for approval, both newest
+ * first. `more`: the queue holds more than QUEUE_CAP. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
@@ -24,12 +27,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(gate.user.id).all<DraftRow>();
   const queue = approvable.length === 0 ? { results: [] as DraftRow[] } : await env.DB.prepare(
     `SELECT ${LIST_COLUMNS}, '' AS data, '{}' AS base_shas FROM content_drafts
-     WHERE status = 'submitted' AND type IN (${approvable.map(() => '?').join(', ')}) ORDER BY updated_at LIMIT 200`,
+     WHERE status = 'submitted' AND type IN (${approvable.map(() => '?').join(', ')}) ORDER BY updated_at DESC LIMIT ${QUEUE_CAP + 1}`,
   ).bind(...approvable).all<DraftRow>();
 
   return jsonResponse({
     mine: mine.results.filter((r) => editable.has(r.type)).map((r) => draftJson(r, false)),
-    queue: queue.results.map((r) => draftJson(r, false)),
+    queue: queue.results.slice(0, QUEUE_CAP).map((r) => draftJson(r, false)),
+    more: queue.results.length > QUEUE_CAP,
   });
 };
 
@@ -75,18 +79,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
     const taken = paths.filter((p) => onMain[p] !== null);
     if (taken.length) return fail(409, 'exists', 'An entry with this id is already published; open it instead', { paths: taken });
-    if (type.format === 'markdown-pair') {
-      // A pair is found by translationKey, else by file name
-      // (src/lib/translations.ts): either one shared with a published pair
-      // would tie the new files to it.
-      const index = await loadCmsIndex(request, env);
-      if (!index) return indexUnavailable();
-      const key = String((data as PairData).en.frontmatter.translationKey ?? '').trim();
-      const slugOf = (p: string | null) => p?.slice(p.lastIndexOf('/') + 1, -'.md'.length);
-      const clash = (index[type.key] ?? []).find((e) =>
-        e.id === entryId || slugOf(e.paths?.en ?? null) === entryId || slugOf(e.paths?.tr ?? null) === entryId || (key !== '' && e.key === key));
-      if (clash) return fail(409, 'exists', 'A published webinar already has this name or translationKey; open it instead', { entry_id: clash.id });
-    }
     baseShas = Object.fromEntries(paths.map((p) => [p, null]));
   } else {
     try {
@@ -135,6 +127,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       }
     }
   }
+
+  const clash = await refusePairClash(request, env, type, entryId, action, data);
+  if (clash) return clash;
 
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: entryId, action, data: JSON.stringify(data), base_shas: JSON.stringify(baseShas),
