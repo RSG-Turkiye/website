@@ -951,8 +951,9 @@ There are two roles, both for the Etkinlikler group:
   them for approval. An editor role lasts at most one month, then is renewed.
 - **Approver** (`content.etkinlikler.approve`) does everything an editor can,
   and also approves or sends back drafts, stops a pull request that is
-  running, and discards drafts. It can last up to 12 months. An approver may
-  approve their own draft.
+  running, and discards drafts. It is a leader role: up to 12 months, or
+  permanent when an admin grants it. An approver may approve their own
+  draft.
 
 An admin has both without holding either. Admins grant either role. An
 approver can also grant the editor role, for one month at most, so they can
@@ -964,7 +965,8 @@ Users and roles → Roles, like every other role. The rules are in
 
 1. An editor writes a draft. Nothing is public yet.
 2. **Onaya gönder** (send for approval). The draft waits in the approval
-   queue. While it waits, nobody can start another draft of the same entry.
+   queue. While it waits (and until it is live or has failed), another draft
+   of the same entry can be started and saved but not sent.
 3. An approver approves it, or sends it back with a note. Approval first
    checks that the entry on the site is still what the draft started from.
    If it is not, the panel shows what changed and nothing is opened.
@@ -979,12 +981,17 @@ Users and roles → Roles, like every other role. The rules are in
    few minutes.
 
 No new Worker is involved: the tick already ran every minute, and the CMS
-step in it (`functions/_lib/cms-shepherd.ts`) asks GitHub about at most a
-dozen pull requests a minute.
+step in it (`functions/_lib/cms-shepherd.ts`) makes at most 12 GitHub
+requests a minute, which moves about two pull requests a minute along (a pull
+request costs up to five).
 
-Agents and other automation must never approve a draft or merge a CMS pull
-request. Approval is a person's decision, and the one place it happens is the
-panel.
+Content is changed through the CMS or a pull request. Only a person approves,
+in the panel; the shepherd merges only what a person approved, and nobody
+merges a `cms/*` pull request by hand. No agent or script approves.
+
+A webinar that exists only in English is edited as a pair: the form shows an
+empty Turkish side, and the draft cannot be sent until it is filled in. The
+approved draft adds the Turkish file.
 
 ### What the statuses mean
 
@@ -1009,7 +1016,11 @@ is not on the site yet (tell an admin).
 ### When a draft fails
 
 A failed draft keeps its content and its reason. The author can change it and
-send it again, or an approver can discard it; either way the entry is free.
+send it again, or delete it; an approver can discard it too. Either way the
+entry is free. Approvers see every draft that is on its way or stuck under
+Onay → "Süren ve takılanlar", each with its way out: stop a pull request that
+is open, or discard a merge the site never showed, a failure, or an approval
+that never finished.
 A retry opens a new pull request. The shepherd closes the failed one, so
 nobody should merge it by hand.
 
@@ -1023,6 +1034,7 @@ nobody should merge it by hand.
 | cancelled | An approver stopped it on purpose. | Change the draft and send it again, or discard it. |
 | merged but the site never showed it | The pull request merged, but 24 hours later the site still did not show the change. | Look at the Pages deploys and at `/cms-index.json`. The content is in git, so check whether the deploy failed. Then discard the draft and, if needed, start a new one. |
 | no pull request on record | The draft says its pull request is open, but none is stored. | Send the draft again. If it repeats, an admin looks at the activity log. |
+| GitHub did not answer | For twelve hours (twice the six-hour cap) GitHub answered nothing but errors about the pull request. The pull request is left as it is. | Look at the pull request on GitHub and at GitHub's status page. Close the pull request if it is still open, then send the draft again. |
 
 The activity log has a row for every step (`cms.draft.*`, `cms.pr.*`).
 
@@ -1031,7 +1043,7 @@ draft was started. Hand edits on GitHub to the content files still work and
 are never blocked, but a draft started before one will show "changed since"
 and the panel lets the author compare and continue from the site's version.
 
-### Owner steps (once, by the owner, never by an agent)
+### Owner steps (once, by the owner, never by an agent), in this order
 
 1. **Before merging the pull request that adds the CMS**, create the table on
    the remote D1 (note 8j at the top of `db/schema.sql`):
@@ -1046,7 +1058,15 @@ and the panel lets the author compare and continue from the site's version.
    exclude `cms/*` from preview builds. Otherwise every draft queues a
    preview build ahead of production, and builds run one at a time on the
    free plan.
-3. In the Roles view, grant the first `content.etkinlikler.*` roles.
+3. On GitHub → the repository's Settings → General, turn on "Automatically
+   delete head branches". Otherwise every published draft leaves a `cms/*`
+   branch behind.
+4. Keep main's branch protection as it is: the two required checks and no
+   required approvals (true on 2026-10-24). A required review would block
+   every CMS pull request ("blocked by branch protection").
+5. Run one trial draft end to end yourself: edit an entry, send it, approve
+   it, watch it go to merged and then Yayında.
+6. Then, in the Roles view, grant the first `content.etkinlikler.*` roles.
 
 No Worker redeploy is needed.
 
@@ -1074,9 +1094,9 @@ When the committee changes:
 
 Every role is a grant in the `role_grants` table: who holds it, until when
 (or permanently), and who granted or ended it. Leader roles (admin,
-announcer, symposium, social publisher) can last up to 12 months, or be made
-permanent by an admin. Edit roles (writer, sender, social) last up to one
-month, then are renewed. The end date a person picks is inclusive: the role
+announcer, symposium, social publisher, content approver) can last up to 12
+months, or be made permanent by an admin. Edit roles (writer, sender, social,
+content editor) last up to one month, then are renewed. The end date a person picks is inclusive: the role
 works through that whole day. The `users.is_*` columns are only a cache that
 permission checks read; they are rewritten from the live grants in the same
 batch as every change, and the hourly sweep in `/api/mail/dispatch` ends

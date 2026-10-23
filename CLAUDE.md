@@ -61,9 +61,10 @@ anyone.
    new admin endpoint that changes something without logging it. Log rows
    are kept a year, so they carry ids and counts, never data that is
    deleted sooner, such as a certificate holder's name or address.
-10. **Content is changed through the CMS or a PR, and drafts never publish
-    themselves.** An approver approves in the panel; no agent or script
-    approves a draft or merges a `cms/*` pull request.
+10. **Content is changed through the CMS or a PR. Only a person approves,
+    in the panel**; the shepherd merges only what a person approved, and
+    nobody merges a `cms/*` pull request by hand. No agent or script
+    approves.
 
 ## Where things live
 

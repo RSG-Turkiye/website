@@ -4,7 +4,13 @@ import { cmsGate, rightsIn } from '../../_lib/cms-api';
 import { CMS_TYPES } from '../../../src/lib/cms/types';
 import { jsonSchemaFor } from '../../../src/lib/cms/json-schema';
 
-/** The content types this person can edit, each with the JSON Schema the panel builds its form from. */
+/**
+ * The content types this person can edit, each with its JSON Schema, for
+ * API clients (plan 5). The admin panel does not build its form from it: it
+ * has its own field model (src/scripts/admin/cms-form.ts), kept in step with
+ * the schemas by tests/cms-form.test.ts, which fails on a schema key the
+ * model does not cover.
+ */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
