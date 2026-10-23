@@ -361,7 +361,7 @@ test('the cap applies after a successful update too: a branch that keeps falling
   assert.equal(row(id).failure, FAILURE.timeout);
 });
 
-test('GitHub errors are always "ask again", even past the age cap, with a short log and no stored GitHub text', async () => {
+test('GitHub errors are "ask again" past the age cap (up to twice it), with a short log and no stored GitHub text', async () => {
   const { db, env, row } = setup();
   const young = draft(db, { pr: 41 });
   const old = draft(db, { pr: 42, age: PR_OPEN_MAX_SECONDS + 1 });
@@ -378,6 +378,27 @@ test('GitHub errors are always "ask again", even past the age cap, with a short 
   assert.equal(row(old).status, 'pr_open', 'the next tick reads the pull request again');
   assert.ok(row(old).last_checked_at === NOW);
   assert.ok(!JSON.stringify(errors).includes('secret GitHub detail'));
+});
+
+test('a pull request GitHub keeps failing to answer about is failed after twice the cap, and left as it is', async () => {
+  const { db, env, row, audit } = setup();
+  const late = draft(db, { pr: 43, age: 2 * PR_OPEN_MAX_SECONDS + 1 });
+  const within = draft(db, { pr: 44, age: 2 * PR_OPEN_MAX_SECONDS - 60 });
+  gh.down = 500;
+  const realError = console.error;
+  console.error = () => {};
+  const before = gh.requests.length;
+  try {
+    await shepherd(env, NOW);
+  } finally {
+    console.error = realError;
+  }
+  assert.equal(row(late).status, 'pr_failed');
+  assert.equal(row(late).failure, FAILURE.noAnswer);
+  assert.equal(FAILURE.noAnswer, 'GitHub did not answer');
+  assert.equal(row(within).status, 'pr_open');
+  assert.ok(!gh.requests.slice(before).some((r: { method: string }) => r.method === 'PATCH'), 'no attempt to close it');
+  assert.ok(audit().some((a: { action: string; details: string }) => a.action === 'cms.pr.failed' && a.details.includes('GitHub did not answer')));
 });
 
 // ── the budget ────────────────────────────────────────────────────────────────

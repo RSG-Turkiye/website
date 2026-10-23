@@ -384,6 +384,7 @@ export function failureKey(failure: string | null): { key: string; vars: Record<
     [/^closed on GitHub$/, 'closed'], [/^conflicts with/, 'conflict'], [/^checks did not finish$/, 'timeout'], [/^cancelled$/, 'cancelled'],
     [/^blocked by branch protection$/, 'blocked'], [/^merged but the site never showed it$/, 'notLive'], [/^no pull request on record$/, 'noPr'],
     [/^github_failed$/, 'github'],
+    [/^GitHub did not answer$/, 'noAnswer'],
   ];
   const hit = known.find(([re]) => re.test(f));
   return { key: `admin.cms.failure.${hit ? hit[1] : 'unknown'}`, vars: {} };

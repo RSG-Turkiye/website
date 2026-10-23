@@ -118,6 +118,8 @@ export const FAILURE = {
   blocked: 'blocked by branch protection',
   notLive: 'merged but the site never showed it',
   noPr: 'no pull request on record',
+  /** GitHub kept failing to answer about the pull request for 2 × PR_OPEN_MAX_SECONDS. */
+  noAnswer: 'GitHub did not answer',
   check: (name: string) => `check failed: ${name}`,
 } as const;
 

@@ -20,8 +20,8 @@
  *                                     green, else "checks did not finish"
  *
  * The age cap is applied only after GitHub answered, so a pull request that
- * merged or closed meanwhile still settles as such; a GitHub error never
- * fails a draft. A draft set to pr_failed here has its pull request closed
+ * merged or closed meanwhile still settles as such; a GitHub error fails a
+ * draft only once it is older than twice the cap ("GitHub did not answer"). A draft set to pr_failed here has its pull request closed
  * (best effort), so it is not merged by hand and a retry opens a new one.
  * A pr_open row with no pull request number fails at once ("no pull request
  * on record"). Without a GitHub token the pr_open rows are skipped.
@@ -161,9 +161,12 @@ export async function shepherd(env: Env, now: number, origin: string = SITE_ORIG
       fetches += s.state === 'open' ? 2 : 1;
     } catch (e) {
       // GitHub having a bad minute is never a reason to fail a draft: the
-      // next tick reads the pull request again.
+      // next tick reads the pull request again. Having a bad half-day is:
+      // past twice the age cap the draft fails, so its entry is free again.
+      // The pull request is left as it is (closing it would need GitHub too).
       fetches += 2;
       console.error('cms shepherd: pull request', n, e);
+      if (now - row.updated_at > 2 * PR_OPEN_MAX_SECONDS) await fail(FAILURE.noAnswer, {}, false);
       continue;
     }
     try {
