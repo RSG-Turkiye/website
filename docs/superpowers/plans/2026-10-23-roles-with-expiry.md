@@ -6,7 +6,7 @@
 
 **Architecture:**
 - A `role_grants` table keeps every grant: who, which role, until when, by whom, and when it was revoked.
-- For the eight existing roles, the `users.is_*` columns stay the materialised effective state. This keeps the 40-plus existing reads and SQL filters untouched. Every grant, revoke or expiry rewrites the matching column in the same D1 batch as the grant row and its audit row.
+- For the seven existing roles, the `users.is_*` columns stay the materialised effective state. This keeps the 40-plus existing reads and SQL filters untouched. Every grant, revoke or expiry rewrites the matching column in the same D1 batch as the grant row and its audit row.
 - An hourly sweep in the existing mail dispatch tick expires lapsed grants.
 - New roles that have no column, the CMS groups added by later plans, are read from active grants only.
 
