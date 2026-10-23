@@ -9,6 +9,7 @@ import {
   splitRecipients,
   remainingRecipients,
 } from '../../_lib/mail-queue';
+import { expireGrants } from '../../_lib/role-grants';
 import { startRun, finishRun, markPhase, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
 import {
   resolveAttachments,
@@ -270,6 +271,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // did nothing" and "the cron did not fire at all" were indistinguishable,
   // and they need opposite fixes. See dispatch-log.ts.
   const runId = await startRun(env.DB, crypto.randomUUID(), now);
+
+  // Role grants with an end date stop working within the hour, so the sweep
+  // runs on the hourly tick before the sending-window check: a grant that
+  // ends at night must not stay effective until morning. A failure is logged
+  // and never blocks mail.
+  if (isPruneTick(now)) {
+    try {
+      await expireGrants(env.DB, now);
+    } catch (err) {
+      console.error('expireGrants failed', err);
+    }
+  }
 
   // The queue delivers during waking hours only. Cloudflare invokes this
   // Worker whenever it likes -- on 2026-09-05 that was 04:10 and 07:38 in the
@@ -618,7 +631,9 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
     alreadySent,
   });
   // Hourly rather than every minute; see isPruneTick.
-  if (isPruneTick(now)) await pruneRuns(env.DB, now);
+  if (isPruneTick(now)) {
+    await pruneRuns(env.DB, now);
+  }
 
   return jsonResponse({ ok: true, processed: due.results.length, sent, failed, retried, alreadySent });
 }

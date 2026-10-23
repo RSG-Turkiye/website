@@ -71,6 +71,8 @@ anyone.
 | `src/scripts/admin/`              | The admin panel's client code.                                                                                                                        |
 | `functions/api/`                  | Cloudflare Pages Functions, the site's API.                                                                                                           |
 | `functions/_lib/`                 | Shared server code: `auth.ts` (session and permission checks), `mail*.ts`, `social-*.ts`, `github.ts` (opens PRs), `symposium.ts`, `certificates.ts`. |
+| `functions/_lib/roles.ts`         | The role catalog and the duration rules: who may grant which role, and for how long. Pure, no database.                                               |
+| `functions/_lib/role-grants.ts`   | `grantRole`, `revokeRole`, `activeGrants`, `expireGrants`: the only code that changes who holds a role.                                               |
 | `db/schema.sql`                   | The D1 schema plus the numbered migration notes at its top.                                                                                           |
 | `workers/mail-cron/`              | Worker whose cron (every minute) drives mail dispatch, inbox sync and social publishing.                                                              |
 | `workers/symposium-cron/`         | Nightly Worker: archives a finished symposium edition (via a PR), rebuilds the symposium site, purges expired certificates and prunes the audit log.  |
@@ -109,6 +111,9 @@ for both sites on every PR. Keep it green.
   idempotent, so it stays a note and is not a statement in the file. A deploy
   whose code expects a column that production does not have yet breaks the
   admin panel. Apply the migration first.
+- **`users.is_*` columns are a cache of `role_grants`.** Never write them
+  directly; always `grantRole` / `revokeRole` (`functions/_lib/role-grants.ts`),
+  which rewrite the columns from live grants in the same batch.
 - **There is no paid WAF rate limiting** on this account. Enforce rate limits
   inside the Function, as `functions/_lib/certificates.ts` does.
 - Mail limits: up to 10 recipients per compose; 20 sends per user an hour,

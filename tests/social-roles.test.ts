@@ -58,9 +58,10 @@ test('making someone a publisher makes them an editor too, and is logged', async
   const log = db.prepare('SELECT * FROM audit_log').all() as unknown as AuditRow[];
   assert.equal(log.length, 1);
   assert.equal(log[0].user_id, 'u1');
-  assert.equal(log[0].action, 'role.change');
+  assert.equal(log[0].action, 'role.grant');
   assert.equal(log[0].target_id, 'u2');
-  assert.deepEqual(JSON.parse(log[0].details), { role: 'is_social_publisher', value: 1, email: 'new@example.org' });
+  // Publisher is a leader role: the plain switch grants it for good.
+  assert.deepEqual(JSON.parse(log[0].details), { role: 'social_publisher', expiresAt: null });
   assert.equal((await verifyChain(log)).ok, true);
 });
 
@@ -77,8 +78,9 @@ test('removing the editor role removes publisher; removing publisher keeps edito
 test('existing role actions are logged too', async () => {
   const { db, env } = setup();
   await patch(env, { user_id: 'u2', action: 'make_symposium' });
-  const row = db.prepare('SELECT details FROM audit_log').get() as { details: string };
-  assert.deepEqual(JSON.parse(row.details), { role: 'is_symposium', value: 1, email: 'new@example.org' });
+  const row = db.prepare('SELECT action, details FROM audit_log').get() as { action: string; details: string };
+  assert.equal(row.action, 'role.grant');
+  assert.deepEqual(JSON.parse(row.details), { role: 'symposium', expiresAt: null });
 });
 
 test('the other member actions are logged as well', async () => {

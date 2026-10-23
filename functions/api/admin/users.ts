@@ -3,6 +3,8 @@ import { getSessionUser, jsonResponse, checkCsrf } from '../../_lib/auth';
 import { isRank, awardRank, MANUAL_REASON } from '../../_lib/rank';
 import { runWithAudit, appendAudit } from '../../_lib/audit';
 import { grantSender, revokeSender } from './senders';
+import { grantRole, revokeRole, requestedExpiry, activeGrantsFor } from '../../_lib/role-grants';
+import { roleDef, type RoleDef } from '../../_lib/roles';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await getSessionUser(request, env);
@@ -49,6 +51,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const stmt = env.DB.prepare(query);
   const result = await (bindings.length > 0 ? stmt.bind(...bindings) : stmt).all();
 
+  // The Roles tab shows when each grant ends. One query per 99 users, not
+  // one per user.
+  if (filter === 'roles') {
+    const rows = result.results as { id: string; grants?: unknown }[];
+    const grants = await activeGrantsFor(env.DB, rows.map((r) => r.id), Math.floor(Date.now() / 1000));
+    for (const r of rows) r.grants = grants.get(r.id) ?? [];
+  }
+
   const badgeCatalog = await env.DB.prepare(
     'SELECT code, name_en, name_tr FROM achievement_badges ORDER BY name_en'
   ).all();
@@ -57,33 +67,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 /**
- * Every action that sets a role flag. They are table rows rather than switch
- * cases so that each one is written together with its audit row -- see
- * runWithAudit. `role` and `value` are what the log records.
+ * Membership is a flag, not a role: it has no end date and no grant row.
+ * Written with its audit row -- see runWithAudit.
  */
-const ROLE_UPDATES: Record<string, { sql: string; role: string; value: 0 | 1 }> = {
-  verify:                  { sql: 'UPDATE users SET is_member = 1 WHERE id = ?', role: 'is_member', value: 1 },
-  unverify:                { sql: 'UPDATE users SET is_member = 0 WHERE id = ?', role: 'is_member', value: 0 },
-  make_admin:              { sql: 'UPDATE users SET is_admin = 1 WHERE id = ?', role: 'is_admin', value: 1 },
-  remove_admin:            { sql: 'UPDATE users SET is_admin = 0 WHERE id = ?', role: 'is_admin', value: 0 },
-  make_announcer:          { sql: 'UPDATE users SET is_announcer = 1 WHERE id = ?', role: 'is_announcer', value: 1 },
-  remove_announcer:        { sql: 'UPDATE users SET is_announcer = 0 WHERE id = ?', role: 'is_announcer', value: 0 },
-  // The symposium role could only be granted by hand, with a wrangler
-  // command in a comment in db/schema.sql, so in practice only full admins
-  // ever had it -- which is the wrong shape for a role whose whole point is
-  // to let an organiser edit the programme without being an admin of
-  // everything.
-  make_symposium:          { sql: 'UPDATE users SET is_symposium = 1 WHERE id = ?', role: 'is_symposium', value: 1 },
-  remove_symposium:        { sql: 'UPDATE users SET is_symposium = 0 WHERE id = ?', role: 'is_symposium', value: 0 },
-  make_writer:             { sql: 'UPDATE users SET is_writer = 1 WHERE id = ?', role: 'is_writer', value: 1 },
-  remove_writer:           { sql: 'UPDATE users SET is_writer = 0 WHERE id = ?', role: 'is_writer', value: 0 },
-  // Publisher implies editor in both directions: granting publisher sets
-  // both, removing editor clears both.
-  make_social:             { sql: 'UPDATE users SET is_social = 1 WHERE id = ?', role: 'is_social', value: 1 },
-  remove_social:           { sql: 'UPDATE users SET is_social = 0, is_social_publisher = 0 WHERE id = ?', role: 'is_social', value: 0 },
-  make_social_publisher:   { sql: 'UPDATE users SET is_social = 1, is_social_publisher = 1 WHERE id = ?', role: 'is_social_publisher', value: 1 },
-  remove_social_publisher: { sql: 'UPDATE users SET is_social_publisher = 0 WHERE id = ?', role: 'is_social_publisher', value: 0 },
+const MEMBERSHIP_UPDATES: Record<string, { sql: string; value: 0 | 1 }> = {
+  verify:   { sql: 'UPDATE users SET is_member = 1 WHERE id = ?', value: 1 },
+  unverify: { sql: 'UPDATE users SET is_member = 0 WHERE id = ?', value: 0 },
 };
+
+/**
+ * make_<role> and remove_<role> for every role in the catalog. They go
+ * through grantRole and revokeRole, which also rewrite the users.is_*
+ * columns, so nothing here sets a column by hand: a direct write would be
+ * undone by the next resync. Publisher implies editor in both directions:
+ * granting publisher grants both, removing editor removes both.
+ */
+function roleAction(action: string): { op: 'make' | 'remove'; def: RoleDef } | null {
+  const m = /^(make|remove)_(.+)$/.exec(action);
+  const def = m ? roleDef(m[2]) : null;
+  return m && def ? { op: m[1] as 'make' | 'remove', def } : null;
+}
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
@@ -105,6 +108,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     user_id?: unknown;
     action?: unknown;
     value?: unknown;
+    duration?: unknown;
   };
 
   // request.json<T>()'s generic is compile-time only -- it does not check
@@ -129,14 +133,35 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   // Own keys only: "constructor" or "__proto__" must fall through to Unknown action.
-  const roleUpdate = Object.hasOwn(ROLE_UPDATES, body.action) ? ROLE_UPDATES[body.action] : undefined;
-  if (roleUpdate) {
-    const target = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(body.user_id).first<{ email: string }>();
+  const membership = Object.hasOwn(MEMBERSHIP_UPDATES, body.action) ? MEMBERSHIP_UPDATES[body.action] : undefined;
+  const role = roleAction(body.action);
+  let target: { email: string } | null = null;
+  if (membership || role) {
+    target = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(body.user_id).first<{ email: string }>();
     if (!target) return jsonResponse({ error: 'Unknown user' }, 404);
-    await runWithAudit(env.DB, [env.DB.prepare(roleUpdate.sql).bind(body.user_id)], {
+  }
+  if (membership) {
+    await runWithAudit(env.DB, [env.DB.prepare(membership.sql).bind(body.user_id)], {
       userId: user.id, action: 'role.change', targetType: 'user', targetId: body.user_id,
-      details: { role: roleUpdate.role, value: roleUpdate.value, email: target.email },
+      details: { role: 'is_member', value: membership.value, email: target!.email },
     });
+    return jsonResponse({ ok: true });
+  }
+  if (role) {
+    // role.grant and role.revoke rows are written by grantRole and revokeRole.
+    const now = Math.floor(Date.now() / 1000);
+    if (role.op === 'remove') {
+      if (role.def.key === 'sender') await revokeSender(env, body.user_id, user.id);
+      else await revokeRole(env.DB, { userId: body.user_id, role: role.def.key, by: user.id }, now);
+      return jsonResponse({ ok: true });
+    }
+    const expiry = await requestedExpiry(env.DB, role.def, body.duration, now, { id: user.id, isAdmin: true });
+    if (!expiry.ok) return jsonResponse({ error: 'Invalid duration', code: expiry.code }, 400);
+    if (role.def.key === 'sender') {
+      await grantSender(env, body.user_id, body.value?.trim() || null, user.id, expiry.expiresAt, now);
+    } else {
+      await grantRole(env.DB, { userId: body.user_id, role: role.def.key, expiresAt: expiry.expiresAt, by: user.id }, now);
+    }
     return jsonResponse({ ok: true });
   }
 
@@ -176,22 +201,13 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       ).bind(body.user_id, body.value).run();
       break;
     }
-    case 'make_sender':
-      // grantSender and revokeSender write their own audit row.
-      await grantSender(env, body.user_id, body.value?.trim() || null, user.id);
-      break;
-    case 'remove_sender':
-      await revokeSender(env, body.user_id, user.id);
-      break;
     default:
       return jsonResponse({ error: 'Unknown action' }, 400);
   }
 
-  if (body.action !== 'make_sender' && body.action !== 'remove_sender') {
-    await appendAudit(env.DB, {
-      userId: user.id, action: `user.${body.action}`, targetType: 'user', targetId: body.user_id,
-      details: { value: body.value ?? null },
-    });
-  }
+  await appendAudit(env.DB, {
+    userId: user.id, action: `user.${body.action}`, targetType: 'user', targetId: body.user_id,
+    details: { value: body.value ?? null },
+  });
   return jsonResponse({ ok: true });
 };

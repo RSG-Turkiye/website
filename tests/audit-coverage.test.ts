@@ -9,7 +9,9 @@ import { join, relative } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const PANEL = ['functions/api/admin', 'functions/api/mail', 'functions/api/social', 'functions/api/audit'];
-const WRITES_AUDIT = /appendAudit|runWithAudit|runGuardedWithAudit/;
+// grantRole and revokeRole (functions/_lib/role-grants.ts) write their
+// role.grant / role.revoke row in the same batch as the grant.
+const WRITES_AUDIT = /appendAudit|runWithAudit|runGuardedWithAudit|grantRole|revokeRole/;
 const MUTATES = /export const onRequest(Post|Put|Patch|Delete)\b/;
 
 /** Logged by a helper they call, or not an action a person takes. */

@@ -20,6 +20,9 @@ const FIXED: Record<string, Label> = {
   'audit.prune': { en: 'Removed log entries older than a year', tr: 'Bir yıldan eski kayıtlar silindi' },
 
   'role.change': { en: 'Changed a role', tr: 'Bir yetkiyi değiştirdi' },
+  'role.grant': { en: 'Granted a role', tr: 'Yetki verdi' },
+  'role.revoke': { en: 'Took back a role', tr: 'Yetkiyi geri aldı' },
+  'role.expire': { en: 'A role ended', tr: 'Yetkinin süresi doldu' },
 
   'announcement.create': { en: 'Created an announcement', tr: 'Duyuru oluşturdu' },
   'announcement.update': { en: 'Edited an announcement', tr: 'Duyuruyu düzenledi' },

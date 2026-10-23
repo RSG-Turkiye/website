@@ -32,7 +32,7 @@ const FLAGS = { make_: 1, remove_: 0 };
 const ROLE_FLAGS = ['is_admin', 'is_announcer', 'is_writer', 'is_sender', 'is_symposium', 'is_social', 'is_social_publisher'];
 const hasRole = (u) => ROLE_FLAGS.some((f) => u[f]);
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 
 async function open(viewport, hash) {
   const page = await browser.newPage({ viewport });
@@ -195,8 +195,11 @@ console.log('2) roles tab, 1280 px');
   ok(await page.locator('#rolesView [data-role-card="is_writer"] [data-add-user]').count() === 1, 'search filters to one match');
   ok(gets.some((s) => new URLSearchParams(s).get('search') === 'uye@'), `the add box searches the server (${gets.join(' ')})`);
   await page.click('#rolesView [data-role-card="is_writer"] [data-add-user="u2"]');
+  await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-picker-confirm]', { timeout: 3000 }).catch(() => {});
+  ok(await fits(page, 1280), 'no horizontal scroll with the duration choice open');
+  await page.click('#rolesView [data-role-card="is_writer"] [data-picker-confirm]');
   await waitPatches(patches, 2);
-  ok(JSON.stringify(patches[1]) === JSON.stringify({ user_id: 'u2', action: 'make_writer' }), `add sends ${JSON.stringify(patches[1])}`);
+  ok(JSON.stringify(patches[1]) === JSON.stringify({ user_id: 'u2', action: 'make_writer', duration: { months: 1 } }), `add sends ${JSON.stringify(patches[1])}`);
   await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person="u2"]', { timeout: 3000 }).catch(() => {});
   ok(await page.locator('#rolesView [data-role-card="is_writer"] [data-person="u2"]').count() === 1, 'Bir Üye appears under Blog writer');
   ok(await fits(page, 1280), 'no horizontal scroll at 1280 px');

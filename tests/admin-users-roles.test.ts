@@ -1,0 +1,236 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import { d1 } from './lib/d1-sqlite';
+import { call } from './lib/social';
+import { resolveExpiry, roleDef } from '../functions/_lib/roles';
+import * as users from '../functions/api/admin/users';
+import * as senders from '../functions/api/admin/senders';
+import { expireGrants } from '../functions/_lib/role-grants';
+
+const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
+const ORIGIN = { Origin: 'https://rsg-turkiye.iscbsc.org' };
+const nowS = () => Math.floor(Date.now() / 1000);
+
+function setup() {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SCHEMA);
+  const bindLog: { sql: string; count: number }[] = [];
+  const add = db.prepare('INSERT INTO users (id, google_id, email, is_admin, created_at, last_login) VALUES (?, ?, ?, ?, 1, 1)');
+  add.run('admin', 'g-admin', 'admin@example.org', 1);
+  add.run('u2', 'g-u2', 'two@example.org', 0);
+  add.run('u3', 'g-u3', 'three@example.org', 0);
+  // The acting admin holds a real grant, as after the 8i backfill.
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('g0', 'admin', 'admin', NULL, NULL, 1)`).run();
+  db.prepare(`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES ('s-admin', 'admin', 4000000000, 1)`).run();
+  const env = { DB: d1(db, (sql, count) => bindLog.push({ sql, count })) } as never;
+  return { db, env, bindLog };
+}
+
+const patch = (env: unknown, body: unknown) =>
+  call(users.onRequestPatch, 'PATCH', '/api/admin/users', { env, as: 'admin', body, headers: ORIGIN });
+
+type Grant = { role: string; expires_at: number | null; revoked_at: number | null };
+const liveGrants = (db: DatabaseSync, userId: string) =>
+  db.prepare(`SELECT role, expires_at, revoked_at FROM role_grants WHERE user_id = ? AND revoked_at IS NULL ORDER BY role`)
+    .all(userId) as unknown as Grant[];
+const col = (db: DatabaseSync, userId: string, column: string) =>
+  (db.prepare(`SELECT ${column} AS v FROM users WHERE id = ?`).get(userId) as { v: number }).v;
+
+/** The end resolveExpiry gives for `months` at some second inside [before, after]. */
+function endsWithin(actual: number | null, months: 1, before: number, after: number) {
+  const def = roleDef('writer')!;
+  const granter = { isAdmin: true, activeRoles: ['admin'] };
+  const lo = resolveExpiry(def, { months }, before, granter);
+  const hi = resolveExpiry(def, { months }, after, granter);
+  assert.ok(lo.ok && hi.ok);
+  assert.ok(actual !== null && actual >= lo.expiresAt! && actual <= hi.expiresAt!, `ends ${actual}, expected ${lo.expiresAt}..${hi.expiresAt}`);
+}
+
+test('make_writer with no duration gives a grant ending in one month', async () => {
+  const { db, env } = setup();
+  const before = nowS();
+  const res = await patch(env, { user_id: 'u2', action: 'make_writer' });
+  const after = nowS();
+  assert.equal(res.status, 200);
+  const g = liveGrants(db, 'u2');
+  assert.deepEqual(g.map((r) => r.role), ['writer']);
+  endsWithin(g[0].expires_at, 1, before, after);
+  assert.equal(col(db, 'u2', 'is_writer'), 1);
+  const log = db.prepare(`SELECT action, target_id FROM audit_log`).all().map((r) => ({ ...r }));
+  assert.deepEqual(log, [{ action: 'role.grant', target_id: 'u2' }]);
+});
+
+test('make_admin with no duration gives a permanent grant', async () => {
+  const { db, env } = setup();
+  assert.equal((await patch(env, { user_id: 'u2', action: 'make_admin' })).status, 200);
+  assert.deepEqual(liveGrants(db, 'u2').map((r) => ({ ...r })), [{ role: 'admin', expires_at: null, revoked_at: null }]);
+  assert.equal(col(db, 'u2', 'is_admin'), 1);
+});
+
+test('make_writer for three months is 400 too_long and changes nothing', async () => {
+  const { db, env } = setup();
+  const res = await patch(env, { user_id: 'u2', action: 'make_writer', duration: { months: 3 } });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, 'too_long');
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
+});
+
+test('a leader role may be given an explicit length', async () => {
+  const { db, env } = setup();
+  assert.equal((await patch(env, { user_id: 'u2', action: 'make_announcer', duration: { months: 6 } })).status, 200);
+  const g = liveGrants(db, 'u2');
+  assert.equal(g[0].role, 'announcer');
+  assert.ok(g[0].expires_at! > nowS() + 150 * 86400);
+});
+
+test('a malformed duration is 400 malformed_request', async () => {
+  const { env } = setup();
+  for (const duration of ['1m', 3, null, [], {}, { months: '1' }, { permanent: 1 }, { until: 'soon' }, { months: 1, permanent: true }]) {
+    const res = await patch(env, { user_id: 'u2', action: 'make_writer', duration });
+    assert.equal(res.status, 400, JSON.stringify(duration));
+    assert.equal(((await res.json()) as { code: string }).code, 'malformed_request', JSON.stringify(duration));
+  }
+});
+
+test('removing your own admin role is still 400', async () => {
+  const { db, env } = setup();
+  assert.equal((await patch(env, { user_id: 'admin', action: 'remove_admin' })).status, 400);
+  assert.equal(col(db, 'admin', 'is_admin'), 1);
+  assert.equal(liveGrants(db, 'admin').length, 1);
+});
+
+test('remove_* ends the grant and clears the column, whatever duration says', async () => {
+  const { db, env } = setup();
+  await patch(env, { user_id: 'u2', action: 'make_symposium' });
+  assert.equal((await patch(env, { user_id: 'u2', action: 'remove_symposium', duration: { months: 1 } })).status, 200);
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  assert.equal(col(db, 'u2', 'is_symposium'), 0);
+  const actions = db.prepare(`SELECT action FROM audit_log ORDER BY seq`).all().map((r) => (r as { action: string }).action);
+  assert.deepEqual(actions, ['role.grant', 'role.revoke']);
+});
+
+test('verify and unverify still set membership, not a grant', async () => {
+  const { db, env } = setup();
+  assert.equal((await patch(env, { user_id: 'u2', action: 'verify' })).status, 200);
+  assert.equal(col(db, 'u2', 'is_member'), 1);
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+});
+
+test('make_sender from the user panel writes a sender grant and a sender_grants row', async () => {
+  const { db, env } = setup();
+  assert.equal((await patch(env, { user_id: 'u2', action: 'make_sender', value: ' outreach ' })).status, 200);
+  assert.deepEqual(liveGrants(db, 'u2').map((r) => r.role), ['sender']);
+  assert.equal(col(db, 'u2', 'is_sender'), 1);
+  const rec = db.prepare(`SELECT team, revoked_at FROM sender_grants WHERE user_id = 'u2'`).all().map((r) => ({ ...r }));
+  assert.deepEqual(rec, [{ team: 'outreach', revoked_at: null }]);
+  assert.equal((await patch(env, { user_id: 'u2', action: 'remove_sender' })).status, 200);
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  assert.equal(col(db, 'u2', 'is_sender'), 0);
+  assert.ok((db.prepare(`SELECT revoked_at FROM sender_grants WHERE user_id = 'u2'`).get() as { revoked_at: number }).revoked_at);
+});
+
+test('the bulk sender grant gives sender grants and sender_grants rows, one month by default', async () => {
+  const { db, env } = setup();
+  const before = nowS();
+  const res = await call(senders.onRequestPost, 'POST', '/api/admin/senders', {
+    env, as: 'admin', headers: ORIGIN, body: { emails: 'two@example.org, three@example.org, ghost@example.org', team: 'Mail' },
+  });
+  const after = nowS();
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true, granted: ['two@example.org', 'three@example.org'], unknown: ['ghost@example.org'] });
+  for (const id of ['u2', 'u3']) {
+    const g = liveGrants(db, id);
+    assert.deepEqual(g.map((r) => r.role), ['sender'], id);
+    endsWithin(g[0].expires_at, 1, before, after);
+    assert.equal(col(db, id, 'is_sender'), 1);
+  }
+  const rec = db.prepare(`SELECT user_id, team FROM sender_grants ORDER BY user_id`).all().map((r) => ({ ...r }));
+  assert.deepEqual(rec, [{ user_id: 'u2', team: 'Mail' }, { user_id: 'u3', team: 'Mail' }]);
+  const actions = db.prepare(`SELECT action FROM audit_log`).all().map((r) => (r as { action: string }).action);
+  assert.deepEqual(actions, ['role.grant', 'role.grant']);
+});
+
+test('the bulk sender grant takes a duration and rejects one too long', async () => {
+  const { db, env } = setup();
+  const post = (body: unknown) => call(senders.onRequestPost, 'POST', '/api/admin/senders', { env, as: 'admin', headers: ORIGIN, body });
+  const bad = await post({ emails: 'two@example.org', duration: { months: 2 } });
+  assert.equal(bad.status, 400);
+  assert.equal(((await bad.json()) as { code: string }).code, 'too_long');
+  assert.equal((await post({ emails: 'two@example.org', duration: 'forever' })).status, 400);
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  const until = nowS() + 10 * 86400;
+  assert.equal((await post({ emails: 'two@example.org', duration: { until } })).status, 200);
+  assert.equal(liveGrants(db, 'u2')[0].expires_at, until);
+});
+
+test('revoking a sender ends the grant and the sender_grants row', async () => {
+  const { db, env } = setup();
+  await call(senders.onRequestPost, 'POST', '/api/admin/senders', { env, as: 'admin', headers: ORIGIN, body: { emails: 'two@example.org' } });
+  const res = await call(senders.onRequestPatch, 'PATCH', '/api/admin/senders', { env, as: 'admin', headers: ORIGIN, body: { user_id: 'u2', action: 'revoke' } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  assert.equal(col(db, 'u2', 'is_sender'), 0);
+  assert.ok((db.prepare(`SELECT revoked_at FROM sender_grants WHERE user_id = 'u2'`).get() as { revoked_at: number }).revoked_at);
+  const actions = db.prepare(`SELECT action FROM audit_log ORDER BY seq`).all().map((r) => (r as { action: string }).action);
+  assert.deepEqual(actions, ['role.grant', 'role.revoke']);
+});
+
+test('a sender grant that runs out closes its record, so the next grant records the new team', async () => {
+  const { db, env } = setup();
+  const post = (body: unknown) => call(senders.onRequestPost, 'POST', '/api/admin/senders', { env, as: 'admin', headers: ORIGIN, body });
+  const end = nowS() + 60;
+  assert.equal((await post({ emails: 'two@example.org', team: 'Team A', duration: { until: end } })).status, 200);
+  assert.equal(await expireGrants((env as { DB: D1Database }).DB, end + 1), 1);
+  assert.equal(col(db, 'u2', 'is_sender'), 0);
+  assert.equal((await post({ emails: 'two@example.org', team: 'Team B' })).status, 200);
+  const rec = db.prepare(`SELECT team, revoked_at, revoked_by FROM sender_grants WHERE user_id = 'u2' ORDER BY granted_at, rowid`).all().map((r) => ({ ...r }));
+  assert.deepEqual(rec, [
+    { team: 'Team A', revoked_at: end, revoked_by: null },
+    { team: 'Team B', revoked_at: null, revoked_by: null },
+  ]);
+  const res = await call(senders.onRequestGet, 'GET', '/api/admin/senders', { env, as: 'admin' });
+  const body = (await res.json()) as { senders: { user_id: string; team: string | null }[] };
+  assert.deepEqual(body.senders.filter((s) => s.user_id === 'u2').map((s) => s.team), ['Team B']);
+});
+
+test('a sender who also holds a permanent sender grant keeps the record open when the timed one runs out', async () => {
+  const { db, env } = setup();
+  const post = (body: unknown) => call(senders.onRequestPost, 'POST', '/api/admin/senders', { env, as: 'admin', headers: ORIGIN, body });
+  const end = nowS() + 60;
+  assert.equal((await post({ emails: 'two@example.org', team: 'Team A', duration: { until: end } })).status, 200);
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('perm', 'u2', 'sender', NULL, NULL, 1)`).run();
+  assert.equal(await expireGrants((env as { DB: D1Database }).DB, end + 1), 1);
+  assert.equal(col(db, 'u2', 'is_sender'), 1);
+  assert.deepEqual(db.prepare(`SELECT team, revoked_at FROM sender_grants WHERE user_id = 'u2'`).all().map((r) => ({ ...r })),
+    [{ team: 'Team A', revoked_at: null }]);
+});
+
+test('GET filter=roles carries each user\'s live grants, staying under the 100-bind cap for 150 users', async () => {
+  const { db, env, bindLog } = setup();
+  const add = db.prepare('INSERT INTO users (id, google_id, email, is_writer, created_at, last_login) VALUES (?, ?, ?, 1, ?, 1)');
+  const grant = db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, revoked_at) VALUES (?, ?, ?, ?, 'admin', 1, ?)`);
+  const end = nowS() + 86400;
+  for (let i = 0; i < 150; i++) {
+    const id = `w${i}`;
+    add.run(id, `g-${id}`, `${id}@example.org`, 1000 + i);
+    grant.run(`gw${i}`, id, 'writer', end, null);
+    grant.run(`gx${i}`, id, 'sender', end, 5); // revoked: not listed
+  }
+  bindLog.length = 0;
+  const res = await call(users.onRequestGet, 'GET', '/api/admin/users?filter=roles', { env, as: 'admin' });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { users: { id: string; grants: { role: string; expires_at: number | null }[] }[] };
+  assert.ok(body.users.length > 0);
+  for (const u of body.users) {
+    assert.ok(Array.isArray(u.grants), u.id);
+    if (u.id === 'admin') assert.deepEqual(u.grants, [{ role: 'admin', expires_at: null }]);
+    else assert.deepEqual(u.grants, [{ role: 'writer', expires_at: end }], u.id);
+  }
+  const over = bindLog.filter((b) => b.count > 100);
+  assert.deepEqual(over, [], 'no statement binds more than 100 parameters');
+  const grantQueries = bindLog.filter((b) => /role_grants/.test(b.sql));
+  assert.ok(grantQueries.length >= 1 && grantQueries.length <= Math.ceil(body.users.length / 90) + 1, `${grantQueries.length} grant queries`);
+});

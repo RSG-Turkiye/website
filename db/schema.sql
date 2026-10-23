@@ -117,8 +117,14 @@
 --     reachable by is_admin accounts and by nobody else unless the role was
 --     granted by hand. The admin user list can now show and set it like any
 --     other role, and the hand-written form is kept only for a database with
---     no admin account to do it from:
+--     no admin account to do it from. Since 8i the is_* columns are a cache
+--     of role_grants, and a column set without a grant is wiped by the next
+--     role change for that user, so the hand recovery writes a permanent
+--     grant first and then the column:
+--       wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, note) SELECT lower(hex(randomblob(16))), id, 'symposium', NULL, NULL, unixepoch(), 'manual recovery' FROM users WHERE email = 'someone@example.com'"
 --       wrangler d1 execute rsg-members --remote --command="UPDATE users SET is_symposium = 1 WHERE email = 'someone@example.com'"
+--     The same two commands, with role 'admin' and is_admin, recover an
+--     admin account if every admin grant has lapsed.
 --
 -- 7g. The mail queue's exactly-once columns. Both are nullable and additive,
 --     so existing rows keep working; a queue row with no claimed_at is simply
@@ -265,6 +271,43 @@
 --    nightly purge writes certificate_stats before it deletes anything (it
 --    fails, and keeps the certificates, until the table exists). Serving a
 --    certificate never fails on the counter; it only stops counting.
+--
+
+-- 8i. Roles with an end date. role_grants (below) records who holds which
+--    role, until when, and who granted or took it away; the users.is_*
+--    columns stay, as a cache of it that every permission check reads. New
+--    table, IF NOT EXISTS, so re-applying the file is safe:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Then backfill one permanent grant for every role someone already holds.
+--    Each statement skips a user who already has a live grant of that role,
+--    so running them twice adds nothing:
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'admin', NULL, NULL, unixepoch() FROM users WHERE is_admin = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'admin' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'announcer', NULL, NULL, unixepoch() FROM users WHERE is_announcer = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'announcer' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'symposium', NULL, NULL, unixepoch() FROM users WHERE is_symposium = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'symposium' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'social_publisher', NULL, NULL, unixepoch() FROM users WHERE is_social_publisher = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'social_publisher' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'writer', NULL, NULL, unixepoch() FROM users WHERE is_writer = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'writer' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'sender', NULL, NULL, unixepoch() FROM users WHERE is_sender = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'sender' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) SELECT lower(hex(randomblob(16))), id, 'social', NULL, NULL, unixepoch() FROM users WHERE is_social = 1 AND NOT EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'social' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch()))"
+--    Then reconcile: end any backfilled grant whose column has since gone
+--    back to 0. Also idempotent:
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'admin' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_admin = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'announcer' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_announcer = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'symposium' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_symposium = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'social_publisher' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_social_publisher = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'writer' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_writer = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'sender' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_sender = 1)"
+--      wrangler d1 execute rsg-members --remote --command="UPDATE role_grants SET revoked_at = unixepoch() WHERE granted_by IS NULL AND revoked_at IS NULL AND role = 'social' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = role_grants.user_id AND u.is_social = 1)"
+--    Why both: the code that grants and removes roles through role_grants
+--    (functions/_lib/role-grants.ts, wired into the admin panel by the
+--    roles-with-expiry branch) recomputes every is_* column of a user from
+--    their live grants whenever one of their roles changes. Until it is
+--    deployed, the old panel still writes the columns directly, so a role
+--    added after the backfill has no grant (and would be silently taken away
+--    by the first change to that user's roles), and a role removed after it
+--    still has a live grant (and would come back).
+--    Order: apply the file and run the backfill. Then, immediately before
+--    the code deploys, run the backfill AND the reconcile again, and change
+--    no roles in the admin panel between that and the deploy.
 --
 
 CREATE TABLE IF NOT EXISTS users (
@@ -785,6 +828,24 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log(at);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, at);
+
+-- Who holds which role, and until when. users.is_* mirror the live rows
+-- (functions/_lib/role-grants.ts). Revoked and expired rows are kept: they
+-- are the history. A live grant: revoked_at IS NULL AND (expires_at IS NULL
+-- OR expires_at > now).
+CREATE TABLE IF NOT EXISTS role_grants (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role       TEXT NOT NULL,
+  expires_at INTEGER,            -- NULL: permanent
+  granted_by TEXT,               -- NULL: the 8i backfill
+  granted_at INTEGER NOT NULL,
+  revoked_by TEXT,
+  revoked_at INTEGER,
+  note       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_role_grants_user ON role_grants(user_id, revoked_at);
+CREATE INDEX IF NOT EXISTS idx_role_grants_expiry ON role_grants(revoked_at, expires_at);
 
 -- One row per external account the site talks to. Tokens are AES-GCM
 -- ciphertext (functions/_lib/token-vault.ts), never plaintext. A row may
