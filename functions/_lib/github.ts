@@ -4,6 +4,7 @@ const GITHUB_OWNER = 'RSG-Turkiye';
 const GITHUB_REPO = 'website';
 const GITHUB_BASE_BRANCH = 'main';
 const GITHUB_API_BASE = 'https://api.github.com';
+const GITHUB_TIMEOUT_MS = 10_000;
 
 type OpenPrParams = {
   /** The `<branchPrefix>/` this branch lives under -- e.g. `blog-submission`
@@ -74,6 +75,9 @@ async function githubRequest(
   env: Env
 ): Promise<Response> {
   return fetch(`${GITHUB_API_BASE}${path}`, {
+    // A GitHub that hangs must not hold a cron tick (or a panel request)
+    // until the platform kills it.
+    signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
     ...init,
     headers: {
       Authorization: `Bearer ${env.GITHUB_PAT}`,
@@ -744,6 +748,10 @@ function foldChecks(runs: CheckRun[]): Pick<PrStatus, 'checks' | 'failedCheck'> 
 export async function prStatus(prNumber: number, env: Env): Promise<PrStatus> {
   const pull = await getPull(prNumber, env);
   const headSha = pull.head.sha;
+  // A finished pull request's checks no longer matter: one request, not two.
+  if (pull.merged || pull.state === 'closed') {
+    return { state: pull.merged ? 'merged' : 'closed', mergeable_state: pull.mergeable_state, checks: 'pending', headSha };
+  }
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits/${headSha}/check-runs?per_page=100`,
     { method: 'GET' },
@@ -756,6 +764,12 @@ export async function prStatus(prNumber: number, env: Env): Promise<PrStatus> {
 }
 
 type Pull = { state: string; merged: boolean; mergeable_state: string; title: string; head: { sha: string } };
+
+/** Whether a pull request is open, merged or closed, and its head: one request. Errors carry the status only. */
+export async function readPull(prNumber: number, env: Env): Promise<{ state: 'open' | 'merged' | 'closed'; headSha: string }> {
+  const pull = await getPull(prNumber, env);
+  return { state: pull.merged ? 'merged' : pull.state === 'closed' ? 'closed' : 'open', headSha: pull.head.sha };
+}
 
 async function getPull(prNumber: number, env: Env): Promise<Pull> {
   const res = await githubRequest(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${prNumber}`, { method: 'GET' }, env);
@@ -770,9 +784,9 @@ async function getPull(prNumber: number, env: Env): Promise<Pull> {
  *
  * GitHub answers 202 and does the merge asynchronously; the new head shows
  * up on a later prStatus, and the checks run again on it. A refusal (422)
- * comes back as `{ success: false, status, reason }`: 'head-changed' when
- * GitHub says the expected head sha did not match (look again next time),
- * otherwise 'conflict' (main does not merge into the branch). The reason is
+ * comes back as `{ success: false, status, reason }`: 'conflict' when
+ * GitHub's message mentions a conflict (main does not merge into the
+ * branch), otherwise 'head-changed' (look again next time). The reason is
  * read from GitHub's message, which is never passed on. Anything else
  * unexpected throws a short error.
  */
@@ -789,7 +803,10 @@ export async function updateBranch(
   if (res.ok) return { success: true };
   if (res.status === 422) {
     const text = await res.text().catch(() => '');
-    return { success: false, status: res.status, reason: /expected head sha/i.test(text) ? 'head-changed' : 'conflict' };
+    // Only a refusal that says so is a conflict (which fails the draft);
+    // anything else ("not behind", a moved head, a validation hiccup) is
+    // looked at again next tick.
+    return { success: false, status: res.status, reason: /conflict/i.test(text) ? 'conflict' : 'head-changed' };
   }
   throw new Error(`Failed to update the branch of pull ${prNumber} (${res.status})`);
 }
@@ -865,11 +882,14 @@ export async function prForBranch(branchName: string, env: Env): Promise<BranchP
 }
 
 /** Deletes a branch (closing any open pull request from it). 'absent' when
- * there was none. Only for cms/ branches. Errors carry the status only. */
-export async function deleteBranch(branchName: string, env: Env): Promise<'deleted' | 'absent'> {
+ * GitHub answers 404; 'failed' on a 422, which the caller cannot read as
+ * "gone" (the branch, and a pull request on it, may still be there). Only
+ * for cms/ branches. Other errors throw, carrying the status only. */
+export async function deleteBranch(branchName: string, env: Env): Promise<'deleted' | 'absent' | 'failed'> {
   if (!branchName.startsWith('cms/')) throw new Error('deleteBranch is only for cms/ branches');
   const res = await githubRequest(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/${branchName}`, { method: 'DELETE' }, env);
-  if (res.status === 404 || res.status === 422) return 'absent';
+  if (res.status === 404) return 'absent';
+  if (res.status === 422) return 'failed';
   if (!res.ok) throw new Error(`Failed to delete branch ${branchName} (${res.status})`);
   return 'deleted';
 }

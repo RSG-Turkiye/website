@@ -15,10 +15,12 @@ import {
   updateBranch,
   mergePr,
   closePr,
+  deleteBranch,
+  readPull,
   REQUIRED_CHECKS,
 } from '../functions/_lib/github';
 
-type Req = { method: string; path: string; body: any };
+type Req = { method: string; path: string; body: any; signal?: AbortSignal | null };
 type Handler = (method: string, url: URL, body: any) => Response | undefined;
 
 const env = { GITHUB_PAT: 'unused-fetch-is-stubbed' } as never;
@@ -32,7 +34,7 @@ async function withFetch<T>(handler: Handler, run: (requests: Req[]) => Promise<
     const url = new URL(String(input));
     const method = init?.method ?? 'GET';
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    requests.push({ method, path: url.pathname + url.search, body });
+    requests.push({ method, path: url.pathname + url.search, body, signal: init?.signal });
     const res = handler(method, url, body);
     if (!res) throw new Error(`unexpected fake fetch: ${method} ${url}`);
     return res;
@@ -503,4 +505,52 @@ test('retrying a failed CMS pull request with resetBranch gives it a new head co
     assert.notEqual(branch!.head, first, 'a new head commit, so the required checks run again');
     assert.equal(branch!.files.get('src/content/events/a.json'), '{"v":1}\n');
   });
+});
+
+// ---------------------------------------------------------------- fix round 1
+
+test('updateBranch: only a 422 that says "conflict" is a conflict; any other 422 is "look again"', async () => {
+  for (const [text, reason] of [
+    ['{"message":"merge conflict between base and head"}', 'conflict'],
+    ['{"message":"There are merge conflicts"}', 'conflict'],
+    ['{"message":"Pull request is not behind"}', 'head-changed'],
+    ['{"message":"Validation Failed"}', 'head-changed'],
+  ] as const) {
+    await withFetch(() => new Response(text, { status: 422 }), async () => {
+      assert.deepEqual(await updateBranch(12, env, 'h'), { success: false, status: 422, reason }, text);
+    });
+  }
+});
+
+test('prStatus: a merged or closed pull request costs one request (no check-runs read)', async () => {
+  for (const pull of [{ ...openPull, state: 'closed', merged: true }, { ...openPull, state: 'closed', merged: false }]) {
+    await withFetch(prHandler(pull, []), async (requests) => {
+      const s = await prStatus(12, env);
+      assert.equal(s.state, pull.merged ? 'merged' : 'closed');
+      assert.equal(requests.length, 1);
+    });
+  }
+});
+
+test('readPull: state and head of one pull request, in one request', async () => {
+  await withFetch(prHandler({ ...openPull, state: 'closed', merged: true }, []), async (requests) => {
+    assert.deepEqual(await readPull(12, env), { state: 'merged', headSha: 'head-1' });
+    assert.equal(requests.length, 1);
+  });
+});
+
+test('every GitHub request carries a timeout signal', async () => {
+  await withFetch(prHandler(openPull, []), async (requests) => {
+    await prStatus(12, env);
+    assert.ok(requests.length > 0);
+    for (const r of requests) assert.ok(r.signal instanceof AbortSignal, r.path);
+  });
+});
+
+test('deleteBranch: only a 404 is "absent"; a 422 is "failed"', async () => {
+  for (const [status, out] of [[204, 'deleted'], [404, 'absent'], [422, 'failed']] as const) {
+    await withFetch(() => new Response(status === 204 ? null : '{}', { status }), async () => {
+      assert.equal(await deleteBranch('cms/x', env), out, String(status));
+    });
+  }
 });

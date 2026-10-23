@@ -4,7 +4,7 @@ import { runWithAudit } from '../../_lib/audit';
 import {
   cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
-import { checkSameId, DRAFT_ACTIONS, langOf, newEntryId, newPaths, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
+import { checkSameId, DRAFT_ACTIONS, langOf, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
 import { fileShasOnBase, filesOnBase } from '../../_lib/github';
 import { CMS_TYPES, checkId, cmsType } from '../../../src/lib/cms/types';
 import { parseMarkdown } from '../../../src/lib/cms/serialize';
@@ -14,7 +14,10 @@ const LIST_COLUMNS = 'id, type, entry_id, action, status, author_id, reviewer_id
 const QUEUE_CAP = 200;
 
 /** My drafts and, for approvers, the drafts waiting for approval, both newest
- * first. `more`: the queue holds more than QUEUE_CAP. */
+ * first. `more`: the queue holds more than QUEUE_CAP. The queue also holds
+ * drafts left in `approved` longer than STALE_APPROVAL_SECONDS (an approval
+ * that crashed), so an approver can approve them again; the approve
+ * endpoint's retry adopts what the first attempt got done. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
@@ -27,8 +30,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(gate.user.id).all<DraftRow>();
   const queue = approvable.length === 0 ? { results: [] as DraftRow[] } : await env.DB.prepare(
     `SELECT ${LIST_COLUMNS}, '' AS data, '{}' AS base_shas FROM content_drafts
-     WHERE status = 'submitted' AND type IN (${approvable.map(() => '?').join(', ')}) ORDER BY updated_at DESC LIMIT ${QUEUE_CAP + 1}`,
-  ).bind(...approvable).all<DraftRow>();
+     WHERE (status = 'submitted' OR (status = 'approved' AND updated_at < ?))
+       AND type IN (${approvable.map(() => '?').join(', ')}) ORDER BY updated_at DESC LIMIT ${QUEUE_CAP + 1}`,
+  ).bind(gate.now - STALE_APPROVAL_SECONDS, ...approvable).all<DraftRow>();
 
   return jsonResponse({
     mine: mine.results.filter((r) => editable.has(r.type)).map((r) => draftJson(r, false)),

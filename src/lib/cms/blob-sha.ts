@@ -4,6 +4,11 @@
  * write it into /cms-index.json and the PR shepherd can compare it with the
  * files a draft's pull request carried, without asking GitHub. Web Crypto,
  * so it runs both at build (Node) and in the Functions (Workers).
+ *
+ * This holds only while the bytes in the checkout are the bytes in git.
+ * Adding `* text=auto` or other eol rules to .gitattributes would let a
+ * checkout differ (CRLF on one side, LF on the other), the shas would never
+ * match, and merged drafts would never be marked published.
  */
 export async function gitBlobSha(text: string): Promise<string> {
   const body = new TextEncoder().encode(text);

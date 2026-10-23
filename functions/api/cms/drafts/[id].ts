@@ -1,8 +1,8 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof, readJson } from '../../../_lib/cms-api';
-import { deleteBranch } from '../../../_lib/github';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, readJson } from '../../../_lib/cms-api';
+import { closePr, deleteBranch } from '../../../_lib/github';
 import { canTransition, checkSameId, newEntryId, newPaths, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
@@ -67,7 +67,11 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   return jsonResponse({ draft: draftJson({ ...row, data, entry_id: entryId, base_shas: baseShas, updated_at: gate.now, write_nonce: nonce }, true) });
 };
 
-/** Discard. The row stays, as `discarded`, so the log's target still exists. */
+/**
+ * Discard. The row stays, as `discarded`, so the log's target still exists.
+ * A `merged` draft (its change on main, the site never showed it) may be
+ * discarded by an approver only, with no GitHub call: it is the way out.
+ */
 export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await cmsGate(request, env, true);
   if (!gate.ok) return gate.response;
@@ -76,6 +80,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const { row } = found;
   if (!mayEdit(gate, row)) return forbidden();
   if (!canTransition('discard', row.status)) return badState();
+  if (row.status === 'merged' && !mayApprove(gate, row)) return forbidden();
   const nonce = newNonce();
   const done = await runGuardedWithAudit(
     env.DB,
@@ -99,6 +104,15 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
     } catch (e) {
       console.error('cms: deleting the branch of a discarded draft failed', row.id, e);
       branch = 'failed';
+    }
+    // The branch may still be there, and a pull request open on it: close
+    // that, so a discarded draft cannot be merged by hand. Best effort too.
+    if (branch === 'failed' && row.pr_number !== null) {
+      try {
+        await closePr(row.pr_number, env);
+      } catch (e) {
+        console.error('cms: closing the pull request of a discarded draft failed', row.id, e);
+      }
     }
   }
   return jsonResponse({ ok: true, ...(branch ? { branch } : {}) });

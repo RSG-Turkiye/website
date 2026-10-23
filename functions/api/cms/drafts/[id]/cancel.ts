@@ -1,21 +1,24 @@
 import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, forbidden, githubFailed, loadDraft, mayApprove, newNonce, nonceProof } from '../../../../_lib/cms-api';
-import { canTransition, FAILURE } from '../../../../_lib/cms-drafts';
-import { closePr } from '../../../../_lib/github';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, githubFailed, loadDraft, mayApprove, newNonce, nonceProof } from '../../../../_lib/cms-api';
+import { canTransition, FAILURE, type DraftRow } from '../../../../_lib/cms-drafts';
+import { settle } from '../../../../_lib/cms-shepherd';
+import { closePr, readPull } from '../../../../_lib/github';
 
 /**
  * Take a draft out of `pr_open` on purpose: close its pull request and mark
  * it pr_failed with the reason 'cancelled'. The author can then edit it and
  * send it again, or discard it. Approvers (and admins) only.
  *
- * The pull request is closed first. If GitHub refuses, nothing changes, so
- * the panel never shows a draft as cancelled while its pull request could
- * still be merged. Nothing can move a pr_open draft back into review in
- * between, so the branch cannot become another attempt's meanwhile; if the
- * PR shepherd sees the closed pull request first, it marks the draft
- * pr_failed ("closed on GitHub") and this answers 409.
+ * The pull request may merge while this runs (the PR shepherd merges green
+ * ones every minute), so it is read before and after closing it. Merged →
+ * the draft becomes `merged` (as the shepherd would record it) and the
+ * answer is 409 already_merged with the draft: a merged change cannot be
+ * cancelled. If GitHub refuses to close it, it is read again: closed means
+ * the cancel goes ahead, merged as above, open is a 502 and nothing changes.
+ * So the panel never shows a draft as cancelled while its pull request
+ * could still be merged.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await cmsGate(request, env, true);
@@ -25,11 +28,41 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const { row } = found;
   if (!mayApprove(gate, row)) return forbidden();
   if (!canTransition('cancel', row.status) || row.pr_number === null) return badState();
+  const n = row.pr_number;
 
+  const alreadyMerged = async () => {
+    await settle(env, row, 'pr_open', 'merged', null, 'cms.pr.merged', { via: 'cancel' }, gate.now, gate.user.id);
+    const now = await env.DB.prepare('SELECT * FROM content_drafts WHERE id = ?').bind(row.id).first<DraftRow>();
+    return fail(409, 'already_merged', 'The pull request was merged already; it cannot be cancelled', { draft: draftJson(now!, false) });
+  };
+
+  type PullState = 'open' | 'merged' | 'closed';
+  let state: PullState;
   try {
-    await closePr(row.pr_number, env);
+    state = (await readPull(n, env)).state;
   } catch (e) {
     return githubFailed(e);
+  }
+  if (state === 'merged') return alreadyMerged();
+  if (state === 'open') {
+    try {
+      await closePr(n, env);
+    } catch (e) {
+      let again: PullState;
+      try {
+        again = (await readPull(n, env)).state;
+      } catch {
+        return githubFailed(e);
+      }
+      if (again === 'merged') return alreadyMerged();
+      if (again === 'open') return githubFailed(e);
+    }
+    // Closing races a merge that was already under way.
+    try {
+      if ((await readPull(n, env)).state === 'merged') return alreadyMerged();
+    } catch (e) {
+      console.error('cms: re-reading a cancelled pull request failed', row.id, e);
+    }
   }
 
   const nonce = newNonce();

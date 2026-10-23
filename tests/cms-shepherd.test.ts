@@ -10,7 +10,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { MAX_FETCHES, PICK_SQL, pruneDrafts, shepherd } from '../functions/_lib/cms-shepherd';
 import { setCmsIndexLoader } from '../functions/_lib/cms-api';
-import { DRAFT_RETENTION_SECONDS, FAILURE, mergedTooLong, PR_OPEN_MAX_SECONDS } from '../functions/_lib/cms-drafts';
+import { DRAFT_RETENTION_SECONDS, FAILURE, MERGED_NOT_LIVE_SECONDS, mergedTooLong, PR_OPEN_MAX_SECONDS } from '../functions/_lib/cms-drafts';
 import { REQUIRED_CHECKS } from '../functions/_lib/github';
 import { onRequestPost as dispatch } from '../functions/api/mail/dispatch';
 import { gitBlobSha, gitBlobShas } from '../src/lib/cms/blob-sha';
@@ -69,6 +69,11 @@ class FakeGitHub {
     if (pr.conflict) return 'dirty';
     if (pr.base !== this.mainHead) return 'behind';
     return this.passed(pr.head) ? 'clean' : 'blocked';
+  }
+
+  /** Pull requests closed through PATCH, in order. */
+  closes(): number[] {
+    return this.requests.filter((r) => r.method === 'PATCH' && /\/pulls\/\d+$/.test(r.path)).map((r) => Number(r.path.split('/').pop()));
   }
 
   github(): number {
@@ -245,7 +250,19 @@ test('Review Focus 2: a failed required check → pr_failed with a reason naming
   const last = audit().at(-1)!;
   assert.equal(last.action, 'cms.pr.failed');
   assert.equal(JSON.parse(last.details).check, 'Symposium Build & Type Check');
-  assert.ok(!gh.requests.some((r) => r.method !== 'GET'), 'no merge, no update');
+  assert.deepEqual(gh.requests.filter((r) => r.method !== 'GET').map((r) => r.method), ['PATCH'], 'no merge, no update; the pull request is closed');
+  assert.deepEqual(gh.closes(), [41]);
+  assert.equal(gh.prs.get(41)!.state, 'closed');
+});
+
+test('a check that failed on a behind head is not final: the branch is updated and the checks run again', async () => {
+  const { db, env, row } = setup();
+  const id = draft(db, { pr: 41 });
+  gh.open(41, { base: 'main-0' });
+  gh.failing('head-41-0', 'Build & Type Check');
+  assert.deepEqual(await shepherd(env, NOW), { merged: 0, updated: 1, failed: 0, published: 0 });
+  assert.equal(row(id).status, 'pr_open');
+  assert.notEqual(gh.prs.get(41)!.head, 'head-41-0');
 });
 
 test('merged by hand on GitHub → merged; closed without merging → pr_failed "closed on GitHub"', async () => {
@@ -259,6 +276,18 @@ test('merged by hand on GitHub → merged; closed without merging → pr_failed 
   assert.equal(row(closed).status, 'pr_failed');
   assert.equal(row(closed).failure, FAILURE.closed);
   assert.equal(FAILURE.closed, 'closed on GitHub');
+  assert.equal(gh.github(), 2, 'one request each: no check-runs read for a finished pull request, no close for a closed one');
+});
+
+test('a merged or closed pull request settles as such even past the age cap', async () => {
+  const { db, env, row } = setup();
+  const merged = draft(db, { pr: 41, age: PR_OPEN_MAX_SECONDS + 600 });
+  const closed = draft(db, { pr: 42, age: PR_OPEN_MAX_SECONDS + 600 });
+  gh.open(41, { state: 'closed', merged: true });
+  gh.open(42, { state: 'closed' });
+  await shepherd(env, NOW);
+  assert.equal(row(merged).status, 'merged');
+  assert.equal(row(closed).failure, FAILURE.closed);
 });
 
 test('conflicts → pr_failed "conflicts with a newer change; start a new draft", whether GitHub says dirty or refuses the update', async () => {
@@ -272,6 +301,7 @@ test('conflicts → pr_failed "conflicts with a newer change; start a new draft"
     assert.equal(row(id).status, 'pr_failed');
     assert.equal(row(id).failure, 'conflicts with a newer change; start a new draft');
   }
+  assert.deepEqual(gh.closes().sort(), [41, 42]);
   // Never looped on: a failed draft is not looked at again.
   const before = gh.requests.length;
   await shepherd(env, NOW + 60);
@@ -291,8 +321,8 @@ test('an update refused because the head moved is not a conflict: asked again ne
   assert.equal(row(id).status, 'pr_open');
 });
 
-test('age cap: pending, unknown or blocked is "ask again" until six hours, then pr_failed "checks did not finish"', async () => {
-  for (const mergeable of [undefined, 'unknown', 'blocked']) {
+test('age cap: pending, unknown or blocked is "ask again" until six hours, then pr_failed (blocked when the checks were green)', async () => {
+  for (const [mergeable, reason] of [[undefined, 'checks did not finish'], ['unknown', 'checks did not finish'], ['blocked', 'blocked by branch protection']] as const) {
     const { db, env, row } = setup();
     const young = draft(db, { pr: 41, age: PR_OPEN_MAX_SECONDS - 60 });
     const old = draft(db, { pr: 42, age: PR_OPEN_MAX_SECONDS + 60 });
@@ -302,11 +332,36 @@ test('age cap: pending, unknown or blocked is "ask again" until six hours, then 
     assert.equal((await shepherd(env, NOW)).failed, 1, String(mergeable));
     assert.equal(row(young).status, 'pr_open');
     assert.equal(row(old).status, 'pr_failed');
-    assert.equal(row(old).failure, 'checks did not finish');
+    assert.equal(row(old).failure, reason, String(mergeable));
+    assert.deepEqual(gh.closes(), [42]);
   }
 });
 
-test('GitHub errors are "ask again" too, with a short log and no stored GitHub text, up to the age cap', async () => {
+test('a merge GitHub refuses, past the cap: "blocked by branch protection", with the refusal in the log', async () => {
+  const { db, env, row, audit } = setup();
+  const id = draft(db, { pr: 41, age: PR_OPEN_MAX_SECONDS + 60 });
+  gh.open(41);
+  gh.greenAll();
+  const real = gh.handle.bind(gh);
+  gh.handle = async (method, url, body) =>
+    method === 'PUT' && url.pathname.endsWith('/merge') ? new Response('{"message":"Required review"}', { status: 405 }) : real(method, url, body);
+  await shepherd(env, NOW);
+  assert.equal(row(id).failure, FAILURE.blocked);
+  const details = JSON.parse(audit().at(-1)!.details);
+  assert.equal(details.merge, 'not-mergeable');
+  assert.equal(details.reason, 'blocked by branch protection');
+});
+
+test('the cap applies after a successful update too: a branch that keeps falling behind does not live forever', async () => {
+  const { db, env, row } = setup();
+  const id = draft(db, { pr: 41, age: PR_OPEN_MAX_SECONDS + 60 });
+  gh.open(41, { base: 'main-0' });
+  assert.equal((await shepherd(env, NOW)).updated, 1);
+  assert.equal(row(id).status, 'pr_failed');
+  assert.equal(row(id).failure, FAILURE.timeout);
+});
+
+test('GitHub errors are always "ask again", even past the age cap, with a short log and no stored GitHub text', async () => {
   const { db, env, row } = setup();
   const young = draft(db, { pr: 41 });
   const old = draft(db, { pr: 42, age: PR_OPEN_MAX_SECONDS + 1 });
@@ -320,8 +375,8 @@ test('GitHub errors are "ask again" too, with a short log and no stored GitHub t
     console.error = realError;
   }
   assert.equal(row(young).status, 'pr_open');
-  assert.equal(row(old).status, 'pr_failed');
-  assert.equal(row(old).failure, FAILURE.timeout);
+  assert.equal(row(old).status, 'pr_open', 'the next tick reads the pull request again');
+  assert.ok(row(old).last_checked_at === NOW);
   assert.ok(!JSON.stringify(errors).includes('secret GitHub detail'));
 });
 
@@ -335,11 +390,11 @@ test(`at most ${MAX_FETCHES} GitHub requests a tick, oldest-checked first, so a 
 
   await shepherd(env, NOW);
   assert.ok(gh.github() <= MAX_FETCHES);
-  // A pull request is started only while its worst case (status 2 + merge 2) still fits.
+  // A pull request is started only while its worst case (status 2 + merge 2 + close 1) still fits.
   const tick1 = seen(0);
-  assert.deepEqual([...tick1], [41, 42, 43, 44, 45]);
+  assert.deepEqual([...tick1], [41, 42, 43, 44]);
   const unchecked = ids.filter((id) => row(id).last_checked_at === null);
-  assert.equal(unchecked.length, 3);
+  assert.equal(unchecked.length, 4);
 
   const from = gh.requests.length;
   await shepherd(env, NOW + 60);
@@ -351,7 +406,7 @@ test(`at most ${MAX_FETCHES} GitHub requests a tick, oldest-checked first, so a 
   assert.ok(ids.every((id) => row(id).updated_at < NOW && row(id).write_nonce.startsWith('nonce-')));
 });
 
-test('three merges in one tick are exactly the budget: status + merge each, never more', async () => {
+test('merges in one tick stay within the budget, leaving room for each one\'s worst case', async () => {
   const { db, env } = setup();
   for (let i = 1; i <= 4; i++) {
     draft(db, { pr: 40 + i });
@@ -361,8 +416,48 @@ test('three merges in one tick are exactly the budget: status + merge each, neve
   gh.mergeableState = () => 'clean';
   gh.greenAll();
   const r = await shepherd(env, NOW);
-  assert.equal(r.merged, 3);
-  assert.equal(gh.github(), MAX_FETCHES);
+  assert.equal(r.merged, 2);
+  assert.equal(gh.github(), 8);
+  assert.equal((await shepherd(env, NOW + 60)).merged, 2);
+});
+
+test('a merged pull request costs one request, so more of them fit in a tick', async () => {
+  const { db, env, row } = setup();
+  const ids = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => draft(db, { pr: 40 + i }));
+  for (let i = 1; i <= 8; i++) gh.open(40 + i, { state: 'closed', merged: true });
+  assert.equal((await shepherd(env, NOW)).merged, 8);
+  assert.equal(gh.github(), 8);
+  assert.ok(ids.every((id) => row(id).status === 'merged'));
+});
+
+// ── rows the shepherd cannot ask GitHub about ─────────────────────────────────
+
+test('pr_open with no pull request number fails at once, with no GitHub request', async () => {
+  const { db, env, row, audit } = setup();
+  const id = draft(db, { pr: null });
+  assert.equal((await shepherd(env, NOW)).failed, 1);
+  assert.equal(row(id).status, 'pr_failed');
+  assert.equal(row(id).failure, 'no pull request on record');
+  assert.equal(gh.requests.length, 0);
+  assert.equal(audit().at(-1)!.action, 'cms.pr.failed');
+});
+
+test('without a GitHub token, pr_open rows are skipped but stamped; merged rows still go live', async () => {
+  const { db, env, row } = setup();
+  const open = draft(db, { pr: 41 });
+  const merged = draft(db, { status: 'merged', pr: 42, entry: 'meetup-new' });
+  const files = contentFiles();
+  setCmsIndexLoader(async () => indexWith({ ...files, [pathOf('meetup-new')]: serializeJson(EVENTS, event('meetup-new')) }));
+  try {
+    const r = await shepherd({ ...(env as any), GITHUB_PAT: '' }, NOW);
+    assert.equal(r.published, 1);
+  } finally {
+    setCmsIndexLoader(null);
+  }
+  assert.equal(gh.requests.length, 0);
+  assert.equal(row(open).status, 'pr_open');
+  assert.equal(row(open).last_checked_at, NOW);
+  assert.equal(row(merged).status, 'published');
 });
 
 // ── overlapping ticks ─────────────────────────────────────────────────────────
@@ -482,13 +577,31 @@ test('merged for more than two hours stays merged; the panel is told the site di
   assert.equal(mergedTooLong({ status: 'published', updated_at: 0 }, NOW), false);
 });
 
+test('merged for more than a day without the site showing it → pr_failed, which frees the entry', async () => {
+  const { db, env, row, audit } = setup();
+  const day = draft(db, { status: 'merged', pr: 41, age: MERGED_NOT_LIVE_SECONDS + 60 });
+  const hours = draft(db, { status: 'merged', pr: 42, age: MERGED_NOT_LIVE_SECONDS - 60 });
+  setCmsIndexLoader(async () => indexWith(contentFiles()));
+  try {
+    assert.equal((await shepherd(env, NOW)).failed, 1);
+  } finally {
+    setCmsIndexLoader(null);
+  }
+  assert.equal(row(day).status, 'pr_failed');
+  assert.equal(row(day).failure, 'merged but the site never showed it');
+  assert.equal(row(hours).status, 'merged');
+  assert.equal(MERGED_NOT_LIVE_SECONDS, 24 * 3600);
+  assert.equal(audit().at(-1)!.action, 'cms.pr.failed');
+  assert.equal(gh.requests.length, 0);
+});
+
 // ── retention ────────────────────────────────────────────────────────────────
 
-test('finished drafts older than 90 days are deleted with one log row; pr_failed and recent ones stay', async () => {
+test('finished drafts older than 90 days are deleted with one log row; pr_failed, rejected and recent ones stay', async () => {
   const { db, env, row, audit } = setup();
   const old = DRAFT_RETENTION_SECONDS + 60;
-  const gone = ['published', 'discarded', 'rejected'].map((status) => draft(db, { status, age: old }));
-  const kept = [draft(db, { status: 'pr_failed', age: old }), draft(db, { status: 'published', age: 3600 }), draft(db, { status: 'draft', age: old })];
+  const gone = ['published', 'discarded', 'published'].map((status) => draft(db, { status, age: old }));
+  const kept = [draft(db, { status: 'pr_failed', age: old }), draft(db, { status: 'rejected', age: old }), draft(db, { status: 'published', age: 3600 }), draft(db, { status: 'draft', age: old })];
   assert.equal(await pruneDrafts((env as any).DB, NOW), 3);
   for (const id of gone) assert.equal(row(id), undefined);
   for (const id of kept) assert.ok(row(id));
@@ -497,13 +610,13 @@ test('finished drafts older than 90 days are deleted with one log row; pr_failed
   assert.deepEqual(JSON.parse(log[0].details), { count: 3 });
   assert.equal(await pruneDrafts((env as any).DB, NOW), 0);
   assert.equal(audit().length, 1, 'nothing to delete, nothing logged');
-  const plan = (db.prepare(`EXPLAIN QUERY PLAN SELECT id FROM content_drafts WHERE status IN ('published', 'discarded', 'rejected') AND updated_at < ?`).all(1) as { detail: string }[]).map((r) => r.detail).join('\n');
+  const plan = (db.prepare(`EXPLAIN QUERY PLAN DELETE FROM content_drafts WHERE status IN ('published', 'discarded') AND updated_at < ?`).all(1) as { detail: string }[]).map((r) => r.detail).join('\n');
   assert.match(plan, /INDEX idx_content_drafts_status/);
 });
 
 // ── on the mail tick ──────────────────────────────────────────────────────────
 
-async function dispatchAt(iso: string, env: Record<string, unknown>) {
+async function dispatchAt(iso: string, env: Record<string, unknown>, waitUntil?: (p: Promise<unknown>) => void) {
   const RealDate = globalThis.Date;
   const at = RealDate.parse(iso);
   class Fixed extends RealDate {
@@ -518,6 +631,7 @@ async function dispatchAt(iso: string, env: Record<string, unknown>) {
     return await (dispatch as (c: unknown) => Promise<Response>)({
       request: new Request('https://rsg-turkiye.iscbsc.org/api/mail/dispatch', { method: 'POST', headers: { 'X-Dispatch-Secret': 's' } }),
       env: { ...env, MAIL_SYNC_SECRET: 's' },
+      ...(waitUntil ? { waitUntil } : {}),
     });
   } finally {
     globalThis.Date = RealDate;
@@ -532,6 +646,24 @@ test('the mail tick runs the shepherd exactly once, at night (mail held) and by 
     const res = await dispatchAt(iso, env as never);
     assert.equal(res.status, 200, iso);
     assert.equal(gh.requests.filter((r) => /\/pulls\/41$/.test(r.path)).length, 1, iso);
+    assert.equal(row(id).last_checked_at, Date.parse(iso) / 1000, iso);
+  }
+});
+
+test('with waitUntil the mail answer does not wait for the shepherd, which still runs once', { timeout: 5000 }, async () => {
+  for (const iso of ['2026-09-08T00:30:00Z', '2026-09-08T09:30:00Z']) {
+    const { db, env, row } = setup();
+    const id = draft(db, { pr: 41 });
+    gh.open(41);
+    let release!: () => void;
+    gh.hold = new Promise<void>((r) => { release = r; });
+    const later: Promise<unknown>[] = [];
+    const res = await dispatchAt(iso, env as never, (p) => later.push(p));
+    assert.equal(res.status, 200, iso);
+    assert.equal(later.length, 1, iso);
+    assert.equal(row(id).last_checked_at, null, 'answered while the shepherd was still waiting on GitHub');
+    release();
+    await Promise.all(later);
     assert.equal(row(id).last_checked_at, Date.parse(iso) / 1000, iso);
   }
 });

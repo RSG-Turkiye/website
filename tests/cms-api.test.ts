@@ -22,6 +22,8 @@ import * as submit from '../functions/api/cms/drafts/[id]/submit';
 import * as approve from '../functions/api/cms/drafts/[id]/approve';
 import * as reject from '../functions/api/cms/drafts/[id]/reject';
 import * as cancel from '../functions/api/cms/drafts/[id]/cancel';
+import { shepherd } from '../functions/_lib/cms-shepherd';
+import { REQUIRED_CHECKS } from '../functions/_lib/github';
 
 const ROOT = new URL('../', import.meta.url).pathname;
 const SCHEMA = readFileSync(`${ROOT}db/schema.sql`, 'utf8');
@@ -64,13 +66,18 @@ class FakeGitHub {
   beforePulls: (() => Promise<void>) | null = null;
   /** Run (once) right after a file is read at a commit sha (the approval's check). */
   afterCheckedRead: (() => void) | null = null;
-  refDeletes: 'ok' | 'error' = 'ok';
+  refDeletes: 'ok' | 'error' | '422' = 'ok';
   /** Overrides the URL POST /pulls answers with. */
   prUrl: string | null = null;
   /** What POST /pulls answers. */
   pulls: 'ok' | 'no-commits' | 'error' = 'ok';
-  /** What PATCH /pulls/{n} (closing one) answers. */
-  closePulls: 'ok' | 'error' = 'ok';
+  /** What PATCH /pulls/{n} (closing one) does: close it; refuse; refuse
+   * because someone closed it meanwhile; refuse because it merged
+   * meanwhile; or close it just after it merged. */
+  closePulls: 'ok' | 'error' | 'error-closed' | 'error-merged' | 'merged-meanwhile' = 'ok';
+  /** Check runs every head has (the shepherd reads them). */
+  checkRuns: { id: number; name: string; status: string; conclusion: string | null }[] = [];
+  /** What DELETE /git/refs/heads/* answers when the branch exists: 'ok', a 500, or a 422. */
 
   files(ref: string): Map<string, string> | undefined {
     return ref === 'main' ? this.main : this.commits.get(ref) ?? this.branches.get(ref);
@@ -110,6 +117,7 @@ class FakeGitHub {
     if (method === 'DELETE' && p.startsWith('/git/refs/heads/')) {
       const name = p.slice('/git/refs/heads/'.length);
       if (this.refDeletes === 'error') return json({ message: 'secret' }, 500);
+      if (this.refDeletes === '422') return json({ message: 'Validation failed' }, 422);
       if (!this.branches.delete(name)) return json({ message: 'Reference does not exist' }, 422);
       for (const pr of this.prs) if (pr.head === name && pr.state === 'open' && !pr.merged) pr.state = 'closed';
       return new Response(null, { status: 204 });
@@ -148,13 +156,26 @@ class FakeGitHub {
       this.prs.push({ title: body.title, body: body.body, head: body.head, number, state: 'open', merged: false });
       return json({ html_url: this.prUrl ?? `https://github.com/RSG-Turkiye/website/pull/${number}` }, 201);
     }
-    if (method === 'PATCH' && /^\/pulls\/\d+$/.test(p)) {
-      if (this.closePulls === 'error') return json({ message: 'secret-detail-from-github' }, 500);
+    if (/^\/pulls\/\d+$/.test(p)) {
       const pr = this.prs.find((x) => x.number === Number(p.slice('/pulls/'.length)));
       if (!pr) return json({ message: 'Not Found' }, 404);
-      pr.state = body.state;
-      return json({ state: pr.state });
+      if (method === 'GET') {
+        return json({ state: pr.state, merged: pr.merged, mergeable_state: 'clean', title: pr.title, head: { sha: `sha-${pr.number}` } });
+      }
+      if (method === 'PATCH') {
+        const mode = this.closePulls;
+        if (mode === 'error') return json({ message: 'secret-detail-from-github' }, 500);
+        if (mode === 'error-closed' || mode === 'error-merged') {
+          pr.state = 'closed';
+          pr.merged = mode === 'error-merged';
+          return json({ message: 'secret-detail-from-github' }, 422);
+        }
+        if (mode === 'merged-meanwhile') pr.merged = true;
+        pr.state = 'closed';
+        return json({ state: pr.state });
+      }
     }
+    if (method === 'GET' && /^\/commits\/[^/]+\/check-runs$/.test(p)) return json({ check_runs: this.checkRuns });
     if (method === 'GET' && p === '/pulls') {
       const head = (url.searchParams.get('head') ?? '').replace('RSG-Turkiye:', '');
       const state = url.searchParams.get('state') ?? 'open';
@@ -1169,4 +1190,107 @@ test('entry_busy is part of the guarded write: a draft that becomes live meanwhi
   assert.equal(res.status, 409);
   assert.equal((await res.json() as any).code, 'entry_busy');
   assert.equal(row(second).status, 'draft');
+});
+
+// ── fix round 1 ──────────────────────────────────────────────────────────────
+
+async function prOpen(env: Env) {
+  const id = await submitted(env);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
+  return id;
+}
+
+test('cancel: a pull request that merged already is recorded as merged, 409 already_merged, nothing closed', async () => {
+  const { env, row, audit } = setup();
+  const id = await prOpen(env);
+  Object.assign(gh.prs[0], { state: 'closed', merged: true });
+  const res = await on(env, cancel.onRequestPost, 'POST', id, 'approver', {}, '/cancel');
+  assert.equal(res.status, 409);
+  const body = await res.json() as any;
+  assert.equal(body.code, 'already_merged');
+  assert.equal(body.draft.status, 'merged');
+  assert.equal(row(id).status, 'merged');
+  assert.equal(audit().at(-1)!.action, 'cms.pr.merged');
+  assert.equal(gh.requests.filter((r) => r.method === 'PATCH' && /\/pulls\/\d+$/.test(r.path)).length, 0);
+});
+
+test('cancel: a merge that lands while closing wins: merged, 409', async () => {
+  for (const mode of ['merged-meanwhile', 'error-merged'] as const) {
+    const { env, row } = setup();
+    const id = await prOpen(env);
+    gh.closePulls = mode;
+    const res = await quiet(() => on(env, cancel.onRequestPost, 'POST', id, 'approver', {}, '/cancel'));
+    assert.equal(res.status, 409, mode);
+    assert.equal((await res.json() as any).code, 'already_merged');
+    assert.equal(row(id).status, 'merged', mode);
+  }
+});
+
+test('cancel: a refused close whose pull request is closed anyway goes ahead', async () => {
+  const { env, row, audit } = setup();
+  const id = await prOpen(env);
+  gh.closePulls = 'error-closed';
+  const res = await quiet(() => on(env, cancel.onRequestPost, 'POST', id, 'approver', {}, '/cancel'));
+  assert.equal(res.status, 200);
+  assert.equal(row(id).failure, 'cancelled');
+  assert.equal(audit().at(-1)!.action, 'cms.pr.cancel');
+});
+
+test('a draft the shepherd failed has its pull request closed, and a retry opens a fresh one (the closed one is not adopted)', async () => {
+  const { env, db, row } = setup();
+  const id = await prOpen(env);
+  assert.equal(row(id).pr_number, 41);
+  gh.checkRuns = REQUIRED_CHECKS.map((name, i) => ({ id: i + 1, name, status: 'completed', conclusion: 'failure' }));
+  assert.equal((await shepherd(env, Math.floor(Date.now() / 1000))).failed, 1);
+  assert.equal(row(id).status, 'pr_failed');
+  assert.equal(gh.prs[0].state, 'closed');
+  assert.equal(gh.prs[0].merged, false);
+
+  // A crashed retry (stale approved): the closed, unmerged pull request is not taken as merged.
+  assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit')).status, 200);
+  db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = updated_at - 400 WHERE id = ?`).run(id);
+  const res = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
+  assert.equal(res.status, 200);
+  assert.equal(row(id).status, 'pr_open');
+  assert.equal(row(id).pr_number, 42, 'a new pull request');
+  assert.equal(gh.prs[1].state, 'open');
+});
+
+test('discard: a branch delete answered 422 is "failed", and the pull request on it is closed', async () => {
+  const { env, db, row } = setup();
+  const id = await prOpen(env);
+  db.prepare(`UPDATE content_drafts SET status = 'pr_failed' WHERE id = ?`).run(id);
+  gh.refDeletes = '422';
+  const res = await quiet(() => on(env, draft.onRequestDelete, 'DELETE', id, 'editor'));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json() as any).branch, 'failed');
+  assert.equal(row(id).status, 'discarded');
+  assert.equal(gh.prs[0].state, 'closed');
+});
+
+test('discard from merged: approvers only, no GitHub call, logged from merged', async () => {
+  const { env, db, row, audit } = setup();
+  const id = await prOpen(env);
+  db.prepare(`UPDATE content_drafts SET status = 'merged' WHERE id = ?`).run(id);
+  const before = gh.requests.length;
+  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', id, 'editor')).status, 403);
+  assert.equal(row(id).status, 'merged');
+  const res = await on(env, draft.onRequestDelete, 'DELETE', id, 'approver');
+  assert.equal(res.status, 200);
+  assert.equal(row(id).status, 'discarded');
+  assert.equal(gh.requests.length, before);
+  const last = audit().at(-1)!;
+  assert.equal(last.action, 'cms.draft.discard');
+  assert.equal(JSON.parse(last.details).from, 'merged');
+});
+
+test('the approval queue holds drafts stuck in approved past the stale time, not fresh ones', async () => {
+  const { env, db } = setup();
+  const now = Math.floor(Date.now() / 1000);
+  const insert = db.prepare(`INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, created_at, updated_at)
+    VALUES (?, 'events', ?, 'create', '{}', '{}', 'approved', 'editor', 1, ?)`);
+  insert.run('00000000-0000-4000-8000-000000000001', 'stuck', now - 600);
+  insert.run('00000000-0000-4000-8000-000000000002', 'in-flight', now - 10);
+  const body = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'approver')).json() as any;
+  assert.deepEqual(body.queue.map((d: any) => d.entry_id), ['stuck']);
 });

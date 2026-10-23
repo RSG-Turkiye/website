@@ -255,7 +255,8 @@ async function auditOutcome(
   }
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
   // Without this, anyone could drain the queue early or burn the Gmail quota
   // by hammering the endpoint.
   const secret = request.headers.get('X-Dispatch-Secret');
@@ -294,13 +295,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // The CMS pull-request shepherd (cms-shepherd.ts) runs once on every tick:
   // just before the night-time return, or after the mail work. Its GitHub
   // requests share this invocation's subrequest limit with the mail, which
-  // goes first. A failure is logged and never blocks mail.
+  // goes first. It runs under waitUntil, so the mail answer never waits on
+  // GitHub; a failure is logged and never blocks mail. (Without waitUntil,
+  // as in some tests, it is awaited.)
   const runShepherd = async () => {
-    try {
-      await shepherd(env, now, new URL(request.url).origin);
-    } catch (err) {
-      console.error('cms shepherd failed', err);
-    }
+    const run = (async () => {
+      try {
+        await shepherd(env, now, new URL(request.url).origin);
+      } catch (err) {
+        console.error('cms shepherd failed', err);
+      }
+    })();
+    if (typeof context.waitUntil === 'function') context.waitUntil(run);
+    else await run;
   };
 
   // The queue delivers during waking hours only. Cloudflare invokes this

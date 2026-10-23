@@ -61,7 +61,9 @@ export type PairData = { en: MarkdownSide; tr: MarkdownSide };
 export const TRANSITIONS = {
   save: ['draft', 'rejected', 'pr_failed'],
   submit: ['draft', 'rejected', 'pr_failed'],
-  discard: ['draft', 'submitted', 'rejected', 'pr_failed'],
+  /** From `merged` only by an approver (the endpoint checks): the way out
+   * when the site never shows a merged change. */
+  discard: ['draft', 'submitted', 'rejected', 'pr_failed', 'merged'],
   reject: ['submitted'],
   approve: ['submitted'],
   /** An approver closes the pull request on purpose (→ pr_failed, 'cancelled'). */
@@ -95,9 +97,14 @@ export const PR_OPEN_MAX_SECONDS = 6 * 3600;
  * the panel says so. */
 export const MERGED_STALE_SECONDS = 2 * 3600;
 
-/** Drafts that are finished (published, discarded, rejected) and older than
- * this are deleted on the hourly tick. The activity log keeps their history.
- * pr_failed drafts are left alone. */
+/** merged longer than this: the shepherd gives up waiting for the site and
+ * sets pr_failed (FAILURE.notLive), which frees the entry. */
+export const MERGED_NOT_LIVE_SECONDS = 24 * 3600;
+
+/** Drafts that are finished (published, discarded) and older than this are
+ * deleted on the hourly tick. The activity log keeps their history.
+ * pr_failed and rejected drafts (sent back: the author's work in progress)
+ * are left alone. */
 export const DRAFT_RETENTION_SECONDS = 90 * 86400;
 
 /** The short reasons the shepherd and the cancel action store in `failure`. */
@@ -106,6 +113,9 @@ export const FAILURE = {
   conflict: 'conflicts with a newer change; start a new draft',
   timeout: 'checks did not finish',
   cancelled: 'cancelled',
+  blocked: 'blocked by branch protection',
+  notLive: 'merged but the site never showed it',
+  noPr: 'no pull request on record',
   check: (name: string) => `check failed: ${name}`,
 } as const;
 
