@@ -133,7 +133,7 @@ export function setupCms(opts: { approver: boolean; userId: string }): void {
   // section too (Geri, a type tab, Taslaklarım).
   guard = guardUnsaved(form, SECTION, () => {
     // Leaving discards: the copy in this browser goes too.
-    if (editor) dropBackup(editor.backupKey);
+    if (editor) dropBackups(editor.backupKey);
     closeEditor();
   }, { exact: true });
   form.addEventListener('submit', (e) => e.preventDefault());
@@ -380,6 +380,11 @@ function backupGet(key: string): Backup | null {
 function backupPut(ed: Editor, data: unknown): boolean {
   const b: Backup = { data, at: now(), updated_at: ed.draft?.updated_at ?? null, write_nonce: ed.draft?.write_nonce ?? null, base_shas: ed.draft ? (ed.draft.base_shas ?? null) : ed.baseShas };
   try { localStorage.setItem(backupStorageKey(userId, ed.backupKey), JSON.stringify(b)); return true; } catch { return false; }
+}
+/** The form is done with (sent, deleted, saved as a draft, left): its copy and any copy on offer go. */
+function dropBackups(key: string): void {
+  dropBackup(key);
+  dropBackup(offeredKey(key));
 }
 function dropBackup(key: string): void {
   try { localStorage.removeItem(backupStorageKey(userId, key)); } catch { /* private mode: nothing stored */ }
@@ -871,7 +876,7 @@ async function rebase(ed: Editor): Promise<void> {
   pendingNotice = gone.ok
     ? { html: `${esc(tk('admin.cms.rebase.done'))}${note}`, tone: 'info' }
     : { html: `${esc(tk('admin.cms.rebase.discardFailed'))}${note}`, tone: 'error' };
-  dropBackup(ed.backupKey);
+  dropBackups(ed.backupKey);
   guard?.reset();
   closeEditor();
   location.replace(`${SECTION}/taslaklar/${made.body.draft.id}`);
@@ -948,7 +953,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   ed.draft = { ...r.body.draft };
   ed.base = r.body.draft.data;
   if (wasNew) {
-    dropBackup(ed.backupKey);
+    dropBackups(ed.backupKey);
     ed.backupKey = ed.draft.id;
     // The draft's own address from now on (the link a pull request carries).
     replaceAddress(`${SECTION}/taslaklar/${ed.draft.id}`);
@@ -1091,7 +1096,7 @@ async function submit(): Promise<void> {
       return;
     }
     ed.draft = { ...ed.draft, ...r.body.draft };
-    dropBackup(ed.backupKey);
+    dropBackups(ed.backupKey);
     guard?.reset();
     lists = null;
     void refreshCounts();
@@ -1121,7 +1126,7 @@ async function discard(ed: Editor): Promise<void> {
   if (!ed.draft) return;
   const r = await api('DELETE', `/api/cms/drafts/${ed.draft.id}`);
   if (!r.ok) { notice(esc(errorText(r))); return; }
-  dropBackup(ed.backupKey);
+  dropBackups(ed.backupKey);
   guard?.reset();
   lists = null;
   void refreshCounts();
@@ -1147,7 +1152,7 @@ async function deleteEntry(ed: Editor): Promise<void> {
   const ok = await api('POST', `/api/cms/drafts/${id}/approve`, {});
   lists = null;
   void refreshCounts();
-  dropBackup(ed.backupKey);
+  dropBackups(ed.backupKey);
   guard?.reset();
   closeEditor();
   pendingNotice = ok.ok ? { html: esc(tk('admin.cms.approved')), tone: 'info' } : { html: esc(errorText(ok)), tone: 'error' };

@@ -616,6 +616,23 @@ await section('F10) a save whose answer was lost does not look like someone else
   await page.close();
 });
 
+await section('F11) a copy on offer goes with its form: a new entry saved, then a new form offers nothing', async () => {
+  const { page } = await open(browser, 'editor', '#icerik-etkinlikler/taslaklar', { width: 1440, height: 900 });
+  await page.evaluate((now) => localStorage.setItem('rsg:cms:u2:new:events:offered', JSON.stringify({ data: { title: { en: 'Eski', tr: 'Eski' } }, at: now, updated_at: null, write_nonce: null, base_shas: null })), NOW);
+  await page.evaluate(() => { location.hash = '#icerik-etkinlikler/etkinlikler/_new'; });
+  ok(await waitFor(page, () => /daha eski bir kopya var/.test(document.getElementById('cmsBackup')?.textContent ?? '')), 'the copy is offered on the new form');
+  await page.fill('[data-field="title"][data-lang="en"]', 'Ankara Meetup');
+  await page.fill('[data-field="start"]', '2027-03-06');
+  await page.click('#cmsSave');
+  await waitFor(page, () => /taslaklar\//.test(location.hash));
+  ok(await page.evaluate(() => localStorage.getItem('rsg:cms:u2:new:events:offered')) === null, 'saving the new entry as a draft drops the copy on offer');
+  await page.evaluate(() => { location.hash = '#icerik-etkinlikler/etkinlikler/_new'; });
+  await page.waitForSelector('[data-field="title"][data-lang="en"]');
+  await page.waitForTimeout(300);
+  ok(await page.locator('#cmsBackup:not(.hidden)').count() === 0, 'the next new form offers nothing');
+  await page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
 for (const [who, hash] of [['editor', '#icerik-etkinlikler/etkinlikler'], ['editor', '#icerik-etkinlikler/etkinlikler/symposium-2026'], ['editor', '#icerik-etkinlikler/webinarlar/_new'], ['approver', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000005']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
