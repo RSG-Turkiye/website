@@ -606,3 +606,15 @@ test('the stored JSON draft round-trips a real file unchanged', () => {
   const files = filesFor({ type: 'events', entry_id: 'symposium-2026', action: 'update', data: JSON.stringify(parseJson(EVENTS, FILES[path])), base_shas: JSON.stringify({ [path]: blobSha(FILES[path]) }) });
   assert.deepEqual(files, [{ path, content: FILES[path] }]);
 });
+
+test('a draft left in approved by a crash can be approved again once it is stale', async () => {
+  const { env, db, row } = setup();
+  const { body } = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  const id = body.draft.id;
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = ? WHERE id = ?`).run(now - 10, id);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 409, 'too fresh: the first attempt may still be running');
+  db.prepare(`UPDATE content_drafts SET updated_at = ? WHERE id = ?`).run(now - 400, id);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
+  assert.equal(row(id).status, 'pr_open');
+});

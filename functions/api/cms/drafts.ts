@@ -4,7 +4,7 @@ import { runWithAudit } from '../../_lib/audit';
 import {
   cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, readJson, rightsIn,
 } from '../../_lib/cms-api';
-import { checkSameId, DRAFT_ACTIONS, newEntryId, newPaths, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
+import { checkSameId, DRAFT_ACTIONS, langOf, newEntryId, newPaths, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
 import { fileShasOnBase, filesOnBase } from '../../_lib/github';
 import { CMS_TYPES, checkId, cmsType } from '../../../src/lib/cms/types';
 import { parseMarkdown } from '../../../src/lib/cms/serialize';
@@ -113,7 +113,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       const pair = data as PairData;
       try {
         for (const p of paths) {
-          const side = p.includes(`${type.dir}/en/`) ? pair.en : pair.tr;
+          const side = pair[langOf(type, p)];
           const file = files[p];
           if (file) side.source = parseMarkdown(type, file.content).source;
         }
