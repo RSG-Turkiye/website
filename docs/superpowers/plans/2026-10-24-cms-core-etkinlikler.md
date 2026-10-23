@@ -297,6 +297,54 @@ What changes for the person using it:
 - **Deep links.** Route `#icerik-etkinlikler/taslaklar/<id>`, the link the PR body uses, so it opens that draft.
 - **Test the real schemas.** `tests/cms-form.test.ts` converts every `CMS_TYPES` schema with `jsonSchemaFor`, and asserts the renderer handles every keyword that appears in the output. A hand-built fixture alone is not enough.
 
+**Second amendments (2026-10-24, from the GLM and DeepSeek UX review; binding, and they override the earlier text where they conflict):**
+- **No generic JSON-Schema renderer.** Write an ordered field model per type in `src/scripts/admin/cms-form.ts`: label (TR/EN), help text, group ("Temel" or "Diğer ayrıntılar (isteğe bağlı)"), and kind (text, textarea, date, select, bilingual, list of strings, list of links, image, markdown). A small renderer draws these. `jsonSchemaFor` and zod stay the validators. `cms-form.test.ts` asserts that every schema key of every `CMS_TYPES` type appears in that type's field model (excluding the hidden ones below), and that data round-trips through the model.
+- **Hidden or read-only fields.** Hide `note` from editors and show it read-only to approvers as "İç not". The id, file name and `translationKey` are shown read-only, derived as already ruled. Fields such as `draft` and `domains` go under "Diğer ayrıntılar".
+- **First screen.** Below a header (back, live title, status chip) and the one-line status, the first group holds only what people come to change:
+  - events: title, start/end, type, when, location, description
+  - workshops: title, year, topics, repo
+  - webinars: title, date, speaker, speakerTitle, speakerAffiliation, youtubeUrl, description
+  - The rest goes under "Diğer ayrıntılar (isteğe bağlı)".
+  - `{en,tr}` fields are always two visible fields, side by side from `lg` and stacked on phones, never a language toggle.
+- **Lenient save, strict submit (server change in `functions/_lib/cms-drafts.ts` and the PATCH endpoint).**
+  - Autosave and Kaydet store a draft that is shape-safe but incomplete: unknown keys are still refused, and types and lengths are still checked. Missing required fields are allowed.
+  - Full zod validation runs at submit and approve, with per-field errors.
+  - Required display texts get `.min(1)`: event title, when, location and description; workshop title, topics and repo; webinar title, speaker and description. Prove that every existing file still validates.
+- **Navigation.** The section lands on the type list ("Etkinlikler" first). Above every list sits a compact "Taslaklarım (n)" row that leads to `taslaklar`, with drafts needing action ("Sizin için": `rejected`, `pr_failed`) listed first. Sub-pages: `etkinlikler`, `atolyeler`, `webinarlar`, `taslaklar`, and `onay` (approvers only).
+- **Rows.** Each row shows the title, a date subtitle, a status chip, and one trailing action ("Düzenle", or "Devam et" for a draft). If the entry already has a live draft (`submitted`, `approved`, `pr_open`, `merged`), the row is read-only with "Yayına çıkıyor" or "Onay bekliyor", and no second draft is offered. This prevents `entry_busy` before anyone taps.
+- **Status words name the next action.**
+  - Taslak: "henüz sitede değil", with Devam et.
+  - submitted: "Onay bekliyor, bir yönetici bakacak".
+  - pr_open or merged: "Yayına çıkıyor, birkaç dakika".
+  - published: "Yayında", with "Siteyi aç".
+  - rejected: "Geri gönderildi: {not}", with "Düzelt ve yeniden gönder".
+  - pr_failed: "Yayınlanamadı: {sebep}", with "Yeniden dene".
+  - stale merged: "Birleşti ama site güncellenmedi, yöneticiye haber verin".
+  - Move `STATUS_NOTES` out of `cms-drafts.ts` into `src/i18n/ui.ts`.
+- **Approver view fits one screen.**
+  - Header: title, type, and "Gönderen: {display name} · {time}". Add the author's display name to the draft JSON; never show an id or e-mail.
+  - Then "N alan değişti", with chips naming the fields. Only changed fields are open. Unchanged ones collapse under "Değişmeyen N alan".
+  - Changes are labelled "Yayında" and "Yeni": side by side from `lg`, stacked on phones.
+  - Arrays show "Eklendi", "Çıkarıldı" and "Taşındı" per item. The Markdown body shows a line diff.
+  - A new entry shows "Yeni içerik" with no diff. "Bu taslakta değişiklik yok" disables approval.
+  - One sticky action bar: "Onayla ve yayına al" (primary) and "Geri gönder", which opens a required note box. Delete and cancel sit under a "…" menu with `armConfirm`.
+  - An approver's own delete is approved in the same action chain and does not sit in the queue.
+  - Cancel (`/api/cms/drafts/[id]/cancel`) is available for `pr_open`. Discarding from `merged` is the escape hatch for a stale merge. If the server doesn't allow it yet, add it, guarded and audited.
+- **Changed since you started.** Show per-field rows "Sitede / Taslakta", each with an "Eskiyi al" button that copies the site value into the draft. No automatic merge.
+- **Autosave.** Save 20 s after the last change. Only one save runs at a time, and a late autosave never shows `draft_changed`. Show the state inline, not as a toast: "Kaydediliyor…", "Kaydedildi · 14:32", or "Kaydedilemedi, bu cihazda yedeklendi".
+  - Keep a `localStorage` backup keyed by draft id or `new:{type}`, restore it on reload, and clear it after a successful save.
+  - On a 401, keep the form and show "Oturumunuz kapandı. Yazdıklarınız burada duruyor. Giriş yapın."
+  - Reuse `guardUnsaved` for unload and navigation guards; do not rebuild it.
+- **Errors.** Map every code to a Turkish and an English sentence (`admin.cms.error.*`): `changed_since`, `entry_busy`, `superseded`, `exists`, `github_failed`, failed check, conflict, timeout, and expired session. Map zod's English to labels too ("Required" → "Bu alan gerekli", "end before start" → "Bitiş başlangıçtan önce olamaz"), and turn paths into labels ("Bağlantı 2 › Adres").
+  - A summary at the top ("2 alan düzeltilmeli") links to the fields, and focus moves to the first invalid one.
+  - A deep link to a draft that is missing or forbidden says "Bu taslak artık yok veya size ait değil" and links to Taslaklarım.
+- **Images.** No cropper. Reuse the symposium photo pattern from `src/scripts/admin/sections/symposium.ts`: upload when a file is chosen, downscale, a thumbnail, Değiştir and Kaldır, and saving is blocked while an upload is in flight. For an event image, set `thumb` and `full` to the same uploaded URL in this release. Ask for alt text in both languages.
+- **Cuts.** No drag-and-drop: use up and down buttons. No search, pagination or filters on the published lists; show the newest 20, then "Daha fazla". No iframe preview. The Markdown preview is a small renderer for paragraphs and links.
+- **Tests and checks.**
+  - Add the new routes to the existing `tests/browser/admin-overflow.mjs` and `admin-fit-viewport.mjs` checks, instead of a new seven-size loop.
+  - Add the count keys (needs action, approval queue) to `/api/admin/counts` and update its shape tests.
+  - Write a signed-in browser test that the PR deep link lands on the draft.
+
 - [ ] **Step 1: Write the failing tests.**
   - `cms-form.test.ts`: the event schema plus symposium-2026 → form model → data deep-equals the input. An edited `when.tr` comes back changed. A webinar `body` round-trips.
   - The browser check covers: the list renders, the form saves (a PATCH body has the edited field), submit and approve call the right endpoints, a 409 `changed_since` shows the reload prompt, and the phone layout has no horizontal scroll.
