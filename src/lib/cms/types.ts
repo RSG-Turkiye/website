@@ -11,6 +11,7 @@ import type { CmsGroup } from "../../../functions/_lib/roles";
 import { eventSchema } from "../../data/events";
 import { workshopSchema } from "../../data/workshops";
 import { webinarSchema } from "../../data/webinars";
+import { checkId, slugify } from "./slug";
 
 export type CmsTypeKey = "events" | "workshops" | "webinars";
 
@@ -32,35 +33,14 @@ export interface CmsType {
   label: { en: string; tr: string };
 }
 
-/** A file name without extension: lower-case letters, digits and hyphens.
- * Returns the id, or throws. */
-export function checkId(id: string): string {
-  // The typeof first: RegExp.test coerces, so undefined would pass as "undefined".
-  if (typeof id !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    throw new Error(`Invalid id ${JSON.stringify(id)}: use lower-case letters, digits and hyphens`);
-  }
-  return id;
-}
+export { checkId, slugify };
 
 /** An id from free text, for a new entry. */
-function idFromText(text: string, what: string): string {
-  const id = slugify(text);
+function idFromText(text: unknown, what: string): string {
+  // A draft is saved incomplete, so the field may still be missing.
+  const id = slugify(typeof text === "string" ? text : "");
   if (id === "") throw new Error(`The ${what} has no letters or digits to make an id from`);
   return checkId(id);
-}
-
-const TR_ASCII: Record<string, string> = { ç: "c", ğ: "g", ı: "i", İ: "i", ö: "o", ş: "s", ü: "u" };
-
-/** A file-name slug: Turkish letters transliterated, everything else not a
- * letter or digit collapsed to single hyphens. */
-export function slugify(text: string): string {
-  return text
-    .replace(/[çğıİöşü]/gi, (c) => TR_ASCII[c] ?? TR_ASCII[c.toLowerCase()] ?? c)
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 export const CMS_TYPES: readonly CmsType[] = [
