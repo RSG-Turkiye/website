@@ -229,12 +229,24 @@ test('lists: emptied, filled, and removed keys; the body is replaced untouched',
   assert.equal(removed.replace(/\n---\n[\s\S]*$/, ''), text.replace(/\n---\n[\s\S]*$/, '').replace('\ntopic: ""', ''));
 });
 
-test('a key the file did not have is added inside the frontmatter, before a trailing blank line', () => {
+test('a key the file did not have, with no later key, is added inside the frontmatter, before a trailing blank line', () => {
   const text = TRAILING_BLANK;
   const p = parseMarkdown(webinars, text);
-  const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, speakerPhoto: '/api/images/x.jpg' } });
-  assert.match(out, /^keyTakeaways: \[\]\nspeakerPhoto: "\/api\/images\/x.jpg"\n\n---\n/m);
+  // `domains` is the schema's last key but one; nothing in the file comes after it.
+  const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, domains: ['genomics'] } });
+  assert.match(out, /^keyTakeaways: \[\]\ndomains:\n {2}- "genomics"\n\n---\n/m);
   assert.equal(parseMarkdown(webinars, out).body, p.body);
+});
+
+test('a key the file did not have goes at its schema position, before the first later key', () => {
+  const p = parseMarkdown(webinars, TRAILING_BLANK);
+  const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, speakerPhoto: '/api/images/x.jpg', translationKey: 'k' } });
+  assert.match(out, /^title: .*\ntranslationKey: "k"\ndate: 2022-04-13\n/m);
+  assert.match(out, /^speakerTitle: Doçent\nspeakerPhoto: "\/api\/images\/x.jpg"\ndescription: /m);
+  assert.equal(out.split('\n').length, TRAILING_BLANK.split('\n').length + 2, 'two lines added, none changed');
+  // A key the schema does not know still goes last.
+  const unknown = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, zzz: 'x' } });
+  assert.match(unknown, /^keyTakeaways: \[\]\nzzz: "x"\n\n---\n/m);
 });
 
 test('a new webinar (no source) is written in the dominant style', () => {
@@ -443,11 +455,24 @@ test('every learning-path file is in the form the serializer writes, so a panel 
   // rewrites its file's `sections` or `resources`. In this form that is the
   // edited lines only. A file written in another style (a plain `tag:
   // Reading`, a blank line between sections) still builds, but its first
-  // panel edit rewrites the whole list.
+  // panel edit rewrites the whole list. `npm run cms:normalize` fixes it.
   for (const { f, type } of LP_FILES) {
     const text = read(f);
     const { source: _s, ...entry } = parseMarkdown(type, text);
-    assert.equal(serializeMarkdown(type, entry), text, `${f} is not in the serializer's form`);
+    assert.equal(serializeMarkdown(type, entry), text, `${f} is not in the form the panel writes: run \`npm run cms:normalize\``);
     assert.ok(type.schema.safeParse(entry.frontmatter).success, f);
   }
+});
+
+test('a learning-path key added by the panel lands where the normaliser puts it', () => {
+  // A level file without prerequisites: the panel adds them, and the file is
+  // then exactly what scripts/cms-normalize.ts would write.
+  const type = { schema: lpLevelSchema } as unknown as CmsType;
+  const fm = { domain: 'genomics', level: 'explorer', orientation: 'O.', sections: [{ type: 'foundations', resources: [{ id: 'x-1', title: 'T', description: 'D', tag: 'Reading', url: 'https://example.org' }] }] };
+  const text = serializeMarkdown(type, { frontmatter: fm, body: '\n' });
+  const p = parseMarkdown(type, text);
+  const out = serializeMarkdown(type, { ...p, frontmatter: { ...p.frontmatter, prerequisites: ['Some biology'] } });
+  const { source: _s, ...fresh } = parseMarkdown(type, out);
+  assert.equal(out, serializeMarkdown(type, fresh));
+  assert.match(out, /^orientation: "O."\nprerequisites:\n {2}- "Some biology"\nsections:/m);
 });

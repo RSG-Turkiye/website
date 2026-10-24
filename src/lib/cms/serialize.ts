@@ -211,8 +211,12 @@ function styleOf(node: unknown): Style {
  * key before it. An unchanged key keeps its chunk byte for byte. A changed key
  * has only its `key: value` part re-rendered (in the style the value had,
  * when that is still valid YAML for the new value), keeping what followed it
- * on its chunk. A removed key loses its chunk. A new key is added after the
- * last key's content, before any trailing blank lines.
+ * on its chunk. A removed key loses its chunk. A new key the schema knows
+ * goes at its schema position: just before the first key in the file that
+ * the schema lists after it. So a key added by the panel lands where a newly
+ * written file would have it. A new key with no such key after it, or one
+ * the schema does not know, is added after the last key's content, before
+ * any trailing blank lines.
  */
 function renderEdited(type: CmsType, source: string, fm: Frontmatter): string {
   const doc = parseDocument(source);
@@ -222,13 +226,29 @@ function renderEdited(type: CmsType, source: string, fm: Frontmatter): string {
   const before = doc.toJS() ?? {};
 
   const startOf = (p: Pair) => (p.key as Scalar).range![0];
+  const nameOf = (p: Pair) => String((p.key as Scalar).value);
+  const schemaKeys = Object.keys(defOf(unwrap(type.schema))?.shape ?? {});
+  const rank = (k: string) => schemaKeys.indexOf(k);
+  const render = (k: string) => renderPair(k, inSchemaOrder(keySchema(type, k), fm[k]), {});
+
+  // New keys, in schema order; each goes before the first later key, or last.
+  const added = Object.keys(fm)
+    .filter((k) => fm[k] !== undefined && !pairs.some((p) => nameOf(p) === k))
+    .sort((a, b) => (rank(a) < 0 ? Infinity : rank(a)) - (rank(b) < 0 ? Infinity : rank(b)));
+  const insertBefore = new Map<number, string[]>();
+  const atEnd: string[] = [];
+  for (const k of added) {
+    const at = rank(k) < 0 ? -1 : pairs.findIndex((p) => rank(nameOf(p)) > rank(k));
+    if (at < 0) atEnd.push(k);
+    else insertBefore.set(at, [...(insertBefore.get(at) ?? []), k]);
+  }
+
   const head = pairs.length > 0 ? source.slice(0, startOf(pairs[0])) : source;
   let out = head;
-  const seen = new Set<string>();
 
   pairs.forEach((p, i) => {
-    const key = String((p.key as Scalar).value);
-    seen.add(key);
+    const key = nameOf(p);
+    out += (insertBefore.get(i) ?? []).map(render).join("");
     const start = startOf(p);
     const end = i + 1 < pairs.length ? startOf(pairs[i + 1]) : source.length;
     const chunk = source.slice(start, end);
@@ -246,9 +266,8 @@ function renderEdited(type: CmsType, source: string, fm: Frontmatter): string {
     out += rendered + source.slice(valueEnd, end);
   });
 
-  const added = Object.keys(fm).filter((k) => !seen.has(k) && fm[k] !== undefined);
-  if (added.length > 0) {
-    const text = added.map((k) => renderPair(k, inSchemaOrder(keySchema(type, k), fm[k]), {})).join("");
+  if (atEnd.length > 0) {
+    const text = atEnd.map(render).join("");
     const trailing = /\n*$/.exec(out)![0];
     // Keep exactly one line break before the new keys; extra blank lines
     // stay at the end, where the file had them.

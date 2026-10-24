@@ -16,7 +16,10 @@ import { z } from "astro/zod";
  *   Open the right lp-levels file and add an item to the correct section,
  *   starting with `- id:` and a new unique id. Add the same item, with the same
  *   id, tag and link, to the tr/ file too; only title and description are
- *   translated. tests/lp-resource-ids.test.ts checks both.
+ *   translated. tests/lp-resource-ids.test.ts checks both. Then run
+ *   `npm run cms:normalize`, which rewrites the file in the form the panel
+ *   writes (strings quoted, no blank lines), so the panel's later edits
+ *   change only their own lines; tests/cms-serialize.test.ts checks it.
  *
  * TO FIX A DEAD LINK: change the url in place, in en/ and tr/ together, and
  *   keep the id. The weekly link check (scripts/check-lp-links.ts) reports
