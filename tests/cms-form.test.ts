@@ -525,7 +525,7 @@ test('objects: a JSON entry three lists deep goes through the form and back byte
   assert.equal(JSON.stringify(applyValues(GUIDE, GUIDE_DATA, values)), JSON.stringify(GUIDE_DATA));
   const rows = values.sections as Row[];
   assert.equal(rows.length, 2);
-  assert.deepEqual(((rows[0].resources as Row[])[1].notes as Row[])[0], { text: 'n1', done: true });
+  assert.deepEqual(((rows[0].resources as Row[])[1].notes as Row[])[0], { text: 'n1', done: true, $from: 0 }, 'with the row it came from');
   // An edit three lists down changes that value and nothing else.
   const edited = copy(values);
   (((edited.sections as Row[])[0].resources as Row[])[1].notes as Row[])[1].text = 'n2 edited';
@@ -557,7 +557,7 @@ test('objects in a pair type: one list for both sides, per-language fields per s
   const rows = values.sections as Row[];
   assert.deepEqual(rows[0].heading, { en: 'Basics', tr: 'Temeller' });
   const r = (rows[0].resources as Row[])[1];
-  assert.deepEqual(r, { id: 'b-2', title: { en: 'Beta', tr: 'Beta TR' }, url: 'https://b', tags: [] });
+  assert.deepEqual(r, { id: 'b-2', title: { en: 'Beta', tr: 'Beta TR' }, url: 'https://b', tags: [], $from: 1 });
 
   // A per-language edit lands on its side; a shared one on both, same row.
   const v = copy(values);
@@ -583,15 +583,21 @@ test('objects in a pair type: one list for both sides, per-language fields per s
   assert.deepEqual(out.tr.frontmatter.sections[0].resources.map((x) => x.title), ['Beta TR', 'Alfa', undefined], 'the new row is empty on both sides');
   assert.equal(out.en.body, PATH_DATA.en.body, 'the body is not touched');
 
-  // A side with fewer rows reads as empty rows, and is written back with as many as the other.
+  // A side with fewer rows reads as empty rows; it gains the row back only when its own text is filled in.
   const short = copy(PATH_DATA);
   short.tr.frontmatter.sections.pop();
   const sv = formValues(PATH, short);
   assert.equal((sv.sections as Row[]).length, 2);
   assert.deepEqual((sv.sections as Row[])[1].heading, { en: 'More', tr: '' });
   assert.equal(((sv.sections as Row[])[1].resources as Row[])[0].url, 'https://c', 'a shared value from the side that has it');
-  out = applyValues(PATH, short, sv) as typeof PATH_DATA;
-  assert.equal(out.tr.frontmatter.sections.length, 2);
+  const touched = copy(sv);
+  (touched.sections as Row[])[0].heading = { en: 'Basics!', tr: 'Temeller' };
+  out = applyValues(PATH, short, touched) as typeof PATH_DATA;
+  assert.equal(out.tr.frontmatter.sections.length, 1, 'not filled in: the short side stays short');
+  assert.equal(out.en.frontmatter.sections.length, 2);
+  ((touched.sections as Row[])[1].heading as Bi).tr = 'Daha';
+  out = applyValues(PATH, short, touched) as typeof PATH_DATA;
+  assert.equal(out.tr.frontmatter.sections.length, 2, 'filled in: the row is written');
   assert.equal(out.tr.frontmatter.sections[1].resources[0].url, 'https://c');
   assert.equal(out.tr.frontmatter.sections[1].resources[0].id, 'c-3');
 });
@@ -717,4 +723,118 @@ test('objects diff in a pair type, and bilingualStrings per language', () => {
   ]);
   const t = diffEntry(GUIDE, GUIDE_DATA, { ...GUIDE_DATA, tags: { en: ['a', 'b'], tr: ['a', 'c'] } });
   assert.deepEqual(t.changed[0].changes, [{ type: 'list', lang: 'tr', items: [{ state: 'same', value: 'a' }, { state: 'added', value: 'c' }] }]);
+});
+
+// ── Task 2, fix round 1: rows never lose what the form does not show ─────────
+
+const PROBE_J = {
+  key: 'j', format: 'json', sub: 'j', group: 'ogrenme', idField: 'title', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'text' }),
+    f({ key: 'rows', kind: 'objects', identity: 'name', fields: [
+      f({ key: 'name', kind: 'text' }),
+      f({ key: 'note', kind: 'text' }),
+      f({ key: 'flag', kind: 'checkbox', required: true }),
+      f({ key: 'opt', kind: 'checkbox' }),
+      f({ key: 'n', kind: 'number' }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const PROBE_J_DATA = { title: 'a', rows: [{ name: 'A', note: '', flag: false, opt: false, n: 0, extra: 1 }, { name: 'B', flag: true }] };
+const PROBE_P = {
+  key: 'p', format: 'markdown-pair', sub: 'p', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'text', perLang: true }),
+    f({ key: 'res', kind: 'objects', identity: 'id', fields: [
+      f({ key: 'id', kind: 'text' }),
+      f({ key: 'title', kind: 'text', perLang: true }),
+      f({ key: 'url', kind: 'text' }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const PROBE_P_DATA = {
+  en: { frontmatter: { title: 'E', res: [{ id: 'x', title: 'a', url: '/x/' }] }, body: '' },
+  tr: { frontmatter: { title: 'T', res: [{ id: 'x', title: 'b', url: '/tr/x/' }, { id: 'y', title: 'c', url: '/tr/y/' }] }, body: '' },
+};
+
+test('fix 1: an edit elsewhere leaves an untouched objects or bilingualStrings field byte for byte', () => {
+  const v = formValues(PROBE_J, PROBE_J_DATA);
+  v.title = 'b';
+  const out = applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows), JSON.stringify(PROBE_J_DATA.rows));
+  const pv = formValues(PROBE_P, PROBE_P_DATA);
+  (pv.title as Bi).en = 'E2';
+  const po = applyValues(PROBE_P, PROBE_P_DATA, pv) as typeof PROBE_P_DATA;
+  assert.equal(JSON.stringify(po.tr.frontmatter.res), JSON.stringify(PROBE_P_DATA.tr.frontmatter.res), 'the TR urls keep /tr and the longer side its rows');
+  assert.equal(JSON.stringify(po.en.frontmatter.res), JSON.stringify(PROBE_P_DATA.en.frontmatter.res));
+  const odd = { ...GUIDE_DATA, tags: { tr: ['z'], en: ['y'] } };
+  const gv = formValues(GUIDE, odd);
+  (gv.title as Bi).en = 'Guide 2';
+  assert.equal(JSON.stringify((applyValues(GUIDE, odd, gv) as typeof odd).tags), JSON.stringify(odd.tags), 'a bilingualStrings value keeps its key order');
+});
+
+test('fix 2: a row edited in one field keeps its undeclared keys, empty optionals and false checkboxes, also after a move', () => {
+  const v = copy(formValues(PROBE_J, PROBE_J_DATA));
+  (v.rows as Row[])[0].n = '5';
+  let out = applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows[0]), JSON.stringify({ name: 'A', note: '', flag: false, opt: false, n: 5, extra: 1 }));
+  assert.equal(JSON.stringify(out.rows[1]), JSON.stringify(PROBE_J_DATA.rows[1]), 'the other row is as it was');
+  (v.rows as Row[]).reverse();
+  out = applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows), JSON.stringify([PROBE_J_DATA.rows[1], { ...PROBE_J_DATA.rows[0], n: 5 }]), 'each row keeps its own base after a move');
+  // Values without their origin (a restored copy, say) find their row by identity.
+  const bare = { ...v, rows: (v.rows as Row[]).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith('$')))) };
+  out = applyValues(PROBE_J, PROBE_J_DATA, bare) as typeof PROBE_J_DATA;
+  assert.equal(out.rows[1].extra, 1);
+  // A new key lands in the schema's place, not at the end.
+  const w = copy(formValues(PROBE_J, PROBE_J_DATA));
+  (w.rows as Row[])[1].note = 'hi';
+  assert.deepEqual(Object.keys((applyValues(PROBE_J, PROBE_J_DATA, w) as typeof PROBE_J_DATA).rows[1]), ['name', 'note', 'flag']);
+});
+
+test('fix 3: a shared row field whose sides differ is two inputs and is written per side; a short side gains no row', () => {
+  const pv = formValues(PROBE_P, PROBE_P_DATA);
+  const rows = pv.res as Row[];
+  assert.deepEqual(rows[0].url, { en: '/x/', tr: '/tr/x/' }, 'split, not the English value');
+  assert.equal(rows[1].url, '/tr/y/', 'a row only one side has: that side\'s value');
+  const v = copy(pv);
+  ((v.res as Row[])[0].title as Bi).tr = 'b2';
+  const out = applyValues(PROBE_P, PROBE_P_DATA, v) as typeof PROBE_P_DATA;
+  assert.deepEqual(out.tr.frontmatter.res.map((r) => r.url), ['/tr/x/', '/tr/y/']);
+  assert.deepEqual(out.en.frontmatter.res.map((r) => r.url), ['/x/'], 'the shorter side does not gain the other\'s row');
+  assert.equal(out.tr.frontmatter.res[0].title, 'b2');
+  // A row the person adds goes to both sides.
+  const added = copy(pv);
+  (added.res as Row[]).push({ ...emptyRow(PROBE_P.fields[1], true), id: 'z', url: '/z/' });
+  const ao = applyValues(PROBE_P, PROBE_P_DATA, added) as typeof PROBE_P_DATA;
+  assert.deepEqual(ao.en.frontmatter.res.map((r) => r.id), ['x', 'z']);
+  assert.deepEqual(ao.tr.frontmatter.res.map((r) => r.id), ['x', 'y', 'z']);
+  // The diff sees a per-side change of a split field.
+  const d = diffEntry(PROBE_P, PROBE_P_DATA, { ...PROBE_P_DATA, tr: { ...PROBE_P_DATA.tr, frontmatter: { ...PROBE_P_DATA.tr.frontmatter, res: [{ id: 'x', title: 'b', url: '/tr/x2/' }, PROBE_P_DATA.tr.frontmatter.res[1]] } } });
+  const c = (d.changed[0].changes[0] as any).rows[0].changes[0];
+  assert.deepEqual([c.field.key, c.changes[0]], ['url', { type: 'bilingual', en: null, tr: { before: '/tr/x/', after: '/tr/x2/' } }]);
+});
+
+test('fix 4: a required checkbox set to false is written', () => {
+  const out = applyValues(PROBE_J, {}, { rows: [{ ...emptyRow(PROBE_J.fields[1], false), name: 'N' }] }) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows[0]), JSON.stringify({ name: 'N', flag: false }));
+  const v = copy(formValues(PROBE_J, PROBE_J_DATA));
+  (v.rows as Row[])[1].flag = false;
+  assert.equal((applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA).rows[1].flag, false);
+});
+
+test('fix 5: the file diff, and a warning when the files change but no field does', async () => {
+  const { fileDiffs, hiddenFileChanges } = await import('../src/scripts/admin/cms-diff');
+  const path = 'src/content/lp/en/x.md';
+  const before = '---\ntitle: "A"\nurl: "/tr/x/"\n---\n';
+  const after = '---\ntitle: "A"\nurl: "/x/"\n---\n';
+  const files = fileDiffs({ [path]: before }, [{ path, content: after }]);
+  assert.equal(files[0].changed, true);
+  assert.deepEqual(files[0].lines.filter((l) => l.op !== ' '), [{ op: '-', text: 'url: "/tr/x/"' }, { op: '+', text: 'url: "/x/"' }]);
+  assert.ok(hiddenFileChanges(files, { changed: [], unchanged: [] }), 'bytes changed, no field did: warn');
+  assert.ok(!hiddenFileChanges(files, { changed: [{ field: GUIDE.fields[0], changes: [] }], unchanged: [] }));
+  assert.ok(!hiddenFileChanges(fileDiffs({ [path]: before }, [{ path, content: before }]), { changed: [], unchanged: [] }));
+  assert.deepEqual(fileDiffs(null, [{ path, content: after }]), [], 'nothing to compare without main');
+  for (const k of ['admin.cms.review.fileDiff', 'admin.cms.review.hiddenChanges', 'admin.cms.review.fileSame']) assert.ok(k in ui.tr && k in ui.en, k);
+  assert.equal(ui.tr['admin.cms.review.hiddenChanges'], 'Dosyada formda görünmeyen değişiklikler var');
 });

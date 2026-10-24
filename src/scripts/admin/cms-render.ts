@@ -9,9 +9,9 @@ import { escapeHtml } from '../escape-html';
 import { BTN, chip } from './ui-kit';
 import { t, tf } from './context';
 import {
-  emptyRow, lockedAfterSave, ROW_NAME, rowSummary, sharedShowsOne, shown, type Bi, type FieldDef, type ImageObject, type LinkItem, type Row, type TypeModel, type Values,
+  emptyRow, isSplit, lockedAfterSave, ROW_FROM, ROW_NAME, rowSummary, sharedShowsOne, shown, type Bi, type FieldDef, type ImageObject, type LinkItem, type Row, type TypeModel, type Values,
 } from './cms-form';
-import type { Change, EntryDiff, RowChange } from './cms-diff';
+import type { Change, EntryDiff, FileDiff, RowChange } from './cms-diff';
 
 const tk = (k: string) => t(k as never) as string;
 const esc = (v: unknown) => escapeHtml(String(v ?? ''));
@@ -113,13 +113,16 @@ export type Mode = 'json' | 'pair' | 'pairRow';
 const modeOf = (model: TypeModel): Mode => (model.format === 'json' ? 'json' : 'pair');
 /** The mode of a value inside a row: rows of a pair type hold pairRow values. */
 const rowMode = (mode: Mode): Mode => (mode === 'json' ? 'json' : 'pairRow');
-/** The mode one field's own value is held in. */
-const leafMode = (mode: Mode, f: FieldDef): Mode => (mode === 'pairRow' ? (f.perLang ? 'pair' : 'json') : mode);
+/**
+ * The mode one field's own value is held in. In a pair row, a shared field
+ * whose sides differ (isSplit) is held, shown and read like a per-language one.
+ */
+const leafMode = (mode: Mode, f: FieldDef, v?: unknown): Mode => (mode === 'pairRow' ? (f.perLang || isSplit(v) ? 'pair' : 'json') : mode);
 
 /** The body of one field: its controls, for how its value is held. */
 function bodyOf(mode: Mode, f: FieldDef, v: unknown): string {
   if (f.kind === 'objects') return objectsList(rowMode(mode), f, Array.isArray(v) ? v as Row[] : []);
-  const m = leafMode(mode, f);
+  const m = leafMode(mode, f, v);
   if (m === 'pair') {
     const b = v as Bi<unknown>;
     if (f.kind === 'markdown') return markdownField(f, b as Bi);
@@ -174,7 +177,8 @@ function subField(mode: Mode, f: FieldDef, row: Row): string {
  */
 function rowHtml(mode: Mode, f: FieldDef, row: Row, i: number, n: number, open = false): string {
   const label = rowSummary(f, row, lang());
-  return `<details data-orow class="group min-w-0 rounded-xl border border-border bg-white"${open ? ' open' : ''}>
+  const from = typeof row[ROW_FROM] === 'number' ? ` data-row-from="${row[ROW_FROM]}"` : '';
+  return `<details data-orow${from} class="group min-w-0 rounded-xl border border-border bg-white"${open ? ' open' : ''}>
     <summary class="flex items-center gap-1 min-h-11 lg:min-h-9 pl-3 pr-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
       <span aria-hidden="true" class="shrink-0 w-3 text-gray-500 transition-transform group-open:rotate-90">›</span>
       <span data-row-num class="shrink-0 text-xs font-semibold text-gray-500">${esc(rowNum(f, i))}</span>
@@ -243,6 +247,8 @@ function readRowEl(mode: Mode, f: FieldDef, row: Element): Row {
     const wrap = body?.querySelector(`:scope > [data-sub-wrap="${s.key}"]`);
     out[s.key] = wrap ? readIn(mode, s, wrap) : (emptyRow(f, mode === 'pairRow')[s.key]);
   }
+  const from = (row as HTMLElement).dataset.rowFrom;
+  if (from !== undefined) out[ROW_FROM] = Number(from);
   return out;
 }
 
@@ -273,7 +279,7 @@ export function rowsClick(model: TypeModel, target: HTMLElement): boolean {
     const row = leaf.closest('[data-orow]')!;
     const parent = defs.at(-2)!;
     const value = readIn(mode, s, leaf);
-    const next = listEdit(leafMode(mode, s), s, value, target);
+    const next = listEdit(leafMode(mode, s, value), s, value, target);
     if (next === undefined) return false;
     const hidden = leaf.hidden;
     const values = { ...readRowEl(mode, parent, row), [s.key]: next };
@@ -441,7 +447,9 @@ export function readField(model: TypeModel, f: FieldDef, wrap: Element): unknown
 
 function readIn(mode: Mode, f: FieldDef, wrap: Element): unknown {
   if (f.kind === 'objects') return readRows(rowMode(mode), f, wrap);
-  if (leafMode(mode, f) === 'pair') {
+  // A split shared field in a pair row has its two controls on the page.
+  const split = mode === 'pairRow' && !!wrap.querySelector('[data-lang="en"], [data-list-lang="en"]');
+  if (leafMode(mode, f) === 'pair' || split) {
     if (f.kind === 'markdown') {
       const side = (lang: 'en' | 'tr') => wrap.querySelector<HTMLTextAreaElement>(`textarea[data-field="${f.key}"][data-lang="${lang}"]`)?.value ?? '';
       return { en: side('en'), tr: side('tr') };
@@ -557,7 +565,7 @@ export function showIn(mode: Mode, f: FieldDef, v: unknown): string {
     const rows = Array.isArray(v) ? v as Row[] : [];
     return rows.length ? rows.map((r, i) => `${rowNum(f, i)}: ${rowSummary(f, r, lang())}`).join('\n') : tk('admin.cms.diff.empty');
   }
-  if (leafMode(mode, f) === 'pair') {
+  if (leafMode(mode, f, v) === 'pair') {
     const b = v as Bi<unknown>;
     return sharedShowsOne(f, b) ? show(f, b.en) : `EN: ${show(f, b.en)}\nTR: ${show(f, b.tr)}`;
   }
@@ -575,7 +583,8 @@ function rowAll(f: FieldDef, row: Row): string {
         `<li class="min-w-0"><p class="text-xs font-semibold text-gray-500">${esc(rowNum(s, i))}</p><div class="pl-3 border-l-2 border-border">${rowAll(s, r)}</div></li>`).join('')}</ol>` : `<p class="text-sm text-navy">${esc(tk('admin.cms.diff.empty'))}</p>`}</div>`;
     }
     // A per-language value is { en, tr } in a pair type's row and in a JSON row's bilingual field alike.
-    const text = s.perLang && v && typeof v === 'object' && !Array.isArray(v) && 'en' in v ? showIn(mode, s, v) : show(s, v);
+    // A per-language or split value of a pair row; a JSON row's bilingual field reads "en / tr".
+    const text = s.kind !== 'bilingual' && isSplit(v) ? showIn(mode, s, v) : show(s, v);
     return `<div class="py-1 min-w-0"><p class="text-xs font-medium text-gray-500">${esc(tk(s.label))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(text)}</p></div>`;
   }).join('');
 }
@@ -592,4 +601,20 @@ export function renderAll(model: TypeModel, values: Values, fields: FieldDef[]):
     return `<div class="py-2 border-b border-border last:border-0"><p class="text-xs font-medium text-gray-500">${esc(tk(f.label))}</p>
       <p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere] ${f.kind === 'markdown' ? 'line-clamp-6' : ''}">${esc(showIn(modeOf(model), f, v))}</p></div>`;
   }).join('');
+}
+
+/**
+ * "Dosya farkı": each file's lines as main has them against the draft's,
+ * collapsed. Opened, with a warning above it, when the files change but no
+ * field does (`hidden`).
+ */
+export function renderFileDiff(files: FileDiff[], hidden: boolean): string {
+  if (!files.length) return '';
+  const warn = hidden ? `<p data-cms-hidden-changes role="alert" class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">${esc(tk('admin.cms.review.hiddenChanges'))}</p>` : '';
+  return `${warn}<details data-cms-file-diff class="mt-3 bg-white rounded-2xl border border-border p-4 lg:p-3"${hidden ? ' open' : ''}>
+    <summary class="cursor-pointer min-h-11 lg:min-h-9 flex items-center text-sm font-semibold text-navy">${esc(tk('admin.cms.review.fileDiff'))}</summary>
+    <div class="flex flex-col gap-3 mt-2 min-w-0">${files.map((f) => `<div class="flex flex-col gap-1 min-w-0">
+      <p class="font-mono text-xs text-gray-600 [overflow-wrap:anywhere]">${esc(f.path)}</p>
+      ${f.changed ? changeHtml({ key: f.path, kind: 'markdown', label: '', group: 'main' }, { type: 'lines', lines: f.lines }) : `<p class="text-sm text-gray-500">${esc(tk('admin.cms.review.fileSame'))}</p>`}</div>`).join('')}</div>
+  </details>`;
 }

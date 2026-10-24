@@ -70,8 +70,23 @@ export interface FieldDef {
   readOnlyAfterSave?: boolean;
 }
 
-/** One row of an `objects` field as the form holds it: its fields' values. */
+/** One row of an `objects` field as the form holds it: its fields' values, and ROW_FROM. */
 export type Row = Record<string, unknown>;
+
+/**
+ * A row's index in the data the form was opened with (absent on a row the
+ * person added). Writing starts from that row, so keys the form does not
+ * show, empty values and `false`s survive, and a pair type's side that had
+ * no such row gains none. Never written to the file.
+ */
+export const ROW_FROM = '$from';
+
+/**
+ * A shared field inside a pair type's row whose two sides differ in the
+ * file: held as `{ en, tr }`, shown as two inputs and written per side.
+ * Shared kinds are never plain objects otherwise.
+ */
+export const isSplit = (v: unknown): v is Bi<unknown> => isObj(v) && Object.hasOwn(v, 'en') && Object.hasOwn(v, 'tr');
 
 /**
  * The options below `sub` mirror the type's registry entry
@@ -206,7 +221,7 @@ function readOne(f: FieldDef, raw: unknown): unknown {
     case 'strings': return strs(raw);
     case 'bilingualStrings': return { en: strs(isObj(raw) ? raw.en : null), tr: strs(isObj(raw) ? raw.tr : null) };
     case 'links': return Array.isArray(raw) ? raw.map((l) => ({ label: bi(isObj(l) ? l.label : null), url: str(isObj(l) ? l.url : '') })) : [];
-    case 'objects': return Array.isArray(raw) ? raw.map((r) => readRow(f.fields ?? [], isObj(r) ? r : {})) : [];
+    case 'objects': return Array.isArray(raw) ? raw.map((r, i) => readRow(f.fields ?? [], isObj(r) ? r : {}, i)) : [];
     case 'image':
       if (f.image === 'url') return str(raw);
       return isObj(raw) ? clone(raw) : null;
@@ -214,16 +229,19 @@ function readOne(f: FieldDef, raw: unknown): unknown {
   }
 }
 
-function readRow(fields: FieldDef[], obj: Obj): Row {
-  return Object.fromEntries(fields.map((s) => [s.key, readOne(s, obj[s.key])]));
+function readRow(fields: FieldDef[], obj: Obj, from?: number): Row {
+  const row: Row = Object.fromEntries(fields.map((s) => [s.key, readOne(s, obj[s.key])]));
+  if (from !== undefined) row[ROW_FROM] = from;
+  return row;
 }
 
 /**
  * The rows of an `objects` field of a markdown-pair type: one list, row i
- * being row i of both sides (a side with fewer rows reads as empty rows). A
- * per-language field is `{ en, tr }`; a shared one is one value, the English
- * side's (the Turkish one's when the English row lacks it). Writing gives
- * both sides the same number of rows, so they stay index-aligned.
+ * being row i of both sides (a side with fewer rows reads as empty rows,
+ * and is not given them back unless the person fills them in). A
+ * per-language field is `{ en, tr }`. A shared one is one value while both
+ * sides agree (or only one side has the row), and `{ en, tr }` (isSplit)
+ * when they differ, so neither side is ever overwritten with the other.
  */
 function readPairRows(f: FieldDef, en: unknown, tr: unknown): Row[] {
   const a = Array.isArray(en) ? en : [];
@@ -231,11 +249,16 @@ function readPairRows(f: FieldDef, en: unknown, tr: unknown): Row[] {
   return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => {
     const e = isObj(a[i]) ? a[i] as Obj : {};
     const t = isObj(b[i]) ? b[i] as Obj : {};
-    return Object.fromEntries((f.fields ?? []).map((s) => {
+    const both = i < a.length && i < b.length;
+    const row: Row = Object.fromEntries((f.fields ?? []).map((s) => {
       if (s.kind === 'objects') return [s.key, readPairRows(s, e[s.key], t[s.key])];
-      if (s.perLang) return [s.key, { en: readOne(s, e[s.key]), tr: readOne(s, t[s.key]) }];
-      return [s.key, readOne(s, Object.hasOwn(e, s.key) ? e[s.key] : t[s.key])];
+      const ve = readOne(s, e[s.key]);
+      const vt = readOne(s, t[s.key]);
+      if (s.perLang || (both && !same(ve, vt))) return [s.key, { en: ve, tr: vt }];
+      return [s.key, i < a.length ? ve : vt];
     }));
+    row[ROW_FROM] = i;
+    return row;
   });
 }
 
@@ -251,8 +274,17 @@ export function isEmptyValue(f: FieldDef, v: unknown): boolean {
   }
 }
 
-/** Kinds whose empty form ('' or []) is a valid value to write, so a required one in a row is written empty. */
-const EMPTY_WRITABLE: readonly Kind[] = ['text', 'textarea', 'bilingual', 'strings', 'links', 'objects', 'bilingualStrings'];
+/** The empty value a required row field is written with, for kinds that have a valid one. */
+function requiredEmpty(kind: Kind): unknown {
+  switch (kind) {
+    case 'text': case 'textarea': return '';
+    case 'checkbox': return false;
+    case 'bilingual': return { en: '', tr: '' };
+    case 'bilingualStrings': return { en: [], tr: [] };
+    case 'strings': case 'links': case 'objects': return [];
+    default: return undefined;
+  }
+}
 
 /**
  * Writes one value into `into[f.key]`. An empty value leaves a key that was
@@ -278,31 +310,97 @@ function writeOne(f: FieldDef, into: Obj, v: unknown): void {
     }
     case 'bilingual': into[f.key] = { en: str((v as Bi).en), tr: str((v as Bi).tr) }; return;
     case 'strings': into[f.key] = (v as string[]).map(str); return;
-    case 'bilingualStrings': into[f.key] = { en: strs((v as Bi<unknown>)?.en), tr: strs((v as Bi<unknown>)?.tr) }; return;
+    case 'bilingualStrings': {
+      const next = { en: strs((v as Bi<unknown>)?.en), tr: strs((v as Bi<unknown>)?.tr) };
+      // Unchanged: as it was, key order included.
+      if (!(had && sameData(into[f.key], next))) into[f.key] = next;
+      return;
+    }
     case 'links': into[f.key] = (v as LinkItem[]).map((l) => ({ label: { en: str(l.label?.en), tr: str(l.label?.tr) }, url: str(l.url) })); return;
-    case 'objects': into[f.key] = (v as Row[]).map((r) => writeRow(f.fields ?? [], r, null)); return;
+    case 'objects': into[f.key] = writeRows(f, v as Row[], into[f.key], null); return;
     case 'image': into[f.key] = f.image === 'url' ? str(v) : clone(v); return;
     default: into[f.key] = str(v);
   }
 }
 
 /**
- * One row, rebuilt from its fields in their order (so in the schema's key
- * order). An empty optional value is left out; a required one is written
- * empty where that is a valid value. Read-only fields are written too: the
- * value travels with its row when rows move. `lang` is a pair type's side.
+ * The row of `base` a form row was read from: by its origin (ROW_FROM),
+ * else by its identity value; null for a row the person added.
  */
-function writeRow(fields: FieldDef[], row: Row, lang: 'en' | 'tr' | null): Obj {
-  const out: Obj = {};
+function baseRowOf(f: FieldDef, row: Row, base: unknown, lang: 'en' | 'tr' | null): Obj | null {
+  const list = Array.isArray(base) ? base : [];
+  const from = row?.[ROW_FROM];
+  if (typeof from === 'number') return isObj(list[from]) ? list[from] as Obj : null;
+  if (!f.identity) return null;
+  const v = row?.[f.identity];
+  const id = str(isObj(v) ? (lang ? v[lang] : v.en) : v);
+  return id ? (list.find((r) => isObj(r) && str(r[f.identity!]) === id) as Obj | undefined) ?? null : null;
+}
+
+/**
+ * A list of rows written onto `base` (the list the file had). Each row
+ * starts from its own base row; on a pair type's side, a row that side
+ * never had is written only when the person added it or filled in that
+ * side's own text.
+ */
+function writeRows(f: FieldDef, rows: Row[], base: unknown, lang: 'en' | 'tr' | null, fresh = false): Obj[] {
+  const out: Obj[] = [];
+  for (const r of Array.isArray(rows) ? rows : []) {
+    const b = fresh ? null : baseRowOf(f, r, base, lang);
+    // Inside a row new to this side (`fresh`), every row is written.
+    if (lang && !fresh && !b && typeof r?.[ROW_FROM] === 'number' && !filledOn(f, r, lang)) continue;
+    out.push(writeRow(f.fields ?? [], r, b, lang));
+  }
+  return out;
+}
+
+/** Whether a pair row holds text of its own on one side (a per-language or split value). */
+function filledOn(f: FieldDef, r: Row, lang: 'en' | 'tr'): boolean {
+  return (f.fields ?? []).some((s) => s.kind !== 'objects' && (s.perLang || isSplit(r[s.key])) && !isEmptyValue(s, (r[s.key] as Bi<unknown>)?.[lang]));
+}
+
+/**
+ * One row written onto its base row (a copy): a key the form does not
+ * show, an empty value and a `false` stay as the file had them; a cleared
+ * value follows writeOne. A key the row did not have lands in the
+ * fields' (schema) order. A required field the row lacks is written empty
+ * where that is a valid value. Read-only fields are written too: the value
+ * travels with its row when rows move. `lang` is a pair type's side.
+ */
+function writeRow(fields: FieldDef[], row: Row, base: Obj | null, lang: 'en' | 'tr' | null): Obj {
+  const out: Obj = base ? clone(base) : {};
   for (const s of fields) {
-    if (s.required && EMPTY_WRITABLE.includes(s.kind)) out[s.key] = s.kind === 'bilingualStrings' ? { en: [], tr: [] } : s.kind === 'bilingual' ? { en: '', tr: '' } : s.kind === 'text' || s.kind === 'textarea' ? '' : [];
+    if (!Object.hasOwn(out, s.key) && s.required) {
+      const empty = requiredEmpty(s.kind);
+      if (empty !== undefined) out[s.key] = empty;
+    }
     const v = row?.[s.key];
     if (lang && s.kind === 'objects') {
       const rows = Array.isArray(v) ? v as Row[] : [];
-      if (rows.length || s.required) out[s.key] = rows.map((r) => writeRow(s.fields ?? [], r, lang));
-    } else if (lang && s.perLang) writeOne(s, out, (v as Bi<unknown> | undefined)?.[lang]);
+      if (rows.length || Object.hasOwn(out, s.key)) out[s.key] = writeRows(s, rows, out[s.key], lang, !base);
+    } else if (lang && (s.perLang || isSplit(v))) writeOne(s, out, (v as Bi<unknown> | undefined)?.[lang]);
     else writeOne(s, out, v);
   }
+  if (base && sameData(out, base)) return clone(base);
+  return inFieldOrder(out, fields, base);
+}
+
+/** `row` with keys it did not have before put in the fields' order among the ones it had. */
+function inFieldOrder(row: Obj, fields: FieldDef[], base: Obj | null): Obj {
+  const keys = fields.map((x) => x.key);
+  const had = base ? Object.keys(base).filter((k) => Object.hasOwn(row, k)) : [];
+  const fresh = keys.filter((k) => Object.hasOwn(row, k) && !had.includes(k));
+  const out: Obj = {};
+  const emitFreshBefore = (k: string) => {
+    const at = keys.indexOf(k);
+    for (const n of [...fresh]) if (keys.indexOf(n) < at) { out[n] = row[n]; fresh.splice(fresh.indexOf(n), 1); }
+  };
+  for (const k of had) {
+    if (keys.includes(k)) emitFreshBefore(k);
+    out[k] = row[k];
+  }
+  for (const n of fresh) out[n] = row[n];
+  for (const k of Object.keys(row)) if (!Object.hasOwn(out, k)) out[k] = row[k];
   return out;
 }
 
@@ -347,23 +445,26 @@ export function formValues(model: TypeModel, data: unknown): Values {
  * serializer's normalisation ensures), so it is not rewritten.
  */
 export function applyValues(model: TypeModel, base: unknown, values: Values): unknown {
+  // A list nobody touched is left exactly as the file has it.
+  const before = model.fields.some((f) => f.kind === 'objects' || f.kind === 'bilingualStrings') ? formValues(model, base) : {};
+  const untouched = (f: FieldDef) => (f.kind === 'objects' || f.kind === 'bilingualStrings') && same(values[f.key], before[f.key]);
   if (model.format === 'json') {
     const out = (isObj(base) ? clone(base) : {}) as Obj;
     for (const f of model.fields) {
-      if (f.readOnly || !Object.hasOwn(values, f.key)) continue;
+      if (f.readOnly || !Object.hasOwn(values, f.key) || untouched(f)) continue;
       writeOne(f, out, values[f.key]);
     }
     return out;
   }
   const out = { en: clone(side(base, 'en')), tr: clone(side(base, 'tr')) };
   for (const f of model.fields) {
-    if (f.readOnly || !Object.hasOwn(values, f.key)) continue;
+    if (f.readOnly || !Object.hasOwn(values, f.key) || untouched(f)) continue;
     if (f.kind === 'objects') {
       const rows = Array.isArray(values[f.key]) ? values[f.key] as Row[] : [];
       for (const lang of ['en', 'tr'] as const) {
         const fm = out[lang].frontmatter;
         if (rows.length === 0 && !Object.hasOwn(fm, f.key)) continue;
-        fm[f.key] = rows.map((r) => writeRow(f.fields ?? [], r, lang));
+        fm[f.key] = writeRows(f, rows, fm[f.key], lang);
       }
       continue;
     }
@@ -408,7 +509,7 @@ export function lockedAfterSave(f: FieldDef, v: unknown, pair: boolean): boolean
   return !isEmptyValue(f, v);
 }
 
-/** A new, empty row: what Ekle adds. A pair type's per-language fields get both sides. */
+/** A new, empty row: what Ekle adds (no ROW_FROM). A pair type's per-language fields get both sides. */
 export function emptyRow(f: FieldDef, pair: boolean): Row {
   const row = readRow(f.fields ?? [], {});
   if (pair) for (const s of f.fields ?? []) if (s.perLang && s.kind !== 'objects') row[s.key] = { en: row[s.key], tr: clone(row[s.key]) };

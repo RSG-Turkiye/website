@@ -5,7 +5,7 @@
  * works on the form's values (cms-form.ts), so it sees fields the way the
  * form shows them.
  */
-import { formValues, same, type Bi, type FieldDef, type Row, type TypeModel, type Values } from './cms-form';
+import { formValues, isSplit, same, type Bi, type FieldDef, type Row, type TypeModel, type Values } from './cms-form';
 
 export type ItemState = 'added' | 'removed' | 'moved' | 'same';
 export type LineOp = '+' | '-' | ' ';
@@ -110,7 +110,14 @@ type Mode = 'json' | 'pair' | 'pairRow';
 function fieldChanges(mode: Mode, f: FieldDef, before: unknown, after: unknown): Change[] {
   if (same(before, after)) return [];
   if (f.kind === 'objects') return [{ type: 'rows', rows: rowsDiff(mode === 'json' ? 'json' : 'pairRow', f, before as Row[], after as Row[]) }];
-  if (mode === 'pairRow') return fieldChanges(f.perLang ? 'pair' : 'json', f, before, after);
+  if (mode === 'pairRow') {
+    // A shared field whose sides differ (isSplit) is compared side by side, like a per-language one.
+    if (f.perLang || isSplit(before) || isSplit(after)) {
+      const bi = (v: unknown) => (isSplit(v) ? v : { en: v, tr: v });
+      return fieldChanges('pair', f, bi(before), bi(after));
+    }
+    return fieldChanges('json', f, before, after);
+  }
   if (f.kind === 'bilingualStrings' || (mode === 'pair' && f.kind === 'strings')) {
     const b = before as Bi<unknown>;
     const a = after as Bi<unknown>;
@@ -197,4 +204,28 @@ export function diffEntry(model: TypeModel, published: unknown, draft: unknown, 
     else unchanged.push(f);
   }
   return { changed, unchanged };
+}
+
+// ── The files themselves ("Dosya farkı") ─────────────────────────────────────
+
+/** One file of an update: main's text against the text the draft would write, line by line. */
+export interface FileDiff { path: string; lines: { op: LineOp; text: string }[]; changed: boolean }
+
+/**
+ * Per file, what the approval would change, from `/api/cms/entry`'s `files`
+ * (main) and the draft's `files` (as the approval serialises them). A
+ * safety net under the field diff: it shows bytes the form does not.
+ */
+export function fileDiffs(main: Record<string, string | null> | null | undefined, draft: { path: string; content: string | null }[] | null | undefined): FileDiff[] {
+  if (!main || !draft) return [];
+  return draft.map(({ path, content }) => {
+    const before = main[path] ?? '';
+    const after = content ?? '';
+    return { path, lines: before === after ? [] : lineDiff(before, after), changed: before !== after };
+  });
+}
+
+/** The files change but the field diff shows nothing: something the form does not show changed. */
+export function hiddenFileChanges(files: FileDiff[], fields: EntryDiff): boolean {
+  return files.some((f) => f.changed) && fields.changed.length === 0;
 }
