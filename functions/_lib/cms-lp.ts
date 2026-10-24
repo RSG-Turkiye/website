@@ -16,9 +16,12 @@
  * checks that main still has exactly those files (base_shas at the pinned
  * head), so the ids it checks against are main's at that head.
  *
- * No uniqueness check against other files is needed: the only new ids are
- * fresh random ones, and an id typed by hand, or one copied from another
- * file, is not this entry's.
+ * A new id is minted with a random tail that skips every id the deployed
+ * index lists, never starts with `tr-` (Turkish progress keys carry that
+ * prefix), and is refused if another learning-path file has it. An id typed
+ * by hand, or copied from another file, is not this entry's and is refused.
+ * An id emptied by a client is a removed resource plus a new one; the
+ * approver's diff lists each removed published id.
  */
 
 import type { CmsType } from '../../src/lib/cms/types';

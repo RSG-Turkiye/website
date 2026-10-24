@@ -259,7 +259,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
     }
     if (method !== 'GET') return r.fulfill({ status: 204, body: '' });
     // The rest of an admin's panel (DEMO=admin): empty lists, so nothing throws.
-    return json(who === 'admin' ? { users: [], announcements: [], submissions: [], senders: [], attachments: [], sends: [], connections: [], rows: [], items: [], posts: [], edition: {}, badge_catalog: [] } : {});
+    return json(who === 'admin' ? { users: [], announcements: [], submissions: [], senders: [], attachments: [], sends: [], connections: [], rows: [], items: [], posts: [], edition: {}, badge_catalog: [], certificates: [], totalBytes: 0 } : {});
   });
   await page.goto(`${BASE}${lang === 'tr' ? '/tr' : ''}/admin${hash}`, { waitUntil: 'networkidle' });
   await page.waitForSelector('#adminContent:not(.hidden)');

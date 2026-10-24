@@ -919,7 +919,7 @@ export function sameSave(stored: unknown, sent: unknown): boolean {
 /** A Turkish link left empty is the English one; a link to this site gets the Turkish page (/tr). */
 export function trLinkFrom(en: unknown): string {
   const v = str(en);
-  return v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/tr/') ? `/tr${v}` : v;
+  return v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/tr/') && v !== '/tr' ? `/tr${v}` : v;
 }
 
 // ── Half translations ────────────────────────────────────────────────────────
