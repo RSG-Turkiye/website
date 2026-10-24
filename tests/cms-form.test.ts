@@ -26,7 +26,8 @@ const WEBINARS = cmsType('webinars')!;
 
 function files(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees', 'src/content/resources']) {
+  const lp = ['lp-domains', 'lp-levels', 'lp-roadmap'].flatMap((d) => [`src/content/${d}/en`, `src/content/${d}/tr`]);
+  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees', 'src/content/resources', ...lp]) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = read(`${dir}/${f}`);
   }
   return out;
@@ -36,9 +37,9 @@ const INDEX = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
 const { EVENT_ID, EVENT_PATH, SAME_NAME_ID } = realFixtures(FILES, INDEX);
 /** A webinar pair as GET /api/cms/entry answers it (JSON round trip included). */
-const pair = (id: string) => {
-  const w = INDEX.webinars.find((e) => e.id === id)!;
-  const side = (p: string | null | undefined) => (p ? parseMarkdown(WEBINARS, FILES[p]) : null);
+const pair = (id: string, key: 'webinars' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' = 'webinars') => {
+  const w = INDEX[key].find((e) => e.id === id)!;
+  const side = (p: string | null | undefined) => (p ? parseMarkdown(cmsType(key)!, FILES[p]) : null);
   return JSON.parse(JSON.stringify({ en: side(w.paths?.en), tr: side(w.paths?.tr) }));
 };
 
@@ -981,7 +982,8 @@ test('house rules: no published file of any type is refused (no false alarm on w
     if (type.format === 'json') {
       for (const p of ids) assert.deepEqual(houseRuleErrors(type, JSON.parse(FILES[p])), {}, p);
     } else {
-      for (const w of INDEX[type.key as 'webinars']) assert.deepEqual(houseRuleErrors(type, pair(w.id)), {}, w.id);
+      assert.ok(INDEX[type.key].length > 0, type.key);
+      for (const w of INDEX[type.key as 'webinars']) assert.deepEqual(houseRuleErrors(type, pair(w.id, type.key as 'webinars')), {}, `${type.key} ${w.id}`);
     }
   }
 });
@@ -1148,4 +1150,142 @@ test('resources: the form\'s groups, the file name of a new one, its list line a
   assert.equal(livePath('resources', 'blast', [], 'tr'), '/tr/resources/');
   // Not a section the page has: no anchor.
   assert.equal(livePath('resources', 'blast', [], 'en', 'x"><b>'), '/resources/');
+});
+
+// ── Learning paths (Öğrenme, Task 6b) ────────────────────────────────────────
+
+import { serializeMarkdown } from '../src/lib/cms/serialize';
+import { lpResourceTags } from '../src/data/learning-paths';
+import { LP_LEVELS, LP_TAGS, withOptions } from '../src/scripts/admin/cms-form';
+import { nextStageNumber, stageId, stageNumber } from '../src/lib/cms/slug';
+
+const LP = ['lp-domains', 'lp-levels', 'lp-roadmap'] as const;
+type LpKey = (typeof LP)[number];
+/** Both files of an lp entry written from the form's data, as approval writes them. */
+const lpFiles = (key: LpKey, data: any) => ['en', 'tr'].map((l) => serializeMarkdown(cmsType(key)!, data[l]));
+/** A synthetic level (A2): a webinar card, a Turkish link with /tr, and a card with no webinar fields. */
+const aLevel = () => {
+  const side = (lang: 'en' | 'tr') => ({
+    frontmatter: {
+      domain: 'fixture', level: 'explorer', orientation: lang === 'en' ? 'Start here.' : 'Buradan başlayın.', prerequisites: [lang === 'en' ? 'Some biology' : 'Biraz biyoloji'],
+      sections: [
+        { type: 'foundations', resources: [
+          { id: 'fx-a', title: lang === 'en' ? 'A' : 'A tr', description: 'D', tag: 'Reading', url: lang === 'en' ? '/learning-paths/fixture/' : '/tr/learning-paths/fixture/' },
+          { id: 'fx-b', title: 'B', description: 'D', tag: 'Webinar', webinarSlug: 'fx-webinar', speaker: 'Ada Örnek', year: 2024 },
+        ] },
+        { type: 'papers', resources: [] },
+      ],
+    },
+    body: '',
+  });
+  const text = (lang: 'en' | 'tr') => serializeMarkdown(cmsType('lp-levels')!, side(lang));
+  // As GET /api/cms/entry answers it: parsed from the files, with their source.
+  return JSON.parse(JSON.stringify({ en: parseMarkdown(cmsType('lp-levels')!, text('en')), tr: parseMarkdown(cmsType('lp-levels')!, text('tr')) }));
+};
+
+test('learning paths: every lp file pair goes through the form and is written back byte for byte', () => {
+  for (const key of LP) {
+    assert.ok(INDEX[key].length > 0, key);
+    for (const e of INDEX[key]) {
+      const data = pair(e.id, key);
+      const out = applyValues(MODELS[key], data, formValues(MODELS[key], data)) as any;
+      assert.deepEqual(lpFiles(key, out), [FILES[e.paths!.en!], FILES[e.paths!.tr!]], `${key} ${e.id}`);
+    }
+  }
+  const syn = aLevel();
+  assert.deepEqual(lpFiles('lp-levels', applyValues(MODELS['lp-levels'], syn, formValues(MODELS['lp-levels'], syn))), lpFiles('lp-levels', syn));
+});
+
+test('learning paths: the models mirror the schemas (tabs, enums, ids read-only, webinar fields for webinars only)', () => {
+  assert.deepEqual(LP.map((k) => MODELS[k].sub), ['ogrenme-alanlari', 'ogrenme-seviyeleri', 'yol-haritasi']);
+  assert.deepEqual([...LP_TAGS], [...lpResourceTags]);
+  assert.deepEqual([...LP_LEVELS], ['explorer', 'practitioner', 'researcher', 'specialist']);
+  const res = MODELS['lp-roadmap'].fields.find((x) => x.key === 'resources')!;
+  const id = res.fields!.find((x) => x.key === 'id')!;
+  assert.ok(id.readOnly && !id.readOnlyAfterSave, 'the id is never typed, not even for a new row');
+  assert.equal(res.identity, 'id');
+  assert.deepEqual(res.fields!.map((x) => x.key), ['id', 'title', 'description', 'tag', 'url', 'webinarSlug', 'youtubeUrl', 'speaker', 'year']);
+  assert.deepEqual(res.fields!.filter((x) => x.perLang).map((x) => x.key), ['title', 'description', 'url']);
+  for (const k of ['webinarSlug', 'youtubeUrl', 'speaker', 'year']) {
+    const fd = res.fields!.find((x) => x.key === k)!;
+    assert.ok(shown(fd, { tag: 'Webinar' }) && !shown(fd, { tag: 'Tool' }), k);
+    assert.ok(shown(fd, { tag: { en: 'Webinar', tr: 'Tool' } }), 'a split tag goes by the English side');
+  }
+  assert.deepEqual(MODELS['lp-levels'].lockedOnUpdate, ['domain', 'level']);
+  assert.deepEqual(MODELS['lp-roadmap'].lockedOnUpdate, ['number']);
+  assert.ok(MODELS['lp-roadmap'].fields.find((x) => x.key === 'number')!.readOnly, 'the server numbers a stage');
+  for (const key of LP) assert.deepEqual(cmsType(key)!.lockedKeys, MODELS[key].lockedOnUpdate ?? [], key);
+  // Every option has its words in both languages.
+  for (const key of LP) for (const fd of [...MODELS[key].fields, ...MODELS[key].fields.flatMap((x) => x.fields ?? []), ...res.fields!]) {
+    for (const o of fd.optionsFrom ? [] : fd.options ?? []) assert.ok(ui.tr[`admin.cms.opt.${o}` as keyof typeof ui.tr] && ui.en[`admin.cms.opt.${o}` as keyof typeof ui.en], `${key} ${o}`);
+  }
+  // A section's line is its kind; a resource's its title in the panel's language.
+  const sections = MODELS['lp-levels'].fields.find((x) => x.key === 'sections')!;
+  assert.equal(rowSummary(sections, { type: 'toolkit' }, 'tr'), 'toolkit');
+  assert.equal(sections.rowOption, 'type');
+  assert.equal(rowSummary(res, { id: 'x-1', title: { en: 'One', tr: 'Bir' } }, 'tr'), 'Bir');
+});
+
+test('learning paths: a new resource gets an empty id first, an empty Turkish link is the English one, the webinar fields are kept while hidden', () => {
+  const data = aLevel();
+  const model = MODELS['lp-levels'];
+  const values = copy(formValues(model, data));
+  const sections = values.sections as Row[];
+  const sres = sections[1].resources as Row[];
+  sres.push({ ...emptyRow(MODELS['lp-roadmap'].fields.find((x) => x.key === 'resources')!, true),
+    title: { en: 'Landmark', tr: 'Dönüm noktası' }, description: { en: 'Why.', tr: 'Neden.' }, tag: 'Paper', url: { en: 'https://example.org/p', tr: '' } });
+  // The webinar card becomes a tool card: its webinar fields hide, but stay.
+  (sections[0].resources as Row[])[1].tag = 'Tool';
+  const out = applyValues(model, data, values) as any;
+  for (const l of ['en', 'tr'] as const) {
+    const added = out[l].frontmatter.sections[1].resources[0];
+    assert.deepEqual(Object.keys(added), ['id', 'title', 'description', 'tag', 'url'], l);
+    assert.equal(added.id, '', 'the server gives it its id');
+    assert.equal(added.url, 'https://example.org/p', `${l}: one link for both languages`);
+    assert.equal(out[l].frontmatter.sections[0].resources[1].webinarSlug, 'fx-webinar');
+  }
+  // The /tr link of the first card is untouched on its side.
+  assert.equal(out.tr.frontmatter.sections[0].resources[0].url, '/tr/learning-paths/fixture/');
+  assert.equal(out.en.frontmatter.sections[0].resources[0].url, '/learning-paths/fixture/');
+});
+
+test('learning paths: a new level and a new stage are written with every key, in the schema\'s order', () => {
+  const level = MODELS['lp-levels'];
+  const v = { ...formValues(level, emptyData(level)), domain: { en: 'fixture', tr: 'fixture' }, level: { en: 'explorer', tr: 'explorer' }, orientation: { en: 'O.', tr: 'G.' } };
+  const out = applyValues(level, emptyData(level), v) as any;
+  for (const l of ['en', 'tr'] as const) assert.deepEqual(Object.keys(out[l].frontmatter), ['domain', 'level', 'orientation', 'prerequisites', 'sections'], l);
+  assert.deepEqual(out.en.frontmatter.prerequisites, []);
+  assert.deepEqual(out.tr.frontmatter.sections, []);
+  assert.equal(suggestedId(level, v), 'fixture-explorer');
+  const text = serializeMarkdown(cmsType('lp-levels')!, out.en);
+  const { source: _s, ...again } = parseMarkdown(cmsType('lp-levels')!, text);
+  assert.equal(serializeMarkdown(cmsType('lp-levels')!, again), text, 'in the form the normaliser checks');
+
+  const stage = MODELS['lp-roadmap'];
+  // The form opens a new stage with the number the server will give (cms.ts).
+  const base = { en: { frontmatter: { number: 9 }, body: '' }, tr: { frontmatter: { number: 9 }, body: '' } };
+  const sv = { ...formValues(stage, base), emoji: { en: '🧪', tr: '🧪' }, title: { en: 'Try it', tr: 'Deneyin' }, subtitle: { en: 'S.', tr: 'A.' }, color: { en: 'red', tr: 'red' } };
+  const st = applyValues(stage, base, sv) as any;
+  for (const l of ['en', 'tr'] as const) assert.deepEqual(Object.keys(st[l].frontmatter), ['number', 'emoji', 'title', 'subtitle', 'color', 'resources'], l);
+  assert.equal(st.tr.frontmatter.number, 9);
+  assert.equal(suggestedId(stage, sv), '09-try-it');
+  assert.equal(cmsType('lp-roadmap')!.idFrom({ frontmatter: st.en.frontmatter }), '09-try-it');
+  assert.equal(suggestedId(MODELS['lp-domains'], { name: { en: 'Systems Biology', tr: 'Sistem Biyolojisi' } }), 'systems-biology');
+});
+
+test('learning paths: stage numbers, live pages, and the domain choices', () => {
+  assert.equal(stageId(7, 'direction'), '07-direction');
+  assert.equal(stageId(12, 'x'), '12-x');
+  assert.equal(stageNumber('08-first-project'), 8);
+  assert.equal(nextStageNumber(['01-a', '02-b', '08-c']), 9, 'after the highest; a gap is not filled');
+  assert.equal(nextStageNumber([]), 1);
+  assert.equal(livePath('lp-domains', 'genomics', [], 'tr'), '/tr/learning-paths/genomics/');
+  assert.equal(livePath('lp-levels', 'metagenomics-practitioner', [], 'en'), '/learning-paths/metagenomics/?level=practitioner');
+  assert.equal(livePath('lp-levels', 'odd', [], 'en'), '/learning-paths/');
+  assert.equal(livePath('lp-roadmap', '07-direction', [], 'tr'), '/tr/learning-paths/roadmap/#tr/07-direction');
+  const m = withOptions(MODELS['lp-levels'], { 'lp-domains': [{ id: 'genomics', title: 'Genomics' }] }, { en: { frontmatter: { domain: 'old' } }, tr: { frontmatter: {} } });
+  const domain = m.fields.find((x) => x.key === 'domain')!;
+  assert.deepEqual(domain.options, ['genomics', 'old'], 'the published domains, and the entry\'s own');
+  assert.deepEqual(domain.optionLabels, { genomics: 'Genomics', old: 'old' });
+  assert.equal(withOptions(MODELS.events, {}, {}), MODELS.events);
 });

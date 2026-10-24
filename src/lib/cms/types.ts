@@ -14,9 +14,10 @@ import { webinarSchema } from "../../data/webinars";
 import { committeeSchema } from "../../data/committees";
 import { podcastSchema } from "../../data/podcast";
 import { resourceSchema } from "../../data/resources";
-import { checkId, slugify } from "./slug";
+import { lpDomainSchema, lpLevelSchema, lpRoadmapSchema } from "../../data/learning-paths";
+import { checkId, slugify, stageId } from "./slug";
 
-export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast" | "resources";
+export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap";
 
 /** What a type declares. The options after `label` have defaults (see defineType). */
 export interface CmsTypeSpec {
@@ -79,6 +80,14 @@ export interface CmsTypeSpec {
   /** Profiles of people: no @ anywhere in the file, so no e-mail address
    * (CLAUDE.md rule 4). Refused at submit. Default false. */
   noAt?: boolean;
+  /** Top-level keys an update may not change (for a pair, each side's
+   * frontmatter): the ones the file name or the page's address comes from
+   * (a level's domain and level, a roadmap stage's number). Default []. */
+  lockedKeys?: readonly string[];
+  /** Learning-path resources with progress ids (CLAUDE.md rule 8): the
+   * server gives a new resource its id and checks every id at submit and
+   * approval (functions/_lib/cms-lp.ts). Default false. */
+  resourceIds?: boolean;
   /** JSON only: the type is one file, <dir>/<fixedId>.json, in a folder that
    * may hold others (src/data). The index lists only it, and no other id is
    * an entry of the type. Default '' (every file in dir). */
@@ -100,6 +109,8 @@ export function defineType(spec: CmsTypeSpec): CmsType {
     generated: false,
     noAt: false,
     fixedId: "",
+    lockedKeys: [],
+    resourceIds: false,
     whenTaken: spec.idInData ? "refuse" : "next",
     ...spec,
   };
@@ -213,6 +224,59 @@ export const CMS_TYPES: readonly CmsType[] = [
     // A title already used is most often the same link in another section.
     idSuffix: (d: { section?: string }) => d.section,
     label: { en: "Resources", tr: "Kaynaklar" },
+  }),
+  defineType({
+    key: "lp-domains",
+    group: "ogrenme",
+    dir: "src/content/lp-domains",
+    format: "markdown-pair",
+    schema: lpDomainSchema,
+    // The file name is the domain's id: its page's address and every level's
+    // `domain`. A second domain of one name is refused, never renamed.
+    idFrom: (data: { frontmatter: { name?: string } }) => idFromText(data.frontmatter.name, "English name"),
+    idField: "en.frontmatter.name",
+    indexTitle: (fm: { name?: unknown }) => (typeof fm.name === "string" ? fm.name : undefined),
+    label: { en: "Learning-path domains", tr: "Öğrenme alanları" },
+    whenTaken: "refuse",
+  }),
+  defineType({
+    key: "lp-levels",
+    group: "ogrenme",
+    dir: "src/content/lp-levels",
+    format: "markdown-pair",
+    schema: lpLevelSchema,
+    // <domain>-<level>.md: one file per domain and level. The page finds a
+    // level by its frontmatter, so both stay as they were created.
+    idFrom: (data: { frontmatter: { domain?: string; level?: string } }) => {
+      const fm = data.frontmatter;
+      if (!fm.domain || !fm.level) throw new Error("Choose the domain and the level: the file name comes from them");
+      return checkId(`${fm.domain}-${fm.level}`);
+    },
+    idField: "en.frontmatter.domain",
+    indexTitle: (fm: { domain?: unknown; level?: unknown }) => (fm.domain && fm.level ? `${String(fm.domain)} · ${String(fm.level)}` : undefined),
+    label: { en: "Learning-path levels", tr: "Öğrenme seviyeleri" },
+    whenTaken: "refuse",
+    lockedKeys: ["domain", "level"],
+    resourceIds: true,
+  }),
+  defineType({
+    key: "lp-roadmap",
+    group: "ogrenme",
+    dir: "src/content/lp-roadmap",
+    format: "markdown-pair",
+    schema: lpRoadmapSchema,
+    // NN-slug.md, NN the stage's number: a new stage is appended (the server
+    // gives it the highest number + 1), and the number never changes (A11).
+    idFrom: (data: { frontmatter: { number?: unknown; title?: string } }) => {
+      const n = data.frontmatter.number;
+      if (typeof n !== "number" || !Number.isInteger(n) || n < 1) throw new Error("The stage has no number yet");
+      return stageId(n, idFromText(data.frontmatter.title, "title"));
+    },
+    idField: "en.frontmatter.title",
+    indexTitle: (fm: { number?: unknown; title?: unknown }) => (typeof fm.title === "string" ? `${String(fm.number ?? "")}. ${fm.title}` : undefined),
+    label: { en: "Roadmap stages", tr: "Yol haritası" },
+    lockedKeys: ["number"],
+    resourceIds: true,
   }),
 ];
 

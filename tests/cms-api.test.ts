@@ -41,8 +41,10 @@ function contentFiles(): Record<string, string> {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = readFileSync(`${ROOT}${dir}/${f}`, 'utf8');
   }
   for (const lang of ['en', 'tr']) {
-    const dir = `src/content/webinars/${lang}`;
-    for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = readFileSync(`${ROOT}${dir}/${f}`, 'utf8');
+    for (const kind of ['webinars', 'lp-domains', 'lp-levels', 'lp-roadmap']) {
+      const dir = `src/content/${kind}/${lang}`;
+      for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = readFileSync(`${ROOT}${dir}/${f}`, 'utf8');
+    }
   }
   return out;
 }
@@ -811,7 +813,7 @@ test('resources: an unknown section or a missing key is refused at submit; only 
   assert.equal((await create(env, 'editor', { type: 'resources', action: 'create', data: aResource() })).res.status, 403);
   assert.equal((await create(env, 'community', { type: 'resources', action: 'create', data: aResource() })).res.status, 403);
   const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'learning')).json() as any;
-  assert.deepEqual(listed.types.map((t: any) => t.key), ['resources']);
+  assert.deepEqual(listed.types.map((t: any) => t.key), ['resources', 'lp-domains', 'lp-levels', 'lp-roadmap']);
   const list = await (await req(env, entries.onRequestGet, 'GET', '/api/cms/entries?type=resources', 'learning')).json() as any;
   assert.deepEqual(list.entries.find((e: any) => e.id === 'fixture-resource-learning'), { id: 'fixture-resource-learning', title: 'Fixture Resource', section: 'learning' });
 });

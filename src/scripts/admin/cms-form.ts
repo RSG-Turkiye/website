@@ -17,7 +17,7 @@
 import { checkId, slugify } from '../../lib/cms/slug';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
-export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast' | 'resources';
+export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
   | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
@@ -33,6 +33,17 @@ export interface FieldDef {
   group: Group;
   /** select: the values, in order. */
   options?: readonly string[];
+  /** select: the options are the published entries of this type (a level's
+   * domain), filled in when an editor opens (withOptions). */
+  optionsFrom?: TypeKey;
+  /** select: each option's label, where it is not an i18n key (an entry's title). */
+  optionLabels?: Record<string, string>;
+  /** A pair type's per-language text: an empty Turkish value is written as
+   * the English one (a resource's link, the same in both languages unless
+   * the Turkish one adds /tr). */
+  trFallback?: boolean;
+  /** A list written even when empty (`[]`), so a new file has every key. */
+  always?: boolean;
   /** bilingual: two text areas instead of two lines. */
   multiline?: boolean;
   /** image: an object with thumb, full and alt (events), or a plain URL (webinars). */
@@ -58,6 +69,8 @@ export interface FieldDef {
   rowName?: string;
   /** objects: a collapsed row's one-line summary. Default: its first text that is filled in. */
   rowLabel?: (row: Row, lang: 'en' | 'tr') => string;
+  /** objects: a select field of the row whose option label is the row's summary (a section's type). */
+  rowOption?: string;
   /** objects: the key of the row field that names a row across versions (the diff); without it, rows are compared by position. */
   identity?: string;
   /** Shown only while this is true of the row (or, at the top, of the entry's values). A hidden field keeps its value. */
@@ -135,11 +148,47 @@ export interface TypeModel {
   hidden: Record<string, string>;
   /** The field the entry's title is read from, in the editor's heading. Default `title`. */
   titleField?: string;
+  /** Fields shown read-only once the entry exists (the registry's lockedKeys:
+   * what the file name or the page's address comes from). */
+  lockedOnUpdate?: readonly string[];
 }
 
 const EVENT_TYPES = ['symposium', 'workshop', 'hackathon', 'meetup'] as const;
 /** src/data/resources.ts's resourceSections: the page's sections, in its order. */
 export const RESOURCE_SECTIONS = ['learning', 'md-drug', 'databases', 'tools', 'community'] as const;
+/** src/data/learning-paths.ts's enums, in its order (the panel cannot import zod; tests pin them). */
+export const LP_LEVELS = ['explorer', 'practitioner', 'researcher', 'specialist'] as const;
+const LP_SECTION_TYPES = ['foundations', 'toolkit', 'webinars', 'papers'] as const;
+export const LP_TAGS = ['Reading', 'Course', 'Tutorial', 'Tool', 'Pipeline', 'Videos', 'Interactive', 'Webinar', 'Paper', 'Dataset', 'Book', 'Platform', 'Challenge', 'Action'] as const;
+const LP_COLORS = ['red', 'navy'] as const;
+const LP_NO_BODY = 'learning-path files are frontmatter only; the body is kept as it is';
+/** A shared row value, also when its two sides differ (isSplit): the English one. */
+const shared = (v: unknown): string => str(isObj(v) && Object.hasOwn(v, 'en') ? v.en : v);
+const isWebinar = (r: Row) => shared(r.tag) === 'Webinar';
+
+/**
+ * One learning-path resource card (lpResourceSchema), in the schema's
+ * order. The id is the progress key (CLAUDE.md rule 8): never typed, the
+ * server gives a new card one when it is saved. Title and description are
+ * translated; the link may differ only by /tr (an internal page); the rest
+ * is the same in both languages. The webinar fields show for a webinar.
+ */
+const LP_RESOURCE: FieldDef = {
+  key: 'resources', kind: 'objects', label: 'admin.cms.f.lpResources', group: 'main', required: true, always: true,
+  rowName: 'admin.cms.rows.resource', identity: 'id', rowLabel: (r, l) => { const t = r.title as Bi | undefined; return str(t?.[l]).trim() || str(t?.[l === 'en' ? 'tr' : 'en']).trim(); },
+  fields: [
+    { key: 'id', kind: 'text', label: 'admin.cms.f.lpId', help: 'admin.cms.h.lpId', group: 'main', readOnly: true, required: true },
+    { key: 'title', kind: 'text', perLang: true, label: 'admin.cms.f.title', group: 'main', required: true },
+    { key: 'description', kind: 'textarea', perLang: true, label: 'admin.cms.f.lpWhy', help: 'admin.cms.h.lpWhy', group: 'main', required: true },
+    { key: 'tag', kind: 'select', options: LP_TAGS, label: 'admin.cms.f.lpTag', group: 'main', required: true },
+    { key: 'url', kind: 'text', perLang: true, trFallback: true, label: 'admin.cms.f.url', help: 'admin.cms.h.lpUrl', group: 'main' },
+    { key: 'webinarSlug', kind: 'text', label: 'admin.cms.f.webinarSlug', help: 'admin.cms.h.webinarSlug', group: 'main', showIf: isWebinar },
+    { key: 'youtubeUrl', kind: 'text', label: 'admin.cms.f.youtubeUrl', help: 'admin.cms.h.lpYoutube', group: 'main', showIf: isWebinar },
+    { key: 'speaker', kind: 'text', label: 'admin.cms.f.speaker', group: 'main', showIf: isWebinar },
+    { key: 'year', kind: 'number', label: 'admin.cms.f.year', group: 'main', showIf: isWebinar },
+  ],
+};
+
 /** src/data/committees.ts, in the schema's order. */
 const SOCIAL_PLATFORMS = ['twitter', 'linkedin', 'facebook', 'github', 'instagram'] as const;
 
@@ -279,9 +328,66 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     ],
     hidden: {},
   },
+  'lp-domains': {
+    // One learning-path domain: its card on the index and the links at the
+    // bottom of its page. Each file's keys in the schema's order.
+    key: 'lp-domains', format: 'markdown-pair', sub: 'ogrenme-alanlari', group: 'ogrenme', idField: 'en.frontmatter.name', label: 'admin.cms.type.lp-domains', titleField: 'name',
+    fields: [
+      { key: 'name', kind: 'text', perLang: true, label: 'admin.cms.f.lpDomainName', group: 'main', required: true },
+      { key: 'emoji', kind: 'text', label: 'admin.cms.f.emoji', group: 'main', required: true },
+      { key: 'tagline', kind: 'textarea', perLang: true, label: 'admin.cms.f.tagline', help: 'admin.cms.h.tagline', group: 'main', required: true },
+      { key: 'order', kind: 'number', label: 'admin.cms.f.order', help: 'admin.cms.h.lpOrder', group: 'more', required: true },
+      {
+        key: 'goDeeper', kind: 'objects', label: 'admin.cms.f.goDeeper', help: 'admin.cms.h.goDeeper', group: 'main', always: true,
+        rowName: 'admin.cms.rows.link', rowLabel: (r, l) => str((r.title as Bi | undefined)?.[l]).trim(),
+        fields: [
+          { key: 'title', kind: 'text', perLang: true, label: 'admin.cms.f.title', group: 'main', required: true },
+          { key: 'description', kind: 'textarea', perLang: true, label: 'admin.cms.f.description', group: 'main', required: true },
+          { key: 'url', kind: 'text', label: 'admin.cms.f.url', group: 'main', required: true },
+        ],
+      },
+    ],
+    hidden: { body: LP_NO_BODY },
+  },
+  'lp-levels': {
+    // One domain at one level: its sections of resource cards. Domain and
+    // level make the file name and the page's place, so they are chosen once.
+    key: 'lp-levels', format: 'markdown-pair', sub: 'ogrenme-seviyeleri', group: 'ogrenme', idField: 'en.frontmatter.domain', label: 'admin.cms.type.lp-levels',
+    titleField: 'orientation', lockedOnUpdate: ['domain', 'level'],
+    fields: [
+      { key: 'domain', kind: 'select', options: [], optionsFrom: 'lp-domains', label: 'admin.cms.f.lpDomain', help: 'admin.cms.h.lpDomain', group: 'main', required: true },
+      { key: 'level', kind: 'select', options: LP_LEVELS, label: 'admin.cms.f.lpLevel', group: 'main', required: true },
+      { key: 'orientation', kind: 'textarea', perLang: true, label: 'admin.cms.f.orientation', help: 'admin.cms.h.orientation', group: 'main', required: true },
+      { key: 'prerequisites', kind: 'strings', perLang: true, label: 'admin.cms.f.prerequisites', help: 'admin.cms.h.prerequisites', group: 'main', always: true },
+      {
+        key: 'sections', kind: 'objects', label: 'admin.cms.f.lpSections', help: 'admin.cms.h.lpSections', group: 'main', required: true, always: true,
+        rowName: 'admin.cms.rows.section', rowOption: 'type',
+        fields: [
+          { key: 'type', kind: 'select', options: LP_SECTION_TYPES, label: 'admin.cms.f.lpSectionType', group: 'main', required: true },
+          LP_RESOURCE,
+        ],
+      },
+    ],
+    hidden: { body: LP_NO_BODY },
+  },
+  'lp-roadmap': {
+    // One stage of the beginner roadmap. A new stage comes last; its number
+    // is the highest + 1, set by the server, and never changes (A11).
+    key: 'lp-roadmap', format: 'markdown-pair', sub: 'yol-haritasi', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'admin.cms.type.lp-roadmap',
+    lockedOnUpdate: ['number'],
+    fields: [
+      { key: 'number', kind: 'number', label: 'admin.cms.f.stageNumber', help: 'admin.cms.h.stageNumber', group: 'main', readOnly: true },
+      { key: 'emoji', kind: 'text', label: 'admin.cms.f.emoji', group: 'main', required: true },
+      { key: 'title', kind: 'text', perLang: true, label: 'admin.cms.f.title', group: 'main', required: true },
+      { key: 'subtitle', kind: 'textarea', perLang: true, label: 'admin.cms.f.subtitle', group: 'main', required: true },
+      { key: 'color', kind: 'select', options: LP_COLORS, label: 'admin.cms.f.stageColor', help: 'admin.cms.h.stageColor', group: 'main', required: true },
+      LP_RESOURCE,
+    ],
+    hidden: { body: LP_NO_BODY },
+  },
 };
 
-export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast', 'resources'];
+export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast', 'resources', 'lp-domains', 'lp-levels', 'lp-roadmap'];
 /**
  * Models a browser check adds (tests/browser/cms-rows.mjs), so a draft of a
  * synthetic type opens in the real editor before any real type has rows.
@@ -295,6 +401,26 @@ export const modelForSub = (sub: string): TypeModel | null => TYPE_KEYS.map((k) 
 /** The model with its fields for this data: `fieldsFor`'s, or the static ones. */
 export function withFields(model: TypeModel, data: unknown): TypeModel {
   return model.fieldsFor ? { ...model, fields: model.fieldsFor(data) } : model;
+}
+
+/**
+ * The model with each `optionsFrom` select's options filled in: the
+ * published entries of that type (`sources`: id and title), plus the
+ * entry's own value when the list lacks it, so it still shows.
+ */
+export function withOptions(model: TypeModel, sources: Partial<Record<TypeKey, { id: string; title: string }[]>>, data: unknown): TypeModel {
+  if (!model.fields.some((f) => f.optionsFrom)) return model;
+  const own = (key: string) => [side(data, 'en').frontmatter[key], side(data, 'tr').frontmatter[key], isObj(data) ? data[key] : undefined]
+    .filter((v): v is string => typeof v === 'string' && v !== '');
+  return {
+    ...model,
+    fields: model.fields.map((f) => {
+      if (!f.optionsFrom) return f;
+      const list = sources[f.optionsFrom] ?? [];
+      const options = [...new Set([...list.map((e) => e.id), ...own(f.key)])];
+      return { ...f, options, optionLabels: Object.fromEntries(options.map((o) => [o, list.find((e) => e.id === o)?.title ?? o])) };
+    }),
+  };
 }
 
 /** The fields this person sees: `note` only for approvers. */
@@ -412,7 +538,8 @@ function writeOne(f: FieldDef, into: Obj, v: unknown): void {
   if (isEmptyValue(f, v)) {
     // A required box or tag list has a valid empty value (false, two empty
     // lists): written, so a new resource that is not open source passes submit.
-    if (!had && !(f.required && (f.kind === 'checkbox' || f.kind === 'bilingualStrings'))) return;
+    // So is a list marked `always` (a learning path's lists: every key in a new file).
+    if (!had && !(f.required && (f.kind === 'checkbox' || f.kind === 'bilingualStrings')) && !f.always) return;
     if (['date', 'select', 'number'].includes(f.kind) || (f.kind === 'image' && f.image === 'object')) { delete into[f.key]; return; }
     if (f.kind === 'checkbox') { into[f.key] = false; return; }
   }
@@ -504,7 +631,11 @@ function writeRow(fields: FieldDef[], row: Row, base: Obj | null, lang: 'en' | '
     if (lang && s.kind === 'objects') {
       const rows = Array.isArray(v) ? v as Row[] : [];
       if (rows.length || Object.hasOwn(out, s.key)) out[s.key] = writeRows(s, rows, out[s.key], lang, !base);
-    } else if (lang && (s.perLang || isSplit(v))) writeOne(s, out, (v as Bi<unknown> | undefined)?.[lang]);
+    } else if (lang && (s.perLang || isSplit(v))) {
+      const b = v as Bi<unknown> | undefined;
+      // An empty Turkish link is the English one (trFallback).
+      writeOne(s, out, lang === 'tr' && s.trFallback && isEmptyValue(s, b?.tr) ? b?.en : b?.[lang]);
+    }
     else writeOne(s, out, v);
   }
   if (base && sameData(out, base)) return clone(base);
@@ -590,12 +721,14 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
     // is for a required bilingualStrings field, a JSON-only kind (a pair's
     // per-language lists are perLang strings). A required checkbox is written
     // per side by writeOne either way.
-    if (f.readOnly || !Object.hasOwn(values, f.key) || untouched(f)) continue;
+    // A list marked `always` that a side lacks is written even untouched (a new file).
+    const lacking = f.always && (!Object.hasOwn(out.en.frontmatter, f.key) || !Object.hasOwn(out.tr.frontmatter, f.key));
+    if (f.readOnly || !Object.hasOwn(values, f.key) || (untouched(f) && !lacking)) continue;
     if (f.kind === 'objects') {
       const rows = Array.isArray(values[f.key]) ? values[f.key] as Row[] : [];
       for (const lang of ['en', 'tr'] as const) {
         const fm = out[lang].frontmatter;
-        if (rows.length === 0 && !Object.hasOwn(fm, f.key)) continue;
+        if (rows.length === 0 && !Object.hasOwn(fm, f.key) && !f.always) continue;
         fm[f.key] = writeRows(f, rows, fm[f.key], lang);
       }
       continue;
@@ -674,6 +807,7 @@ export function emptyRow(f: FieldDef, pair: boolean): Row {
 /** A collapsed row's one-line summary: rowLabel, else its first filled-in text, else ''. */
 export function rowSummary(f: FieldDef, row: Row, lang: 'en' | 'tr'): string {
   if (f.rowLabel) return f.rowLabel(row, lang);
+  if (f.rowOption) return shared(row[f.rowOption]);
   for (const s of f.fields ?? []) {
     const v = row[s.key];
     let text = '';
@@ -701,6 +835,13 @@ export function suggestedId(model: TypeModel, values: Values): string {
     return /^\d{4}$/.test(year) && !slug.includes(year) ? `${slug}-${year}` : slug;
   }
   if (model.key === 'workshops') return tryId(str(values.repo));
+  const en = (k: string) => str((values[k] as Bi<unknown> | undefined)?.en).trim();
+  if (model.key === 'lp-levels') return en('domain') && en('level') ? tryId(`${en('domain')}-${en('level')}`) : '';
+  if (model.key === 'lp-roadmap') {
+    const slug = tryId(en('title'));
+    // The number comes first (07-direction); the form shows the one the server will give.
+    return slug && /^\d+$/.test(en('number')) ? `${en('number').padStart(2, '0')}-${slug}` : '';
+  }
   return tryId(str((values[model.titleField ?? 'title'] as Bi | undefined)?.en));
 }
 
@@ -863,6 +1004,12 @@ export function messageKey(message: string): string {
   if (/expected true$/.test(m)) return 'admin.cms.v.consent';
   if (/^Add at least one tag$/.test(m)) return 'admin.cms.v.tagsMissing';
   if (/^Give as many Turkish tags/.test(m)) return 'admin.cms.v.tagsParity';
+  if (/^Not an id of this entry/.test(m)) return 'admin.cms.v.lpIdForeign';
+  if (/^This id is used twice/.test(m)) return 'admin.cms.v.lpIdTwice';
+  if (/same resources in the same order/.test(m)) return 'admin.cms.v.lpOrder';
+  if (/^Must be the same as in English/.test(m)) return 'admin.cms.v.lpShared';
+  if (/^Not a published domain/.test(m)) return 'admin.cms.v.lpDomain';
+  if (/^Choose the domain and the level/.test(m)) return 'admin.cms.v.required';
   return 'admin.cms.v.invalid';
 }
 
@@ -954,6 +1101,15 @@ export function livePath(typeKey: string, entryId: string, paths: string[], lang
   // Every committee is a card on the about page (no anchor there to land on).
   if (typeKey === 'committees') return `${prefix}/about/`;
   if (typeKey === 'podcast') return `${prefix}/podcast/`;
+  if (typeKey === 'lp-domains') return `${prefix}/learning-paths/${entryId}/`;
+  if (typeKey === 'lp-levels') {
+    // <domain>-<level>: the domain's page, opened at that level.
+    const cut = entryId.lastIndexOf('-');
+    const level = entryId.slice(cut + 1);
+    return cut > 0 && (LP_LEVELS as readonly string[]).includes(level) ? `${prefix}/learning-paths/${entryId.slice(0, cut)}/?level=${level}` : `${prefix}/learning-paths/`;
+  }
+  // Each stage is an element whose id is its file, with the language folder.
+  if (typeKey === 'lp-roadmap') return `${prefix}/learning-paths/roadmap/#${lang}/${entryId}`;
   const file = paths.find((p) => p.includes(`/webinars/${lang}/`));
   const slug = file ? file.slice(file.lastIndexOf('/') + 1, -'.md'.length) : entryId;
   return `${prefix}/webinars/${slug}/`;

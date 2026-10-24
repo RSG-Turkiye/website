@@ -14,6 +14,13 @@ import {
 import type { Change, EntryDiff, FileDiff, RowChange } from './cms-diff';
 
 const tk = (k: string) => t(k as never) as string;
+/** A row's one-line summary; a row named by a choice (rowOption) shows the choice's words. */
+const summaryOf = (f: FieldDef, row: Row): string => {
+  const v = rowSummary(f, row, lang());
+  return f.rowOption && v ? optionLabel(f.fields?.find((x) => x.key === f.rowOption), v) : v;
+};
+/** A select's option as words: its own label (an entry's title), else the i18n one. */
+const optionLabel = (f: FieldDef | undefined, o: string): string => f?.optionLabels?.[o] ?? tk(`admin.cms.opt.${o}`);
 const esc = (v: unknown) => escapeHtml(String(v ?? ''));
 const INPUT = 'w-full min-w-0 px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border bg-white text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid disabled:bg-[#F7F7F6] disabled:text-gray-600';
 const SMALL_BTN = BTN.ghost;
@@ -39,7 +46,7 @@ function control(f: FieldDef, v: unknown, lang: Lang | null): string {
       return wrap(`<input type="number" inputmode="numeric" ${a} value="${esc(v)}" class="${INPUT}" />`);
     case 'select':
       return wrap(`<select ${a} class="${INPUT}"><option value="">${esc(tk('admin.cms.choose'))}</option>${(f.options ?? [])
-        .map((o) => `<option value="${esc(o)}" ${o === v ? 'selected' : ''}>${esc(tk(`admin.cms.opt.${o}`))}</option>`).join('')}</select>`);
+        .map((o) => `<option value="${esc(o)}" ${o === v ? 'selected' : ''}>${esc(optionLabel(f, o))}</option>`).join('')}</select>`);
     case 'checkbox':
       return `<label class="flex items-center gap-2 min-h-11 lg:min-h-9 text-sm text-navy cursor-pointer">
         <input type="checkbox" ${a} ${v === true ? 'checked' : ''} class="w-4 h-4 rounded border-border" />${lang && lang !== 'both' ? langTag(lang) : ''}${esc(tk('admin.cms.yes'))}</label>`;
@@ -176,7 +183,7 @@ function subField(mode: Mode, f: FieldDef, row: Row): string {
  * click from opening the row (cms.ts, rowsClick).
  */
 function rowHtml(mode: Mode, f: FieldDef, row: Row, i: number, n: number, open = false): string {
-  const label = rowSummary(f, row, lang());
+  const label = summaryOf(f, row);
   const from = typeof row[ROW_FROM] === 'string' ? ` data-row-from="${esc(row[ROW_FROM])}"` : '';
   return `<details data-orow${from} class="group min-w-0 rounded-xl border border-border bg-white"${open ? ' open' : ''}>
     <summary class="flex items-center gap-1 min-h-11 lg:min-h-9 pl-3 pr-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
@@ -390,7 +397,7 @@ export function refreshRows(model: TypeModel, root: Element): void {
     for (const row of rowsOf(list)) {
       const value = readRowEl(mode, f, row);
       const label = row.querySelector(':scope > summary > [data-row-label]');
-      if (label) label.textContent = rowSummary(f, value, lang());
+      if (label) label.textContent = summaryOf(f, value);
       for (const s of f.fields ?? []) {
         if (!s.showIf) continue;
         const wrap = row.querySelector<HTMLElement>(`:scope > [data-row-body] > [data-sub-wrap="${s.key}"]`);
@@ -530,7 +537,7 @@ export function readValues(model: TypeModel, root: Element): Values {
 export function show(f: FieldDef, v: unknown): string {
   if (v === undefined || v === null || v === '') return t('admin.cms.diff.empty' as never) as string;
   if (typeof v === 'boolean') return tk(v ? 'admin.cms.yes' : 'admin.cms.no');
-  if (f.kind === 'select') return tk(`admin.cms.opt.${String(v)}`);
+  if (f.kind === 'select') return optionLabel(f, String(v));
   if (Array.isArray(v)) return v.map((x) => show(f, x)).join(', ');
   if (typeof v === 'object') {
     const o = v as Record<string, unknown>;
@@ -572,7 +579,7 @@ function changeHtml(f: FieldDef, c: Change): string {
 function rowChangeHtml(f: FieldDef, r: RowChange): string {
   const head = `<p class="flex flex-wrap items-center gap-2 min-w-0">${chip(tk(`admin.cms.diff.${r.state}`), STATE_TONE[r.state])}
     <span class="text-xs font-semibold text-gray-500">${esc(rowNum(f, r.n - 1))}</span>
-    <span class="min-w-0 text-sm text-navy [overflow-wrap:anywhere]">${esc(rowSummary(f, r.row, lang()))}</span></p>`;
+    <span class="min-w-0 text-sm text-navy [overflow-wrap:anywhere]">${esc(summaryOf(f, r.row))}</span></p>`;
   const inner = r.state === 'added' ? `<div class="pl-3 border-l-2 border-green-200">${rowAll(f, r.row)}</div>`
     : r.changes.length ? `<div class="flex flex-col gap-2 pl-3 border-l-2 border-border">${r.changes.map(({ field, changes }) =>
       `<div class="flex flex-col gap-1 min-w-0"><p class="text-xs font-semibold text-navy">${esc(tk(field.label))}</p>${changes.map((c) => changeHtml(field, c)).join('')}</div>`).join('')}</div>` : '';
@@ -593,7 +600,7 @@ export function renderDiff(diff: EntryDiff): string {
 export function showIn(mode: Mode, f: FieldDef, v: unknown): string {
   if (f.kind === 'objects') {
     const rows = Array.isArray(v) ? v as Row[] : [];
-    return rows.length ? rows.map((r, i) => `${rowNum(f, i)}: ${rowSummary(f, r, lang())}`).join('\n') : tk('admin.cms.diff.empty');
+    return rows.length ? rows.map((r, i) => `${rowNum(f, i)}: ${summaryOf(f, r)}`).join('\n') : tk('admin.cms.diff.empty');
   }
   if (leafMode(mode, f, v) === 'pair') {
     const b = v as Bi<unknown>;

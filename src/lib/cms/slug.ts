@@ -26,3 +26,20 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** A roadmap stage's file name: its number, two digits at least, then the slug (07-direction). */
+export function stageId(n: number, slug: string): string {
+  return checkId(`${String(n).padStart(2, "0")}-${slug}`);
+}
+
+/** The number a roadmap stage's file name starts with, or null. */
+export function stageNumber(id: string): number | null {
+  const m = /^(\d+)-/.exec(id);
+  return m ? Number(m[1]) : null;
+}
+
+/** A new roadmap stage's number: after the highest one (A11). Numbers left
+ * by a deleted stage are not reused, so the order of the others never moves. */
+export function nextStageNumber(ids: readonly string[]): number {
+  return Math.max(0, ...ids.map(stageNumber).filter((n): n is number => n !== null)) + 1;
+}

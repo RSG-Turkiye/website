@@ -127,3 +127,26 @@ test('resources are listed by file name with their English title and their secti
   assert.ok(expected.length > 0);
   assert.deepEqual(index.resources, expected);
 });
+
+test('learning-path entries pair by file name (they have no translationKey), titled from their own keys (A5)', () => {
+  const fm = (lines: string[]) => md(lines.join('\n'), '');
+  const files: Record<string, string> = {
+    'src/content/lp-domains/en/fx.md': fm(['name: "Fixture"', 'emoji: "🧪"', 'tagline: "T"', 'order: 1', 'goDeeper: []']),
+    'src/content/lp-domains/tr/fx.md': fm(['name: "Örnek"', 'emoji: "🧪"', 'tagline: "T"', 'order: 1', 'goDeeper: []']),
+    'src/content/lp-levels/en/fx-explorer.md': fm(['domain: "fx"', 'level: "explorer"', 'orientation: "O"', 'prerequisites: []', 'sections: []']),
+    'src/content/lp-levels/tr/fx-explorer.md': fm(['domain: "fx"', 'level: "explorer"', 'orientation: "G"', 'prerequisites: []', 'sections: []']),
+    'src/content/lp-roadmap/en/03-try.md': fm(['number: 3', 'emoji: "🧪"', 'title: "Try"', 'subtitle: "S"', 'color: "red"', 'resources: []']),
+    'src/content/lp-roadmap/tr/03-try.md': fm(['number: 3', 'emoji: "🧪"', 'title: "Dene"', 'subtitle: "S"', 'color: "red"', 'resources: []']),
+    'src/content/lp-roadmap/en/01-start.md': fm(['number: 1', 'emoji: "🧪"', 'title: "Start"', 'subtitle: "S"', 'color: "navy"', 'resources: []']),
+    'src/content/lp-roadmap/tr/01-start.md': fm(['number: 1', 'emoji: "🧪"', 'title: "Başla"', 'subtitle: "S"', 'color: "navy"', 'resources: []']),
+  };
+  const index = buildCmsIndex(files);
+  const pathsOf = (dir: string, id: string) => ({ en: `src/content/${dir}/en/${id}.md`, tr: `src/content/${dir}/tr/${id}.md` });
+  assert.deepEqual(index['lp-domains'], [{ id: 'fx', title: 'Fixture', paths: pathsOf('lp-domains', 'fx') }]);
+  assert.deepEqual(index['lp-levels'], [{ id: 'fx-explorer', title: 'fx · explorer', paths: pathsOf('lp-levels', 'fx-explorer') }]);
+  // The roadmap in its order: by file name, which starts with the number.
+  assert.deepEqual(index['lp-roadmap'], [
+    { id: '01-start', title: '1. Start', paths: pathsOf('lp-roadmap', '01-start') },
+    { id: '03-try', title: '3. Try', paths: pathsOf('lp-roadmap', '03-try') },
+  ]);
+});
