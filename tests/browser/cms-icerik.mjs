@@ -712,7 +712,6 @@ await section('X2) the author lets go of a failed draft; no removal while the en
   await r.page.close();
 });
 
-console.log('11) phone: no sideways scroll on the list, the form and the review');
 console.log('22) the old address: #icerik-etkinlikler/<rest> opens #icerik/<rest>');
 {
   const id = '00000000-0000-4000-8000-000000000501';
@@ -780,6 +779,7 @@ console.log('25) /api/cms/types fails: the list says so, it does not guess anyon
   await page.close();
 }
 
+console.log('11) phone: no sideways scroll on the list, the form and the review');
 for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));

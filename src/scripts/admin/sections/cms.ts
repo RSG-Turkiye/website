@@ -163,7 +163,7 @@ function liftBars(): void {
  * `rights`: edit and approve per group, from the live grants. Tabs follow
  * them (sections.ts); approving follows /api/cms/types, per type.
  */
-export function setupCms(opts: { rights: GroupRights; isAdmin: boolean; userId: string }): void {
+export function setupCms(opts: { rights: GroupRights; userId: string }): void {
   rights = opts.rights;
   userId = opts.userId;
   void typesLoaded();
