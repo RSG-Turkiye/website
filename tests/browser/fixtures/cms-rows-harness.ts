@@ -63,11 +63,18 @@ const PATH = {
     ] }),
   ],
 } as unknown as TypeModel;
-const fm = (lang: 'en' | 'tr') => ({ frontmatter: { title: lang === 'en' ? 'Path' : 'Yol', resources: [
-  { id: 'a-1', title: lang === 'en' ? 'Alpha' : 'Alfa', url: 'https://a', tags: ['x'] },
-  { id: 'b-2', title: lang === 'en' ? 'Beta' : 'Beta TR', url: 'https://b' },
-] }, body: '\n' });
-const PATH_DATA = { en: fm('en'), tr: fm('tr') };
+// The sides differ as real learning-path files do: a Turkish url with /tr, and a row only Turkish has.
+const PATH_DATA = {
+  en: { frontmatter: { title: 'Path', resources: [
+    { id: 'a-1', title: 'Alpha', url: 'https://a', tags: ['x'] },
+    { id: 'b-2', title: 'Beta', url: 'https://b' },
+  ] }, body: '\n' },
+  tr: { frontmatter: { title: 'Yol', resources: [
+    { id: 'a-1', title: 'Alfa', url: '/tr/a', tags: ['x'] },
+    { id: 'b-2', title: 'Beta TR', url: 'https://b' },
+    { id: 'c-3', title: 'Gama', url: '/tr/c' },
+  ] }, body: '\n' },
+};
 
 const MODELS: Record<string, { model: TypeModel; data: unknown }> = { guide: { model: GUIDE, data: GUIDE_DATA }, path: { model: PATH, data: PATH_DATA } };
 let current: { model: TypeModel; data: unknown; root: HTMLElement } | null = null;
