@@ -31,7 +31,7 @@ import { refreshCounts, noteAddress } from '../shell';
 import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
   applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKeys, modelFor, modelForSub,
-  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, MODELS,
+  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, withoutUnpublishedIds, MODELS,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
@@ -1185,7 +1185,9 @@ async function rebase(ed: Editor): Promise<void> {
     await saveNow();
     return;
   }
-  const made = await api<{ draft: Draft }>('POST', '/api/cms/drafts', { type: ed.model.key, action: 'update', entry_id: ed.draft.entry_id, data, base_shas: ed.fresh.base_shas });
+  // A new draft: ids the old one was given are not its own (A4), so its save gives those cards new ones.
+  const fresh = ed.model.fields.some((f) => f.identity === 'id' || f.fields?.some((x) => x.identity === 'id')) ? withoutUnpublishedIds(data, ed.fresh.data) : data;
+  const made = await api<{ draft: Draft }>('POST', '/api/cms/drafts', { type: ed.model.key, action: 'update', entry_id: ed.draft.entry_id, data: fresh, base_shas: ed.fresh.base_shas });
   if (!made.ok) { notice(esc(errorText(made))); return; }
   const gone = await api('DELETE', `/api/cms/drafts/${ed.draft.id}`);
   // Said on the new draft: whether the old one is gone, and the note it was sent back with.

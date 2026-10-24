@@ -856,6 +856,28 @@ export function withId(model: TypeModel, data: unknown, id: string): unknown {
   return id ? { ...data, id } : data;
 }
 
+/**
+ * `data` with every learning-path resource id that `main` (the published
+ * version) does not have emptied, for a draft started afresh on it (a
+ * rebase): the ids a discarded draft was given are that draft's only, so
+ * the new draft's save gives those cards new ones (A4).
+ */
+export function withoutUnpublishedIds(data: unknown, main: unknown): unknown {
+  const lists = (fm: unknown): Obj[][] => {
+    if (!isObj(fm)) return [];
+    if (Array.isArray(fm.sections)) return fm.sections.map((x) => (isObj(x) && Array.isArray(x.resources) ? x.resources.filter(isObj) : []));
+    return Array.isArray(fm.resources) ? [fm.resources.filter(isObj)] : [];
+  };
+  const known = new Set((['en', 'tr'] as const).flatMap((l) => lists(side(main, l).frontmatter).flat().map((r) => str(r.id))));
+  const out = clone(data);
+  for (const l of ['en', 'tr'] as const) {
+    for (const r of lists(isObj(out) && isObj(out[l]) ? (out[l] as Obj).frontmatter : null).flat()) {
+      if (typeof r.id === 'string' && r.id !== '' && !known.has(r.id)) r.id = '';
+    }
+  }
+  return out;
+}
+
 // ── Half translations ────────────────────────────────────────────────────────
 
 /** A step into a list of rows: the `objects` field and the row (0-based). */
@@ -883,6 +905,8 @@ const half = (b: Bi | undefined) => !!b && (str(b.en).trim() === '') !== (str(b.
 const flat = (x: unknown) => (Array.isArray(x) ? x.join('') : str(x));
 
 function halfOne(f: FieldDef, v: unknown, pair: boolean, top: string, trail: RowStep[] | undefined, out: Half[]): void {
+  // An empty Turkish value that is written as the English one is not missing (trFallback).
+  if (f.trFallback) return;
   const push = (sub?: string) => out.push({ key: top, label: f.label, ...(sub ? { sub } : {}), ...(trail ? { trail, leaf: f.key } : {}) });
   if (pair) {
     if (f.perLang && half({ en: flat((v as Bi<unknown>).en), tr: flat((v as Bi<unknown>).tr) })) push();

@@ -1156,7 +1156,7 @@ test('resources: the form\'s groups, the file name of a new one, its list line a
 
 import { serializeMarkdown } from '../src/lib/cms/serialize';
 import { lpResourceTags } from '../src/data/learning-paths';
-import { LP_LEVELS, LP_TAGS, withOptions } from '../src/scripts/admin/cms-form';
+import { LP_LEVELS, LP_TAGS, withOptions, withoutUnpublishedIds } from '../src/scripts/admin/cms-form';
 import { nextStageNumber, stageId, stageNumber } from '../src/lib/cms/slug';
 
 const LP = ['lp-domains', 'lp-levels', 'lp-roadmap'] as const;
@@ -1290,4 +1290,21 @@ test('learning paths: stage numbers, live pages, and the domain choices', () => 
   assert.deepEqual(domain.options, ['genomics', 'old'], 'the published domains, and the entry\'s own');
   assert.deepEqual(domain.optionLabels, { genomics: 'Genomics', old: 'old' });
   assert.equal(withOptions(MODELS.events, {}, {}), MODELS.events);
+});
+
+test('learning paths: an empty Turkish link is not a half translation; a rebase empties ids main does not have', () => {
+  const data = aLevel();
+  const values = copy(formValues(MODELS['lp-levels'], data));
+  const card = ((values.sections as Row[])[0].resources as Row[])[0];
+  card.url = { en: 'https://example.org/x', tr: '' };
+  assert.deepEqual(halfTranslated(MODELS['lp-levels'], values), []);
+  // A draft whose new card was given an id is rebased onto main: that id is the old draft's only.
+  const drafted = copy(data);
+  for (const l of ['en', 'tr'] as const) drafted[l].frontmatter.sections[1].resources.push({ id: 'new-card-abc123', title: 'N', description: 'D', tag: 'Paper' });
+  const out = withoutUnpublishedIds(drafted, data) as any;
+  for (const l of ['en', 'tr'] as const) {
+    assert.equal(out[l].frontmatter.sections[1].resources[0].id, '', l);
+    assert.equal(out[l].frontmatter.sections[0].resources[0].id, 'fx-a', 'published ids stay');
+  }
+  assert.equal(drafted.en.frontmatter.sections[1].resources[0].id, 'new-card-abc123', 'the input is not changed');
 });
