@@ -4,7 +4,7 @@ import { runGuardedWithAudit } from '../../../_lib/audit';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { fileShasOnBase } from '../../../_lib/github';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
-import { canTransition, checkSameId, fixedKeysErrors, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { canTransition, checkSameId, filesFor, fixedKeysErrors, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -14,7 +14,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   if (!found.ok) return found.response;
   if (!mayEdit(gate, found.row)) return forbidden();
   const author = await env.DB.prepare('SELECT display_name FROM profiles WHERE user_id = ?').bind(found.row.author_id).first<{ display_name: string }>();
-  return jsonResponse({ draft: draftJson({ ...found.row, author_name: author?.display_name ?? null }, true) });
+  // The files this draft would write, as the approval writes them: the
+  // approver's file diff compares them with main. Null while the data
+  // cannot be written yet (an incomplete draft).
+  let files: { path: string; content: string | null }[] | null = null;
+  try {
+    files = filesFor(found.row);
+  } catch {
+    files = null;
+  }
+  return jsonResponse({ draft: draftJson({ ...found.row, author_name: author?.display_name ?? null }, true), files });
 };
 
 /**

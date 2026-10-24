@@ -114,7 +114,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       const id = url.searchParams.get('id');
       const type = url.searchParams.get('type');
       const e = (ENTRIES[type] ?? []).find((x) => x.id === id);
-      if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas });
+      if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas, ...(state.entryFiles ? { files: state.entryFiles } : {}) });
       return json({ type, id, data: { ...SYM, id, note: undefined, start: e.date, end: undefined, title: { en: e.title, tr: e.title } }, base_shas: { [`src/content/events/${id}.json`]: `sha-${id}` } });
     }
     if (p === '/api/cms/drafts' && method === 'GET') {
@@ -136,7 +136,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
     if (m) {
       const d = state.drafts.get(m[1]);
       if (!d) return json({ error: 'Not found', code: 'not_found' }, 404);
-      if (!m[2] && method === 'GET') return json({ draft: d });
+      if (!m[2] && method === 'GET') return json({ draft: d, files: state.draftFiles ?? null });
       if (!m[2] && method === 'PATCH') {
         if (state.nextPatch) { const [s, v] = state.nextPatch; state.nextPatch = null; return json(v, s); }
         if (body.write_nonce !== undefined && body.write_nonce !== d.write_nonce) return json({ error: 'changed', code: 'draft_changed' }, 409);
@@ -544,6 +544,32 @@ await section('F5) review: an unreadable published version, a non-approver, a no
   await r.page.close();
   r = await open(browser, 'approver', '#icerik/onay/00000000-0000-4000-8000-0000000003ff', { width: 1440, height: 900 });
   ok(await waitFor(r.page, () => !!document.querySelector('#cmsNotice [data-cms-to-drafts]')), 'a missing draft on onay/ links to Taslaklarım');
+  await r.page.close();
+});
+
+await section('F12) review: "Dosya farkı" under the fields, and a warning when the file changes but no field does', async () => {
+  const id = '00000000-0000-4000-8000-000000000306';
+  const main = `${JSON.stringify(SYM, null, 2)}\n`;
+  const mk = (s, data, after) => {
+    s.drafts.set(id, draftRow({ id, status: 'submitted', entry_id: 'symposium-2026', data, base_shas: { [PATH]: 'sha-1' } }));
+    s.entryFiles = { [PATH]: main };
+    s.draftFiles = [{ path: PATH, content: after }];
+  };
+  // Same data, different bytes (say a key the form does not show).
+  let r = await open(browser, 'approver', `#icerik/onay/${id}`, { width: 1440, height: 900 }, (s) => mk(s, SYM, main.replace('"note"', '"extra": 1,\n  "note"')));
+  ok(await waitFor(r.page, () => !!document.querySelector('[data-cms-hidden-changes]')), '"Dosyada formda görünmeyen değişiklikler var"');
+  ok((await r.page.textContent('[data-cms-hidden-changes]')).includes('Dosyada formda görünmeyen değişiklikler var'), 'in those words');
+  ok(await r.page.locator('[data-cms-file-diff]').evaluate((d) => d.open), 'the file diff is open');
+  ok((await r.page.textContent('[data-cms-file-diff]')).includes('"extra": 1'), 'and shows the added line');
+  ok(await r.page.locator('#cmsApprove').isEnabled(), 'the approver can approve after reading it');
+  await r.page.close();
+  // A field change: the file diff is there, closed, with no warning.
+  const changed = { ...SYM, when: { ...SYM.when, tr: 'y' } };
+  r = await open(browser, 'approver', `#icerik/onay/${id}`, { width: 1440, height: 900 }, (s) => mk(s, changed, `${JSON.stringify(changed, null, 2)}\n`));
+  await r.page.waitForSelector('[data-cms-file-diff]');
+  ok(!(await r.page.locator('[data-cms-file-diff]').evaluate((d) => d.open)) && await r.page.locator('[data-cms-hidden-changes]').count() === 0, 'closed and no warning when a field explains it');
+  await r.page.click('[data-cms-file-diff] > summary');
+  ok((await r.page.textContent('[data-cms-file-diff]')).includes('Dosya farkı') && (await r.page.textContent('[data-cms-file-diff]')).includes(PATH), 'opens to the file\'s path and lines');
   await r.page.close();
 });
 

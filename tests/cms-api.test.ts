@@ -1696,3 +1696,22 @@ test('the registry\'s defaults keep the Etkinlikler types as they were', () => {
   assert.deepEqual(['events', 'workshops', 'webinars'].map((k) => cmsType(k)!.idField), ['id', 'repo', 'en.frontmatter.title']);
   assert.equal(cmsType('testposts'), null, 'test types are gone after the tests');
 });
+
+// ── Task 2 fix round 1: the files an approver can compare ─────────────────────
+
+test('entry also answers each file as it is on main, and a draft the files it would write', async () => {
+  const { env } = setup();
+  const path = 'src/content/events/symposium-2026.json';
+  const ev = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=symposium-2026', 'editor')).json() as any;
+  assert.deepEqual(ev.files, { [path]: FILES[path] });
+  const w = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=integrative-modeling-of-biomolecular-complexes', 'editor')).json() as any;
+  const tr = 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md';
+  assert.equal(w.files[tr], FILES[tr]);
+
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'x' }, base_shas: loaded(path) });
+  const got = await (await on(env, draft.onRequestGet, 'GET', body.draft.id, 'editor')).json() as any;
+  assert.deepEqual(got.files, [{ path, content: serializeJson(EVENTS, { ...symposium2026(), note: 'x' }) }]);
+  // The drafts list stays light: no files there.
+  const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor')).json() as any;
+  assert.ok(list.mine.every((d: any) => !('files' in d)));
+});

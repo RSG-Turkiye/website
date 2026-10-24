@@ -35,8 +35,8 @@ import {
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
-import { diffEntry } from '../cms-diff';
-import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll, renderDiff, renderField, rowsClick, show, showIn } from '../cms-render';
+import { diffEntry, fileDiffs, hiddenFileChanges } from '../cms-diff';
+import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll, renderDiff, renderField, renderFileDiff, rowsClick, show, showIn } from '../cms-render';
 
 const SECTION = '#icerik';
 const PAGE = 20;
@@ -1261,7 +1261,7 @@ async function openReview(id: string, route: string): Promise<void> {
   $('cmsForm')!.classList.add('hidden');
   const placeholder = newEditor(LOADING_MODEL, route, {}, { readOnly: true });
   editor = placeholder;
-  const r = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
+  const r = await api<{ draft: Draft; files?: { path: string; content: string | null }[] | null }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
   if (editor !== placeholder) return;
   if (!r.ok) {
     head({ title: tk('admin.cms.goneTitle'), back });
@@ -1278,13 +1278,14 @@ async function openReview(id: string, route: string): Promise<void> {
   await loadEntries(model);
   if (editor !== placeholder) return;
   let published: unknown = null;
+  let mainFiles: Record<string, string | null> | null = null;
   // Without the published version there is nothing to compare with (or, for
   // a delete, nothing to show): no approval on a guess.
   let unreadable = false;
   if (draft.action !== 'create') {
-    const e = await api<{ data: unknown }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(draft.entry_id)}`);
+    const e = await api<{ data: unknown; files?: Record<string, string | null> }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(draft.entry_id)}`);
     if (editor !== placeholder) return;
-    if (e.ok) published = e.body.data;
+    if (e.ok) { published = e.body.data; mainFiles = e.body.files ?? null; }
     else unreadable = true;
   }
   const ed = newEditor(model, route, draft.data ?? {}, { draft, readOnly: true });
@@ -1294,6 +1295,7 @@ async function openReview(id: string, route: string): Promise<void> {
   const title = titleFrom(model, values) || titleOf(draft.type, draft.entry_id, draft.action);
   head({ title, back, chipHtml: statusChip(draft), line: `${tk(model.label)} · ${tk('admin.cms.sentBy', { name: draft.author_name || tk('admin.cms.anEditor'), time: when(draft.updated_at) })}` });
   let bodyHtml: string;
+  let fileHtml = '';
   let nothing = false;
   // The note is an approver's field; a change to it alone is a change.
   let noteChanged = false;
@@ -1311,6 +1313,13 @@ async function openReview(id: string, route: string): Promise<void> {
     bodyHtml = nothing ? `<p class="text-sm text-gray-600">${esc(tk('admin.cms.review.nothing'))}</p>`
       : `<p class="text-sm font-semibold text-navy">${esc(tk('admin.cms.review.changed', { n: diff.changed.length }))}</p>
         <div class="flex flex-wrap gap-1 mt-1 mb-2">${diff.changed.map((c) => chip(tk(c.field.label), 'navy')).join('')}</div>${renderDiff(diff)}`;
+    // Under the fields, the files themselves: bytes the form does not show
+    // are never approved unseen. Changed bytes with no changed field are
+    // shown open, with a warning, and can be approved after reading them.
+    const files = fileDiffs(mainFiles, r.body.files);
+    const hidden = hiddenFileChanges(files, diff);
+    if (hidden) nothing = false;
+    fileHtml = renderFileDiff(files, hidden);
   }
   // The approvers' own field (events' internal note), shown beside the changes.
   const noteField = model.fields.find((f) => f.approverOnly);
@@ -1324,7 +1333,7 @@ async function openReview(id: string, route: string): Promise<void> {
   if (stale) nothing = unreadable;
   $('cmsReview')!.innerHTML = `<div class="bg-white rounded-2xl border border-border p-4 lg:p-3">${bodyHtml}
       ${note ? `<div class="mt-3 rounded-lg bg-[#F7F7F6] px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(tk('admin.cms.f.note'))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(note)}</p></div>` : ''}
-    </div>
+    </div>${fileHtml}
     ${waiting ? `<div data-cms-sticky class="sticky bottom-0 lg:-bottom-1 z-10 mt-3 -mx-1 px-1 py-2 bg-[#F7F7F6] border-t border-border">
       <div id="cmsRejectBox" class="hidden mb-2 bg-white rounded-xl border border-border p-3 lg:p-2">
         <label for="cmsRejectNote" class="text-xs font-medium text-gray-600">${esc(tk('admin.cms.reject.note'))}</label>
