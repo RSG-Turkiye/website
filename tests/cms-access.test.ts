@@ -5,12 +5,18 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { call } from './lib/social';
 import { groupRights, rightsFromRoles, canOpenAdminPanel } from '../functions/_lib/cms-access';
+import { CMS_GROUPS } from '../functions/_lib/roles';
 import { canSeeAdminPanel, type User } from '../functions/_lib/auth';
 import * as view from '../functions/api/audit/view';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
 const ORIGIN = { Origin: 'https://rsg-turkiye.iscbsc.org' };
 const NOW = 2_000_000_000;
+const NONE = { edit: false, approve: false };
+/** Every group with no rights, except those given. */
+const only = (given: Record<string, { edit: boolean; approve: boolean }> = {}) =>
+  Object.fromEntries(CMS_GROUPS.map((g) => [g, given[g] ?? NONE]));
+const ALL = Object.fromEntries(CMS_GROUPS.map((g) => [g, { edit: true, approve: true }]));
 
 function setup() {
   const db = new DatabaseSync(':memory:');
@@ -32,20 +38,24 @@ function setup() {
 
 test('groupRights: admin, editor, approver, and an editor whose grant has run out', async () => {
   const { env, user } = setup();
-  assert.deepEqual(await groupRights(env.DB, user('admin'), NOW), { etkinlikler: { edit: true, approve: true } });
-  assert.deepEqual(await groupRights(env.DB, user('editor'), NOW), { etkinlikler: { edit: true, approve: false } });
+  assert.deepEqual(await groupRights(env.DB, user('admin'), NOW), ALL);
+  assert.deepEqual(await groupRights(env.DB, user('editor'), NOW), only({ etkinlikler: { edit: true, approve: false } }));
   // An approver can do everything an editor can.
-  assert.deepEqual(await groupRights(env.DB, user('approver'), NOW), { etkinlikler: { edit: true, approve: true } });
-  assert.deepEqual(await groupRights(env.DB, user('lapsed'), NOW), { etkinlikler: { edit: false, approve: false } });
-  assert.deepEqual(await groupRights(env.DB, user('nobody'), NOW), { etkinlikler: { edit: false, approve: false } });
+  assert.deepEqual(await groupRights(env.DB, user('approver'), NOW), only({ etkinlikler: { edit: true, approve: true } }));
+  assert.deepEqual(await groupRights(env.DB, user('lapsed'), NOW), only());
+  assert.deepEqual(await groupRights(env.DB, user('nobody'), NOW), only());
 });
 
 test('rightsFromRoles ignores roles of other groups and look-alikes', () => {
-  assert.deepEqual(rightsFromRoles(['content.blog.edit', 'writer', 'content.etkinlikler.editor'], false), { etkinlikler: { edit: false, approve: false } });
+  assert.deepEqual(rightsFromRoles(['content.blog.edit', 'writer', 'content.etkinlikler.editor', 'content.yazilar'], false), only());
+  assert.deepEqual(rightsFromRoles(['content.yazilar.edit'], false), only({ yazilar: { edit: true, approve: false } }));
 });
 
 test('a content-only editor passes canSeeAdminPanel', async () => {
-  const { env, user } = setup();
+  const { db, env, user } = setup();
+  db.prepare('INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES (?, ?, ?, NULL, NULL, 1)').run('g9', 'nobody', 'content.sayfalar.edit');
+  assert.equal(await canOpenAdminPanel(env.DB, user('nobody'), NOW), true, 'any group opens the panel');
+  db.prepare('DELETE FROM role_grants WHERE id = ?').run('g9');
   const none = user('nobody');
   assert.equal(canSeeAdminPanel(none), false);
   assert.equal(canSeeAdminPanel(none, true), true);

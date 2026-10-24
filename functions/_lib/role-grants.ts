@@ -51,6 +51,7 @@ export async function grantRole(
 ): Promise<void> {
   const def = roleDef(p.role);
   if (!def) throw new Error(`unknown role: ${p.role}`);
+  if (def.retired) throw new Error(`retired role: ${p.role}`);
   const statements: D1PreparedStatement[] = [];
   let kept = false;
   for (const role of [def.key, ...(def.implies ?? [])]) {

@@ -2,8 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SECTIONS, GROUPS, visibleSections, subsFor, landing, rolesFromMe, defaultSentScope, type RoleFlags } from '../src/scripts/admin/sections';
 import { ui } from '../src/i18n/ui';
+import { CMS_GROUPS } from '../functions/_lib/roles';
 
-const noCms = { etkinlikler: { edit: false, approve: false } };
+const NO = { edit: false, approve: false };
+/** Content rights in every group: none, except those given. */
+const cmsOnly = (given: Record<string, { edit: boolean; approve: boolean }> = {}) =>
+  Object.fromEntries(CMS_GROUPS.map((g) => [g, given[g] ?? NO])) as RoleFlags['cms'];
+const allCms = cmsOnly(Object.fromEntries(CMS_GROUPS.map((g) => [g, { edit: true, approve: true }])));
+const noCms = cmsOnly();
 const none: RoleFlags = { admin: false, announcer: false, symposium: false, social: false, socialPublisher: false, sender: false, cms: noCms, canGrant: [] };
 const ids = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
@@ -60,8 +66,8 @@ test('the approval sub-page is for publishers', () => {
 });
 
 test('roles come from /api/me; a publisher is also a social editor', () => {
-  assert.deepEqual(rolesFromMe({ is_admin: true, is_social_publisher: true }), { admin: true, announcer: false, symposium: false, social: true, socialPublisher: true, sender: false, cms: { etkinlikler: { edit: true, approve: true } }, canGrant: [] });
-  assert.deepEqual(rolesFromMe({ is_admin: 1 }), { ...none, admin: true, cms: { etkinlikler: { edit: true, approve: true } } });
+  assert.deepEqual(rolesFromMe({ is_admin: true, is_social_publisher: true }), { admin: true, announcer: false, symposium: false, social: true, socialPublisher: true, sender: false, cms: allCms, canGrant: [] });
+  assert.deepEqual(rolesFromMe({ is_admin: 1 }), { ...none, admin: true, cms: allCms });
   assert.equal(rolesFromMe({ is_sender: 1 }).sender, true);
   assert.equal(rolesFromMe({ is_sender: true }).sender, true);
 });
@@ -106,10 +112,10 @@ test('the Sosyal menu badge counts approvals plus unread DMs; the DM tab keeps i
 
 test('content rights come from the live grants /api/me carries', () => {
   const editor = rolesFromMe({ grants: [{ role: 'content.etkinlikler.edit', expires_at: 1 }] });
-  assert.deepEqual(editor.cms, { etkinlikler: { edit: true, approve: false } });
+  assert.deepEqual(editor.cms, cmsOnly({ etkinlikler: { edit: true, approve: false } }));
   assert.deepEqual(editor.canGrant, []);
   const approver = rolesFromMe({ grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] });
-  assert.deepEqual(approver.cms, { etkinlikler: { edit: true, approve: true } });
+  assert.deepEqual(approver.cms, cmsOnly({ etkinlikler: { edit: true, approve: true } }));
   assert.deepEqual(approver.canGrant, ['content.etkinlikler.edit']);
   assert.deepEqual(rolesFromMe({ grants: 'nonsense' }).cms, noCms);
   assert.deepEqual(rolesFromMe({}).canGrant, []);

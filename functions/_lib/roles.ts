@@ -6,7 +6,7 @@ import { TR_OFFSET } from './stats';
 
 export type RoleKey =
   | 'admin' | 'announcer' | 'writer' | 'sender' | 'symposium' | 'social' | 'social_publisher'
-  | 'content.etkinlikler.edit' | 'content.etkinlikler.approve';
+  | `content.${CmsGroup}.edit` | `content.${CmsGroup}.approve`;
 
 export interface RoleDef {
   key: RoleKey;
@@ -18,25 +18,34 @@ export interface RoleDef {
   implies?: RoleKey[];
   /** Holding this role lets a non-admin grant this one, for one month. */
   approverRole?: RoleKey;
+  /** No longer granted by anyone (resolveExpiry and grantRole refuse it).
+   * Kept in the catalog so live grants can still be revoked and the role
+   * history still reads. */
+  retired?: true;
 }
+
+/** The content groups of the panel CMS. A group's rights are its content.<group>.* roles. */
+export const CMS_GROUPS = ['etkinlikler', 'yazilar', 'ogrenme', 'topluluk', 'sayfalar'] as const;
+export type CmsGroup = (typeof CMS_GROUPS)[number];
+export type GroupRights = Record<CmsGroup, { edit: boolean; approve: boolean }>;
 
 export const ROLES: readonly RoleDef[] = [
   { key: 'admin', level: 'leader', column: 'is_admin' },
   { key: 'announcer', level: 'leader', column: 'is_announcer' },
   { key: 'symposium', level: 'leader', column: 'is_symposium' },
   { key: 'social_publisher', level: 'leader', column: 'is_social_publisher', implies: ['social'] },
-  { key: 'writer', level: 'edit', column: 'is_writer' },
+  // Retired: blog posts are written in the panel CMS (content.yazilar.*).
+  { key: 'writer', level: 'edit', column: 'is_writer', retired: true },
   { key: 'sender', level: 'edit', column: 'is_sender' },
   { key: 'social', level: 'edit', column: 'is_social' },
-  // Content groups (the panel CMS). No column: they live in role_grants only.
-  { key: 'content.etkinlikler.approve', level: 'leader' },
-  { key: 'content.etkinlikler.edit', level: 'edit', approverRole: 'content.etkinlikler.approve' },
+  // Content groups (the panel CMS), two roles each. No column: they live in
+  // role_grants only. Approve is a leader role only an admin grants; edit
+  // runs a month, and the group's approver may grant it too.
+  ...CMS_GROUPS.flatMap((g): RoleDef[] => [
+    { key: `content.${g}.approve`, level: 'leader' },
+    { key: `content.${g}.edit`, level: 'edit', approverRole: `content.${g}.approve` },
+  ]),
 ];
-
-/** The content groups of the panel CMS. A group's rights are its content.<group>.* roles. */
-export const CMS_GROUPS = ['etkinlikler'] as const;
-export type CmsGroup = (typeof CMS_GROUPS)[number];
-export type GroupRights = Record<CmsGroup, { edit: boolean; approve: boolean }>;
 
 /**
  * What a set of live roles allows in each content group. Approvers can do
@@ -91,7 +100,7 @@ export function defaultDuration(def: RoleDef): Duration {
 
 export type ExpiryResult =
   | { ok: true; expiresAt: number | null }
-  | { ok: false; code: 'too_long' | 'permanent_not_allowed' | 'in_the_past' | 'bad_duration' | 'not_allowed' };
+  | { ok: false; code: 'too_long' | 'permanent_not_allowed' | 'in_the_past' | 'bad_duration' | 'not_allowed' | 'retired' };
 
 const OFFERED_MONTHS = [1, 2, 3, 6, 12];
 
@@ -116,7 +125,8 @@ export function addMonths(ts: number, months: number): number {
  * Whether `granter` may grant `def` for `d`, and when it then ends. An admin
  * is bound only by the role's level. Anyone else may grant just the role
  * whose approver role they hold, for at most a month, so an approver can
- * cover for an editor but never widen access on their own.
+ * cover for an editor but never widen access on their own. A retired role
+ * is granted by nobody.
  */
 export function resolveExpiry(
   def: RoleDef,
@@ -124,6 +134,7 @@ export function resolveExpiry(
   now: number,
   granter: { isAdmin: boolean; activeRoles: string[] },
 ): ExpiryResult {
+  if (def.retired) return { ok: false, code: 'retired' };
   const delegated = !granter.isAdmin;
   if (delegated && !(def.approverRole && granter.activeRoles.includes(def.approverRole))) {
     return { ok: false, code: 'not_allowed' };
