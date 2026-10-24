@@ -46,8 +46,11 @@ export const lpResourceTags = [
 export const lpResourceSchema = z.object({
   // The key members' progress is saved under, so it must never change once
   // published: reorder, insert or delete freely, but leave every id alone.
-  // A new resource gets any new unique id (letters, digits, - and _), the
-  // same in en/ and tr/. Turkish pages store it with a "tr-" prefix.
+  // A new resource gets a new unique id (letters, digits, - and _); the
+  // panel gives one itself (functions/_lib/cms-lp.ts). The en/ and tr/ files
+  // carry the identical id. Only when a Turkish page saves progress does it
+  // add "tr-" in front (src/lib/learning-paths.ts strips it), so an id never
+  // starts with "tr-" itself.
   // Existing ids look positional because they were seeded from the old
   // position-based keys; they are not positions any more.
   id: z.string().regex(/^[a-z0-9_-]+$/i).max(110),
