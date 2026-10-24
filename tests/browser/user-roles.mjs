@@ -47,7 +47,7 @@ const usersRoute = async (r) => {
     const url = new URL(r.request().url());
     const roles = url.searchParams.get('filter') === 'roles';
     const q = (url.searchParams.get('search') ?? '').toLowerCase();
-    const list = roles ? [...users, ...holders].filter((u) => u.is_writer || u.is_symposium || u.is_admin || u.grants?.some((g) => g.role.startsWith('content.')))
+    const list = roles ? [...users, ...holders].filter((u) => u.is_writer || u.is_social || u.is_symposium || u.is_admin || u.grants?.some((g) => g.role.startsWith('content.')))
       : [...users, ...holders].filter((u) => !q || `${u.email} ${u.display_name}`.toLowerCase().includes(q));
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ users: list, badge_catalog: [] }) });
   }
@@ -63,10 +63,12 @@ await page.route('**/api/admin/users**', usersRoute);
 const NOW = Math.floor(Date.now() / 1000);
 const DAY = 86400;
 const holders = [
-  { id: 'u3', email: 'yazar@example.org', display_name: 'Yazar Kişi', is_member: 1, is_writer: 1, created_at: 1,
+  { id: 'u3', email: 'yazar@example.org', display_name: 'Yazar Kişi', is_member: 1, is_social: 1, created_at: 1,
+    grants: [{ role: 'social', expires_at: NOW + 20 * DAY }] },
+  { id: 'u4', email: 'yakinda@example.org', display_name: 'Süresi Yakın', is_member: 1, is_social: 1, created_at: 1,
+    grants: [{ role: 'social', expires_at: NOW + 3 * DAY }] },
+  { id: 'u8', email: 'eski@example.org', display_name: 'Eski Yazar', is_member: 1, is_writer: 1, created_at: 1,
     grants: [{ role: 'writer', expires_at: NOW + 20 * DAY }] },
-  { id: 'u4', email: 'yakinda@example.org', display_name: 'Süresi Yakın', is_member: 1, is_writer: 1, created_at: 1,
-    grants: [{ role: 'writer', expires_at: NOW + 3 * DAY }] },
   { id: 'u5', email: 'kalici@example.org', display_name: 'Kalıcı Admin', is_member: 1, is_admin: 1, created_at: 1,
     grants: [{ role: 'admin', expires_at: null }] },
   // Picked as a date: ends at 00:00 Istanbul, ten days on.
@@ -129,7 +131,7 @@ ok(!(await rowText()).includes('Symposium'), 'rozet kalktı');
 console.log('5) süreli yetkiler (Yetkiler sekmesi)');
 bodies.length = 0; // parts 3 and 4 sent their own
 await page.goto(BASE + '/admin#kullanicilar/yetkiler', { waitUntil: 'networkidle' });
-await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person="u3"]');
+await page.waitForSelector('#rolesView [data-role-card="is_social"] [data-person="u3"]');
 const chipText = (card, id) => page.textContent(`#rolesView [data-role-card="${card}"] [data-person="${id}"]`).then((s) => (s ?? '').replace(/\s+/g, ' '));
 const istanbulDay = (ts) => new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', timeZone: 'Europe/Istanbul' });
 const u6End = holders.find((h) => h.id === 'u6').grants[0].expires_at;
@@ -138,14 +140,20 @@ ok(await page.locator('#rolesView [data-role-card="content.etkinlikler.approve"]
 const u6Chip = await chipText('is_symposium', 'u6');
 ok(u6Chip.includes(` ${istanbulDay(u6End - 1)} `) && !u6Chip.includes(` ${istanbulDay(u6End)} `),
   `gece yarısı biten yetki son günü gösterir (${istanbulDay(u6End - 1)}): "${u6Chip.trim()}"`);
-const writerChip = await chipText('is_writer', 'u3');
+const writerChip = await chipText('is_social', 'u3');
 ok(/\d/.test(writerChip) && writerChip.includes(istanbulDay(NOW + 20 * DAY)), `bitiş tarihi çipte görünür: "${writerChip.trim()}"`);
 const adminChip = await chipText('is_admin', 'u5');
 ok(!/\d/.test(adminChip), `süresiz yetkide tarih yok: "${adminChip.trim()}"`);
-ok(await page.locator('#rolesView [data-role-card="is_writer"] [data-person="u4"][data-ends-soon]').count() === 1, '7 gün içinde biten çip amber');
-ok(await page.locator('#rolesView [data-role-card="is_writer"] [data-person="u3"][data-ends-soon]').count() === 0, '20 gün kalan çip amber değil');
-ok(await page.locator('#rolesView [data-role-card="is_writer"] [data-person="u3"] [data-renew]').count() === 1, 'süreli çipte Yenile var');
+ok(await page.locator('#rolesView [data-role-card="is_social"] [data-person="u4"][data-ends-soon]').count() === 1, '7 gün içinde biten çip amber');
+ok(await page.locator('#rolesView [data-role-card="is_social"] [data-person="u3"][data-ends-soon]').count() === 0, '20 gün kalan çip amber değil');
+ok(await page.locator('#rolesView [data-role-card="is_social"] [data-person="u3"] [data-renew]').count() === 1, 'süreli çipte Yenile var');
 ok(await page.locator('#rolesView [data-role-card="is_admin"] [data-person="u5"] [data-renew]').count() === 0, 'süresiz çipte Yenile yok');
+// writer is retired: its card shows only while someone holds it, to take it away; no add, no renew.
+const retiredCard = '#rolesView [data-role-card="is_writer"]';
+ok(await page.locator(`${retiredCard} [data-person="u8"]`).count() === 1, 'emekli yazar kartı, yetkiyi tutan kişiyle görünür');
+ok(await page.locator(`${retiredCard} [data-person="u8"] [data-remove]`).count() === 1, 'emekli yetki kaldırılabilir');
+ok(await page.locator(`${retiredCard} [data-person="u8"] [data-renew]`).count() === 0, 'emekli yetkide Yenile yok');
+ok(await page.locator(`${retiredCard} [data-add-role]`).count() === 0, 'emekli yetkiye kişi eklenmez');
 
 // Opens the add box of a card, searches and picks the first match.
 async function pick(card, q, id) {
@@ -158,13 +166,13 @@ async function pick(card, q, id) {
 const options = (card) => page.$$eval(`#rolesView [data-role-card="${card}"] [data-duration] option`, (os) => os.map((o) => o.value));
 const ymd = (ts) => new Date(ts * 1000).toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
 
-await pick('is_writer', 'organiser', 'u2');
+await pick('is_social', 'organiser', 'u2');
 ok(bodies.length === 0, 'sonuca tıklamak henüz bir şey göndermez');
-const writerOpts = await options('is_writer');
+const writerOpts = await options('is_social');
 ok(JSON.stringify(writerOpts) === JSON.stringify(['1', 'date']), `yazar için yalnız 1 ay ve tarih: ${JSON.stringify(writerOpts)}`);
-ok(await page.$eval('#rolesView [data-role-card="is_writer"] [data-duration]', (s) => s.value) === '1', 'yazar için varsayılan 1 ay');
-await page.selectOption('#rolesView [data-role-card="is_writer"] [data-duration]', 'date');
-const until = page.locator('#rolesView [data-role-card="is_writer"] [data-until]');
+ok(await page.$eval('#rolesView [data-role-card="is_social"] [data-duration]', (s) => s.value) === '1', 'yazar için varsayılan 1 ay');
+await page.selectOption('#rolesView [data-role-card="is_social"] [data-duration]', 'date');
+const until = page.locator('#rolesView [data-role-card="is_social"] [data-until]');
 ok(await until.isVisible(), 'tarih seçilince tarih alanı görünür');
 const max = await until.getAttribute('max');
 const min = await until.getAttribute('min');
@@ -179,7 +187,7 @@ const limit = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, Math.min(d0.ge
   d0.getUTCHours(), d0.getUTCMinutes(), d0.getUTCSeconds()) / 1000 - TR;
 ok(max === ymd(limit - DAY), `en geç tarih izin verilen son gün: max=${max}, beklenen ${ymd(limit - DAY)}`);
 ok(min === ymd(NOW), `en erken tarih bugün: min=${min}`);
-await page.click('#rolesView [data-role-card="is_writer"] [data-picker-confirm]');
+await page.click('#rolesView [data-role-card="is_social"] [data-picker-confirm]');
 for (let i = 0; i < 60 && !bodies.length; i++) await new Promise((r) => setTimeout(r, 50));
 const sent = bodies[0]?.duration?.until;
 ok(typeof sent === 'number' && sent > NOW && sent <= limit, `sunucu kabul eder: until=${sent} <= ${limit}`);
@@ -198,13 +206,13 @@ ok(JSON.stringify(bodies[0]) === JSON.stringify({ user_id: 'u2', action: 'make_s
   `3 ay ile ekleme gönderir: ${JSON.stringify(bodies[0])}`);
 
 console.log('6) yenile');
-await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person="u3"] [data-renew]');
-await page.click('#rolesView [data-role-card="is_writer"] [data-person="u3"] [data-renew]');
-await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-duration]', { timeout: 3000 }).catch(() => {});
-ok(JSON.stringify(await options('is_writer')) === JSON.stringify(['1', 'date']), 'yenilemede de yalnız 1 ay ve tarih');
-await page.click('#rolesView [data-role-card="is_writer"] [data-picker-confirm]');
+await page.waitForSelector('#rolesView [data-role-card="is_social"] [data-person="u3"] [data-renew]');
+await page.click('#rolesView [data-role-card="is_social"] [data-person="u3"] [data-renew]');
+await page.waitForSelector('#rolesView [data-role-card="is_social"] [data-duration]', { timeout: 3000 }).catch(() => {});
+ok(JSON.stringify(await options('is_social')) === JSON.stringify(['1', 'date']), 'yenilemede de yalnız 1 ay ve tarih');
+await page.click('#rolesView [data-role-card="is_social"] [data-picker-confirm]');
 for (let i = 0; i < 60 && bodies.length < 2; i++) await new Promise((r) => setTimeout(r, 50));
-ok(JSON.stringify(bodies[1]) === JSON.stringify({ user_id: 'u3', action: 'make_writer', duration: { months: 1 } }),
+ok(JSON.stringify(bodies[1]) === JSON.stringify({ user_id: 'u3', action: 'make_social', duration: { months: 1 } }),
   `yenile aynı kuralla gönderir: ${JSON.stringify(bodies[1])}`);
 
 await page.waitForSelector('#rolesView [data-role-card="is_symposium"] [data-person="u6"] [data-renew]');
@@ -225,16 +233,16 @@ console.log('7) sunucunun 400 kodu son sözdür');
 await page.route('**/api/admin/users**', (r) => r.request().method() === 'PATCH'
   ? r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Invalid duration', code: 'too_long' }) })
   : r.fallback());
-await page.click('#rolesView [data-role-card="is_writer"] [data-person="u4"] [data-renew]');
-await page.click('#rolesView [data-role-card="is_writer"] [data-picker-confirm]');
+await page.click('#rolesView [data-role-card="is_social"] [data-person="u4"] [data-renew]');
+await page.click('#rolesView [data-role-card="is_social"] [data-picker-confirm]');
 const toast = await page.waitForSelector('#toastStack [role="alert"]', { timeout: 3000 }).then((e) => e.textContent()).catch(() => '');
 ok(!!toast && toast !== 'Invalid duration', `ret iletisi çevrilmiş olarak gösterilir: "${toast}"`);
-ok(await page.locator('#rolesView [data-role-card="is_writer"] [data-picker-confirm]').isEnabled(), 'ret sonrası düğme yeniden kullanılabilir');
+ok(await page.locator('#rolesView [data-role-card="is_social"] [data-picker-confirm]').isEnabled(), 'ret sonrası düğme yeniden kullanılabilir');
 
 console.log('8) Türkçe çip');
 await page.goto(BASE + '/tr/admin#kullanicilar/yetkiler', { waitUntil: 'networkidle' });
-await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person="u3"]');
-const trChip = await chipText('is_writer', 'u3');
+await page.waitForSelector('#rolesView [data-role-card="is_social"] [data-person="u3"]');
+const trChip = await chipText('is_social', 'u3');
 const trMonth = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][Number(ymd(NOW + 20 * DAY - 1).slice(5, 7)) - 1];
 ok(new RegExp(`\\d+ ${trMonth}'[ae] kadar`).test(trChip), `tarih tam ay adı ve ekle yazılır (${trMonth}): "${trChip.trim()}"`);
 

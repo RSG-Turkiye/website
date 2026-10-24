@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setupSocial, call } from './lib/social';
 import { onRequestGet } from '../functions/api/admin/counts';
+import { z } from 'astro/zod';
+import { defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
 
 function seed(db: import('node:sqlite').DatabaseSync) {
   const now = Math.floor(Date.now() / 1000);
@@ -109,4 +111,29 @@ test('content counts: an editor\'s drafts that need action; an approver\'s queue
   assert.deepEqual([admin.cmsMine, admin.cmsQueue, admin.cmsTotal], [0, 3, 3]);
   const pub = await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'pub' })).json() as Record<string, number>;
   assert.equal(pub.cmsMine, undefined, 'no content role, no content count');
+});
+
+test('content counts add up across every group a person edits or approves; the keys stay the same', async () => {
+  // A stand-in Yazılar type: no real one exists yet.
+  setTestCmsTypes([defineType({
+    key: 'testposts' as CmsTypeKey, group: 'yazilar', dir: 'src/content/testposts', format: 'json', schema: z.object({}),
+    idFrom: () => 'x', idField: 'name', indexTitle: () => 'x', label: { en: 'x', tr: 'x' },
+  })]);
+  try {
+    const { env, db } = setupSocial();
+    seedCms(db);
+    // ced edits Etkinlikler and also approves Yazılar.
+    db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('g-ced-y', 'ced', 'content.yazilar.approve', NULL, NULL, 1)`).run();
+    const now = Math.floor(Date.now() / 1000);
+    const add = db.prepare(`INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, created_at, updated_at)
+      VALUES (?, 'testposts', ?, 'update', '{}', '{}', ?, ?, 1, ?)`);
+    add.run('y1', 'p', 'submitted', 'cap', now);
+    add.run('y2', 'q', 'rejected', 'ced', now);
+    // Etkinlikler: their two (d1, d2); Yazılar: their own sent back (y2) and the queue (y1).
+    assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'ced' })).json(), { cmsMine: 3, cmsQueue: 1, cmsTotal: 4 });
+    // cap approves Etkinlikler only: the Yazılar draft is not in their queue.
+    assert.deepEqual(await (await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'cap' })).json(), { cmsMine: 1, cmsQueue: 3, cmsTotal: 4 });
+  } finally {
+    setTestCmsTypes([]);
+  }
 });
