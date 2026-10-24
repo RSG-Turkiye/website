@@ -586,6 +586,10 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
   }
   const out = { en: clone(side(base, 'en')), tr: clone(side(base, 'tr')) };
   for (const f of model.fields) {
+    // Plain `untouched`, not the JSON branch's `untouchedHere`: that exception
+    // is for a required bilingualStrings field, a JSON-only kind (a pair's
+    // per-language lists are perLang strings). A required checkbox is written
+    // per side by writeOne either way.
     if (f.readOnly || !Object.hasOwn(values, f.key) || untouched(f)) continue;
     if (f.kind === 'objects') {
       const rows = Array.isArray(values[f.key]) ? values[f.key] as Row[] : [];

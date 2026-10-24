@@ -12,9 +12,10 @@ import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
 import { DOUBLE_HYPHEN_MESSAGE, EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE } from '../functions/_lib/cms-drafts';
 import { ui } from '../src/i18n/ui';
+import { resourceSections } from '../src/data/resources';
 import {
   MODELS, applyValues, emptyData, errorKey, failureKey, formValues, halfTranslated, isEmptyValue, livePath, messageKey, placeOf, sharedShowsOne,
-  messageKeys, statusView, suggestedId, visibleFields, type Bi, type FieldDef, type TypeKey, type TypeModel,
+  messageKeys, RESOURCE_SECTIONS, statusView, suggestedId, visibleFields, type Bi, type FieldDef, type TypeKey, type TypeModel,
 } from '../src/scripts/admin/cms-form';
 import { diffEntry, lineDiff, listDiff } from '../src/scripts/admin/cms-diff';
 
@@ -1135,6 +1136,8 @@ test('resources: the form\'s groups, the file name of a new one, its list line a
   assert.equal(MODELS.resources.sub, 'kaynaklar');
   assert.equal(MODELS.resources.fields.find((f) => f.key === 'tags')!.kind, 'bilingualStrings');
   assert.deepEqual(MODELS.resources.fields.find((f) => f.key === 'section')!.options, ['learning', 'md-drug', 'databases', 'tools', 'community']);
+  // The panel cannot import the schema (zod stays out of the admin bundle): pinned here.
+  assert.deepEqual([...RESOURCE_SECTIONS], [...resourceSections]);
   for (const o of MODELS.resources.fields.find((f) => f.key === 'section')!.options!) {
     assert.ok(ui.tr[`admin.cms.opt.${o}` as keyof typeof ui.tr] && ui.en[`admin.cms.opt.${o}` as keyof typeof ui.en], o);
   }

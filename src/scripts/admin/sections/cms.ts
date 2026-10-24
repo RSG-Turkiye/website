@@ -311,11 +311,13 @@ function entryPaths(type: string, entryId: string, fallback: Record<string, unkn
   return e?.paths ? [e.paths.en, e.paths.tr].filter((p): p is string => !!p) : Object.keys(fallback ?? {});
 }
 
-/** Where on its page an entry sits (a resource's section): the index's, else the draft's own. */
+/** Where on its page an entry sits (a resource's section): the draft's own, else the index's. */
 function sectionOf(type: string, entryId: string, data?: unknown): string | undefined {
-  const e = entries[type]?.find((x) => x.id === entryId);
+  // The draft's own first: a published draft may have moved the link, and
+  // the index is a deploy behind.
   const own = (data as { section?: unknown } | null | undefined)?.section;
-  return e?.section ?? (typeof own === 'string' ? own : undefined);
+  if (typeof own === 'string' && own) return own;
+  return entries[type]?.find((x) => x.id === entryId)?.section;
 }
 
 const titleOf = (type: string, entryId: string, action?: string): string => {
@@ -1191,7 +1193,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   const editsAtStart = ed.edits;
   setSaveState(tk('admin.cms.saving'));
   clearErrors();
-  let r: Answer<{ draft: Draft }>;
+  let r: Answer<{ draft: Draft; duplicate_of?: string }>;
   if (!ed.draft) {
     if (!ed.entryId && !suggestedId(ed.model, values)) {
       // A new entry is named after its title (or repo): nothing to store it under yet.
@@ -1199,7 +1201,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
       if (!auto) showErrors({ [ed.model.idField]: 'Missing' }, true);
       return false;
     }
-    r = await api<{ draft: Draft }>('POST', '/api/cms/drafts', ed.entryId
+    r = await api<{ draft: Draft; duplicate_of?: string }>('POST', '/api/cms/drafts', ed.entryId
       ? { type: ed.model.key, action: 'update', entry_id: ed.entryId, data, base_shas: ed.baseShas }
       : { type: ed.model.key, action: 'create', data });
   } else {
@@ -1234,6 +1236,12 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
     lists = null;
     head({ title: titleFrom(ed.model, values) || ed.draft.entry_id, back: `${SECTION}/taslaklar`, chipHtml: statusChip(ed.draft), line: statusLine(ed.draft), banner: true });
     renderBar(ed);
+    // The same title in the same place is on the site already (a resource
+    // link): said, with the way to it, never refused.
+    const dup = r.body.duplicate_of;
+    if (typeof dup === 'string' && dup) {
+      notice(`${esc(tk('admin.cms.duplicateOf'))} <a href="${SECTION}/${ed.model.sub}/${esc(encodeURIComponent(dup))}" data-cms-duplicate class="underline font-medium">${esc(tk('admin.cms.duplicateOpen'))}</a>`, 'warn');
+    }
   }
   if (ed.edits === editsAtStart) {
     dropBackup(ed.backupKey);

@@ -185,7 +185,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       const id = `00000000-0000-4000-8000-00000000000${state.drafts.size + 1}`;
       const d = draftRow({ id, action: body.action, entry_id: body.entry_id ?? body.data?.id ?? 'x', author_id: user.id, data: body.data ?? {}, base_shas: body.base_shas ?? {} });
       state.drafts.set(id, d);
-      return json({ draft: d }, 201);
+      return json({ draft: d, ...(state.duplicateOf ? { duplicate_of: state.duplicateOf } : {}) }, 201);
     }
     const m = /^\/api\/cms\/drafts\/([^/]+)(?:\/(\w+))?$/.exec(p);
     if (m) {
@@ -1019,7 +1019,7 @@ await section('31) a resource link: listed with its section, a Turkish tag chang
   ok(JSON.stringify(post?.body?.data) === JSON.stringify(expected), `only the Turkish tag changed, keys in the file's order: ${JSON.stringify(post?.body?.data)}`);
   await page.close();
 
-  const fresh = await open(browser, 'ogrenme', '#icerik/kaynaklar/_new', { width: 1440, height: 900 });
+  const fresh = await open(browser, 'ogrenme', '#icerik/kaynaklar/_new', { width: 1440, height: 900 }, (s) => { s.duplicateOf = 'zz-learning'; });
   const p = fresh.page;
   await p.waitForSelector('[data-field="title"][data-lang="en"]');
   await p.selectOption('[data-field="section"]', 'learning');
@@ -1042,6 +1042,10 @@ await section('31) a resource link: listed with its section, a Turkish tag chang
   ok(JSON.stringify(made?.body?.data) === JSON.stringify({ section: 'learning', order: 70, title: { en: 'New Course', tr: 'Yeni Ders' }, description: { en: 'A course.', tr: 'Bir ders.' }, url: 'https://example.org/course', tags: { en: ['python'], tr: ['python'] }, opensource: false }),
     `every key, in the schema's order, opensource false: ${JSON.stringify(made?.body?.data)}`);
   ok((await p.textContent('#cmsTitle')).includes('Yeni Ders'), 'the heading follows the title');
+  // The server found the same title in the same section: said, with the way to it; the draft is kept.
+  ok(await waitFor(p, () => /Bu bağlantı zaten listede/.test(document.getElementById('cmsNotice')?.textContent ?? '')), 'a duplicate is said: "Bu bağlantı zaten listede"');
+  ok(await p.getAttribute('#cmsNotice [data-cms-duplicate]', 'href') === '#icerik/kaynaklar/zz-learning' && (await p.textContent('#cmsNotice [data-cms-duplicate]')).trim() === 'aç', 'with "aç" to the link on the site');
+  ok(await p.locator('#cmsSubmit').isEnabled(), 'and nothing is refused');
   await p.close();
 });
 
@@ -1067,6 +1071,16 @@ await section('32) a resource sent back: the tag error is said in plain words, o
   const href = await live.page.getAttribute('[data-cms-draft] [data-cms-open-site]', 'href');
   ok(href === '/tr/resources/#md-drug', `it opens the section: ${href}`);
   await live.page.close();
+
+  // A published draft that moved the link: its own section, not the index's (a deploy behind).
+  const moved = '00000000-0000-4000-8000-000000000803';
+  const ed = await open(browser, 'ogrenme', `#icerik/taslaklar/${moved}`, { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(moved, draftRow({ id: moved, type: 'resources', status: 'published', entry_id: 'example-tool-md-drug', author_id: 'u7', data: { ...RES, section: 'tools' }, base_shas: { [RES_PATH]: 'sha-r' } }));
+  });
+  ok(await waitFor(ed.page, () => !!document.querySelector('[data-cms-live]')), 'the published draft has "Sitede aç"');
+  const movedHref = await ed.page.getAttribute('[data-cms-live]', 'href');
+  ok(movedHref === '/tr/resources/#tools', `the draft's own section: ${movedHref}`);
+  await ed.page.close();
 });
 
 console.log('11) phone: no sideways scroll on the list, the form and the review');
