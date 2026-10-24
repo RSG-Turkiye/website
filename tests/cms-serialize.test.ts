@@ -65,12 +65,18 @@ test('every existing JSON file survives parse then serialize byte for byte', () 
   }
 });
 
-test('the JSON file name is the id the registry derives', () => {
+test('an event\'s file name is its id; every JSON file name is a valid id', () => {
+  // Only idInData types (events) keep the name tied to the data. Others are
+  // named once, at creation: an approved update may change a workshop's repo
+  // and keep its file name (plan 4, A1), so that is not asserted for them.
+  assert.equal(events.idInData, true);
+  assert.equal(workshops.idInData, false);
   for (const f of files('src/content/events', '.json')) {
     assert.equal(`${events.idFrom(parseJson(events, read(f)))}.json`, f.split('/').pop(), f);
   }
   for (const f of files('src/content/workshops', '.json')) {
-    assert.equal(`${workshops.idFrom(parseJson(workshops, read(f)))}.json`, f.split('/').pop(), f);
+    const name = f.split('/').pop()!.replace(/\.json$/, '');
+    assert.equal(checkId(name), name, f);
   }
 });
 
