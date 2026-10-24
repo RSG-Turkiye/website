@@ -4,6 +4,7 @@ import { runGuardedWithAudit } from '../../../_lib/audit';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
 import { canTransition, checkSameId, filesFor, fixedKeysErrors, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { assignIds, lockedKeysErrors, type LpDraftData } from '../../../_lib/cms-lp';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -49,6 +50,14 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
 
   const v = validateDraft(type, body.data, 'lenient');
   if (!v.ok) return invalid(v.errors);
+  const stored = JSON.parse(row.data) as LpDraftData;
+  if (row.action === 'create' && type.appendKey) {
+    // The number the server gave at create stays, whatever the client sent.
+    for (const lang of ['en', 'tr'] as const) {
+      const n = stored[lang]?.frontmatter?.[type.appendKey];
+      if (n !== undefined) (v.data as PairData)[lang].frontmatter[type.appendKey] = n;
+    }
+  }
   let entryId = row.entry_id;
   let baseShas = row.base_shas;
   if (row.action === 'create') {
@@ -72,11 +81,19 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
     // Against the stored draft, whose keys are main's (checked when it began).
     const keys = fixedKeysErrors(type, JSON.parse(row.data), v.data);
     if (keys) return invalid(keys);
+    const locked = lockedKeysErrors(type, entryId, stored, v.data);
+    if (locked) return invalid(locked);
     if (type.format === 'markdown-pair') {
       const stored = JSON.parse(row.data) as PairData;
       const next = v.data as PairData;
       for (const lang of ['en', 'tr'] as const) if (stored[lang]?.source !== undefined) next[lang].source = stored[lang].source;
     }
+  }
+  if (type.resourceIds) {
+    // New resources get their ids here (A4); the record of what the server
+    // gave is the stored one, never the client's.
+    const given = assignIds(v.data as PairData);
+    (v.data as LpDraftData)._assigned = [...(Array.isArray(stored._assigned) ? stored._assigned : []), ...given];
   }
   const data = JSON.stringify(v.data);
   const nonce = newNonce();

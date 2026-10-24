@@ -11,6 +11,7 @@ import { fileShasOnBase } from './github';
 import { cmsType, type CmsType } from '../../src/lib/cms/types';
 import type { CmsIndex, CmsIndexEntry } from '../../src/lib/cms/cms-index';
 import { jsonPath } from '../../src/lib/cms/serialize';
+import { lpErrors, type LpDraftData } from './cms-lp';
 
 export const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
   jsonResponse({ error, code, ...extra }, status);
@@ -274,4 +275,24 @@ export function duplicateOf(type: CmsType, index: CmsIndex | null, data: unknown
   }
   if (!norm(title) || !section) return undefined;
   return (index[type.key] ?? []).find((e) => norm(e.title) === norm(title) && e.section === section)?.id;
+}
+
+/**
+ * Rule 8 (CLAUDE.md) and a learning path's locked keys, at submit and at
+ * approval: a 422 naming the fields, 503 without the index a level's domain
+ * is checked against, or null. `raw` is the stored draft data: its sides'
+ * `source` and its `_assigned` are the server's own record.
+ */
+export async function refuseLp(request: Request, env: Env, type: CmsType, raw: unknown): Promise<Response | null> {
+  if (type.format !== 'markdown-pair' || (!type.resourceIds && type.lockedKeys.length === 0)) return null;
+  const data = raw as LpDraftData;
+  let domains: string[] | null = null;
+  if (type.lockedKeys.includes('domain')) {
+    const index = await loadCmsIndex(request, env);
+    if (!index) return indexUnavailable();
+    domains = (index['lp-domains'] ?? []).map((e) => e.id);
+  }
+  const assigned = Array.isArray(data._assigned) ? data._assigned.filter((x): x is string => typeof x === 'string') : [];
+  const errors = lpErrors(type, data, assigned, domains);
+  return Object.keys(errors).length ? invalid(errors) : null;
 }

@@ -84,6 +84,10 @@ export interface CmsTypeSpec {
    * frontmatter): the ones the file name or the page's address comes from
    * (a level's domain and level, a roadmap stage's number). Default []. */
   lockedKeys?: readonly string[];
+  /** markdown-pair: a frontmatter key the server sets on a new entry, the
+   * highest number its file names start with + 1 (a roadmap stage's
+   * `number`, A11), and keeps for the draft's life. Default "". */
+  appendKey?: string;
   /** Learning-path resources with progress ids (CLAUDE.md rule 8): the
    * server gives a new resource its id and checks every id at submit and
    * approval (functions/_lib/cms-lp.ts). Default false. */
@@ -110,6 +114,7 @@ export function defineType(spec: CmsTypeSpec): CmsType {
     noAt: false,
     fixedId: "",
     lockedKeys: [],
+    appendKey: "",
     resourceIds: false,
     whenTaken: spec.idInData ? "refuse" : "next",
     ...spec,
@@ -276,6 +281,7 @@ export const CMS_TYPES: readonly CmsType[] = [
     indexTitle: (fm: { number?: unknown; title?: unknown }) => (typeof fm.title === "string" ? `${String(fm.number ?? "")}. ${fm.title}` : undefined),
     label: { en: "Roadmap stages", tr: "Yol haritası" },
     lockedKeys: ["number"],
+    appendKey: "number",
     resourceIds: true,
   }),
 ];

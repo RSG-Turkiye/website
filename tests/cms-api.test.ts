@@ -12,7 +12,7 @@ import { buildCmsIndex, type CmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
 import { z } from 'astro/zod';
 import { cmsType, defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
-import { parseJson, parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
+import { parseJson, parseMarkdown, serializeJson, serializeMarkdown } from '../src/lib/cms/serialize';
 import { filesFor, validateDraft, prTitle, prBody } from '../functions/_lib/cms-drafts';
 import { setCmsIndexLoader } from '../functions/_lib/cms-api';
 import * as types from '../functions/api/cms/types';
@@ -78,6 +78,25 @@ FILES[RESOURCE_PATH] = `${JSON.stringify(aResource(), null, 2)}\n`;
 /** Another on main whose file name is the slug of its title: a new one with that title collides. */
 const TAKEN_PATH = 'src/content/resources/fixture-taken.json';
 FILES[TAKEN_PATH] = `${JSON.stringify({ ...aResource(), title: { en: 'Fixture Taken', tr: 'Alınmış' } }, null, 2)}\n`;
+/** Learning paths on main, synthetic (A2): a domain, a level of it, and a roadmap stage, each in both languages. */
+const LP_LEVEL = { en: 'src/content/lp-levels/en/fixture-explorer.md', tr: 'src/content/lp-levels/tr/fixture-explorer.md' };
+const LP_STAGE = { en: 'src/content/lp-roadmap/en/50-fixture-stage.md', tr: 'src/content/lp-roadmap/tr/50-fixture-stage.md' };
+const lpRes = (id: string, lang: 'en' | 'tr', o: Record<string, unknown> = {}) =>
+  ({ id, title: `${id} ${lang}`, description: lang === 'en' ? 'Why.' : 'Neden.', tag: 'Reading', url: `https://example.org/${id}`, ...o });
+const aLevelSide = (lang: 'en' | 'tr') => ({
+  domain: 'fixture', level: 'explorer', orientation: lang === 'en' ? 'Start here.' : 'Buradan başlayın.', prerequisites: [],
+  sections: [
+    { type: 'foundations', resources: [lpRes('fx-a', lang), lpRes('fx-b', lang, { url: lang === 'en' ? '/learning-paths/fixture/' : '/tr/learning-paths/fixture/' })] },
+    { type: 'webinars', resources: [lpRes('fx-c', lang, { tag: 'Webinar', url: undefined, webinarSlug: 'fx-webinar', year: 2024 })] },
+  ],
+});
+const aStageSide = (lang: 'en' | 'tr') => ({ number: 50, emoji: '🧪', title: lang === 'en' ? 'Fixture stage' : 'Örnek aşama', subtitle: 'S.', color: 'navy', resources: [lpRes('fx-stage-1', lang)] });
+const lpFile = (key: CmsTypeKey, fm: object) => serializeMarkdown(cmsType(key)!, { frontmatter: JSON.parse(JSON.stringify(fm)), body: '' });
+for (const lang of ['en', 'tr'] as const) {
+  FILES[`src/content/lp-domains/${lang}/fixture.md`] = lpFile('lp-domains', { name: lang === 'en' ? 'Fixture domain' : 'Örnek alan', emoji: '🧪', tagline: 'T.', order: 90, goDeeper: [] });
+  FILES[LP_LEVEL[lang]] = lpFile('lp-levels', aLevelSide(lang));
+  FILES[LP_STAGE[lang]] = lpFile('lp-roadmap', aStageSide(lang));
+}
 const INDEX: CmsIndex = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
 const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_TR_TITLE, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
@@ -1957,4 +1976,187 @@ test('entry also answers each file as it is on main, and a draft the files it wo
   // The drafts list stays light: no files there.
   const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor')).json() as any;
   assert.ok(list.mine.every((d: any) => !('files' in d)));
+});
+
+// ── Learning paths: rule 8 (CLAUDE.md), enforced by the server (A4) ─────────
+
+import { nextStageNumber } from '../src/lib/cms/slug';
+import { LP_DOMAIN, LP_ID_FOREIGN, LP_ID_TWICE, LP_ORDER, LP_SHARED } from '../functions/_lib/cms-lp';
+
+/** An lp entry as the form sends it: both sides' frontmatter and body, no source. */
+const lpData = (en: object, tr: object) => JSON.parse(JSON.stringify({ en: { frontmatter: en, body: '' }, tr: { frontmatter: tr, body: '' } }));
+const levelUpdate = (data: unknown) => ({ type: 'lp-levels', action: 'update', entry_id: 'fixture-explorer', data, base_shas: loaded(LP_LEVEL.en, LP_LEVEL.tr) });
+/** Both sides of the level with `edit` applied to each side's frontmatter. */
+const levelWith = (edit: (fm: any, lang: 'en' | 'tr') => void) => {
+  const side = (lang: 'en' | 'tr') => { const fm = JSON.parse(JSON.stringify(aLevelSide(lang))); edit(fm, lang); return fm; };
+  return lpData(side('en'), side('tr'));
+};
+const ID = /^[a-z0-9_-]+$/;
+/** Save, then submit: the submit's status and errors. */
+async function saveAndSubmit(env: Env, data: unknown) {
+  const made = await create(env, 'learning', levelUpdate(data));
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit');
+  return { id: made.body.draft.id as string, status: res.status, errors: ((await res.json()) as any).errors ?? {} };
+}
+
+test('rule 8: a new resource gets a fresh unique id on both sides from the server, kept by later saves, never written to git as _assigned', async () => {
+  const { env, row } = setup();
+  const fresh = (lang: 'en' | 'tr') => ({ id: '', title: lang === 'en' ? 'A Landmark Paper' : 'Bir dönüm noktası', description: 'D.', tag: 'Paper', url: 'https://example.org/landmark' });
+  const data = levelWith((fm, lang) => {
+    fm.sections[1].resources.push(fresh(lang));
+    // A second card with the same title, and one whose id key is missing altogether.
+    const { id: _drop, ...noKey } = fresh(lang);
+    fm.sections[0].resources.push(fresh(lang), noKey);
+  });
+  const made = await create(env, 'learning', levelUpdate(data));
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  const saved = made.body.draft.data;
+  const en = [saved.en.frontmatter.sections[0].resources[2], saved.en.frontmatter.sections[0].resources[3], saved.en.frontmatter.sections[1].resources[1]];
+  const tr = [saved.tr.frontmatter.sections[0].resources[2], saved.tr.frontmatter.sections[0].resources[3], saved.tr.frontmatter.sections[1].resources[1]];
+  for (let i = 0; i < 3; i++) {
+    assert.match(en[i].id, /^a-landmark-paper-[0-9a-f]{6}$/);
+    assert.equal(tr[i].id, en[i].id, 'the same id on both sides');
+    assert.ok(ID.test(en[i].id) && en[i].id.length <= 110);
+    assert.equal(Object.keys(en[i])[0], 'id', 'the id is the first key, also where the key was missing');
+  }
+  assert.equal(new Set(en.map((r) => r.id)).size, 3, 'each new card its own id');
+  assert.deepEqual([...saved._assigned].sort(), en.map((r) => r.id).sort());
+  // Existing ids are untouched.
+  assert.equal(saved.en.frontmatter.sections[0].resources[0].id, 'fx-a');
+
+  // The form sends the ids back: kept, nothing new given. A client's _assigned is ignored.
+  const id = made.body.draft.id;
+  const again = await on(env, draft.onRequestPatch, 'PATCH', id, 'learning', { data: { ...saved, _assigned: ['fx-forged'] } });
+  assert.equal(again.status, 200);
+  const after = JSON.parse(row(id).data);
+  assert.deepEqual(after._assigned, saved._assigned);
+  assert.equal(after.en.frontmatter.sections[1].resources[1].id, en[2].id);
+
+  const sent = await on(env, submit.onRequestPost, 'POST', id, 'learning', {}, '/submit');
+  assert.equal(sent.status, 200, JSON.stringify(await sent.clone().json()));
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve')).status, 200);
+  const branch = gh.branches.get(`cms/${id}`)!;
+  for (const p of [LP_LEVEL.en, LP_LEVEL.tr]) {
+    const text = branch.get(p)!;
+    assert.ok(text.includes(`      - id: "${en[2].id}"\n`), `${p}: the new id, double-quoted, first`);
+    assert.ok(!text.includes('_assigned'), 'the record of given ids never reaches git');
+  }
+});
+
+test('rule 8, Review Focus 1: each break is refused at submit with a field error, and nothing reaches git', async () => {
+  const { env } = setup();
+  // A resource deleted from English but not Turkish.
+  const del = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'en') fm.sections[0].resources.splice(0, 1); }));
+  assert.equal(del.status, 422);
+  assert.equal(del.errors['tr.frontmatter.sections.0.resources.0.id'], LP_ORDER);
+  // Two resources swapped in one language only.
+  const swap = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[0].resources.reverse(); }));
+  assert.equal(swap.status, 422);
+  assert.equal(swap.errors['tr.frontmatter.sections.0.resources.0.id'], LP_ORDER);
+  // An id typed by hand through the API, the same on both sides: saved (work in progress), refused at submit.
+  const typed = await saveAndSubmit(env, levelWith((fm, lang) => fm.sections[0].resources.push(lpRes('my-own-id', lang))));
+  assert.equal(typed.status, 422);
+  assert.equal(typed.errors['en.frontmatter.sections.0.resources.2.id'], LP_ID_FOREIGN);
+  // An id that already exists in another file (the roadmap stage's).
+  const other = await saveAndSubmit(env, levelWith((fm, lang) => fm.sections[1].resources.push(lpRes('fx-stage-1', lang))));
+  assert.equal(other.status, 422);
+  assert.equal(other.errors['en.frontmatter.sections.1.resources.1.id'], LP_ID_FOREIGN);
+  // A shared field changed in one language.
+  const tag = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[0].resources[0].tag = 'Tool'; }));
+  assert.equal(tag.status, 422);
+  assert.deepEqual(tag.errors, { 'tr.frontmatter.sections.0.resources.0.tag': LP_SHARED });
+  const url = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[0].resources[0].url = 'https://example.org/elsewhere'; }));
+  assert.deepEqual(url.errors, { 'tr.frontmatter.sections.0.resources.0.url': LP_SHARED });
+  const year = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[1].resources[0].year = 2025; }));
+  assert.deepEqual(year.errors, { 'tr.frontmatter.sections.1.resources.0.year': LP_SHARED });
+  // The same id twice in one entry.
+  const twice = await saveAndSubmit(env, levelWith((fm, lang) => fm.sections[1].resources.push(lpRes('fx-a', lang))));
+  assert.equal(twice.errors['en.frontmatter.sections.1.resources.1.id'], LP_ID_TWICE);
+  // A Turkish link that adds /tr to a page of this site is the same link.
+  const fine = await saveAndSubmit(env, levelWith((fm, lang) => { fm.sections[0].resources[1].title = `${lang} edited`; }));
+  assert.equal(fine.status, 200, JSON.stringify(fine.errors));
+  assert.equal(gh.prs.length, 0);
+  assert.deepEqual(gh.writes(), [], 'nothing reaches git');
+});
+
+test('rule 8 is checked again at approval, against the stored draft: a row changed after submit is refused', async () => {
+  const { env, db, row } = setup();
+  const ok = await saveAndSubmit(env, levelWith((fm, lang) => { fm.orientation = `${lang} new`; }));
+  assert.equal(ok.status, 200);
+  const data = JSON.parse(row(ok.id).data);
+  data.en.frontmatter.sections[0].resources[0].id = 'fx-forged';
+  data.tr.frontmatter.sections[0].resources[0].id = 'fx-forged';
+  db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(data), ok.id);
+  const res = await on(env, approve.onRequestPost, 'POST', ok.id, 'admin', {}, '/approve');
+  assert.equal(res.status, 422);
+  assert.equal(((await res.json()) as any).errors['en.frontmatter.sections.0.resources.0.id'], LP_ID_FOREIGN);
+  assert.equal(row(ok.id).status, 'submitted');
+  assert.equal(gh.prs.length, 0);
+});
+
+test('learning paths: what names the file is locked on update; a level\'s domain must be published; a taken level is refused', async () => {
+  const { env } = setup();
+  const moved = await create(env, 'learning', levelUpdate(levelWith((fm) => { fm.level = 'researcher'; })));
+  assert.equal(moved.res.status, 422);
+  assert.match(moved.body.errors['en.frontmatter.level'], /gives the file its name \(fixture-explorer\)/);
+  const made = await create(env, 'learning', levelUpdate(levelWith(() => {})));
+  assert.equal(made.res.status, 201);
+  const patched = await on(env, draft.onRequestPatch, 'PATCH', made.body.draft.id, 'learning', { data: levelWith((fm) => { fm.domain = 'genomics'; }) });
+  assert.equal(patched.status, 422);
+
+  // A new level of a published domain and level: refused, never renamed to -2.
+  const taken = await create(env, 'learning', { type: 'lp-levels', action: 'create', data: levelWith(() => {}) });
+  assert.equal(taken.res.status, 409);
+  assert.equal(taken.body.code, 'exists');
+  // A new level of a domain that is not published: saved, refused at submit.
+  const lonely = await create(env, 'learning', { type: 'lp-levels', action: 'create', data: levelWith((fm) => { fm.domain = 'nowhere'; fm.sections = []; }) });
+  assert.equal(lonely.res.status, 201, JSON.stringify(lonely.body));
+  assert.equal(lonely.body.draft.entry_id, 'nowhere-explorer');
+  const res = await on(env, submit.onRequestPost, 'POST', lonely.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(res.status, 422);
+  assert.equal(((await res.json()) as any).errors['en.frontmatter.domain'], LP_DOMAIN);
+});
+
+test('roadmap: a new stage comes last, numbered by the server; the number and its file name stay; its resources get ids', async () => {
+  const { env, row } = setup();
+  const n = nextStageNumber(INDEX['lp-roadmap'].map((e) => e.id));
+  assert.ok(n > 50);
+  const side = (lang: 'en' | 'tr') => ({ number: 3, emoji: '🧪', title: lang === 'en' ? 'Try It Out' : 'Deneyin', subtitle: 'S.', color: 'red', resources: [{ id: '', title: 'One', description: 'D.', tag: 'Action', url: lang === 'en' ? '/events/' : '/tr/events/' }] });
+  const made = await create(env, 'learning', { type: 'lp-roadmap', action: 'create', data: lpData(side('en'), side('tr')) });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, `${n}-try-it-out`, 'the number the client sent is not used');
+  assert.equal(made.body.draft.data.en.frontmatter.number, n);
+  assert.equal(made.body.draft.data.tr.frontmatter.number, n);
+  const rid = made.body.draft.data.en.frontmatter.resources[0].id;
+  assert.match(rid, /^one-[0-9a-f]{6}$/);
+  // A save keeps the number whatever it sends.
+  const data = made.body.draft.data;
+  data.en.frontmatter.number = 1;
+  data.tr.frontmatter.number = 1;
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', made.body.draft.id, 'learning', { data })).status, 200);
+  assert.equal(JSON.parse(row(made.body.draft.id).data).en.frontmatter.number, n);
+  assert.equal(row(made.body.draft.id).entry_id, `${n}-try-it-out`);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+
+  // An update may not renumber a stage.
+  const stage = lpData({ ...aStageSide('en'), number: 49 }, { ...aStageSide('tr'), number: 49 });
+  const re = await create(env, 'learning', { type: 'lp-roadmap', action: 'update', entry_id: '50-fixture-stage', data: stage, base_shas: loaded(LP_STAGE.en, LP_STAGE.tr) });
+  assert.equal(re.res.status, 422);
+  assert.ok(re.body.errors['en.frontmatter.number']);
+});
+
+test('learning paths: only the Öğrenme group edits them, and a new domain is named after its English name', async () => {
+  const { env } = setup();
+  const dom = (lang: 'en' | 'tr') => ({ name: lang === 'en' ? 'Systems Biology' : 'Sistem Biyolojisi', emoji: '🕸️', tagline: 'T.', order: 5, goDeeper: [] });
+  assert.equal((await create(env, 'editor', { type: 'lp-domains', action: 'create', data: lpData(dom('en'), dom('tr')) })).res.status, 403);
+  const made = await create(env, 'learning', { type: 'lp-domains', action: 'create', data: lpData(dom('en'), dom('tr')) });
+  assert.equal(made.res.status, 201);
+  assert.equal(made.body.draft.entry_id, 'systems-biology');
+  assert.deepEqual(made.body.draft.base_shas, { 'src/content/lp-domains/en/systems-biology.md': null, 'src/content/lp-domains/tr/systems-biology.md': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  // A domain already published: refused, not renamed.
+  const again = await create(env, 'learning', { type: 'lp-domains', action: 'create', data: lpData({ ...dom('en'), name: 'Fixture' }, dom('tr')) });
+  assert.equal(again.res.status, 409, 'fixture.md is published; "Fixture" slugs to it');
+  assert.equal(again.body.code, 'exists');
 });

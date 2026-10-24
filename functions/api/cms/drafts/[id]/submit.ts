@@ -1,7 +1,7 @@
 import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof, refusePairClash } from '../../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof, refuseLp, refusePairClash } from '../../../../_lib/cms-api';
 import { canTransition, LIVE_STATUSES, validateDraft } from '../../../../_lib/cms-drafts';
 
 const LIVE = LIVE_STATUSES.map((s) => `'${s}'`).join(', ');
@@ -34,6 +34,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     if (!v.ok) return invalid(v.errors);
     const clash = await refusePairClash(request, env, type, row.entry_id, row.action, v.data);
     if (clash) return clash;
+    const lp = await refuseLp(request, env, type, JSON.parse(row.data));
+    if (lp) return lp;
   }
   const busy = () => env.DB.prepare(BUSY).bind(row.type, row.entry_id, row.id).first<{ id: string }>();
   if (await busy()) return entryBusy();

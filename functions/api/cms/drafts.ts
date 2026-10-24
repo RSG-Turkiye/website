@@ -8,6 +8,8 @@ import {
   actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, langOf, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
 } from '../../_lib/cms-drafts';
 import { filesOnBase } from '../../_lib/github';
+import { assignIds, lockedKeysErrors, type LpDraftData } from '../../_lib/cms-lp';
+import { nextStageNumber } from '../../../src/lib/cms/slug';
 import { checkId, cmsType, cmsTypes } from '../../../src/lib/cms/types';
 import { parseJson, parseMarkdown } from '../../../src/lib/cms/serialize';
 import type { CmsIndex } from '../../../src/lib/cms/cms-index';
@@ -101,6 +103,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let duplicate: string | undefined;
   let index: CmsIndex | null = null;
   if (action === 'create') {
+    if (type.appendKey) {
+      // A new roadmap stage comes last: its number (and so its file name)
+      // is the server's, from the published stages' file names (A11).
+      index = await loadCmsIndex(request, env);
+      if (!index) return indexUnavailable();
+      const n = nextStageNumber((index[type.key] ?? []).map((e) => e.id));
+      for (const lang of ['en', 'tr'] as const) (data as PairData)[lang].frontmatter[type.appendKey] = n;
+    }
     const picked = await pickEntryId(request, env, type, data, null);
     if (!picked.ok) return picked.response;
     entryId = picked.id;
@@ -154,6 +164,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       if (keys) return invalid(keys);
     }
 
+    if (action === 'update' && type.lockedKeys.length) {
+      // What the file name comes from stays as main has it (a level's
+      // domain and level, a stage's number).
+      let before: Record<string, unknown>;
+      try {
+        before = Object.fromEntries(paths.map((p) => [langOf(type, p), files[p] ? parseMarkdown(type, files[p]!.content) : null]));
+      } catch (e) {
+        console.error('cms: an entry on main could not be parsed', entryId, e);
+        return fail(500, 'unreadable', 'The file on main could not be read');
+      }
+      const locked = lockedKeysErrors(type, entryId, before, data);
+      if (locked) return invalid(locked);
+    }
+
     if (action === 'update' && type.format === 'markdown-pair') {
       // Keep each file's frontmatter text, so keys the draft does not change
       // are written back byte for byte. Taken from main, never from the client.
@@ -173,6 +197,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const clash = await refusePairClash(request, env, type, entryId, action, data, index);
   if (clash) return clash;
+  // A new learning-path resource gets its id here, never from the client (A4).
+  if (type.resourceIds && action !== 'delete') (data as LpDraftData)._assigned = assignIds(data as PairData);
 
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: entryId, action, data: JSON.stringify(data), base_shas: JSON.stringify(baseShas),

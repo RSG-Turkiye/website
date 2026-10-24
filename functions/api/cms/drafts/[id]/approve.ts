@@ -2,7 +2,7 @@ import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../../_lib/audit';
 import {
-  actionRefused, badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, newNonce, nonceProof, refusePairClash,
+  actionRefused, badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, newNonce, nonceProof, refuseLp, refusePairClash,
 } from '../../../../_lib/cms-api';
 import { actionAllowed, canTransition, filesFor, prBody, prTitle, STALE_APPROVAL_SECONDS, validateDraft, type DraftRow } from '../../../../_lib/cms-drafts';
 import { fileShasOnBase, mainHeadSha, openContentPR, prForBranch, pullNumberFromUrl } from '../../../../_lib/github';
@@ -118,6 +118,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     if (!v.ok) return invalid(v.errors);
     const clash = await refusePairClash(request, env, type, row.entry_id, row.action, data);
     if (clash) return clash;
+    // Rule 8 again, on the files main has at the head the branch starts from
+    // (the shas above): the ids the draft started from are main's there.
+    const lp = await refuseLp(request, env, type, data);
+    if (lp) return lp;
   }
   let files: ReturnType<typeof filesFor>;
   try {
