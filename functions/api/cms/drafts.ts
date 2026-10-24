@@ -2,14 +2,15 @@ import type { Env } from '../../_lib/auth';
 import { generateId, jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import {
-  actionRefused, approvesType, cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, refusePairClash, rightsIn,
+  actionRefused, approvesType, cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
 import {
-  actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, langOf, LIVE_STATUSES, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
+  actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, langOf, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
 } from '../../_lib/cms-drafts';
-import { fileShasOnBase, filesOnBase } from '../../_lib/github';
+import { filesOnBase } from '../../_lib/github';
 import { checkId, cmsType, cmsTypes } from '../../../src/lib/cms/types';
 import { parseJson, parseMarkdown } from '../../../src/lib/cms/serialize';
+import type { CmsIndex } from '../../../src/lib/cms/cms-index';
 
 const COLUMNS = ['id', 'type', 'entry_id', 'action', 'status', 'author_id', 'reviewer_id', 'review_note', 'pr_url', 'pr_number', 'failure', 'created_at', 'updated_at']
   .map((c) => `d.${c}`).join(', ');
@@ -97,20 +98,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   let entryId: string;
   let baseShas: Record<string, string | null>;
+  let duplicate: string | undefined;
+  let index: CmsIndex | null = null;
   if (action === 'create') {
-    const id = newEntryId(type, data);
-    if (!id.ok) return invalid(id.errors);
-    entryId = id.data;
-    const paths = newPaths(type, entryId);
-    let onMain: Record<string, string | null>;
-    try {
-      onMain = await fileShasOnBase(paths, env);
-    } catch (e) {
-      return githubFailed(e);
-    }
-    const taken = paths.filter((p) => onMain[p] !== null);
-    if (taken.length) return fail(409, 'exists', 'An entry with this id is already published; open it instead', { paths: taken });
-    baseShas = Object.fromEntries(paths.map((p) => [p, null]));
+    const picked = await pickEntryId(request, env, type, data, null);
+    if (!picked.ok) return picked.response;
+    entryId = picked.id;
+    index = picked.index;
+    duplicate = duplicateOf(type, index, data);
+    baseShas = Object.fromEntries(newPaths(type, entryId).map((p) => [p, null]));
   } else {
     try {
       entryId = checkId(body.entry_id as string);
@@ -175,7 +171,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  const clash = await refusePairClash(request, env, type, entryId, action, data);
+  const clash = await refusePairClash(request, env, type, entryId, action, data, index);
   if (clash) return clash;
 
   const row: DraftRow = {
@@ -189,5 +185,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.write_nonce, row.created_at, row.updated_at)],
   { userId: gate.user.id, action: 'cms.draft.create', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action } },
   gate.now);
-  return jsonResponse({ draft: draftJson(row, true) }, 201);
+  return jsonResponse({ draft: draftJson(row, true), ...(duplicate ? { duplicate_of: duplicate } : {}) }, 201);
 };

@@ -59,6 +59,13 @@ export interface CmsTypeSpec {
   /** A draft may change values only: its top-level keys must be those of
    * the file it started from. Default false. */
   fixedKeys?: boolean;
+  /** A new entry whose name is already a file on main: refused ('refuse'),
+   * or given the next free name ('next': the idSuffix form, then -2, -3, ...).
+   * Default 'refuse' when the id is the data itself (idInData), else 'next'. */
+  whenTaken?: "refuse" | "next";
+  /** whenTaken 'next': the first alternative name is `<id>-<idSuffix>`
+   * (a resource's section, as teachopencadd-md-drug). */
+  idSuffix?: (data: any) => string | undefined;
   /** No new entries through the panel. Default false. */
   noCreate?: boolean;
   /** No deleting entries through the panel. Default false. */
@@ -79,7 +86,7 @@ export interface CmsTypeSpec {
 }
 
 /** A type with every option resolved. */
-export type CmsType = Required<Omit<CmsTypeSpec, "indexDate" | "indexSection">> & Pick<CmsTypeSpec, "indexDate" | "indexSection">;
+export type CmsType = Required<Omit<CmsTypeSpec, "indexDate" | "indexSection" | "idSuffix">> & Pick<CmsTypeSpec, "indexDate" | "indexSection" | "idSuffix">;
 
 /** A type with its defaults filled in, the one place they are decided. */
 export function defineType(spec: CmsTypeSpec): CmsType {
@@ -93,6 +100,7 @@ export function defineType(spec: CmsTypeSpec): CmsType {
     generated: false,
     noAt: false,
     fixedId: "",
+    whenTaken: spec.idInData ? "refuse" : "next",
     ...spec,
   };
 }
@@ -137,6 +145,9 @@ export const CMS_TYPES: readonly CmsType[] = [
     indexTitle: (d: { title: string }) => d.title,
     indexDate: (d: { year: number }) => String(d.year),
     label: { en: "Workshops", tr: "Atölyeler" },
+    // The file name must be the repo's (tests/content-workshops.test.ts): a
+    // second file for one repo is refused, never renamed.
+    whenTaken: "refuse",
   }),
   defineType({
     key: "webinars",
@@ -199,6 +210,8 @@ export const CMS_TYPES: readonly CmsType[] = [
     idField: "title.en",
     indexTitle: (d: { title: { en: string } }) => d.title.en,
     indexSection: (d: { section?: string }) => d.section,
+    // A title already used is most often the same link in another section.
+    idSuffix: (d: { section?: string }) => d.section,
     label: { en: "Resources", tr: "Kaynaklar" },
   }),
 ];

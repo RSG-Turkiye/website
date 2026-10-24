@@ -6,7 +6,8 @@
 
 import { checkCsrf, getSessionUser, jsonResponse, type Env, type User } from './auth';
 import { groupRights, type CmsGroup, type GroupRights } from './cms-access';
-import { mergedTooLong, type DraftRow, type PairData } from './cms-drafts';
+import { mergedTooLong, newEntryId, newPaths, type DraftRow, type PairData } from './cms-drafts';
+import { fileShasOnBase } from './github';
 import { cmsType, type CmsType } from '../../src/lib/cms/types';
 import type { CmsIndex, CmsIndexEntry } from '../../src/lib/cms/cms-index';
 import { jsonPath } from '../../src/lib/cms/serialize';
@@ -183,10 +184,94 @@ export function pairClash(type: CmsType, index: CmsIndex, entryId: string, actio
 }
 
 /** pairClash as a response: 409 exists, 503 without the index, or null when clear (or not a pair). */
-export async function refusePairClash(request: Request, env: Env, type: CmsType, entryId: string, action: string, data: unknown): Promise<Response | null> {
+export async function refusePairClash(request: Request, env: Env, type: CmsType, entryId: string, action: string, data: unknown, loaded: CmsIndex | null = null): Promise<Response | null> {
   if (type.format !== 'markdown-pair' || action === 'delete') return null;
-  const index = await loadCmsIndex(request, env);
+  // An index this request already read (pickEntryId) is not read again.
+  const index = loaded ?? await loadCmsIndex(request, env);
   if (!index) return indexUnavailable();
   const clash = pairClash(type, index, entryId, action, data as PairData);
   return clash ? fail(409, 'exists', 'A published webinar already has this name or translationKey', { entry_id: clash.id }) : null;
+}
+
+/** How many names after the first one a new entry may try, and how many of them may cost a GitHub read. */
+const NAME_TRIES = 20;
+const NAME_READS = 3;
+
+/**
+ * The file names a new entry may get, best first: its own (idFrom); for a
+ * type that takes the next free name, `<id>-<idSuffix>` and then -2, -3, ...
+ */
+export function idCandidates(type: CmsType, id: string, data: unknown): string[] {
+  if (type.whenTaken === 'refuse') return [id];
+  const out = [id];
+  const suffix = String(type.idSuffix?.(data) ?? '');
+  if (/^[a-z0-9][a-z0-9-]*$/.test(suffix) && !id.endsWith(`-${suffix}`)) out.push(`${id}-${suffix}`);
+  for (let n = 2; n <= NAME_TRIES; n++) out.push(`${id}-${n}`);
+  return out;
+}
+
+/** The file names the deployed index says are in use: for a pair, each side's. */
+function namesInUse(type: CmsType, index: CmsIndex | null): Set<string> {
+  const slug = (p: string | null | undefined) => (p ? p.slice(p.lastIndexOf('/') + 1).replace(/\.(json|md)$/, '') : null);
+  const out = new Set<string>();
+  for (const e of index?.[type.key] ?? []) for (const n of [e.id, slug(e.paths?.en), slug(e.paths?.tr)]) if (n) out.add(n);
+  return out;
+}
+
+export type Picked =
+  | { ok: true; id: string; index: CmsIndex | null }
+  | { ok: false; response: Response; taken?: string[] };
+
+/**
+ * The file name of a new entry, decided by the server. `keep` (a saved
+ * create draft's current name) is kept while the data still allows it, with
+ * no read (and no index: `index` is then null). Otherwise the first candidate the index does not list is checked
+ * on main; a type that takes the next free name moves on when that file is
+ * there (an index a deploy behind), up to NAME_READS reads. Approval checks
+ * again that the files are still absent, so two drafts racing for one name
+ * cannot both land.
+ */
+export async function pickEntryId(request: Request, env: Env, type: CmsType, data: unknown, keep: string | null): Promise<Picked> {
+  const id = newEntryId(type, data);
+  if (!id.ok) return { ok: false, response: invalid(id.errors) };
+  const candidates = idCandidates(type, id.data, data);
+  if (keep && candidates.includes(keep)) return { ok: true, id: keep, index: null };
+  const index = type.whenTaken === 'next' || type.indexSection ? await loadCmsIndex(request, env) : null;
+  const used = type.whenTaken === 'next' ? namesInUse(type, index) : new Set<string>();
+  let reads = 0;
+  for (const name of candidates) {
+    if (used.has(name)) continue;
+    const paths = newPaths(type, name);
+    let onMain: Record<string, string | null>;
+    try {
+      onMain = await fileShasOnBase(paths, env);
+    } catch (e) {
+      return { ok: false, response: githubFailed(e) };
+    }
+    const taken = paths.filter((p) => onMain[p] !== null);
+    if (taken.length === 0) return { ok: true, id: name, index };
+    if (type.whenTaken === 'refuse' || ++reads >= NAME_READS) {
+      return { ok: false, taken, response: fail(409, 'exists', 'An entry with this id is already published; open it instead', { paths: taken }) };
+    }
+  }
+  return { ok: false, taken: [], response: fail(409, 'exists', 'No free file name for this title; change it a little', { paths: [] }) };
+}
+
+/**
+ * A published entry with the same title in the same place (a resource
+ * link already in that section): a soft warning on create, never a refusal.
+ */
+export function duplicateOf(type: CmsType, index: CmsIndex | null, data: unknown): string | undefined {
+  if (!type.indexSection || !index) return undefined;
+  const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
+  let title: string | undefined;
+  let section: string | undefined;
+  try {
+    title = type.indexTitle(data, 'en');
+    section = type.indexSection(data);
+  } catch {
+    return undefined;
+  }
+  if (!norm(title) || !section) return undefined;
+  return (index[type.key] ?? []).find((e) => norm(e.title) === norm(title) && e.section === section)?.id;
 }

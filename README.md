@@ -1018,8 +1018,12 @@ The links on `/resources` are edited in İçerik › Kaynaklar
 (`#icerik/kaynaklar`), by the Öğrenme group. Each link is one file in
 `src/content/resources/`. A new link is named after its English title; an
 existing file keeps its name when the title changes. A link listed in two
-sections is two files (the two TeachOpenCADD ones), so a second placement
-needs a title that gives a new file name, or a pull request. Orders go in
+sections is two files (the two TeachOpenCADD ones). When the name is taken,
+the server picks the next free one: `<title>-<section>`, then `-2`, `-3`.
+If the same title is already in the same section, the panel says so ("Bu
+bağlantı zaten listede: aç") but does not refuse. Webinars and committees
+take the next free name the same way (`-2`, ...); events and workshops,
+whose file name is their data, are refused instead. Orders go in
 tens within a section; equal orders sort by title. Submit asks for the
 title, description and address in both languages, at least one tag, and as
 many Turkish tags as English ones, the same as

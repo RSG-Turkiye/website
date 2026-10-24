@@ -732,16 +732,60 @@ test('resources: a new one is named after its English title; an update keeps its
   assert.equal(branch.get(RESOURCE_PATH), `${JSON.stringify(data, null, 2)}\n`);
 });
 
-test('resources: a new one whose title slugs to a file on main is refused, never written over it', async () => {
-  const { env, db } = setup();
-  for (const en of ['Fixture Taken', 'fixture   TAKEN!']) {
-    const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en, tr: 'Başka' } } });
-    assert.equal(made.res.status, 409, en);
-    assert.equal(made.body.code, 'exists');
-    assert.deepEqual(made.body.paths, [TAKEN_PATH]);
-  }
-  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
-  assert.equal(gh.main.get(TAKEN_PATH), FILES[TAKEN_PATH]);
+test('resources: a new one whose title slugs to a file on main gets a free name: the section, then -2', async () => {
+  const { env } = setup();
+  // Same title and section as fixture-taken: a free name, and a soft warning naming it.
+  const same = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka' } } });
+  assert.equal(same.res.status, 201, JSON.stringify(same.body));
+  assert.equal(same.body.draft.entry_id, 'fixture-taken-learning');
+  assert.deepEqual(same.body.draft.base_shas, { 'src/content/resources/fixture-taken-learning.json': null });
+  assert.equal(same.body.duplicate_of, 'fixture-taken');
+  // Another section: a second placement, not a duplicate.
+  const other = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), section: 'tools', title: { en: 'fixture   TAKEN!', tr: 'Başka' } } });
+  assert.equal(other.res.status, 201, JSON.stringify(other.body));
+  assert.equal(other.body.draft.entry_id, 'fixture-taken-tools');
+  assert.equal(other.body.duplicate_of, undefined);
+  // The section's name taken too (on main, though the deployed index does not know it yet): -2.
+  gh.main.set('src/content/resources/fixture-taken-learning.json', FILES[TAKEN_PATH]);
+  const third = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka' } } });
+  assert.equal(third.body.draft.entry_id, 'fixture-taken-2');
+  // A title nobody has: its own slug, no warning.
+  const fresh = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fresh Link', tr: 'Yeni' } } });
+  assert.equal(fresh.body.draft.entry_id, 'fresh-link');
+  assert.equal(fresh.body.duplicate_of, undefined);
+  assert.equal(gh.main.get(TAKEN_PATH), FILES[TAKEN_PATH], 'nothing on main is written');
+});
+
+test('resources: saves keep the name chosen at create; a change of section picks again', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka' } } });
+  const id = made.body.draft.id;
+  assert.equal(made.body.draft.entry_id, 'fixture-taken-learning');
+  const patch = async (data: unknown) => {
+    const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'learning', { data, write_nonce: row(id).write_nonce });
+    return { status: res.status, body: await res.json() as any };
+  };
+  const kept = await patch({ ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka ad' } });
+  assert.equal(kept.status, 200, JSON.stringify(kept.body));
+  assert.equal(row(id).entry_id, 'fixture-taken-learning');
+  const moved = await patch({ ...aResource(), section: 'databases', title: { en: 'Fixture Taken', tr: 'Başka ad' } });
+  assert.equal(moved.status, 200, JSON.stringify(moved.body));
+  assert.equal(row(id).entry_id, 'fixture-taken-databases');
+  assert.deepEqual(JSON.parse(row(id).base_shas), { 'src/content/resources/fixture-taken-databases.json': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'learning', {}, '/submit')).status, 200);
+});
+
+test('committees: a new one named like a published file gets -2; events and workshops still refuse (their name is the data)', async () => {
+  const { env } = setup();
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), name: { en: 'Fixture Committee', tr: 'Örnek' } } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, 'fixture-committee-2');
+  // A workshop's file name is its repo (tests/content-workshops.test.ts): a second file for one repo is refused.
+  const wPath = Object.keys(FILES).find((p) => p.startsWith('src/content/workshops/'))!;
+  const w = JSON.parse(FILES[wPath]);
+  const ws = await create(env, 'editor', { type: 'workshops', action: 'create', data: w });
+  assert.equal(ws.res.status, 409);
+  assert.equal(ws.body.code, 'exists');
 });
 
 test('resources: an unknown section or a missing key is refused at submit; only the Öğrenme group edits them', async () => {
@@ -1049,7 +1093,7 @@ test('a webinar delete covers both sides even when one is missing on main, and r
   assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: en }]);
 });
 
-test('a new webinar may not reuse a published pair\'s translationKey or file name', async () => {
+test('a new webinar may not reuse a published pair\'s translationKey; a file name taken gets -2', async () => {
   const { env } = setup();
   const side = (title: string, key = '') => ({
     frontmatter: { title, translationKey: key, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet' },
@@ -1058,9 +1102,12 @@ test('a new webinar may not reuse a published pair\'s translationKey or file nam
   const byKey = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk', PAIR_KEY), tr: side('Yeni', PAIR_KEY) } });
   assert.equal(byKey.res.status, 409);
   assert.equal(byKey.body.code, 'exists');
+  // A title that slugs to a published file's name: a free name, both sides checked.
   const byName = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side(PAIR_TR_TITLE), tr: side(PAIR_TR_TITLE) } });
-  assert.equal(byName.res.status, 409);
-  assert.equal(byName.body.code, 'exists');
+  assert.equal(byName.res.status, 201, JSON.stringify(byName.body));
+  const base = byName.body.draft.entry_id.replace(/-2$/, '');
+  assert.equal(byName.body.draft.entry_id, `${base}-2`);
+  assert.deepEqual(byName.body.draft.base_shas, { [`src/content/webinars/en/${base}-2.md`]: null, [`src/content/webinars/tr/${base}-2.md`]: null });
   const fine = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
   assert.equal(fine.res.status, 201);
 });
@@ -1603,7 +1650,7 @@ test('a save names the version it was made on: a stale write_nonce is draft_chan
   assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), note: 'tab 1 again' }, write_nonce: after })).status, 200);
 });
 
-test('renaming a new entry onto a published one is refused on the field its name comes from', async () => {
+test('renaming a new event onto a published one is refused on the field its name comes from; a webinar gets -2', async () => {
   const { env, row } = setup();
   const made = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
   const id = made.body.draft.id;
@@ -1615,9 +1662,10 @@ test('renaming a new entry onto a published one is refused on the field its name
   const side = (title: string) => ({ frontmatter: { title, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet' }, body: '\n' });
   const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
   assert.equal(w.res.status, 201);
+  // A webinar takes the next free name instead (whenTaken 'next'): no refusal.
   const clash = await on(env, draft.onRequestPatch, 'PATCH', w.body.draft.id, 'editor', { data: { en: side('Molekuler Simulasyonlar'), tr: side('Yeni') } });
-  assert.equal(clash.status, 422);
-  assert.ok((await clash.json() as any).errors['en.frontmatter.title']);
+  assert.equal(clash.status, 200);
+  assert.equal(row(w.body.draft.id).entry_id, 'molekuler-simulasyonlar-2');
 });
 
 test('the live list leaves out other people\'s new entries, keeps one\'s own', async () => {
