@@ -525,7 +525,7 @@ test('the index carries each file\'s git blob sha, the same number git computes'
   const { EVENT_ID, EVENT_PATH: path, PAIR_ID } = realFixtures(files, index);
   const entry = index.events.find((e) => e.id === EVENT_ID)!;
   assert.deepEqual(Object.keys(entry.shas!), [path]);
-  assert.equal(entry.shas![path], execFileSync('git', ['hash-object', path], { cwd: ROOT, encoding: 'utf8' }).trim());
+  assert.equal(entry.shas![path], execFileSync('git', ['hash-object', '--stdin'], { input: files[path], encoding: 'utf8' }).trim());
   const pair = index.webinars.find((w) => w.id === PAIR_ID)!;
   assert.deepEqual(Object.keys(pair.shas!).sort(), [pair.paths!.en, pair.paths!.tr].sort());
   // Multi-byte text: the length is in bytes, as git counts it.

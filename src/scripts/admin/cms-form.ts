@@ -755,6 +755,9 @@ export function messageKey(message: string): string {
   if (/same as the English side/.test(m)) return 'admin.cms.v.keySame';
   if (/already exists/.test(m)) return 'admin.cms.v.exists';
   if (/not the date's year/.test(m)) return 'admin.cms.v.year';
+  if (/^Em dash/.test(m)) return 'admin.cms.v.emDash';
+  if (/^No e-mail addresses/.test(m)) return 'admin.cms.v.noAt';
+  if (/expected true$/.test(m)) return 'admin.cms.v.consent';
   return 'admin.cms.v.invalid';
 }
 

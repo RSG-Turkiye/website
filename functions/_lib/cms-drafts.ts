@@ -226,6 +226,53 @@ function unknownKeys(schema: unknown, value: unknown, at: string, into: FieldErr
   }
 }
 
+// ── House rules: what the content tests refuse, refused at submit ─────────────
+
+/** The em dash, written as an escape: tests/no-em-dashes.test.ts bans the character in every reader-facing file. */
+const EM_DASH = '\u2014';
+/** Two hyphens between words: shown as they are in frontmatter, turned into an em dash in a Markdown body. */
+const SPACED_DOUBLE_HYPHEN = /\w\s--\s\w/;
+
+export const EM_DASH_MESSAGE = 'Em dash (\u2014) is not used: write a hyphen (-) or a comma';
+export const NO_AT_MESSAGE = 'No e-mail addresses: an @ cannot be in this file';
+
+/** A Markdown body without its code, where a dash or an @ is code, not prose. */
+const prose = (body: string) => body.replace(/^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm, '').replace(/`[^`\n]*`/g, '');
+
+/**
+ * Every string in the data, with its path as the form names fields
+ * (`links.0.label.en`, `en.frontmatter.title`, `en.body`). A pair side's
+ * `source` is the server's copy of main, not something the draft writes.
+ */
+function eachString(type: CmsType, data: unknown, visit: (path: string, text: string) => void): void {
+  const walk = (v: unknown, at: string) => {
+    if (typeof v === 'string') visit(at, at.endsWith('.body') && type.format === 'markdown-pair' ? prose(v) : v);
+    else if (Array.isArray(v)) v.forEach((x, i) => walk(x, at ? `${at}.${i}` : String(i)));
+    else if (isObject(v)) for (const [k, x] of Object.entries(v)) {
+      if (type.format === 'markdown-pair' && (at === 'en' || at === 'tr') && k === 'source') continue;
+      walk(x, at ? `${at}.${k}` : k);
+    }
+  };
+  walk(data, '');
+}
+
+/**
+ * What the repository's own tests would refuse once the file is on main:
+ * an em dash anywhere (tests/no-em-dashes.test.ts scans src/content, and a
+ * spaced `--` reaches the reader as one), and, for a type whose files are
+ * profiles (`noAt`), an @, the test's own rule for e-mail addresses
+ * (tests/content-committees.test.ts). Checked at submit and approval, so a
+ * merged panel edit can never fail CI on main.
+ */
+export function houseRuleErrors(type: CmsType, data: unknown): FieldErrors {
+  const errors: FieldErrors = {};
+  eachString(type, data, (path, text) => {
+    if (text.includes(EM_DASH) || SPACED_DOUBLE_HYPHEN.test(text)) setOnce(errors, path, EM_DASH_MESSAGE);
+    else if (type.noAt && text.includes('@')) setOnce(errors, path, NO_AT_MESSAGE);
+  });
+  return errors;
+}
+
 /**
  * The entry checked against its type's zod schema. On success `data` is the
  * input as written to the file (not zod's output, which would turn dates into
@@ -239,6 +286,7 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
     unknownKeys(type.schema, data, '', errors);
     const r = type.schema.safeParse(data);
     if (!r.success) issuesToErrors(r.error.issues as Issue[], '', errors, mode, data);
+    if (mode === 'strict') for (const [k, m] of Object.entries(houseRuleErrors(type, data))) setOnce(errors, k, m);
     return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data };
   }
 
@@ -261,6 +309,7 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
     const key = (side: MarkdownSide) => String(side.frontmatter.translationKey ?? '').trim();
     if (key(out.en) !== key(out.tr)) setOnce(errors, 'tr.frontmatter.translationKey', 'Must be the same as the English side');
   }
+  if (mode === 'strict') for (const [k, m] of Object.entries(houseRuleErrors(type, out))) setOnce(errors, k, m);
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data: out as PairData };
 }
 

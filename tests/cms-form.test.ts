@@ -10,7 +10,7 @@ import { jsonSchemaFor } from '../src/lib/cms/json-schema';
 import { parseMarkdown } from '../src/lib/cms/serialize';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
-import { FAILURE } from '../functions/_lib/cms-drafts';
+import { EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE } from '../functions/_lib/cms-drafts';
 import { ui } from '../src/i18n/ui';
 import {
   MODELS, applyValues, emptyData, errorKey, failureKey, formValues, halfTranslated, isEmptyValue, livePath, messageKey, placeOf, sharedShowsOne,
@@ -133,7 +133,7 @@ test('the internal note is for approvers only', () => {
 });
 
 test('an event goes through the form and back unchanged; an edited when.tr comes back changed', () => {
-  const data = JSON.parse(read(EVENT_PATH));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const original = structuredClone(data);
   const values = formValues(MODELS.events, data);
   assert.deepEqual(applyValues(MODELS.events, data, values), data);
@@ -187,7 +187,7 @@ test('an untouched new entry adds nothing; cleared optional fields leave the fil
     const base = emptyData(MODELS[key]);
     assert.deepEqual(applyValues(MODELS[key], base, formValues(MODELS[key], base)), base, key);
   }
-  const data = JSON.parse(read(EVENT_PATH));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const values = formValues(MODELS.events, data);
   const out = applyValues(MODELS.events, data, { ...values, end: '' }) as Record<string, unknown>;
   assert.ok(!('end' in out), 'a cleared end date is removed, not ""');
@@ -269,7 +269,7 @@ test('every label, help and error sentence exists in both languages', () => {
     for (const f of m.fields) { keys.add(f.label); if (f.help) keys.add(f.help); }
   }
   for (const code of ['changed_since', 'entry_busy', 'superseded', 'exists', 'github_failed', 'unauthenticated', 'invalid', 'nonsense']) keys.add(errorKey(code));
-  for (const m of ['received undefined', 'end is before start', 'Unknown field', 'Invalid ISO date', 'Invalid option', 'expected number', 'blocked in Türkiye', 'gives the file its name', 'Invalid id', 'same as the English side', 'x']) keys.add(messageKey(m));
+  for (const m of ['received undefined', 'end is before start', 'Unknown field', 'Invalid ISO date', 'Invalid option', 'expected number', 'blocked in Türkiye', 'gives the file its name', 'Invalid id', 'same as the English side', EM_DASH_MESSAGE, NO_AT_MESSAGE, 'Invalid input: expected true', 'x']) keys.add(messageKey(m));
   for (const k of keys) {
     assert.ok(k in ui.en, `en missing ${k}`);
     assert.ok(k in ui.tr, `tr missing ${k}`);
@@ -282,7 +282,7 @@ test('every label, help and error sentence exists in both languages', () => {
 });
 
 test('half-translated texts are found, whole and empty ones are not', () => {
-  const data = JSON.parse(read(EVENT_PATH));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const values = formValues(MODELS.events, data);
   assert.deepEqual(halfTranslated(MODELS.events, values), []);
   const half = { ...values, location: { en: 'Ankara', tr: '' }, links: [{ label: { en: 'Site', tr: '' }, url: 'https://x' }] };
@@ -292,7 +292,7 @@ test('half-translated texts are found, whole and empty ones are not', () => {
 });
 
 test('the approver\'s diff: values, both languages, items added, removed and moved, body lines', () => {
-  const data = JSON.parse(read(EVENT_PATH));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const links = [{ label: { en: 'A', tr: 'A' }, url: 'a' }, { label: { en: 'B', tr: 'B' }, url: 'b' }, { label: { en: 'C', tr: 'C' }, url: 'c' }];
   const before = { ...data, links };
   const after = { ...data, when: { ...data.when, tr: `${data.when.tr} (edited)` }, links: [links[2], links[0], { label: { en: 'D', tr: 'D' }, url: 'd' }] };
@@ -397,7 +397,7 @@ test('a webinar\'s year follows its date and is not typed', () => {
 });
 
 test('required fields are marked; the half-translation warning is only for optional ones', () => {
-  const data = JSON.parse(read(EVENT_PATH));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const values = formValues(MODELS.events, data);
   // A required field half-filled is a field error at submit, not this warning.
   assert.deepEqual(halfTranslated(MODELS.events, { ...values, title: { en: 'x', tr: '' } }), []);
@@ -416,7 +416,7 @@ test('image upload errors in plain words', () => {
 });
 
 test('a change to the internal note alone is a change the approver sees', () => {
-  const data = JSON.parse(read(EVENT_PATH));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const d = diffEntry(MODELS.events, data, { ...data, note: `${data.note ?? ''} (edited)` }, visibleFields(MODELS.events, true));
   assert.deepEqual(d.changed.map((c) => c.field.key), ['note']);
 });
@@ -963,4 +963,22 @@ test('fix round 3: "take" moves the origin to the other version\'s data for that
   // JSON, and a field the other version lacks.
   assert.deepEqual(withFieldFrom(R2J, R2J_BASE, { title: 'x' }, 'rows'), { title: 'a' });
   assert.deepEqual(withFieldFrom(R2J, R2J_BASE, { title: 'x' }, 'title'), { ...R2J_BASE, title: 'x' });
+});
+
+test('house rules: the em dash, the @ and the missing consent each have their own sentence', () => {
+  assert.equal(messageKey(EM_DASH_MESSAGE), 'admin.cms.v.emDash');
+  assert.equal(messageKey(NO_AT_MESSAGE), 'admin.cms.v.noAt');
+  assert.equal(messageKey('Invalid input: expected true'), 'admin.cms.v.consent');
+  assert.match(ui.tr['admin.cms.v.emDash'], /^Uzun tire \(—\) kullanılmıyor; kısa tire \(-\) ya da virgül kullanın$/);
+});
+
+test('house rules: no published file of any type is refused (no false alarm on what CI already accepts)', () => {
+  for (const type of CMS_TYPES) {
+    const ids = Object.keys(FILES).filter((p) => p.startsWith(`${type.dir}/`));
+    if (type.format === 'json') {
+      for (const p of ids) assert.deepEqual(houseRuleErrors(type, JSON.parse(FILES[p])), {}, p);
+    } else {
+      for (const w of INDEX[type.key as 'webinars']) assert.deepEqual(houseRuleErrors(type, pair(w.id)), {}, w.id);
+    }
+  }
 });

@@ -62,6 +62,9 @@ export interface CmsTypeSpec {
   /** The file is also written by a script (podcast:sync); the panel edits
    * it the same way. Default false. */
   generated?: boolean;
+  /** Profiles of people: no @ anywhere in the file, so no e-mail address
+   * (CLAUDE.md rule 4). Refused at submit. Default false. */
+  noAt?: boolean;
 }
 
 /** A type with every option resolved. */
@@ -77,6 +80,7 @@ export function defineType(spec: CmsTypeSpec): CmsType {
     noDelete: false,
     approve: "group",
     generated: false,
+    noAt: false,
     ...spec,
   };
 }

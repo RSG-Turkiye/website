@@ -268,7 +268,7 @@ const newEvent = () => ({
 test('the index pairs every webinar by the translation rule, not by file name', () => {
   // One entry per English file (tests/webinar-translation-parity.test.ts
   // keeps every webinar in both languages), each with both sides.
-  assert.equal(INDEX.webinars.length, readdirSync(`${ROOT}src/content/webinars/en`).filter((f) => f.endsWith('.md')).length);
+  assert.equal(INDEX.webinars.length, Object.keys(FILES).filter((p) => /^src\/content\/webinars\/en\/[^/]+\.md$/.test(p)).length);
   for (const w of INDEX.webinars) assert.ok(w.paths?.en && w.paths?.tr, w.id);
   // A pair whose files have different names is tied by the key both declare.
   const name = (p: string) => p.replace(/^.*\//, '');
@@ -589,6 +589,35 @@ test('a schema-invalid save answers with an error per field and keeps the last g
   const created = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), id: undefined } });
   assert.equal(created.res.status, 422);
   assert.ok(created.body.errors.id);
+});
+
+test('an em dash, or a spaced double hyphen, is refused at submit in any text of any type, and saved meanwhile', async () => {
+  const { env, row } = setup();
+  const EM = '\u2014';
+  // An event: a nested text.
+  const ev = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), when: { en: '6 March 2027', tr: `6 Mart 2027 ${EM} akşam` } } });
+  assert.equal(ev.res.status, 201, 'a save keeps work in progress');
+  let res = await on(env, submit.onRequestPost, 'POST', ev.body.draft.id, 'editor', {}, '/submit');
+  assert.equal(res.status, 422);
+  let out = await res.json() as any;
+  assert.match(out.errors['when.tr'], /em dash/i);
+  assert.equal(row(ev.body.draft.id).status, 'draft');
+  // A link label inside a list.
+  const links = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-izmir-2027', links: [{ label: { en: `A ${EM} B`, tr: 'A' }, url: 'https://example.org' }] } });
+  out = await (await on(env, submit.onRequestPost, 'POST', links.body.draft.id, 'editor', {}, '/submit')).json() as any;
+  assert.match(out.errors['links.0.label.en'], /em dash/i);
+  // A webinar: frontmatter and body, each on its side; ` -- ` reads as a dash too.
+  const side = (title: string, body: string) => ({ frontmatter: { title, date: '2027-01-05', speaker: 'Ada Örnek', description: 'A talk.', year: 2027, type: 'student' }, body });
+  const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('A talk -- with a dash', 'Fine.'), tr: side('Bir konuşma', `Metin ${EM} burada.`) } });
+  assert.equal(w.res.status, 201);
+  res = await on(env, submit.onRequestPost, 'POST', w.body.draft.id, 'editor', {}, '/submit');
+  assert.equal(res.status, 422);
+  out = await res.json() as any;
+  assert.match(out.errors['en.frontmatter.title'], /em dash/i);
+  assert.match(out.errors['tr.body'], /em dash/i);
+  // The en dash is allowed (date ranges), and so is `--` in code.
+  const ok = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Ranges 1\u20132', 'Run `nextflow run -- x` or\n\n```\na -- b\n```\n'), tr: side('Aralık 1\u20132', 'Tamam.') } });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', ok.body.draft.id, 'editor', {}, '/submit')).status, 200);
 });
 
 test('an update cannot rename the file', async () => {
