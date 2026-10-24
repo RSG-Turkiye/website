@@ -1155,6 +1155,7 @@ export function messageKey(message: string): string {
   if (/same resources in the same order/.test(m)) return 'admin.cms.v.lpOrder';
   if (/^Must be the same as in English/.test(m)) return 'admin.cms.v.lpShared';
   if (/^The Turkish notice must have as many/.test(m)) return 'admin.cms.v.privacyParity';
+  if (/^A section needs a paragraph or a list item/.test(m)) return 'admin.cms.v.privacyEmptySection';
   if (/^Not a published domain/.test(m)) return 'admin.cms.v.lpDomain';
   if (/^Choose the domain and the level/.test(m)) return 'admin.cms.v.required';
   return 'admin.cms.v.invalid';
@@ -1225,7 +1226,7 @@ export const LIVE: readonly Status[] = ['submitted', 'approved', 'pr_open', 'mer
 
 const ERROR_CODES = ['changed_since', 'entry_busy', 'superseded', 'exists', 'github_failed', 'bad_state', 'draft_changed', 'invalid',
   'unauthenticated', 'forbidden', 'not_found', 'index_unavailable', 'already_merged', 'network', 'csrf', 'unwritable',
-  'feed_failed', 'rate_limited', 'stage_taken', 'has_levels'] as const;
+  'feed_failed', 'rate_limited', 'stage_taken', 'has_levels', 'unchanged'] as const;
 
 /** The sentence for an API error code. */
 export function errorKey(code: string | undefined): string {

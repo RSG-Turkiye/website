@@ -5,6 +5,7 @@ import {
   actionRefused, badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, newNonce, nonceProof, refuseDomainDelete, refuseLp, refusePairClash,
 } from '../../../../_lib/cms-api';
 import { actionAllowed, canTransition, filesFor, prBody, prTitle, STALE_APPROVAL_SECONDS, stampedOnApproval, validateDraft, type DraftRow } from '../../../../_lib/cms-drafts';
+import { gitBlobSha } from '../../../../../src/lib/cms/blob-sha';
 import { fileShasOnBase, mainHeadSha, openContentPR, prForBranch, pullNumberFromUrl } from '../../../../_lib/github';
 
 /**
@@ -117,7 +118,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
 
   // The privacy notice's date is the day it is approved (A8), set here,
   // never by the form.
-  const written = row.action === 'delete' ? row.data : JSON.stringify(stampedOnApproval(type, JSON.parse(row.data), gate.now));
+  // Only a type with an approvedOnKey is rewritten; any other draft is written as stored.
+  const stamps = !!type.approvedOnKey && row.action !== 'delete';
+  if (stamps) {
+    // A draft that changes nothing would open a pull request whose only
+    // change is the date: a false "updated" on the page. Refused instead.
+    let same: boolean;
+    try {
+      same = (await Promise.all(filesFor(row).map(async (f) => f.content !== null && (await gitBlobSha(f.content)) === base[f.path]))).every(Boolean);
+    } catch {
+      same = false;
+    }
+    if (same) return fail(409, 'unchanged', 'This draft changes nothing on the site; discard it');
+  }
+  const written = stamps ? JSON.stringify(stampedOnApproval(type, JSON.parse(row.data), gate.now)) : row.data;
   if (row.action !== 'delete') {
     const data = JSON.parse(written) as unknown;
     const v = validateDraft(type, data);

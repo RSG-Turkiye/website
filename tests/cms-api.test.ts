@@ -2455,6 +2455,10 @@ test('privacy: only an admin approves; the date written is the day of approval i
     edited.updated = '1999-12-31';
     const made = await startPrivacy(env, 'seditor', edited);
     const id = made.body.draft.id;
+    assert.equal(JSON.parse(row(id).data).updated, '2020-01-02', 'a client date is not stored: main\'s stays until approval');
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data: { ...edited, updated: '2031-01-01' } })).status, 200);
+    assert.equal(JSON.parse(row(id).data).updated, '2020-01-02', 'nor on a save');
+    assert.deepEqual(Object.keys(JSON.parse(row(id).data)), ['updated', 'en', 'tr']);
     assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
     for (const as of ['sapprover', 'seditor', 'yapprover', 'approver']) {
       assert.equal((await on(env, approve.onRequestPost, 'POST', id, as, {}, '/approve')).status, 403, as);
@@ -2517,6 +2521,90 @@ test('privacy (approve: admin): the group\'s approver cannot open, save, send, d
     const page = await startPage(env, 'seditor', pageData());
     assert.equal((await on(env, draft.onRequestGet, 'GET', page.body.draft.id, 'sapprover')).status, 200);
     assert.equal((await on(env, draft.onRequestDelete, 'DELETE', page.body.draft.id, 'sapprover')).status, 200);
+  } finally {
+    done();
+  }
+});
+
+// ── Task 7 fix round 1 ───────────────────────────────────────────────────────
+
+test('privacy: a draft that changes nothing is refused at approval (no date-only pull request); a missing date is not added', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const noop = await startPrivacy(env, 'seditor', { ...aPrivacy(), updated: '2031-01-01' });
+    const id = noop.body.draft.id;
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    const res = await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve');
+    assert.equal(res.status, 409);
+    assert.equal(((await res.json()) as any).code, 'unchanged');
+    assert.equal(row(id).status, 'submitted');
+    assert.equal(gh.prs.length, 0);
+    const { updated: _u, ...noDate } = aPrivacy();
+    void _u;
+    const other = await startPrivacy(env, 'sapprover', noDate);
+    assert.equal(JSON.parse(row(other.body.draft.id).data).updated, '2020-01-02', 'the date comes from main, whatever was sent');
+  } finally {
+    done();
+  }
+});
+
+test('privacy: a section with neither paragraphs nor items is saved as work in progress and refused at submit', async () => {
+  try {
+    const { env } = setupGroups();
+    const empty = aPrivacy();
+    for (const l of ['en', 'tr'] as const) empty[l].sections.push({ heading: l === 'en' ? 'Empty' : 'Boş', paragraphs: [], items: [] });
+    const made = await startPrivacy(env, 'seditor', empty);
+    assert.equal(made.res.status, 201);
+    const sent = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    const errors = ((await sent.json()) as any).errors;
+    assert.match(errors['en.sections.2.paragraphs'] ?? '', /paragraph or a list item/, JSON.stringify(errors));
+  } finally {
+    done();
+  }
+});
+
+test('house rules on the Sayfalar types: whitespace only, an em dash, a spaced -- and an @ are each refused at submit on their field', async () => {
+  try {
+    const { env } = setupGroups();
+    const page = await startPage(env, 'seditor', { ...pageData(), zeta_title: { en: '   ', tr: 'Sonuncu önce' }, alpha_intro: { en: 'Hello — there', tr: 'Merhaba -- dünya' }, mid_cta: { en: 'Join', tr: 'Katıl' } });
+    assert.equal(page.res.status, 201, 'saved: work in progress');
+    const pageSent = await on(env, submit.onRequestPost, 'POST', page.body.draft.id, 'seditor', {}, '/submit');
+    assert.equal(pageSent.status, 422);
+    const pe = ((await pageSent.json()) as any).errors;
+    assert.ok(pe['zeta_title.en'], JSON.stringify(pe));
+    assert.match(pe['alpha_intro.en'], /^Em dash/);
+    assert.match(pe['alpha_intro.tr'], /^Em dash/);
+
+    const priv = aPrivacy();
+    priv.en.title = ' ';
+    priv.en.sections[0].items[0] = 'Your name — as typed.';
+    priv.tr.sections[1].paragraphs[0] = 'Tarih -- değişir.';
+    priv.en.intro[0] = 'Write to team@example.org.';
+    const made = await startPrivacy(env, 'seditor', priv);
+    assert.equal(made.res.status, 201);
+    const sent = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    const e = ((await sent.json()) as any).errors;
+    assert.ok(e['en.title'], JSON.stringify(e));
+    assert.match(e['en.sections.0.items.0'], /^Em dash/);
+    assert.match(e['tr.sections.1.paragraphs.0'], /^Em dash/);
+    assert.match(e['en.intro.0'], /^No e-mail addresses/);
+  } finally {
+    done();
+  }
+});
+
+test('approval writes a draft of a type without approvedOnKey exactly as stored: its row is not rewritten', async () => {
+  try {
+    const { env, db, row } = setupGroups();
+    const made = await startPage(env, 'seditor', { ...pageData(), mid_cta: { en: 'Join us', tr: 'Katılın' } });
+    const id = made.body.draft.id;
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    const spaced = JSON.stringify(JSON.parse(row(id).data), null, 1);
+    db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(spaced, id);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 200);
+    assert.equal(row(id).data, spaced);
   } finally {
     done();
   }

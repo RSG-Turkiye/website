@@ -5,7 +5,7 @@ import {
   actionRefused, approvesType, cmsGate, lpIdsElsewhere, refuseDomainDelete, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
 import {
-  actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, inOrderOf, langOf, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
+  actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, inOrderOf, langOf, withServerKey, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
 } from '../../_lib/cms-drafts';
 import { filesOnBase } from '../../_lib/github';
 import { assignIds, lockedKeysErrors, type LpDraftData } from '../../_lib/cms-lp';
@@ -164,6 +164,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       if (keys) return invalid(keys);
       // The draft keeps main's key order, whatever order the editor sent.
       if (type.format === 'json') data = inOrderOf(before, data);
+    }
+
+    if (action === 'update' && type.approvedOnKey) {
+      // The date the approval sets stays main's until then (A8).
+      try {
+        data = withServerKey(type, parseJson(type, files[paths[0]]!.content), data);
+      } catch (e) {
+        console.error('cms: an entry on main could not be parsed', entryId, e);
+        return fail(500, 'unreadable', 'The file on main could not be read');
+      }
     }
 
     if (action === 'update' && type.lockedKeys.length) {

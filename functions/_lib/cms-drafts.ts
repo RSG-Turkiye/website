@@ -182,7 +182,8 @@ function onlyIncomplete(issue: Issue, data: unknown): boolean {
   if (v === undefined) return issue.code !== 'unrecognized_keys';
   if (Array.isArray(v) && v.length === 0 && issue.code === 'too_small') return true;
   if (v === false && issue.code === 'invalid_value' && issue.values?.length === 1 && issue.values[0] === true) return true;
-  return v === '' && (issue.code === 'too_small' || issue.code === 'invalid_format');
+  // Whitespace only is as empty as '' (a text the page would show blank).
+  return typeof v === 'string' && v.trim() === '' && (issue.code === 'too_small' || issue.code === 'invalid_format');
 }
 
 function issuesToErrors(issues: Issue[], prefix: string, into: FieldErrors, mode: CheckMode = 'strict', data?: unknown): void {
@@ -423,6 +424,21 @@ export function inOrderOf(before: unknown, next: unknown): unknown {
   // defineProperty: a `__proto__` key stays a key (validateDraft refuses unknown ones before this runs).
   for (const k of keys) Object.defineProperty(out, k, { value: inOrderOf(before[k], next[k]), enumerable: true, writable: true, configurable: true });
   return out;
+}
+
+/**
+ * For a type with an approvedOnKey: `next` with that key as `from` has it
+ * (main's file at the start, the stored draft on a save), so the stored
+ * draft and the approver's file diff never carry a date the client sent.
+ * The approval alone sets it. Other types' data is returned as it is.
+ */
+export function withServerKey(type: CmsType, from: unknown, next: unknown): unknown {
+  if (!type.approvedOnKey || type.format !== 'json' || !isObject(next)) return next;
+  const key = type.approvedOnKey;
+  const out = { ...next };
+  if (isObject(from) && Object.hasOwn(from, key)) out[key] = from[key];
+  else delete out[key];
+  return isObject(from) ? inOrderOf(from, out) : out;
 }
 
 /** The day `now` (seconds) falls on in Istanbul, YYYY-MM-DD: the date an approval stamps (approvedOnKey). */

@@ -17,12 +17,16 @@ export const PRIVACY_PARITY_MESSAGE = "The Turkish notice must have as many para
 
 const text = z.string().trim().min(1);
 
-export const privacySectionSchema = z.object({
-  heading: text,
-  /** Either list may be empty: a section is paragraphs, a list, or both. */
-  paragraphs: z.array(text),
-  items: z.array(text),
-});
+export const PRIVACY_EMPTY_SECTION_MESSAGE = "A section needs a paragraph or a list item";
+
+export const privacySectionSchema = z
+  .object({
+    heading: text,
+    /** Either list may be empty: a section is paragraphs, a list, or both, never neither. */
+    paragraphs: z.array(text),
+    items: z.array(text),
+  })
+  .refine((s) => s.paragraphs.length + s.items.length > 0, { message: PRIVACY_EMPTY_SECTION_MESSAGE, path: ["paragraphs"], params: { incomplete: true } });
 
 export const privacyNoticeSchema = z.object({
   title: text,
