@@ -108,6 +108,8 @@ export function buildCmsIndex(files: Record<string, string>, shas?: Record<strin
     // A JSON type's files sit directly in its folder; a pair's one level down.
     const paths = Object.keys(files)
       .filter((p) => p.startsWith(`${type.dir}/`) && p.endsWith(ext) && (type.format !== "json" || !p.slice(type.dir.length + 1).includes("/")))
+      // A one-file type (fixedId) shares its folder with other files.
+      .filter((p) => !type.fixedId || p === `${type.dir}/${type.fixedId}.json`)
       .sort();
     const list = type.format === "json" ? jsonEntries(type, paths, files) : pairEntries(type, paths, files);
     index[type.key] = list

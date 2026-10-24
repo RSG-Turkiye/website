@@ -17,7 +17,7 @@
 import { checkId, slugify } from '../../lib/cms/slug';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
-export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees';
+export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
   | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
@@ -233,9 +233,38 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     ],
     hidden: {},
   },
+  podcast: {
+    // No form (generated): the server builds the data from the feed. The
+    // fields are what the draft and the approver's diff show, every one as
+    // plain text: an episode's description and links are the feed's, never HTML.
+    key: 'podcast', format: 'json', sub: 'podcast', group: 'topluluk', idField: 'title', label: 'admin.cms.type.podcast',
+    generated: true, noCreate: true, noDelete: true,
+    fields: [
+      { key: 'title', kind: 'text', label: 'admin.cms.f.showTitle', group: 'main' },
+      { key: 'description', kind: 'textarea', label: 'admin.cms.f.description', group: 'main' },
+      { key: 'image', kind: 'text', label: 'admin.cms.f.artwork', group: 'more' },
+      {
+        // Matched by guid across versions: a new episode is one added row.
+        key: 'episodes', kind: 'objects', label: 'admin.cms.f.episodes', group: 'main',
+        rowName: 'admin.cms.rows.episode', identity: 'guid', rowLabel: (r) => str(r.title).trim(),
+        // The schema's order (src/data/podcast.ts).
+        fields: [
+          { key: 'guid', kind: 'text', label: 'admin.cms.f.guid', group: 'main' },
+          { key: 'title', kind: 'text', label: 'admin.cms.f.title', group: 'main' },
+          { key: 'pubDate', kind: 'text', label: 'admin.cms.f.pubDate', group: 'main' },
+          { key: 'durationSeconds', kind: 'number', label: 'admin.cms.f.durationSeconds', group: 'main' },
+          { key: 'audioUrl', kind: 'text', label: 'admin.cms.f.audioUrl', group: 'main' },
+          { key: 'audioBytes', kind: 'number', label: 'admin.cms.f.audioBytes', group: 'main' },
+          { key: 'image', kind: 'text', label: 'admin.cms.f.artwork', group: 'main' },
+          { key: 'description', kind: 'textarea', label: 'admin.cms.f.description', group: 'main' },
+        ],
+      },
+    ],
+    hidden: { syncedAt: 'set by every pull; shown in the file diff', platforms: 'the subscribe links, fixed in src/lib/podcast-feed.ts' },
+  },
 };
 
-export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees'];
+export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast'];
 /**
  * Models a browser check adds (tests/browser/cms-rows.mjs), so a draft of a
  * synthetic type opens in the real editor before any real type has rows.
@@ -874,7 +903,8 @@ export const LIVE: readonly Status[] = ['submitted', 'approved', 'pr_open', 'mer
 // ── API errors ───────────────────────────────────────────────────────────────
 
 const ERROR_CODES = ['changed_since', 'entry_busy', 'superseded', 'exists', 'github_failed', 'bad_state', 'draft_changed', 'invalid',
-  'unauthenticated', 'forbidden', 'not_found', 'index_unavailable', 'already_merged', 'network', 'csrf', 'unwritable'] as const;
+  'unauthenticated', 'forbidden', 'not_found', 'index_unavailable', 'already_merged', 'network', 'csrf', 'unwritable',
+  'feed_failed', 'rate_limited'] as const;
 
 /** The sentence for an API error code. */
 export function errorKey(code: string | undefined): string {
@@ -893,6 +923,7 @@ export function livePath(typeKey: string, entryId: string, paths: string[], lang
   if (typeKey === 'workshops') return `${prefix}/workshops/`;
   // Every committee is a card on the about page (no anchor there to land on).
   if (typeKey === 'committees') return `${prefix}/about/`;
+  if (typeKey === 'podcast') return `${prefix}/podcast/`;
   const file = paths.find((p) => p.includes(`/webinars/${lang}/`));
   const slug = file ? file.slice(file.lastIndexOf('/') + 1, -'.md'.length) : entryId;
   return `${prefix}/webinars/${slug}/`;

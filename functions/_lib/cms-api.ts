@@ -139,7 +139,7 @@ export const indexUnavailable = () => fail(503, 'index_unavailable', 'The list o
 /** The files of a published entry. A webinar's come from the index, because a
  * pair's two names can differ; a JSON entry's from its id. */
 export function entryPaths(type: CmsType, id: string, index: CmsIndex | null): string[] | 'no_index' | null {
-  if (type.format === 'json') return [jsonPath(type, id)];
+  if (type.format === 'json') return type.fixedId && id !== type.fixedId ? null : [jsonPath(type, id)];
   if (!index) return 'no_index';
   const found: CmsIndexEntry | undefined = index[type.key]?.find((e) => e.id === id);
   if (!found?.paths) return null;

@@ -691,7 +691,7 @@ test('committees: only the Topluluk group edits them', async () => {
   const made = await create(env, 'editor', { type: 'committees', action: 'create', data: aCommittee() });
   assert.equal(made.res.status, 403);
   const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'community')).json() as any;
-  assert.deepEqual(listed.types.map((t: any) => t.key), ['committees']);
+  assert.deepEqual(listed.types.map((t: any) => t.key), ['committees', 'podcast']);
 });
 
 test('an update cannot rename the file', async () => {

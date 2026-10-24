@@ -12,9 +12,10 @@ import { eventSchema } from "../../data/events";
 import { workshopSchema } from "../../data/workshops";
 import { webinarSchema } from "../../data/webinars";
 import { committeeSchema } from "../../data/committees";
+import { podcastSchema } from "../../data/podcast";
 import { checkId, slugify } from "./slug";
 
-export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees";
+export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast";
 
 /** What a type declares. The options after `label` have defaults (see defineType). */
 export interface CmsTypeSpec {
@@ -66,6 +67,10 @@ export interface CmsTypeSpec {
   /** Profiles of people: no @ anywhere in the file, so no e-mail address
    * (CLAUDE.md rule 4). Refused at submit. Default false. */
   noAt?: boolean;
+  /** JSON only: the type is one file, <dir>/<fixedId>.json, in a folder that
+   * may hold others (src/data). The index lists only it, and no other id is
+   * an entry of the type. Default '' (every file in dir). */
+  fixedId?: string;
 }
 
 /** A type with every option resolved. */
@@ -82,6 +87,7 @@ export function defineType(spec: CmsTypeSpec): CmsType {
     approve: "group",
     generated: false,
     noAt: false,
+    fixedId: "",
     ...spec,
   };
 }
@@ -155,6 +161,25 @@ export const CMS_TYPES: readonly CmsType[] = [
     label: { en: "Committees", tr: "Komiteler" },
     // Published profiles: no e-mail address in git (CLAUDE.md rule 4).
     noAt: true,
+  }),
+  defineType({
+    key: "podcast",
+    group: "topluluk",
+    dir: "src/data",
+    format: "json",
+    schema: podcastSchema,
+    // One file, written from the feed (functions/api/cms/podcast/pull.ts, or
+    // npm run podcast:sync); never created or deleted in the panel.
+    fixedId: "podcast",
+    idFrom: () => "podcast",
+    idField: "title",
+    indexTitle: (d: { title?: string }) => d.title,
+    // The newest episode's day: the list shows how current the show is.
+    indexDate: (d: { episodes?: { pubDate?: string }[] }) => d.episodes?.[0]?.pubDate?.slice(0, 10),
+    label: { en: "Podcast", tr: "Podcast" },
+    generated: true,
+    noCreate: true,
+    noDelete: true,
   }),
 ];
 

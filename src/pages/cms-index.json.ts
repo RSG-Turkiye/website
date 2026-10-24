@@ -10,7 +10,7 @@ import { buildCmsIndex } from '../lib/cms/cms-index';
  * merged draft's files (functions/_lib/cms-shepherd.ts).
  */
 const raw = import.meta.glob(
-  ['/src/content/events/*.json', '/src/content/workshops/*.json', '/src/content/webinars/*/*.md', '/src/content/committees/*.json'],
+  ['/src/content/events/*.json', '/src/content/workshops/*.json', '/src/content/webinars/*/*.md', '/src/content/committees/*.json', '/src/data/*.json'],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
 
