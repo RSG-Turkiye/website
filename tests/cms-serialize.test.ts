@@ -424,3 +424,30 @@ test('an edited nested list is rewritten in schema order and the same style, so 
   assert.deepEqual(changedLines(text, out), [text.split('\n').indexOf('        label: "Two"')]);
   assert.match(out, /^ {8}label: "Two, edited"$/m);
 });
+
+import { lpDomainSchema, lpLevelSchema, lpRoadmapSchema } from '../src/data/learning-paths';
+
+const LP_FILES = ([['lp-domains', lpDomainSchema], ['lp-levels', lpLevelSchema], ['lp-roadmap', lpRoadmapSchema]] as const)
+  .flatMap(([dir, schema]) => ['en', 'tr'].flatMap((lang) => files(`src/content/${dir}/${lang}`, '.md').map((f) => ({ f, type: { schema } as unknown as CmsType }))));
+
+test('every learning-path file survives parse then serialize byte for byte', () => {
+  assert.ok(LP_FILES.length > 0);
+  for (const { f, type } of LP_FILES) {
+    const text = read(f);
+    assert.equal(serializeMarkdown(type, parseMarkdown(type, text)), text, f);
+  }
+});
+
+test('every learning-path file is in the form the serializer writes, so a panel edit changes only its own lines', () => {
+  // The panel rewrites a changed top-level key whole: one edited resource
+  // rewrites its file's `sections` or `resources`. In this form that is the
+  // edited lines only. A file written in another style (a plain `tag:
+  // Reading`, a blank line between sections) still builds, but its first
+  // panel edit rewrites the whole list.
+  for (const { f, type } of LP_FILES) {
+    const text = read(f);
+    const { source: _s, ...entry } = parseMarkdown(type, text);
+    assert.equal(serializeMarkdown(type, entry), text, `${f} is not in the serializer's form`);
+    assert.ok(type.schema.safeParse(entry.frontmatter).success, f);
+  }
+});

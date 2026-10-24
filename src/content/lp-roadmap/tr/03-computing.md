@@ -3,36 +3,36 @@ number: 3
 emoji: "💻"
 title: "Bilgisayar Temelleri"
 subtitle: "Programcı olmanız gerekmiyor. Komut satırında işinizi görecek kadar rahat olmanız ve bir dilde yolunuzu bulmanız yeterli."
-color: navy
+color: "navy"
 resources:
   - id: "roadmap-3-0"
     title: "The Unix Shell, Software Carpentry"
     description: "Dizinlerde gezinin, dosyaları düzenleyin, komutları pipe edin. Bu, çalıştıracağınız her biyoinformatik pipeline'ın temelidir."
-    tag: Tutorial
+    tag: "Tutorial"
     url: "https://swcarpentry.github.io/shell-novice/"
   - id: "roadmap-3-1"
     title: "Python for Biologists"
     description: "Python, biyoinformatikte baskın dildir. Değişkenler, döngüler, fonksiyonlar, dosya ayrıştırma: hepsi biyolojik örneklerle öğretilir."
-    tag: Tutorial
+    tag: "Tutorial"
     url: "https://pythonforbiologists.com"
   - id: "roadmap-3-2"
     title: "R for Data Analysis (Python'a alternatif)"
     description: "R, istatistik ve genomiklerde (DESeq2, Seurat) hâlâ baskındır. Transkriptomik veya istatistiklere yöneliyorsanız buradan başlayın."
-    tag: Book
+    tag: "Book"
     url: "https://r4ds.hadley.nz"
   - id: "roadmap-3-3"
     title: "Version Control with Git, Software Carpentry"
     description: "Zorunlu. Değişiklikleri takip edin, işbirliği yapın ve çalışmanızı asla kaybetmeyin. Çalıştırdığınız her analiz bir Git deposunda yaşamalıdır."
-    tag: Tutorial
+    tag: "Tutorial"
     url: "https://swcarpentry.github.io/git-novice/"
   - id: "roadmap-3-rsg-command-line-workshop"
     title: "Command Line Tools Workshop, RSG-Türkiye 2021"
     description: "Kendi atölye materyallerimiz: Linux, dosyalarda gezinme, sed, awk ve grep; ardından bunları kullanan iki uygulama, uzun okumalarla genom birleştirme ve bir RNA-seq analizinin ilk adımları."
-    tag: Tutorial
+    tag: "Tutorial"
     url: "https://github.com/RSG-Turkiye/Workshop2021"
   - id: "roadmap-3-rsg-ankapy-workshop"
     title: "Python for Bioinformatics (AnkaPy), RSG-Türkiye 2019"
     description: "Kendi beş günlük atölyemiz: Python temelleri, FASTA, BLAST ve Entrez için Biopython, ardından veri analizi için numpy, pandas ve matplotlib."
-    tag: Tutorial
+    tag: "Tutorial"
     url: "https://github.com/RSG-Turkiye/AnkaPy"
 ---

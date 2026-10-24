@@ -1,6 +1,6 @@
 ---
-name: Machine Learning in Biology
-emoji: 🤖
+name: "Machine Learning in Biology"
+emoji: "🤖"
 tagline: "Protein language models, structure prediction, and deep learning on sequences: where AI meets molecular biology."
 order: 2
 goDeeper:

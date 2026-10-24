@@ -3,26 +3,26 @@ number: 7
 emoji: "🧭"
 title: "Yönünüzü Seçin"
 subtitle: "Temellere sahipsiniz. Şimdi sizi en çok heyecanlandıran alanı seçin, ve derinleşin."
-color: navy
+color: "navy"
 resources:
   - id: "roadmap-7-0"
     title: "Genomics & Transcriptomics"
     description: "RNA-seq, tek hücre, uzamsal transkriptomik. Gen ifadesi ve dizileme verisi ilginizi çekiyorsa, buradan başlayın."
-    tag: Action
+    tag: "Action"
     url: "/tr/learning-paths/genomics/"
   - id: "roadmap-7-1"
     title: "Machine Learning in Biology"
     description: "Protein dil modelleri, yapı tahmini, diziler üzerinde derin öğrenme. Biyolojide YZ uygulamaları sizi heyecanlandırıyorsa, buradan başlayın."
-    tag: Action
+    tag: "Action"
     url: "/tr/learning-paths/ml/"
   - id: "roadmap-7-2"
     title: "Structural Biology & Proteomics"
     description: "Moleküler kenetlenme, protein yapısı, AlphaFold devrimi. 3B moleküler yapılara çekiliyorsanız, bu sizin yönünüz."
-    tag: Action
+    tag: "Action"
     url: "/tr/learning-paths/structural/"
   - id: "roadmap-7-3"
     title: "Metagenomics & Microbiome"
     description: "Tüm mikrobiyel toplulukları dizileme: bağırsak, toprak, okyanus. Çevresel veya klinik mikrobiyoloji sizi çağırıyorsa, buradan başlayın."
-    tag: Action
+    tag: "Action"
     url: "/tr/learning-paths/metagenomics/"
 ---

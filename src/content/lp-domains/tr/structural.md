@@ -1,6 +1,6 @@
 ---
-name: Yapısal Biyoloji & Proteomik
-emoji: 🔬
+name: "Yapısal Biyoloji & Proteomik"
+emoji: "🔬"
 tagline: "Protein yapısı, moleküler dinamikler, kenetlenme ve AlphaFold çağı: 3 boyutlu şeklin işlevi nasıl belirlediği."
 order: 3
 goDeeper:

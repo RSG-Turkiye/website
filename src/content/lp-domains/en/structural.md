@@ -1,6 +1,6 @@
 ---
-name: Structural Biology & Proteomics
-emoji: 🔬
+name: "Structural Biology & Proteomics"
+emoji: "🔬"
 tagline: "Protein structure, molecular dynamics, docking, and the AlphaFold era: how 3D shape determines function."
 order: 3
 goDeeper:

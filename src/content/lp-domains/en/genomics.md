@@ -1,6 +1,6 @@
 ---
-name: Genomics & Transcriptomics
-emoji: 🧬
+name: "Genomics & Transcriptomics"
+emoji: "🧬"
 tagline: "From raw reads to gene expression: sequencing data, alignment, differential analysis, and the single-cell revolution."
 order: 1
 goDeeper:
