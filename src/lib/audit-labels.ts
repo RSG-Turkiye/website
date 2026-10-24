@@ -9,6 +9,7 @@ type Label = { en: string; tr: string };
 
 const FIXED: Record<string, Label> = {
   'view.pane': { en: 'Opened a panel section', tr: 'Panelde bir bölüm açtı' },
+  'media.upload': { en: 'Uploaded an image', tr: 'Görsel yükledi' },
   'read.audit': { en: 'Read the log', tr: 'Kayıtları okudu' },
   'read.connections': { en: 'Read the connections', tr: 'Bağlantıları okudu' },
   'read.stats': { en: 'Read the statistics', tr: 'İstatistiklere baktı' },
@@ -30,6 +31,19 @@ const FIXED: Record<string, Label> = {
 
   'blog.approve': { en: 'Approved a blog submission', tr: 'Blog başvurusunu onayladı' },
   'blog.reject': { en: 'Declined a blog submission', tr: 'Blog başvurusunu geri çevirdi' },
+
+  'cms.draft.create': { en: 'Created a content draft', tr: 'Taslak oluşturdu' },
+  'cms.draft.update': { en: 'Edited a content draft', tr: 'Taslağı düzenledi' },
+  'cms.draft.submit': { en: 'Sent a content draft for approval', tr: 'Taslağı onaya gönderdi' },
+  'cms.draft.approve': { en: 'Approved a content draft', tr: 'Taslağı onayladı' },
+  'cms.draft.reject': { en: 'Sent a content draft back', tr: 'Taslağı geri gönderdi' },
+  'cms.draft.discard': { en: 'Deleted a content draft', tr: 'Taslağı sildi' },
+  'cms.pr.open': { en: 'Content pull request opened', tr: 'İçerik PR\'ı açıldı' },
+  'cms.pr.merged': { en: 'Content pull request merged', tr: 'İçerik PR\'ı birleştirildi' },
+  'cms.pr.published': { en: 'Content went live', tr: 'İçerik yayına çıktı' },
+  'cms.pr.failed': { en: 'Content pull request failed', tr: 'İçerik PR\'ı başarısız' },
+  'cms.pr.cancel': { en: 'Cancelled a content PR', tr: 'İçerik PR\'ını iptal etti' },
+  'cms.draft.prune': { en: 'Removed finished content drafts older than 90 days', tr: '90 günden eski bitmiş taslaklar silindi' },
 
   'mail.send': { en: 'Sent an e-mail', tr: 'E-posta gönderdi' },
   'mail.reply': { en: 'Replied in a conversation', tr: 'Konuşmaya cevap yazdı' },

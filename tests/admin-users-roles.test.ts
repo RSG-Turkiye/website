@@ -231,6 +231,158 @@ test('GET filter=roles carries each user\'s live grants, staying under the 100-b
   }
   const over = bindLog.filter((b) => b.count > 100);
   assert.deepEqual(over, [], 'no statement binds more than 100 parameters');
-  const grantQueries = bindLog.filter((b) => /role_grants/.test(b.sql));
+  const grantQueries = bindLog.filter((b) => /FROM role_grants WHERE user_id IN/.test(b.sql));
   assert.ok(grantQueries.length >= 1 && grantQueries.length <= Math.ceil(body.users.length / 90) + 1, `${grantQueries.length} grant queries`);
+});
+
+/** u3 approves Etkinlikler; u4 is a former approver whose grant has ended. */
+function setupApprover() {
+  const s = setup();
+  const add = s.db.prepare('INSERT INTO users (id, google_id, email, is_admin, created_at, last_login) VALUES (?, ?, ?, 0, 1, 1)');
+  add.run('u4', 'g-u4', 'four@example.org');
+  const grant = s.db.prepare('INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES (?, ?, ?, ?, NULL, 1)');
+  grant.run('ga3', 'u3', 'content.etkinlikler.approve', null);
+  grant.run('ga4', 'u4', 'content.etkinlikler.approve', nowS() - 10);
+  for (const id of ['u2', 'u3', 'u4']) s.db.prepare(`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, 4000000000, 1)`).run(`s-${id}`, id);
+  return s;
+}
+const patchAs = (env: unknown, as: string, body: unknown) =>
+  call(users.onRequestPatch, 'PATCH', '/api/admin/users', { env, as, body, headers: ORIGIN });
+
+test('an admin grants the Etkinlikler roles: approve by default for good, edit for a month', async () => {
+  const { db, env } = setup();
+  assert.equal((await patch(env, { user_id: 'u2', action: 'make_content.etkinlikler.approve' })).status, 200);
+  assert.equal((await patch(env, { user_id: 'u3', action: 'make_content.etkinlikler.edit' })).status, 200);
+  assert.deepEqual(liveGrants(db, 'u2').map((r) => ({ ...r })), [{ role: 'content.etkinlikler.approve', expires_at: null, revoked_at: null }]);
+  const g = liveGrants(db, 'u3');
+  assert.equal(g[0].role, 'content.etkinlikler.edit');
+  assert.ok(g[0].expires_at! <= nowS() + 31 * 86400);
+});
+
+test('an approver grants Etkinlikler edit for a month; longer is too_long; the approve role is not_allowed', async () => {
+  const { db, env } = setupApprover();
+  const before = nowS();
+  const res = await patchAs(env, 'u3', { user_id: 'u2', action: 'make_content.etkinlikler.edit', duration: { months: 1 } });
+  const after = nowS();
+  assert.equal(res.status, 200);
+  const g = liveGrants(db, 'u2');
+  assert.deepEqual(g.map((r) => r.role), ['content.etkinlikler.edit']);
+  endsWithin(g[0].expires_at, 1, before, after);
+  const log = db.prepare(`SELECT user_id, action, target_id FROM audit_log`).all().map((r) => ({ ...r }));
+  assert.deepEqual(log, [{ user_id: 'u3', action: 'role.grant', target_id: 'u2' }]);
+
+  const long = await patchAs(env, 'u3', { user_id: 'u4', action: 'make_content.etkinlikler.edit', duration: { months: 2 } });
+  assert.equal(long.status, 400);
+  assert.equal(((await long.json()) as { code: string }).code, 'too_long');
+  const perm = await patchAs(env, 'u3', { user_id: 'u4', action: 'make_content.etkinlikler.edit', duration: { permanent: true } });
+  assert.equal(((await perm.json()) as { code: string }).code, 'permanent_not_allowed');
+  const up = await patchAs(env, 'u3', { user_id: 'u4', action: 'make_content.etkinlikler.approve', duration: { months: 1 } });
+  assert.equal(up.status, 403);
+  assert.equal(((await up.json()) as { code: string }).code, 'not_allowed');
+  // u4's only row is the approve grant that ended before the test.
+  assert.deepEqual(liveGrants(db, 'u4').map((r) => r.expires_at! < nowS()), [true]);
+});
+
+test('an approver removes Etkinlikler edit, but not the approve role', async () => {
+  const { db, env } = setupApprover();
+  await patch(env, { user_id: 'u2', action: 'make_content.etkinlikler.edit' });
+  assert.equal((await patchAs(env, 'u3', { user_id: 'u2', action: 'remove_content.etkinlikler.edit' })).status, 200);
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  await patch(env, { user_id: 'u2', action: 'make_content.etkinlikler.approve' });
+  assert.equal((await patchAs(env, 'u3', { user_id: 'u2', action: 'remove_content.etkinlikler.approve' })).status, 403);
+  assert.deepEqual(liveGrants(db, 'u2').map((r) => r.role), ['content.etkinlikler.approve']);
+});
+
+test('everything else stays admin-only for an approver; a lapsed approver and a plain user get nothing', async () => {
+  const { db, env } = setupApprover();
+  for (const action of ['make_writer', 'remove_admin', 'make_admin', 'verify', 'unverify', 'make_private', 'clear_bio', 'set_rank', 'award_badge', 'nonsense']) {
+    const res = await patchAs(env, 'u3', { user_id: 'u2', action, value: 'seed' });
+    assert.equal(res.status, 403, action);
+  }
+  for (const as of ['u4', 'u2']) {
+    const res = await patchAs(env, as, { user_id: 'u2', action: 'make_content.etkinlikler.edit', duration: { months: 1 } });
+    assert.equal(res.status, 403, as);
+  }
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  assert.equal(col(db, 'u2', 'is_member'), 0);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
+});
+
+test('GET filter=roles lists content-role holders, who have no is_* column', async () => {
+  const { env } = setupApprover();
+  const res = await call(users.onRequestGet, 'GET', '/api/admin/users?filter=roles', { env, as: 'admin' });
+  const body = (await res.json()) as { users: { id: string; grants: { role: string }[] }[] };
+  const u3 = body.users.find((u) => u.id === 'u3');
+  assert.ok(u3, 'the approver is listed');
+  assert.deepEqual(u3!.grants.map((g) => g.role), ['content.etkinlikler.approve']);
+  assert.ok(!body.users.some((u) => u.id === 'u4'), 'an ended grant is not a role');
+});
+
+test('GET for an approver: holders of the roles they grant, and a search, never an e-mail address', async () => {
+  const { db, env } = setupApprover();
+  db.prepare('UPDATE users SET is_member = 1 WHERE id = ?').run('u4');
+  db.prepare(`INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES ('u4', 'fourth', 'Dört Kişi', 1)`).run();
+  await patch(env, { user_id: 'u2', action: 'make_content.etkinlikler.edit' });
+  await patch(env, { user_id: 'u2', action: 'make_writer' });
+  const get = (as: string, qs: string) => call(users.onRequestGet, 'GET', `/api/admin/users?${qs}`, { env, as });
+
+  const roles = await get('u3', 'filter=roles');
+  assert.equal(roles.status, 200);
+  const rb = (await roles.json()) as { users: Record<string, unknown>[]; badge_catalog: unknown[] };
+  assert.deepEqual(rb.users.map((u) => u.id), ['u2']);
+  assert.deepEqual(Object.keys(rb.users[0]).sort(), ['display_name', 'grants', 'id', 'username']);
+  assert.deepEqual(rb.users[0].grants, [{ role: 'content.etkinlikler.edit', expires_at: (rb.users[0].grants as { expires_at: number }[])[0].expires_at }]);
+  assert.deepEqual(rb.badge_catalog, []);
+
+  const found = await get('u3', 'filter=all&search=D%C3%B6rt');
+  assert.equal(found.status, 200);
+  const fb = (await found.json()) as { users: Record<string, unknown>[] };
+  assert.deepEqual(fb.users.map((u) => u.id), ['u4']);
+  assert.deepEqual(Object.keys(fb.users[0]).sort(), ['display_name', 'grants', 'id', 'username']);
+  assert.ok(!JSON.stringify(fb).includes('@'), 'no address in the answer');
+  // By username, and by the whole address (any case), which finds that one person.
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=fourth')).json()) as { users: { id: string }[] }).users.map((u) => u.id), ['u4']);
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=FOUR%40example.org')).json()) as { users: { id: string }[] }).users.map((u) => u.id), ['u4']);
+  // Part of an address finds nobody: the directory cannot be searched by address.
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=four%40')).json()) as { users: unknown[] }).users, []);
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=example.org')).json()) as { users: unknown[] }).users, []);
+  // Members only.
+  db.prepare('UPDATE users SET is_member = 0 WHERE id = ?').run('u4');
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=fourth')).json()) as { users: unknown[] }).users, []);
+  assert.deepEqual(((await (await get('u3', 'filter=all&search=four%40example.org')).json()) as { users: unknown[] }).users, []);
+
+  // No browsing the whole directory, and nothing for someone without an approver role.
+  assert.equal((await get('u3', 'filter=all')).status, 403);
+  assert.equal((await get('u3', 'filter=members&search=four')).status, 403);
+  assert.equal((await get('u4', 'filter=roles')).status, 403);
+  assert.equal((await get('u2', 'filter=roles')).status, 403);
+});
+
+test('an approver\'s search is literal, at least three characters, and ten people at most', async () => {
+  const { db, env } = setupApprover();
+  const add = db.prepare('INSERT INTO users (id, google_id, email, is_member, created_at, last_login) VALUES (?, ?, ?, 1, ?, 1)');
+  const prof = db.prepare('INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES (?, ?, ?, 1)');
+  add.run('lit', 'g-lit', 'lit@example.org', 50); prof.run('lit', 'lit', 'a_b');
+  add.run('wild', 'g-wild', 'wild@example.org', 51); prof.run('wild', 'wild', 'axb');
+  for (let i = 0; i < 15; i++) { add.run(`bulk${i}`, `g-bulk${i}`, `bulk${i}@example.org`, 100 + i); prof.run(`bulk${i}`, `b${i}`, `Bulk ${i}`); }
+  const search = async (q: string) => {
+    const res = await call(users.onRequestGet, 'GET', `/api/admin/users?${new URLSearchParams({ filter: 'all', search: q })}`, { env, as: 'u3' });
+    return { status: res.status, body: (await res.json()) as { users?: { id: string }[]; code?: string } };
+  };
+  for (const q of ['%%%', '___', '\\\\\\', '%_%']) {
+    const r = await search(q);
+    assert.equal(r.status, 200, q);
+    assert.deepEqual(r.body.users, [], `${q} is not a wildcard`);
+  }
+  assert.deepEqual((await search('a_b')).body.users!.map((u) => u.id), ['lit'], '_ matches only itself');
+  for (const q of ['@', '%', '_', 'fo', ' fo ']) {
+    const r = await search(q);
+    assert.equal(r.status, 400, q);
+    assert.equal(r.body.code, 'search_too_short', q);
+  }
+  const bulk = await search('bulk');
+  assert.equal(bulk.body.users!.length, 10);
+  // An admin's search is unchanged.
+  const res = await call(users.onRequestGet, 'GET', '/api/admin/users?filter=all&search=bulk', { env, as: 'admin' });
+  assert.equal(((await res.json()) as { users: unknown[] }).users.length, 15);
 });

@@ -4,6 +4,7 @@ const GITHUB_OWNER = 'RSG-Turkiye';
 const GITHUB_REPO = 'website';
 const GITHUB_BASE_BRANCH = 'main';
 const GITHUB_API_BASE = 'https://api.github.com';
+const GITHUB_TIMEOUT_MS = 10_000;
 
 type OpenPrParams = {
   /** The `<branchPrefix>/` this branch lives under -- e.g. `blog-submission`
@@ -12,7 +13,8 @@ type OpenPrParams = {
    * opened a given branch. */
   branchPrefix: string;
   branchSlug: string;
-  files: Array<{ path: string; content: string }>;
+  /** `content: null` deletes the file on the branch (see `deleteFile`). */
+  files: Array<{ path: string; content: string | null }>;
   title: string;
   prBody: string;
   /** Whether to PATCH a recovered pull request's title and body onto
@@ -25,6 +27,17 @@ type OpenPrParams = {
    * rather than silently retitle -- the more dangerous of the two -- an
    * existing pull request that was not its own. */
   retitle: boolean;
+  /** When the branch already exists, force it back to main's current sha
+   * before committing, so the pull request carries exactly `files` and
+   * nothing an earlier attempt left there (a CMS draft that was renamed
+   * after a failed attempt). Off for the blog and symposium flows, which
+   * keep their earlier behaviour. */
+  resetBranch?: boolean;
+  /** The commit to start a new branch from, or reset an existing one to.
+   * Defaults to main's head read now. The CMS passes the commit it checked
+   * the draft's base shas against, so a merge landing in between shows up
+   * as a behind or conflicting pull request instead of being overwritten. */
+  baseSha?: string;
 };
 
 export type OpenPrResult =
@@ -62,6 +75,9 @@ async function githubRequest(
   env: Env
 ): Promise<Response> {
   return fetch(`${GITHUB_API_BASE}${path}`, {
+    // A GitHub that hangs must not hold a cron tick (or a panel request)
+    // until the platform kills it.
+    signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
     ...init,
     headers: {
       Authorization: `Bearer ${env.GITHUB_PAT}`,
@@ -94,7 +110,7 @@ async function getBaseBranchSha(env: Env): Promise<string> {
   return data.object.sha;
 }
 
-async function createBranch(branchName: string, baseSha: string, env: Env): Promise<void> {
+async function createBranch(branchName: string, baseSha: string, env: Env, reset = false): Promise<void> {
   const res = await githubRequest(
     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs`,
     {
@@ -107,12 +123,23 @@ async function createBranch(branchName: string, baseSha: string, env: Env): Prom
     // Branch name already exists (e.g. a prior failed attempt left it
     // behind). Treat as usable rather than failing -- the commit step
     // will fail loudly on its own if this branch is actually unusable.
+    if (reset) await resetBranchTo(branchName, baseSha, env);
     return;
   }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Failed to create branch ${branchName} (${res.status}): ${body}`);
   }
+}
+
+/** Force `branchName` to `sha`. Status code only in the error. */
+async function resetBranchTo(branchName: string, sha: string, env: Env): Promise<void> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/${branchName}`,
+    { method: 'PATCH', body: JSON.stringify({ sha, force: true }) },
+    env
+  );
+  if (!res.ok) throw new Error(`Failed to reset branch ${branchName} (${res.status})`);
 }
 
 /**
@@ -191,6 +218,30 @@ async function commitFile(
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Failed to commit ${filePath} (${res.status}): ${body}`);
+  }
+}
+
+/**
+ * Deletes `filePath` on `branchName`. The contents API wants the file's
+ * current sha on that branch, so it is looked up first -- and a path that is
+ * already absent is skipped rather than failed, which keeps openContentPR
+ * retryable: a retry after a crash between this delete and the PR opening
+ * finds the file gone and moves on.
+ */
+async function deleteFile(branchName: string, filePath: string, message: string, env: Env): Promise<void> {
+  const existing = await getFile(branchName, filePath, env);
+  if (!existing) return;
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filePath}`,
+    {
+      method: 'DELETE',
+      body: JSON.stringify({ message, sha: existing.sha, branch: branchName }),
+    },
+    env
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to delete ${filePath} (${res.status}): ${body}`);
   }
 }
 
@@ -396,12 +447,18 @@ export async function getFileOnBaseBranch(filePath: string, env: Env): Promise<s
  * reconcile a half-done attempt by hand.
  */
 export async function openContentPR(params: OpenPrParams, env: Env): Promise<OpenPrResult> {
+  // Force-resetting throws away commits; only the CMS's own branches may be.
+  if (params.resetBranch && params.branchPrefix !== 'cms') throw new Error('resetBranch is only for cms/ branches');
   const branchName = `${params.branchPrefix}/${params.branchSlug}`;
   try {
-    const baseSha = await getBaseBranchSha(env);
-    await createBranch(branchName, baseSha, env);
+    const baseSha = params.baseSha ?? await getBaseBranchSha(env);
+    await createBranch(branchName, baseSha, env, params.resetBranch === true);
     for (const file of params.files) {
-      await commitFile(branchName, file.path, file.content, `Add ${file.path}`, env);
+      if (file.content === null) {
+        await deleteFile(branchName, file.path, `Delete ${file.path}`, env);
+      } else {
+        await commitFile(branchName, file.path, file.content, `Add ${file.path}`, env);
+      }
     }
     const outcome = await createPullRequest(branchName, params.title, params.prBody, params.retitle, env);
     if (outcome.kind === 'no-commits') return { success: false, reason: 'no-commits' };
@@ -548,4 +605,292 @@ export async function notifyNewSubmission(title: string, body: string, env: Env)
   } catch (e) {
     console.error('notifyNewSubmission threw', e);
   }
+}
+
+// ---------------------------------------------------------------------------
+// CMS pull-request helpers. Unlike the older functions above, these never put
+// a GitHub response body into an error message: their callers (the panel's
+// CMS endpoints and the PR shepherd) show errors to admins, so a failure is
+// reported as a short "what and which status" only.
+// ---------------------------------------------------------------------------
+
+/**
+ * The status checks branch protection on `main` requires before a merge --
+ * the job names in `.github/workflows/build-check.yml`, which GitHub Actions
+ * reports as check runs under those names. Copied from branch protection as
+ * of 2026-10-23.
+ *
+ * MAINTAINER: when you change the required checks in the repository's
+ * branch protection settings, or rename either job in build-check.yml,
+ * update this list (and the test that pins it, tests/github-cms.test.ts) in
+ * the same PR. Otherwise prStatus waits forever for a check that no longer
+ * runs, or merges without one that now matters.
+ */
+export const REQUIRED_CHECKS: readonly string[] = ['Build & Type Check', 'Symposium Build & Type Check'];
+
+/** Each path segment URL-encoded, the slashes between them kept. */
+function encodePath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
+/**
+ * The blob sha of each path on `main`, or `null` for a path that is not
+ * there. The CMS records these when an editor opens an entry and compares
+ * them on save, so an edit made on GitHub in between is noticed instead of
+ * overwritten.
+ *
+ * One contents GET per path, run in parallel. The CMS asks about a handful
+ * of files per save; the git trees API would answer any number in one call
+ * but returns the whole tree of a directory (or, recursively, the repo) and
+ * needs a second lookup to get from `main` to a tree sha, which is more
+ * work than it saves at this size.
+ */
+export async function fileShasOnBase(paths: string[], env: Env, ref: string = GITHUB_BASE_BRANCH): Promise<Record<string, string | null>> {
+  const entries = await Promise.all(
+    paths.map(async (path): Promise<[string, string | null]> => {
+      const res = await githubRequest(
+        `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`,
+        { method: 'GET' },
+        env
+      );
+      if (res.status === 404) return [path, null];
+      if (!res.ok) throw new Error(`Failed to read the sha of ${path} on ${ref} (${res.status})`);
+      const data = await res.json<{ sha: string }>();
+      return [path, data.sha];
+    })
+  );
+  return Object.fromEntries(entries);
+}
+
+/**
+ * Each path's text and blob sha on `main`, or `null` for a path that is not
+ * there. One request per file answers both, so the sha a CMS draft records
+ * is the sha of exactly the text it was started from. Errors carry the
+ * status code only.
+ */
+export async function filesOnBase(paths: string[], env: Env): Promise<Record<string, { content: string; sha: string } | null>> {
+  const entries = await Promise.all(
+    paths.map(async (path): Promise<[string, { content: string; sha: string } | null]> => {
+      const res = await githubRequest(
+        `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodePath(path)}?ref=${GITHUB_BASE_BRANCH}`,
+        { method: 'GET' },
+        env
+      );
+      if (res.status === 404) return [path, null];
+      if (!res.ok) throw new Error(`Failed to read ${path} on ${GITHUB_BASE_BRANCH} (${res.status})`);
+      const data = await res.json<{ sha: string; content?: string; encoding?: string }>();
+      if (data.encoding !== 'base64' || typeof data.content !== 'string') throw new Error(`Unexpected contents response for ${path}`);
+      return [path, { sha: data.sha, content: Buffer.from(data.content, 'base64').toString('utf-8') }];
+    })
+  );
+  return Object.fromEntries(entries);
+}
+
+export type PrStatus = {
+  state: 'open' | 'merged' | 'closed';
+  /** GitHub's own value, passed through: 'clean', 'behind' (needs
+   * updateBranch), 'blocked', 'dirty' (conflicts), 'unstable', or
+   * 'unknown' while GitHub is still computing it. */
+  mergeable_state: string;
+  /** Only REQUIRED_CHECKS count; any other check is ignored. */
+  checks: 'pending' | 'success' | 'failure';
+  /** The required check that failed, when `checks` is 'failure'. */
+  failedCheck?: string;
+  /** The head commit the checks above belong to. Pass it to mergePr so a
+   * head that changes after this read is never merged. */
+  headSha: string;
+};
+
+type CheckRun = { id: number; name: string; status: string; conclusion: string | null };
+
+/** Conclusions branch protection counts as passed. 'neutral' and 'skipped'
+ * are included because GitHub itself lets a required check with either
+ * conclusion through. */
+const PASSING_CONCLUSIONS = new Set(['success', 'neutral', 'skipped']);
+const FAILING_CONCLUSIONS = new Set(['failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure']);
+
+/**
+ * Folds the check runs on one commit into a single answer, counting only
+ * REQUIRED_CHECKS. A re-run adds a newer check run under the same name, so
+ * the newest (highest id) run of each name is the one that counts. Any
+ * required check failed -> failure (the first, in REQUIRED_CHECKS order, is
+ * named); otherwise any missing, queued, in progress or otherwise undecided
+ * -> pending; all passed -> success.
+ */
+function foldChecks(runs: CheckRun[]): Pick<PrStatus, 'checks' | 'failedCheck'> {
+  const latest = new Map<string, CheckRun>();
+  for (const run of runs) {
+    const seen = latest.get(run.name);
+    if (!seen || run.id > seen.id) latest.set(run.name, run);
+  }
+  let pending = false;
+  for (const name of REQUIRED_CHECKS) {
+    const run = latest.get(name);
+    if (run?.status === 'completed' && run.conclusion && FAILING_CONCLUSIONS.has(run.conclusion)) {
+      return { checks: 'failure', failedCheck: name };
+    }
+    if (!run || run.status !== 'completed' || !run.conclusion || !PASSING_CONCLUSIONS.has(run.conclusion)) {
+      pending = true;
+    }
+  }
+  return { checks: pending ? 'pending' : 'success' };
+}
+
+/**
+ * Where a pull request stands: open, merged or closed; GitHub's
+ * mergeable_state; and its required checks folded into one answer.
+ *
+ * Checks come from the check-runs API for the head sha, because that is how
+ * GitHub Actions reports (the combined status API only carries the older
+ * commit-status contexts, which nothing in this repo posts). Throws a short
+ * error, without GitHub's body, on any failed request.
+ */
+export async function prStatus(prNumber: number, env: Env): Promise<PrStatus> {
+  const pull = await getPull(prNumber, env);
+  const headSha = pull.head.sha;
+  // A finished pull request's checks no longer matter: one request, not two.
+  if (pull.merged || pull.state === 'closed') {
+    return { state: pull.merged ? 'merged' : 'closed', mergeable_state: pull.mergeable_state, checks: 'pending', headSha };
+  }
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits/${headSha}/check-runs?per_page=100`,
+    { method: 'GET' },
+    env
+  );
+  if (!res.ok) throw new Error(`Failed to read checks for pull ${prNumber} (${res.status})`);
+  const data = await res.json<{ check_runs: CheckRun[] }>();
+  const state = pull.merged ? 'merged' : pull.state === 'closed' ? 'closed' : 'open';
+  return { state, mergeable_state: pull.mergeable_state, ...foldChecks(data.check_runs), headSha };
+}
+
+type Pull = { state: string; merged: boolean; mergeable_state: string; title: string; head: { sha: string } };
+
+/** Whether a pull request is open, merged or closed, and its head: one request. Errors carry the status only. */
+export async function readPull(prNumber: number, env: Env): Promise<{ state: 'open' | 'merged' | 'closed'; headSha: string }> {
+  const pull = await getPull(prNumber, env);
+  return { state: pull.merged ? 'merged' : pull.state === 'closed' ? 'closed' : 'open', headSha: pull.head.sha };
+}
+
+async function getPull(prNumber: number, env: Env): Promise<Pull> {
+  const res = await githubRequest(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${prNumber}`, { method: 'GET' }, env);
+  if (!res.ok) throw new Error(`Failed to read pull ${prNumber} (${res.status})`);
+  return res.json<Pull>();
+}
+
+/**
+ * Merges main into the pull request's branch (GitHub's "Update branch"
+ * button), for a PR whose mergeable_state is 'behind'. `expectedHeadSha`
+ * makes GitHub refuse if the branch moved since the caller looked.
+ *
+ * GitHub answers 202 and does the merge asynchronously; the new head shows
+ * up on a later prStatus, and the checks run again on it. A refusal (422)
+ * comes back as `{ success: false, status, reason }`: 'conflict' when
+ * GitHub's message mentions a conflict (main does not merge into the
+ * branch), otherwise 'head-changed' (look again next time). The reason is
+ * read from GitHub's message, which is never passed on. Anything else
+ * unexpected throws a short error.
+ */
+export async function updateBranch(
+  prNumber: number,
+  env: Env,
+  expectedHeadSha?: string
+): Promise<{ success: true } | { success: false; status: number; reason: 'head-changed' | 'conflict' }> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${prNumber}/update-branch`,
+    { method: 'PUT', body: JSON.stringify(expectedHeadSha ? { expected_head_sha: expectedHeadSha } : {}) },
+    env
+  );
+  if (res.ok) return { success: true };
+  if (res.status === 422) {
+    const text = await res.text().catch(() => '');
+    // Only a refusal that says so is a conflict (which fails the draft);
+    // anything else ("not behind", a moved head, a validation hiccup) is
+    // looked at again next tick.
+    return { success: false, status: res.status, reason: /conflict/i.test(text) ? 'conflict' : 'head-changed' };
+  }
+  throw new Error(`Failed to update the branch of pull ${prNumber} (${res.status})`);
+}
+
+/**
+ * Closes a pull request without merging it (the panel's "cancel"). Closing
+ * one that is already closed is fine; errors carry the status only.
+ */
+export async function closePr(prNumber: number, env: Env): Promise<void> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${prNumber}`,
+    { method: 'PATCH', body: JSON.stringify({ state: 'closed' }) },
+    env
+  );
+  if (!res.ok) throw new Error(`Failed to close pull ${prNumber} (${res.status})`);
+}
+
+export type MergeResult =
+  | { merged: true; sha: string }
+  | { merged: false; reason: 'not-mergeable' | 'head-changed' };
+
+/**
+ * Squash-merges a pull request, with its own title as the commit title.
+ *
+ * `headSha` is required: it is the head the caller saw pass its checks
+ * (prStatus().headSha), and GitHub refuses the merge (409) if the branch
+ * has moved since, so a commit pushed after the checks passed is never
+ * merged unchecked. The PR is read first for its title, and a head that has
+ * already moved is refused here without asking GitHub to merge.
+ *
+ * 405 (not mergeable: checks, reviews or conflicts) and 409 (head changed)
+ * are ordinary outcomes for a shepherd that polls, not exceptions; anything
+ * else throws a short error.
+ */
+export async function mergePr(prNumber: number, env: Env, headSha: string): Promise<MergeResult> {
+  const pull = await getPull(prNumber, env);
+  if (pull.head.sha !== headSha) return { merged: false, reason: 'head-changed' };
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls/${prNumber}/merge`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ merge_method: 'squash', commit_title: pull.title, sha: headSha }),
+    },
+    env
+  );
+  if (res.status === 405) return { merged: false, reason: 'not-mergeable' };
+  if (res.status === 409) return { merged: false, reason: 'head-changed' };
+  if (!res.ok) throw new Error(`Failed to merge pull ${prNumber} (${res.status})`);
+  const data = await res.json<{ sha: string }>();
+  return { merged: true, sha: data.sha };
+}
+
+/** The commit main points at now. Read once by the CMS approval, which
+ * checks a draft's files at this commit and branches from it. */
+export function mainHeadSha(env: Env): Promise<string> {
+  return getBaseBranchSha(env);
+}
+
+export type BranchPr = { url: string; number: number; state: 'open' | 'closed' | 'merged' };
+
+/** The newest pull request (any state) whose head is `branchName`, or null. Errors carry the status only. */
+export async function prForBranch(branchName: string, env: Env): Promise<BranchPr | null> {
+  const res = await githubRequest(
+    `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls?head=${GITHUB_OWNER}:${encodeURIComponent(branchName)}&state=all&sort=created&direction=desc`,
+    { method: 'GET' },
+    env
+  );
+  if (!res.ok) throw new Error(`Failed to look up the pull request for ${branchName} (${res.status})`);
+  const list = await res.json<Array<{ html_url: string; number: number; state: string; merged_at: string | null }>>();
+  const pr = list[0];
+  if (!pr) return null;
+  return { url: pr.html_url, number: pr.number, state: pr.merged_at ? 'merged' : pr.state === 'open' ? 'open' : 'closed' };
+}
+
+/** Deletes a branch (closing any open pull request from it). 'absent' when
+ * GitHub answers 404, or 422 "Reference does not exist" (what it says for
+ * a branch already deleted); 'failed' on any other 422, which the caller
+ * cannot read as "gone" (the branch, and a pull request on it, may still be
+ * there). Only for cms/ branches. Other errors throw, carrying the status only. */
+export async function deleteBranch(branchName: string, env: Env): Promise<'deleted' | 'absent' | 'failed'> {
+  if (!branchName.startsWith('cms/')) throw new Error('deleteBranch is only for cms/ branches');
+  const res = await githubRequest(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/${branchName}`, { method: 'DELETE' }, env);
+  if (res.status === 404) return 'absent';
+  if (res.status === 422) return /reference does not exist/i.test(await res.text().catch(() => '')) ? 'absent' : 'failed';
+  if (!res.ok) throw new Error(`Failed to delete branch ${branchName} (${res.status})`);
+  return 'deleted';
 }

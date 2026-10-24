@@ -1,7 +1,6 @@
 {
   "id": "workshop-nextflow-2024",
   "type": "workshop",
-  "nfcore": true,
   "start": "2024-03-16",
   "note": "16 March, from the workshop's own title slide and its recording files; an internal report said 3 March.",
   "title": {
@@ -36,6 +35,7 @@
       "url": "https://seqera.io/blog/bioinformatics-growth-in-turkiye/"
     }
   ],
+  "nfcore": true,
   "image": {
     "thumb": "/api/images/e48a9ff4-aacd-4d5d-801a-07ad6e68f5bf.jpg",
     "full": "/api/images/0705e4f2-b3da-4e89-be67-d4ec1209101c.jpg",

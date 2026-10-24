@@ -6,6 +6,7 @@ import { eventSchema } from "./data/events";
 import { resourceSchema as linkSchema } from "./data/resources";
 import { committeeSchema } from "./data/committees";
 import { pageTextSchema } from "./data/page-text";
+import { webinarSchema } from "./data/webinars";
 
 // Blog posts are organized by language:
 //   src/content/blog/en/<slug>.md  → /blog/<slug>
@@ -48,30 +49,9 @@ const blog = defineCollection({
 // Turkish file had a Turkish name and nothing tied the two together.
 const webinars = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/webinars" }),
-  schema: z.object({
-    title: z.string(),
-    /** Ties this entry to its other-language twin when the slugs differ. */
-    translationKey: z.string().default(""),
-    date: z.coerce.date(),
-    speaker: z.string(),
-    speakerAffiliation: z.string().default(""),
-    speakerTitle: z.string().default(""),
-    speakerPhoto: z.string().default(""),
-    description: z.string(),
-    youtubeUrl: z.string().default(""),
-    slidesUrl: z.string().default(""),
-    lang: z.enum(["en", "tr"]).optional(), // kept for legacy frontmatter; language now inferred from directory
-    year: z.number(),
-    type: z.enum(["bioinfonet", "student"]),
-    image: z.string().default(""),
-    topic: z.string().default(""),
-    keyTakeaways: z.array(z.string()).default([]),
-    // Tag this webinar to learning path domains so it can be cross-linked.
-    // Valid values: genomics, ml, structural, metagenomics, popgen, systems
-    // Example: domains: [genomics, ml]
-    domains: z.array(z.string()).default([]),
-    draft: z.boolean().default(false),
-  }),
+  // The frontmatter schema lives in src/data/webinars.ts so node and the
+  // Pages Functions can use it without astro:content.
+  schema: webinarSchema,
 });
 
 // ── Learning Paths ────────────────────────────────────────────────────────────

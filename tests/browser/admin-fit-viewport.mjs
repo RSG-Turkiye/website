@@ -25,7 +25,7 @@ const pass = (c, m) => { console.log(`   ${c ? '✓' : '✗'} ${m}`); if (!c) ba
 
 const ADMIN = { id: 'u1', email: 'admin@example.org', is_admin: true, is_social_publisher: true, is_symposium: true, is_announcer: true };
 const SENDER = { id: 'u3', email: 'sender@example.org', is_sender: true };
-const COUNTS = { email: 3, social: 2, blog: 1, scheduledThisWeek: 4 };
+const COUNTS = { email: 3, social: 2, blog: 1, scheduledThisWeek: 4, cmsMine: 2, cmsQueue: 1, cmsTotal: 3 };
 const now = Math.floor(Date.now() / 1000);
 const N = (n, f) => Array.from({ length: n }, (_, i) => f(i + 1));
 
@@ -70,7 +70,26 @@ const PLANS = N(6, (i) => ({ id: `pl${i}`, title: `Plan ${i}`, scheduledAt: now 
 const EDITORS = [{ id: 'u2', email: 'editor@example.org', name: 'Editor Two', isPublisher: false }];
 const MODES = N(10, (i) => ({ id: `m${i}`, name: `Event ${i}`, startsAt: now + i * 86400, endsAt: now + (i + 1) * 86400, editorIds: ['u2'], editorEmails: ['editor@example.org'], openedBy: 'u1', closedAt: null, active: i === 1 }));
 
-const browser = await chromium.launch();
+// The Etkinlikler panel: 60 of each, so the lists have something to scroll.
+const CMS_EVENT = {
+  id: 'symposium-2026', type: 'symposium', start: '2026-10-10', note: 'n',
+  title: { en: 'Symposium 2026', tr: 'Sempozyum 2026' }, when: { en: '10 October 2026', tr: '10 Ekim 2026' },
+  location: { en: 'Ankara', tr: 'Ankara' }, description: { en: 'Description', tr: 'Açıklama' },
+  links: N(6, (i) => ({ label: { en: `Link ${i}`, tr: `Bağlantı ${i}` }, url: `https://example.org/${i}` })),
+};
+const CMS_ENTRIES = {
+  events: [{ id: 'symposium-2026', title: 'Symposium 2026', date: '2026-10-10', shas: {} }, ...N(59, (i) => ({ id: `e${i}`, title: `Event ${i}`, date: '2025-01-01', shas: {} }))],
+  workshops: N(20, (i) => ({ id: `w${i}`, title: `Workshop ${i}`, date: '2024', shas: {} })),
+  webinars: N(60, (i) => ({ id: `wb${i}`, title: `Webinar ${i}`, date: '2024-04-16', paths: { en: `src/content/webinars/en/wb${i}.md`, tr: `src/content/webinars/tr/wb${i}.md` }, shas: {} })),
+};
+const CMS_DRAFTS = N(30, (i) => ({
+  id: `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`, type: 'events', entry_id: i === 1 ? 'symposium-2026' : `e${i}`, action: 'update',
+  status: ['draft', 'submitted', 'rejected', 'pr_failed', 'pr_open', 'published'][i % 6], author_id: 'u1', author_name: 'Editor', reviewer_id: null,
+  review_note: i % 6 === 2 ? 'Fix the date' : null, pr_url: null, pr_number: null, failure: i % 6 === 3 ? 'checks did not finish' : null,
+  stale_merge: false, created_at: 1760000000, updated_at: 1760000000 + i,
+}));
+
+const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 
 // ONLY=1,5 runs just those parts (a debugging aid; the default is all of them).
 const want = (n) => !process.env.ONLY || process.env.ONLY.split(',').includes(String(n));
@@ -95,6 +114,10 @@ async function open(path, viewport, user = ADMIN, { podcast = true, posts = POST
     if (url.pathname === '/api/mail/conversations') return json({ threads: MAIL_THREADS, unreadCount: 1, scope: 'own', isAdmin: user.is_admin === true });
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
+    if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
+    if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
+    if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
+    if (/^\/api\/cms\/drafts\/[^/]+$/.test(url.pathname)) return json({ draft: { ...CMS_DRAFTS.find((d) => d.id === url.pathname.split('/').pop()) ?? CMS_DRAFTS[1], data: CMS_EVENT, base_shas: {} } });
     if (url.pathname === '/api/social/plans') return json({ plans: PLANS });
     if (url.pathname === '/api/social/posts') return json({ posts });
     if (url.pathname === '/api/social/editors') return json({ editors: EDITORS });
@@ -157,6 +180,7 @@ async function routes(lang, user) {
   }
   await page.close();
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t60');
+  if (out.includes('#icerik-etkinlikler/etkinlikler')) out.push('#icerik-etkinlikler/etkinlikler/symposium-2026', '#icerik-etkinlikler/webinarlar/_new', '#icerik-etkinlikler/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000001');
   return [...new Set(out)];
 }
 

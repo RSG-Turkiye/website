@@ -25,6 +25,8 @@ function codes(): string[] {
   for (const kind of ['speakers', 'sessions', 'committee']) for (const verb of ['create', 'update', 'delete']) found.add(`symposium.${kind}.${verb}`);
   for (const a of ['verify', 'unverify', 'award_badge', 'revoke_badge', 'set_rank']) found.add(`user.${a}`);
   for (const s of ['published', 'partially_published', 'failed']) found.add(`social.post.${s}`);
+  // cms-shepherd.ts passes its codes to settle() positionally.
+  for (const s of ['merged', 'published', 'failed']) found.add(`cms.pr.${s}`);
   return [...found].sort();
 }
 
@@ -43,4 +45,14 @@ test('an unknown code has no name, so the log shows the code itself', () => {
 test('the symposium family reads naturally in both languages', () => {
   assert.equal(auditLabel('symposium.committee.create', 'tr'), 'Sempozyumda komite üyesi ekledi');
   assert.equal(auditLabel('symposium.speakers.delete', 'en'), 'Removed a speaker');
+});
+
+test('the CMS codes have their names', () => {
+  assert.equal(auditLabel('cms.draft.submit', 'tr'), 'Taslağı onaya gönderdi');
+  assert.equal(auditLabel('cms.pr.merged', 'tr'), 'İçerik PR\'ı birleştirildi');
+  assert.equal(auditLabel('cms.pr.published', 'tr'), 'İçerik yayına çıktı');
+  assert.equal(auditLabel('cms.pr.cancel', 'tr'), 'İçerik PR\'ını iptal etti');
+  assert.equal(auditLabel('cms.pr.cancel', 'en'), 'Cancelled a content PR');
+  assert.equal(auditLabel('cms.draft.prune', 'en'), 'Removed finished content drafts older than 90 days');
+  assert.equal(auditLabel('cms.pr.failed', 'en'), 'Content pull request failed');
 });

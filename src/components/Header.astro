@@ -177,6 +177,17 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
     el.addEventListener('mouseout', function () { el.style.background = ''; });
   }
 
+  // Signing out drops the admin panel's unsaved content copies (rsg:cms:*,
+  // src/scripts/admin/sections/cms.ts): the next person on this browser
+  // must not find someone else's draft text.
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (!f || !f.getAttribute || f.getAttribute('action') !== '/auth/logout') return;
+    try {
+      Object.keys(localStorage).forEach(function (k) { if (k.indexOf('rsg:cms:') === 0) localStorage.removeItem(k); });
+    } catch (err) { /* storage blocked: nothing was kept */ }
+  }, true);
+
   (function () {
     var btn = document.getElementById('mobileMenuBtn');
     var nav = document.getElementById('mobileNav');

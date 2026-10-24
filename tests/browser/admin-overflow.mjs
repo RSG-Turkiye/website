@@ -19,7 +19,7 @@ const ok = (c, m) => { if (!c) { console.log(`   ✗ ${m}`); bad.push(m); } };
 
 const ADMIN = { id: 'u1', email: 'admin@example.org', is_admin: true, is_social_publisher: true, is_symposium: true, is_announcer: true };
 const SENDER = { id: 'u3', email: 'sender@example.org', is_sender: true };
-const COUNTS = { email: 3, social: 2, blog: 1, scheduledThisWeek: 4 };
+const COUNTS = { email: 3, social: 2, blog: 1, scheduledThisWeek: 4, cmsMine: 2, cmsQueue: 1, cmsTotal: 3 };
 const long = 'x'.repeat(120);
 const now0 = Math.floor(Date.now() / 1000);
 // Mail: a 120-character subject, a 60-character address and a long unbroken snippet.
@@ -115,7 +115,24 @@ const MODES = [
 // Not 44 px on purpose, each with its reason. (Add [selector, reason] pairs.)
 const EXCLUDED = [];
 
-const browser = await chromium.launch();
+// The Etkinlikler panel: a long unbroken title, a long note, every status.
+const CMS_EVENT = {
+  id: 'symposium-2026', type: 'symposium', start: '2026-10-10', note: long,
+  title: { en: 'Symposium ' + long, tr: 'Sempozyum ' + long }, when: { en: '10 October 2026', tr: '10 Ekim 2026' },
+  location: { en: 'Ankara', tr: 'Ankara' }, description: { en: long + long, tr: long }, links: [{ label: { en: long, tr: long }, url: 'https://example.org/' + long }],
+};
+const CMS_ENTRIES = {
+  events: [{ id: 'symposium-2026', title: CMS_EVENT.title.en, date: '2026-10-10', shas: {} }, { id: 'meetup-x', title: 'Meetup', date: '2025-01-01', shas: {} }],
+  workshops: [{ id: 'w', title: long, date: '2024', shas: {} }],
+  webinars: [{ id: 'webinar', title: long, date: '2024-04-16', paths: { en: 'src/content/webinars/en/webinar.md', tr: 'src/content/webinars/tr/webinar.md' }, shas: {} }],
+};
+const CMS_DRAFTS = ['draft', 'submitted', 'rejected', 'pr_failed', 'pr_open', 'published'].map((status, i) => ({
+  id: `00000000-0000-4000-8000-00000000000${i}`, type: 'events', entry_id: i ? 'symposium-2026' : 'meetup-x', action: 'update', status, author_id: 'u1', author_name: long,
+  reviewer_id: null, review_note: status === 'rejected' ? long : null, pr_url: null, pr_number: null, failure: status === 'pr_failed' ? 'check failed: ' + long : null,
+  stale_merge: false, created_at: 1760000000, updated_at: 1760000000 + i,
+}));
+
+const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 
 async function open(path, viewport, user = ADMIN) {
   const page = await browser.newPage({ viewport });
@@ -135,6 +152,10 @@ async function open(path, viewport, user = ADMIN) {
     if (url.pathname === '/api/mail/conversations') return json({ threads: MAIL_THREADS, unreadCount: 1, scope: url.searchParams.get('scope') === 'all' ? 'all' : 'own', isAdmin: user.is_admin === true });
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
+    if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
+    if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
+    if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
+    if (/^\/api\/cms\/drafts\/[^/]+$/.test(url.pathname)) return json({ draft: { ...CMS_DRAFTS.find((d) => d.id === url.pathname.split('/').pop()) ?? CMS_DRAFTS[1], data: CMS_EVENT, base_shas: {} } });
     if (url.pathname === '/api/social/plans') return json({ plans: PLANS });
     if (url.pathname === '/api/social/posts') return json({ posts: POSTS });
     if (url.pathname === '/api/social/editors') return json({ editors: EDITORS });
@@ -199,6 +220,8 @@ async function routes(lang, user) {
   await page.close();
   // A thread in the address, as the notification mail links to it.
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t2');
+  // An entry's form, a draft (the link a pull request carries) and an approver's review.
+  if (out.includes('#icerik-etkinlikler/etkinlikler')) out.push('#icerik-etkinlikler/etkinlikler/symposium-2026', '#icerik-etkinlikler/etkinlikler/_new', '#icerik-etkinlikler/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000001');
   return [...new Set(out)];
 }
 

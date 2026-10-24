@@ -49,3 +49,19 @@ test('before the 8d migration a blog upload still succeeds', async () => {
   const { env } = setup({ is_writer: 1 }, pre);
   assert.equal((await upload(env, jpeg(800, 600))).status, 200);
 });
+
+test('an Etkinlikler editor may upload, and the upload is logged', async () => {
+  const { env, db } = setup({ is_member: 1 });
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, granted_at) VALUES ('g1','u1','content.etkinlikler.edit',1)`).run();
+  const res = await upload(env, jpeg(800, 600));
+  assert.equal(res.status, 200);
+  const { key } = await res.json() as { key: string };
+  const row = db.prepare(`SELECT user_id, target_type, target_id FROM audit_log WHERE action = 'media.upload'`).get();
+  assert.deepEqual({ ...row as object }, { user_id: 'u1', target_type: 'image', target_id: key });
+});
+
+test('an expired or revoked content grant does not allow uploads', async () => {
+  const { env, db } = setup({ is_member: 1 });
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_at) VALUES ('g1','u1','content.etkinlikler.edit',2,1)`).run();
+  assert.equal((await upload(env, jpeg(10, 10))).status, 403);
+});

@@ -309,6 +309,20 @@
 --    the code deploys, run the backfill AND the reconcile again, and change
 --    no roles in the admin panel between that and the deploy.
 --
+-- 8j. Panel CMS drafts. content_drafts (below, at the end of the file)
+--    holds drafts and their review state; published content lives only in
+--    git. New table and indexes, all IF NOT EXISTS, so re-applying the file
+--    is safe:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Run it BEFORE deploying: every /api/cms/drafts call reads the table and
+--    fails with "no such table: content_drafts" until it exists. The table
+--    was never released with an older shape, so its columns (last_checked_at)
+--    and statuses ('merged') live in the CREATE itself, not in an ALTER. A
+--    local database that already has an earlier copy of the table needs it
+--    dropped and re-created:
+--      wrangler d1 execute rsg-members --local --command="DROP TABLE content_drafts"
+--      wrangler d1 execute rsg-members --local --file=db/schema.sql
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -999,3 +1013,30 @@ CREATE TABLE IF NOT EXISTS social_dm_digest_log (
 CREATE INDEX IF NOT EXISTS social_dm_digest_log_user ON social_dm_digest_log (user_id, sent_at);
 -- The per-minute prune by age.
 CREATE INDEX IF NOT EXISTS social_dm_digest_log_sent ON social_dm_digest_log (sent_at);
+
+-- Panel CMS drafts (functions/_lib/cms-drafts.ts). One row per draft of a
+-- content entry; the pull request carries it into git. base_shas maps every
+-- path the draft writes to its blob sha on main when the draft started (null
+-- for a new file), so approval can refuse when main moved.
+CREATE TABLE IF NOT EXISTS content_drafts (
+  id          TEXT PRIMARY KEY,
+  type        TEXT NOT NULL,          -- CmsType.key
+  entry_id    TEXT NOT NULL,          -- the file id (new or existing)
+  action      TEXT NOT NULL CHECK (action IN ('create','update','delete')),
+  data        TEXT NOT NULL,          -- JSON: the entry (or {en:{frontmatter,body}, tr:{...}} for markdown pairs)
+  base_shas   TEXT NOT NULL DEFAULT '{}', -- JSON: path -> blob sha on main when the draft started (null = new file)
+  status      TEXT NOT NULL CHECK (status IN ('draft','submitted','approved','pr_open','pr_failed','merged','published','rejected','discarded')),
+  author_id   TEXT NOT NULL REFERENCES users(id),
+  reviewer_id TEXT,
+  review_note TEXT,
+  pr_url      TEXT,
+  pr_number   INTEGER,
+  failure     TEXT,                   -- short reason shown in the panel
+  write_nonce TEXT,                   -- random per write: a guarded write proves it landed (audit.ts AuditProof)
+  last_checked_at INTEGER,            -- when the PR shepherd last looked (cms-shepherd.ts); oldest first, NULL first
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_content_drafts_status ON content_drafts(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_content_drafts_author ON content_drafts(author_id, status);
+CREATE INDEX IF NOT EXISTS idx_content_drafts_entry ON content_drafts(type, entry_id);

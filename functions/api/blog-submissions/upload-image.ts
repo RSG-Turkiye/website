@@ -1,6 +1,8 @@
 import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium, canSocialEdit } from '../../_lib/auth';
 import { imageSize } from '../../_lib/images';
+import { groupRights } from '../../_lib/cms-access';
+import { appendAudit } from '../../_lib/audit';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 /**
@@ -34,7 +36,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // both are public images on the same two sites, published by people who
   // can already publish to them. Social editors upload post images here too
   // (spec §3).
-  if (user.is_writer !== 1 && !canManageSymposium(user) && !canSocialEdit(user)) {
+  // Content editors of any group upload too (approve implies edit). Their
+  // grants are read only when the fixed roles say no.
+  const legacy = user.is_writer === 1 || canManageSymposium(user) || canSocialEdit(user);
+  if (!legacy && !Object.values(await groupRights(env.DB, user, Math.floor(Date.now() / 1000))).some((r) => r.edit)) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
@@ -81,6 +86,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch (err) {
     console.error('social_media insert failed', err);
   }
+
+  // An R2 put is not a D1 write, so the row follows the put.
+  await appendAudit(env.DB, { userId: user.id, action: 'media.upload', targetType: 'image', targetId: key, details: { bytes: bytes.byteLength } });
 
   return jsonResponse({ url: `${env.PUBLIC_BLOG_IMAGES_URL}/${key}`, key, width: size.width, height: size.height });
 };

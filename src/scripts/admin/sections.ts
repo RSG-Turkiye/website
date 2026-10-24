@@ -3,13 +3,24 @@
  * routing and Overview all read. Visibility mirrors the server's role checks;
  * it never grants anything the server would refuse.
  */
-export type RoleFlags = { admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean; sender: boolean };
-export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
-export type CountKey = 'email' | 'social' | 'blog' | 'membership' | 'dm' | 'socialTotal';
+import { rightsFromRoles, grantableBy, type CmsGroup, type GroupRights, type RoleKey } from '../../../functions/_lib/roles';
 
-/** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it). */
-export interface SubPage { id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean; count?: CountKey }
+/**
+ * `cms`: edit and approve rights per content group (from live grants; those
+ * roles have no is_* column). `canGrant`: the roles a non-admin approver may
+ * hand out, which is what opens the Roles sub-page to them.
+ */
+export type RoleFlags = {
+  admin: boolean; announcer: boolean; symposium: boolean; social: boolean; socialPublisher: boolean; sender: boolean;
+  cms: GroupRights; canGrant: RoleKey[];
+};
+export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'icerik-etkinlikler' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
+export type CountKey = 'email' | 'social' | 'blog' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
+
+/** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it).
+ * `approverOnly`: for those who may approve in that content group. */
+export interface SubPage { id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean; approverOnly?: CmsGroup; count?: CountKey }
 export interface Section {
   id: SectionId;
   group: GroupId | null;
@@ -65,12 +76,24 @@ export const SECTIONS: Section[] = [
       { id: 'sertifikalar', label: 'admin.symposium.certificates.heading' },
     ],
   },
+  {
+    // The panel CMS's Etkinlikler group: events, workshops and webinars.
+    id: 'icerik-etkinlikler', group: 'icerik', label: 'admin.cms.section', count: 'cmsTotal', visible: (r) => r.cms.etkinlikler?.edit === true,
+    subs: [
+      { id: 'etkinlikler', label: 'admin.cms.type.events' },
+      { id: 'atolyeler', label: 'admin.cms.type.workshops' },
+      { id: 'webinarlar', label: 'admin.cms.type.webinars' },
+      { id: 'taslaklar', label: 'admin.cms.nav.drafts', count: 'cmsMine' },
+      { id: 'onay', label: 'admin.cms.nav.queue', approverOnly: 'etkinlikler', count: 'cmsQueue' },
+    ],
+  },
   // Part 3 (membership) makes this visible.
   { id: 'uyelik', group: 'topluluk', label: 'admin.nav.membership', count: 'membership', subs: [], visible: () => false },
   {
-    id: 'kullanicilar', group: 'topluluk', label: 'admin.nav.users', visible: adminOnly,
+    // An approver comes in for the Roles sub-page, to grant their group's edit role.
+    id: 'kullanicilar', group: 'topluluk', label: 'admin.nav.users', visible: (r) => r.admin || r.canGrant.length > 0,
     subs: [
-      { id: 'liste', label: 'admin.nav.usersList' },
+      { id: 'liste', label: 'admin.nav.usersList', adminOnly: true },
       { id: 'yetkiler', label: 'admin.nav.roles' },
     ],
   },
@@ -85,7 +108,8 @@ export function visibleSections(r: RoleFlags): Section[] {
 }
 
 export function subsFor(s: Section, r: RoleFlags): SubPage[] {
-  return s.subs.filter((x) => (!x.publisherOnly || r.admin || r.socialPublisher) && (!x.adminOnly || r.admin) && (!x.senderOnly || r.sender));
+  return s.subs.filter((x) => (!x.publisherOnly || r.admin || r.socialPublisher) && (!x.adminOnly || r.admin) && (!x.senderOnly || r.sender)
+    && (!x.approverOnly || r.cms[x.approverOnly]?.approve === true));
 }
 
 export function landing(r: RoleFlags): SectionId | null {
@@ -102,10 +126,18 @@ export function defaultSentScope(admin: boolean, sender: boolean): SentScope {
 }
 
 const yes = (v: unknown) => v === true || v === 1;
+/** The roles of /api/me's live `grants`. */
+export function grantedRoles(u: Record<string, unknown>): string[] {
+  return Array.isArray(u.grants) ? u.grants.map((g) => (g as { role?: unknown })?.role).filter((r): r is string => typeof r === 'string') : [];
+}
+
 export function rolesFromMe(u: Record<string, unknown>): RoleFlags {
   const socialPublisher = yes(u.is_social_publisher);
+  const admin = yes(u.is_admin);
+  const roles = grantedRoles(u);
   return {
-    admin: yes(u.is_admin), announcer: yes(u.is_announcer), symposium: yes(u.is_symposium),
+    admin, announcer: yes(u.is_announcer), symposium: yes(u.is_symposium),
     social: yes(u.is_social) || socialPublisher, socialPublisher, sender: yes(u.is_sender),
+    cms: rightsFromRoles(roles, admin), canGrant: admin ? [] : grantableBy(roles),
   };
 }

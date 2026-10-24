@@ -931,6 +931,146 @@ Cloudflare samples these events and visitors with ad blockers are not
 counted, so the numbers are somewhat low; the panel says so. For a local
 preview, `CF_GRAPHQL_URL` can point the reader at a stand-in endpoint.
 
+## Content (CMS)
+
+The admin panel can edit the site's events, workshops and webinars. It does
+not write to the live site directly. Every change is a draft, and a draft
+reaches the site only as a pull request that an approver has approved and
+that passes the same checks as any other change. Published content lives only
+in git; the panel keeps just the drafts, in the `content_drafts` table.
+
+The panel section is Content → Etkinlikler (`#icerik-etkinlikler`). The code
+is in `src/lib/cms/` (types, serializing, the deployed index), the server
+side is `functions/_lib/cms-*.ts` and `functions/api/cms/`.
+
+### Who can do what
+
+There are two roles, both for the Etkinlikler group:
+
+- **Editor** (`content.etkinlikler.edit`) starts drafts, edits them and sends
+  them for approval. An editor role lasts at most one month, then is renewed.
+- **Approver** (`content.etkinlikler.approve`) does everything an editor can,
+  and also approves or sends back drafts, stops a pull request that is
+  running, and discards drafts. It is a leader role: up to 12 months, or
+  permanent when an admin grants it. An approver may approve their own
+  draft.
+
+An admin has both without holding either. Admins grant either role. An
+approver can also grant the editor role, for one month at most, so they can
+cover for an editor but not widen access on their own. Grants are made in
+Users and roles → Roles, like every other role. The rules are in
+`functions/_lib/roles.ts`.
+
+### From draft to live
+
+1. An editor writes a draft. Nothing is public yet.
+2. **Onaya gönder** (send for approval). The draft waits in the approval
+   queue. While it waits (and until it is live or has failed), another draft
+   of the same entry can be started and saved but not sent.
+3. An approver approves it, or sends it back with a note. Approval first
+   checks that the entry on the site is still what the draft started from.
+   If it is not, the panel shows what changed and nothing is opened.
+4. Approval opens a pull request on the branch `cms/<draft id>`, using the
+   organisation's GitHub token.
+5. The checks run. Once they are green, the minute-by-minute mail tick
+   (`/api/mail/dispatch`, the same one that sends mail) merges the pull
+   request. If the branch is behind main, the tick updates it first, and the
+   checks run again.
+6. Merging triggers the normal deploy. When the deployed `/cms-index.json`
+   shows the new file versions, the draft becomes **Yayında** (live). Allow a
+   few minutes.
+
+No new Worker is involved: the tick already ran every minute, and the CMS
+step in it (`functions/_lib/cms-shepherd.ts`) makes at most 12 GitHub
+requests a minute, which moves about two pull requests a minute along (a pull
+request costs up to five).
+
+Content is changed through the CMS or a pull request. Only a person approves,
+in the panel; the shepherd merges only what a person approved, and nobody
+merges a `cms/*` pull request by hand. No agent or script approves.
+
+A webinar that exists only in English is edited as a pair: the form shows an
+empty Turkish side, and the draft cannot be sent until it is filled in. The
+approved draft adds the Turkish file.
+
+### What the statuses mean
+
+The panel shows each draft with one of these (Turkish in `tr`, the words are
+in `src/i18n/ui.ts` under `admin.cms.status.*`):
+
+| Status | Meaning |
+| --- | --- |
+| Not on the site yet (Henüz sitede değil) | A draft, only saved. |
+| Awaiting approval (Onay bekliyor) | Sent, waiting for an approver. |
+| Approved, going live (Onaylandı, yayına çıkıyor) | The pull request is being opened. |
+| Going live (Yayına çıkıyor) | The pull request is open or merged; checks and deploy are running. |
+| Live (Yayında) | The deployed site shows the change. |
+| Sent back (Geri gönderildi) | An approver returned it with a note. Change it and send it again. |
+| Could not be published (Yayınlanamadı) | The reason follows. See the next section. |
+| Deleted (Silindi) | Discarded. Finished drafts are removed from the table after 90 days; the activity log keeps their history. |
+
+Two states show a warning: an approval that did not finish (older than five
+minutes; approve again), and a draft that merged more than two hours ago but
+is not on the site yet (tell an admin).
+
+### When a draft fails
+
+A failed draft keeps its content and its reason. The author can change it and
+send it again, or delete it; an approver can discard it too. Either way the
+entry is free. Approvers see every draft that is on its way or stuck under
+Onay → "Süren ve takılanlar", each with its way out: stop a pull request that
+is open, or discard a merge the site never showed, a failure, or an approval
+that never finished.
+A retry opens a new pull request. The shepherd usually closes the failed
+one; when it could not (see the table), close it on GitHub. Never merge it
+by hand.
+
+| Reason in the panel | What happened | What to do |
+| --- | --- | --- |
+| conflicts with a newer change (conflict) | The entry changed on main after the draft started, and the two cannot be combined. | Start a new draft from the site's version. |
+| check failed: `<name>` | A required check rejected the change, for example a field the build does not accept. | Open the pull request's checks on GitHub, fix the field in the draft, send again. If the check itself is broken, an admin looks at CI. |
+| checks did not finish (timeout) | Checks were still pending after six hours. | Look at GitHub Actions for a stuck run, then send again. |
+| blocked by branch protection | Checks were green but GitHub refused the merge for six hours. | An owner checks the branch rules (a required review, or a required check that never reports on these branches). The CMS needs neither. |
+| closed on GitHub | The pull request was closed without merging, by hand. | Send the draft again, or discard it. |
+| cancelled | An approver stopped it on purpose. | Change the draft and send it again, or discard it. |
+| merged but the site never showed it | The pull request merged, but 24 hours later the site still did not show the change. | Look at the Pages deploys and at `/cms-index.json`. The content is in git, so check whether the deploy failed. Then discard the draft and, if needed, start a new one. |
+| no pull request on record | The draft says its pull request is open, but none is stored. | Send the draft again. If it repeats, an admin looks at the activity log. |
+| GitHub did not answer | For twelve hours (twice the six-hour cap) GitHub answered nothing but errors about the pull request. The pull request is left as it is. | Look at the pull request on GitHub and at GitHub's status page. Close the pull request if it is still open, then send the draft again. |
+
+The activity log has a row for every step (`cms.draft.*`, `cms.pr.*`).
+
+If a draft says "changed since", the entry on the site was edited after the
+draft was started. Hand edits on GitHub to the content files still work and
+are never blocked, but a draft started before one will show "changed since"
+and the panel lets the author compare and continue from the site's version.
+
+### Owner steps (once, by the owner, never by an agent), in this order
+
+1. **Before merging the pull request that adds the CMS**, create the table on
+   the remote D1 (note 8j at the top of `db/schema.sql`):
+
+   ```bash
+   wrangler d1 execute rsg-members --remote --file=db/schema.sql
+   ```
+
+   It is safe to run twice. Until it has run, every `/api/cms/drafts` call
+   fails with "no such table: content_drafts".
+2. In Cloudflare Pages → website → Settings → Builds → Branch control,
+   exclude `cms/*` from preview builds. Otherwise every draft queues a
+   preview build ahead of production, and builds run one at a time on the
+   free plan.
+3. On GitHub → the repository's Settings → General, turn on "Automatically
+   delete head branches". Otherwise every published draft leaves a `cms/*`
+   branch behind.
+4. Keep main's branch protection as it is: the two required checks and no
+   required approvals (true on 2026-10-24). A required review would block
+   every CMS pull request ("blocked by branch protection").
+5. Run one trial draft end to end yourself: edit an entry, send it, approve
+   it, watch it go to merged and then Yayında.
+6. Then, in the Roles view, grant the first `content.etkinlikler.*` roles.
+
+No Worker redeploy is needed.
+
 ## Yearly handover
 
 When the committee changes:
@@ -955,9 +1095,9 @@ When the committee changes:
 
 Every role is a grant in the `role_grants` table: who holds it, until when
 (or permanently), and who granted or ended it. Leader roles (admin,
-announcer, symposium, social publisher) can last up to 12 months, or be made
-permanent by an admin. Edit roles (writer, sender, social) last up to one
-month, then are renewed. The end date a person picks is inclusive: the role
+announcer, symposium, social publisher, content approver) can last up to 12
+months, or be made permanent by an admin. Edit roles (writer, sender, social,
+content editor) last up to one month, then are renewed. The end date a person picks is inclusive: the role
 works through that whole day. The `users.is_*` columns are only a cache that
 permission checks read; they are rewritten from the live grants in the same
 batch as every change, and the hourly sweep in `/api/mail/dispatch` ends
@@ -1015,7 +1155,7 @@ draft: false
 
 ### Events, workshops, resources, committees and page texts (`src/content/*/*.json`)
 
-These are JSON collections, one file per entry (page texts: one file per page). No code change is needed to edit them. The admin panel will edit them as pull requests (CMS plan 3); until then, edit the files by hand.
+These are JSON collections, one file per entry (page texts: one file per page). No code change is needed to edit them. The admin panel edits events, workshops and webinars as pull requests (see [Content (CMS)](#content-cms)); the other collections are edited by hand.
 
 | Collection | Where | Notes |
 | --- | --- | --- |

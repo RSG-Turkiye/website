@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { roleDef, resolveExpiry, type RoleDef } from '../functions/_lib/roles';
+import { roleDef, resolveExpiry, grantableBy } from '../functions/_lib/roles';
 
 const TR = 3 * 3600;
 // Türkiye wall-clock time to unix seconds.
@@ -49,15 +49,39 @@ test('a past end date and an unoffered length are refused', () => {
 
 test('a non-admin may grant only a role they approve, for one month', () => {
   const now = tr(2026, 10, 23);
-  const fixture: RoleDef = { key: 'writer', level: 'edit', approverRole: 'content.blog.approve' };
-  const approver = { isAdmin: false, activeRoles: ['content.blog.approve'] };
-  assert.deepEqual(resolveExpiry(fixture, { months: 1 }, now, approver), { ok: true, expiresAt: tr(2026, 11, 23) });
-  assert.deepEqual(resolveExpiry(fixture, { months: 2 }, now, approver), { ok: false, code: 'too_long' });
-  assert.deepEqual(resolveExpiry(fixture, { until: tr(2026, 12, 1) }, now, approver), { ok: false, code: 'too_long' });
-  assert.deepEqual(resolveExpiry(fixture, { permanent: true }, now, approver), { ok: false, code: 'permanent_not_allowed' });
-  assert.deepEqual(resolveExpiry(fixture, { months: 1 }, now, nobody), { ok: false, code: 'not_allowed' });
+  const approver = { isAdmin: false, activeRoles: ['content.etkinlikler.approve'] };
+  const edit = def('content.etkinlikler.edit');
+  assert.deepEqual(resolveExpiry(edit, { months: 1 }, now, approver), { ok: true, expiresAt: tr(2026, 11, 23) });
+  assert.deepEqual(resolveExpiry(edit, { months: 2 }, now, approver), { ok: false, code: 'too_long' });
+  assert.deepEqual(resolveExpiry(edit, { until: tr(2026, 12, 1) }, now, approver), { ok: false, code: 'too_long' });
+  assert.deepEqual(resolveExpiry(edit, { permanent: true }, now, approver), { ok: false, code: 'permanent_not_allowed' });
+  assert.deepEqual(resolveExpiry(edit, { months: 1 }, now, nobody), { ok: false, code: 'not_allowed' });
+  assert.deepEqual(resolveExpiry(def('content.etkinlikler.approve'), { months: 1 }, now, approver), { ok: false, code: 'not_allowed' });
   assert.deepEqual(resolveExpiry(def('writer'), { months: 1 }, now, approver), { ok: false, code: 'not_allowed' });
   assert.deepEqual(resolveExpiry(def('admin'), { months: 1 }, now, approver), { ok: false, code: 'not_allowed' });
+  // An editor is not an approver.
+  const editor = { isAdmin: false, activeRoles: ['content.etkinlikler.edit'] };
+  assert.deepEqual(resolveExpiry(edit, { months: 1 }, now, editor), { ok: false, code: 'not_allowed' });
+});
+
+test('the Etkinlikler roles: edit renews monthly, approve is a leader role, neither has a column', () => {
+  const edit = def('content.etkinlikler.edit');
+  const approve = def('content.etkinlikler.approve');
+  assert.equal(edit.level, 'edit');
+  assert.equal(edit.approverRole, 'content.etkinlikler.approve');
+  assert.equal(edit.column, undefined);
+  assert.equal(approve.level, 'leader');
+  assert.equal(approve.column, undefined);
+  assert.equal(approve.approverRole, undefined);
+  const now = tr(2026, 10, 23);
+  assert.equal(resolveExpiry(approve, { months: 12 }, now, admin).ok, true);
+  assert.deepEqual(resolveExpiry(edit, { months: 2 }, now, admin), { ok: false, code: 'too_long' });
+});
+
+test('grantableBy lists the roles a non-admin may hand out', () => {
+  assert.deepEqual(grantableBy(['content.etkinlikler.approve']), ['content.etkinlikler.edit']);
+  assert.deepEqual(grantableBy(['content.etkinlikler.edit', 'writer', 'admin']), []);
+  assert.deepEqual(grantableBy([]), []);
 });
 
 test('the catalog', () => {

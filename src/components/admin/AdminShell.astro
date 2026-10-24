@@ -36,6 +36,7 @@ import SymposiumPane from './panes/SymposiumPane.astro';
 import SocialPane from './panes/SocialPane.astro';
 import MailPane from './panes/MailPane.astro';
 import StatsPane from './panes/StatsPane.astro';
+import CmsPane from './panes/CmsPane.astro';
 import { useTranslations } from '../../i18n/ui';
 
 interface Props {
@@ -199,6 +200,7 @@ const t = useTranslations(lang);
         </section>
 
         <SymposiumPane lang={lang} />
+        <CmsPane lang={lang} />
         <SocialPane lang={lang} />
 
         <MailPane lang={lang} />

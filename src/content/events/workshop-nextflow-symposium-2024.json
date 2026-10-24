@@ -1,7 +1,6 @@
 {
   "id": "workshop-nextflow-symposium-2024",
   "type": "workshop",
-  "nfcore": true,
   "start": "2024-11-15",
   "title": {
     "en": "Nextflow & nf-core Workshop (11th Symposium)",
@@ -35,6 +34,7 @@
       "url": "https://symposium.rsg-turkiye.iscbsc.org/editions/2024/"
     }
   ],
+  "nfcore": true,
   "image": {
     "thumb": "/api/images/afb17645-a73e-4a1c-af5c-ca8f04eb3f54.jpg",
     "full": "/api/images/ae500d31-27f0-4169-ad28-200cfbb0535d.jpg",

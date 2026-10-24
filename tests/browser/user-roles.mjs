@@ -42,12 +42,12 @@ const users = [{
 }];
 const actions = [];
 const bodies = [];
-await page.route('**/api/admin/users**', async (r) => {
+const usersRoute = async (r) => {
   if (r.request().method() === 'GET') {
     const url = new URL(r.request().url());
     const roles = url.searchParams.get('filter') === 'roles';
     const q = (url.searchParams.get('search') ?? '').toLowerCase();
-    const list = roles ? [...users, ...holders].filter((u) => u.is_writer || u.is_symposium || u.is_admin)
+    const list = roles ? [...users, ...holders].filter((u) => u.is_writer || u.is_symposium || u.is_admin || u.grants?.some((g) => g.role.startsWith('content.')))
       : [...users, ...holders].filter((u) => !q || `${u.email} ${u.display_name}`.toLowerCase().includes(q));
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ users: list, badge_catalog: [] }) });
   }
@@ -57,7 +57,8 @@ await page.route('**/api/admin/users**', async (r) => {
   if (body.action === 'make_symposium') users[0].is_symposium = 1;
   if (body.action === 'remove_symposium') users[0].is_symposium = 0;
   return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
-});
+};
+await page.route('**/api/admin/users**', usersRoute);
 // Role holders for the Roles tab, with live grants as the server sends them.
 const NOW = Math.floor(Date.now() / 1000);
 const DAY = 86400;
@@ -69,6 +70,9 @@ const holders = [
   { id: 'u5', email: 'kalici@example.org', display_name: 'Kalıcı Admin', is_member: 1, is_admin: 1, created_at: 1,
     grants: [{ role: 'admin', expires_at: null }] },
   // Picked as a date: ends at 00:00 Istanbul, ten days on.
+  // A content role has no is_* column: only its grant says who holds it.
+  { id: 'u7', email: 'etkinlik@example.org', display_name: 'Etkinlik Editörü', is_member: 1, created_at: 1,
+    grants: [{ role: 'content.etkinlikler.edit', expires_at: NOW + 20 * DAY }] },
   { id: 'u6', email: 'tarihli@example.org', display_name: 'Tarihli Lider', is_member: 1, is_symposium: 1, created_at: 1,
     grants: [{ role: 'symposium', expires_at: Math.floor((NOW + 3 * 3600) / DAY) * DAY - 3 * 3600 + 10 * DAY }] },
 ];
@@ -128,7 +132,9 @@ await page.goto(BASE + '/admin#kullanicilar/yetkiler', { waitUntil: 'networkidle
 await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person="u3"]');
 const chipText = (card, id) => page.textContent(`#rolesView [data-role-card="${card}"] [data-person="${id}"]`).then((s) => (s ?? '').replace(/\s+/g, ' '));
 const istanbulDay = (ts) => new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', timeZone: 'Europe/Istanbul' });
-const u6End = holders[3].grants[0].expires_at;
+const u6End = holders.find((h) => h.id === 'u6').grants[0].expires_at;
+ok(await page.locator('#rolesView [data-role-card="content.etkinlikler.edit"] [data-person="u7"]').count() === 1, 'Etkinlikler düzenleyici kartı, sütunu olmayan yetkiyi gösterir');
+ok(await page.locator('#rolesView [data-role-card="content.etkinlikler.approve"]').count() === 1, 'Etkinlikler onaylayıcı kartı var');
 const u6Chip = await chipText('is_symposium', 'u6');
 ok(u6Chip.includes(` ${istanbulDay(u6End - 1)} `) && !u6Chip.includes(` ${istanbulDay(u6End)} `),
   `gece yarısı biten yetki son günü gösterir (${istanbulDay(u6End - 1)}): "${u6Chip.trim()}"`);
@@ -231,6 +237,45 @@ await page.waitForSelector('#rolesView [data-role-card="is_writer"] [data-person
 const trChip = await chipText('is_writer', 'u3');
 const trMonth = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][Number(ymd(NOW + 20 * DAY - 1).slice(5, 7)) - 1];
 ok(new RegExp(`\\d+ ${trMonth}'[ae] kadar`).test(trChip), `tarih tam ay adı ve ekle yazılır (${trMonth}): "${trChip.trim()}"`);
+
+console.log('9) admin olmayan onaylayıcı yalnız kendi grubunun düzenleyici kartını görür');
+const ap = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+ap.on('pageerror', (e) => bad.push('pageerror (onaylayıcı): ' + String(e).slice(0, 150)));
+await ap.route('**/api/me', json({ user: { id: 'u8', email: 'onay@example.org', is_admin: false,
+  grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] }, profile: {} }));
+// What the server gives a non-admin approver: names and usernames, never an address.
+const noAddress = ({ id, display_name, username, grants }) => ({ id, display_name, username, grants: grants ?? [] });
+await ap.route('**/api/admin/users**', async (r) => {
+  if (r.request().method() !== 'GET') return usersRoute(r);
+  const url = new URL(r.request().url());
+  const all = [...users, ...holders];
+  const list = url.searchParams.get('filter') === 'roles' ? all.filter((u) => u.grants?.some((g) => g.role === 'content.etkinlikler.edit')) : all.filter((u) => `${u.display_name} ${u.username}`.toLowerCase().includes((url.searchParams.get('search') ?? '').toLowerCase()));
+  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ users: list.map(noAddress), badge_catalog: [] }) });
+});
+bodies.length = 0;
+await ap.goto(BASE + '/admin#kullanicilar/yetkiler', { waitUntil: 'networkidle' });
+await ap.waitForSelector('#rolesView [data-role-card]', { timeout: 5000 }).catch(() => {});
+const apCards = await ap.$$eval('#rolesView [data-role-card]', (cs) => cs.map((c) => c.getAttribute('data-role-card')));
+ok(JSON.stringify(apCards) === JSON.stringify(['content.etkinlikler.edit']), `yalnız Etkinlikler düzenleyici kartı: ${JSON.stringify(apCards)}`);
+ok(await ap.locator('#rolesView [data-person="u7"]').count() === 1, 'mevcut düzenleyici listelenir');
+const apCard = '#rolesView [data-role-card="content.etkinlikler.edit"]';
+await ap.click(`${apCard} [data-add-role]`);
+ok((await ap.getAttribute(`${apCard} [data-add-input]`, 'placeholder')) === 'Name, username or the whole e-mail address', 'the search says what it matches');
+await ap.fill(`${apCard} [data-add-input]`, 'Bir Üye');
+await ap.waitForSelector(`${apCard} [data-add-user="u2"]`, { timeout: 3000 }).catch(() => {});
+const apResult = (await ap.textContent(`${apCard} [data-add-results]`)) ?? '';
+ok(apResult.includes('Bir Üye') && apResult.includes('@uye') && !apResult.includes('example.org'), `a match shows a name and username, no address: "${apResult.trim()}"`);
+ok(!((await ap.textContent('#rolesView')) ?? '').includes('undefined'), 'nothing reads "undefined"');
+await ap.click(`${apCard} [data-add-user="u2"]`);
+await ap.waitForSelector(`${apCard} [data-duration]`, { timeout: 3000 }).catch(() => {});
+const apOpts = await ap.$$eval(`${apCard} [data-duration] option`, (os) => os.map((o) => o.value));
+ok(JSON.stringify(apOpts) === JSON.stringify(['1', 'date']), `onaylayıcıya yalnız 1 ay ve tarih: ${JSON.stringify(apOpts)}`);
+await ap.click(`${apCard} [data-picker-confirm]`);
+for (let i = 0; i < 60 && !bodies.length; i++) await new Promise((r) => setTimeout(r, 50));
+ok(JSON.stringify(bodies[0]) === JSON.stringify({ user_id: 'u2', action: 'make_content.etkinlikler.edit', duration: { months: 1 } }),
+  `onaylayıcı 1 aylık düzenleyici ekler: ${JSON.stringify(bodies[0])}`);
+const apUsersTabs = await ap.$$eval('[data-sub-link], a[href*="#kullanicilar/"]', (as) => as.map((a) => a.getAttribute('href') ?? a.textContent).filter((h) => h && h.includes('kullanicilar/liste')));
+ok(apUsersTabs.length === 0, `kullanıcı listesi sekmesi yok: ${JSON.stringify(apUsersTabs)}`);
 
 await browser.close();
 console.log(bad.length ? `\n${bad.length} SORUN:\n - ` + bad.join('\n - ') : '\nHEPSİ GEÇTİ');

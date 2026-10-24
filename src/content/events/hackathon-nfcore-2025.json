@@ -1,7 +1,6 @@
 {
   "id": "hackathon-nfcore-2025",
   "type": "hackathon",
-  "nfcore": true,
   "start": "2025-03-24",
   "end": "2025-03-26",
   "title": {
@@ -29,6 +28,7 @@
       "url": "https://nf-co.re/events/2025/hackathon-march-2025/rsg-turkiye"
     }
   ],
+  "nfcore": true,
   "image": {
     "thumb": "/api/images/989469af-59cd-4c07-b8e1-3c019effad4e.jpg",
     "full": "/api/images/b9570e40-a9fa-4807-9928-092242b1ad3f.jpg",

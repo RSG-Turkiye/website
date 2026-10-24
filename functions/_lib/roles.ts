@@ -5,7 +5,8 @@
 import { TR_OFFSET } from './stats';
 
 export type RoleKey =
-  | 'admin' | 'announcer' | 'writer' | 'sender' | 'symposium' | 'social' | 'social_publisher';
+  | 'admin' | 'announcer' | 'writer' | 'sender' | 'symposium' | 'social' | 'social_publisher'
+  | 'content.etkinlikler.edit' | 'content.etkinlikler.approve';
 
 export interface RoleDef {
   key: RoleKey;
@@ -16,7 +17,7 @@ export interface RoleDef {
   /** Roles held automatically along with this one. */
   implies?: RoleKey[];
   /** Holding this role lets a non-admin grant this one, for one month. */
-  approverRole?: string;
+  approverRole?: RoleKey;
 }
 
 export const ROLES: readonly RoleDef[] = [
@@ -27,13 +28,39 @@ export const ROLES: readonly RoleDef[] = [
   { key: 'writer', level: 'edit', column: 'is_writer' },
   { key: 'sender', level: 'edit', column: 'is_sender' },
   { key: 'social', level: 'edit', column: 'is_social' },
+  // Content groups (the panel CMS). No column: they live in role_grants only.
+  { key: 'content.etkinlikler.approve', level: 'leader' },
+  { key: 'content.etkinlikler.edit', level: 'edit', approverRole: 'content.etkinlikler.approve' },
 ];
+
+/** The content groups of the panel CMS. A group's rights are its content.<group>.* roles. */
+export const CMS_GROUPS = ['etkinlikler'] as const;
+export type CmsGroup = (typeof CMS_GROUPS)[number];
+export type GroupRights = Record<CmsGroup, { edit: boolean; approve: boolean }>;
+
+/**
+ * What a set of live roles allows in each content group. Approvers can do
+ * everything editors can; an admin can do everything. Pure, so the panel
+ * and the server answer alike.
+ */
+export function rightsFromRoles(roles: readonly string[], isAdmin: boolean): GroupRights {
+  const held = new Set(roles);
+  return Object.fromEntries(CMS_GROUPS.map((g) => {
+    const approve = isAdmin || held.has(`content.${g}.approve`);
+    return [g, { edit: approve || held.has(`content.${g}.edit`), approve }];
+  })) as GroupRights;
+}
 
 const BY_KEY = new Map<string, RoleDef>(ROLES.map((r) => [r.key, r]));
 
 /** A Map, not an object lookup, so 'constructor' is not a role. */
 export function roleDef(key: string): RoleDef | null {
   return BY_KEY.get(key) ?? null;
+}
+
+/** The roles a non-admin holding `activeRoles` may grant and take away: those they are the approver of. */
+export function grantableBy(activeRoles: readonly string[]): RoleKey[] {
+  return ROLES.filter((r) => r.approverRole && activeRoles.includes(r.approverRole)).map((r) => r.key);
 }
 
 export type Duration =

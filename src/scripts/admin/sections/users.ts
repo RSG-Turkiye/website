@@ -8,10 +8,15 @@ import { escapeHtml } from '../../escape-html';
 import { lang, t, tf, showToast, formatDate, dateLocale } from '../context';
 import { row, chip, switchControl, armConfirm, BTN, emptyState } from '../ui-kit';
 import { loadSenders } from './mail';
-import { roleDef, resolveExpiry, addMonths, type Duration } from '../../../../functions/_lib/roles';
+import { roleDef, resolveExpiry, addMonths, grantableBy, type Duration } from '../../../../functions/_lib/roles';
 import { epochToIstanbulInput, istanbulInputToEpoch } from '../../../lib/istanbul-time';
 
-/** Each role as a switch: on → make_*, off → remove_*. Order and copy shown in the detail panel and on the Roles tab. */
+/**
+ * Each role as a switch: on → make_*, off → remove_*. Order and copy shown in
+ * the detail panel and on the Roles tab. `flag` is the users.is_* column; a
+ * content role has none, so its flag is its role key and who holds it comes
+ * from the grants the list carries (see held).
+ */
 export const ROLE_SWITCHES = [
   { flag: 'is_admin', role: 'admin', on: 'make_admin', off: 'remove_admin', label: 'admin.roles.admin', hint: 'admin.roles.adminHint' },
   { flag: 'is_announcer', role: 'announcer', on: 'make_announcer', off: 'remove_announcer', label: 'admin.roles.announcer', hint: 'admin.roles.announcerHint' },
@@ -20,6 +25,8 @@ export const ROLE_SWITCHES = [
   { flag: 'is_symposium', role: 'symposium', on: 'make_symposium', off: 'remove_symposium', label: 'admin.roles.symposium', hint: 'admin.roles.symposiumHint' },
   { flag: 'is_social', role: 'social', on: 'make_social', off: 'remove_social', label: 'admin.roles.social', hint: 'admin.roles.socialHint' },
   { flag: 'is_social_publisher', role: 'social_publisher', on: 'make_social_publisher', off: 'remove_social_publisher', label: 'admin.roles.socialPublisher', hint: 'admin.roles.socialPublisherHint' },
+  { flag: 'content.etkinlikler.edit', role: 'content.etkinlikler.edit', on: 'make_content.etkinlikler.edit', off: 'remove_content.etkinlikler.edit', label: 'admin.roles.etkinliklerEdit', hint: 'admin.roles.etkinliklerEditHint' },
+  { flag: 'content.etkinlikler.approve', role: 'content.etkinlikler.approve', on: 'make_content.etkinlikler.approve', off: 'remove_content.etkinlikler.approve', label: 'admin.roles.etkinliklerApprove', hint: 'admin.roles.etkinliklerApproveHint' },
 ] as const;
 
 type RoleSwitch = (typeof ROLE_SWITCHES)[number];
@@ -37,6 +44,16 @@ let selectedId: string | null = null;
 let meId: string | null = null;
 /** Null until the Roles tab is first opened; after that it is kept fresh. */
 let rolesUsers: User[] | null = null;
+/**
+ * Who is granting, for the duration rule. An admin by default; a non-admin
+ * approver sees only the cards of the roles they may grant, with the choices
+ * the rule allows them (a month at most).
+ */
+let granter = { isAdmin: true, activeRoles: [] as string[] };
+
+export function setGranter(g: { isAdmin: boolean; activeRoles: string[] }): void {
+  granter = g;
+}
 
 // Ranks and their labels in both languages come from lib/badges.ts, which is
 // what renders a member's actual badge, so the dropdown cannot drift from
@@ -58,7 +75,13 @@ export function setCurrentUserId(id: string | null): void {
 }
 
 const isSelfAdmin = (userId: string, flag: string) => flag === 'is_admin' && userId === meId;
-const displayName = (u: User): string => u.display_name || u.email;
+/** The column when the role has one, else a live grant. */
+const held = (u: User, r: RoleSwitch): boolean =>
+  !!u[r.flag] || !!(u.grants as Grant[] | undefined)?.some((g) => g.role === r.role);
+// A non-admin approver's list carries no address (the server leaves it out).
+const displayName = (u: User): string => u.display_name || u.username || u.email || '';
+/** The second line under a name: the address for an admin, the username otherwise. */
+const secondLine = (u: User): string => u.email || (u.username ? `@${u.username}` : '');
 
 /** The server's refusal codes for a duration, in the panel's language. */
 const DURATION_ERRORS: Record<string, Parameters<typeof t>[0]> = {
@@ -92,6 +115,8 @@ async function patchUser(userId: string, action: string, value?: string, duratio
 
 /** After a change: the list (keeping the selection), the Roles tab once opened, and the senders list, which shows the sender role too. */
 async function refreshAfterChange(): Promise<void> {
+  // An approver has only the Roles tab; the list and senders are an admin's.
+  if (!granter.isAdmin) return loadRolesView();
   await Promise.all([loadUsers(), rolesUsers ? loadRolesView() : Promise.resolve(), loadSenders()]);
 }
 
@@ -113,7 +138,7 @@ function membershipChip(u: User): string {
 function rowChips(u: User): string {
   return [
     membershipChip(u),
-    ...ROLE_SWITCHES.filter((r) => !!u[r.flag]).map((r) => chip(t(r.label), 'navy')),
+    ...ROLE_SWITCHES.filter((r) => held(u, r)).map((r) => chip(t(r.label), 'navy')),
     u.is_public === 0 ? chip(t('admin.badge.private'), 'amber') : '',
   ].join('');
 }
@@ -218,7 +243,7 @@ function renderDetail(u: User | null): void {
       const locked = isSelfAdmin(id, r.flag);
       return switchControl({
         id: `role-${r.flag}`,
-        checked: !!u[r.flag],
+        checked: held(u, r),
         label: t(r.label),
         hint: t(locked ? 'admin.roles.adminSelfHint' : r.hint),
         attrs: `data-flag="${r.flag}" data-action-on="${r.on}" data-action-off="${r.off}"${locked ? ' disabled' : ''}`,
@@ -305,8 +330,6 @@ export async function loadRolesView(): Promise<void> {
 
 const DAY = 86400;
 const MONTH_CHOICES = [1, 2, 3, 6, 12] as const;
-/** The Roles tab is admin-only, so the panel asks the rule as an admin would. */
-const AS_ADMIN = { isAdmin: true, activeRoles: [] as string[] };
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 /** YYYY-MM-DD of `ts` in Istanbul, whatever the browser's timezone. */
@@ -318,8 +341,8 @@ const istanbulDay = (ts: number) => epochToIstanbulInput(ts).slice(0, 10);
  */
 function allowedDurations(r: RoleSwitch, now: number) {
   const def = roleDef(r.role)!;
-  const months = MONTH_CHOICES.filter((m) => resolveExpiry(def, { months: m }, now, AS_ADMIN).ok);
-  const permanent = resolveExpiry(def, { permanent: true }, now, AS_ADMIN).ok;
+  const months = MONTH_CHOICES.filter((m) => resolveExpiry(def, { months: m }, now, granter).ok);
+  const permanent = resolveExpiry(def, { permanent: true }, now, granter).ok;
   return { months, permanent, latest: addMonths(now, Math.max(...months)), leader: def.level === 'leader' };
 }
 
@@ -460,7 +483,7 @@ function personChip(u: User, r: RoleSwitch, now: number): string {
     <button type="button" data-remove="${r.off}" aria-label="${escapeHtml(tf('admin.roles.removePerson', { name: displayName(u) }))}"
       class="${icon} hover:text-red">×</button>`;
   return `<span data-person="${escapeHtml(String(u.id))}"${soon ? ' data-ends-soon' : ''} class="inline-flex items-center gap-1 max-w-full pl-3 ${remove || renew ? '' : 'pr-3 min-h-11 lg:min-h-7'} rounded-full ${soon ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'} text-xs">
-    <span class="truncate min-w-0" title="${escapeHtml(u.email)}">${name}</span>${ends === null ? '' : `<span class="shrink-0 whitespace-nowrap ${soon ? 'font-medium' : ''}">· ${escapeHtml(untilLabel(ends))}</span>`}${renew}${remove}
+    <span class="truncate min-w-0" title="${escapeHtml(secondLine(u))}">${name}</span>${ends === null ? '' : `<span class="shrink-0 whitespace-nowrap ${soon ? 'font-medium' : ''}">· ${escapeHtml(untilLabel(ends))}</span>`}${renew}${remove}
   </span>`;
 }
 
@@ -470,7 +493,7 @@ async function searchToAdd(q: string, r: RoleSwitch): Promise<User[]> {
     const res = await fetch(`/api/admin/users?${new URLSearchParams({ filter: 'all', search: q })}`);
     if (!res.ok) return [];
     const data = await res.json() as { users: User[] };
-    return data.users.filter((u) => !u[r.flag]).slice(0, 8);
+    return data.users.filter((u) => !held(u, r)).slice(0, 8);
   } catch {
     return [];
   }
@@ -481,9 +504,13 @@ export function renderRolesView(users: User[]): void {
   const box = document.getElementById('rolesView');
   if (!box) return;
   const now = nowSeconds();
+  const mine = granter.isAdmin ? null : grantableBy(granter.activeRoles) as string[];
+  const cards = ROLE_SWITCHES.filter((r) => !mine || mine.includes(r.role));
+  // A non-admin's search matches names, usernames or a whole address.
+  const addHint = granter.isAdmin ? 'admin.roles.addPlaceholder' : 'admin.roles.addPlaceholderApprover';
   box.innerHTML = `<h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">${t('admin.nav.roles')}</h2>
-    <div class="grid gap-3 lg:grid-cols-2">${ROLE_SWITCHES.map((r) => {
-      const people = users.filter((u) => !!u[r.flag]);
+    <div class="grid gap-3 lg:grid-cols-2">${cards.map((r) => {
+      const people = users.filter((u) => held(u, r));
       return `<div data-role-card="${r.flag}" class="bg-white rounded-2xl border border-border p-4 lg:p-3 min-w-0">
         <h3 class="text-sm font-semibold text-navy">${t(r.label)}</h3>
         <p class="text-xs text-gray-500 mb-3">${t(r.hint)}</p>
@@ -493,14 +520,14 @@ export function renderRolesView(users: User[]): void {
         <div data-renew-slot></div>
         <button type="button" data-add-role aria-expanded="false" class="mt-3 ${BTN.ghost} border border-dashed border-border">+ ${t('admin.roles.addPerson')}</button>
         <div data-add-box class="hidden mt-2">
-          <input data-add-input type="search" placeholder="${escapeHtml(t('admin.roles.addPlaceholder'))}" aria-label="${escapeHtml(t('admin.roles.addPlaceholder'))}"
+          <input data-add-input type="search" placeholder="${escapeHtml(t(addHint))}" aria-label="${escapeHtml(t(addHint))}"
             class="w-full min-h-11 lg:min-h-9 px-3 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus:border-navy-mid ${FOCUS}" />
           <div data-add-results class="flex flex-col gap-1 mt-2"></div>
         </div>
       </div>`;
     }).join('')}</div>`;
 
-  for (const r of ROLE_SWITCHES) {
+  for (const r of cards) {
     const card = box.querySelector<HTMLElement>(`[data-role-card="${r.flag}"]`)!;
     const renewSlot = card.querySelector('[data-renew-slot]') as HTMLElement;
     card.querySelectorAll<HTMLElement>('[data-person]').forEach((p) => {
@@ -531,7 +558,7 @@ export function renderRolesView(users: User[]): void {
       results.innerHTML = matches.map((u) => `<button type="button" data-add-user="${escapeHtml(String(u.id))}"
         class="text-left min-h-11 lg:min-h-9 px-3 py-1 rounded-xl border border-border hover:border-navy-mid min-w-0 ${FOCUS}">
         <span class="block text-sm text-navy truncate">${escapeHtml(displayName(u))}</span>
-        <span class="block text-xs text-gray-500 truncate">${escapeHtml(u.email)}</span>
+        <span class="block text-xs text-gray-500 truncate">${escapeHtml(secondLine(u))}</span>
       </button>`).join('');
       results.querySelectorAll<HTMLButtonElement>('[data-add-user]').forEach((b) => {
         b.addEventListener('click', () => {

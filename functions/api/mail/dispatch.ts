@@ -10,6 +10,7 @@ import {
   remainingRecipients,
 } from '../../_lib/mail-queue';
 import { expireGrants } from '../../_lib/role-grants';
+import { pruneDrafts, shepherd } from '../../_lib/cms-shepherd';
 import { startRun, finishRun, markPhase, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
 import {
   resolveAttachments,
@@ -254,7 +255,8 @@ async function auditOutcome(
   }
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
   // Without this, anyone could drain the queue early or burn the Gmail quota
   // by hammering the endpoint.
   const secret = request.headers.get('X-Dispatch-Secret');
@@ -282,7 +284,31 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     } catch (err) {
       console.error('expireGrants failed', err);
     }
+    // Finished CMS drafts older than 90 days; same rule: never blocks mail.
+    try {
+      await pruneDrafts(env.DB, now);
+    } catch (err) {
+      console.error('pruneDrafts failed', err);
+    }
   }
+
+  // The CMS pull-request shepherd (cms-shepherd.ts) runs once on every tick:
+  // just before the night-time return, or after the mail work. Its GitHub
+  // requests share this invocation's subrequest limit with the mail, which
+  // goes first. It runs under waitUntil, so the mail answer never waits on
+  // GitHub; a failure is logged and never blocks mail. (Without waitUntil,
+  // as in some tests, it is awaited.)
+  const runShepherd = async () => {
+    const run = (async () => {
+      try {
+        await shepherd(env, now, new URL(request.url).origin);
+      } catch (err) {
+        console.error('cms shepherd failed', err);
+      }
+    })();
+    if (typeof context.waitUntil === 'function') context.waitUntil(run);
+    else await run;
+  };
 
   // The queue delivers during waking hours only. Cloudflare invokes this
   // Worker whenever it likes -- on 2026-09-05 that was 04:10 and 07:38 in the
@@ -292,6 +318,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!withinSendingWindow(new Date())) {
     const held = `outside ${SEND_WINDOW.startHour}:00-${SEND_WINDOW.endHour}:00 Europe/Istanbul`;
     await finishRun(env.DB, runId, now, { candidates: 0, planned: 0, sent: 0, failed: 0, retried: 0, alreadySent: 0, held });
+    await runShepherd();
     return jsonResponse({ ok: true, processed: 0, sent: 0, failed: 0, retried: 0, alreadySent: 0, held });
   }
 
@@ -305,6 +332,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       error: err instanceof Error ? err.message : String(err),
     });
     throw err;
+  } finally {
+    // After the mail work, whether it finished or threw.
+    await runShepherd();
   }
 };
 

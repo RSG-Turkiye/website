@@ -27,7 +27,7 @@ const EMPTY = {
   posts: [], plans: [], modes: [], editors: [],
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 
 async function open(user, viewport, path = '/admin', body = EMPTY) {
   const page = await browser.newPage({ viewport });

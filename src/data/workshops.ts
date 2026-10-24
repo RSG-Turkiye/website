@@ -10,13 +10,13 @@ import { z } from 'astro/zod';
  */
 export const workshopSchema = z.object({
   year: z.number(),
-  title: z.string(),
+  title: z.string().min(1),
   /** What a reader can learn from the materials, in a few words. */
-  topics: z.string(),
+  topics: z.string().min(1),
   /** The repository under github.com/RSG-Turkiye, with its real case; the
    * file name is the same name in lower case (src/content file names are
    * lowercase slugs). */
-  repo: z.string(),
+  repo: z.string().min(1),
 }).strict();
 
 export type Workshop = z.infer<typeof workshopSchema>;

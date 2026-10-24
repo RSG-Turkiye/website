@@ -61,6 +61,10 @@ anyone.
    new admin endpoint that changes something without logging it. Log rows
    are kept a year, so they carry ids and counts, never data that is
    deleted sooner, such as a certificate holder's name or address.
+10. **Content is changed through the CMS or a PR. Only a person approves,
+    in the panel**; the shepherd merges only what a person approved, and
+    nobody merges a `cms/*` pull request by hand. No agent or script
+    approves.
 
 ## Where things live
 
@@ -77,6 +81,7 @@ anyone.
 | `functions/_lib/`                 | Shared server code: `auth.ts` (session and permission checks), `mail*.ts`, `social-*.ts`, `github.ts` (opens PRs), `symposium.ts`, `certificates.ts`. |
 | `functions/_lib/roles.ts`         | The role catalog and the duration rules: who may grant which role, and for how long. Pure, no database.                                               |
 | `functions/_lib/role-grants.ts`   | `grantRole`, `revokeRole`, `activeGrants`, `expireGrants`: the only code that changes who holds a role.                                               |
+| `src/lib/cms/`, `functions/_lib/cms-*.ts`, `functions/api/cms/` | The panel CMS: types and serializing, draft rules, the PR shepherd (runs on the mail tick), and the `/api/cms/*` endpoints. |
 | `db/schema.sql`                   | The D1 schema plus the numbered migration notes at its top.                                                                                           |
 | `workers/mail-cron/`              | Worker whose cron (every minute) drives mail dispatch, inbox sync and social publishing.                                                              |
 | `workers/symposium-cron/`         | Nightly Worker: archives a finished symposium edition (via a PR), rebuilds the symposium site, purges expired certificates and prunes the audit log.  |
