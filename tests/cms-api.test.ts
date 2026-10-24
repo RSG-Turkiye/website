@@ -1794,9 +1794,10 @@ test('approvers get the drafts that are on their way or stuck; editors do not', 
 
 // ── plan 4: every content group, and the registry's options ──────────────────
 //
-// No real type of the new groups exists yet, so two test types stand in:
-// a Yazılar type that behaves like any JSON type, and a Sayfalar type with
-// every restriction (fixedKeys, noCreate, noDelete, approve: 'admin').
+// Two test types stand in beside the real ones: a Yazılar type that
+// behaves like any JSON type, and a Sayfalar type with every restriction
+// (fixedKeys, noCreate, noDelete, approve: 'admin'), so the group rules are
+// tested apart from what blog posts, page texts and privacy add.
 
 const TEST_POSTS = defineType({
   key: 'testposts' as CmsTypeKey,
@@ -2637,10 +2638,14 @@ test('blog: the registry entry (group, folder, either side, title extractors)', 
   assert.equal(t.indexTitle({ title: 'A title' }, 'en'), 'A title');
   assert.equal(t.indexDate!({ pubDate: new Date('2026-01-05T00:00:00Z') }), '2026-01-05');
   // The index lists the one-sided posts under their own names, the missing side null.
+  // Each is listed under the title of the language it has.
   const en = INDEX.blog.find((e) => e.id === 'fixture-english-post')!;
   assert.deepEqual(en.paths, { en: POST_EN, tr: null });
+  assert.equal(en.title, 'Fixture English post');
+  assert.equal(en.date, '2026-01-05');
   const tr = INDEX.blog.find((e) => e.id === 'fixture-turkce-yazi')!;
   assert.deepEqual(tr.paths, { en: null, tr: POST_TR });
+  assert.equal(tr.title, 'Fixture Türkçe yazı');
 });
 
 test('Review Focus 2: a post in English only creates, saves, submits and is approved with no empty-twin error; one file is written', async () => {

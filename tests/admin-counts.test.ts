@@ -114,7 +114,7 @@ test('content counts: an editor\'s drafts that need action; an approver\'s queue
 });
 
 test('content counts add up across every group a person edits or approves; the keys stay the same', async () => {
-  // A stand-in Yazılar type: no real one exists yet.
+  // A stand-in Yazılar type, a JSON one, beside the real blog type: counts are per group, not per type.
   setTestCmsTypes([defineType({
     key: 'testposts' as CmsTypeKey, group: 'yazilar', dir: 'src/content/testposts', format: 'json', schema: z.object({}),
     idFrom: () => 'x', idField: 'name', indexTitle: () => 'x', label: { en: 'x', tr: 'x' },

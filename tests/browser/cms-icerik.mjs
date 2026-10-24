@@ -146,6 +146,7 @@ const USERS = {
   approver: { id: 'u1', email: 'onay@example.org', grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] },
   editor: { id: 'u2', email: 'editor@example.org', grants: [{ role: 'content.etkinlikler.edit', expires_at: null }] },
   yazilar: { id: 'u4', email: 'yazar@example.org', grants: [{ role: 'content.yazilar.edit', expires_at: null }] },
+  yazilarOnay: { id: 'u11', email: 'yazar-onay@example.org', grants: [{ role: 'content.yazilar.approve', expires_at: null }] },
   topluluk: { id: 'u5', email: 'komite@example.org', grants: [{ role: 'content.topluluk.edit', expires_at: null }] },
   ogrenme: { id: 'u7', email: 'ogrenme@example.org', grants: [{ role: 'content.ogrenme.edit', expires_at: null }] },
   ogrenmeOnay: { id: 'u8', email: 'ogrenme-onay@example.org', grants: [{ role: 'content.ogrenme.approve', expires_at: null }] },
@@ -201,7 +202,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
     }
     if (p === '/api/admin/users' && method === 'GET') return json({ users: DEMO_PEOPLE, badge_catalog: [] });
     if (p === '/api/admin/health') return json({ issues: [], canFix: false });
-    if (p === '/api/admin/counts') return json(who === 'approver' || who === 'admin' ? { cmsMine: 0, cmsQueue: state.queueCount ?? 1, cmsTotal: 1 } : { cmsMine: 1, cmsTotal: 1 });
+    if (p === '/api/admin/counts') return json(who === 'approver' || who === 'admin' || who === 'yazilarOnay' ? { cmsMine: 0, cmsQueue: state.queueCount ?? 1, cmsTotal: 1 } : { cmsMine: 1, cmsTotal: 1 });
     if (p === '/api/blog-submissions/upload-image') {
       if (state.uploadDelay) await new Promise((res) => setTimeout(res, state.uploadDelay));
       if (state.uploadFail) return json({ error: state.uploadFail }, 400);
@@ -250,7 +251,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       if (state.draftsFail) return json({ error: 'x', code: state.draftsFail === 401 ? 'unauthenticated' : 'boom' }, state.draftsFail);
       const all = [...state.drafts.values()];
       return json({ mine: all.filter((d) => d.author_id === user.id).map(({ data, base_shas, ...d }) => d),
-        queue: who === 'approver' || who === 'admin' ? all.filter((d) => d.status === 'submitted' || d.status === 'approved').map(({ data, base_shas, ...d }) => d) : [], more: state.more, live: state.live,
+        queue: who === 'approver' || who === 'admin' || who === 'yazilarOnay' ? all.filter((d) => d.status === 'submitted' || d.status === 'approved').map(({ data, base_shas, ...d }) => d) : [], more: state.more, live: state.live,
         inflight: who === 'approver' || who === 'admin' ? all.filter((d) => ['pr_open', 'merged', 'pr_failed'].includes(d.status) || (d.status === 'approved' && d.updated_at < NOW - 300)).map(({ data, base_shas, ...d }) => d) : [] });
     }
     if (p === '/api/cms/drafts' && method === 'POST') {
@@ -356,6 +357,11 @@ if (process.env.DEMO) {
       s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'tr.sections.0.items': 'The Turkish notice must have as many paragraphs, sections and items as the English one' } }];
       // A page text waiting: its approver approves it; a privacy one only an admin does.
       mk(2, { type: 'pages', status: 'submitted', entry_id: 'about', author_id: USERS.sayfalar.id, base_shas: { [PAGE_PATH]: 'sha-pg' }, data: { ...PAGE, mid_cta: { en: 'Join us', tr: 'Bize katılın' } } });
+      return;
+    }
+    if (who === 'yazilar') {
+      // A Turkish-only post sent back: its description is too long a sentence.
+      mk(1, { type: 'blog', status: 'rejected', entry_id: 'ornek-yazi', review_note: 'Açıklamayı kısaltın.', base_shas: { [POST_TR_PATHS.en]: null, [POST_TR_PATHS.tr]: 'sha-bt' }, data: POST_TR });
       return;
     }
     if (who === 'topluluk') {
@@ -1526,10 +1532,29 @@ await section('45) Yazılar: a new post starts in the panel\'s language, dated t
   await en.page.close();
 });
 
+await section('46) Yazılar: the approver sees a Turkish-only post\'s added English side as the change, and approves it', async () => {
+  const id = '00000000-0000-4000-8000-000000000801';
+  const added = JSON.parse(JSON.stringify(POST_TR));
+  added.en = { frontmatter: { ...POST_TR_SIDE, title: 'Example post', description: 'An example.', tags: [] }, body: 'English text.' };
+  const { page, calls } = await open(browser, 'yazilarOnay', `#icerik/onay/${id}`, { width: 1440, height: 900 }, (st) => {
+    st.drafts.set(id, draftRow({ id, type: 'blog', status: 'submitted', entry_id: 'ornek-yazi', author_id: 'u4', data: added, base_shas: { [POST_TR_PATHS.en]: null, [POST_TR_PATHS.tr]: 'sha-bt' } }));
+    st.draftFiles = [{ path: POST_TR_PATHS.en, content: '---\ntitle: "Example post"\n---\nEnglish text.' }, { path: POST_TR_PATHS.tr, content: '---\ntitle: "Örnek yazı"\n---\n\nTürkçe metin.\n' }];
+  });
+  ok(await waitFor(page, () => !!document.getElementById('cmsApprove')), 'Approve is there');
+  const review = (await page.textContent('#cmsReview')).replace(/\s+/g, ' ');
+  ok(review.includes('Example post'), `the English title is shown as the change: "${review.slice(0, 200)}"`);
+  ok(!review.includes(POST_TR_SIDE.description + ' →'), 'the Turkish side is not shown as changed');
+  await page.click('#cmsApprove');
+  ok(await waitFor(page, () => /Onaylandı/.test(document.getElementById('cmsNotice')?.textContent ?? '')) && calls.some((c) => c.method === 'POST' && c.path.endsWith(`${id}/approve`)), 'the approval goes out');
+  await page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
-for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction'], ['sayfalar', '#icerik/sayfa-metinleri'], ['sayfalar', '#icerik/sayfa-metinleri/about'], ['sayfalar', '#icerik/gizlilik/privacy'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000006'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000007'], ['yazilar', '#icerik/blog'], ['yazilar', '#icerik/blog/ornek-yazi'], ['yazilar', '#icerik/blog/_new']]) {
+for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction'], ['sayfalar', '#icerik/sayfa-metinleri'], ['sayfalar', '#icerik/sayfa-metinleri/about'], ['sayfalar', '#icerik/gizlilik/privacy'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000006'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000007'], ['yazilar', '#icerik/blog'], ['yazilar', '#icerik/blog/ornek-yazi'], ['yazilar', '#icerik/blog/_new'], ['yazilarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000802']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));
+    // A Turkish-only post in review, its title too long for the line.
+    s.drafts.set('00000000-0000-4000-8000-000000000802', draftRow({ id: '00000000-0000-4000-8000-000000000802', type: 'blog', status: 'submitted', entry_id: 'ornek-yazi', data: { en: null, tr: { ...POST_TR.tr, frontmatter: { ...POST_TR_SIDE, title: 'w'.repeat(200) } } } }));
     // A page text and a privacy notice in review, with words too long for the line.
     s.drafts.set('00000000-0000-4000-8000-000000000006', draftRow({ id: '00000000-0000-4000-8000-000000000006', type: 'pages', status: 'submitted', entry_id: 'about', data: { ...PAGE, alpha_intro: { en: 'y'.repeat(200), tr: 'z'.repeat(200) } } }));
     const edited = JSON.parse(JSON.stringify(PRIVACY));

@@ -1596,6 +1596,24 @@ test('blog: the live link opens the language the post has', () => {
   assert.equal(livePath('blog', 'bir-yazi', [tr], 'en'), '/tr/blog/bir-yazi/');
 });
 
+test('blog: the approver\'s file diff of a one-language post has its one file, no row for the language it lacks', async () => {
+  const { fileDiffs, hiddenFileChanges } = await import('../src/scripts/admin/cms-diff');
+  const en = 'src/content/blog/en/a-post.md';
+  const tr = 'src/content/blog/tr/a-post.md';
+  const before = '---\ntitle: "A post"\n---\n\nText.\n';
+  const after = '---\ntitle: "A post, edited"\n---\n\nText.\n';
+  // GET /api/cms/entry answers both paths (the missing one null); the draft writes one file.
+  const files = fileDiffs({ [en]: before, [tr]: null }, [{ path: en, content: after }]);
+  assert.deepEqual(files.map((f) => f.path), [en]);
+  assert.ok(files[0].changed);
+  // A Turkish side added in the draft is a new file: all of it shows as added.
+  const added = fileDiffs({ [en]: before, [tr]: null }, [{ path: en, content: before }, { path: tr, content: after }]);
+  assert.deepEqual(added.map((f) => [f.path, f.changed]), [[en, false], [tr, true]]);
+  const fields = diffEntry(BLOG, { en: postSide('en'), tr: null }, { en: postSide('en'), tr: postSide('tr') }, BLOG.fields);
+  assert.ok(fields.changed.length > 0, 'the added language shows in the field diff');
+  assert.ok(!hiddenFileChanges(added, fields));
+});
+
 test('blog: an error on a Turkish-only post\'s title lands on the Turkish title', () => {
   assert.deepEqual(placeOf(BLOG, 'tr.frontmatter.title'), { key: 'title', lang: 'tr' });
   assert.equal(messageKey('Write the entry in English, Turkish or both'), 'admin.cms.v.oneSide');
