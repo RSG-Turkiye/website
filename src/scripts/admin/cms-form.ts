@@ -219,6 +219,8 @@ export const MODELS: Record<TypeKey, TypeModel> = {
           },
           {
             key: 'socialMedia', kind: 'objects', label: 'admin.cms.f.socialMedia', group: 'main', rowName: 'admin.cms.rows.account',
+            // The address says more than the platform's raw value ("linkedin").
+            rowLabel: (r) => str(r.url).trim() || str(r.platform),
             fields: [
               { key: 'platform', kind: 'select', options: SOCIAL_PLATFORMS, label: 'admin.cms.f.platform', group: 'main', required: true },
               { key: 'url', kind: 'text', label: 'admin.cms.f.url', group: 'main', required: true },

@@ -14,14 +14,36 @@ request açmak yeterlidir.
 (eksik alan, yanlış yazılmış bir anahtar, fazladan bir alan) build'i
 durdurur ve hata mesajı hangi dosya ve alan olduğunu söyler.
 
-Yönetim paneli ileride bu dosyaları da düzenleyecek (değişiklikleri pull
-request olarak açarak). O zamana kadar dosyalar elle düzenlenir.
+## Olağan yol: yönetim paneli
+
+Komiteler artık panelden düzenlenir: `/admin` → **İçerik** → **Komiteler**
+(Topluluk grubu). Yetki: `content.topluluk.edit` taslak hazırlar,
+`content.topluluk.approve` (ya da bir yönetici) onaylar. Onaylanan taslak
+bir pull request olur, kontroller geçince kendiliğinden birleşir ve site
+birkaç dakika içinde güncellenir. Kimse `cms/*` pull request'ini elle
+birleştirmez.
+
+- **Üye eklemek:** komiteyi açın, Üyeler altında **Satır ekle**. Ad, görev
+  (iki dilde), fotoğraf (buradan yüklenir) ve **Yayın onayı** kutusu
+  zorunludur. Onay kutusu işaretlenmeden taslak kaydedilir ama onaya
+  gönderilemez.
+- **Üye çıkarmak / sırasını değiştirmek:** üyenin satırında ↑ ↓ ya da
+  satırı açıp **Çıkar**.
+- **Yeni komite:** Komiteler → **Yeni**. Dosya adı İngilizce addan çıkar ve
+  bir daha değişmez; mevcut dosyalar (örneğin `website.json`) adları ne
+  olursa olsun kendi adlarını korur.
+- **Gönderirken panel şunları reddeder:** dosyada herhangi bir `@` (e-posta
+  adresi olmasın diye), uzun tire (—) ya da kelimeler arasında ` -- `, boş
+  bir ad, açıklama ya da görev, onayı olmayan üye.
+
+Aşağıdaki elle düzenleme adımları yedek yoldur: panel çalışmıyorsa ya da
+panelin göstermediği bir değişiklik gerekiyorsa kullanılır.
 
 ## Bir komite dosyası
 
 ```json
 {
-  "order": 6,
+  "order": 60,
   "name": { "en": "Website Committee", "tr": "Web Sitesi Komitesi" },
   "description": {
     "en": "Managing website development and maintenance.",
@@ -53,8 +75,8 @@ request olarak açarak). O zamana kadar dosyalar elle düzenlenir.
 
 | Alan | Zorunlu | Açıklama |
 | --- | --- | --- |
-| `order` | evet | Komitenin sayfadaki sırası, 0'dan başlar. Sıralar boşluksuz olmalı (0, 1, 2, ...); iki komite aynı sırayı alamaz. |
-| `name`, `description` | evet | `{ "en": ..., "tr": ... }`: iki dil de dolu olmalı. |
+| `order` | evet | Komitenin sayfadaki sırası: küçük olan önce gelir. Onar onar numaralıdır (0, 10, 20, ...); iki komitenin arasına girmek için aradaki bir sayı seçilir. Boşluk olabilir; iki komite aynı sırayı alırsa İngilizce adlarına göre dizilir. |
+| `name`, `description` | evet | `{ "en": ..., "tr": ... }`: iki dil de dolu olmalı (şema boş olanı reddeder). |
 | `members` | evet | Üyeler, sayfada göründükleri sırayla. |
 | `members[].name` | evet | Üyenin adı, her iki dilde aynı. |
 | `members[].role` | evet | `{ en, tr }`. |
@@ -85,8 +107,8 @@ aynısı yapılır.
 ## Komite eklemek veya çıkarmak
 
 Yeni bir komite için yeni bir dosya oluşturun (`src/content/committees/<ad>.json`)
-ve ona bir `order` verin. Bir komiteyi kaldırırken dosyasını silin ve kalan
-komitelerin `order` değerlerini boşluk kalmayacak şekilde yeniden numaralandırın.
+ve ona diğerleriyle çakışmayan bir `order` verin. Bir komiteyi kaldırırken
+yalnızca dosyasını silin; kalanları yeniden numaralandırmak gerekmez.
 
 Bir dosyayı sildikten sonra yerelde build almadan önce
 `rm -rf node_modules/.astro .astro dist` çalıştırın; Astro'nun önbelleği
