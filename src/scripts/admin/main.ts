@@ -129,11 +129,11 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
       if (sub === 'gonderilenler' && (isFullAdmin || isSender)) showSent();
     },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
-    'icerik-etkinlikler': (sub, item) => showCms(sub, item),
+    icerik: (sub, item) => showCms(sub, item),
   };
   // Content editors, approvers and admins: the form exists before the shell
   // opens a deep link to a draft.
-  if (roles.cms.etkinlikler?.edit) setupCms({ approver: roles.cms.etkinlikler.approve, userId: String(data.user.id ?? '') });
+  if (Object.values(roles.cms).some((g) => g.edit)) setupCms({ rights: roles.cms, isAdmin: roles.admin, userId: String(data.user.id ?? '') });
   // Back from a Gmail reconnect: the shell opens Connections; say how it went.
   startShell(roles, { onShow, onSub });
   if (connected || connectionError) {

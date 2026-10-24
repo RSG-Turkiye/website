@@ -1213,7 +1213,10 @@ export const ui = {
     // The Etkinlikler panel (src/scripts/admin/sections/cms.ts, cms-form.ts, cms-render.ts).
     'admin.overview.cmsQueue': '{n} content drafts awaiting approval',
     'admin.overview.cmsMine': '{n} of your content drafts need you',
-    'admin.cms.section': 'Events',
+    'admin.cms.section': 'Content',
+    'admin.cms.groupName.etkinlikler': 'Events', 'admin.cms.groupName.yazilar': 'Posts', 'admin.cms.groupName.ogrenme': 'Learning',
+    'admin.cms.groupName.topluluk': 'Community', 'admin.cms.groupName.sayfalar': 'Pages',
+    'admin.cms.noForm': 'This type has no form in the panel yet.',
     'admin.cms.type.events': 'Events',
     'admin.cms.type.workshops': 'Workshops',
     'admin.cms.type.webinars': 'Webinars',
@@ -2648,7 +2651,10 @@ export const ui = {
     // Etkinlikler paneli (src/scripts/admin/sections/cms.ts, cms-form.ts, cms-render.ts).
     'admin.overview.cmsQueue': '{n} içerik taslağı onay bekliyor',
     'admin.overview.cmsMine': '{n} taslağınız sizi bekliyor',
-    'admin.cms.section': 'Etkinlikler',
+    'admin.cms.section': 'İçerik',
+    'admin.cms.groupName.etkinlikler': 'Etkinlikler', 'admin.cms.groupName.yazilar': 'Yazılar', 'admin.cms.groupName.ogrenme': 'Öğrenme',
+    'admin.cms.groupName.topluluk': 'Topluluk', 'admin.cms.groupName.sayfalar': 'Sayfalar',
+    'admin.cms.noForm': 'Bu türün panelde henüz bir formu yok.',
     'admin.cms.type.events': 'Etkinlikler',
     'admin.cms.type.workshops': 'Atölyeler',
     'admin.cms.type.webinars': 'Webinarlar',

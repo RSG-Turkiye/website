@@ -15,6 +15,7 @@
  * nobody edited is written back exactly as it was.
  */
 import { checkId, slugify } from '../../lib/cms/slug';
+import type { CmsGroup } from '../../../functions/_lib/roles';
 
 export type TypeKey = 'events' | 'workshops' | 'webinars';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown';
@@ -45,11 +46,26 @@ export interface FieldDef {
   required?: boolean;
 }
 
+/**
+ * The options below `sub` mirror the type's registry entry
+ * (src/lib/cms/types.ts), which the panel does not import: it would bring
+ * the zod schemas into the admin bundle. tests/cms-form.test.ts pins each
+ * one to the registry.
+ */
 export interface TypeModel {
   key: TypeKey;
   format: 'json' | 'markdown-pair';
-  /** The URL path segment of the type's sub-page. */
-  sub: 'etkinlikler' | 'atolyeler' | 'webinarlar';
+  /** The URL path segment of the type's tab (A15): never changed, links carry it. */
+  sub: string;
+  group: CmsGroup;
+  /** Where an error about the id is shown (a dotted path into the data). */
+  idField: string;
+  noCreate?: boolean;
+  noDelete?: boolean;
+  /** Only an admin approves ('admin'); default the group's approvers. */
+  approve?: 'group' | 'admin';
+  /** No form: the server builds the data. */
+  generated?: boolean;
   /** The type's name, an i18n key. */
   label: string;
   fields: FieldDef[];
@@ -61,7 +77,7 @@ const EVENT_TYPES = ['symposium', 'workshop', 'hackathon', 'meetup'] as const;
 
 export const MODELS: Record<TypeKey, TypeModel> = {
   events: {
-    key: 'events', format: 'json', sub: 'etkinlikler', label: 'admin.cms.type.events',
+    key: 'events', format: 'json', sub: 'etkinlikler', group: 'etkinlikler', idField: 'id', label: 'admin.cms.type.events',
     fields: [
       { key: 'title', kind: 'bilingual', label: 'admin.cms.f.title', group: 'main', required: true },
       { key: 'start', kind: 'date', label: 'admin.cms.f.start', help: 'admin.cms.h.start', group: 'main', required: true },
@@ -78,7 +94,7 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     hidden: { id: 'the file name, derived from the title and shown read-only' },
   },
   workshops: {
-    key: 'workshops', format: 'json', sub: 'atolyeler', label: 'admin.cms.type.workshops',
+    key: 'workshops', format: 'json', sub: 'atolyeler', group: 'etkinlikler', idField: 'repo', label: 'admin.cms.type.workshops',
     fields: [
       { key: 'title', kind: 'text', label: 'admin.cms.f.title', group: 'main', required: true },
       { key: 'year', kind: 'number', label: 'admin.cms.f.year', group: 'main', required: true },
@@ -88,7 +104,7 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     hidden: {},
   },
   webinars: {
-    key: 'webinars', format: 'markdown-pair', sub: 'webinarlar', label: 'admin.cms.type.webinars',
+    key: 'webinars', format: 'markdown-pair', sub: 'webinarlar', group: 'etkinlikler', idField: 'en.frontmatter.title', label: 'admin.cms.type.webinars',
     fields: [
       { key: 'title', kind: 'text', perLang: true, label: 'admin.cms.f.title', group: 'main', required: true },
       { key: 'date', kind: 'date', label: 'admin.cms.f.date', group: 'main', required: true },

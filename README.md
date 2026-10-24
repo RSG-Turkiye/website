@@ -939,7 +939,10 @@ reaches the site only as a pull request that an approver has approved and
 that passes the same checks as any other change. Published content lives only
 in git; the panel keeps just the drafts, in the `content_drafts` table.
 
-The panel section is Content → Etkinlikler (`#icerik-etkinlikler`). The code
+The panel section is Content → İçerik (`#icerik`). Its tabs are the content
+types of the groups a person edits (Etkinlikler, Yazılar, Öğrenme, Topluluk,
+Sayfalar), then Taslaklarım and, for those who approve a type, Onay. Old
+links to `#icerik-etkinlikler/...` open the same page under `#icerik/...`. The code
 is in `src/lib/cms/` (types, serializing, the deployed index), the server
 side is `functions/_lib/cms-*.ts` and `functions/api/cms/`.
 

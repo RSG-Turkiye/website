@@ -38,6 +38,33 @@ const pair = (id: string) => {
   return JSON.parse(JSON.stringify({ en: side(w.paths?.en), tr: side(w.paths?.tr) }));
 };
 
+test('every registered type has a model, and the model mirrors the registry the panel cannot import', () => {
+  assert.deepEqual(Object.keys(MODELS).sort(), CMS_TYPES.map((t) => t.key).sort());
+  for (const type of CMS_TYPES) {
+    const m = MODELS[type.key as TypeKey];
+    assert.equal(m.key, type.key);
+    assert.equal(m.format, type.format, type.key);
+    assert.equal(m.group, type.group, type.key);
+    assert.equal(m.idField, type.idField, type.key);
+    assert.equal(m.noCreate ?? false, type.noCreate, `${type.key} noCreate`);
+    assert.equal(m.noDelete ?? false, type.noDelete, `${type.key} noDelete`);
+    assert.equal(m.generated ?? false, type.generated, `${type.key} generated`);
+    assert.equal(m.approve ?? 'group', type.approve, `${type.key} approve`);
+  }
+});
+
+test('tab ids are unique, safe for the address, and the old Etkinlikler ones are kept (A15)', () => {
+  const subs = Object.values(MODELS).map((m) => m.sub);
+  assert.equal(new Set(subs).size, subs.length);
+  for (const s of subs) {
+    assert.match(s, /^[a-z][a-z-]{0,39}$/);
+    assert.ok(!['taslaklar', 'onay'].includes(s), s);
+  }
+  assert.equal(MODELS.events.sub, 'etkinlikler');
+  assert.equal(MODELS.workshops.sub, 'atolyeler');
+  assert.equal(MODELS.webinars.sub, 'webinarlar');
+});
+
 test('every schema key of every type is in its field model, or hidden with a reason', () => {
   for (const type of CMS_TYPES) {
     const model = MODELS[type.key as TypeKey];

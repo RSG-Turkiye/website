@@ -1,30 +1,26 @@
 ---
 /**
- * The Etkinlikler section: events, workshops and webinars as published,
- * the person's drafts and, for approvers, the approval queue. One list per
- * sub-page; one editor (#cmsEditor), which src/scripts/admin/sections/cms.ts
- * moves into the sub-page on screen and fills per entry, so the unsaved-work
- * guard is wired once. The lists start with a line of text so a sub-page is
- * never blank while it loads.
+ * The İçerik section: every content type the person edits, as published,
+ * their drafts and, for approvers, the approval queue. One list per sub-page,
+ * from the section's own table (src/scripts/admin/sections.ts), which the
+ * shell prunes to the person's groups; one editor (#cmsEditor), which
+ * src/scripts/admin/sections/cms.ts moves into the sub-page on screen and
+ * fills per entry, so the unsaved-work guard is wired once. The lists start
+ * with a line of text so a sub-page is never blank while it loads.
  */
 import { useTranslations } from '../../../i18n/ui';
+import { SECTIONS } from '../../../scripts/admin/sections';
 
 interface Props { lang: 'en' | 'tr' }
 const { lang } = Astro.props;
 const t = useTranslations(lang);
-const subs = [
-  ['etkinlikler', 'admin.cms.type.events'],
-  ['atolyeler', 'admin.cms.type.workshops'],
-  ['webinarlar', 'admin.cms.type.webinars'],
-  ['taslaklar', 'admin.cms.nav.drafts'],
-  ['onay', 'admin.cms.nav.queue'],
-] as const;
+const subs = SECTIONS.find((s) => s.id === 'icerik')!.subs;
 ---
-<section data-section="icerik-etkinlikler">
+<section data-section="icerik">
   <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.cms.section')}</h2>
-  {subs.map(([id, label]) => (
-    <div data-sub={id}>
-      <h3 class="sr-only">{t(label)}</h3>
+  {subs.map((s) => (
+    <div data-sub={s.id}>
+      <h3 class="sr-only">{t(s.label as never)}</h3>
       <div data-cms-body><p class="text-sm text-gray-500">{t('admin.cms.loading')}</p></div>
     </div>
   ))}

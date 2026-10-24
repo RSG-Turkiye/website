@@ -58,3 +58,14 @@ test('the thread segment survives for a sender and drops with its sub-page', () 
   assert.deepEqual(resolveRoute({ section: 'eposta', sub: 'yetki', item: '42' }, sender, false, false), { section: 'eposta', sub: 'gelen', item: null });
   assert.deepEqual(resolveRoute({ section: 'kayit', sub: null, item: '42' }, sender, false, false), { section: 'eposta', sub: 'gelen', item: null });
 });
+
+test('the old Etkinlikler address is the İçerik one with its prefix swapped (PR #325 links to it)', () => {
+  const editor = { ...none, cms: { etkinlikler: { edit: true, approve: false } } };
+  const id = '00000000-0000-4000-8000-000000000002';
+  assert.deepEqual(parseHash(`#icerik-etkinlikler/taslaklar/${id}`), { section: 'icerik', sub: 'taslaklar', item: id });
+  assert.deepEqual(resolveRoute(parseHash(`#icerik-etkinlikler/taslaklar/${id}`), editor, false, false), { section: 'icerik', sub: 'taslaklar', item: id });
+  assert.equal(toHash(resolveRoute(parseHash('#icerik-etkinlikler/webinarlar/_new'), editor, false, false)), '#icerik/webinarlar/_new');
+  assert.equal(toHash(resolveRoute(parseHash('#icerik-etkinlikler'), editor, false, false)), '#icerik/etkinlikler');
+  // Only that one prefix: a look-alike is not rewritten.
+  assert.equal(parseHash('#icerik-etkinliklerx/taslaklar')!.section, 'icerik-etkinliklerx');
+});

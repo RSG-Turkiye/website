@@ -3,7 +3,8 @@
  * routing and Overview all read. Visibility mirrors the server's role checks;
  * it never grants anything the server would refuse.
  */
-import { rightsFromRoles, grantableBy, type CmsGroup, type GroupRights, type RoleKey } from '../../../functions/_lib/roles';
+import { CMS_GROUPS, rightsFromRoles, grantableBy, type CmsGroup, type GroupRights, type RoleKey } from '../../../functions/_lib/roles';
+import { MODELS, type TypeModel } from './cms-form';
 
 /**
  * `cms`: edit and approve rights per content group (from live grants; those
@@ -15,12 +16,17 @@ export type RoleFlags = {
   cms: GroupRights; canGrant: RoleKey[];
 };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'icerik-etkinlikler' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
 export type CountKey = 'email' | 'social' | 'blog' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it).
- * `approverOnly`: for those who may approve in that content group. */
-export interface SubPage { id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean; approverOnly?: CmsGroup; count?: CountKey }
+ * `editGroup`: a content type's tab, for those who edit that group; `heading`
+ * names the group above its tabs. `approvesSome`: for those who approve at
+ * least one content type. */
+export interface SubPage {
+  id: string; label: string; publisherOnly?: boolean; adminOnly?: boolean; senderOnly?: boolean; count?: CountKey;
+  editGroup?: CmsGroup; heading?: string; approvesSome?: boolean;
+}
 export interface Section {
   id: SectionId;
   group: GroupId | null;
@@ -38,6 +44,10 @@ export const GROUPS: { id: GroupId; label: string }[] = [
 ];
 
 const adminOnly = (r: RoleFlags) => r.admin;
+
+/** The content types' tabs, grouped in CMS_GROUPS order, each group's in registry order. */
+const TYPE_MODELS: TypeModel[] = CMS_GROUPS.flatMap((g) => Object.values(MODELS).filter((m) => m.group === g));
+const approvesType = (r: RoleFlags, m: TypeModel) => (m.approve === 'admin' ? r.admin : r.cms[m.group]?.approve === true);
 
 export const SECTIONS: Section[] = [
   { id: 'genel', group: null, label: 'admin.nav.overview', subs: [], visible: () => true },
@@ -77,14 +87,13 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    // The panel CMS's Etkinlikler group: events, workshops and webinars.
-    id: 'icerik-etkinlikler', group: 'icerik', label: 'admin.cms.section', count: 'cmsTotal', visible: (r) => r.cms.etkinlikler?.edit === true,
+    // The panel CMS: every content group's types, as tabs for those who edit
+    // that group. The old `#icerik-etkinlikler/...` address is an alias (router.ts).
+    id: 'icerik', group: 'icerik', label: 'admin.cms.section', count: 'cmsTotal', visible: (r) => CMS_GROUPS.some((g) => r.cms[g]?.edit === true),
     subs: [
-      { id: 'etkinlikler', label: 'admin.cms.type.events' },
-      { id: 'atolyeler', label: 'admin.cms.type.workshops' },
-      { id: 'webinarlar', label: 'admin.cms.type.webinars' },
+      ...TYPE_MODELS.map((m) => ({ id: m.sub, label: m.label, editGroup: m.group, heading: `admin.cms.groupName.${m.group}` })),
       { id: 'taslaklar', label: 'admin.cms.nav.drafts', count: 'cmsMine' },
-      { id: 'onay', label: 'admin.cms.nav.queue', approverOnly: 'etkinlikler', count: 'cmsQueue' },
+      { id: 'onay', label: 'admin.cms.nav.queue', approvesSome: true, count: 'cmsQueue' },
     ],
   },
   // Part 3 (membership) makes this visible.
@@ -109,7 +118,19 @@ export function visibleSections(r: RoleFlags): Section[] {
 
 export function subsFor(s: Section, r: RoleFlags): SubPage[] {
   return s.subs.filter((x) => (!x.publisherOnly || r.admin || r.socialPublisher) && (!x.adminOnly || r.admin) && (!x.senderOnly || r.sender)
-    && (!x.approverOnly || r.cms[x.approverOnly]?.approve === true));
+    && (!x.editGroup || r.cms[x.editGroup]?.edit === true)
+    && (!x.approvesSome || TYPE_MODELS.some((m) => approvesType(r, m))));
+}
+
+/**
+ * The group name to show before each tab: where the group changes, and only
+ * when the tabs span two groups or more, so a one-group panel looks as it
+ * did. Tabs without a heading (Taslaklarım, Onay) get none.
+ */
+export function tabHeadings(subs: SubPage[]): (string | null)[] {
+  const groups = new Set(subs.map((s) => s.heading).filter(Boolean));
+  if (groups.size < 2) return subs.map(() => null);
+  return subs.map((s, i) => (s.heading && s.heading !== subs[i - 1]?.heading ? s.heading : null));
 }
 
 export function landing(r: RoleFlags): SectionId | null {

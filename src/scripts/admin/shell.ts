@@ -3,7 +3,7 @@
  * what the roles do not grant, fills the menu counts, and runs the phone
  * drawer and the phone's list-then-page sub-navigation.
  */
-import { SECTIONS, visibleSections, subsFor, type RoleFlags, type SectionId, type SubPage } from './sections';
+import { SECTIONS, visibleSections, subsFor, tabHeadings, type RoleFlags, type SectionId, type SubPage } from './sections';
 import { parseHash, toHash, resolveRoute, type Route } from './router';
 import { t } from './context';
 import { navigationAllowed } from './nav-guard';
@@ -123,14 +123,18 @@ function countBadge(s: SubPage): string {
 function renderSubNav(route: Route, subs: SubPage[]): void {
   const nav = document.getElementById('subNav')!;
   if (subs.length === 0) { nav.replaceChildren(); return; }
+  // A content group's name before its first tab, when there are several groups: quiet text, not a control.
+  const headings = tabHeadings(subs);
   if (PHONE.matches) {
     // Phone: the list of sub-pages first; a sub-page hides the list.
-    nav.innerHTML = route.sub ? '' : `<div class="flex flex-col gap-2">${subs.map((s) => `
+    nav.innerHTML = route.sub ? '' : `<div class="flex flex-col gap-2">${subs.map((s, i) => `${headings[i] ? `
+      <p data-tab-heading class="mt-2 first:mt-0 px-1 text-xs text-gray-500">${t(headings[i] as never)}</p>` : ''}
       <a href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}" class="flex items-center justify-between min-h-14 px-4 rounded-xl border border-border bg-white text-navy text-base">
         <span class="flex items-center gap-2 min-w-0">${t(s.label as never)}${countBadge(s)}</span><span aria-hidden="true">›</span></a>`).join('')}</div>`;
     return;
   }
-  nav.innerHTML = `<div role="tablist" class="flex flex-wrap gap-1.5 mb-3">${subs.map((s) => `
+  nav.innerHTML = `<div role="tablist" class="flex flex-wrap items-center gap-1.5 mb-3">${subs.map((s, i) => `${headings[i] ? `
+    <span data-tab-heading role="presentation" class="${i ? 'ml-2 ' : ''}text-xs text-gray-500">${t(headings[i] as never)}</span>` : ''}
     <a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}"
       class="px-3 min-h-8 inline-flex items-center gap-2 rounded-full border text-sm ${s.id === route.sub ? 'bg-navy-light border-navy-mid text-navy font-semibold' : 'border-border text-gray-500 hover:text-navy'}">
       ${t(s.label as never)}${countBadge(s)}</a>`).join('')}</div>`;

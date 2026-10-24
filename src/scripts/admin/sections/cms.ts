@@ -1,14 +1,19 @@
 /**
- * The Etkinlikler section: published events, workshops and webinars, the
- * drafts that change them, and the approval queue. Every change is a draft
+ * The İçerik section: the published entries of every content type the
+ * person edits, the drafts that change them, and the approval queue. Every change is a draft
  * (functions/api/cms); an approved draft becomes a pull request that the PR
  * shepherd merges, and the site shows it a few minutes later. Nothing here
  * writes to the site directly.
  *
- * Addresses: `#icerik-etkinlikler/<type>` lists a type, `/<type>/<id>` opens
+ * Addresses: `#icerik/<type tab>` lists a type, `/<type tab>/<id>` opens
  * a published entry (`_new` for a new one), `/taslaklar/<draft>` a draft
  * (the link a pull request's body carries), `/onay/<draft>` the approver's
- * view of one.
+ * view of one. The old `#icerik-etkinlikler/...` addresses are an alias
+ * (router.ts).
+ *
+ * Everything about a type comes from its model (cms-form.ts), which mirrors
+ * the registry, and who approves it from /api/cms/types (`canApprove`, per
+ * type: an `approve: 'admin'` type is not approved by a group approver).
  *
  * Not losing work: one form, filled per entry, with guardUnsaved for leaving
  * it; an autosave 20 s after the last edit, one save at a time; and a copy in
@@ -23,16 +28,17 @@ import { AutosaveQueue } from '../../social/autosave';
 import { BTN, armConfirm, chip, emptyState, guardUnsaved, row, revealInPanel } from '../ui-kit';
 import { dateLocale, lang, t, tf } from '../context';
 import { refreshCounts, noteAddress } from '../shell';
+import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
-  MODELS, TYPE_KEYS, applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
+  applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
   placeOf, previewHtml, same, statusView, suggestedId, visibleFields, withId,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
-  type Backup, type DraftSummary, type FieldDef, type ImageObject, type StatusView, type TypeKey, type TypeModel, type Values,
+  type Backup, type DraftSummary, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
 import { diffEntry } from '../cms-diff';
 import { readField, readValues, renderAll, renderDiff, renderField, show } from '../cms-render';
 
-const SECTION = '#icerik-etkinlikler';
+const SECTION = '#icerik';
 const PAGE = 20;
 const AUTOSAVE_MS = 20_000;
 const tk = (k: string, vars?: Record<string, string | number>) => (vars ? tf(k as never, vars) : t(k as never)) as string;
@@ -62,14 +68,20 @@ async function api<T = Record<string, any>>(method: string, path: string, body?:
 
 // ── State ────────────────────────────────────────────────────────────────────
 
-let approver = false;
+/** Per type key, from /api/cms/types: whether this person approves it. */
+let canApprove: Record<string, boolean> = {};
+/** Per type key, from /api/cms/types: its name, for a type the panel has no form for. */
+let typeLabels: Record<string, string> = {};
+/** The /api/cms/types answer, asked once; every view waits for it. A failed one is asked again. */
+let typesReady: Promise<boolean> | null = null;
+let rights: GroupRights = {} as GroupRights;
 /** The signed-in person: backups in this browser are theirs only. */
 let userId = '';
 /** Why the last list load failed (an API code), for the message in its place. */
 let loadError: string | null = null;
 let queueMore = false;
-const entries: Partial<Record<TypeKey, Entry[]>> = {};
-const shown: Partial<Record<TypeKey, number>> = {};
+const entries: Record<string, Entry[]> = {};
+const shown: Record<string, number> = {};
 let lists: { mine: Draft[]; queue: Draft[]; inflight: Draft[]; live: { type: string; entry_id: string; status: string }[] } | null = null;
 
 interface Editor {
@@ -103,7 +115,34 @@ let guard: { reset(): void } | null = null;
 let pendingNotice: { html: string; tone: 'info' | 'warn' | 'error' } | null = null;
 
 const now = () => Math.floor(Date.now() / 1000);
-const sv = (d: DraftSummary): StatusView => statusView(d, { approver, now: now() });
+const approves = (type: string): boolean => canApprove[type] === true;
+const sv = (d: DraftSummary): StatusView => statusView(d, { approver: approves(d.type), now: now() });
+const labelOf = (type: string): string => { const m = modelFor(type); return m ? tk(m.label) : typeLabels[type] ?? type; };
+
+/**
+ * Stands in while a draft is fetched, before its type is known: it renders
+ * nothing and saves nothing (read-only, no fields).
+ */
+const LOADING_MODEL = { key: '', format: 'json', sub: '', group: '', idField: '', label: '', fields: [], hidden: {} } as unknown as TypeModel;
+
+async function loadTypes(): Promise<boolean> {
+  const r = await api<{ types?: { key?: unknown; canApprove?: unknown; label?: { en?: unknown; tr?: unknown } }[] }>('GET', '/api/cms/types');
+  if (!r.ok) { loadError = r.code; return false; }
+  canApprove = {};
+  typeLabels = {};
+  for (const ty of Array.isArray(r.body.types) ? r.body.types : []) {
+    if (typeof ty?.key !== 'string') continue;
+    canApprove[ty.key] = ty.canApprove === true;
+    const name = ty.label?.[lang];
+    if (typeof name === 'string') typeLabels[ty.key] = name;
+  }
+  return true;
+}
+
+function typesLoaded(): Promise<boolean> {
+  if (!typesReady) typesReady = loadTypes().then((ok) => { if (!ok) typesReady = null; return ok; });
+  return typesReady;
+}
 
 // ── Setup and routing ────────────────────────────────────────────────────────
 
@@ -120,9 +159,14 @@ function liftBars(): void {
   document.querySelectorAll<HTMLElement>('[data-cms-sticky]').forEach((b) => { b.style.bottom = h ? `${h}px` : ''; });
 }
 
-export function setupCms(opts: { approver: boolean; userId: string }): void {
-  approver = opts.approver;
+/**
+ * `rights`: edit and approve per group, from the live grants. Tabs follow
+ * them (sections.ts); approving follows /api/cms/types, per type.
+ */
+export function setupCms(opts: { rights: GroupRights; isAdmin: boolean; userId: string }): void {
+  rights = opts.rights;
   userId = opts.userId;
+  void typesLoaded();
   pruneBackups();
   PHONE?.addEventListener('change', liftBars);
   const strip = document.getElementById('podcastStrip');
@@ -145,12 +189,34 @@ export function setupCms(opts: { approver: boolean; userId: string }): void {
   form.addEventListener('click', onFormClick);
 }
 
+/** Bumped on every address: a view that waited for /api/cms/types and is no longer wanted does nothing. */
+let routeSeq = 0;
+
 /** The shell calls this for every address in the section. Idempotent for the editor already open. */
 export function showCms(sub: string, item: string | null): void {
   const hash = `${SECTION}/${sub}${item ? `/${item}` : ''}`;
   if (editor && editor.route === hash) return;
   closeEditor();
+  const seq = ++routeSeq;
+  // Opening an item puts a stand-in editor in place at once, so the shell's
+  // second call for the same address (it calls on every move) is a no-op.
+  if (item) editor = newEditor(LOADING_MODEL, hash, {}, { readOnly: true });
+  void typesLoaded().then((ok) => {
+    if (seq !== routeSeq) return;
+    if (!ok) {
+      // Without it nobody's approve rights are known: say so, never guess.
+      if (editor?.model === LOADING_MODEL) editor = null;
+      const host = listHost(sub);
+      if (host) loadFailed(host);
+      return;
+    }
+    route(sub, item, hash);
+  });
+}
+
+function route(sub: string, item: string | null, hash: string): void {
   const model = modelForSub(sub);
+  if (model && !rights[model.group]?.edit) return;
   if (model && !item) void showList(model);
   else if (model && item) void openEntry(model, item === '_new' ? null : item, hash);
   else if (sub === 'taslaklar' && !item) void showDrafts();
@@ -160,7 +226,7 @@ export function showCms(sub: string, item: string | null): void {
 }
 
 function subHost(sub: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`[data-section="icerik-etkinlikler"] [data-sub="${sub}"]`);
+  return document.querySelector<HTMLElement>(`[data-section="icerik"] [data-sub="${sub}"]`);
 }
 
 /** Shows the list part of a sub-page and hides the editor. */
@@ -178,7 +244,7 @@ function listHost(sub: string): HTMLElement | null {
  * draft's without the shell showing another sub-page.
  */
 function editorHost(sub: string): void {
-  const host = document.querySelector<HTMLElement>('[data-section="icerik-etkinlikler"] [data-sub]:not(.hidden)') ?? subHost(sub);
+  const host = document.querySelector<HTMLElement>('[data-section="icerik"] [data-sub]:not(.hidden)') ?? subHost(sub);
   const ed = $('cmsEditor');
   if (!host || !ed) return;
   host.querySelector('[data-cms-body]')?.classList.add('hidden');
@@ -232,12 +298,12 @@ function loadFailed(host: HTMLElement): void {
 
 /** The files of a published entry, for its live page (a webinar's Turkish name may differ). */
 function entryPaths(type: string, entryId: string, fallback: Record<string, unknown> | undefined): string[] {
-  const e = entries[type as TypeKey]?.find((x) => x.id === entryId);
+  const e = entries[type]?.find((x) => x.id === entryId);
   return e?.paths ? [e.paths.en, e.paths.tr].filter((p): p is string => !!p) : Object.keys(fallback ?? {});
 }
 
 const titleOf = (type: string, entryId: string, action?: string): string => {
-  const e = entries[type as TypeKey]?.find((x) => x.id === entryId);
+  const e = entries[type]?.find((x) => x.id === entryId);
   return e?.title ?? (action === 'create' ? tk('admin.cms.newTitle', { id: entryId }) : entryId);
 };
 
@@ -303,14 +369,23 @@ async function showList(model: TypeModel): Promise<void> {
   host.innerHTML = `${myDraftsRow()}
     <div class="flex items-center justify-between gap-3 mb-3 lg:mb-2">
       <h2 class="text-sm font-semibold text-navy">${esc(tk('admin.cms.published', { type: tk(model.label) }))}</h2>
-      <a href="${SECTION}/${model.sub}/_new" data-cms-new class="${BTN.primary}">${esc(tk('admin.cms.new'))}</a>
+      ${model.noCreate || model.generated ? '' : `<a href="${SECTION}/${model.sub}/_new" data-cms-new class="${BTN.primary}">${esc(tk('admin.cms.new'))}</a>`}
     </div>
     <div class="flex flex-col gap-2">${rows || emptyState(tk('admin.cms.noEntries'))}</div>${more}`;
   host.querySelector('[data-cms-more]')?.addEventListener('click', () => { shown[model.key] = n + PAGE; void showList(model); });
 }
 
+/**
+ * The published titles of the types these drafts are about, and only those:
+ * a list of drafts never loads every type's index. A list that cannot be
+ * had leaves the file name as the title.
+ */
+async function titlesFor(drafts: Draft[]): Promise<void> {
+  const types = [...new Set(drafts.map((d) => d.type))].map(modelFor).filter((m): m is TypeModel => m !== null);
+  await Promise.all(types.map((m) => loadEntries(m)));
+}
+
 function draftRow(d: Draft, href: string): string {
-  const model = modelFor(d.type);
   const v = sv(d);
   const next: Record<string, string> = { continue: 'admin.cms.continue', fix: 'admin.cms.fix', retry: 'admin.cms.retry', openSite: 'admin.cms.openSite', discard: 'admin.cms.open' };
   const trailing = v.next === 'openSite'
@@ -319,7 +394,7 @@ function draftRow(d: Draft, href: string): string {
   const action = d.action === 'delete' ? ` · ${tk('admin.cms.action.delete')}` : '';
   return row({
     title: titleOf(d.type, d.entry_id, d.action),
-    subtitle: `${model ? tk(model.label) : d.type}${action} · ${statusLine(d)}`,
+    subtitle: `${labelOf(d.type)}${action} · ${statusLine(d)}`,
     chips: statusChip(d), trailing, attrs: `data-cms-draft="${esc(d.id)}"`, stack: true,
   });
 }
@@ -329,8 +404,9 @@ async function showDrafts(): Promise<void> {
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
   loadError = null;
-  const [got] = await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  const got = await loadLists();
   if (!got) { loadFailed(host); return; }
+  await titlesFor(got.mine);
   const mine = (lists?.mine ?? []);
   const forMe = mine.filter((d) => sv(d).needsMe);
   const rest = mine.filter((d) => !sv(d).needsMe);
@@ -346,8 +422,9 @@ async function showQueue(): Promise<void> {
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
   loadError = null;
-  const [got] = await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  const got = await loadLists();
   if (!got) { loadFailed(host); return; }
+  await titlesFor([...got.queue, ...got.inflight]);
   const queue = lists?.queue ?? [];
   // More than the list holds: how many more, from the menu's own count.
   let more = '';
@@ -359,14 +436,14 @@ async function showQueue(): Promise<void> {
   host.innerHTML = `${myDraftsRow()}<h2 class="text-sm font-semibold text-navy mb-2">${esc(tk('admin.cms.queueHeading'))}</h2>
     <div class="flex flex-col gap-2">${queue.map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
-      subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
+      subtitle: `${labelOf(d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
       chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.primary}">${esc(tk('admin.cms.review'))}</a>`,
       attrs: `data-cms-queue="${esc(d.id)}"`, stack: true,
     })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>${more}
     <h2 class="text-sm font-semibold text-navy mt-6 lg:mt-4 mb-2">${esc(tk('admin.cms.inflightHeading'))}</h2>
     <div class="flex flex-col gap-2">${(lists?.inflight ?? []).map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
-      subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${statusLine(d)}`,
+      subtitle: `${labelOf(d.type)} · ${statusLine(d)}`,
       chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.secondary}">${esc(tk('admin.cms.open'))}</a>`,
       attrs: `data-cms-inflight="${esc(d.id)}"`, stack: true,
     })).join('') || emptyState(tk('admin.cms.inflightEmpty'))}</div>`;
@@ -447,7 +524,7 @@ function setSaveState(text: string): void {
 }
 
 function fieldsFor(model: TypeModel): FieldDef[] {
-  return visibleFields(model, approver);
+  return visibleFields(model, approves(model.key));
 }
 
 function renderForm(ed: Editor, values: Values): void {
@@ -486,13 +563,14 @@ function renderBar(ed: Editor): void {
   if (!bar) return;
   const status = ed.draft ? sv(ed.draft) : null;
   const menu: string[] = [];
+  const approver = approves(ed.model.key);
   // The author can always let go of a failed draft, whatever the reason.
   const ownDiscard = ed.draft && (status?.editable || ed.draft.status === 'submitted' || ed.draft.status === 'pr_failed') && ed.draft.status !== 'merged';
   if (ownDiscard) menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discard'))}</button>`);
   if (approver && ed.draft?.status === 'pr_open') menu.push(`<button type="button" data-cms-cancel class="${BTN.danger}">${esc(tk('admin.cms.cancelPr'))}</button>`);
   if (approver && ed.draft && status?.next === 'discard' && !ownDiscard) menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discardMerged'))}</button>`);
   // Not while the entry is busy, or the form read-only for any other reason.
-  if (approver && !ed.draft && ed.entryId && !ed.readOnly) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
+  if (approver && !ed.model.noDelete && !ed.draft && ed.entryId && !ed.readOnly) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
   const editable = !ed.readOnly;
   const live = ed.draft?.status === 'published'
     ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined), lang)}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
@@ -749,6 +827,12 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
   loadingEditor(model.sub, back);
   const placeholder = newEditor(model, route, emptyData(model), {});
   editor = placeholder;
+  if (model.generated) { noForm(model, back); return; }
+  if (!entryId && model.noCreate) {
+    head({ title: tk('admin.cms.newOf', { type: tk(model.label) }), back });
+    notice(esc(tk(errorKey('forbidden'))));
+    return;
+  }
   if (!entryId) {
     head({ title: tk('admin.cms.newOf', { type: tk(model.label) }), back, chipHtml: chip(tk('admin.cms.chip.draft'), 'neutral'), line: tk('admin.cms.status.draft'), banner: true });
     start(newEditor(model, route, emptyData(model), { backupKey: `new:${model.key}` }));
@@ -772,6 +856,13 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
   start(ed);
 }
 
+/** A type whose data the server builds, or one this panel has no form for: no form, a sentence instead. */
+function noForm(model: TypeModel | null, back: string, title?: string): void {
+  head({ title: title ?? (model ? tk(model.label) : ''), back });
+  $('cmsForm')!.classList.add('hidden');
+  $('cmsReview')!.innerHTML = `<p data-cms-no-form class="bg-white rounded-2xl border border-border p-4 lg:p-3 text-sm text-gray-600">${esc(tk('admin.cms.noForm'))}</p>`;
+}
+
 function titleFrom(model: TypeModel, values: Values): string {
   const v = values.title as { en?: unknown; tr?: unknown } | string | undefined;
   if (typeof v === 'string') return v;
@@ -782,7 +873,7 @@ function titleFrom(model: TypeModel, values: Values): string {
 async function openDraft(id: string, route: string): Promise<void> {
   const back = `${SECTION}/taslaklar`;
   loadingEditor('taslaklar', back);
-  const placeholder = newEditor(MODELS.events, route, {}, { readOnly: true });
+  const placeholder = newEditor(LOADING_MODEL, route, {}, { readOnly: true });
   editor = placeholder;
   const r = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
   if (editor !== placeholder) return;
@@ -794,7 +885,7 @@ async function openDraft(id: string, route: string): Promise<void> {
   }
   const draft = r.body.draft;
   const model = modelFor(draft.type);
-  if (!model) return;
+  if (!model || model.generated) { noForm(model, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
   await loadEntries(model);
   if (editor !== placeholder) return;
   const v = sv(draft);
@@ -932,7 +1023,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
     if (!ed.entryId && !suggestedId(ed.model, values)) {
       // A new entry is named after its title (or repo): nothing to store it under yet.
       setSaveState(tk('admin.cms.needTitle'));
-      if (!auto) showErrors({ [ed.model.key === 'workshops' ? 'repo' : ed.model.key === 'events' ? 'id' : 'en.frontmatter.title']: 'Missing' }, true);
+      if (!auto) showErrors({ [ed.model.idField]: 'Missing' }, true);
       return false;
     }
     r = await api<{ draft: Draft }>('POST', '/api/cms/drafts', ed.entryId
@@ -1111,7 +1202,7 @@ async function submit(): Promise<void> {
     lists = null;
     void refreshCounts();
     // Mine and an approver's: approve it here, in the same chain.
-    await reopenAs(ed, approver ? 'admin.cms.sentApprover' : 'admin.cms.sent');
+    await reopenAs(ed, approves(ed.model.key) ? 'admin.cms.sentApprover' : 'admin.cms.sent');
   } finally {
     if (btn && editor === ed && !ed.readOnly && !ed.fresh) btn.disabled = false;
   }
@@ -1123,7 +1214,7 @@ async function reopenAs(ed: Editor, message: string): Promise<void> {
   const id = ed.draft!.id;
   const route = `${SECTION}/taslaklar/${id}`;
   pendingNotice = {
-    html: `${esc(tk(message))}${approver && message === 'admin.cms.sentApprover' ? ` <a href="${SECTION}/onay/${id}" class="underline">${esc(tk('admin.cms.review'))}</a>` : ''}`,
+    html: `${esc(tk(message))}${approves(ed.model.key) && message === 'admin.cms.sentApprover' ? ` <a href="${SECTION}/onay/${id}" class="underline">${esc(tk('admin.cms.review'))}</a>` : ''}`,
     tone: 'info',
   };
   closeEditor();
@@ -1175,7 +1266,7 @@ async function openReview(id: string, route: string): Promise<void> {
   const back = `${SECTION}/onay`;
   loadingEditor('onay', back);
   $('cmsForm')!.classList.add('hidden');
-  const placeholder = newEditor(MODELS.events, route, {}, { readOnly: true });
+  const placeholder = newEditor(LOADING_MODEL, route, {}, { readOnly: true });
   editor = placeholder;
   const r = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
   if (editor !== placeholder) return;
@@ -1186,8 +1277,12 @@ async function openReview(id: string, route: string): Promise<void> {
     return;
   }
   const draft = r.body.draft;
-  const model = modelFor(draft.type)!;
+  const model = modelFor(draft.type);
+  if (!model || model.generated) { noForm(model, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
+  // Per type: an `approve: 'admin'` type is not approved by a group approver.
+  const approver = approves(model.key);
   await loadEntries(model);
+  if (editor !== placeholder) return;
   let published: unknown = null;
   // Without the published version there is nothing to compare with (or, for
   // a delete, nothing to show): no approval on a guess.
@@ -1223,7 +1318,9 @@ async function openReview(id: string, route: string): Promise<void> {
       : `<p class="text-sm font-semibold text-navy">${esc(tk('admin.cms.review.changed', { n: diff.changed.length }))}</p>
         <div class="flex flex-wrap gap-1 mt-1 mb-2">${diff.changed.map((c) => chip(tk(c.field.label), 'navy')).join('')}</div>${renderDiff(diff)}`;
   }
-  const note = model.key === 'events' && approver && !noteChanged ? String((draft.data as Record<string, unknown> | undefined)?.note ?? '') : '';
+  // The approvers' own field (events' internal note), shown beside the changes.
+  const noteField = model.fields.find((f) => f.approverOnly);
+  const note = noteField && approver && !noteChanged ? String((draft.data as Record<string, unknown> | undefined)?.[noteField.key] ?? '') : '';
   // Someone who cannot approve sees the changes, not the buttons.
   const stale = sv(draft).line === 'admin.cms.status.approvedStale';
   const waiting = approver && (draft.status === 'submitted' || stale);
