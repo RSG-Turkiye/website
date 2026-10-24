@@ -133,6 +133,25 @@ export function tabHeadings(subs: SubPage[]): (string | null)[] {
   return subs.map((s, i) => (s.heading && s.heading !== subs[i - 1]?.heading ? s.heading : null));
 }
 
+/**
+ * The tabs as tab lists: one per content group, named by the group (its
+ * heading), and one more for the tabs without a group (Taslaklarım, Onay).
+ * A group's name is then the name of its list, not an element inside a
+ * tablist, where only tabs belong. With one group there is one list, as
+ * before.
+ */
+export function tabRuns(subs: SubPage[]): { heading: string | null; subs: SubPage[] }[] {
+  const headings = tabHeadings(subs);
+  if (headings.every((h) => h === null)) return subs.length ? [{ heading: null, subs }] : [];
+  const runs: { heading: string | null; subs: SubPage[] }[] = [];
+  subs.forEach((s, i) => {
+    const heading = s.heading ?? null;
+    if (headings[i] !== null || runs.length === 0 || (runs.at(-1)!.heading !== null && heading === null)) runs.push({ heading, subs: [s] });
+    else runs.at(-1)!.subs.push(s);
+  });
+  return runs;
+}
+
 export function landing(r: RoleFlags): SectionId | null {
   return visibleSections(r)[0]?.id ?? null;
 }

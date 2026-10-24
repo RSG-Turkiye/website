@@ -3,7 +3,8 @@
  * what the roles do not grant, fills the menu counts, and runs the phone
  * drawer and the phone's list-then-page sub-navigation.
  */
-import { SECTIONS, visibleSections, subsFor, tabHeadings, type RoleFlags, type SectionId, type SubPage } from './sections';
+import { escapeHtml } from '../escape-html';
+import { SECTIONS, visibleSections, subsFor, tabHeadings, tabRuns, type RoleFlags, type SectionId, type SubPage } from './sections';
 import { parseHash, toHash, resolveRoute, type Route } from './router';
 import { t } from './context';
 import { navigationAllowed } from './nav-guard';
@@ -89,8 +90,8 @@ function show(route: Route): void {
   const subs = subsFor(section, roles);
   const host = document.querySelector<HTMLElement>(`[data-section="${route.section}"]`)!;
   host.querySelectorAll<HTMLElement>('[data-sub]').forEach((el) => el.classList.toggle('hidden', el.dataset.sub !== route.sub));
-  renderSubNav(route, subs);
   const title = t(section.label as never) as string;
+  renderSubNav(route, subs, title);
   document.getElementById('sectionTitle')!.textContent = title;
   const sub = route.sub ? subs.find((s) => s.id === route.sub) : undefined;
   document.getElementById('phoneTitle')!.textContent = sub ? (t(sub.label as never) as string) : title;
@@ -120,7 +121,7 @@ function countBadge(s: SubPage): string {
   return `<span data-count="${s.count}" class="${n === 0 ? 'hidden ' : ''}min-w-5 px-1.5 rounded-full bg-red text-white text-xs text-center">${n}</span>`;
 }
 
-function renderSubNav(route: Route, subs: SubPage[]): void {
+function renderSubNav(route: Route, subs: SubPage[], sectionLabel: string): void {
   const nav = document.getElementById('subNav')!;
   if (subs.length === 0) { nav.replaceChildren(); return; }
   // A content group's name before its first tab, when there are several groups: quiet text, not a control.
@@ -133,11 +134,21 @@ function renderSubNav(route: Route, subs: SubPage[]): void {
         <span class="flex items-center gap-2 min-w-0">${t(s.label as never)}${countBadge(s)}</span><span aria-hidden="true">›</span></a>`).join('')}</div>`;
     return;
   }
-  nav.innerHTML = `<div role="tablist" class="flex flex-wrap items-center gap-1.5 mb-3">${subs.map((s, i) => `${headings[i] ? `
-    <span data-tab-heading role="presentation" class="${i ? 'ml-2 ' : ''}text-xs text-gray-500">${t(headings[i] as never)}</span>` : ''}
-    <a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}"
+  // One tab list per content group, named by it; the visible group name sits
+  // beside its list, outside it (only tabs belong in a tablist).
+  const tab = (s: SubPage) => `<a role="tab" aria-selected="${s.id === route.sub}" href="${toHash({ section: route.section, sub: s.id, item: null })}" data-sub-link="${s.id}"
       class="px-3 min-h-8 inline-flex items-center gap-2 rounded-full border text-sm ${s.id === route.sub ? 'bg-navy-light border-navy-mid text-navy font-semibold' : 'border-border text-gray-500 hover:text-navy'}">
-      ${t(s.label as never)}${countBadge(s)}</a>`).join('')}</div>`;
+      ${t(s.label as never)}${countBadge(s)}</a>`;
+  const runs = tabRuns(subs);
+  if (runs.length === 1) {
+    nav.innerHTML = `<div role="tablist" aria-label="${escapeHtml(sectionLabel)}" class="flex flex-wrap items-center gap-1.5 mb-3">${runs[0].subs.map(tab).join('')}</div>`;
+    return;
+  }
+  nav.innerHTML = `<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3">${runs.map((r) => {
+    const name = r.heading ? (t(r.heading as never) as string) : sectionLabel;
+    return `<div data-tab-group class="flex flex-wrap items-center gap-1.5">${r.heading ? `<span data-tab-heading aria-hidden="true" class="text-xs text-gray-500">${escapeHtml(name)}</span>` : ''}
+      <div role="tablist" aria-label="${escapeHtml(name)}" class="flex flex-wrap items-center gap-1.5">${r.subs.map(tab).join('')}</div></div>`;
+  }).join('')}</div>`;
 }
 
 function wireDrawer(): void {

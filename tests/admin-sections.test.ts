@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SECTIONS, GROUPS, visibleSections, subsFor, landing, rolesFromMe, defaultSentScope, tabHeadings, type RoleFlags, type SubPage } from '../src/scripts/admin/sections';
+import { SECTIONS, GROUPS, visibleSections, subsFor, landing, rolesFromMe, defaultSentScope, tabHeadings, tabRuns, type RoleFlags, type SubPage } from '../src/scripts/admin/sections';
 import { ui } from '../src/i18n/ui';
 import { CMS_GROUPS } from '../functions/_lib/roles';
 
@@ -191,4 +191,19 @@ test('tab headings: a quiet group name where the group changes, only when there 
     const k = `admin.cms.groupName.${g}`;
     assert.ok(k in ui.en && k in ui.tr, k);
   }
+});
+
+test('tab runs: one tab list per content group, each named, so the group names sit outside the tab lists', () => {
+  const sub = (id: string, heading?: string): SubPage => ({ id, label: 'x', heading });
+  const ids = (runs: ReturnType<typeof tabRuns>) => runs.map((r) => [r.heading, r.subs.map((s) => s.id)]);
+  // One group: one list, unnamed, as before.
+  assert.deepEqual(ids(tabRuns([sub('a', 'G1'), sub('b', 'G1'), sub('taslaklar'), sub('onay')])), [[null, ['a', 'b', 'taslaklar', 'onay']]]);
+  // Two groups: a list each, then Taslaklarım and Onay in their own.
+  assert.deepEqual(ids(tabRuns([sub('a', 'G1'), sub('b', 'G1'), sub('c', 'G2'), sub('taslaklar'), sub('onay')])),
+    [['G1', ['a', 'b']], ['G2', ['c']], [null, ['taslaklar', 'onay']]]);
+  assert.deepEqual(tabRuns([]), []);
+  // Every tab is in exactly one list, in order.
+  const all = subsFor(icerik, { ...none, admin: true, cms: allCms });
+  assert.deepEqual(tabRuns(all).flatMap((r) => r.subs), all);
+  assert.ok(tabRuns(all).filter((r) => r.heading).length >= 2, 'an admin sees Etkinlikler and Topluluk');
 });
