@@ -43,6 +43,18 @@ const COM = {
   }],
 };
 const COM_PATH = 'src/content/committees/example.json';
+/** The podcast file, synthetic; one title carries markup that must show as text. */
+const EP = (n, o = {}) => ({
+  guid: `guid-${n}`, title: `Örnek bölüm ${n}`, pubDate: `2025-0${n}-10T10:00:00.000Z`, durationSeconds: 3065,
+  audioUrl: `https://example.org/audio/${n}.m4a`, audioBytes: 1000, image: '', description: `Açıklama ${n}.`, ...o,
+});
+const POD = {
+  syncedAt: '2025-06-01T00:00:00.000Z', title: 'Örnek Podcast', description: 'Bir örnek.', image: 'https://example.org/show.jpg',
+  platforms: { spotify: 'https://example.org/s', apple: 'https://example.org/a', castbox: 'https://example.org/c', rss: 'https://example.org/rss' },
+  episodes: [EP(2, { title: 'Örnek bölüm 2 <img src=x data-injected>' }), EP(1)],
+};
+const POD_PATH = 'src/data/podcast.json';
+const POD_NEW = { ...POD, syncedAt: '2026-10-24T00:00:00.000Z', episodes: [EP(3, { title: 'Yepyeni bölüm' }), ...POD.episodes] };
 const ENTRIES = {
   events: [
     { id: 'symposium-2026', title: SYM.title.en, date: '2026-10-10', shas: { [PATH]: 'sha-1' } },
@@ -51,6 +63,7 @@ const ENTRIES = {
   workshops: [{ id: 'nextflow', title: 'Nextflow', date: '2024', shas: {} }],
   webinars: [{ id: 'w1', title: 'A webinar', date: '2024-04-16', paths: { en: 'src/content/webinars/en/w1.md', tr: 'src/content/webinars/tr/w1-tr.md' }, shas: {} }],
   committees: [{ id: 'example', title: COM.name.en, shas: { [COM_PATH]: 'sha-c' } }],
+  podcast: [{ id: 'podcast', title: POD.title, date: '2025-02-10', shas: { [POD_PATH]: 'sha-p' } }],
 };
 /** What /api/cms/types answers: the types of the groups `who` edits, approve per type (`state.adminOnly` lists keys only an admin approves). */
 const TYPES = [
@@ -58,6 +71,7 @@ const TYPES = [
   { key: 'workshops', group: 'etkinlikler', label: { en: 'Workshops', tr: 'Atölyeler' } },
   { key: 'webinars', group: 'etkinlikler', label: { en: 'Webinars', tr: 'Webinarlar' } },
   { key: 'committees', group: 'topluluk', label: { en: 'Committees', tr: 'Komiteler' } },
+  { key: 'podcast', group: 'topluluk', label: { en: 'Podcast', tr: 'Podcast' } },
 ];
 const USERS = {
   approver: { id: 'u1', email: 'onay@example.org', grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] },
@@ -134,9 +148,18 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       const id = url.searchParams.get('id');
       const type = url.searchParams.get('type');
       if (type === 'committees') return json({ type, id, data: COM, base_shas: { [COM_PATH]: 'sha-c' }, files: { [COM_PATH]: `${JSON.stringify(COM, null, 2)}\n` } });
+      if (type === 'podcast') return json({ type, id, data: POD, base_shas: { [POD_PATH]: 'sha-p' }, files: { [POD_PATH]: `${JSON.stringify(POD, null, 2)}\n` } });
       const e = (ENTRIES[type] ?? []).find((x) => x.id === id);
       if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas, ...(state.entryFiles ? { files: state.entryFiles } : {}) });
       return json({ type, id, data: { ...SYM, id, note: undefined, start: e.date, end: undefined, title: { en: e.title, tr: e.title } }, base_shas: { [`src/content/events/${id}.json`]: `sha-${id}` } });
+    }
+    if (p === '/api/cms/podcast/pull' && method === 'POST') {
+      const [status, answer] = state.pull ?? [201, null];
+      if (answer) return json(answer, status);
+      const id = `00000000-0000-4000-8000-0000000003${String(state.drafts.size).padStart(2, '0')}`;
+      const d = draftRow({ id, type: 'podcast', entry_id: 'podcast', author_id: user.id, data: POD_NEW, base_shas: { [POD_PATH]: 'sha-p' } });
+      state.drafts.set(id, d);
+      return json({ draft: d, added: 1 }, 201);
     }
     if (p === '/api/cms/drafts' && method === 'GET') {
       if (state.draftsFail) return json({ error: 'x', code: state.draftsFail === 401 ? 'unauthenticated' : 'boom' }, state.draftsFail);
@@ -905,12 +928,63 @@ await section('28) two groups: each group\'s tabs are a tab list named by the gr
   await page.close();
 });
 
+await section('29) the podcast: the episodes on the site, "Yeni bölümleri çek", the draft\'s diff, sent; the approver\'s diff', async () => {
+  const { page, state, calls } = await open(browser, 'topluluk', '#icerik/podcast');
+  ok(await waitFor(page, () => document.querySelectorAll('[data-sub="podcast"] [data-cms-episode]').length === 2), 'the episodes on the site, one row each');
+  const sub = page.locator('[data-sub="podcast"]');
+  ok((await sub.textContent()).includes('Sitede: 2 bölüm'), 'how many');
+  ok((await sub.textContent()).includes('<img src=x data-injected>') && await page.locator('[data-injected]').count() === 0, 'the feed\'s text is shown as text, never as HTML');
+  ok((await page.locator('[data-cms-episode="guid-2"]').textContent()).includes('51 dk'), 'a length in minutes');
+  ok(await page.locator('[data-sub="podcast"] [data-cms-new]').count() === 0, 'no "Yeni": the file is generated');
+  ok(await page.locator('[data-sub="podcast"] a[href="/tr/podcast/"]').count() === 1, 'a link to the page on the site');
+
+  state.pull = [200, { code: 'no_new_episodes' }];
+  await page.click('[data-cms-pull]');
+  ok(await waitFor(page, () => document.querySelector('[data-cms-pull-result]')?.textContent.includes('Yeni bölüm yok')), 'no new episodes: said in place');
+  state.pull = [502, { error: 'x', code: 'feed_failed' }];
+  await page.click('[data-cms-pull]');
+  ok(await waitFor(page, () => document.querySelector('[data-cms-pull-result]')?.textContent.includes('Podcast akışı okunamadı')), 'the feed down: said in plain words');
+  state.pull = [429, { error: 'x', code: 'rate_limited' }];
+  await page.click('[data-cms-pull]');
+  ok(await waitFor(page, () => document.querySelector('[data-cms-pull-result]')?.textContent.includes('çok fazla deneme')), 'too many pulls: said in plain words');
+
+  state.pull = null;
+  await page.click('[data-cms-pull]');
+  ok(await waitFor(page, () => /#icerik\/taslaklar\/0{8}-/.test(location.hash) && !!document.querySelector('[data-cms-generated] [data-diff-field="episodes"]')), 'a new episode: its draft opens, with the episodes diff');
+  ok((await page.textContent('#cmsNotice')).includes('1 yeni bölüm çekildi'), 'says what was fetched');
+  const diff = await page.textContent('[data-cms-generated]');
+  ok(diff.includes('Yepyeni bölüm') && !diff.includes('Açıklama 1.'), 'the diff is the new episode, not the ones already there');
+  ok(await page.locator('#cmsFields input, #cmsFields textarea').count() === 0, 'nothing to type');
+  ok(await page.locator('#cmsBar [data-cms-discard]').count() === 1, 'the author can let it go');
+  await page.click('#cmsSubmit');
+  ok(await waitFor(page, () => document.querySelector('#cmsHead')?.textContent.includes('Onay bekliyor')), 'sent for approval');
+  ok(calls.some((c) => c.method === 'POST' && /\/api\/cms\/drafts\/[^/]+\/submit$/.test(c.path)), 'through the usual submit');
+  ok(calls.filter((c) => c.path === '/api/cms/podcast/pull').every((c) => c.method === 'POST'), 'pulls are POSTs');
+  await page.close();
+
+  const id = '00000000-0000-4000-8000-000000000390';
+  const rev = await open(browser, 'both', `#icerik/onay/${id}`, { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(id, draftRow({ id, type: 'podcast', entry_id: 'podcast', status: 'submitted', author_id: 'u5', data: POD_NEW, base_shas: { [POD_PATH]: 'sha-p' } }));
+  });
+  ok(await waitFor(rev.page, () => !!document.querySelector('#cmsReview [data-diff-field="episodes"]')), 'the approver sees the episodes diff');
+  ok((await rev.page.textContent('#cmsReview')).includes('Yepyeni bölüm'), 'with the new episode');
+  ok(await rev.page.isEnabled('#cmsApprove'), 'and can approve it');
+  await rev.page.close();
+});
+
+await section('30) the podcast: a draft on its way hides the button', async () => {
+  const { page } = await open(browser, 'topluluk', '#icerik/podcast', { width: 1440, height: 900 }, (s) => { s.live = [{ type: 'podcast', entry_id: 'podcast', status: 'pr_open' }]; });
+  ok(await waitFor(page, () => document.querySelectorAll('[data-sub="podcast"] [data-cms-episode]').length === 2), 'the list');
+  ok(await page.locator('[data-cms-pull]').count() === 0, 'no pull while one is going live');
+  await page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
-for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler']]) {
+for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));
   });
-  await page.waitForSelector('[data-cms-entry], #cmsFields [data-field-wrap], #cmsReview [data-diff-field]');
+  await page.waitForSelector('[data-cms-entry], [data-cms-episode], #cmsFields [data-field-wrap], #cmsReview [data-diff-field]');
   await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
   ok(await noSideScroll(page), `${hash}: nothing wider than the phone`);
   await page.close();

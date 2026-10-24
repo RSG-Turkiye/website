@@ -996,6 +996,22 @@ A webinar that exists only in English is edited as a pair: the form shows an
 empty Turkish side, and the draft cannot be sent until it is filled in. The
 approved draft adds the Turkish file.
 
+### Podcast episodes
+
+The podcast's episodes come from its RSS feed into `src/data/podcast.json`.
+The normal way to add a new episode is the panel: İçerik › Podcast
+(`#icerik/podcast`) › **Yeni bölümleri çek**. The server reads the feed once
+(10 s timeout, 2 MB at most), and if the episodes differ from the file on
+main it makes a draft, which goes through the usual send, approve and pull
+request steps; the approver sees which episodes were added. The feed's text
+is shown as plain text, and an em dash or a spaced `--` in it is written as
+` - `, so a pulled draft always passes the house rules. A person may pull
+five times in ten minutes.
+
+`npm run podcast:sync` does the same by hand and writes the file directly. It
+is the fallback for when the panel cannot reach the feed. Both use
+`src/lib/podcast-feed.ts` and the schema in `src/data/podcast.ts`.
+
 ### What the statuses mean
 
 The panel shows each draft with one of these (Turkish in `tr`, the words are

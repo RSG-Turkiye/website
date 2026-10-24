@@ -354,6 +354,7 @@ async function showList(model: TypeModel): Promise<void> {
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
   loadError = null;
+  if (model.generated) { await showGenerated(model, host); return; }
   const [list, got] = await Promise.all([loadEntries(model, true), loadLists()]);
   if (!list || !got) { loadFailed(host); return; }
   const n = shown[model.key] ?? PAGE;
@@ -382,6 +383,72 @@ async function showList(model: TypeModel): Promise<void> {
     </div>
     <div class="flex flex-col gap-2">${rows || emptyState(tk('admin.cms.noEntries'))}</div>${more}`;
   host.querySelector('[data-cms-more]')?.addEventListener('click', () => { shown[model.key] = n + PAGE; void showList(model); });
+}
+
+interface Episode { guid?: unknown; title?: unknown; pubDate?: unknown; durationSeconds?: unknown }
+
+/**
+ * A type the server builds from a feed (the podcast): what the site has and
+ * one button, "Yeni bölümleri çek". The episodes are read from main (one
+ * light read); everything in them is the feed's text, so it is only ever
+ * escaped, never rendered as HTML. A new pull opens its draft.
+ */
+async function showGenerated(model: TypeModel, host: HTMLElement): Promise<void> {
+  const seq = routeSeq;
+  const [list, got] = await Promise.all([loadEntries(model, true), loadLists()]);
+  if (seq !== routeSeq) return;
+  if (!list || !got) { loadFailed(host); return; }
+  const id = list[0]?.id ?? model.key;
+  const r = await api<{ data?: { episodes?: Episode[] } }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(id)}`);
+  if (seq !== routeSeq) return;
+  const episodes = r.ok && Array.isArray(r.body.data?.episodes) ? r.body.data!.episodes! : null;
+  const live = (lists?.live ?? []).find((d) => d.type === model.key);
+  const mine = (lists?.mine ?? []).find((d) => d.type === model.key && sv(d).editable);
+  let action = `<button type="button" data-cms-pull class="${BTN.primary}">${esc(tk('admin.cms.podcast.pull'))}</button>`;
+  if (live) action = chip(tk(live.status === 'submitted' ? 'admin.cms.chip.submitted' : 'admin.cms.chip.goingLive'), live.status === 'submitted' ? 'amber' : 'navy');
+  else if (mine) action = `<a href="${SECTION}/taslaklar/${esc(mine.id)}" data-cms-continue class="${BTN.primary}">${esc(tk('admin.cms.continue'))}</a>`;
+  const minutes = (v: unknown) => (typeof v === 'number' && v > 0 ? tk('admin.cms.podcast.minutes', { n: Math.max(1, Math.round(v / 60)) }) : '');
+  const rows = (episodes ?? []).map((e) => row({
+    title: String(e.title ?? ''),
+    subtitle: [dateText(model, typeof e.pubDate === 'string' ? e.pubDate.slice(0, 10) : ''), minutes(e.durationSeconds)].filter(Boolean).join(' · '),
+    attrs: `data-cms-episode="${esc(e.guid)}"`, stack: true,
+  })).join('');
+  host.innerHTML = `${myDraftsRow()}
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+      <h2 class="text-sm font-semibold text-navy">${esc(episodes ? tk('admin.cms.podcast.onSite', { n: episodes.length }) : tk(model.label))}</h2>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="${livePath(model.key, id, [], lang)}" target="_blank" rel="noopener" class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>
+        ${action}
+      </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-3">${esc(tk('admin.cms.podcast.intro'))}</p>
+    <div data-cms-pull-result role="status" class="hidden mb-3 rounded-xl border px-3 py-2 text-sm"></div>
+    <div class="flex flex-col gap-2">${episodes ? rows || emptyState(tk('admin.cms.noEntries')) : `<p class="text-sm text-[#8a1c1c]">${esc(tk('admin.cms.podcast.readFailed'))}</p>`}</div>`;
+  host.querySelector<HTMLButtonElement>('[data-cms-pull]')?.addEventListener('click', (e) => void pullFeed(model, host, e.currentTarget as HTMLButtonElement, seq));
+}
+
+/** "Yeni bölümleri çek": a new draft opens; anything else is said in place. */
+async function pullFeed(model: TypeModel, host: HTMLElement, button: HTMLButtonElement, seq: number): Promise<void> {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = tk('admin.cms.podcast.pulling');
+  const r = await api<{ code?: string; added?: number; draft?: Draft }>('POST', `/api/cms/${model.key}/pull`, {});
+  if (seq !== routeSeq) return;
+  if (r.ok && r.body.draft) {
+    lists = null;
+    void refreshCounts();
+    const n = r.body.added ?? 0;
+    pendingNotice = { html: esc(n > 0 ? tk('admin.cms.podcast.pulled', { n }) : tk('admin.cms.podcast.pulledOther')), tone: 'info' };
+    location.hash = `${SECTION}/taslaklar/${r.body.draft.id}`;
+    return;
+  }
+  button.disabled = false;
+  button.textContent = label;
+  const box = host.querySelector<HTMLElement>('[data-cms-pull-result]');
+  if (!box) return;
+  const fine = r.ok && r.body.code === 'no_new_episodes';
+  box.className = `mb-3 rounded-xl border px-3 py-2 text-sm ${fine ? 'border-border bg-navy-light text-navy' : 'border-red-200 bg-red-tint text-[#8a1c1c]'}`;
+  box.textContent = fine ? tk('admin.cms.podcast.noNew') : r.ok ? tk('admin.cms.error.unknown') : errorText(r);
 }
 
 /**
@@ -921,9 +988,10 @@ async function openDraft(id: string, route: string): Promise<void> {
   }
   const draft = r.body.draft;
   const model = modelFor(draft.type);
-  if (!model || model.generated) { noForm(model, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
+  if (!model || (model.generated && draft.action !== 'update')) { noForm(model, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
   await loadEntries(model);
   if (editor !== placeholder) return;
+  if (model.generated) { await openGeneratedDraft(model, draft, route, back, placeholder); return; }
   const v = sv(draft);
   const ed = newEditor(model, route, draft.data ?? emptyData(model), {
     draft, entryId: draft.action === 'create' ? null : draft.entry_id, backupKey: draft.id, readOnly: !v.editable || draft.action === 'delete',
@@ -946,6 +1014,62 @@ async function openDraft(id: string, route: string): Promise<void> {
   }
   if (pendingNotice) { notice(pendingNotice.html, pendingNotice.tone); pendingNotice = null; }
   if (!ed.readOnly && draft.action === 'update') await checkChanged(ed);
+}
+
+/**
+ * A draft the server built (a podcast pull): nothing to type, so no form.
+ * What it changes, against the site's version, and the way to send it.
+ */
+async function openGeneratedDraft(model: TypeModel, draft: Draft, route: string, back: string, placeholder: Editor): Promise<void> {
+  const e = await api<{ data: unknown }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(draft.entry_id)}`);
+  if (editor !== placeholder) return;
+  const v = sv(draft);
+  const ed = newEditor(model, route, draft.data ?? {}, { draft, entryId: draft.entry_id, backupKey: draft.id, readOnly: true });
+  editor = ed;
+  head({
+    title: titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: statusChip(draft), line: statusLine(draft),
+    banner: draft.status !== 'published' && draft.status !== 'discarded',
+  });
+  let body: string;
+  if (!e.ok) body = `<p data-cms-unreadable class="text-sm text-[#8a1c1c]">${esc(tk('admin.cms.review.unreadable'))}</p>`;
+  else {
+    const diff = diffEntry(model, e.body.data, draft.data, model.fields);
+    body = diff.changed.length === 0 ? `<p class="text-sm text-gray-600">${esc(tk('admin.cms.review.nothing'))}</p>`
+      : `<p class="text-sm font-semibold text-navy">${esc(tk('admin.cms.review.changed', { n: diff.changed.length }))}</p>${renderDiff(diff)}`;
+  }
+  $('cmsFields')!.innerHTML = `${v.editable ? `<p class="text-sm text-gray-600 mb-3">${esc(tk('admin.cms.podcast.draftIntro'))}</p>` : ''}
+    <div data-cms-generated class="bg-white rounded-2xl border border-border p-4 lg:p-3">${body}</div>`;
+  renderBar(ed);
+  if (v.editable && e.ok) {
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.id = 'cmsSubmit';
+    send.className = BTN.primary;
+    send.textContent = tk(draft.status === 'rejected' ? 'admin.cms.resubmit' : draft.status === 'pr_failed' ? 'admin.cms.retry' : 'admin.cms.submit');
+    const line = $('cmsBar')!.querySelector('div');
+    line?.insertBefore(send, line.firstChild);
+    send.addEventListener('click', () => void submitGenerated(ed, send));
+  }
+  if (pendingNotice) { notice(pendingNotice.html, pendingNotice.tone); pendingNotice = null; }
+}
+
+/** Sends a generated draft: no form to save first. */
+async function submitGenerated(ed: Editor, button: HTMLButtonElement): Promise<void> {
+  button.disabled = true;
+  const r = await api<{ draft: Draft }>('POST', `/api/cms/drafts/${ed.draft!.id}/submit`, {});
+  if (editor !== ed) return;
+  if (!r.ok) {
+    button.disabled = false;
+    if (r.code === 'invalid') {
+      const items = Object.entries(r.body.errors ?? {}).map(([p, m]) => `${placeLabel(ed.model, p).label}: ${messageKeys(String(m)).map((k) => tk(k)).join(' ')}`);
+      notice(`${esc(tk('admin.cms.error.invalid'))}<ul class="mt-1">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`);
+    } else notice(esc(errorText(r)));
+    return;
+  }
+  ed.draft = { ...ed.draft!, ...r.body.draft };
+  lists = null;
+  void refreshCounts();
+  await reopenAs(ed, approves(ed.model.key) ? 'admin.cms.sentApprover' : 'admin.cms.sent');
 }
 
 /**
@@ -1314,7 +1438,8 @@ async function openReview(id: string, route: string): Promise<void> {
   }
   const draft = r.body.draft;
   const found = modelFor(draft.type);
-  if (!found || found.generated) { noForm(found, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
+  // A generated type (the podcast) has fields for its diff, though no form.
+  if (!found) { noForm(found, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
   const model = withFields(found, draft.data ?? emptyData(found));
   // Per type: an `approve: 'admin'` type is not approved by a group approver.
   const approver = approves(model.key);
