@@ -18,7 +18,8 @@ import { checkId, slugify } from '../../lib/cms/slug';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
 export type TypeKey = 'events' | 'workshops' | 'webinars';
-export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown';
+export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
+  | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
 
 export interface FieldDef {
@@ -42,9 +43,35 @@ export interface FieldDef {
   readOnly?: boolean;
   /** Hidden from editors, read-only for approvers ("İç not"). */
   approverOnly?: boolean;
-  /** Required at submit: the label gets a mark. Not enforced here. */
+  /** Required at submit: the label gets a mark. Not enforced here. Inside a
+   * row it also means the key is always written, even empty. */
   required?: boolean;
+  /**
+   * objects: the fields of one row, in the schema's key order: a row is
+   * written in this order (the Markdown serializer writes nested keys as
+   * they come). Rows hold text, choice, number, date, checkbox, bilingual,
+   * strings, links, bilingualStrings and objects fields: no images, no
+   * Markdown body.
+   */
+  fields?: FieldDef[];
+  /** objects: one row's name, an i18n key with {n} ("Bölüm {n}"). Default admin.cms.rows.item. */
+  rowName?: string;
+  /** objects: a collapsed row's one-line summary. Default: its first text that is filled in. */
+  rowLabel?: (row: Row, lang: 'en' | 'tr') => string;
+  /** objects: the key of the row field that names a row across versions (the diff); without it, rows are compared by position. */
+  identity?: string;
+  /** Shown only while this is true of the row (or, at the top, of the entry's values). A hidden field keeps its value. */
+  showIf?: (row: Row) => boolean;
+  /**
+   * Editable while empty, read-only once it holds a value (learning-path
+   * ids). Stateless on purpose: a value read from the server is locked; a
+   * new row's is editable until the field is next drawn with a value in it.
+   */
+  readOnlyAfterSave?: boolean;
 }
+
+/** One row of an `objects` field as the form holds it: its fields' values. */
+export type Row = Record<string, unknown>;
 
 /**
  * The options below `sub` mirror the type's registry entry
@@ -68,7 +95,13 @@ export interface TypeModel {
   generated?: boolean;
   /** The type's name, an i18n key. */
   label: string;
+  /** The form's fields. Empty for a model built from its data (fieldsFor). */
   fields: FieldDef[];
+  /**
+   * A form built from the entry itself (A7: page texts, one field per key
+   * of the file). `withFields` resolves it once, when an editor opens.
+   */
+  fieldsFor?: (data: unknown) => FieldDef[];
   /** Schema keys the form never shows, each with its reason. */
   hidden: Record<string, string>;
 }
@@ -134,6 +167,11 @@ export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars']
 export const modelFor = (key: string): TypeModel | null => (TYPE_KEYS as readonly string[]).includes(key) ? MODELS[key as TypeKey] : null;
 export const modelForSub = (sub: string): TypeModel | null => TYPE_KEYS.map((k) => MODELS[k]).find((m) => m.sub === sub) ?? null;
 
+/** The model with its fields for this data: `fieldsFor`'s, or the static ones. */
+export function withFields(model: TypeModel, data: unknown): TypeModel {
+  return model.fieldsFor ? { ...model, fields: model.fieldsFor(data) } : model;
+}
+
 /** The fields this person sees: `note` only for approvers. */
 export function visibleFields(model: TypeModel, approver: boolean): FieldDef[] {
   return model.fields.filter((f) => !f.approverOnly || approver);
@@ -157,14 +195,18 @@ function bi(v: unknown): Bi {
   return isObj(v) ? { en: str(v.en), tr: str(v.tr) } : { en: '', tr: '' };
 }
 
-/** The form's value for one key of one object (a JSON entry or one webinar side). */
+const strs = (v: unknown): string[] => (Array.isArray(v) ? v.map(str) : []);
+
+/** The form's value for one key of one object (a JSON entry, one webinar side, or one row). */
 function readOne(f: FieldDef, raw: unknown): unknown {
   switch (f.kind) {
     case 'checkbox': return raw === true;
     case 'number': return typeof raw === 'number' ? String(raw) : str(raw);
     case 'bilingual': return bi(raw);
-    case 'strings': return Array.isArray(raw) ? raw.map(str) : [];
+    case 'strings': return strs(raw);
+    case 'bilingualStrings': return { en: strs(isObj(raw) ? raw.en : null), tr: strs(isObj(raw) ? raw.tr : null) };
     case 'links': return Array.isArray(raw) ? raw.map((l) => ({ label: bi(isObj(l) ? l.label : null), url: str(isObj(l) ? l.url : '') })) : [];
+    case 'objects': return Array.isArray(raw) ? raw.map((r) => readRow(f.fields ?? [], isObj(r) ? r : {})) : [];
     case 'image':
       if (f.image === 'url') return str(raw);
       return isObj(raw) ? clone(raw) : null;
@@ -172,16 +214,45 @@ function readOne(f: FieldDef, raw: unknown): unknown {
   }
 }
 
+function readRow(fields: FieldDef[], obj: Obj): Row {
+  return Object.fromEntries(fields.map((s) => [s.key, readOne(s, obj[s.key])]));
+}
+
+/**
+ * The rows of an `objects` field of a markdown-pair type: one list, row i
+ * being row i of both sides (a side with fewer rows reads as empty rows). A
+ * per-language field is `{ en, tr }`; a shared one is one value, the English
+ * side's (the Turkish one's when the English row lacks it). Writing gives
+ * both sides the same number of rows, so they stay index-aligned.
+ */
+function readPairRows(f: FieldDef, en: unknown, tr: unknown): Row[] {
+  const a = Array.isArray(en) ? en : [];
+  const b = Array.isArray(tr) ? tr : [];
+  return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => {
+    const e = isObj(a[i]) ? a[i] as Obj : {};
+    const t = isObj(b[i]) ? b[i] as Obj : {};
+    return Object.fromEntries((f.fields ?? []).map((s) => {
+      if (s.kind === 'objects') return [s.key, readPairRows(s, e[s.key], t[s.key])];
+      if (s.perLang) return [s.key, { en: readOne(s, e[s.key]), tr: readOne(s, t[s.key]) }];
+      return [s.key, readOne(s, Object.hasOwn(e, s.key) ? e[s.key] : t[s.key])];
+    }));
+  });
+}
+
 /** Whether a value says "nothing here". */
 export function isEmptyValue(f: FieldDef, v: unknown): boolean {
   switch (f.kind) {
     case 'checkbox': return v !== true;
     case 'bilingual': return str((v as Bi).en) === '' && str((v as Bi).tr) === '';
-    case 'strings': case 'links': return !Array.isArray(v) || v.length === 0;
+    case 'strings': case 'links': case 'objects': return !Array.isArray(v) || v.length === 0;
+    case 'bilingualStrings': return !isObj(v) || (strs(v.en).length === 0 && strs(v.tr).length === 0);
     case 'image': return f.image === 'url' ? str(v) === '' : v === null || v === undefined;
     default: return str(v) === '';
   }
 }
+
+/** Kinds whose empty form ('' or []) is a valid value to write, so a required one in a row is written empty. */
+const EMPTY_WRITABLE: readonly Kind[] = ['text', 'textarea', 'bilingual', 'strings', 'links', 'objects', 'bilingualStrings'];
 
 /**
  * Writes one value into `into[f.key]`. An empty value leaves a key that was
@@ -207,10 +278,32 @@ function writeOne(f: FieldDef, into: Obj, v: unknown): void {
     }
     case 'bilingual': into[f.key] = { en: str((v as Bi).en), tr: str((v as Bi).tr) }; return;
     case 'strings': into[f.key] = (v as string[]).map(str); return;
+    case 'bilingualStrings': into[f.key] = { en: strs((v as Bi<unknown>)?.en), tr: strs((v as Bi<unknown>)?.tr) }; return;
     case 'links': into[f.key] = (v as LinkItem[]).map((l) => ({ label: { en: str(l.label?.en), tr: str(l.label?.tr) }, url: str(l.url) })); return;
+    case 'objects': into[f.key] = (v as Row[]).map((r) => writeRow(f.fields ?? [], r, null)); return;
     case 'image': into[f.key] = f.image === 'url' ? str(v) : clone(v); return;
     default: into[f.key] = str(v);
   }
+}
+
+/**
+ * One row, rebuilt from its fields in their order (so in the schema's key
+ * order). An empty optional value is left out; a required one is written
+ * empty where that is a valid value. Read-only fields are written too: the
+ * value travels with its row when rows move. `lang` is a pair type's side.
+ */
+function writeRow(fields: FieldDef[], row: Row, lang: 'en' | 'tr' | null): Obj {
+  const out: Obj = {};
+  for (const s of fields) {
+    if (s.required && EMPTY_WRITABLE.includes(s.kind)) out[s.key] = s.kind === 'bilingualStrings' ? { en: [], tr: [] } : s.kind === 'bilingual' ? { en: '', tr: '' } : s.kind === 'text' || s.kind === 'textarea' ? '' : [];
+    const v = row?.[s.key];
+    if (lang && s.kind === 'objects') {
+      const rows = Array.isArray(v) ? v as Row[] : [];
+      if (rows.length || s.required) out[s.key] = rows.map((r) => writeRow(s.fields ?? [], r, lang));
+    } else if (lang && s.perLang) writeOne(s, out, (v as Bi<unknown> | undefined)?.[lang]);
+    else writeOne(s, out, v);
+  }
+  return out;
 }
 
 /** A webinar side as the form works on it: a missing side is an empty one. */
@@ -225,7 +318,11 @@ export function emptyData(model: TypeModel): unknown {
   return model.format === 'json' ? {} : { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } };
 }
 
-/** Every field's form value. Webinar values are `{ en, tr }`, one per side. */
+/**
+ * Every field's form value. Webinar values are `{ en, tr }`, one per side,
+ * except an `objects` field's, which is one list of rows for both sides
+ * (readPairRows).
+ */
 export function formValues(model: TypeModel, data: unknown): Values {
   const out: Values = {};
   if (model.format === 'json') {
@@ -236,14 +333,19 @@ export function formValues(model: TypeModel, data: unknown): Values {
   const en = side(data, 'en');
   const tr = side(data, 'tr');
   for (const f of model.fields) {
-    out[f.key] = f.kind === 'markdown'
-      ? { en: en.body, tr: tr.body }
+    out[f.key] = f.kind === 'markdown' ? { en: en.body, tr: tr.body }
+      : f.kind === 'objects' ? readPairRows(f, en.frontmatter[f.key], tr.frontmatter[f.key])
       : { en: readOne(f, en.frontmatter[f.key]), tr: readOne(f, tr.frontmatter[f.key]) };
   }
   return out;
 }
 
-/** `base` with the form's values written in. `base` itself is not changed. */
+/**
+ * `base` with the form's values written in. `base` itself is not changed.
+ * Rows are rebuilt from their fields; a list nobody changed comes back as
+ * it was in the file (when the file wrote it in the fields' order, which the
+ * serializer's normalisation ensures), so it is not rewritten.
+ */
 export function applyValues(model: TypeModel, base: unknown, values: Values): unknown {
   if (model.format === 'json') {
     const out = (isObj(base) ? clone(base) : {}) as Obj;
@@ -256,6 +358,15 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
   const out = { en: clone(side(base, 'en')), tr: clone(side(base, 'tr')) };
   for (const f of model.fields) {
     if (f.readOnly || !Object.hasOwn(values, f.key)) continue;
+    if (f.kind === 'objects') {
+      const rows = Array.isArray(values[f.key]) ? values[f.key] as Row[] : [];
+      for (const lang of ['en', 'tr'] as const) {
+        const fm = out[lang].frontmatter;
+        if (rows.length === 0 && !Object.hasOwn(fm, f.key)) continue;
+        fm[f.key] = rows.map((r) => writeRow(f.fields ?? [], r, lang));
+      }
+      continue;
+    }
     const v = values[f.key] as Bi<unknown>;
     for (const lang of ['en', 'tr'] as const) {
       if (f.kind === 'markdown') out[lang].body = str(v[lang]);
@@ -281,6 +392,40 @@ export function same(a: unknown, b: unknown): boolean {
 /** A webinar field shared by both languages shows one control while both sides agree. */
 export function sharedShowsOne(f: FieldDef, v: Bi<unknown>): boolean {
   return !f.perLang && same(v.en, v.tr);
+}
+
+// ── Rows ─────────────────────────────────────────────────────────────────────
+
+/** Whether a field is shown for this row (or, at the top, these values). */
+export function shown(f: FieldDef, row: Row): boolean {
+  return !f.showIf || f.showIf(row);
+}
+
+/** Whether a readOnlyAfterSave field is locked: it already holds a value. */
+export function lockedAfterSave(f: FieldDef, v: unknown, pair: boolean): boolean {
+  if (!f.readOnlyAfterSave) return false;
+  if (pair && f.perLang) return !isEmptyValue(f, (v as Bi<unknown>)?.en) || !isEmptyValue(f, (v as Bi<unknown>)?.tr);
+  return !isEmptyValue(f, v);
+}
+
+/** A new, empty row: what Ekle adds. A pair type's per-language fields get both sides. */
+export function emptyRow(f: FieldDef, pair: boolean): Row {
+  const row = readRow(f.fields ?? [], {});
+  if (pair) for (const s of f.fields ?? []) if (s.perLang && s.kind !== 'objects') row[s.key] = { en: row[s.key], tr: clone(row[s.key]) };
+  return row;
+}
+
+/** A collapsed row's one-line summary: rowLabel, else its first filled-in text, else ''. */
+export function rowSummary(f: FieldDef, row: Row, lang: 'en' | 'tr'): string {
+  if (f.rowLabel) return f.rowLabel(row, lang);
+  for (const s of f.fields ?? []) {
+    const v = row[s.key];
+    let text = '';
+    if (typeof v === 'string' && ['text', 'textarea', 'select'].includes(s.kind)) text = v;
+    else if (isObj(v) && (s.kind === 'bilingual' || s.perLang) && ['text', 'textarea', 'bilingual'].includes(s.kind)) text = str(v[lang]) || str(v[lang === 'en' ? 'tr' : 'en']);
+    if (text.trim()) return text.trim();
+  }
+  return '';
 }
 
 // ── File names ───────────────────────────────────────────────────────────────
@@ -311,56 +456,131 @@ export function withId(model: TypeModel, data: unknown, id: string): unknown {
 
 // ── Half translations ────────────────────────────────────────────────────────
 
+/** A step into a list of rows: the `objects` field and the row (0-based). */
+export interface RowStep { key: string; row: number }
+
+/** A half-translated text: the top field, the label of the text, a link's number, and the rows it is in. */
+export interface Half { key: string; label: string; sub?: string; trail?: RowStep[]; leaf?: string }
+
 /** Labels (i18n keys plus a suffix) of texts filled in one language and empty in the other. */
-export function halfTranslated(model: TypeModel, values: Values): { key: string; label: string; sub?: string }[] {
-  const out: { key: string; label: string; sub?: string }[] = [];
-  const half = (b: Bi | undefined) => !!b && (str(b.en).trim() === '') !== (str(b.tr).trim() === '');
+export function halfTranslated(model: TypeModel, values: Values): Half[] {
+  const out: Half[] = [];
+  const pair = model.format === 'markdown-pair';
   for (const f of model.fields) {
     const v = values[f.key];
     // A required text half-filled is a field error at submit, not a warning.
-    if (f.readOnly || f.approverOnly || f.required || v === undefined) continue;
-    if (model.format === 'markdown-pair') {
-      if (!f.perLang) continue;
-      const b = v as Bi<unknown>;
-      const flat = (x: unknown) => (Array.isArray(x) ? x.join('') : str(x));
-      if (half({ en: flat(b.en), tr: flat(b.tr) })) out.push({ key: f.key, label: f.label });
-      continue;
-    }
-    if (f.kind === 'bilingual' && half(v as Bi)) out.push({ key: f.key, label: f.label });
-    if (f.kind === 'links') (v as LinkItem[]).forEach((l, i) => { if (half(l.label)) out.push({ key: f.key, label: f.label, sub: `${i + 1}` }); });
-    if (f.kind === 'image' && v && half((v as ImageObject).alt)) out.push({ key: f.key, label: f.label });
+    if (f.readOnly || f.approverOnly || v === undefined || !shown(f, values)) continue;
+    if (f.kind === 'objects') { halfRows(f, v as Row[], pair, f.key, [], out); continue; }
+    if (f.required) continue;
+    halfOne(f, v, pair, f.key, undefined, out);
   }
   return out;
 }
 
-// ── Errors ───────────────────────────────────────────────────────────────────
+const half = (b: Bi | undefined) => !!b && (str(b.en).trim() === '') !== (str(b.tr).trim() === '');
+const flat = (x: unknown) => (Array.isArray(x) ? x.join('') : str(x));
 
-/** Where a server error path points: the field, the language and the row. */
-export interface ErrorPlace { key: string | null; lang?: 'en' | 'tr'; row?: number; part?: string }
-
-/** `links.1.url` → links, row 1, part url; `en.frontmatter.title` → title, en. */
-export function placeOf(model: TypeModel, path: string): ErrorPlace {
-  const parts = path.split('.').filter((p) => p !== '');
-  if (model.format === 'markdown-pair') {
-    const lang = parts[0] === 'en' || parts[0] === 'tr' ? parts[0] : undefined;
-    if (parts[1] === 'body') return { key: 'body', lang };
-    if (parts[1] === 'frontmatter' && parts[2]) return { key: parts[2], lang };
-    return { key: null, lang };
+function halfOne(f: FieldDef, v: unknown, pair: boolean, top: string, trail: RowStep[] | undefined, out: Half[]): void {
+  const push = (sub?: string) => out.push({ key: top, label: f.label, ...(sub ? { sub } : {}), ...(trail ? { trail, leaf: f.key } : {}) });
+  if (pair) {
+    if (f.perLang && half({ en: flat((v as Bi<unknown>).en), tr: flat((v as Bi<unknown>).tr) })) push();
+    return;
   }
-  if (parts.length === 0) return { key: null };
-  // An event's id comes from its title.
-  const key = model.key === 'events' && parts[0] === 'id' ? 'title' : parts[0];
-  const rest = parts.slice(1);
-  if (/^\d+$/.test(rest[0] ?? '')) {
-    const row = Number(rest[0]);
-    const tail = rest.slice(1);
-    const lang = tail.at(-1) === 'en' || tail.at(-1) === 'tr' ? tail.at(-1) as 'en' | 'tr' : undefined;
-    return { key, row, part: tail.find((p) => p !== 'en' && p !== 'tr'), lang };
-  }
-  const lang = rest.at(-1) === 'en' || rest.at(-1) === 'tr' ? rest.at(-1) as 'en' | 'tr' : undefined;
-  return { key, part: rest.find((p) => p !== 'en' && p !== 'tr'), lang };
+  if (f.kind === 'bilingual' && half(v as Bi)) push();
+  if (f.kind === 'bilingualStrings' && half({ en: flat((v as Bi<unknown>).en), tr: flat((v as Bi<unknown>).tr) })) push();
+  if (f.kind === 'links') (v as LinkItem[]).forEach((l, i) => { if (half(l.label)) push(`${i + 1}`); });
+  if (f.kind === 'image' && v && half((v as ImageObject).alt)) push();
 }
 
+function halfRows(f: FieldDef, rows: Row[], pair: boolean, top: string, trail: RowStep[], out: Half[]): void {
+  (Array.isArray(rows) ? rows : []).forEach((row, i) => {
+    const here = [...trail, { key: f.key, row: i }];
+    for (const s of f.fields ?? []) {
+      if (s.readOnly || !shown(s, row)) continue;
+      if (s.kind === 'objects') halfRows(s, row[s.key] as Row[], pair, top, here, out);
+      else if (!s.required) halfOne(s, row[s.key], pair, top, here, out);
+    }
+  });
+}
+
+// ── Errors ───────────────────────────────────────────────────────────────────
+
+/**
+ * Where a server error path points: the top field, the language, and in it
+ * a link's row and part. Inside `objects` rows, `trail` lists each list and
+ * row from the top, and `leaf` is the field in the innermost row.
+ */
+export interface ErrorPlace { key: string | null; lang?: 'en' | 'tr'; row?: number; part?: string; trail?: RowStep[]; leaf?: string }
+
+/**
+ * `links.1.url` → links, row 1, part url; `en.frontmatter.title` → title, en;
+ * `sections.0.resources.2.title.en` (or `en.frontmatter.sections.0.resources.2.title`)
+ * → sections, rows 0 and 2, leaf title, en.
+ */
+export function placeOf(model: TypeModel, path: string): ErrorPlace {
+  const parts = path.split('.').filter((p) => p !== '');
+  let lang: 'en' | 'tr' | undefined;
+  let rest = parts;
+  if (model.format === 'markdown-pair') {
+    lang = parts[0] === 'en' || parts[0] === 'tr' ? parts[0] : undefined;
+    if (parts[1] === 'body') return { key: 'body', lang };
+    if (parts[1] !== 'frontmatter' || !parts[2]) return { key: null, lang };
+    const f = model.fields.find((x) => x.key === parts[2]);
+    if (f?.kind !== 'objects') return { key: parts[2], lang };
+    rest = parts.slice(2);
+  }
+  if (rest.length === 0) return { key: null };
+  // An event's id comes from its title.
+  const key = model.key === 'events' && rest[0] === 'id' ? 'title' : rest[0];
+  let f = model.fields.find((x) => x.key === key);
+  let tail = rest.slice(1);
+  const trail: RowStep[] = [];
+  while (f?.kind === 'objects' && /^\d+$/.test(tail[0] ?? '')) {
+    trail.push({ key: f.key, row: Number(tail[0]) });
+    const next: FieldDef | undefined = (f.fields ?? []).find((x) => x.key === tail[1]);
+    tail = tail.slice(2);
+    if (!next) { f = undefined; break; }
+    f = next;
+  }
+  const deep = trail.length ? { trail, ...(f ? { leaf: f.key } : {}) } : {};
+  const langOf = (xs: string[]) => lang ?? (xs.at(-1) === 'en' || xs.at(-1) === 'tr' ? xs.at(-1) as 'en' | 'tr' : undefined);
+  if (/^\d+$/.test(tail[0] ?? '')) {
+    const row = Number(tail[0]);
+    const after = tail.slice(1);
+    return { key, row, part: after.find((p) => p !== 'en' && p !== 'tr'), lang: langOf(after), ...deep };
+  }
+  return { key, part: tail.find((p) => p !== 'en' && p !== 'tr'), lang: langOf(tail), ...deep };
+}
+
+/** The default name of a row, "Satır {n}". */
+export const ROW_NAME = 'admin.cms.rows.item';
+
+/** An i18n key and its variables. */
+export interface Phrase { key: string; vars?: Record<string, string | number> }
+
+/**
+ * The words of an error place, from the outside in: the field (or each row,
+ * "Bölüm 2", "Kaynak 3"), then the innermost field, a link's number and its part.
+ */
+export function placePhrases(model: TypeModel, p: ErrorPlace): Phrase[] {
+  const top = model.fields.find((x) => x.key === p.key);
+  const label = (f: FieldDef) => (f.approverOnly ? 'admin.cms.f.note' : f.label);
+  const out: Phrase[] = [];
+  if (p.trail?.length) {
+    let list: FieldDef | undefined = top;
+    p.trail.forEach((step, i) => {
+      out.push({ key: list?.rowName ?? ROW_NAME, vars: { n: step.row + 1 } });
+      const next = p.trail![i + 1]?.key ?? p.leaf;
+      list = (list?.fields ?? []).find((x) => x.key === next);
+    });
+    if (p.leaf && list) out.push({ key: label(list) });
+  } else out.push(top ? { key: label(top) } : { key: 'admin.cms.wholeEntry' });
+  if (p.row !== undefined) out.push({ key: 'admin.cms.list.link', vars: { n: p.row + 1 } });
+  if (p.part === 'url') out.push({ key: 'admin.cms.f.url' });
+  if (p.part === 'label') out.push({ key: 'admin.cms.f.linkLabel' });
+  if (p.part === 'alt') out.push({ key: 'admin.cms.f.alt' });
+  return out;
+}
 /** The i18n key for a server message (zod's English, or the API's own words). */
 export function messageKey(message: string): string {
   const m = message ?? '';

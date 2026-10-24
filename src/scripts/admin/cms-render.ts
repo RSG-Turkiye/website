@@ -8,8 +8,10 @@
 import { escapeHtml } from '../escape-html';
 import { BTN, chip } from './ui-kit';
 import { t, tf } from './context';
-import { sharedShowsOne, type Bi, type FieldDef, type ImageObject, type LinkItem, type TypeModel, type Values } from './cms-form';
-import type { Change, EntryDiff } from './cms-diff';
+import {
+  emptyRow, lockedAfterSave, ROW_NAME, rowSummary, sharedShowsOne, shown, type Bi, type FieldDef, type ImageObject, type LinkItem, type Row, type TypeModel, type Values,
+} from './cms-form';
+import type { Change, EntryDiff, RowChange } from './cms-diff';
 
 const tk = (k: string) => t(k as never) as string;
 const esc = (v: unknown) => escapeHtml(String(v ?? ''));
@@ -102,9 +104,23 @@ function markdownField(f: FieldDef, v: Bi): string {
     <div data-preview-box="${f.key}" class="hidden ${PAIR} mt-1"></div>`;
 }
 
-/** The body of one field: its controls, for the model's format. */
-function body(model: TypeModel, f: FieldDef, v: unknown): string {
-  if (model.format === 'markdown-pair') {
+/**
+ * How a value is held (cms-diff's Mode): a JSON entry's; a pair type's
+ * top-level `{ en, tr }`; or one inside a pair type's row, where a
+ * per-language field is `{ en, tr }` and a shared one is plain.
+ */
+export type Mode = 'json' | 'pair' | 'pairRow';
+const modeOf = (model: TypeModel): Mode => (model.format === 'json' ? 'json' : 'pair');
+/** The mode of a value inside a row: rows of a pair type hold pairRow values. */
+const rowMode = (mode: Mode): Mode => (mode === 'json' ? 'json' : 'pairRow');
+/** The mode one field's own value is held in. */
+const leafMode = (mode: Mode, f: FieldDef): Mode => (mode === 'pairRow' ? (f.perLang ? 'pair' : 'json') : mode);
+
+/** The body of one field: its controls, for how its value is held. */
+function bodyOf(mode: Mode, f: FieldDef, v: unknown): string {
+  if (f.kind === 'objects') return objectsList(rowMode(mode), f, Array.isArray(v) ? v as Row[] : []);
+  const m = leafMode(mode, f);
+  if (m === 'pair') {
     const b = v as Bi<unknown>;
     if (f.kind === 'markdown') return markdownField(f, b as Bi);
     if (sharedShowsOne(f, b)) {
@@ -122,11 +138,250 @@ function body(model: TypeModel, f: FieldDef, v: unknown): string {
       const kind = f.multiline ? 'textarea' : 'text';
       return `<div class="${PAIR}">${control({ ...f, kind }, b.en, 'en')}${control({ ...f, kind }, b.tr, 'tr')}</div>`;
     }
+    case 'bilingualStrings': {
+      const b = (v ?? { en: [], tr: [] }) as Bi<string[]>;
+      return `<div class="${PAIR}">${stringsList(f, b.en ?? [], 'en')}${stringsList(f, b.tr ?? [], 'tr')}</div>`;
+    }
     case 'strings': return stringsList(f, v as string[], null);
     case 'links': return linksList(f, v as LinkItem[]);
     case 'image': return imageField(f, v);
     default: return control(f, v, null);
   }
+}
+
+// ── Rows (objects) ───────────────────────────────────────────────────────────
+
+/** A row's number, "Kaynak 3". */
+const rowNum = (f: FieldDef, i: number) => tf((f.rowName ?? ROW_NAME) as never, { n: i + 1 });
+const ARROW = `${BTN.ghost} w-11 lg:w-9 px-0 shrink-0`;
+
+/** One field inside a row: label, help and controls. Hidden (not removed) while its showIf is false. */
+function subField(mode: Mode, f: FieldDef, row: Row): string {
+  const v = row[f.key];
+  const locked = lockedAfterSave(f, v, mode === 'pairRow');
+  const ro = f.readOnly || locked;
+  return `<div data-sub-wrap="${f.key}"${f.showIf ? ' data-show-if' : ''} class="flex flex-col gap-1 min-w-0"${shown(f, row) ? '' : ' hidden'}>
+    <p class="text-xs font-medium text-gray-600">${esc(tk(f.label))}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}${locked ? ` <span class="font-normal text-gray-500">· ${esc(tk('admin.cms.rows.locked'))}</span>` : ''}</p>
+    ${f.help ? `<p class="text-xs text-gray-500 -mt-0.5">${esc(tk(f.help))}</p>` : ''}
+    <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${bodyOf(mode, f, v)}</fieldset>
+  </div>`;
+}
+
+/**
+ * One row: collapsed to a line (its number and summary, with up and down),
+ * its fields and Çıkar below when opened. The buttons in the line stop the
+ * click from opening the row (cms.ts, rowsClick).
+ */
+function rowHtml(mode: Mode, f: FieldDef, row: Row, i: number, n: number, open = false): string {
+  const label = rowSummary(f, row, lang());
+  return `<details data-orow class="group min-w-0 rounded-xl border border-border bg-white"${open ? ' open' : ''}>
+    <summary class="flex items-center gap-1 min-h-11 lg:min-h-9 pl-3 pr-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+      <span aria-hidden="true" class="shrink-0 w-3 text-gray-500 transition-transform group-open:rotate-90">›</span>
+      <span data-row-num class="shrink-0 text-xs font-semibold text-gray-500">${esc(rowNum(f, i))}</span>
+      <span data-row-label class="flex-1 min-w-0 truncate text-sm text-navy">${esc(label)}</span>
+      <button type="button" data-row-move="-1" class="${ARROW}" ${i === 0 ? 'disabled' : ''} aria-label="${esc(tk('admin.cms.list.up'))}">↑</button>
+      <button type="button" data-row-move="1" class="${ARROW}" ${i === n - 1 ? 'disabled' : ''} aria-label="${esc(tk('admin.cms.list.down'))}">↓</button>
+    </summary>
+    <div data-row-body class="flex flex-col gap-3 min-w-0 pl-2 pr-2 lg:pl-3 lg:pr-3 pb-3 pt-2 border-t border-border">
+      ${(f.fields ?? []).map((s) => subField(mode, s, row)).join('')}
+      <div><button type="button" data-row-remove class="${BTN.ghost} px-0 text-red hover:text-red">${esc(tk('admin.cms.list.remove'))}</button></div>
+    </div>
+  </details>`;
+}
+
+/** A list of rows, with Satır ekle. `mode` is the rows' own (json or pairRow). */
+function objectsList(mode: Mode, f: FieldDef, rows: Row[]): string {
+  return `<div data-objects="${f.key}" data-mode="${mode}" class="flex flex-col gap-2 min-w-0">
+    <div data-rows class="flex flex-col gap-2 min-w-0">${rows.map((r, i) => rowHtml(mode, f, r, i, rows.length)).join('')}</div>
+    <p data-rows-none class="text-sm text-gray-500"${rows.length ? ' hidden' : ''}>${esc(tk('admin.cms.rows.none'))}</p>
+    <div><button type="button" data-row-add class="${BTN.secondary}">${esc(tk('admin.cms.rows.add'))}</button></div>
+  </div>`;
+}
+
+const lang = (): 'en' | 'tr' => (document.documentElement.lang === 'tr' ? 'tr' : 'en');
+
+/** The field definitions from the top field down to `el`'s innermost field, read from the page's wraps. */
+function defsAt(model: TypeModel, el: Element): FieldDef[] {
+  const keys: string[] = [];
+  for (let n: Element | null = el; n; n = n.parentElement) {
+    const k = (n as HTMLElement).dataset?.subWrap ?? (n as HTMLElement).dataset?.fieldWrap;
+    if (k !== undefined) keys.unshift(k);
+    if ((n as HTMLElement).dataset?.fieldWrap !== undefined) break;
+  }
+  const out: FieldDef[] = [];
+  let fields = model.fields;
+  for (const k of keys) {
+    const f = fields.find((x) => x.key === k);
+    if (!f) return [];
+    out.push(f);
+    fields = f.fields ?? [];
+  }
+  return out;
+}
+
+/** A list's rows, in page order. */
+const rowsOf = (list: Element) => [...(list.querySelector(':scope > [data-rows]')?.children ?? [])] as HTMLElement[];
+
+/** Numbers, first/last arrows and the "none yet" line of a list after a row moved, came or went. */
+function renumber(list: HTMLElement, f: FieldDef): void {
+  const rows = rowsOf(list);
+  rows.forEach((row, i) => {
+    const num = row.querySelector(':scope > summary > [data-row-num]');
+    if (num) num.textContent = rowNum(f, i);
+    const [up, down] = [...row.querySelectorAll<HTMLButtonElement>(':scope > summary > [data-row-move]')];
+    if (up) up.disabled = i === 0;
+    if (down) down.disabled = i === rows.length - 1;
+  });
+  list.querySelector<HTMLElement>(':scope > [data-rows-none]')!.hidden = rows.length > 0;
+}
+
+/** One row's values from the page. */
+function readRowEl(mode: Mode, f: FieldDef, row: Element): Row {
+  const body = row.querySelector(':scope > [data-row-body]');
+  const out: Row = {};
+  for (const s of f.fields ?? []) {
+    const wrap = body?.querySelector(`:scope > [data-sub-wrap="${s.key}"]`);
+    out[s.key] = wrap ? readIn(mode, s, wrap) : (emptyRow(f, mode === 'pairRow')[s.key]);
+  }
+  return out;
+}
+
+function readRows(mode: Mode, f: FieldDef, wrap: Element): Row[] {
+  const list = wrap.querySelector(`[data-objects="${f.key}"]`);
+  return list ? rowsOf(list).map((row) => readRowEl(mode, f, row)) : [];
+}
+
+/**
+ * A click on a row's or a row field's buttons: add, remove or move a row,
+ * or a list inside a row. Rows are moved on the page, not redrawn, so open
+ * rows stay open. Returns whether it handled the click; the caller then
+ * announces the change (an input event).
+ */
+export function rowsClick(model: TypeModel, target: HTMLElement): boolean {
+  const list = target.closest<HTMLElement>('[data-objects]');
+  if (!list) return false;
+  const mode = list.dataset.mode as Mode;
+  const add = target.closest('[data-row-add]');
+  const move = target.closest<HTMLElement>('[data-row-move]');
+  const remove = target.closest('[data-row-remove]');
+  // A list (strings, links) inside a row: redraw that field alone.
+  const leaf = target.closest<HTMLElement>('[data-sub-wrap]');
+  if (!add && !move && !remove && leaf && list.contains(leaf)) {
+    const defs = defsAt(model, leaf);
+    const s = defs.at(-1);
+    if (!s || s.kind === 'objects') return false;
+    const row = leaf.closest('[data-orow]')!;
+    const parent = defs.at(-2)!;
+    const value = readIn(mode, s, leaf);
+    const next = listEdit(leafMode(mode, s), s, value, target);
+    if (next === undefined) return false;
+    const hidden = leaf.hidden;
+    const values = { ...readRowEl(mode, parent, row), [s.key]: next };
+    leaf.outerHTML = subField(mode, s, values);
+    const fresh = row.querySelector<HTMLElement>(`:scope > [data-row-body] > [data-sub-wrap="${s.key}"]`);
+    if (fresh) fresh.hidden = hidden;
+    return true;
+  }
+  const f = defsAt(model, list).at(-1);
+  if (!f || f.kind !== 'objects' || f.key !== list.dataset.objects) return false;
+  const rowsBox = list.querySelector<HTMLElement>(':scope > [data-rows]')!;
+  if (add && add.closest('[data-objects]') === list) {
+    const n = rowsOf(list).length;
+    rowsBox.insertAdjacentHTML('beforeend', rowHtml(mode, f, emptyRow(f, mode === 'pairRow'), n, n + 1, true));
+    renumber(list, f);
+    rowsOf(list).at(-1)?.querySelector<HTMLElement>('[data-row-body] input:not([disabled]), [data-row-body] select, [data-row-body] textarea')?.focus();
+    return true;
+  }
+  const row = target.closest<HTMLElement>('[data-orow]');
+  if (!row || row.parentElement !== rowsBox) return false;
+  if (move) {
+    const d = Number(move.dataset.rowMove);
+    const other = d < 0 ? row.previousElementSibling : row.nextElementSibling;
+    if (!other) return true;
+    if (d < 0) rowsBox.insertBefore(row, other); else rowsBox.insertBefore(other, row);
+    renumber(list, f);
+    const same = row.querySelector<HTMLButtonElement>(`:scope > summary > [data-row-move="${d}"]`);
+    (same && !same.disabled ? same : row.querySelector<HTMLElement>(':scope > summary'))?.focus();
+    return true;
+  }
+  if (remove) {
+    const focusNext = (row.nextElementSibling ?? row.previousElementSibling)?.querySelector<HTMLElement>(':scope > summary') ?? list.querySelector<HTMLElement>(':scope > div > [data-row-add]');
+    row.remove();
+    renumber(list, f);
+    focusNext?.focus();
+    return true;
+  }
+  return false;
+}
+
+/** The new value of a strings/links/bilingualStrings list after a click on its Ekle, ↑, ↓ or Çıkar; undefined for any other click. */
+export function listEdit(mode: Mode, f: FieldDef, value: unknown, target: HTMLElement): unknown {
+  const listLang = target.closest<HTMLElement>('[data-list-lang]')?.dataset.listLang as 'en' | 'tr' | 'both' | undefined;
+  const i = Number(target.closest<HTMLElement>('[data-row-i]')?.dataset.rowI ?? -1);
+  let fn: ((l: unknown[]) => unknown[]) | null = null;
+  if (target.closest('[data-add]')) fn = (l) => [...l, f.kind === 'links' ? { label: { en: '', tr: '' }, url: '' } : ''];
+  else if (target.closest('[data-remove]')) fn = (l) => l.filter((_, j) => j !== i);
+  else if (target.closest('[data-move]')) {
+    const d = Number(target.closest<HTMLElement>('[data-move]')!.dataset.move);
+    fn = (l) => { const j = i + d; if (j < 0 || j >= l.length) return l; [l[i], l[j]] = [l[j], l[i]]; return l; };
+  }
+  if (!fn) return undefined;
+  if (mode === 'pair' || f.kind === 'bilingualStrings') {
+    const v = value as { en: unknown[]; tr: unknown[] };
+    if (listLang === 'both') { const l = fn([...v.en]); return { en: l, tr: [...l] }; }
+    return listLang ? { ...v, [listLang]: fn([...v[listLang]]) } : undefined;
+  }
+  return fn([...(value as unknown[])]);
+}
+
+/**
+ * After an edit: each row's summary line, and fields shown or hidden by
+ * their showIf (inside rows, and at the top against the entry's values).
+ */
+export function refreshRows(model: TypeModel, root: Element): void {
+  const conditional = model.fields.filter((f) => f.showIf);
+  if (conditional.length) {
+    const values = readValues(model, root);
+    for (const f of conditional) {
+      const wrap = root.querySelector<HTMLElement>(`[data-field-wrap="${f.key}"]`);
+      if (wrap) wrap.hidden = !shown(f, values);
+    }
+  }
+  for (const list of root.querySelectorAll<HTMLElement>('[data-objects]')) {
+    const f = defsAt(model, list).at(-1);
+    if (!f || f.kind !== 'objects') continue;
+    const mode = list.dataset.mode as Mode;
+    for (const row of rowsOf(list)) {
+      const value = readRowEl(mode, f, row);
+      const label = row.querySelector(':scope > summary > [data-row-label]');
+      if (label) label.textContent = rowSummary(f, value, lang());
+      for (const s of f.fields ?? []) {
+        if (!s.showIf) continue;
+        const wrap = row.querySelector<HTMLElement>(`:scope > [data-row-body] > [data-sub-wrap="${s.key}"]`);
+        if (wrap) wrap.hidden = !shown(s, value);
+      }
+    }
+  }
+}
+
+/**
+ * The control an error place points to inside an `objects` field, with
+ * every row on the way opened; null when the page has no such row.
+ */
+export function controlInRows(wrap: Element, trail: { key: string; row: number }[], leaf: string | undefined, errLang: string | undefined): HTMLElement | null {
+  let scope: Element = wrap;
+  for (const step of trail) {
+    const list = scope.querySelector(`[data-objects="${step.key}"]`);
+    const row = list ? rowsOf(list)[step.row] : undefined;
+    if (!row) return null;
+    (row as HTMLDetailsElement).open = true;
+    scope = row.querySelector(':scope > [data-row-body]') ?? row;
+  }
+  const target = leaf ? scope.querySelector(`:scope > [data-sub-wrap="${leaf}"]`) : scope.closest('[data-orow]');
+  if (!target) return null;
+  if (!leaf) return target.querySelector<HTMLElement>(':scope > summary');
+  const pick = (sel: string) => target.querySelector<HTMLElement>(sel);
+  return (errLang ? pick(`[data-lang="${errLang}"]`) ?? pick('[data-lang="both"]') : null) ?? pick('[data-field]:not([type=hidden])');
 }
 
 /** Fields short enough to share a row from lg up: a date, a choice, a number. */
@@ -139,7 +394,7 @@ export function renderField(model: TypeModel, f: FieldDef, v: unknown, opts: { r
   return `<div data-field-wrap="${f.key}" class="flex flex-col gap-1 min-w-0 ${isShort(f) ? '' : 'lg:col-span-3'}">
     <p class="relative text-xs font-medium text-gray-600">${esc(label)}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}</p>
     ${f.help ? `<p class="text-xs text-gray-500 -mt-0.5">${esc(tk(f.help))}</p>` : ''}
-    <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${body(model, f, v)}</fieldset>
+    <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${bodyOf(modeOf(model), f, v)}</fieldset>
     <p data-error="${f.key}" role="alert" class="hidden text-xs text-red"></p>
   </div>`;
 }
@@ -181,7 +436,12 @@ function readImage(wrap: Element, f: FieldDef): unknown {
 
 /** One field's value from the page, in the shape formValues gives it. */
 export function readField(model: TypeModel, f: FieldDef, wrap: Element): unknown {
-  if (model.format === 'markdown-pair') {
+  return readIn(modeOf(model), f, wrap);
+}
+
+function readIn(mode: Mode, f: FieldDef, wrap: Element): unknown {
+  if (f.kind === 'objects') return readRows(rowMode(mode), f, wrap);
+  if (leafMode(mode, f) === 'pair') {
     if (f.kind === 'markdown') {
       const side = (lang: 'en' | 'tr') => wrap.querySelector<HTMLTextAreaElement>(`textarea[data-field="${f.key}"][data-lang="${lang}"]`)?.value ?? '';
       return { en: side('en'), tr: side('tr') };
@@ -204,12 +464,13 @@ export function readField(model: TypeModel, f: FieldDef, wrap: Element): unknown
       const one = (lang: 'en' | 'tr') => wrap.querySelector<HTMLInputElement>(`[data-field="${f.key}"][data-lang="${lang}"]`)?.value ?? '';
       return { en: one('en'), tr: one('tr') };
     }
+    case 'bilingualStrings': return { en: readList(wrap, f, 'en'), tr: readList(wrap, f, 'tr') };
     case 'strings': return readList(wrap, f, null);
     case 'links': return readLinks(wrap);
     case 'image': return readImage(wrap, f);
     default: {
       const el = wrap.querySelector<HTMLInputElement>(`[data-field="${f.key}"]`);
-      return el ? readControl(el, f) : '';
+      return el ? readControl(el, f) : f.kind === 'checkbox' ? false : '';
     }
   }
 }
@@ -243,7 +504,7 @@ export function show(f: FieldDef, v: unknown): string {
   return String(v);
 }
 
-const STATE_TONE = { added: 'green', removed: 'red', moved: 'amber', same: 'neutral' } as const;
+const STATE_TONE = { added: 'green', removed: 'red', moved: 'amber', same: 'neutral', changed: 'navy' } as const;
 
 function beforeAfter(f: FieldDef, before: unknown, after: unknown, lang?: string): string {
   const cell = (label: string, v: unknown, cls: string) => `<div class="min-w-0 rounded-lg px-3 py-2 ${cls}">
@@ -261,7 +522,23 @@ function changeHtml(f: FieldDef, c: Change): string {
     case 'lines': return `<div class="rounded-lg border border-border overflow-hidden">${c.lang ? `<p class="px-3 py-1 text-[11px] font-semibold uppercase text-gray-500 bg-[#F7F7F6]">${c.lang}</p>` : ''}
       <div class="font-mono text-xs">${c.lines.filter((l, i, all) => l.op !== ' ' || all[i - 1]?.op !== ' ' || all[i + 1]?.op !== ' ').map((l) =>
         `<p class="px-3 py-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] ${l.op === '+' ? 'bg-green-50 text-green-800' : l.op === '-' ? 'bg-red-tint text-[#8a1c1c]' : 'text-gray-500'}"><span aria-hidden="true">${l.op === ' ' ? '&nbsp;' : l.op}</span> ${esc(l.text)}</p>`).join('')}</div></div>`;
+    case 'rows': return `<ul class="flex flex-col gap-2 min-w-0">${c.rows.map((r) => rowChangeHtml(f, r)).join('')}</ul>`;
   }
+}
+
+/**
+ * One row of a list that differs: its state, number and summary; for an
+ * added row everything in it (it is all new), for a changed or moved one
+ * the fields that changed, each as the diff shows a field.
+ */
+function rowChangeHtml(f: FieldDef, r: RowChange): string {
+  const head = `<p class="flex flex-wrap items-center gap-2 min-w-0">${chip(tk(`admin.cms.diff.${r.state}`), STATE_TONE[r.state])}
+    <span class="text-xs font-semibold text-gray-500">${esc(rowNum(f, r.n - 1))}</span>
+    <span class="min-w-0 text-sm text-navy [overflow-wrap:anywhere]">${esc(rowSummary(f, r.row, lang()))}</span></p>`;
+  const inner = r.state === 'added' ? `<div class="pl-3 border-l-2 border-green-200">${rowAll(f, r.row)}</div>`
+    : r.changes.length ? `<div class="flex flex-col gap-2 pl-3 border-l-2 border-border">${r.changes.map(({ field, changes }) =>
+      `<div class="flex flex-col gap-1 min-w-0"><p class="text-xs font-semibold text-navy">${esc(tk(field.label))}</p>${changes.map((c) => changeHtml(field, c)).join('')}</div>`).join('')}</div>` : '';
+  return `<li data-diff-row="${r.state}" class="flex flex-col gap-1 min-w-0">${head}${inner}</li>`;
 }
 
 /** The changed fields, open, and the unchanged ones under one collapsed line. */
@@ -274,14 +551,45 @@ export function renderDiff(diff: EntryDiff): string {
   return `${changed}${unchanged}`;
 }
 
+/** A value as text, for one field held in `mode` (an objects field as one line per row). */
+export function showIn(mode: Mode, f: FieldDef, v: unknown): string {
+  if (f.kind === 'objects') {
+    const rows = Array.isArray(v) ? v as Row[] : [];
+    return rows.length ? rows.map((r, i) => `${rowNum(f, i)}: ${rowSummary(f, r, lang())}`).join('\n') : tk('admin.cms.diff.empty');
+  }
+  if (leafMode(mode, f) === 'pair') {
+    const b = v as Bi<unknown>;
+    return sharedShowsOne(f, b) ? show(f, b.en) : `EN: ${show(f, b.en)}\nTR: ${show(f, b.tr)}`;
+  }
+  return show(f, v);
+}
+
+/** Every shown field of a row with its value, rows inside it as nested lists. */
+function rowAll(f: FieldDef, row: Row): string {
+  const mode: Mode = 'pairRow';
+  return (f.fields ?? []).filter((s) => shown(s, row)).map((s) => {
+    const v = row[s.key];
+    if (s.kind === 'objects') {
+      const rows = Array.isArray(v) ? v as Row[] : [];
+      return `<div class="py-1 min-w-0"><p class="text-xs font-medium text-gray-500">${esc(tk(s.label))}</p>${rows.length ? `<ol class="flex flex-col gap-1 mt-1">${rows.map((r, i) =>
+        `<li class="min-w-0"><p class="text-xs font-semibold text-gray-500">${esc(rowNum(s, i))}</p><div class="pl-3 border-l-2 border-border">${rowAll(s, r)}</div></li>`).join('')}</ol>` : `<p class="text-sm text-navy">${esc(tk('admin.cms.diff.empty'))}</p>`}</div>`;
+    }
+    // A per-language value is { en, tr } in a pair type's row and in a JSON row's bilingual field alike.
+    const text = s.perLang && v && typeof v === 'object' && !Array.isArray(v) && 'en' in v ? showIn(mode, s, v) : show(s, v);
+    return `<div class="py-1 min-w-0"><p class="text-xs font-medium text-gray-500">${esc(tk(s.label))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(text)}</p></div>`;
+  }).join('');
+}
+
 /** Every field with its value: a new entry, or the entry a delete removes. */
 export function renderAll(model: TypeModel, values: Values, fields: FieldDef[]): string {
-  return fields.map((f) => {
+  return fields.filter((f) => shown(f, values)).map((f) => {
     const v = values[f.key];
-    const text = model.format === 'markdown-pair'
-      ? (sharedShowsOne(f, v as Bi<unknown>) ? show(f, (v as Bi<unknown>).en) : `EN: ${show(f, (v as Bi<unknown>).en)}\nTR: ${show(f, (v as Bi<unknown>).tr)}`)
-      : show(f, v);
+    if (f.kind === 'objects') {
+      const rows = Array.isArray(v) ? v as Row[] : [];
+      return `<div class="py-2 border-b border-border last:border-0 min-w-0"><p class="text-xs font-medium text-gray-500">${esc(tk(f.label))}</p>${rows.length ? `<ol class="flex flex-col gap-2 mt-1">${rows.map((r, i) =>
+        `<li class="min-w-0"><p class="text-xs font-semibold text-gray-500">${esc(rowNum(f, i))}</p><div class="pl-3 border-l-2 border-border">${rowAll(f, r)}</div></li>`).join('')}</ol>` : `<p class="text-sm text-navy">${esc(tk('admin.cms.diff.empty'))}</p>`}</div>`;
+    }
     return `<div class="py-2 border-b border-border last:border-0"><p class="text-xs font-medium text-gray-500">${esc(tk(f.label))}</p>
-      <p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere] ${f.kind === 'markdown' ? 'line-clamp-6' : ''}">${esc(text)}</p></div>`;
+      <p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere] ${f.kind === 'markdown' ? 'line-clamp-6' : ''}">${esc(showIn(modeOf(model), f, v))}</p></div>`;
   }).join('');
 }

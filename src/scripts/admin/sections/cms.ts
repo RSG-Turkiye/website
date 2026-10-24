@@ -31,12 +31,12 @@ import { refreshCounts, noteAddress } from '../shell';
 import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
   applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
-  placeOf, previewHtml, same, statusView, suggestedId, visibleFields, withId,
+  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFields, withId,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
-  type Backup, type DraftSummary, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
+  type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
 import { diffEntry } from '../cms-diff';
-import { readField, readValues, renderAll, renderDiff, renderField, show } from '../cms-render';
+import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll, renderDiff, renderField, rowsClick, show, showIn } from '../cms-render';
 
 const SECTION = '#icerik';
 const PAGE = 20;
@@ -547,6 +547,7 @@ function renderForm(ed: Editor, values: Values): void {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-3 mt-3">${more.map(draw).join('')}</div></details>` : ''}`;
   renderBar(ed);
   updateFileName(ed, values);
+  refreshRows(ed.model, box);
 }
 
 function updateFileName(ed: Editor, values: Values): void {
@@ -599,7 +600,8 @@ function wireBar(ed: Editor): void {
 
 function newEditor(model: TypeModel, route: string, base: unknown, extra: Partial<Editor>): Editor {
   return {
-    model, route, draft: null, entryId: null, baseShas: null, base, readOnly: false, backupKey: `new:${model.key}`,
+    // A form built from the entry (page texts) gets its fields here, once.
+    model: withFields(model, base), route, draft: null, entryId: null, baseShas: null, base, readOnly: false, backupKey: `new:${model.key}`,
     edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, conflict: false, signedOutShown: false, lostSave: null, ...extra,
   };
 }
@@ -656,7 +658,7 @@ function drawCompare(ed: Editor, box: HTMLElement, o: {
     const form = currentValues(ed);
     const other = o.other();
     const fields = fieldsFor(ed.model).filter((f) => !f.readOnly && !f.approverOnly && !same(other[f.key], form[f.key]));
-    const text = (f: FieldDef, v: unknown) => esc(show(f, ed.model.format === 'markdown-pair' ? pairText(v) : v));
+    const text = (f: FieldDef, v: unknown) => esc(f.kind === 'objects' ? showIn('json', f, v) : show(f, ed.model.format === 'markdown-pair' ? pairText(v) : v));
     box.innerHTML = `<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 lg:p-3">
       <p class="text-sm font-semibold text-amber-900">${esc(o.title)}</p>
       ${o.sub ? `<p class="text-xs text-amber-800 mt-0.5 break-all">${esc(o.sub)}</p>` : ''}
@@ -714,6 +716,7 @@ function onInput(e: Event): void {
   if (!ed || ed.readOnly) return;
   ed.edits++;
   const values = currentValues(ed);
+  refreshRows(ed.model, $('cmsFields')!);
   if ((e.target as HTMLElement | null)?.closest?.('[data-field-wrap="title"]')) {
     const title = $('cmsTitle');
     if (title) title.textContent = titleFrom(ed.model, values) || tk('admin.cms.untitled');
@@ -740,26 +743,19 @@ function onFormClick(e: Event): void {
   const preview = target.closest<HTMLButtonElement>('[data-preview]');
   if (preview) { togglePreview(ed, preview); return; }
   if (ed.readOnly) return;
+  // Rows of an objects field, and lists inside them: changed on the page, in place.
+  if (rowsClick(ed.model, target)) {
+    // A button in a row's summary line must not also open or close the row.
+    e.preventDefault();
+    $<HTMLFormElement>('cmsForm')!.dispatchEvent(new Event('input'));
+    return;
+  }
   const wrap = target.closest<HTMLElement>('[data-field-wrap]');
   const f = wrap ? ed.model.fields.find((x) => x.key === wrap.dataset.fieldWrap) : undefined;
-  if (!wrap || !f) return;
-  const listLang = target.closest<HTMLElement>('[data-list-lang]')?.dataset.listLang as 'en' | 'tr' | 'both' | undefined;
-  const value = readField(ed.model, f, wrap);
-  const edit = (fn: (list: unknown[]) => unknown[]) => {
-    if (ed.model.format === 'markdown-pair') {
-      const v = value as { en: unknown[]; tr: unknown[] };
-      if (listLang === 'both') { const l = fn([...v.en]); redraw(ed, f, { en: l, tr: [...l] }); } else if (listLang) redraw(ed, f, { ...v, [listLang]: fn([...v[listLang]]) });
-      return;
-    }
-    redraw(ed, f, fn([...(value as unknown[])]));
-  };
-  const i = Number(target.closest<HTMLElement>('[data-row-i]')?.dataset.rowI ?? -1);
-  if (target.closest('[data-add]')) edit((l) => [...l, f.kind === 'links' ? { label: { en: '', tr: '' }, url: '' } : '']);
-  else if (target.closest('[data-remove]')) edit((l) => l.filter((_, j) => j !== i));
-  else if (target.closest('[data-move]')) {
-    const d = Number(target.closest<HTMLElement>('[data-move]')!.dataset.move);
-    edit((l) => { const j = i + d; if (j < 0 || j >= l.length) return l; [l[i], l[j]] = [l[j], l[i]]; return l; });
-  } else if (target.closest('[data-image-remove]')) {
+  if (!wrap || !f || f.kind === 'objects') return;
+  const next = listEdit(ed.model.format === 'json' ? 'json' : 'pair', f, readField(ed.model, f, wrap), target);
+  if (next !== undefined) redraw(ed, f, next);
+  else if (target.closest('[data-image-remove]')) {
     redraw(ed, f, ed.model.format === 'markdown-pair' ? { en: '', tr: '' } : f.image === 'url' ? '' : null);
   }
 }
@@ -849,7 +845,7 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
   const mine = (lists?.mine ?? []).find((d) => d.type === model.key && d.entry_id === entryId && sv(d).editable);
   if (mine) { location.replace(`${SECTION}/taslaklar/${mine.id}`); return; }
   const live = (lists?.live ?? []).find((d) => d.type === model.key && d.entry_id === entryId);
-  const values = formValues(model, r.body.data);
+  const values = formValues(withFields(model, r.body.data), r.body.data);
   const title = titleFrom(model, values) || entryId;
   const ed = newEditor(model, route, r.body.data, { entryId, baseShas: r.body.base_shas, backupKey: `edit:${model.key}:${entryId}`, readOnly: !!live });
   head({ title, back, line: live ? tk(live.status === 'submitted' ? 'admin.cms.busySubmitted' : 'admin.cms.busyGoingLive') : tk('admin.cms.editingLive') });
@@ -892,7 +888,7 @@ async function openDraft(id: string, route: string): Promise<void> {
   const ed = newEditor(model, route, draft.data ?? emptyData(model), {
     draft, entryId: draft.action === 'create' ? null : draft.entry_id, backupKey: draft.id, readOnly: !v.editable || draft.action === 'delete',
   });
-  const values = formValues(model, ed.base);
+  const values = formValues(ed.model, ed.base);
   head({
     title: titleFrom(model, values) || titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: statusChip(draft), line: statusLine(draft),
     banner: draft.status !== 'published' && draft.status !== 'discarded',
@@ -1127,16 +1123,11 @@ function clearErrors(): void {
   $('cmsFields')?.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
 }
 
-/** A label for an error path: "Bağlantılar › Bağlantı 2 › Adres (EN)". */
-function placeLabel(model: TypeModel, path: string): { key: string | null; label: string; lang?: string } {
+/** A label for an error path: "Bağlantılar › Bağlantı 2 › Adres (EN)", "Bölüm 2 › Kaynak 3 › Başlık (TR)". */
+function placeLabel(model: TypeModel, path: string): { key: string | null; label: string; lang?: string; place: ErrorPlace } {
   const p = placeOf(model, path);
-  const f = model.fields.find((x) => x.key === p.key);
-  const parts = [f ? tk(f.approverOnly ? 'admin.cms.f.note' : f.label) : tk('admin.cms.wholeEntry')];
-  if (p.row !== undefined) parts.push(tk('admin.cms.list.link', { n: p.row + 1 }));
-  if (p.part === 'url') parts.push(tk('admin.cms.f.url'));
-  if (p.part === 'label') parts.push(tk('admin.cms.f.linkLabel'));
-  if (p.part === 'alt') parts.push(tk('admin.cms.f.alt'));
-  return { key: p.key, label: `${parts.join(' › ')}${p.lang ? ` (${p.lang.toUpperCase()})` : ''}`, lang: p.lang };
+  const parts = placePhrases(model, p).map((w) => tk(w.key, w.vars));
+  return { key: p.key, label: `${parts.join(' › ')}${p.lang ? ` (${p.lang.toUpperCase()})` : ''}`, lang: p.lang, place: p };
 }
 
 function showErrors(errors: Record<string, string>, focus: boolean): void {
@@ -1152,6 +1143,8 @@ function showErrors(errors: Record<string, string>, focus: boolean): void {
   const controlFor = (it: typeof items[number]) => {
     const wrap = it.key ? $('cmsFields')!.querySelector<HTMLElement>(`[data-field-wrap="${it.key}"]`) : null;
     if (!wrap) return null;
+    // Inside rows: the row's own control, every row on the way opened.
+    if (it.place.trail) return controlInRows(wrap, it.place.trail, it.place.leaf, it.lang) ?? wrap.querySelector<HTMLElement>('[data-row-add]');
     return wrap.querySelector<HTMLElement>(`${it.lang ? `[data-lang="${it.lang}"], [data-lang="both"]` : '[data-field]:not([type=hidden])'}`) ?? wrap.querySelector<HTMLElement>('[data-field]:not([type=hidden]), input[type=file]');
   };
   for (const it of items) {
@@ -1184,7 +1177,7 @@ async function submit(): Promise<void> {
     const half = halfTranslated(ed.model, currentValues(ed));
     if (half.length && !ed.halfOk) {
       notice(`<p class="font-semibold">${esc(tk('admin.cms.half.title'))}</p>
-        <p class="mt-0.5">${half.map((h) => esc(`${tk(h.label)}${h.sub ? ` ${h.sub}` : ''}`)).join(', ')}</p>
+        <p class="mt-0.5">${half.map((h) => esc(h.trail ? placePhrases(ed.model, { key: h.key, trail: h.trail, leaf: h.leaf }).map((w) => tk(w.key, w.vars)).join(' › ') : `${tk(h.label)}${h.sub ? ` ${h.sub}` : ''}`)).join(', ')}</p>
         <div class="flex flex-wrap gap-2 mt-2"><button type="button" id="cmsHalfSend" class="${BTN.secondary}">${esc(tk('admin.cms.half.send'))}</button></div>`, 'warn');
       $('cmsHalfSend')?.addEventListener('click', () => { ed.halfOk = true; notice(null); void submit(); });
       return;
@@ -1277,8 +1270,9 @@ async function openReview(id: string, route: string): Promise<void> {
     return;
   }
   const draft = r.body.draft;
-  const model = modelFor(draft.type);
-  if (!model || model.generated) { noForm(model, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
+  const found = modelFor(draft.type);
+  if (!found || found.generated) { noForm(found, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
+  const model = withFields(found, draft.data ?? emptyData(found));
   // Per type: an `approve: 'admin'` type is not approved by a group approver.
   const approver = approves(model.key);
   await loadEntries(model);

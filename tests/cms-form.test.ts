@@ -5,15 +5,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { CMS_TYPES, cmsType } from '../src/lib/cms/types';
+import { CMS_TYPES, cmsType, type CmsType } from '../src/lib/cms/types';
 import { jsonSchemaFor } from '../src/lib/cms/json-schema';
 import { parseMarkdown } from '../src/lib/cms/serialize';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { FAILURE } from '../functions/_lib/cms-drafts';
 import { ui } from '../src/i18n/ui';
 import {
-  MODELS, applyValues, emptyData, errorKey, failureKey, formValues, halfTranslated, livePath, messageKey, placeOf, sharedShowsOne,
-  statusView, suggestedId, visibleFields, type Bi, type TypeKey,
+  MODELS, applyValues, emptyData, errorKey, failureKey, formValues, halfTranslated, isEmptyValue, livePath, messageKey, placeOf, sharedShowsOne,
+  statusView, suggestedId, visibleFields, type Bi, type FieldDef, type TypeKey, type TypeModel,
 } from '../src/scripts/admin/cms-form';
 import { diffEntry, lineDiff, listDiff } from '../src/scripts/admin/cms-diff';
 
@@ -65,15 +65,44 @@ test('tab ids are unique, safe for the address, and the old Etkinlikler ones are
   assert.equal(MODELS.webinars.sub, 'webinarlar');
 });
 
-test('every schema key of every type is in its field model, or hidden with a reason', () => {
-  for (const type of CMS_TYPES) {
-    const model = MODELS[type.key as TypeKey];
-    const props = Object.keys((jsonSchemaFor(type) as { properties: Record<string, unknown> }).properties);
-    const shown = new Set(model.fields.map((f) => f.key));
-    for (const k of props) assert.ok(shown.has(k) || Object.hasOwn(model.hidden, k), `${type.key}.${k} is neither shown nor hidden`);
-    for (const f of model.fields) assert.ok(props.includes(f.key), `${type.key}: the model has ${f.key}, the schema does not`);
-    for (const k of Object.keys(model.hidden)) assert.ok(!shown.has(k), `${type.key}.${k} is both hidden and shown`);
+type JS = { type?: string; properties?: Record<string, JS>; items?: JS; enum?: string[]; additionalProperties?: unknown };
+
+/**
+ * What is wrong with `fields` against an object's JSON schema: a schema key
+ * neither shown nor hidden, a field the schema lacks, and, inside `objects`
+ * rows (to any depth), the same plus the rows' key order, which must be the
+ * schema's (rows are written in the fields' order).
+ */
+function coverage(where: string, fields: FieldDef[], schema: JS, hidden: Record<string, string> = {}): string[] {
+  const props = schema.properties ?? {};
+  const shown = fields.map((f) => f.key);
+  const out: string[] = [];
+  for (const k of Object.keys(props)) if (!shown.includes(k) && !Object.hasOwn(hidden, k)) out.push(`${where}.${k} is neither shown nor hidden`);
+  for (const k of Object.keys(hidden)) if (shown.includes(k)) out.push(`${where}.${k} is both hidden and shown`);
+  for (const f of fields) {
+    const p = props[f.key];
+    if (!p) { out.push(`${where}: the model has ${f.key}, the schema does not`); continue; }
+    if (p.enum && f.key !== 'lang' && (f.kind !== 'select' || JSON.stringify(f.options) !== JSON.stringify(p.enum))) out.push(`${where}.${f.key}: the enum is not the select's options`);
+    if (f.kind === 'bilingualStrings' && !(p.properties?.en?.type === 'array' && p.properties?.tr?.type === 'array')) out.push(`${where}.${f.key}: not { en: string[], tr: string[] }`);
+    if (f.kind !== 'objects') continue;
+    const item = p.items;
+    if (p.type !== 'array' || !item?.properties) { out.push(`${where}.${f.key}: the schema's is not a list of objects`); continue; }
+    out.push(...coverage(`${where}.${f.key}[]`, f.fields ?? [], item));
+    const order = Object.keys(item.properties).filter((k) => (f.fields ?? []).some((x) => x.key === k));
+    if (order.join() !== (f.fields ?? []).map((x) => x.key).filter((k) => k in item.properties!).join()) out.push(`${where}.${f.key}: the rows' fields are not in the schema's order`);
   }
+  return out;
+}
+
+/** A type's coverage. A fixedKeys type may have a z.record schema: its form is built from its data (fieldsFor). */
+function typeCoverage(type: CmsType, model: TypeModel): string[] {
+  const schema = jsonSchemaFor(type) as JS;
+  if (!schema.properties) return type.fixedKeys && schema.additionalProperties && model.fieldsFor ? [] : [`${type.key}: the schema has no keys and the type is not fixedKeys with fieldsFor`];
+  return coverage(type.key, model.fields, schema, model.hidden);
+}
+
+test('every schema key of every type is in its field model (nested rows too), or hidden with a reason', () => {
+  for (const type of CMS_TYPES) assert.deepEqual(typeCoverage(type, MODELS[type.key as TypeKey]), [], type.key);
 });
 
 test('every enum in a schema is the select\'s options, in order', () => {
@@ -383,4 +412,309 @@ test('a change to the internal note alone is a change the approver sees', () => 
   const data = JSON.parse(read('src/content/events/symposium-2026.json'));
   const d = diffEntry(MODELS.events, data, { ...data, note: 'updated' }, visibleFields(MODELS.events, true));
   assert.deepEqual(d.changed.map((c) => c.field.key), ['note']);
+});
+
+// ── Task 2 (plan 4): the objects and bilingualStrings kinds ──────────────────
+// Synthetic schemas and models only: the real types that use them come later.
+
+import { z } from 'astro/zod';
+import { defineType } from '../src/lib/cms/types';
+import { emptyRow, lockedAfterSave, placePhrases, rowSummary, shown, withFields, type Row } from '../src/scripts/admin/cms-form';
+
+const BI = z.object({ en: z.string(), tr: z.string() });
+/** A JSON type three lists deep: sections › resources › notes. */
+const GUIDE_SCHEMA = z.object({
+  title: BI,
+  tags: z.object({ en: z.array(z.string()), tr: z.array(z.string()) }).optional(),
+  sections: z.array(z.object({
+    name: z.string(),
+    heading: BI,
+    resources: z.array(z.object({
+      id: z.string(),
+      title: BI,
+      kind: z.enum(['link', 'webinar']),
+      webinarSlug: z.string().optional(),
+      notes: z.array(z.object({ text: z.string(), done: z.boolean().optional() })).optional(),
+    })),
+  })),
+});
+const f = (o: Partial<FieldDef> & Pick<FieldDef, 'key' | 'kind'>): FieldDef => ({ label: `admin.cms.f.${o.key}`, group: 'main', ...o });
+const GUIDE = {
+  key: 'guide', format: 'json', sub: 'rehber', group: 'ogrenme', idField: 'title.en', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'bilingual', required: true }),
+    f({ key: 'tags', kind: 'bilingualStrings' }),
+    f({ key: 'sections', kind: 'objects', rowName: 'Bölüm {n}', identity: 'name', fields: [
+      f({ key: 'name', kind: 'text', required: true }),
+      f({ key: 'heading', kind: 'bilingual' }),
+      f({ key: 'resources', kind: 'objects', rowName: 'Kaynak {n}', identity: 'id', required: true, fields: [
+        f({ key: 'id', kind: 'text', readOnlyAfterSave: true }),
+        f({ key: 'title', kind: 'bilingual', label: 'Başlık' }),
+        f({ key: 'kind', kind: 'select', options: ['link', 'webinar'] }),
+        f({ key: 'webinarSlug', kind: 'text', showIf: (r: Row) => r.kind === 'webinar' }),
+        f({ key: 'notes', kind: 'objects', rowName: 'Not {n}', fields: [f({ key: 'text', kind: 'text', label: 'Metin' }), f({ key: 'done', kind: 'checkbox' })] }),
+      ] }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const GUIDE_DATA = {
+  title: { en: 'Guide', tr: 'Rehber' },
+  tags: { en: ['a', 'b'], tr: ['a'] },
+  sections: [
+    { name: 's1', heading: { en: 'Start', tr: 'Başla' }, resources: [
+      { id: 'r1', title: { en: 'One', tr: 'Bir' }, kind: 'link' },
+      { id: 'r2', title: { en: 'Two', tr: 'İki' }, kind: 'webinar', webinarSlug: 'w2', notes: [{ text: 'n1', done: true }, { text: 'n2' }] },
+    ] },
+    { name: 's2', heading: { en: 'Next', tr: 'Sonra' }, resources: [] },
+  ],
+};
+
+/** A pair type: rows mixing per-language fields and shared ones, two deep. */
+const PATH = {
+  key: 'path', format: 'markdown-pair', sub: 'yol', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'text', perLang: true }),
+    f({ key: 'sections', kind: 'objects', rowName: 'Bölüm {n}', fields: [
+      f({ key: 'heading', kind: 'text', perLang: true, label: 'Başlık' }),
+      f({ key: 'resources', kind: 'objects', rowName: 'Kaynak {n}', identity: 'id', fields: [
+        f({ key: 'id', kind: 'text', readOnlyAfterSave: true }),
+        f({ key: 'title', kind: 'text', perLang: true, label: 'Başlık' }),
+        f({ key: 'url', kind: 'text' }),
+        f({ key: 'tags', kind: 'strings' }),
+      ] }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const side = (lang: 'en' | 'tr') => ({
+  frontmatter: {
+    title: lang === 'en' ? 'Path' : 'Yol',
+    sections: [
+      { heading: lang === 'en' ? 'Basics' : 'Temeller', resources: [
+        { id: 'a-1', title: lang === 'en' ? 'Alpha' : 'Alfa', url: 'https://a', tags: ['x'] },
+        { id: 'b-2', title: lang === 'en' ? 'Beta' : 'Beta TR', url: 'https://b' },
+      ] },
+      { heading: lang === 'en' ? 'More' : 'Daha', resources: [{ id: 'c-3', title: lang === 'en' ? 'Gamma' : 'Gama', url: 'https://c' }] },
+    ],
+  },
+  body: '\nBody.\n',
+});
+const PATH_DATA = { en: side('en'), tr: side('tr') };
+const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+
+test('objects: the coverage walk goes into rows, checks their key order, and takes a fixedKeys record', () => {
+  const t = (schema: z.ZodType, extra: object = {}) => defineType({ key: 'guide' as never, group: 'ogrenme', dir: 'x', format: 'json', schema, idFrom: () => 'x', idField: 'x', indexTitle: () => undefined, label: { en: 'x', tr: 'x' }, ...extra });
+  assert.deepEqual(typeCoverage(t(GUIDE_SCHEMA), GUIDE), []);
+  // A key missing three lists down, and rows declared out of the schema's order, are both caught.
+  const deep = copy(GUIDE_SCHEMA.shape) as never;
+  const missing = t(GUIDE_SCHEMA.extend({ sections: z.array(z.object({ name: z.string(), heading: BI, resources: z.array(z.object({ id: z.string(), title: BI, kind: z.enum(['link', 'webinar']), webinarSlug: z.string().optional(), notes: z.array(z.object({ text: z.string(), done: z.boolean().optional(), extra: z.string() })) })) })) }));
+  assert.deepEqual(typeCoverage(missing, GUIDE), ['guide.sections[].resources[].notes[].extra is neither shown nor hidden']);
+  void deep;
+  const swapped = copy(GUIDE) as TypeModel;
+  const res = swapped.fields[2].fields![2];
+  res.fields = [res.fields![1], res.fields![0], ...res.fields!.slice(2)];
+  assert.ok(typeCoverage(t(GUIDE_SCHEMA), swapped).some((p) => p.includes("resources: the rows' fields are not in the schema's order")));
+  // Page texts (A7): a record of bilingual texts, its form built from the file.
+  const pages = { ...GUIDE, fields: [], fieldsFor: (d: unknown) => Object.keys(d as object).map((k) => f({ key: k, kind: 'bilingual' })) } as TypeModel;
+  const record = z.record(z.string(), BI);
+  assert.deepEqual(typeCoverage(t(record, { fixedKeys: true }), pages), []);
+  assert.equal(typeCoverage(t(record), pages).length, 1, 'only a fixedKeys type may be a record');
+});
+
+test('objects: a JSON entry three lists deep goes through the form and back byte for byte', () => {
+  const values = formValues(GUIDE, GUIDE_DATA);
+  assert.equal(JSON.stringify(applyValues(GUIDE, GUIDE_DATA, values)), JSON.stringify(GUIDE_DATA));
+  const rows = values.sections as Row[];
+  assert.equal(rows.length, 2);
+  assert.deepEqual(((rows[0].resources as Row[])[1].notes as Row[])[0], { text: 'n1', done: true });
+  // An edit three lists down changes that value and nothing else.
+  const edited = copy(values);
+  (((edited.sections as Row[])[0].resources as Row[])[1].notes as Row[])[1].text = 'n2 edited';
+  const out = applyValues(GUIDE, GUIDE_DATA, edited) as typeof GUIDE_DATA;
+  assert.equal(out.sections[0].resources[1].notes![1].text, 'n2 edited');
+  const back = copy(out);
+  back.sections[0].resources[1].notes![1].text = 'n2';
+  assert.equal(JSON.stringify(back), JSON.stringify(GUIDE_DATA));
+  assert.equal(GUIDE_DATA.sections[0].resources[1].notes![1].text, 'n2', 'the input is not changed');
+});
+
+test('objects: a row is written in the fields\' order whatever order it was built in; empty optional values are left out', () => {
+  const row: Row = { notes: [], webinarSlug: '', kind: 'link', title: { en: 'T', tr: '' }, id: '' };
+  const values = { ...formValues(GUIDE, GUIDE_DATA) };
+  (values.sections as Row[])[1].resources = [row];
+  const out = applyValues(GUIDE, GUIDE_DATA, values) as typeof GUIDE_DATA;
+  assert.deepEqual(Object.keys(out.sections[1].resources[0]), ['title', 'kind'], 'empty id, slug and notes left out');
+  // A required list is written even empty, so the entry keeps its key.
+  (values.sections as Row[])[1].resources = [];
+  assert.deepEqual((applyValues(GUIDE, GUIDE_DATA, values) as typeof GUIDE_DATA).sections[1].resources, []);
+  const fresh = emptyRow(GUIDE.fields[2], false);
+  assert.deepEqual(Object.keys(fresh), ['name', 'heading', 'resources']);
+  assert.deepEqual(applyValues(GUIDE, {}, { sections: [fresh] }), { sections: [{ name: '', resources: [] }] }, 'required ones written empty, for submit to report');
+});
+
+test('objects in a pair type: one list for both sides, per-language fields per side, shared ones on both, at the same index', () => {
+  const values = formValues(PATH, PATH_DATA);
+  assert.equal(JSON.stringify(applyValues(PATH, PATH_DATA, values)), JSON.stringify(PATH_DATA), 'byte for byte');
+  const rows = values.sections as Row[];
+  assert.deepEqual(rows[0].heading, { en: 'Basics', tr: 'Temeller' });
+  const r = (rows[0].resources as Row[])[1];
+  assert.deepEqual(r, { id: 'b-2', title: { en: 'Beta', tr: 'Beta TR' }, url: 'https://b', tags: [] });
+
+  // A per-language edit lands on its side; a shared one on both, same row.
+  const v = copy(values);
+  const res = (v.sections as Row[])[0].resources as Row[];
+  (res[1].title as Bi).tr = 'Beta (TR)';
+  res[1].url = 'https://b2';
+  let out = applyValues(PATH, PATH_DATA, v) as typeof PATH_DATA;
+  assert.equal(out.tr.frontmatter.sections[0].resources[1].title, 'Beta (TR)');
+  assert.equal(out.en.frontmatter.sections[0].resources[1].title, 'Beta');
+  assert.equal(out.en.frontmatter.sections[0].resources[1].url, 'https://b2');
+  assert.equal(out.tr.frontmatter.sections[0].resources[1].url, 'https://b2');
+
+  // Move, add and remove keep the two sides index-aligned.
+  const moved = copy(values);
+  const list = (moved.sections as Row[])[0].resources as Row[];
+  list.reverse();
+  list.push(emptyRow(PATH.fields[1].fields![1], true));
+  (moved.sections as Row[]).splice(1, 1);
+  out = applyValues(PATH, PATH_DATA, moved) as typeof PATH_DATA;
+  const ids = (lang: 'en' | 'tr') => out[lang].frontmatter.sections.map((s) => s.resources.map((x) => x.id ?? '·').join(','));
+  assert.deepEqual(ids('en'), ['b-2,a-1,·']);
+  assert.deepEqual(ids('tr'), ids('en'));
+  assert.deepEqual(out.tr.frontmatter.sections[0].resources.map((x) => x.title), ['Beta TR', 'Alfa', undefined], 'the new row is empty on both sides');
+  assert.equal(out.en.body, PATH_DATA.en.body, 'the body is not touched');
+
+  // A side with fewer rows reads as empty rows, and is written back with as many as the other.
+  const short = copy(PATH_DATA);
+  short.tr.frontmatter.sections.pop();
+  const sv = formValues(PATH, short);
+  assert.equal((sv.sections as Row[]).length, 2);
+  assert.deepEqual((sv.sections as Row[])[1].heading, { en: 'More', tr: '' });
+  assert.equal(((sv.sections as Row[])[1].resources as Row[])[0].url, 'https://c', 'a shared value from the side that has it');
+  out = applyValues(PATH, short, sv) as typeof PATH_DATA;
+  assert.equal(out.tr.frontmatter.sections.length, 2);
+  assert.equal(out.tr.frontmatter.sections[1].resources[0].url, 'https://c');
+  assert.equal(out.tr.frontmatter.sections[1].resources[0].id, 'c-3');
+});
+
+test('bilingualStrings: two lists side by side, read, written, empty and half-translated', () => {
+  const tags = GUIDE.fields[1];
+  const values = formValues(GUIDE, GUIDE_DATA);
+  assert.deepEqual(values.tags, { en: ['a', 'b'], tr: ['a'] });
+  assert.ok(isEmptyValue(tags, { en: [], tr: [] }));
+  assert.ok(!isEmptyValue(tags, { en: [], tr: ['x'] }));
+  assert.ok(!('tags' in (applyValues(GUIDE, {}, { tags: { en: [], tr: [] } }) as object)), 'an untouched empty pair adds nothing');
+  assert.deepEqual((applyValues(GUIDE, GUIDE_DATA, { ...values, tags: { en: ['a'], tr: ['b', 'c'] } }) as typeof GUIDE_DATA).tags, { en: ['a'], tr: ['b', 'c'] });
+  assert.deepEqual(halfTranslated(GUIDE, { ...values, tags: { en: ['a'], tr: [] } }).map((h) => h.key), ['tags']);
+});
+
+test('objects: half-translated texts inside rows are found, with the rows they are in', () => {
+  const values = copy(formValues(GUIDE, GUIDE_DATA));
+  assert.deepEqual(halfTranslated(GUIDE, values), []);
+  ((values.sections as Row[])[1].heading as Bi).tr = '';
+  (((values.sections as Row[])[0].resources as Row[])[1].title as Bi).en = '';
+  const half = halfTranslated(GUIDE, values);
+  assert.deepEqual(half.map((h) => [h.key, h.label, h.trail]), [
+    ['sections', 'Başlık', [{ key: 'sections', row: 0 }, { key: 'resources', row: 1 }]],
+    ['sections', 'admin.cms.f.heading', [{ key: 'sections', row: 1 }]],
+  ]);
+  const p = formValues(PATH, PATH_DATA);
+  const pv = copy(p);
+  ((pv.sections as Row[])[1].heading as Bi).tr = '';
+  assert.deepEqual(halfTranslated(PATH, pv).map((h) => h.trail), [[{ key: 'sections', row: 1 }]]);
+});
+
+test('objects: placeOf at depth 3, both formats, and the words of the place', () => {
+  const p = placeOf(GUIDE, 'sections.1.resources.2.notes.0.text');
+  assert.deepEqual(p, { key: 'sections', part: undefined, lang: undefined, trail: [{ key: 'sections', row: 1 }, { key: 'resources', row: 2 }, { key: 'notes', row: 0 }], leaf: 'text' });
+  assert.deepEqual(placeOf(GUIDE, 'sections.0.resources.2.title.en'), { key: 'sections', part: undefined, lang: 'en', trail: [{ key: 'sections', row: 0 }, { key: 'resources', row: 2 }], leaf: 'title' });
+  assert.deepEqual(placeOf(PATH, 'tr.frontmatter.sections.1.resources.0.title'), { key: 'sections', part: undefined, lang: 'tr', trail: [{ key: 'sections', row: 1 }, { key: 'resources', row: 0 }], leaf: 'title' });
+  assert.deepEqual(placeOf(PATH, 'en.frontmatter.sections.0'), { key: 'sections', part: undefined, lang: 'en', trail: [{ key: 'sections', row: 0 }] });
+  assert.deepEqual(placeOf(GUIDE, 'sections'), { key: 'sections', part: undefined, lang: undefined });
+  // The rows are named, then the field: "Bölüm 2 › Kaynak 3 › Başlık".
+  const words = (path: string, model = GUIDE) => placePhrases(model, placeOf(model, path))
+    .map((w) => Object.entries(w.vars ?? {}).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), w.key)).join(' › ');
+  assert.equal(words('sections.1.resources.2.title.tr'), 'Bölüm 2 › Kaynak 3 › Başlık');
+  assert.equal(words('sections.1.resources.2.notes.0.text'), 'Bölüm 2 › Kaynak 3 › Not 1 › Metin');
+  assert.equal(words('tr.frontmatter.sections.1.resources.0.title', PATH), 'Bölüm 2 › Kaynak 1 › Başlık');
+  assert.equal(words('sections.0'), 'Bölüm 1');
+  // Nothing changes for the old kinds.
+  assert.deepEqual(placePhrases(MODELS.events, placeOf(MODELS.events, 'links.1.url')), [{ key: 'admin.cms.f.links' }, { key: 'admin.cms.list.link', vars: { n: 2 } }, { key: 'admin.cms.f.url' }]);
+  assert.ok('admin.cms.rows.item' in ui.tr && 'admin.cms.rows.item' in ui.en);
+});
+
+test('objects: conditional fields, ids locked once they hold a value, row summaries', () => {
+  const res = GUIDE.fields[2].fields![2];
+  const slug = res.fields!.find((x) => x.key === 'webinarSlug')!;
+  assert.ok(shown(slug, { kind: 'webinar' }));
+  assert.ok(!shown(slug, { kind: 'link' }));
+  // Hidden is not cleared: a value kept while hidden is still written.
+  const values = copy(formValues(GUIDE, GUIDE_DATA));
+  ((values.sections as Row[])[0].resources as Row[])[1].kind = 'link';
+  assert.equal((applyValues(GUIDE, GUIDE_DATA, values) as typeof GUIDE_DATA).sections[0].resources[1].webinarSlug, 'w2');
+  const id = res.fields![0];
+  assert.ok(lockedAfterSave(id, 'r1', false));
+  assert.ok(!lockedAfterSave(id, '', false), 'a new row\'s id is editable');
+  assert.ok(!lockedAfterSave(res.fields![1], { en: 'x', tr: 'y' }, false), 'only readOnlyAfterSave fields lock');
+  const r0 = ((values.sections as Row[])[0].resources as Row[])[0];
+  assert.equal(rowSummary(res, r0, 'tr'), 'r1', 'the first text filled in');
+  assert.equal(rowSummary(res, { ...r0, id: '' }, 'tr'), 'Bir');
+  assert.equal(rowSummary(res, { ...r0, id: '' }, 'en'), 'One');
+  assert.equal(rowSummary({ ...res, rowLabel: (r) => `#${r.id}` }, r0, 'en'), '#r1');
+  assert.equal(rowSummary(res, emptyRow(res, false), 'en'), '');
+});
+
+test('fieldsFor (A7): a model built from the entry\'s own keys', () => {
+  const model = { ...GUIDE, fields: [], fieldsFor: (d: unknown) => Object.keys(d as object).map((k) => f({ key: k, kind: 'bilingual' })) } as TypeModel;
+  const data = { heroTitle: { en: 'Hi', tr: 'Selam' }, cta: { en: 'Join', tr: 'Katıl' } };
+  const m = withFields(model, data);
+  assert.deepEqual(m.fields.map((x) => x.key), ['heroTitle', 'cta']);
+  assert.equal(JSON.stringify(applyValues(m, data, formValues(m, data))), JSON.stringify(data));
+  assert.equal(withFields(MODELS.events, data), MODELS.events, 'a static model is itself');
+});
+
+test('objects diff: rows by identity (moved, added, removed, changed inside) and by position', () => {
+  const after = copy(GUIDE_DATA);
+  const res = after.sections[0].resources;
+  // r2 moves to the top and its title changes; r1 is removed; r9 is added.
+  after.sections[0].resources = [{ ...res[1], title: { en: 'Two', tr: 'İki!' } }, { id: 'r9', title: { en: 'Nine', tr: 'Dokuz' }, kind: 'link' }] as typeof res;
+  after.sections.reverse();
+  const d = diffEntry(GUIDE, GUIDE_DATA, after);
+  assert.deepEqual(d.changed.map((c) => c.field.key), ['sections']);
+  const top = d.changed[0].changes[0] as { type: 'rows'; rows: { state: string; n: number; row: Row; changes: { field: FieldDef; changes: any[] }[] }[] };
+  assert.equal(top.type, 'rows');
+  // Two rows swapped: one of them moved (s2, to the top); s1 kept its order relative to the rest and changed inside.
+  assert.deepEqual(top.rows.map((r) => [r.state, r.n, r.row.name, r.changes.length]), [['moved', 1, 's2', 0], ['changed', 2, 's1', 1]]);
+  const inner = top.rows[1].changes.find((c) => c.field.key === 'resources')!.changes[0];
+  assert.deepEqual(inner.rows.map((r: any) => [r.state, r.n, r.row.id]), [['changed', 1, 'r2'], ['added', 2, 'r9'], ['removed', 1, 'r1']]);
+  assert.deepEqual(inner.rows[0].changes.map((c: any) => [c.field.key, c.changes[0]]), [['title', { type: 'bilingual', en: null, tr: { before: 'İki', after: 'İki!' } }]]);
+  // A pure move is a move with nothing inside.
+  const swap = copy(GUIDE_DATA);
+  swap.sections[0].resources.reverse();
+  const sd = (diffEntry(GUIDE, GUIDE_DATA, swap).changed[0].changes[0] as any).rows[0].changes[0].changes[0].rows;
+  assert.deepEqual(sd.map((r: any) => [r.state, r.row.id, r.changes.length]), [['moved', 'r2', 0]]);
+  // Without an identity (notes), rows are compared by position.
+  const notes = copy(GUIDE_DATA);
+  notes.sections[0].resources[1].notes = [{ text: 'n2' }];
+  const nd = (diffEntry(GUIDE, GUIDE_DATA, notes).changed[0].changes[0] as any).rows[0].changes[0].changes[0].rows[0].changes[0].changes[0].rows;
+  assert.deepEqual(nd.map((r: any) => [r.state, r.n]), [['changed', 1], ['removed', 2]], 'n1 became n2, the second note is gone');
+  assert.deepEqual(nd[0].changes.map((c: any) => c.field.key), ['text', 'done']);
+  assert.deepEqual(diffEntry(GUIDE, GUIDE_DATA, copy(GUIDE_DATA)).changed, []);
+});
+
+test('objects diff in a pair type, and bilingualStrings per language', () => {
+  const after = copy(PATH_DATA);
+  for (const lang of ['en', 'tr'] as const) after[lang].frontmatter.sections[0].resources.reverse();
+  after.tr.frontmatter.sections[1].resources[0].title = 'Gama!';
+  after.en.frontmatter.sections[1].resources[0].url = after.tr.frontmatter.sections[1].resources[0].url = 'https://c2';
+  const rows = (diffEntry(PATH, PATH_DATA, after).changed[0].changes[0] as any).rows;
+  assert.deepEqual(rows.map((r: any) => [r.state, r.n]), [['changed', 1], ['changed', 2]]);
+  const moved = rows[0].changes[0].changes[0].rows;
+  assert.deepEqual(moved.map((r: any) => [r.state, r.row.id]), [['moved', 'b-2']]);
+  const c3 = rows[1].changes[0].changes[0].rows[0];
+  assert.deepEqual(c3.changes.map((c: any) => [c.field.key, c.changes[0]]), [
+    ['title', { type: 'bilingual', en: null, tr: { before: 'Gama', after: 'Gama!' } }],
+    ['url', { type: 'value', before: 'https://c', after: 'https://c2' }],
+  ]);
+  const t = diffEntry(GUIDE, GUIDE_DATA, { ...GUIDE_DATA, tags: { en: ['a', 'b'], tr: ['a', 'c'] } });
+  assert.deepEqual(t.changed[0].changes, [{ type: 'list', lang: 'tr', items: [{ state: 'same', value: 'a' }, { state: 'added', value: 'c' }] }]);
 });
