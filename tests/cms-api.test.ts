@@ -61,6 +61,21 @@ const aCommittee = () => ({
   }],
 });
 FILES[COMMITTEE_PATH] = `${JSON.stringify(aCommittee(), null, 2)}\n`;
+/** A resource link on main, synthetic (A2), named like the TeachOpenCADD ones: not the slug of its title. */
+const RESOURCE_PATH = 'src/content/resources/fixture-resource-learning.json';
+const aResource = () => ({
+  section: 'learning',
+  order: 40,
+  title: { en: 'Fixture Resource', tr: 'Örnek Kaynak' },
+  description: { en: 'Teaches example things.', tr: 'Örnek şeyler öğretir.' },
+  url: 'https://example.org/resource',
+  tags: { en: ['python'], tr: ['python'] },
+  opensource: true,
+});
+FILES[RESOURCE_PATH] = `${JSON.stringify(aResource(), null, 2)}\n`;
+/** Another on main whose file name is the slug of its title: a new one with that title collides. */
+const TAKEN_PATH = 'src/content/resources/fixture-taken.json';
+FILES[TAKEN_PATH] = `${JSON.stringify({ ...aResource(), title: { en: 'Fixture Taken', tr: 'Alınmış' } }, null, 2)}\n`;
 const INDEX: CmsIndex = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
 const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_TR_TITLE, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
@@ -245,6 +260,9 @@ function setup() {
   add.run('community', 'g-community', 'community@example.org', 0);
   session.run('s-community', 'community');
   grant.run('g4', 'community', 'content.topluluk.edit');
+  add.run('learning', 'g-learning', 'learning@example.org', 0);
+  session.run('s-learning', 'learning');
+  grant.run('g5', 'learning', 'content.ogrenme.edit');
   const assets = { fetch: async (req: Request) => new URL(req.url).pathname === '/cms-index.json' ? new Response(JSON.stringify(INDEX)) : new Response('', { status: 404 }) };
   const env = { DB: d1(db), GITHUB_PAT: 'unused', ASSETS: assets } as never;
   const audit = () => db.prepare('SELECT action, target_type, target_id, details FROM audit_log ORDER BY seq').all() as { action: string; target_type: string; target_id: string; details: string }[];
@@ -692,6 +710,66 @@ test('committees: only the Topluluk group edits them', async () => {
   assert.equal(made.res.status, 403);
   const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'community')).json() as any;
   assert.deepEqual(listed.types.map((t: any) => t.key), ['committees', 'podcast']);
+});
+
+test('resources: a new one is named after its English title; an update keeps its file whatever the title says (A1)', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 2', tr: 'Örnek Ders 2' } } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, 'example-course-2');
+  assert.deepEqual(made.body.draft.base_shas, { 'src/content/resources/example-course-2.json': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+
+  // The second placement of a link shares its title with the first; its file keeps its own name.
+  const data = { ...aResource(), title: { en: 'Renamed Resource', tr: 'Yeni Ad' }, tags: { en: ['python'], tr: ['piton'] } };
+  const upd = await create(env, 'learning', { type: 'resources', action: 'update', entry_id: 'fixture-resource-learning', data, base_shas: loaded(RESOURCE_PATH) });
+  assert.equal(upd.res.status, 201, JSON.stringify(upd.body));
+  assert.equal(upd.body.draft.entry_id, 'fixture-resource-learning');
+  assert.equal((await on(env, submit.onRequestPost, 'POST', upd.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  assert.deepEqual(filesFor(row(upd.body.draft.id) as never).map((f) => f.path), [RESOURCE_PATH]);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', upd.body.draft.id, 'admin', {}, '/approve')).status, 200);
+  const branch = gh.branches.get(`cms/${upd.body.draft.id}`)!;
+  assert.equal(branch.get(RESOURCE_PATH), `${JSON.stringify(data, null, 2)}\n`);
+});
+
+test('resources: a new one whose title slugs to a file on main is refused, never written over it', async () => {
+  const { env, db } = setup();
+  for (const en of ['Fixture Taken', 'fixture   TAKEN!']) {
+    const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en, tr: 'Başka' } } });
+    assert.equal(made.res.status, 409, en);
+    assert.equal(made.body.code, 'exists');
+    assert.deepEqual(made.body.paths, [TAKEN_PATH]);
+  }
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
+  assert.equal(gh.main.get(TAKEN_PATH), FILES[TAKEN_PATH]);
+});
+
+test('resources: an unknown section or a missing key is refused at submit; only the Öğrenme group edits them', async () => {
+  const { env } = setup();
+  const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 3', tr: 'Örnek Ders 3' }, section: 'nope', opensource: undefined } });
+  assert.equal(made.res.status, 422, 'an unknown section is not work in progress');
+  const fine = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 3', tr: '' } } });
+  assert.equal(fine.res.status, 201, JSON.stringify(fine.body));
+  const res = await on(env, submit.onRequestPost, 'POST', fine.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(res.status, 422);
+  assert.ok((await res.json() as any).errors['title.tr'], 'the Turkish title is required at submit');
+  // Tags in English only, or none yet: kept as work in progress, refused at submit (the content test's rules).
+  const halfTags = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 4', tr: 'Örnek Ders 4' }, tags: { en: ['python', 'r'], tr: ['python'] } } });
+  assert.equal(halfTags.res.status, 201, JSON.stringify(halfTags.body));
+  const half = await on(env, submit.onRequestPost, 'POST', halfTags.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(half.status, 422);
+  assert.match((await half.json() as any).errors['tags.tr'], /as many Turkish tags/);
+  const noTags = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 5', tr: 'Örnek Ders 5' }, tags: { en: [], tr: [] } } });
+  assert.equal(noTags.res.status, 201, JSON.stringify(noTags.body));
+  const none = await on(env, submit.onRequestPost, 'POST', noTags.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(none.status, 422);
+  assert.match((await none.json() as any).errors['tags.en'], /at least one tag/);
+  assert.equal((await create(env, 'editor', { type: 'resources', action: 'create', data: aResource() })).res.status, 403);
+  assert.equal((await create(env, 'community', { type: 'resources', action: 'create', data: aResource() })).res.status, 403);
+  const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'learning')).json() as any;
+  assert.deepEqual(listed.types.map((t: any) => t.key), ['resources']);
+  const list = await (await req(env, entries.onRequestGet, 'GET', '/api/cms/entries?type=resources', 'learning')).json() as any;
+  assert.deepEqual(list.entries.find((e: any) => e.id === 'fixture-resource-learning'), { id: 'fixture-resource-learning', title: 'Fixture Resource', section: 'learning' });
 });
 
 test('an update cannot rename the file', async () => {

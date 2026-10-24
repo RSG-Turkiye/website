@@ -115,3 +115,15 @@ test('committees are listed by file name with their English name, no date', () =
     .sort((a, b) => a.id.localeCompare(b.id));
   assert.deepEqual(index.committees, expected);
 });
+
+test('resources are listed by file name with their English title and their section, no date', () => {
+  const dir = 'src/content/resources';
+  const files = Object.fromEntries(readdirSync(`${ROOT}${dir}`).map((f) => [`${dir}/${f}`, readFileSync(`${ROOT}${dir}/${f}`, 'utf8')]));
+  const index = buildCmsIndex(files);
+  const expected = Object.entries(files).map(([p, text]) => {
+    const d = JSON.parse(text);
+    return { id: p.slice(dir.length + 1, -'.json'.length), title: d.title.en, section: d.section };
+  }).sort((a, b) => a.id.localeCompare(b.id));
+  assert.ok(expected.length > 0);
+  assert.deepEqual(index.resources, expected);
+});

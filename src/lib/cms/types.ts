@@ -13,9 +13,10 @@ import { workshopSchema } from "../../data/workshops";
 import { webinarSchema } from "../../data/webinars";
 import { committeeSchema } from "../../data/committees";
 import { podcastSchema } from "../../data/podcast";
+import { resourceSchema } from "../../data/resources";
 import { checkId, slugify } from "./slug";
 
-export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast";
+export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast" | "resources";
 
 /** What a type declares. The options after `label` have defaults (see defineType). */
 export interface CmsTypeSpec {
@@ -44,6 +45,10 @@ export interface CmsTypeSpec {
   /** What the list sorts by (newest first) and shows under the title, from
    * the same data as indexTitle. Absent: no date, sorted by id. */
   indexDate?: (data: any) => string | undefined;
+  /** Where on its page the entry sits (a resource's section), from the same
+   * data as indexTitle: the list shows it, and the live link lands on it.
+   * Absent: none. */
+  indexSection?: (data: any) => string | undefined;
   label: { en: string; tr: string };
   /** The id is itself a field of the data (events' `id`), so an update's
    * data must still give the entry's file name. Default false. */
@@ -74,7 +79,7 @@ export interface CmsTypeSpec {
 }
 
 /** A type with every option resolved. */
-export type CmsType = Required<Omit<CmsTypeSpec, "indexDate">> & Pick<CmsTypeSpec, "indexDate">;
+export type CmsType = Required<Omit<CmsTypeSpec, "indexDate" | "indexSection">> & Pick<CmsTypeSpec, "indexDate" | "indexSection">;
 
 /** A type with its defaults filled in, the one place they are decided. */
 export function defineType(spec: CmsTypeSpec): CmsType {
@@ -180,6 +185,21 @@ export const CMS_TYPES: readonly CmsType[] = [
     generated: true,
     noCreate: true,
     noDelete: true,
+  }),
+  defineType({
+    key: "resources",
+    group: "ogrenme",
+    dir: "src/content/resources",
+    format: "json",
+    schema: resourceSchema,
+    // A new link gets its English title; a link placed in two sections is two
+    // files named by hand (teachopencadd-learning, teachopencadd-md-drug), and
+    // an update keeps its name (A1).
+    idFrom: (data: { title?: { en?: string } }) => idFromText(data.title?.en, "English title"),
+    idField: "title.en",
+    indexTitle: (d: { title: { en: string } }) => d.title.en,
+    indexSection: (d: { section?: string }) => d.section,
+    label: { en: "Resources", tr: "Kaynaklar" },
   }),
 ];
 

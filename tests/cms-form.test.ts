@@ -25,7 +25,7 @@ const WEBINARS = cmsType('webinars')!;
 
 function files(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees']) {
+  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees', 'src/content/resources']) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = read(`${dir}/${f}`);
   }
   return out;
@@ -1073,4 +1073,76 @@ test('house rules match what CI rejects: em dash and spaced -- anywhere (code to
   const both = houseRuleErrors(c, { name: { en: 'a — b@x', tr: 'y' } })['name.en'];
   assert.ok(both.includes(EM_DASH_MESSAGE) && both.includes(NO_AT_MESSAGE), both);
   assert.equal(messageKeys(both).join(), 'admin.cms.v.emDash,admin.cms.v.noAt');
+});
+
+// ── Resource links (Öğrenme) ─────────────────────────────────────────────────
+
+const RESOURCES = cmsType('resources')!;
+/** A synthetic resource (A2: no test reads what a real link says). */
+const aResource = () => ({
+  section: 'tools',
+  order: 40,
+  title: { en: 'Example Tool', tr: 'Örnek Araç' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' },
+  url: 'https://example.org/tool',
+  tags: { en: ['alignment', 'python'], tr: ['hizalama', 'python'] },
+  opensource: true,
+});
+
+test('resources: every resource file goes through the form and is written back byte for byte', () => {
+  const paths = Object.keys(FILES).filter((p) => p.startsWith('src/content/resources/'));
+  assert.ok(paths.length > 0);
+  for (const p of paths) {
+    const data = JSON.parse(FILES[p]);
+    assert.equal(serializeJson(RESOURCES, applyValues(MODELS.resources, data, formValues(MODELS.resources, data))), FILES[p], p);
+  }
+  const syn = aResource();
+  assert.equal(serializeJson(RESOURCES, applyValues(MODELS.resources, syn, formValues(MODELS.resources, syn))), `${JSON.stringify(syn, null, 2)}\n`);
+});
+
+test('resources: a Turkish tag edited changes that tag only', () => {
+  const data = aResource();
+  const values = formValues(MODELS.resources, data);
+  const tags = values.tags as Bi<string[]>;
+  const out = applyValues(MODELS.resources, data, { ...values, tags: { en: tags.en, tr: ['dizi-hizalama', 'python'] } });
+  assert.deepEqual(out, { ...data, tags: { en: data.tags.en, tr: ['dizi-hizalama', 'python'] } });
+  assert.deepEqual(Object.keys(out as object), Object.keys(data));
+});
+
+test('resources: a new one that is not open source, with no tags, still has both keys, in the schema\'s order', () => {
+  const values = { ...formValues(MODELS.resources, emptyData(MODELS.resources)), section: 'learning', order: '0', title: { en: 'New Course', tr: 'Yeni Ders' },
+    description: { en: 'A course.', tr: 'Bir ders.' }, url: 'https://example.org/course' };
+  const out = applyValues(MODELS.resources, emptyData(MODELS.resources), values) as Record<string, unknown>;
+  assert.equal(out.opensource, false, 'an unticked box is written, so submit does not ask for it');
+  assert.deepEqual(out.tags, { en: [], tr: [] }, 'no tags is written as two empty lists');
+  assert.deepEqual(Object.keys(JSON.parse(serializeJson(RESOURCES, out))), ['section', 'order', 'title', 'description', 'url', 'tags', 'opensource']);
+  // Only the tags are still to do: submit names them, in plain words.
+  const issues = RESOURCES.schema.safeParse(out).error?.issues ?? [];
+  assert.deepEqual(issues.map((i) => i.path.join('.')), ['tags.en']);
+  assert.equal(messageKey(issues[0].message), 'admin.cms.v.tagsMissing');
+  const odd = RESOURCES.schema.safeParse({ ...out, tags: { en: ['a', 'b'], tr: ['a'] } }).error?.issues ?? [];
+  assert.deepEqual(odd.map((i) => i.path.join('.')), ['tags.tr']);
+  assert.equal(messageKey(odd[0].message), 'admin.cms.v.tagsParity');
+  assert.ok(RESOURCES.schema.safeParse({ ...out, tags: { en: ['a'], tr: ['b'] } }).success);
+  // Optional ones elsewhere are untouched: an event's empty nfcore and links still add nothing.
+  const ev = applyValues(MODELS.events, {}, formValues(MODELS.events, {})) as Record<string, unknown>;
+  assert.ok(!Object.hasOwn(ev, 'nfcore') && !Object.hasOwn(ev, 'links'));
+});
+
+test('resources: the form\'s groups, the file name of a new one, its list line and its page', () => {
+  assert.deepEqual(MODELS.resources.fields.map((f) => f.key), ['section', 'order', 'title', 'description', 'url', 'tags', 'opensource']);
+  assert.deepEqual(MODELS.resources.fields.filter((f) => f.group === 'more').map((f) => f.key), ['order']);
+  assert.equal(MODELS.resources.sub, 'kaynaklar');
+  assert.equal(MODELS.resources.fields.find((f) => f.key === 'tags')!.kind, 'bilingualStrings');
+  assert.deepEqual(MODELS.resources.fields.find((f) => f.key === 'section')!.options, ['learning', 'md-drug', 'databases', 'tools', 'community']);
+  for (const o of MODELS.resources.fields.find((f) => f.key === 'section')!.options!) {
+    assert.ok(ui.tr[`admin.cms.opt.${o}` as keyof typeof ui.tr] && ui.en[`admin.cms.opt.${o}` as keyof typeof ui.en], o);
+  }
+  assert.equal(suggestedId(MODELS.resources, { title: { en: 'Example Tool', tr: 'Örnek' } }), 'example-tool');
+  assert.equal(suggestedId(MODELS.resources, { title: { en: 'Example Tool', tr: '' } }), RESOURCES.idFrom({ title: { en: 'Example Tool', tr: '' } }));
+  assert.equal(livePath('resources', 'blast', [], 'en', 'tools'), '/resources/#tools');
+  assert.equal(livePath('resources', 'blast', [], 'tr', 'md-drug'), '/tr/resources/#md-drug');
+  assert.equal(livePath('resources', 'blast', [], 'tr'), '/tr/resources/');
+  // Not a section the page has: no anchor.
+  assert.equal(livePath('resources', 'blast', [], 'en', 'x"><b>'), '/resources/');
 });

@@ -24,6 +24,8 @@ export interface CmsIndexEntry {
    * indexDate): an event's first day and a webinar's date (YYYY-MM-DD), a
    * workshop's year. */
   date?: string;
+  /** The type's indexSection, when it has one: a resource's section. */
+  section?: string;
   /** Markdown pairs only: the two files (null when a side is missing). */
   paths?: { en: string | null; tr: string | null };
   /** Markdown pairs only, when set: the translationKey that ties the pair. */
@@ -41,9 +43,10 @@ const base = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.
 type Listed = { entry: CmsIndexEntry; sort: string; paths: (string | null)[] };
 
 /** Title and date of one entry, from the type's extractors. */
-function describe(type: CmsType, id: string, data: unknown, lang: "en" | "tr"): Pick<CmsIndexEntry, "id" | "title" | "date"> {
+function describe(type: CmsType, id: string, data: unknown, lang: "en" | "tr"): Pick<CmsIndexEntry, "id" | "title" | "date" | "section"> {
   const date = type.indexDate?.(data);
-  return { id, title: type.indexTitle(data, lang) ?? id, ...(date !== undefined ? { date } : {}) };
+  const section = type.indexSection?.(data);
+  return { id, title: type.indexTitle(data, lang) ?? id, ...(date !== undefined ? { date } : {}), ...(section !== undefined ? { section } : {}) };
 }
 
 /** A JSON type: one entry per <dir>/<id>.json. */

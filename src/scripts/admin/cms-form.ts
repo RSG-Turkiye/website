@@ -17,7 +17,7 @@
 import { checkId, slugify } from '../../lib/cms/slug';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
-export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast';
+export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast' | 'resources';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
   | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
@@ -138,6 +138,8 @@ export interface TypeModel {
 }
 
 const EVENT_TYPES = ['symposium', 'workshop', 'hackathon', 'meetup'] as const;
+/** src/data/resources.ts's resourceSections: the page's sections, in its order. */
+export const RESOURCE_SECTIONS = ['learning', 'md-drug', 'databases', 'tools', 'community'] as const;
 /** src/data/committees.ts, in the schema's order. */
 const SOCIAL_PLATFORMS = ['twitter', 'linkedin', 'facebook', 'github', 'instagram'] as const;
 
@@ -262,9 +264,24 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     ],
     hidden: { syncedAt: 'set by every pull; shown in the file diff', platforms: 'the subscribe links, fixed in src/lib/podcast-feed.ts' },
   },
+  resources: {
+    // The links on the Kaynaklar page, one file each, in the schema's order
+    // (a new file is written in field order).
+    key: 'resources', format: 'json', sub: 'kaynaklar', group: 'ogrenme', idField: 'title.en', label: 'admin.cms.type.resources',
+    fields: [
+      { key: 'section', kind: 'select', options: RESOURCE_SECTIONS, label: 'admin.cms.f.resourceSection', help: 'admin.cms.h.resourceSection', group: 'main', required: true },
+      { key: 'order', kind: 'number', label: 'admin.cms.f.order', help: 'admin.cms.h.resourceOrder', group: 'more', required: true },
+      { key: 'title', kind: 'bilingual', label: 'admin.cms.f.title', group: 'main', required: true },
+      { key: 'description', kind: 'bilingual', multiline: true, label: 'admin.cms.f.description', group: 'main', required: true },
+      { key: 'url', kind: 'text', label: 'admin.cms.f.url', help: 'admin.cms.h.resourceUrl', group: 'main', required: true },
+      { key: 'tags', kind: 'bilingualStrings', label: 'admin.cms.f.tags', help: 'admin.cms.h.tags', group: 'main', required: true },
+      { key: 'opensource', kind: 'checkbox', label: 'admin.cms.f.opensource', help: 'admin.cms.h.opensource', group: 'main', required: true },
+    ],
+    hidden: {},
+  },
 };
 
-export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast'];
+export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast', 'resources'];
 /**
  * Models a browser check adds (tests/browser/cms-rows.mjs), so a draft of a
  * synthetic type opens in the real editor before any real type has rows.
@@ -393,7 +410,9 @@ function requiredEmpty(kind: Kind): unknown {
 function writeOne(f: FieldDef, into: Obj, v: unknown): void {
   const had = Object.hasOwn(into, f.key);
   if (isEmptyValue(f, v)) {
-    if (!had) return;
+    // A required box or tag list has a valid empty value (false, two empty
+    // lists): written, so a new resource that is not open source passes submit.
+    if (!had && !(f.required && (f.kind === 'checkbox' || f.kind === 'bilingualStrings'))) return;
     if (['date', 'select', 'number'].includes(f.kind) || (f.kind === 'image' && f.image === 'object')) { delete into[f.key]; return; }
     if (f.kind === 'checkbox') { into[f.key] = false; return; }
   }
@@ -557,8 +576,10 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
   const untouched = (f: FieldDef) => (f.kind === 'objects' || f.kind === 'bilingualStrings') && same(values[f.key], before[f.key]);
   if (model.format === 'json') {
     const out = (isObj(base) ? clone(base) : {}) as Obj;
+    // A required list the entry lacks is written even untouched (writeOne).
+    const untouchedHere = (f: FieldDef) => untouched(f) && !(f.required && f.kind === 'bilingualStrings' && !Object.hasOwn(out, f.key));
     for (const f of model.fields) {
-      if (f.readOnly || !Object.hasOwn(values, f.key) || untouched(f)) continue;
+      if (f.readOnly || !Object.hasOwn(values, f.key) || untouchedHere(f)) continue;
       writeOne(f, out, values[f.key]);
     }
     return out;
@@ -836,6 +857,8 @@ export function messageKey(message: string): string {
   if (/^Two hyphens/.test(m)) return 'admin.cms.v.doubleHyphen';
   if (/^No e-mail addresses/.test(m)) return 'admin.cms.v.noAt';
   if (/expected true$/.test(m)) return 'admin.cms.v.consent';
+  if (/^Add at least one tag$/.test(m)) return 'admin.cms.v.tagsMissing';
+  if (/^Give as many Turkish tags/.test(m)) return 'admin.cms.v.tagsParity';
   return 'admin.cms.v.invalid';
 }
 
@@ -915,10 +938,13 @@ export function errorKey(code: string | undefined): string {
 
 /**
  * Where a published entry is on the site. Webinars have a page each, at
- * their file names; events, workshops and committees are listed on one page.
+ * their file names; events, workshops and committees are listed on one page;
+ * a resource is in its section of the Kaynaklar page (`section`, when known).
  */
-export function livePath(typeKey: string, entryId: string, paths: string[], lang: 'en' | 'tr'): string {
+export function livePath(typeKey: string, entryId: string, paths: string[], lang: 'en' | 'tr', section?: string): string {
   const prefix = lang === 'tr' ? '/tr' : '';
+  // Each section of the page is an element with the section's id.
+  if (typeKey === 'resources') return `${prefix}/resources/${(RESOURCE_SECTIONS as readonly string[]).includes(section ?? '') ? `#${section}` : ''}`;
   if (typeKey === 'events') return `${prefix}/events/`;
   if (typeKey === 'workshops') return `${prefix}/workshops/`;
   // Every committee is a card on the about page (no anchor there to land on).

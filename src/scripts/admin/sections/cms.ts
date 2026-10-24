@@ -47,7 +47,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 // ── The API ──────────────────────────────────────────────────────────────────
 
-interface Entry { id: string; title: string; date?: string; paths?: { en: string | null; tr: string | null }; shas?: Record<string, string> }
+interface Entry { id: string; title: string; date?: string; section?: string; paths?: { en: string | null; tr: string | null }; shas?: Record<string, string> }
 interface Draft extends DraftSummary {
   pr_url: string | null; created_at: number; write_nonce?: string | null;
   data?: unknown; base_shas?: Record<string, string | null>;
@@ -311,6 +311,13 @@ function entryPaths(type: string, entryId: string, fallback: Record<string, unkn
   return e?.paths ? [e.paths.en, e.paths.tr].filter((p): p is string => !!p) : Object.keys(fallback ?? {});
 }
 
+/** Where on its page an entry sits (a resource's section): the index's, else the draft's own. */
+function sectionOf(type: string, entryId: string, data?: unknown): string | undefined {
+  const e = entries[type]?.find((x) => x.id === entryId);
+  const own = (data as { section?: unknown } | null | undefined)?.section;
+  return e?.section ?? (typeof own === 'string' ? own : undefined);
+}
+
 const titleOf = (type: string, entryId: string, action?: string): string => {
   const e = entries[type]?.find((x) => x.id === entryId);
   return e?.title ?? (action === 'create' ? tk('admin.cms.newTitle', { id: entryId }) : entryId);
@@ -373,7 +380,9 @@ async function showList(model: TypeModel): Promise<void> {
       chips = statusChip(mine);
       trailing = `<a href="${SECTION}/taslaklar/${mine.id}" class="${BTN.secondary}">${esc(tk('admin.cms.continue'))}</a>`;
     }
-    return row({ title: e.title, subtitle: dateText(model, e.date), chips, trailing, attrs: `data-cms-entry="${esc(e.id)}"`, stack: true });
+    // A resource has no date: its section tells two links of one title apart.
+    const subtitle = e.section ? tk(`admin.cms.opt.${e.section}`) : dateText(model, e.date);
+    return row({ title: e.title, subtitle, chips, trailing, attrs: `data-cms-entry="${esc(e.id)}"`, stack: true });
   }).join('');
   const more = list.length > n ? `<button type="button" data-cms-more class="${BTN.secondary} mt-3">${esc(tk('admin.cms.more'))}</button>` : '';
   host.innerHTML = `${myDraftsRow()}
@@ -466,7 +475,7 @@ function draftRow(d: Draft, href: string): string {
   const v = sv(d);
   const next: Record<string, string> = { continue: 'admin.cms.continue', fix: 'admin.cms.fix', retry: 'admin.cms.retry', openSite: 'admin.cms.openSite', discard: 'admin.cms.open' };
   const trailing = v.next === 'openSite'
-    ? `<a href="${livePath(d.type, d.entry_id, entryPaths(d.type, d.entry_id, d.base_shas), lang)}" target="_blank" rel="noopener" data-cms-open-site class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
+    ? `<a href="${livePath(d.type, d.entry_id, entryPaths(d.type, d.entry_id, d.base_shas), lang, sectionOf(d.type, d.entry_id, d.data))}" target="_blank" rel="noopener" data-cms-open-site class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
     : `<a href="${href}" class="${BTN.secondary}">${esc(tk(v.next ? next[v.next] : 'admin.cms.open'))}</a>`;
   const action = d.action === 'delete' ? ` · ${tk('admin.cms.action.delete')}` : '';
   return row({
@@ -651,7 +660,7 @@ function renderBar(ed: Editor): void {
   if (approver && !ed.model.noDelete && !ed.draft && ed.entryId && !ed.readOnly) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
   const editable = !ed.readOnly;
   const live = ed.draft?.status === 'published'
-    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined), lang)}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
+    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined), lang, sectionOf(ed.model.key, ed.draft.entry_id, ed.draft.data))}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
   bar.innerHTML = `<div class="flex flex-wrap items-center gap-2">
       ${editable ? `<button type="button" id="cmsSave" class="${BTN.secondary}">${esc(tk('admin.cms.save'))}</button>
       <button type="button" id="cmsSubmit" class="${BTN.primary}">${esc(tk(ed.draft?.status === 'rejected' ? 'admin.cms.resubmit' : ed.draft?.status === 'pr_failed' ? 'admin.cms.retry' : 'admin.cms.submit'))}</button>` : ''}
