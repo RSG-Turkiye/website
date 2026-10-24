@@ -1021,8 +1021,9 @@ entry is free. Approvers see every draft that is on its way or stuck under
 Onay → "Süren ve takılanlar", each with its way out: stop a pull request that
 is open, or discard a merge the site never showed, a failure, or an approval
 that never finished.
-A retry opens a new pull request. The shepherd closes the failed one, so
-nobody should merge it by hand.
+A retry opens a new pull request. The shepherd usually closes the failed
+one; when it could not (see the table), close it on GitHub. Never merge it
+by hand.
 
 | Reason in the panel | What happened | What to do |
 | --- | --- | --- |
