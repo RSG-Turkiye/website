@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { CMS_TYPES, cmsType, type CmsType } from '../src/lib/cms/types';
 import { jsonSchemaFor } from '../src/lib/cms/json-schema';
-import { parseMarkdown } from '../src/lib/cms/serialize';
+import { parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
 import { EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE } from '../functions/_lib/cms-drafts';
@@ -25,7 +25,7 @@ const WEBINARS = cmsType('webinars')!;
 
 function files(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr']) {
+  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees']) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = read(`${dir}/${f}`);
   }
   return out;
@@ -266,7 +266,8 @@ test('every label, help and error sentence exists in both languages', () => {
   const keys = new Set<string>();
   for (const m of Object.values(MODELS)) {
     keys.add(m.label);
-    for (const f of m.fields) { keys.add(f.label); if (f.help) keys.add(f.help); }
+    const walk = (fs: FieldDef[]) => { for (const f of fs) { keys.add(f.label); if (f.help) keys.add(f.help); if (f.rowName) keys.add(f.rowName); walk(f.fields ?? []); } };
+    walk(m.fields);
   }
   for (const code of ['changed_since', 'entry_busy', 'superseded', 'exists', 'github_failed', 'unauthenticated', 'invalid', 'nonsense']) keys.add(errorKey(code));
   for (const m of ['received undefined', 'end is before start', 'Unknown field', 'Invalid ISO date', 'Invalid option', 'expected number', 'blocked in Türkiye', 'gives the file its name', 'Invalid id', 'same as the English side', EM_DASH_MESSAGE, NO_AT_MESSAGE, 'Invalid input: expected true', 'x']) keys.add(messageKey(m));
@@ -340,7 +341,8 @@ test('every admin.cms key the panel\'s scripts look up exists in both languages'
   // Keys built from a code: every value they can take.
   for (const s of ['create', 'update', 'delete']) assert.ok(`admin.cms.action.${s}` in ui.tr, s);
   for (const s of ['added', 'removed', 'moved', 'same']) assert.ok(`admin.cms.diff.${s}` in ui.tr, s);
-  for (const m of Object.values(MODELS)) for (const f of m.fields) for (const o of f.options ?? []) assert.ok(`admin.cms.opt.${o}` in ui.tr && `admin.cms.opt.${o}` in ui.en, o);
+  const options = (fs: FieldDef[]): string[] => fs.flatMap((f) => [...(f.options ?? []), ...options(f.fields ?? [])]);
+  for (const m of Object.values(MODELS)) for (const o of options(m.fields)) assert.ok(`admin.cms.opt.${o}` in ui.tr && `admin.cms.opt.${o}` in ui.en, o);
 });
 
 // ── Task 7, fix round 1 ───────────────────────────────────────────────────────
@@ -981,4 +983,68 @@ test('house rules: no published file of any type is refused (no false alarm on w
       for (const w of INDEX[type.key as 'webinars']) assert.deepEqual(houseRuleErrors(type, pair(w.id)), {}, w.id);
     }
   }
+});
+
+// ── Committees (Topluluk) ────────────────────────────────────────────────────
+
+const COMMITTEES = cmsType('committees')!;
+/** A synthetic committee (A2: no test reads what a real profile says). */
+const aCommittee = () => ({
+  order: 30,
+  name: { en: 'Example Committee', tr: 'Örnek Komite' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' },
+  members: [
+    {
+      name: 'Ada Örnek',
+      role: { en: 'Leader', tr: 'Lider' },
+      image: 'https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_600/v1/rsgturkey/committee/ada.jpg',
+      education: [{ degree: { en: 'MSc', tr: 'Yüksek Lisans' }, field: { en: 'Biology', tr: 'Biyoloji' }, institution: { en: 'A University', tr: 'A Üniversitesi' }, year: '2027' }],
+      socialMedia: [{ platform: 'linkedin', url: 'https://www.linkedin.com/in/example/' }],
+      consent: true,
+    },
+    { name: 'Bora Örnek', role: { en: 'Member', tr: 'Üye' }, image: '/api/images/bora.webp', consent: true },
+  ],
+});
+
+test('committees: every committee file goes through the form and is written back byte for byte', () => {
+  const paths = Object.keys(FILES).filter((p) => p.startsWith('src/content/committees/'));
+  assert.ok(paths.length > 0);
+  for (const p of paths) {
+    const data = JSON.parse(FILES[p]);
+    assert.equal(serializeJson(COMMITTEES, applyValues(MODELS.committees, data, formValues(MODELS.committees, data))), FILES[p], p);
+  }
+  const syn = aCommittee();
+  assert.equal(serializeJson(COMMITTEES, applyValues(MODELS.committees, syn, formValues(MODELS.committees, syn))), `${JSON.stringify(syn, null, 2)}\n`);
+});
+
+test('committees: a member added with consent is written in the schema\'s key order; the photos already there are untouched', () => {
+  const data = aCommittee();
+  const values = formValues(MODELS.committees, data);
+  const members = MODELS.committees.fields.find((f) => f.key === 'members')!;
+  const added = { ...emptyRow(members, false), name: 'Cem Örnek', role: { en: 'Member', tr: 'Üye' }, image: '/api/images/cem.webp', consent: true };
+  const out = applyValues(MODELS.committees, data, { ...values, members: [...(values.members as Row[]), added] }) as ReturnType<typeof aCommittee>;
+  assert.equal(out.members.length, 3);
+  assert.deepEqual(Object.keys(out.members[2]), ['name', 'role', 'image', 'consent']);
+  assert.equal(out.members[0].image, data.members[0].image, 'a Cloudinary URL comes back as it was');
+  assert.deepEqual(out.members.slice(0, 2), data.members);
+  // Unticked, consent is still written (false), so submit can name it.
+  const unticked = applyValues(MODELS.committees, data, { ...values, members: [{ ...added, consent: false }] }) as ReturnType<typeof aCommittee>;
+  assert.equal(unticked.members[0].consent, false);
+  // Members are matched by name across versions: a reorder is a move, not two changes.
+  assert.equal(members.identity, 'name');
+  assert.equal(rowSummary(members, (values.members as Row[])[0], 'tr'), 'Ada Örnek');
+});
+
+test('committees: the form\'s groups, the file name of a new one, and its page', () => {
+  assert.deepEqual(MODELS.committees.fields.filter((f) => f.group === 'main').map((f) => f.key), ['name', 'description', 'members']);
+  assert.deepEqual(MODELS.committees.fields.filter((f) => f.group === 'more').map((f) => f.key), ['order']);
+  assert.equal(MODELS.committees.sub, 'komiteler');
+  assert.equal(MODELS.committees.titleField, 'name');
+  assert.equal(suggestedId(MODELS.committees, { name: { en: 'Example Committee', tr: 'Örnek' } }), 'example-committee');
+  assert.equal(suggestedId(MODELS.committees, { name: { en: 'Example Committee', tr: '' } }), COMMITTEES.idFrom({ name: { en: 'Example Committee', tr: '' } }));
+  assert.equal(livePath('committees', 'website', ['src/content/committees/website.json'], 'en'), '/about/');
+  assert.equal(livePath('committees', 'website', ['src/content/committees/website.json'], 'tr'), '/tr/about/');
+  const consent = MODELS.committees.fields.find((f) => f.key === 'members')!.fields!.find((f) => f.key === 'consent')!;
+  assert.equal(consent.kind, 'checkbox');
+  assert.equal(consent.required, true);
 });

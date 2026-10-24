@@ -17,7 +17,7 @@
 import { checkId, slugify } from '../../lib/cms/slug';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
-export type TypeKey = 'events' | 'workshops' | 'webinars';
+export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
   | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
@@ -133,9 +133,13 @@ export interface TypeModel {
   fieldsFor?: (data: unknown) => FieldDef[];
   /** Schema keys the form never shows, each with its reason. */
   hidden: Record<string, string>;
+  /** The field the entry's title is read from, in the editor's heading. Default `title`. */
+  titleField?: string;
 }
 
 const EVENT_TYPES = ['symposium', 'workshop', 'hackathon', 'meetup'] as const;
+/** src/data/committees.ts, in the schema's order. */
+const SOCIAL_PLATFORMS = ['twitter', 'linkedin', 'facebook', 'github', 'instagram'] as const;
 
 export const MODELS: Record<TypeKey, TypeModel> = {
   events: {
@@ -190,9 +194,46 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     ],
     hidden: { lang: 'legacy; the language comes from the folder' },
   },
+  committees: {
+    key: 'committees', format: 'json', sub: 'komiteler', group: 'topluluk', idField: 'name.en', label: 'admin.cms.type.committees', titleField: 'name',
+    fields: [
+      { key: 'name', kind: 'bilingual', label: 'admin.cms.f.committeeName', group: 'main', required: true },
+      { key: 'description', kind: 'bilingual', multiline: true, label: 'admin.cms.f.description', group: 'main', required: true },
+      {
+        // Matched by name across versions: a member moved up is one move, not two changes.
+        key: 'members', kind: 'objects', label: 'admin.cms.f.members', help: 'admin.cms.h.members', group: 'main', required: true,
+        rowName: 'admin.cms.rows.member', identity: 'name', rowLabel: (r) => str(r.name).trim(),
+        // The schema's order: name, role, image, education, socialMedia, consent.
+        fields: [
+          { key: 'name', kind: 'text', label: 'admin.cms.f.personName', group: 'main', required: true },
+          { key: 'role', kind: 'bilingual', label: 'admin.cms.f.role', group: 'main', required: true },
+          { key: 'image', kind: 'image', image: 'url', label: 'admin.cms.f.photo', help: 'admin.cms.h.photo', group: 'main', required: true },
+          {
+            key: 'education', kind: 'objects', label: 'admin.cms.f.education', group: 'main', rowName: 'admin.cms.rows.education',
+            fields: [
+              { key: 'degree', kind: 'bilingual', label: 'admin.cms.f.degree', help: 'admin.cms.h.degree', group: 'main', required: true },
+              { key: 'field', kind: 'bilingual', label: 'admin.cms.f.field', group: 'main', required: true },
+              { key: 'institution', kind: 'bilingual', label: 'admin.cms.f.institution', group: 'main', required: true },
+              { key: 'year', kind: 'text', label: 'admin.cms.f.gradYear', help: 'admin.cms.h.gradYear', group: 'main' },
+            ],
+          },
+          {
+            key: 'socialMedia', kind: 'objects', label: 'admin.cms.f.socialMedia', group: 'main', rowName: 'admin.cms.rows.account',
+            fields: [
+              { key: 'platform', kind: 'select', options: SOCIAL_PLATFORMS, label: 'admin.cms.f.platform', group: 'main', required: true },
+              { key: 'url', kind: 'text', label: 'admin.cms.f.url', group: 'main', required: true },
+            ],
+          },
+          { key: 'consent', kind: 'checkbox', label: 'admin.cms.f.consent', help: 'admin.cms.h.consent', group: 'main', required: true },
+        ],
+      },
+      { key: 'order', kind: 'number', label: 'admin.cms.f.order', help: 'admin.cms.h.order', group: 'more', required: true },
+    ],
+    hidden: {},
+  },
 };
 
-export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars'];
+export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees'];
 /**
  * Models a browser check adds (tests/browser/cms-rows.mjs), so a draft of a
  * synthetic type opens in the real editor before any real type has rows.
@@ -604,7 +645,7 @@ export function suggestedId(model: TypeModel, values: Values): string {
     return /^\d{4}$/.test(year) && !slug.includes(year) ? `${slug}-${year}` : slug;
   }
   if (model.key === 'workshops') return tryId(str(values.repo));
-  return tryId(str((values.title as Bi | undefined)?.en));
+  return tryId(str((values[model.titleField ?? 'title'] as Bi | undefined)?.en));
 }
 
 /** The data to save for a new entry: an event also carries its id. */
@@ -836,12 +877,14 @@ export function errorKey(code: string | undefined): string {
 
 /**
  * Where a published entry is on the site. Webinars have a page each, at
- * their file names; events and workshops are listed on one page.
+ * their file names; events, workshops and committees are listed on one page.
  */
 export function livePath(typeKey: string, entryId: string, paths: string[], lang: 'en' | 'tr'): string {
   const prefix = lang === 'tr' ? '/tr' : '';
   if (typeKey === 'events') return `${prefix}/events/`;
   if (typeKey === 'workshops') return `${prefix}/workshops/`;
+  // Every committee is a card on the about page (no anchor there to land on).
+  if (typeKey === 'committees') return `${prefix}/about/`;
   const file = paths.find((p) => p.includes(`/webinars/${lang}/`));
   const slug = file ? file.slice(file.lastIndexOf('/') + 1, -'.md'.length) : entryId;
   return `${prefix}/webinars/${slug}/`;

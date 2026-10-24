@@ -17,11 +17,16 @@ import { imageUrl } from "./image-url";
 type Lang = "en" | "tr";
 
 const bilingual = z.object({ en: z.string(), tr: z.string() }).strict();
+/** A text the page shows as a heading or a role: both languages written
+ * (tests/content-committees.test.ts), so the panel refuses an empty one at
+ * submit instead of CI after the merge. */
+const said = z.string().min(1).regex(/\S/, "Write something, not only spaces");
+const filled = z.object({ en: said, tr: said }).strict();
 
 const memberSchema = z
   .object({
-    name: z.string(),
-    role: bilingual,
+    name: said,
+    role: filled,
     image: imageUrl,
     education: z
       .array(
@@ -52,10 +57,11 @@ const memberSchema = z
 
 export const committeeSchema = z
   .object({
-    /** Position on the page, from 0. */
+    /** Position on the page: smaller first, in steps of 10 (0, 10, 20, ...)
+     * so a new committee fits between two. Two equal ones sort by name. */
     order: z.number().int().nonnegative(),
-    name: bilingual,
-    description: bilingual,
+    name: filled,
+    description: filled,
     members: z.array(memberSchema),
   })
   .strict();

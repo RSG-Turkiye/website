@@ -730,7 +730,7 @@ function onInput(e: Event): void {
   ed.edits++;
   const values = currentValues(ed);
   refreshRows(ed.model, $('cmsFields')!);
-  if ((e.target as HTMLElement | null)?.closest?.('[data-field-wrap="title"]')) {
+  if ((e.target as HTMLElement | null)?.closest?.(`[data-field-wrap="${ed.model.titleField ?? 'title'}"]`)) {
     const title = $('cmsTitle');
     if (title) title.textContent = titleFrom(ed.model, values) || tk('admin.cms.untitled');
   }
@@ -873,7 +873,7 @@ function noForm(model: TypeModel | null, back: string, title?: string): void {
 }
 
 function titleFrom(model: TypeModel, values: Values): string {
-  const v = values.title as { en?: unknown; tr?: unknown } | string | undefined;
+  const v = values[model.titleField ?? 'title'] as { en?: unknown; tr?: unknown } | string | undefined;
   if (typeof v === 'string') return v;
   const pick = (x: unknown) => (typeof x === 'string' ? x : '');
   return (lang === 'tr' ? pick(v?.tr) || pick(v?.en) : pick(v?.en) || pick(v?.tr));

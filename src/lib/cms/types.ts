@@ -11,9 +11,10 @@ import type { CmsGroup } from "../../../functions/_lib/roles";
 import { eventSchema } from "../../data/events";
 import { workshopSchema } from "../../data/workshops";
 import { webinarSchema } from "../../data/webinars";
+import { committeeSchema } from "../../data/committees";
 import { checkId, slugify } from "./slug";
 
-export type CmsTypeKey = "events" | "workshops" | "webinars";
+export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees";
 
 /** What a type declares. The options after `label` have defaults (see defineType). */
 export interface CmsTypeSpec {
@@ -139,6 +140,21 @@ export const CMS_TYPES: readonly CmsType[] = [
     // YAML may give a Date or a string; the list shows the day.
     indexDate: (fm: { date?: unknown }) => dateOf(fm.date),
     label: { en: "Webinars", tr: "Webinarlar" },
+  }),
+  defineType({
+    key: "committees",
+    group: "topluluk",
+    dir: "src/content/committees",
+    format: "json",
+    schema: committeeSchema,
+    // A new committee gets its English name; the existing files were named
+    // by hand (website.json for "Website Committee") and keep their names (A1).
+    idFrom: (data: { name?: { en?: string } }) => idFromText(data.name?.en, "English name"),
+    idField: "name.en",
+    indexTitle: (d: { name: { en: string } }) => d.name.en,
+    label: { en: "Committees", tr: "Komiteler" },
+    // Published profiles: no e-mail address in git (CLAUDE.md rule 4).
+    noAt: true,
   }),
 ];
 

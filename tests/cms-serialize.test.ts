@@ -24,10 +24,9 @@ const WEBINAR_FILES = [
   ...files('src/content/webinars/tr', '.md'),
 ];
 
-test('the registry lists the three types, and every dir exists', () => {
-  assert.deepEqual(CMS_TYPES.map((t) => t.key), ['events', 'workshops', 'webinars']);
+test('the registry lists its types, each in its group, and every dir exists', () => {
+  assert.deepEqual(CMS_TYPES.map((t) => `${t.group}/${t.key}`), ['etkinlikler/events', 'etkinlikler/workshops', 'etkinlikler/webinars', 'topluluk/committees']);
   for (const t of CMS_TYPES) {
-    assert.equal(t.group, 'etkinlikler');
     assert.ok(existsSync(ROOT + t.dir), t.dir);
     assert.ok(t.label.en && t.label.tr);
   }
@@ -55,7 +54,8 @@ test('idFrom: events by id, workshops by lower-cased repo, webinars by a slug of
 });
 
 test('every existing JSON file survives parse then serialize byte for byte', () => {
-  for (const [type, dir] of [[events, 'src/content/events'], [workshops, 'src/content/workshops']] as const) {
+  for (const type of CMS_TYPES.filter((t) => t.format === 'json')) {
+    const dir = type.dir;
     const list = files(dir, '.json');
     assert.ok(list.length > 0, dir);
     for (const f of list) {

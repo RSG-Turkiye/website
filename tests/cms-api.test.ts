@@ -47,6 +47,20 @@ function contentFiles(): Record<string, string> {
   return out;
 }
 const FILES = contentFiles();
+/** A committee on main, synthetic (A2), whose file name is not the slug of its English name, as most real ones are not. */
+const COMMITTEE_PATH = 'src/content/committees/fixture-committee.json';
+const aCommittee = () => ({
+  order: 30,
+  name: { en: 'Example Committee', tr: 'Örnek Komite' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' },
+  members: [{
+    name: 'Ada Örnek', role: { en: 'Leader', tr: 'Lider' },
+    image: 'https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_600/v1/rsgturkey/committee/ada.jpg',
+    socialMedia: [{ platform: 'linkedin', url: 'https://www.linkedin.com/in/example/' }],
+    consent: true,
+  }],
+});
+FILES[COMMITTEE_PATH] = `${JSON.stringify(aCommittee(), null, 2)}\n`;
 const INDEX: CmsIndex = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
 const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_TR_TITLE, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
@@ -228,6 +242,9 @@ function setup() {
   grant.run('g1', 'editor', 'content.etkinlikler.edit');
   grant.run('g2', 'editor2', 'content.etkinlikler.edit');
   grant.run('g3', 'approver', 'content.etkinlikler.approve');
+  add.run('community', 'g-community', 'community@example.org', 0);
+  session.run('s-community', 'community');
+  grant.run('g4', 'community', 'content.topluluk.edit');
   const assets = { fetch: async (req: Request) => new URL(req.url).pathname === '/cms-index.json' ? new Response(JSON.stringify(INDEX)) : new Response('', { status: 404 }) };
   const env = { DB: d1(db), GITHUB_PAT: 'unused', ASSETS: assets } as never;
   const audit = () => db.prepare('SELECT action, target_type, target_id, details FROM audit_log ORDER BY seq').all() as { action: string; target_type: string; target_id: string; details: string }[];
@@ -618,6 +635,63 @@ test('an em dash, or a spaced double hyphen, is refused at submit in any text of
   // The en dash is allowed (date ranges), and so is `--` in code.
   const ok = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Ranges 1\u20132', 'Run `nextflow run -- x` or\n\n```\na -- b\n```\n'), tr: side('Aralık 1\u20132', 'Tamam.') } });
   assert.equal((await on(env, submit.onRequestPost, 'POST', ok.body.draft.id, 'editor', {}, '/submit')).status, 200);
+});
+
+test('committees: a new one is named after its English name; an update keeps its file whatever the name says (A1)', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), name: { en: 'Data Science Committee', tr: 'Veri Bilimi Komitesi' } } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, 'data-science-committee');
+  assert.deepEqual(made.body.draft.base_shas, { 'src/content/committees/data-science-committee.json': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'community', {}, '/submit')).status, 200);
+
+  const data = { ...aCommittee(), name: { en: 'Renamed Committee', tr: 'Yeni Ad' } };
+  const upd = await create(env, 'community', { type: 'committees', action: 'update', entry_id: 'fixture-committee', data, base_shas: loaded(COMMITTEE_PATH) });
+  assert.equal(upd.res.status, 201, JSON.stringify(upd.body));
+  assert.equal(upd.body.draft.entry_id, 'fixture-committee');
+  assert.equal((await on(env, submit.onRequestPost, 'POST', upd.body.draft.id, 'community', {}, '/submit')).status, 200);
+  assert.deepEqual(filesFor(row(upd.body.draft.id) as never).map((f) => f.path), [COMMITTEE_PATH]);
+  // An admin approves: the pull request writes the same file, in the repo's format.
+  assert.equal((await on(env, approve.onRequestPost, 'POST', upd.body.draft.id, 'admin', {}, '/approve')).status, 200);
+  const branch = gh.branches.get(`cms/${upd.body.draft.id}`)!;
+  assert.equal(branch.get(COMMITTEE_PATH), `${JSON.stringify(data, null, 2)}\n`);
+});
+
+test('committees: an e-mail address (any @) is refused at submit, on its field', async () => {
+  const { env } = setup();
+  const member = { ...aCommittee().members[0], socialMedia: [{ platform: 'linkedin', url: 'mailto:ada@example.org' }] };
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), members: [member] } });
+  assert.equal(made.res.status, 201, 'saved while being worked on');
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'community', {}, '/submit');
+  assert.equal(res.status, 422);
+  const out = await res.json() as any;
+  assert.match(out.errors['members.0.socialMedia.0.url'], /e-mail/i);
+  // A key the schema does not know, such as `email`, is refused at once.
+  const withKey = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), members: [{ ...aCommittee().members[0], email: 'x' }] } });
+  assert.equal(withKey.res.status, 422);
+  assert.ok(withKey.body.errors['members.0.email']);
+});
+
+test('committees: a member without consent is saved as work in progress and refused at submit', async () => {
+  const { env } = setup();
+  const member = { name: 'Bora Örnek', role: { en: 'Member', tr: '' }, consent: false };
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), members: [...aCommittee().members, member] } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'community', {}, '/submit');
+  assert.equal(res.status, 422);
+  const out = await res.json() as any;
+  assert.match(out.errors['members.1.consent'], /expected true/);
+  assert.ok(out.errors['members.1.image'], 'a photo is required');
+  // The content test wants both languages of every role: an empty one is refused here, not in CI.
+  assert.ok(out.errors['members.1.role.tr'], 'role.tr');
+});
+
+test('committees: only the Topluluk group edits them', async () => {
+  const { env } = setup();
+  const made = await create(env, 'editor', { type: 'committees', action: 'create', data: aCommittee() });
+  assert.equal(made.res.status, 403);
+  const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'community')).json() as any;
+  assert.deepEqual(listed.types.map((t: any) => t.key), ['committees']);
 });
 
 test('an update cannot rename the file', async () => {

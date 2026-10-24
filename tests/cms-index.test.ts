@@ -51,16 +51,19 @@ const SYNTHETIC: Record<string, string> = {
   'src/content/webinars/en/undated.md': md('title: Undated'),
 };
 
+/** Plan 3's types: the index keeps their part exactly as it was; later groups add keys after them. */
+const ETKINLIKLER = CMS_TYPES.filter((t) => t.group === 'etkinlikler');
+
 test('the Etkinlikler index is byte-identical to plan 3\'s, for this checkout, with and without shas', async () => {
   const files = checkout();
   const shas = await gitBlobShas(files);
-  assert.equal(JSON.stringify(buildCmsIndex(files, shas, CMS_TYPES)), JSON.stringify(buildCmsIndexV1(files, shas)));
-  assert.equal(JSON.stringify(buildCmsIndex(files)), JSON.stringify(buildCmsIndexV1(files)));
+  assert.equal(JSON.stringify(buildCmsIndex(files, shas, ETKINLIKLER)), JSON.stringify(buildCmsIndexV1(files, shas)));
+  assert.equal(JSON.stringify(buildCmsIndex(files, undefined, ETKINLIKLER)), JSON.stringify(buildCmsIndexV1(files)));
 });
 
 test('the Etkinlikler index is byte-identical to plan 3\'s for the edge cases', async () => {
   const shas = await gitBlobShas(SYNTHETIC);
-  const now = JSON.stringify(buildCmsIndex(SYNTHETIC, shas));
+  const now = JSON.stringify(buildCmsIndex(SYNTHETIC, shas, ETKINLIKLER));
   assert.equal(now, JSON.stringify(buildCmsIndexV1(SYNTHETIC, shas)));
   // And the cases are really in it.
   const index = JSON.parse(now);
@@ -89,7 +92,7 @@ test('any registered type is listed from its own dir, format and extractors', ()
     'src/content/events/a-meetup.json': SYNTHETIC['src/content/events/a-meetup.json'],
   };
   const index = buildCmsIndex(files, undefined, [...CMS_TYPES, posts]) as Record<string, unknown>;
-  assert.deepEqual(Object.keys(index), ['events', 'workshops', 'webinars', 'posts']);
+  assert.deepEqual(Object.keys(index), [...CMS_TYPES.map((t) => t.key), 'posts']);
   // No indexDate: no date, ordered by id.
   assert.deepEqual(index.posts, [{ id: 'a', title: 'Ay' }, { id: 'b', title: 'Bee' }]);
 });
@@ -102,4 +105,13 @@ test('/cms-index.json reads every registered type\'s files', () => {
     const pattern = t.format === 'json' ? `'/${t.dir}/*.json'` : `'/${t.dir}/*/*.md'`;
     assert.ok(page.includes(pattern), `${t.key}: ${pattern}`);
   }
+});
+
+test('committees are listed by file name with their English name, no date', () => {
+  const dir = 'src/content/committees';
+  const files = Object.fromEntries(readdirSync(`${ROOT}${dir}`).map((f) => [`${dir}/${f}`, readFileSync(`${ROOT}${dir}/${f}`, 'utf8')]));
+  const index = buildCmsIndex(files);
+  const expected = Object.entries(files).map(([p, text]) => ({ id: p.slice(dir.length + 1, -'.json'.length), title: JSON.parse(text).name.en }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  assert.deepEqual(index.committees, expected);
 });

@@ -151,7 +151,7 @@ function setOnce(into: FieldErrors, key: string, message: string): void {
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-type Issue = { path: PropertyKey[]; message: string; code?: string; keys?: string[]; minimum?: unknown };
+type Issue = { path: PropertyKey[]; message: string; code?: string; keys?: string[]; minimum?: unknown; values?: unknown[] };
 
 /**
  * How strictly a draft is checked. `strict` (submit, approve): the full
@@ -172,10 +172,13 @@ function valueAt(data: unknown, path: PropertyKey[]): unknown {
   return v;
 }
 
-/** An issue that only says the value is not there yet: missing, or an empty text. */
+/** An issue that only says the value is not there yet: missing, an empty
+ * text, or a box that must be ticked and is not yet (a committee member's
+ * consent, `z.literal(true)`). */
 function onlyIncomplete(issue: Issue, data: unknown): boolean {
   const v = valueAt(data, issue.path);
   if (v === undefined) return issue.code !== 'unrecognized_keys';
+  if (v === false && issue.code === 'invalid_value' && issue.values?.length === 1 && issue.values[0] === true) return true;
   return v === '' && (issue.code === 'too_small' || issue.code === 'invalid_format');
 }
 
