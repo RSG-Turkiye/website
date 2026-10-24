@@ -152,6 +152,8 @@ async function open(path, viewport, user = ADMIN) {
     if (url.pathname === '/api/mail/conversations') return json({ threads: MAIL_THREADS, unreadCount: 1, scope: url.searchParams.get('scope') === 'all' ? 'all' : 'own', isAdmin: user.is_admin === true });
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
+    // An admin approves every type (approve per type: functions/api/cms/types.ts).
+    if (url.pathname === '/api/cms/types') return json({ types: ['events', 'workshops', 'webinars'].map((key) => ({ key, group: 'etkinlikler', canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
@@ -221,7 +223,7 @@ async function routes(lang, user) {
   // A thread in the address, as the notification mail links to it.
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t2');
   // An entry's form, a draft (the link a pull request carries) and an approver's review.
-  if (out.includes('#icerik-etkinlikler/etkinlikler')) out.push('#icerik-etkinlikler/etkinlikler/symposium-2026', '#icerik-etkinlikler/etkinlikler/_new', '#icerik-etkinlikler/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000001');
+  if (out.includes('#icerik/etkinlikler')) out.push('#icerik/etkinlikler/symposium-2026', '#icerik/etkinlikler/_new', '#icerik/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik/onay/00000000-0000-4000-8000-000000000001');
   return [...new Set(out)];
 }
 
