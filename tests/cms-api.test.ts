@@ -459,7 +459,7 @@ test('approval refuses with changed_since when the file changed on main, and ope
   const id = body.draft.id;
   await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
 
-  gh.main.set(path, FILES[path].replace('"symposium"', '"symposium" '));
+  gh.main.set(path, `${FILES[path]}\n`);
   const res = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
   assert.equal(res.status, 409);
   const out = await res.json() as any;
@@ -898,7 +898,9 @@ test('the branch starts from the commit the shas were checked at, not from a mai
   const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' }, base_shas: loaded(path) });
   const checked = gh.head();
   // A hand edit merges right after the approval checked the file.
-  gh.afterCheckedRead = () => gh.main.set(path, FILES[path].replace('"Ankara"', '"Ankara, ODTÜ"'));
+  // Any byte change will do; the test must not depend on what the file says,
+  // since the panel edits it.
+  gh.afterCheckedRead = () => gh.main.set(path, `${FILES[path]}\n`);
   const from = gh.requests.length;
   assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
   assert.equal(row(id).status, 'pr_open');
