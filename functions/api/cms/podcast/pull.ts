@@ -123,14 +123,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     file = (await filesOnBase([path], env))[path];
   } catch (e) {
+    await logPull('github_failed');
     return githubFailed(e);
   }
-  if (!file) return fail(404, 'not_found', 'No such entry');
+  if (!file) { await logPull('not_found'); return fail(404, 'not_found', 'No such entry'); }
   let onMain: PodcastData;
   try {
     onMain = JSON.parse(file.content) as PodcastData;
   } catch (e) {
     console.error('cms: podcast.json on main could not be parsed', e);
+    await logPull('unreadable');
     return fail(500, 'unreadable', 'The file on main could not be read');
   }
 

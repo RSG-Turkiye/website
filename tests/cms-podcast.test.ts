@@ -15,6 +15,8 @@ import { FEED, FeedError, PLATFORMS, houseText, parseFeed, type PodcastData } fr
 import { podcastSchema } from '../src/data/podcast';
 import { cmsType } from '../src/lib/cms/types';
 import { serializeJson } from '../src/lib/cms/serialize';
+import { buildCmsIndex } from '../src/lib/cms/cms-index';
+import { entryPaths } from '../functions/_lib/cms-api';
 import { houseRuleErrors, validateDraft } from '../functions/_lib/cms-drafts';
 import { MODELS } from '../src/scripts/admin/cms-form';
 import { diffEntry } from '../src/scripts/admin/cms-diff';
@@ -296,4 +298,27 @@ test('the registry: podcast is Topluluk\'s, one fixed file, generated, no create
   assert.ok(PODCAST.generated && PODCAST.noCreate && PODCAST.noDelete);
   assert.equal(PODCAST.schema, podcastSchema);
   assert.equal(MODELS.podcast.sub, 'podcast');
+});
+
+test('fixedId: the index lists only src/data/podcast.json, and no other file in src/data is a podcast entry', () => {
+  const files = { [PATH]: fileOf(EXPECTED), 'src/data/other.json': '{"title":"x"}' };
+  assert.deepEqual(buildCmsIndex(files, undefined, [PODCAST]).podcast.map((e) => e.id), ['podcast']);
+  assert.deepEqual(entryPaths(PODCAST, 'podcast', null), [PATH]);
+  assert.equal(entryPaths(PODCAST, 'other', null), null);
+});
+
+test('GitHub down after the feed was read: the pull still counts toward the limit', async () => {
+  const { env, audit, drafts } = setup(olderMain());
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL, init?: RequestInit) =>
+    String(input).startsWith('https://api.github.com/') ? new Response('{}', { status: 500 }) : real(input, init)) as never;
+  try {
+    const res = await doPull(env, 'community');
+    assert.equal(res.status, 502);
+    assert.equal((await res.json() as any).code, 'github_failed');
+  } finally {
+    globalThis.fetch = real;
+  }
+  assert.equal(drafts().length, 0);
+  assert.deepEqual(audit().map((a) => [a.action, JSON.parse(a.details).result]), [['cms.podcast.pull', 'github_failed']]);
 });
