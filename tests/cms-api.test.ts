@@ -187,7 +187,12 @@ class FakeGitHub {
           this.afterCheckedRead = null;
           hook();
         }
-        if (content === undefined) return json({ message: 'Not Found' }, 404);
+        if (content === undefined) {
+          // A folder: the files directly in it, as the contents API lists them.
+          const names = [...(this.files(ref)?.keys() ?? [])].filter((k) => k.startsWith(`${path}/`) && !k.slice(path.length + 1).includes('/')).map((k) => k.slice(path.length + 1));
+          if (names.length) return json(names.sort().map((name) => ({ name, type: 'file' })));
+          return json({ message: 'Not Found' }, 404);
+        }
         return json({ sha: blobSha(content), content: Buffer.from(content).toString('base64'), encoding: 'base64' });
       }
       const branch = this.branches.get(body.branch)!;
@@ -2159,4 +2164,141 @@ test('learning paths: only the Öğrenme group edits them, and a new domain is n
   const again = await create(env, 'learning', { type: 'lp-domains', action: 'create', data: lpData({ ...dom('en'), name: 'Fixture' }, dom('tr')) });
   assert.equal(again.res.status, 409, 'fixture.md is published; "Fixture" slugs to it');
   assert.equal(again.body.code, 'exists');
+});
+
+// ── Fix round 1 (6b) ─────────────────────────────────────────────────────────
+
+import { assignIds, LP_ID_ELSEWHERE, LP_ID_TR, LP_LEVEL_IDS, LP_STRUCTURE, newResourceId } from '../functions/_lib/cms-lp';
+import { lpLevelSchema } from '../src/data/learning-paths';
+
+const stageData = (title: string) => {
+  const side = (lang: 'en' | 'tr') => ({ number: 1, emoji: '🧪', title: lang === 'en' ? title : `${title} tr`, subtitle: 'S.', color: 'red', resources: [] });
+  return lpData(side('en'), side('tr'));
+};
+
+test('roadmap: approval refuses a number another stage took on main meanwhile; a taken name is refused, not -2', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'learning', { type: 'lp-roadmap', action: 'create', data: stageData('Late Stage') });
+  assert.equal(made.res.status, 201);
+  const n = made.body.draft.data.en.frontmatter.number;
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  // Another stage with that number merges first (the index is a deploy behind).
+  gh.main.set(`src/content/lp-roadmap/en/${n}-other.md`, gh.main.get(LP_STAGE.en)!);
+  const res = await on(env, approve.onRequestPost, 'POST', made.body.draft.id, 'admin', {}, '/approve');
+  assert.equal(res.status, 409);
+  assert.equal(((await res.json()) as any).code, 'stage_taken');
+  assert.equal(row(made.body.draft.id).status, 'submitted');
+  assert.equal(gh.prs.length, 0);
+  // The same title again: its name is taken by the first draft's file once it is on main.
+  gh.main.set(`src/content/lp-roadmap/en/${n}-late-stage.md`, 'x');
+  gh.main.set(`src/content/lp-roadmap/tr/${n}-late-stage.md`, 'x');
+  const again = await create(env, 'learning', { type: 'lp-roadmap', action: 'create', data: stageData('Late Stage') });
+  assert.equal(again.res.status, 409, 'refused, never renamed to -2');
+});
+
+test('a level\'s domain is checked on main, not the deployed index: no false reject, no false accept', async () => {
+  const { env } = setup();
+  // A domain merged but not yet deployed: its first level is accepted.
+  for (const l of ['en', 'tr']) gh.main.set(`src/content/lp-domains/${l}/fresh.md`, gh.main.get(`src/content/lp-domains/${l}/fixture.md`)!);
+  const level = (domain: string) => ({ type: 'lp-levels', action: 'create', data: levelWith((fm) => { fm.domain = domain; fm.sections = []; }) });
+  const fresh = await create(env, 'learning', level('fresh'));
+  assert.equal(fresh.res.status, 201);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', fresh.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  // A domain deleted on main but still deployed: refused.
+  for (const l of ['en', 'tr']) gh.main.delete(`src/content/lp-domains/${l}/fixture.md`);
+  const gone = await create(env, 'learning', { type: 'lp-levels', action: 'create', data: levelWith((fm) => { fm.level = 'researcher'; fm.sections = []; }) });
+  assert.equal(gone.res.status, 201);
+  const res = await on(env, submit.onRequestPost, 'POST', gone.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(res.status, 422);
+  assert.equal(((await res.json()) as any).errors['en.frontmatter.domain'], LP_DOMAIN);
+});
+
+test('a domain that still has levels on main is not deleted, at the start and at approval', async () => {
+  const { env } = setup();
+  const dom = loaded('src/content/lp-domains/en/fixture.md', 'src/content/lp-domains/tr/fixture.md');
+  const res = await create(env, 'learning', { type: 'lp-domains', action: 'delete', entry_id: 'fixture', base_shas: dom });
+  assert.equal(res.res.status, 409);
+  assert.equal(res.body.code, 'has_levels');
+  assert.equal(res.body.count, 1);
+  // Without levels the delete starts; a level that lands before approval stops it.
+  for (const l of ['en', 'tr'] as const) gh.main.delete(LP_LEVEL[l]);
+  const ok = await create(env, 'learning', { type: 'lp-domains', action: 'delete', entry_id: 'fixture', base_shas: dom });
+  assert.equal(ok.res.status, 201);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', ok.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  gh.main.set('src/content/lp-levels/en/fixture-researcher.md', 'x');
+  const appr = await on(env, approve.onRequestPost, 'POST', ok.body.draft.id, 'admin', {}, '/approve');
+  assert.equal(appr.status, 409);
+  assert.equal(gh.prs.length, 0);
+  assert.deepEqual([...LP_LEVEL_IDS], [...lpLevelSchema.shape.level.options]);
+});
+
+test('en/tr structure and untranslated fields must match; every divergence is named', async () => {
+  const { env } = setup();
+  // A card moved to another section in Turkish only.
+  const moved = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[1].resources.unshift(fm.sections[0].resources.pop()); }));
+  assert.equal(moved.errors['tr.frontmatter.sections.0.resources'], LP_STRUCTURE);
+  assert.equal(moved.errors['tr.frontmatter.sections.1.resources'], LP_STRUCTURE);
+  const kind = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[1].type = 'papers'; }));
+  assert.deepEqual(kind.errors, { 'tr.frontmatter.sections.1.type': LP_SHARED });
+  // Two cards swapped in Turkish, and two links changed: all named at once.
+  const many = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') { fm.sections[0].resources.reverse(); fm.sections[1].resources[0].webinarSlug = 'other'; } }));
+  assert.ok(many.errors['tr.frontmatter.sections.0.resources.0.id'] && many.errors['tr.frontmatter.sections.0.resources.1.id'], JSON.stringify(many.errors));
+  assert.equal(many.errors['tr.frontmatter.sections.1.resources.0.webinarSlug'], LP_SHARED);
+  // A domain's emoji and its links' addresses are the same in both languages.
+  const dom = (lang: 'en' | 'tr', o = {}) => ({ name: lang, emoji: '🧪', tagline: 'T.', order: 90, goDeeper: [{ title: lang, description: 'D.', url: 'https://example.org/a' }], ...o });
+  const made = await create(env, 'learning', { type: 'lp-domains', action: 'update', entry_id: 'fixture', base_shas: loaded('src/content/lp-domains/en/fixture.md', 'src/content/lp-domains/tr/fixture.md'),
+    data: lpData(dom('en'), dom('tr', { emoji: '🧬', goDeeper: [{ title: 'tr', description: 'D.', url: 'https://example.org/b' }] })) });
+  assert.equal(made.res.status, 201);
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit');
+  assert.deepEqual(((await res.json()) as any).errors, { 'tr.frontmatter.emoji': LP_SHARED, 'tr.frontmatter.goDeeper.0.url': LP_SHARED });
+});
+
+test('ids: a minted id skips ids already taken and never starts with tr-; a new id another file has, or one starting tr-, is refused', async () => {
+  const { env, db, row } = setup();
+  assert.doesNotMatch(newResourceId('TR courses'), /^tr-/);
+  assert.match(newResourceId('tr'), /^resource-[0-9a-f]{6}$/);
+  assert.match(newResourceId('Tree of life'), /^tree-of-life-/);
+  // The first random id is taken: the next one is used.
+  const real = crypto.getRandomValues.bind(crypto);
+  let calls = 0;
+  (crypto as any).getRandomValues = (a: Uint8Array) => { calls++; a.set(calls === 1 ? [0, 0, 1] : [0, 0, 2]); return a; };
+  try {
+    const data = lpData({ resources: [{ id: '', title: 'X' }] }, { resources: [{ id: '', title: 'X' }] });
+    assert.deepEqual(assignIds(data, ['x-000001']), ['x-000002']);
+  } finally {
+    (crypto as any).getRandomValues = real;
+  }
+  // A draft whose given id is another file's, or starts tr-: refused.
+  for (const [id, message] of [['fx-stage-1', LP_ID_ELSEWHERE], ['tr-sneaky', LP_ID_TR]] as const) {
+    const made = await create(env, 'learning', levelUpdate(levelWith((fm, lang) => fm.sections[0].resources.push(lpRes('', lang)))));
+    const d = JSON.parse(row(made.body.draft.id).data);
+    d.en.frontmatter.sections[0].resources[2].id = id;
+    d.tr.frontmatter.sections[0].resources[2].id = id;
+    d._assigned = [id];
+    db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(d), made.body.draft.id);
+    const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit');
+    assert.equal(res.status, 422);
+    assert.equal(((await res.json()) as any).errors['en.frontmatter.sections.0.resources.2.id'], message);
+  }
+});
+
+test('submit drops given ids whose cards are gone; approval re-checks locked keys against main', async () => {
+  const { env, db, row } = setup();
+  const made = await create(env, 'learning', levelUpdate(levelWith((fm, lang) => fm.sections[0].resources.push(lpRes('', lang)))));
+  const given = made.body.draft.data._assigned;
+  assert.equal(given.length, 1);
+  const back = await on(env, draft.onRequestPatch, 'PATCH', made.body.draft.id, 'learning', { data: levelWith(() => {}) });
+  assert.equal(back.status, 200);
+  assert.deepEqual(JSON.parse(row(made.body.draft.id).data)._assigned, given, 'kept while saving');
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  assert.deepEqual(JSON.parse(row(made.body.draft.id).data)._assigned, [], 'pruned at submit');
+  // The level is moved to another level by a row changed after submit: approval refuses it.
+  const d = JSON.parse(row(made.body.draft.id).data);
+  d.en.frontmatter.level = 'researcher';
+  d.tr.frontmatter.level = 'researcher';
+  db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(d), made.body.draft.id);
+  const res = await on(env, approve.onRequestPost, 'POST', made.body.draft.id, 'admin', {}, '/approve');
+  assert.equal(res.status, 422);
+  assert.match(((await res.json()) as any).errors['en.frontmatter.level'], /gives the file its name/);
+  assert.equal(gh.prs.length, 0);
 });

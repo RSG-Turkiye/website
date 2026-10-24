@@ -2,7 +2,7 @@ import type { Env } from '../../_lib/auth';
 import { generateId, jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import {
-  actionRefused, approvesType, cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
+  actionRefused, approvesType, cmsGate, lpIdsElsewhere, refuseDomainDelete, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
 import {
   actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, langOf, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
@@ -197,8 +197,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const clash = await refusePairClash(request, env, type, entryId, action, data, index);
   if (clash) return clash;
-  // A new learning-path resource gets its id here, never from the client (A4).
-  if (type.resourceIds && action !== 'delete') (data as LpDraftData)._assigned = assignIds(data as PairData);
+  if (action === 'delete') {
+    const levels = await refuseDomainDelete(env, type, entryId);
+    if (levels) return levels;
+  }
+  // A new learning-path resource gets its id here, never from the client (A4),
+  // and never one another file has.
+  if (type.resourceIds && action !== 'delete') {
+    const listed = index ?? await loadCmsIndex(request, env);
+    (data as LpDraftData)._assigned = assignIds(data as PairData, lpIdsElsewhere(listed, type, '').keys());
+  }
 
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: entryId, action, data: JSON.stringify(data), base_shas: JSON.stringify(baseShas),

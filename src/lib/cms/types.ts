@@ -280,6 +280,8 @@ export const CMS_TYPES: readonly CmsType[] = [
     idField: "en.frontmatter.title",
     indexTitle: (fm: { number?: unknown; title?: unknown }) => (typeof fm.title === "string" ? `${String(fm.number ?? "")}. ${fm.title}` : undefined),
     label: { en: "Roadmap stages", tr: "Yol haritası" },
+    // A taken name is refused, never given -2: the number must stay the file's prefix.
+    whenTaken: "refuse",
     lockedKeys: ["number"],
     appendKey: "number",
     resourceIds: true,

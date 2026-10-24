@@ -15,6 +15,7 @@
 import { counterpartSlug, type TranslatableEntry } from "../translations";
 import { parseMarkdown } from "./serialize";
 import { cmsTypes, type CmsType, type CmsTypeKey } from "./types";
+import { resourceId, resourcesOf } from "./lp-resources";
 
 export interface CmsIndexEntry {
   /** The file name without extension; for a pair the English one. */
@@ -28,6 +29,9 @@ export interface CmsIndexEntry {
   section?: string;
   /** Markdown pairs only: the two files (null when a side is missing). */
   paths?: { en: string | null; tr: string | null };
+  /** Learning-path levels and stages: their resource ids (the English
+   * file's), so a new id is never one another file has (functions/_lib/cms-lp.ts). */
+  ids?: string[];
   /** Markdown pairs only, when set: the translationKey that ties the pair. */
   key?: string;
   /** Each of the entry's files (path → git blob sha) as this build saw it.
@@ -75,7 +79,8 @@ function pairEntries(type: CmsType, paths: string[], files: Record<string, strin
   const pathOf = (lang: string, slug: string | null) => (slug === null ? null : `${type.dir}/${lang}/${slug}.md`);
   const listed = (w: (typeof parsed)[number], en: string | null, tr: string | null): Listed => {
     const key = w.fm.translationKey?.trim();
-    const entry: CmsIndexEntry = { ...describe(type, w.slug, w.fm, w.lang), paths: { en, tr }, ...(key ? { key } : {}) };
+    const ids = type.resourceIds ? { ids: resourcesOf(w.fm).map((x) => resourceId(x.r)).filter(Boolean) } : {};
+    const entry: CmsIndexEntry = { ...describe(type, w.slug, w.fm, w.lang), paths: { en, tr }, ...(key ? { key } : {}), ...ids };
     return { entry, sort: entry.date ?? "", paths: [en, tr] };
   };
   const claimed = new Set<string>();

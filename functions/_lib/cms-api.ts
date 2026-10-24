@@ -11,7 +11,9 @@ import { fileShasOnBase } from './github';
 import { cmsType, type CmsType } from '../../src/lib/cms/types';
 import type { CmsIndex, CmsIndexEntry } from '../../src/lib/cms/cms-index';
 import { jsonPath } from '../../src/lib/cms/serialize';
-import { lpErrors, type LpDraftData } from './cms-lp';
+import { levelsOfDomain, lockedKeysErrors, LP_DOMAIN as LP_DOMAIN_MESSAGE, lpErrors, mainSides, prunedAssigned, type LpDraftData } from './cms-lp';
+import { fileShasOnBase as shasAt, listDirOnBase } from './github';
+import { stageNumber } from '../../src/lib/cms/slug';
 
 export const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
   jsonResponse({ error, code, ...extra }, status);
@@ -277,22 +279,74 @@ export function duplicateOf(type: CmsType, index: CmsIndex | null, data: unknown
   return (index[type.key] ?? []).find((e) => norm(e.title) === norm(title) && e.section === section)?.id;
 }
 
+/** Every learning-path id the deployed index lists, mapped to its entry, without `entryId`'s own. */
+export function lpIdsElsewhere(index: CmsIndex | null, type: CmsType, entryId: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const key of ['lp-levels', 'lp-roadmap'] as const) {
+    for (const e of index?.[key] ?? []) {
+      if (key === type.key && e.id === entryId) continue;
+      for (const id of e.ids ?? []) out.set(id, `${key}/${e.id}`);
+    }
+  }
+  return out;
+}
+
 /**
- * Rule 8 (CLAUDE.md) and a learning path's locked keys, at submit and at
- * approval: a 422 naming the fields, 503 without the index a level's domain
- * is checked against, or null. `raw` is the stored draft data: its sides'
- * `source` and its `_assigned` are the server's own record.
+ * Rule 8 (CLAUDE.md) and a learning path's own checks, at submit and at
+ * approval: a 422 naming the fields, a 409 or 503 when a fact on the site
+ * says no, or null. `raw` is the stored draft data: its sides' `source` and
+ * its `_assigned` are the server's own record. `ref`: the commit main is
+ * read at (approval: the pinned head; submit: main now).
+ * - A level's domain must have its file on main at `ref`.
+ * - An update's locked keys must be main's (its `source`, which approval
+ *   has just checked is main at `ref`).
+ * - A new roadmap stage's number must be free on main at `ref` (approval).
+ * - A new id may not be one another file has (the deployed index's ids).
  */
-export async function refuseLp(request: Request, env: Env, type: CmsType, raw: unknown): Promise<Response | null> {
-  if (type.format !== 'markdown-pair' || (!type.resourceIds && type.lockedKeys.length === 0)) return null;
+export async function refuseLp(request: Request, env: Env, type: CmsType, row: { entry_id: string; action: string }, raw: unknown, ref?: string): Promise<Response | null> {
+  if (type.format !== 'markdown-pair' || !type.key.startsWith('lp-')) return null;
   const data = raw as LpDraftData;
-  let domains: string[] | null = null;
-  if (type.lockedKeys.includes('domain')) {
+  const errors: Record<string, string> = {};
+  if (row.action === 'update') {
+    const main = mainSides(type, data);
+    const locked = lockedKeysErrors(type, row.entry_id, { en: main.en ? { frontmatter: main.en } : null, tr: main.tr ? { frontmatter: main.tr } : null }, data);
+    if (locked) Object.assign(errors, locked);
+  }
+  try {
+    if (type.lockedKeys.includes('domain')) {
+      const domain = String(data.en?.frontmatter?.domain ?? '');
+      const path = `src/content/lp-domains/en/${domain}.md`;
+      const ok = /^[a-z0-9][a-z0-9-]*$/.test(domain) && (await shasAt([path], env, ref))[path] !== null;
+      if (!ok && !errors['en.frontmatter.domain']) errors['en.frontmatter.domain'] = LP_DOMAIN_MESSAGE;
+    }
+    if (row.action === 'create' && type.appendKey && ref) {
+      const n = data.en?.frontmatter?.[type.appendKey];
+      const own = `${row.entry_id}.md`;
+      const used = (await listDirOnBase(`${type.dir}/en`, env, ref)).filter((f) => f !== own).map((f) => stageNumber(f));
+      if (used.includes(n as number)) return fail(409, 'stage_taken', 'Another stage on the site already has this number; discard this draft and add the stage again');
+    }
+  } catch (e) {
+    return githubFailed(e);
+  }
+  let elsewhere: Map<string, string> | null = null;
+  if (type.resourceIds) {
     const index = await loadCmsIndex(request, env);
     if (!index) return indexUnavailable();
-    domains = (index['lp-domains'] ?? []).map((e) => e.id);
+    elsewhere = lpIdsElsewhere(index, type, row.entry_id);
   }
-  const assigned = Array.isArray(data._assigned) ? data._assigned.filter((x): x is string => typeof x === 'string') : [];
-  const errors = lpErrors(type, data, assigned, domains);
+  Object.assign(errors, Object.fromEntries(Object.entries(lpErrors(type, data, { assigned: prunedAssigned(data), elsewhere })).filter(([k]) => !Object.hasOwn(errors, k))));
   return Object.keys(errors).length ? invalid(errors) : null;
+}
+
+/** A domain still holding levels on main (at `ref`) is not deleted: a 409 that says how many, or null. */
+export async function refuseDomainDelete(env: Env, type: CmsType, entryId: string, ref?: string): Promise<Response | null> {
+  if (type.key !== 'lp-domains') return null;
+  let names: string[];
+  try {
+    names = await listDirOnBase('src/content/lp-levels/en', env, ref);
+  } catch (e) {
+    return githubFailed(e);
+  }
+  const levels = levelsOfDomain(entryId, names);
+  return levels.length ? fail(409, 'has_levels', `This domain still has ${levels.length} level(s) on the site; delete them first`, { count: levels.length }) : null;
 }

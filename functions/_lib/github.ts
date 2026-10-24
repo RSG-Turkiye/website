@@ -663,6 +663,20 @@ export async function fileShasOnBase(paths: string[], env: Env, ref: string = GI
 }
 
 /**
+ * The file names directly in a folder at `ref` (main by default), or [] when
+ * the folder is not there. One request: the CMS lists the roadmap's stages
+ * and a domain's levels with it.
+ */
+export async function listDirOnBase(dir: string, env: Env, ref: string = GITHUB_BASE_BRANCH): Promise<string[]> {
+  const res = await githubRequest(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodePath(dir)}?ref=${encodeURIComponent(ref)}`, { method: 'GET' }, env);
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`Failed to list ${dir} on ${ref} (${res.status})`);
+  const data = await res.json<unknown>();
+  if (!Array.isArray(data)) throw new Error(`Unexpected contents response for ${dir}`);
+  return data.filter((e) => e && (e as { type?: string }).type === 'file').map((e) => String((e as { name: unknown }).name));
+}
+
+/**
  * Each path's text and blob sha on `main`, or `null` for a path that is not
  * there. One request per file answers both, so the sha a CMS draft records
  * is the sha of exactly the text it was started from. Errors carry the

@@ -1,6 +1,7 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
+import { loadCmsIndex, lpIdsElsewhere } from '../../../_lib/cms-api';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
 import { canTransition, checkSameId, filesFor, fixedKeysErrors, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
@@ -92,7 +93,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   if (type.resourceIds) {
     // New resources get their ids here (A4); the record of what the server
     // gave is the stored one, never the client's.
-    const given = assignIds(v.data as PairData);
+    const listed = await loadCmsIndex(request, env);
+    const given = assignIds(v.data as PairData, [...lpIdsElsewhere(listed, type, '').keys(), ...(Array.isArray(stored._assigned) ? stored._assigned : [])]);
     (v.data as LpDraftData)._assigned = [...(Array.isArray(stored._assigned) ? stored._assigned : []), ...given];
   }
   const data = JSON.stringify(v.data);
