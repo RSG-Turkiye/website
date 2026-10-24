@@ -148,6 +148,10 @@ export interface TypeModel {
   hidden: Record<string, string>;
   /** The field the entry's title is read from, in the editor's heading. Default `title`. */
   titleField?: string;
+  /** The editor's heading, where no one field is the title (a level: its domain and level). */
+  heading?: (values: Values) => string;
+  /** The registry's appendKey: a new entry's number, the highest + 1 (a roadmap stage). */
+  appendKey?: string;
   /** Fields shown read-only once the entry exists (the registry's lockedKeys:
    * what the file name or the page's address comes from). */
   lockedOnUpdate?: readonly string[];
@@ -353,7 +357,8 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     // One domain at one level: its sections of resource cards. Domain and
     // level make the file name and the page's place, so they are chosen once.
     key: 'lp-levels', format: 'markdown-pair', sub: 'ogrenme-seviyeleri', group: 'ogrenme', idField: 'en.frontmatter.domain', label: 'admin.cms.type.lp-levels',
-    titleField: 'orientation', lockedOnUpdate: ['domain', 'level'],
+    lockedOnUpdate: ['domain', 'level'],
+    heading: (v) => [(v.domain as Bi | undefined)?.en, (v.level as Bi | undefined)?.en].filter(Boolean).join(' · '),
     fields: [
       { key: 'domain', kind: 'select', options: [], optionsFrom: 'lp-domains', label: 'admin.cms.f.lpDomain', help: 'admin.cms.h.lpDomain', group: 'main', required: true },
       { key: 'level', kind: 'select', options: LP_LEVELS, label: 'admin.cms.f.lpLevel', group: 'main', required: true },
@@ -374,7 +379,7 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     // One stage of the beginner roadmap. A new stage comes last; its number
     // is the highest + 1, set by the server, and never changes (A11).
     key: 'lp-roadmap', format: 'markdown-pair', sub: 'yol-haritasi', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'admin.cms.type.lp-roadmap',
-    lockedOnUpdate: ['number'],
+    lockedOnUpdate: ['number'], appendKey: 'number',
     fields: [
       { key: 'number', kind: 'number', label: 'admin.cms.f.stageNumber', help: 'admin.cms.h.stageNumber', group: 'main', readOnly: true },
       { key: 'emoji', kind: 'text', label: 'admin.cms.f.emoji', group: 'main', required: true },

@@ -62,6 +62,32 @@ const RES = {
   tags: { en: ['CADD', 'drug-design'], tr: ['CADD', 'ilac-tasarimi'] }, opensource: true,
 };
 const RES_PATH = 'src/content/resources/example-tool-md-drug.json';
+/** A learning-path level, synthetic, as GET /api/cms/entry answers it: both sides, with their source. */
+const LP_RES = (id, lang, o = {}) => ({ id, title: `${id} ${lang}`, description: lang === 'en' ? 'Why.' : 'Neden.', tag: 'Reading', url: `https://example.org/${id}`, ...o });
+const LEVEL_SIDE = (lang) => ({
+  domain: 'fixture', level: 'explorer', orientation: lang === 'en' ? 'Start here.' : 'Buradan başlayın.', prerequisites: [lang === 'en' ? 'Some biology' : 'Biraz biyoloji'],
+  sections: [
+    { type: 'foundations', resources: [LP_RES('fx-a', lang), LP_RES('fx-b', lang, { url: lang === 'en' ? '/learning-paths/fixture/' : '/tr/learning-paths/fixture/' })] },
+    { type: 'webinars', resources: [LP_RES('fx-c', lang, { tag: 'Webinar', url: undefined, webinarSlug: 'fx-webinar', speaker: 'Ada Örnek', year: 2024 })] },
+  ],
+});
+const LEVEL = JSON.parse(JSON.stringify({ en: { frontmatter: LEVEL_SIDE('en'), body: '', source: 'domain: "fixture"\n' }, tr: { frontmatter: LEVEL_SIDE('tr'), body: '', source: 'domain: "fixture"\n' } }));
+const LEVEL_PATHS = { en: 'src/content/lp-levels/en/fixture-explorer.md', tr: 'src/content/lp-levels/tr/fixture-explorer.md' };
+/** What the server does on a save (A4): a resource with an empty id gets one, on both sides. */
+function assignLpIds(data, state) {
+  const lists = (fm) => (Array.isArray(fm?.sections) ? fm.sections.map((x) => x.resources ?? []) : [fm?.resources ?? []]);
+  const en = lists(data?.en?.frontmatter);
+  const tr = lists(data?.tr?.frontmatter);
+  en.forEach((list, i) => list.forEach((r, j) => {
+    if (r.id) return;
+    const id = `${String(r.title ?? 'resource').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${(0xa0a0a0 + state.given.length).toString(16)}`;
+    r.id = id;
+    if (tr[i]?.[j] && !tr[i][j].id) tr[i][j].id = id;
+    state.given.push(id);
+  }));
+  data._assigned = [...(data._assigned ?? []), ...state.given.filter((g) => !(data._assigned ?? []).includes(g))];
+  return data;
+}
 const ENTRIES = {
   events: [
     { id: 'symposium-2026', title: SYM.title.en, date: '2026-10-10', shas: { [PATH]: 'sha-1' } },
@@ -72,6 +98,9 @@ const ENTRIES = {
   committees: [{ id: 'example', title: COM.name.en, shas: { [COM_PATH]: 'sha-c' } }],
   podcast: [{ id: 'podcast', title: POD.title, date: '2025-02-10', shas: { [POD_PATH]: 'sha-p' } }],
   resources: [{ id: 'example-tool-md-drug', title: RES.title.en, section: 'md-drug', shas: { [RES_PATH]: 'sha-r' } }, { id: 'zz-learning', title: 'Another', section: 'learning', shas: {} }],
+  'lp-domains': [{ id: 'fixture', title: 'Fixture domain', paths: { en: 'src/content/lp-domains/en/fixture.md', tr: 'src/content/lp-domains/tr/fixture.md' }, shas: {} }, { id: 'genomics', title: 'Genomics', paths: { en: 'src/content/lp-domains/en/genomics.md', tr: 'src/content/lp-domains/tr/genomics.md' }, shas: {} }],
+  'lp-levels': [{ id: 'fixture-explorer', title: 'fixture · explorer', paths: LEVEL_PATHS, shas: {} }],
+  'lp-roadmap': [{ id: '07-direction', title: '7. Direction', paths: { en: 'src/content/lp-roadmap/en/07-direction.md', tr: 'src/content/lp-roadmap/tr/07-direction.md' }, shas: {} }, { id: '08-first-project', title: '8. First project', paths: { en: 'src/content/lp-roadmap/en/08-first-project.md', tr: 'src/content/lp-roadmap/tr/08-first-project.md' }, shas: {} }],
 };
 /** What /api/cms/types answers: the types of the groups `who` edits, approve per type (`state.adminOnly` lists keys only an admin approves). */
 const TYPES = [
@@ -81,6 +110,9 @@ const TYPES = [
   { key: 'committees', group: 'topluluk', label: { en: 'Committees', tr: 'Komiteler' } },
   { key: 'podcast', group: 'topluluk', label: { en: 'Podcast', tr: 'Podcast' } },
   { key: 'resources', group: 'ogrenme', label: { en: 'Resources', tr: 'Kaynaklar' } },
+  { key: 'lp-domains', group: 'ogrenme', label: { en: 'Learning-path domains', tr: 'Öğrenme alanları' } },
+  { key: 'lp-levels', group: 'ogrenme', label: { en: 'Learning-path levels', tr: 'Öğrenme seviyeleri' } },
+  { key: 'lp-roadmap', group: 'ogrenme', label: { en: 'Roadmap stages', tr: 'Yol haritası' } },
 ];
 const USERS = {
   approver: { id: 'u1', email: 'onay@example.org', grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] },
@@ -113,7 +145,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
   page.on('pageerror', (e) => bad.push(`pageerror (${hash}): ` + String(e).slice(0, 200)));
   const state = {
     drafts: new Map(), live: [], entryShas: { [PATH]: 'sha-1' }, entryData: SYM,
-    nextPost: null, nextPatch: null, nextSubmit: null, nextApprove: null, signedOut: false,
+    nextPost: null, nextPatch: null, nextSubmit: null, nextApprove: null, signedOut: false, given: [],
     adminOnly: [], typesFail: false, postDelay: 0, entryFail: false, failDelete: false, draftsFail: 0, more: false, queueCount: null, uploadDelay: 0, uploadFail: null,
   };
   const calls = [];
@@ -159,6 +191,14 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       const type = url.searchParams.get('type');
       if (type === 'committees') return json({ type, id, data: COM, base_shas: { [COM_PATH]: 'sha-c' }, files: { [COM_PATH]: `${JSON.stringify(COM, null, 2)}\n` } });
       if (type === 'resources') return json({ type, id, data: RES, base_shas: { [RES_PATH]: 'sha-r' }, files: { [RES_PATH]: `${JSON.stringify(RES, null, 2)}\n` } });
+      if (type === 'lp-levels') return json({ type, id, data: LEVEL, base_shas: { [LEVEL_PATHS.en]: 'sha-le', [LEVEL_PATHS.tr]: 'sha-lt' } });
+      if (type === 'lp-domains' || type === 'lp-roadmap') {
+        const side = (l) => (type === 'lp-domains'
+          ? { name: l === 'en' ? 'Fixture domain' : 'Örnek alan', emoji: '🧪', tagline: 'T.', order: 90, goDeeper: [{ title: `Further ${l}`, description: 'D.', url: 'https://example.org/further' }] }
+          : { number: 7, emoji: '🧭', title: l === 'en' ? 'Direction' : 'Yön', subtitle: 'S.', color: 'navy', resources: [LP_RES('roadmap-7-0', l, { tag: 'Action', url: l === 'en' ? '/learning-paths/fixture/' : '/tr/learning-paths/fixture/' })] });
+        const dir = type === 'lp-domains' ? 'lp-domains' : 'lp-roadmap';
+        return json({ type, id, data: { en: { frontmatter: side('en'), body: '', source: '' }, tr: { frontmatter: side('tr'), body: '', source: '' } }, base_shas: { [`src/content/${dir}/en/${id}.md`]: 'sha-de', [`src/content/${dir}/tr/${id}.md`]: 'sha-dt' } });
+      }
       if (type === 'podcast') return json({ type, id, data: POD, base_shas: { [POD_PATH]: 'sha-p' }, files: { [POD_PATH]: `${JSON.stringify(POD, null, 2)}\n` } });
       const e = (ENTRIES[type] ?? []).find((x) => x.id === id);
       if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas, ...(state.entryFiles ? { files: state.entryFiles } : {}) });
@@ -183,7 +223,8 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       if (state.postDelay) await new Promise((res) => setTimeout(res, state.postDelay));
       if (state.nextPost) { const [s, v] = state.nextPost; state.nextPost = null; return json(v, s); }
       const id = `00000000-0000-4000-8000-00000000000${state.drafts.size + 1}`;
-      const d = draftRow({ id, action: body.action, entry_id: body.entry_id ?? body.data?.id ?? 'x', author_id: user.id, data: body.data ?? {}, base_shas: body.base_shas ?? {} });
+      const data = /^lp-(levels|roadmap)$/.test(body.type) ? assignLpIds(JSON.parse(JSON.stringify(body.data ?? {})), state) : body.data ?? {};
+      const d = draftRow({ id, type: body.type, action: body.action, entry_id: body.entry_id ?? body.data?.id ?? 'x', author_id: user.id, data, base_shas: body.base_shas ?? {} });
       state.drafts.set(id, d);
       return json({ draft: d, ...(state.duplicateOf ? { duplicate_of: state.duplicateOf } : {}) }, 201);
     }
@@ -195,7 +236,8 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       if (!m[2] && method === 'PATCH') {
         if (state.nextPatch) { const [s, v] = state.nextPatch; state.nextPatch = null; return json(v, s); }
         if (body.write_nonce !== undefined && body.write_nonce !== d.write_nonce) return json({ error: 'changed', code: 'draft_changed' }, 409);
-        d.data = body.data; d.updated_at = Math.floor(Date.now() / 1000); d.write_nonce = `n${Math.random()}`;
+        d.data = /^lp-(levels|roadmap)$/.test(d.type) ? assignLpIds(JSON.parse(JSON.stringify(body.data)), state) : body.data;
+        d.updated_at = Math.floor(Date.now() / 1000); d.write_nonce = `n${Math.random()}`;
         return json({ draft: d });
       }
       if (!m[2] && method === 'DELETE') {
@@ -234,8 +276,11 @@ const noSideScroll = (page) => page.evaluate(() => document.documentElement.scro
  * the window to stop. DEMO=admin also fills Users and roles → Roles
  * (#kullanicilar/yetkiler) with every role's card. DEMO=topluluk opens the
  * committee form (Komiteler → Örnek Komite): add a member, upload a photo,
- * tick the consent box, save, send. DEMO=ogrenme opens Kaynaklar: open a
- * link, change a tag, save; or "Yeni" for a new one. DEMO_LANG=en for English.
+ * tick the consent box, save, send. DEMO=ogrenme opens Öğrenme seviyeleri:
+ * open the level, add a resource card in a section, save (the mock server
+ * gives it its progress key, as the real one does), save again; a new
+ * roadmap stage (Yol haritası → Yeni) is numbered after the last; Kaynaklar
+ * and Öğrenme alanları are next to them. DEMO_LANG=en for English.
  *
  *   npm run build && npx astro preview --port 4329 &
  *   DEMO=approver BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
@@ -246,13 +291,18 @@ if (process.env.DEMO) {
   const demo = await chromium.launch({ headless: false, ...(process.env.CHROME ? { executablePath: process.env.CHROME } : {}) });
   const who = Object.hasOwn(USERS, process.env.DEMO) ? process.env.DEMO : 'editor';
   const me = USERS[who].id;
-  const start = { topluluk: '#icerik/komiteler/example', ogrenme: '#icerik/kaynaklar' }[who] ?? '#icerik';
+  const start = { topluluk: '#icerik/komiteler/example', ogrenme: '#icerik/ogrenme-seviyeleri' }[who] ?? '#icerik';
   const { page } = await open(demo, who, start, { width: 1440, height: 900 }, (s) => {
     const mk = (n, o) => s.drafts.set(`00000000-0000-4000-8000-00000000020${n}`, draftRow({ id: `00000000-0000-4000-8000-00000000020${n}`, author_id: me, ...o }));
     if (who === 'ogrenme') {
       // A new link sent back: its Turkish tags are fewer than the English ones.
       mk(1, { type: 'resources', action: 'create', status: 'rejected', entry_id: 'nf-core-training', review_note: 'Türkçe etiketlerden biri eksik.', base_shas: { 'src/content/resources/nf-core-training.json': null },
         data: { section: 'learning', order: 70, title: { en: 'nf-core training', tr: 'nf-core eğitimi' }, description: { en: 'Training material.', tr: 'Eğitim materyali.' }, url: 'https://example.org/training', tags: { en: ['nextflow', 'pipelines'], tr: ['nextflow'] }, opensource: true } });
+      // A level sent back: its Turkish link goes elsewhere (the approver's note); submit says where.
+      const off = JSON.parse(JSON.stringify(LEVEL));
+      off.tr.frontmatter.sections[0].resources[0].url = 'https://example.org/baska';
+      mk(2, { type: 'lp-levels', status: 'rejected', entry_id: 'fixture-explorer', review_note: 'İlk kartın Türkçe bağlantısı farklı.', base_shas: { [LEVEL_PATHS.en]: 'sha-le', [LEVEL_PATHS.tr]: 'sha-lt' }, data: off });
+      s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'tr.frontmatter.sections.0.resources.0.url': 'Must be the same as in English (a Turkish link may add /tr)' } }];
       return;
     }
     if (who === 'topluluk') {
@@ -1083,8 +1133,116 @@ await section('32) a resource sent back: the tag error is said in plain words, o
   await ed.page.close();
 });
 
+await section('33) a learning-path level: add a resource, save (the server gives its id), save again keeps it', async () => {
+  const { page, calls } = await open(browser, 'ogrenme', '#icerik/ogrenme-seviyeleri', { width: 1440, height: 900 });
+  ok(await waitFor(page, () => !!document.querySelector('[data-cms-entry="fixture-explorer"]')), 'Öğrenme seviyeleri lists the level');
+  ok(await page.locator('[data-sub-link="ogrenme-alanlari"]').count() === 1 && await page.locator('[data-sub-link="yol-haritasi"]').count() === 1, 'the domains and roadmap tabs are there too');
+  await page.click('[data-cms-entry="fixture-explorer"] [data-cms-edit]');
+  await page.waitForSelector('[data-field-wrap="sections"] [data-orow]');
+  ok((await page.textContent('#cmsTitle')).includes('fixture · explorer'), 'the heading is the domain and the level');
+  ok(await page.locator('[data-field-wrap="domain"] fieldset').evaluate((e) => e.disabled) && await page.locator('[data-field-wrap="level"] fieldset').evaluate((e) => e.disabled), 'domain and level are locked once the level exists');
+  const domainOptions = await page.locator('[data-field="domain"] option').evaluateAll((os) => os.map((o) => o.textContent.trim()));
+  ok(domainOptions.includes('Fixture domain') && domainOptions.includes('Genomics'), `the domains by name: ${domainOptions.join(', ')}`);
+  const SECTIONS = '[data-field-wrap="sections"] [data-objects="sections"]';
+  const sec = (i) => `${SECTIONS} > [data-rows] > [data-orow]:nth-child(${i})`;
+  ok((await page.textContent(`${sec(1)} > summary`)).includes('Temeller'), 'a section is named by its kind');
+  // The webinar card shows its webinar fields; made a tool, they hide but stay.
+  await page.click(`${sec(2)} > summary`);
+  const web = `${sec(2)} [data-objects="resources"] > [data-rows] > [data-orow]:nth-child(1)`;
+  await page.click(`${web} > summary`);
+  ok(await page.locator(`${web} [data-sub-wrap="webinarSlug"]`).isVisible(), 'a webinar card shows its webinar page');
+  ok(await page.locator(`${web} [data-sub-wrap="id"] fieldset`).evaluate((e) => e.disabled), 'the progress key is read-only');
+  ok(await page.locator(`${web} [data-sub-wrap="id"] input`).inputValue() === 'fx-c', 'and shows the key');
+  await page.selectOption(`${web} [data-sub-wrap="tag"] select`, 'Tool');
+  ok(await page.locator(`${web} [data-sub-wrap="webinarSlug"]`).isHidden(), 'a tool card hides the webinar fields');
+  await page.selectOption(`${web} [data-sub-wrap="tag"] select`, 'Webinar');
+  // A new card in the first section.
+  await page.click(`${sec(1)} > summary`);
+  const RES1 = `${sec(1)} [data-objects="resources"]`;
+  await page.click(`${RES1} > div > [data-row-add]`);
+  const NEW = `${RES1} > [data-rows] > [data-orow]:nth-child(3)`;
+  ok(await page.locator(`${NEW} [data-sub-wrap="id"] fieldset`).evaluate((e) => e.disabled), 'a new card\'s key is not typed either');
+  ok(await page.locator(`${NEW} [data-sub-wrap="id"] input`).inputValue() === '', 'it is empty until the server gives one');
+  await page.fill(`${NEW} [data-sub-wrap="title"] input[data-lang="en"]`, 'Landmark Paper');
+  await page.fill(`${NEW} [data-sub-wrap="title"] input[data-lang="tr"]`, 'Dönüm Noktası Makalesi');
+  await page.fill(`${NEW} [data-sub-wrap="description"] textarea[data-lang="en"]`, 'Read it first.');
+  await page.fill(`${NEW} [data-sub-wrap="description"] textarea[data-lang="tr"]`, 'Önce bunu okuyun.');
+  await page.selectOption(`${NEW} [data-sub-wrap="tag"] select`, 'Paper');
+  ok(await page.locator(`${NEW} [data-sub-wrap="webinarSlug"]`).isHidden(), 'a paper card has no webinar fields');
+  await page.fill(`${NEW} [data-sub-wrap="url"] input[data-lang="en"]`, 'https://example.org/landmark');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts');
+  ok(post?.body?.type === 'lp-levels' && post.body.action === 'update' && post.body.entry_id === 'fixture-explorer', 'an update draft of the level');
+  const sent = (l) => post?.body?.data?.[l]?.frontmatter?.sections?.[0]?.resources?.[2];
+  ok(JSON.stringify(sent('en')) === JSON.stringify({ id: '', title: 'Landmark Paper', description: 'Read it first.', tag: 'Paper', url: 'https://example.org/landmark' }), `the new card, id first and empty: ${JSON.stringify(sent('en'))}`);
+  ok(sent('tr')?.id === '' && sent('tr')?.url === 'https://example.org/landmark', 'the Turkish side has one too, its empty link the English one');
+  ok(JSON.stringify(post.body.data.tr.frontmatter.sections[0].resources[1]) === JSON.stringify(LEVEL.tr.frontmatter.sections[0].resources[1]), 'the Turkish /tr link is untouched');
+  ok(JSON.stringify(post.body.data.en.frontmatter.sections[1]) === JSON.stringify(LEVEL.en.frontmatter.sections[1]), 'the webinar card is back as it was');
+  ok(!('_assigned' in post.body.data), 'the client never sends which ids the server gave');
+  // The server's id is drawn into the form.
+  const given = 'landmark-paper-a0a0a0';
+  ok(await waitFor(page, (sel) => document.querySelector(`${sel} [data-sub-wrap="id"] input`)?.value === 'landmark-paper-a0a0a0', NEW), 'the new card shows the key the server gave');
+  ok(await page.locator(`${NEW}`).evaluate((e) => e.open), 'the card stays open');
+  // A second save, after another edit: the id goes back, nothing else moves.
+  await page.fill('[data-field="orientation"][data-lang="en"]', 'Start here, slowly.');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => document.querySelectorAll('#cmsSaveState').length && /Kaydedildi/.test(document.getElementById('cmsSaveState').textContent)), 'saved again');
+  const patch = calls.filter((c) => c.method === 'PATCH').at(-1);
+  const p = (l) => patch?.body?.data?.[l]?.frontmatter;
+  ok(p('en')?.sections?.[0]?.resources?.[2]?.id === given && p('tr')?.sections?.[0]?.resources?.[2]?.id === given, `the second save keeps the id on both sides: ${p('en')?.sections?.[0]?.resources?.[2]?.id}`);
+  ok(p('en')?.orientation === 'Start here, slowly.' && p('tr')?.orientation === LEVEL.tr.frontmatter.orientation, 'the edit lands on its side');
+  ok(JSON.stringify(p('tr')?.sections?.[0]?.resources?.slice(0, 2)) === JSON.stringify(LEVEL.tr.frontmatter.sections[0].resources), 'the cards that were there are untouched');
+  ok(await page.locator(`${RES1} > [data-rows] > [data-orow]`).count() === 3, 'no card added on the way');
+  await page.close();
+});
+
+await section('34) a new roadmap stage: numbered after the last, its file name shown; a published level opens at its level', async () => {
+  const { page, calls } = await open(browser, 'ogrenme', '#icerik/yol-haritasi/_new', { width: 1440, height: 900 });
+  await page.waitForSelector('[data-field-wrap="number"]');
+  ok(await page.locator('[data-field="number"]').inputValue() === '9', 'the next number, after the highest');
+  ok(await page.locator('[data-field-wrap="number"] fieldset').evaluate((e) => e.disabled), 'and not typed');
+  await page.fill('[data-field="emoji"]', '🧪');
+  await page.fill('[data-field="title"][data-lang="en"]', 'Try It Out');
+  await page.fill('[data-field="title"][data-lang="tr"]', 'Deneyin');
+  ok(await waitFor(page, () => document.getElementById('cmsFileName')?.textContent === '09-try-it-out'), 'the file name: number then title');
+  await page.fill('[data-field="subtitle"][data-lang="en"]', 'S.');
+  await page.fill('[data-field="subtitle"][data-lang="tr"]', 'A.');
+  await page.selectOption('[data-field="color"]', 'red');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts');
+  ok(post?.body?.action === 'create' && post.body.data.en.frontmatter.number === 9 && post.body.data.tr.frontmatter.number === 9, 'the number goes on both sides');
+  ok(JSON.stringify(Object.keys(post.body.data.en.frontmatter)) === JSON.stringify(['number', 'emoji', 'title', 'subtitle', 'color', 'resources']), `every key, in the schema's order: ${Object.keys(post.body.data.en.frontmatter)}`);
+  await page.close();
+
+  const pub = '00000000-0000-4000-8000-000000000803';
+  const live = await open(browser, 'ogrenme', '#icerik/taslaklar', { width: 1440, height: 900 }, (st) => {
+    st.drafts.set(pub, draftRow({ id: pub, type: 'lp-levels', status: 'published', entry_id: 'fixture-explorer', author_id: 'u7' }));
+  });
+  ok(await waitFor(live.page, () => !!document.querySelector('[data-cms-draft] [data-cms-open-site]')), 'a published level has "Sitede aç"');
+  const href = await live.page.getAttribute('[data-cms-draft] [data-cms-open-site]', 'href');
+  ok(href === '/tr/learning-paths/fixture/?level=explorer', `it opens the domain at the level: ${href}`);
+  await live.page.close();
+});
+
+await section('35) a rule-8 refusal is said in plain words on the right card', async () => {
+  const id = '00000000-0000-4000-8000-000000000804';
+  const { page } = await open(browser, 'ogrenme', `#icerik/taslaklar/${id}`, { width: 1366, height: 768 }, (st) => {
+    st.drafts.set(id, draftRow({ id, type: 'lp-levels', entry_id: 'fixture-explorer', author_id: 'u7', data: LEVEL, base_shas: { [LEVEL_PATHS.en]: 'sha-le', [LEVEL_PATHS.tr]: 'sha-lt' } }));
+    st.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'tr.frontmatter.sections.0.resources.1.url': 'Must be the same as in English (a Turkish link may add /tr)' } }];
+  });
+  await page.waitForSelector('#cmsSubmit');
+  await page.click('#cmsSubmit');
+  ok(await waitFor(page, () => /alan düzeltilmeli/.test(document.getElementById('cmsErrors')?.textContent ?? '')), 'a summary of what to fix');
+  const summary = (await page.textContent('#cmsErrors')).replace(/\s+/g, ' ');
+  ok(summary.includes('Bölüm 1') && summary.includes('Kaynak 2') && summary.includes('İngilizcesiyle aynı olmalı'), `the card and the rule in plain words: "${summary.slice(0, 200)}"`);
+  ok(await page.evaluate(() => document.activeElement?.matches('[data-sub-wrap="url"] input[data-lang="tr"]')), 'the Turkish link has the focus');
+  await page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
-for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new']]) {
+for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));
   });

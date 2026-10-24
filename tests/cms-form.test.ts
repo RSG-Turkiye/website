@@ -1215,6 +1215,8 @@ test('learning paths: the models mirror the schemas (tabs, enums, ids read-only,
   assert.deepEqual(MODELS['lp-roadmap'].lockedOnUpdate, ['number']);
   assert.ok(MODELS['lp-roadmap'].fields.find((x) => x.key === 'number')!.readOnly, 'the server numbers a stage');
   for (const key of LP) assert.deepEqual(cmsType(key)!.lockedKeys, MODELS[key].lockedOnUpdate ?? [], key);
+  for (const key of LP) assert.equal(MODELS[key].appendKey ?? '', cmsType(key)!.appendKey, key);
+  assert.equal(MODELS['lp-levels'].heading!({ domain: { en: 'ml', tr: 'ml' }, level: { en: 'researcher', tr: 'researcher' } }), 'ml · researcher');
   // Every option has its words in both languages.
   for (const key of LP) for (const fd of [...MODELS[key].fields, ...MODELS[key].fields.flatMap((x) => x.fields ?? []), ...res.fields!]) {
     for (const o of fd.optionsFrom ? [] : fd.options ?? []) assert.ok(ui.tr[`admin.cms.opt.${o}` as keyof typeof ui.tr] && ui.en[`admin.cms.opt.${o}` as keyof typeof ui.en], `${key} ${o}`);

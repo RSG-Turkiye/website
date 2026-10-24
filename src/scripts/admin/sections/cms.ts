@@ -31,11 +31,12 @@ import { refreshCounts, noteAddress } from '../shell';
 import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
   applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKeys, modelFor, modelForSub,
-  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId,
+  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, MODELS,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
 import { diffEntry, fileDiffs, hiddenFileChanges } from '../cms-diff';
+import { nextStageNumber } from '../../../lib/cms/slug';
 import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll, renderDiff, renderField, renderFileDiff, rowsClick, setRowImage, show, showIn } from '../cms-render';
 
 const SECTION = '#icerik';
@@ -619,7 +620,7 @@ function renderForm(ed: Editor, values: Values): void {
   const fields = fieldsFor(ed.model);
   const main = fields.filter((f) => f.group === 'main');
   const more = fields.filter((f) => f.group === 'more');
-  const draw = (f: FieldDef) => renderField(ed.model, f, values[f.key] ?? formValues(ed.model, ed.origin)[f.key], { readOnly: ed.readOnly });
+  const draw = (f: FieldDef) => renderField(ed.model, f, values[f.key] ?? formValues(ed.model, ed.origin)[f.key], { readOnly: ed.readOnly || lockedHere(ed, f) });
   const box = $('cmsFields')!;
   box.innerHTML = `
     <div id="cmsErrors" class="hidden mb-3 rounded-xl border border-red-200 bg-red-tint px-3 py-2 text-sm text-[#8a1c1c]" role="alert"></div>
@@ -638,11 +639,20 @@ function renderForm(ed: Editor, values: Values): void {
   refreshRows(ed.model, box);
 }
 
+/**
+ * A new entry's file name as the server will give it. Read-only fields are
+ * not read back from the form (a roadmap stage's number), so they come from
+ * the data the form was drawn from.
+ */
+function fileNameOf(ed: Editor, values: Values): string {
+  return suggestedId(ed.model, { ...formValues(ed.model, ed.origin), ...values });
+}
+
 function updateFileName(ed: Editor, values: Values): void {
   const el = $('cmsFileName');
   if (!el) return;
   const isNew = !ed.draft ? ed.entryId === null : ed.draft.action === 'create';
-  const id = isNew ? suggestedId(ed.model, values) : (ed.draft?.entry_id ?? ed.entryId ?? '');
+  const id = isNew ? fileNameOf(ed, values) : (ed.draft?.entry_id ?? ed.entryId ?? '');
   el.textContent = id || tk('admin.cms.fileNameFromTitle');
   el.classList.toggle('font-mono', !!id);
 }
@@ -686,10 +696,28 @@ function wireBar(ed: Editor): void {
   if (del) armConfirm(del, tk('admin.cms.confirmDelete'), () => deleteEntry(ed));
 }
 
+/** What names the file (a level's domain and level, a stage's number): chosen when an entry is made, shown read-only after. */
+function lockedHere(ed: Editor, f: FieldDef): boolean {
+  const isNew = ed.draft ? ed.draft.action === 'create' : ed.entryId === null;
+  return !isNew && !!ed.model.lockedOnUpdate?.includes(f.key);
+}
+
+/** A select whose options are another type's entries (a level's domain): those entries, loaded. */
+async function loadOptionSources(model: TypeModel): Promise<void> {
+  const keys = [...new Set(model.fields.map((f) => f.optionsFrom).filter((k): k is NonNullable<typeof k> => !!k))];
+  await Promise.all(keys.map((k) => loadEntries(MODELS[k])));
+}
+
+/** The form's model for this data: its fields (page texts) and its options (a level's domains), once. */
+function modelOf(model: TypeModel, base: unknown): TypeModel {
+  const sources = Object.fromEntries(Object.entries(entries).map(([k, list]) => [k, (list ?? []).map((e) => ({ id: e.id, title: e.title }))]));
+  return withOptions(withFields(model, base), sources, base);
+}
+
 function newEditor(model: TypeModel, route: string, base: unknown, extra: Partial<Editor>): Editor {
   return {
     // A form built from the entry (page texts) gets its fields here, once.
-    model: withFields(model, base), route, draft: null, entryId: null, baseShas: null, base, origin: base, readOnly: false, backupKey: `new:${model.key}`,
+    model: modelOf(model, base), route, draft: null, entryId: null, baseShas: null, base, origin: base, readOnly: false, backupKey: `new:${model.key}`,
     edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, conflict: false, signedOutShown: false, lostSave: null, ...extra,
   };
 }
@@ -800,7 +828,7 @@ function currentData(ed: Editor): unknown {
   const values = currentValues(ed);
   const data = applyValues(ed.model, ed.origin, values);
   const isNew = ed.draft ? ed.draft.action === 'create' : ed.entryId === null;
-  return isNew ? withId(ed.model, data, suggestedId(ed.model, values)) : data;
+  return isNew ? withId(ed.model, data, fileNameOf(ed, values)) : data;
 }
 
 function onInput(e: Event): void {
@@ -948,9 +976,19 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
     notice(esc(tk(errorKey('forbidden'))));
     return;
   }
+  await loadOptionSources(model);
+  if (editor !== placeholder) return;
   if (!entryId) {
+    const base = emptyData(model);
+    if (model.appendKey) {
+      // A new roadmap stage: the number the server will give it, shown read-only (A11).
+      const list = await loadEntries(model);
+      if (editor !== placeholder) return;
+      const n = nextStageNumber((list ?? []).map((e) => e.id));
+      for (const l of ['en', 'tr'] as const) (base as Record<'en' | 'tr', { frontmatter: Record<string, unknown> }>)[l].frontmatter[model.appendKey] = n;
+    }
     head({ title: tk('admin.cms.newOf', { type: tk(model.label) }), back, chipHtml: chip(tk('admin.cms.chip.draft'), 'neutral'), line: tk('admin.cms.status.draft'), banner: true });
-    start(newEditor(model, route, emptyData(model), { backupKey: `new:${model.key}` }));
+    start(newEditor(model, route, base, { backupKey: `new:${model.key}` }));
     return;
   }
   const [r] = await Promise.all([api<{ data: unknown; base_shas: Record<string, string | null> }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(entryId)}`), loadLists()]);
@@ -979,6 +1017,7 @@ function noForm(model: TypeModel | null, back: string, title?: string): void {
 }
 
 function titleFrom(model: TypeModel, values: Values): string {
+  if (model.heading) return model.heading(values);
   const v = values[model.titleField ?? 'title'] as { en?: unknown; tr?: unknown } | string | undefined;
   if (typeof v === 'string') return v;
   const pick = (x: unknown) => (typeof x === 'string' ? x : '');
@@ -1004,6 +1043,8 @@ async function openDraft(id: string, route: string): Promise<void> {
   await loadEntries(model);
   if (editor !== placeholder) return;
   if (model.generated) { await openGeneratedDraft(model, draft, route, back, placeholder); return; }
+  await loadOptionSources(model);
+  if (editor !== placeholder) return;
   const v = sv(draft);
   const ed = newEditor(model, route, draft.data ?? emptyData(model), {
     draft, entryId: draft.action === 'create' ? null : draft.entry_id, backupKey: draft.id, readOnly: !v.editable || draft.action === 'delete',
@@ -1195,7 +1236,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   clearErrors();
   let r: Answer<{ draft: Draft; duplicate_of?: string }>;
   if (!ed.draft) {
-    if (!ed.entryId && !suggestedId(ed.model, values)) {
+    if (!ed.entryId && !fileNameOf(ed, values)) {
       // A new entry is named after its title (or repo): nothing to store it under yet.
       setSaveState(tk('admin.cms.needTitle'));
       if (!auto) showErrors({ [ed.model.idField]: 'Missing' }, true);
@@ -1243,6 +1284,9 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
       notice(`${esc(tk('admin.cms.duplicateOf'))} <a href="${SECTION}/${ed.model.sub}/${esc(encodeURIComponent(dup))}" data-cms-duplicate class="underline font-medium">${esc(tk('admin.cms.duplicateOpen'))}</a>`, 'warn');
     }
   }
+  // What the server added (a new learning-path resource's id, a stage's
+  // number) is drawn into the form, which saves write onto from now on.
+  if (ed.edits === editsAtStart) restamp(ed, data, r.body.draft.data);
   if (ed.edits === editsAtStart) {
     dropBackup(ed.backupKey);
     guard?.reset();
@@ -1252,6 +1296,38 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   ed.signedOutShown = false;
   setSaveState(tk('admin.cms.saved', { time: clock(now()) }));
   return true;
+}
+
+/**
+ * After a save, the fields whose data the server changed (A4: it gives a
+ * new resource its id) are taken from its answer: `ed.origin` gets that
+ * field's data, and the field is drawn again from it, so its rows are
+ * stamped from what later saves write onto, and they send the ids back
+ * rather than empty ones. Not when the person typed during the save: the
+ * next save gets the ids then. Drawn quietly: nothing new to save, and the
+ * rows that were open stay open.
+ */
+function restamp(ed: Editor, sent: unknown, answer: unknown): void {
+  if (answer === undefined || editor !== ed) return;
+  const before = formValues(ed.model, sent);
+  const after = formValues(ed.model, answer);
+  const box = $('cmsFields');
+  let changed = false;
+  for (const f of fieldsFor(ed.model)) {
+    if (sameData(before[f.key], after[f.key])) continue;
+    ed.origin = withFieldFrom(ed.model, ed.origin, answer, f.key);
+    const wrap = box?.querySelector(`[data-field-wrap="${f.key}"]`);
+    if (!wrap) continue;
+    const open = [...wrap.querySelectorAll('details')].map((d) => d.open);
+    wrap.outerHTML = renderField(ed.model, f, formValues(ed.model, ed.origin)[f.key], { readOnly: ed.readOnly || lockedHere(ed, f) });
+    const again = [...(box!.querySelector(`[data-field-wrap="${f.key}"]`)?.querySelectorAll('details') ?? [])];
+    if (again.length === open.length) again.forEach((d, i) => { d.open = open[i]; });
+    changed = true;
+  }
+  if (changed && box) {
+    refreshRows(ed.model, box);
+    updateFileName(ed, currentValues(ed));
+  }
 }
 
 function saveFailed(ed: Editor, r: { status: number; code: string; body: Record<string, any> }, auto: boolean, data: unknown): boolean {
@@ -1458,11 +1534,11 @@ async function openReview(id: string, route: string): Promise<void> {
   const found = modelFor(draft.type);
   // A generated type (the podcast) has fields for its diff, though no form.
   if (!found) { noForm(found, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
-  const model = withFields(found, draft.data ?? emptyData(found));
   // Per type: an `approve: 'admin'` type is not approved by a group approver.
-  const approver = approves(model.key);
-  await loadEntries(model);
+  const approver = approves(found.key);
+  await Promise.all([loadEntries(found), loadOptionSources(found)]);
   if (editor !== placeholder) return;
+  const model = modelOf(found, draft.data ?? emptyData(found));
   let published: unknown = null;
   let mainFiles: Record<string, string | null> | null = null;
   // Without the published version there is nothing to compare with (or, for

@@ -93,8 +93,21 @@ const CMS_RESOURCE = {
   section: 'tools', order: 10, title: { en: 'Resource', tr: 'Kaynak' }, description: { en: 'Description', tr: 'Açıklama' }, url: 'https://example.org/',
   tags: { en: N(6, (i) => `tag-${i}`), tr: N(6, (i) => `etiket-${i}`) }, opensource: true,
 };
+/** A learning-path level with many cards, closed: the form must still fit. */
+const LP_CARD = (i, lang) => ({ id: `card-${i}`, title: `Card ${i} ${lang}`, description: 'Why.', tag: 'Reading', url: `https://example.org/${i}` });
+const LP_LEVEL_SIDE = (lang) => ({ domain: 'example', level: 'explorer', orientation: 'Start here.', prerequisites: ['Biology'],
+  sections: ['foundations', 'toolkit', 'webinars', 'papers'].map((type, s) => ({ type, resources: N(8, (i) => LP_CARD(s * 8 + i, lang)) })) });
+const LP_LEVEL = JSON.parse(JSON.stringify({ en: { frontmatter: LP_LEVEL_SIDE('en'), body: '', source: '' }, tr: { frontmatter: LP_LEVEL_SIDE('tr'), body: '', source: '' } }));
+const LP_STAGE_SIDE = (lang) => ({ number: 7, emoji: '🧭', title: 'Stage', subtitle: 'Subtitle', color: 'navy', resources: N(6, (i) => LP_CARD(i, lang)) });
+const LP_STAGE = JSON.parse(JSON.stringify({ en: { frontmatter: LP_STAGE_SIDE('en'), body: '', source: '' }, tr: { frontmatter: LP_STAGE_SIDE('tr'), body: '', source: '' } }));
+const LP_DOMAIN_SIDE = () => ({ name: 'Domain', emoji: '🧬', tagline: 'Tagline', order: 1, goDeeper: N(4, (i) => ({ title: `Link ${i}`, description: 'D', url: `https://example.org/${i}` })) });
+const LP_DOMAIN = { en: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' }, tr: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' } };
+const lpPaths = (dir, id) => ({ en: `src/content/${dir}/en/${id}.md`, tr: `src/content/${dir}/tr/${id}.md` });
 const CMS_ENTRIES = {
   resources: N(36, (i) => ({ id: `r${i}`, title: `Resource ${i}`, section: 'tools', shas: {} })),
+  'lp-domains': N(4, (i) => ({ id: `d${i}`, title: `Domain ${i}`, paths: lpPaths('lp-domains', `d${i}`), shas: {} })),
+  'lp-levels': N(13, (i) => ({ id: `d${i % 4}-explorer${i}`, title: `d${i % 4} · explorer`, paths: lpPaths('lp-levels', `d${i % 4}-explorer${i}`), shas: {} })),
+  'lp-roadmap': N(8, (i) => ({ id: `0${i + 1}-stage`, title: `${i + 1}. Stage`, paths: lpPaths('lp-roadmap', `0${i + 1}-stage`), shas: {} })),
   podcast: [{ id: 'podcast', title: CMS_PODCAST.title, date: '2025-01-01', shas: {} }],
   committees: N(8, (i) => ({ id: `c${i}`, title: `Committee ${i}`, shas: {} })),
   events: [{ id: 'symposium-2026', title: 'Symposium 2026', date: '2026-10-10', shas: {} }, ...N(59, (i) => ({ id: `e${i}`, title: `Event ${i}`, date: '2025-01-01', shas: {} }))],
@@ -134,11 +147,14 @@ async function open(path, viewport, user = ADMIN, { podcast = true, posts = POST
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
     // An admin approves every type (approve per type: functions/api/cms/types.ts).
-    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme']].map(([key, group]) => ({ key, group, canApprove: true })) });
+    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme'], ['lp-domains', 'ogrenme'], ['lp-levels', 'ogrenme'], ['lp-roadmap', 'ogrenme']].map(([key, group]) => ({ key, group, canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'podcast') return json({ data: CMS_PODCAST, base_shas: { 'src/data/podcast.json': 'sha' }, files: { 'src/data/podcast.json': JSON.stringify(CMS_PODCAST, null, 2) } });
     if (url.pathname === `/api/cms/drafts/${POD_DRAFT}`) return json({ draft: { ...CMS_DRAFTS[1], id: POD_DRAFT, type: 'podcast', entry_id: 'podcast', status: 'draft', write_nonce: 'n', data: CMS_PODCAST_NEW, base_shas: { 'src/data/podcast.json': 'sha' } }, files: null });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'resources') return json({ data: CMS_RESOURCE, base_shas: { 'src/content/resources/r0.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-levels') return json({ data: LP_LEVEL, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-roadmap') return json({ data: LP_STAGE, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-domains') return json({ data: LP_DOMAIN, base_shas: {} });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/c0.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
@@ -208,6 +224,7 @@ async function routes(lang, user) {
   if (out.includes('#icerik/etkinlikler')) out.push('#icerik/etkinlikler/symposium-2026', '#icerik/webinarlar/_new', '#icerik/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik/onay/00000000-0000-4000-8000-000000000001');
   if (out.includes('#icerik/komiteler')) out.push('#icerik/komiteler/c0');
   if (out.includes('#icerik/kaynaklar')) out.push('#icerik/kaynaklar/r0');
+  if (out.includes('#icerik/ogrenme-seviyeleri')) out.push('#icerik/ogrenme-seviyeleri/d0-explorer0', '#icerik/yol-haritasi/01-stage', '#icerik/ogrenme-alanlari/d0');
   if (out.includes('#icerik/podcast')) out.push(`#icerik/taslaklar/${POD_DRAFT}`, `#icerik/onay/${POD_DRAFT}`);
   return [...new Set(out)];
 }
