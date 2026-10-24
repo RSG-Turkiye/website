@@ -31,7 +31,7 @@ import { refreshCounts, noteAddress } from '../shell';
 import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
   applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKeys, modelFor, modelForSub,
-  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, withoutUnpublishedIds, MODELS,
+  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, rebased, removedResourceIds, sameSave, MODELS,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
@@ -604,7 +604,8 @@ function notice(html: string | null, tone: 'info' | 'warn' | 'error' = 'error'):
 
 function errorText(r: { code: string; body: Record<string, any> }): string {
   if (r.code === 'invalid') return tk('admin.cms.error.invalid');
-  return tk(errorKey(r.code));
+  // A refusal with a count says it (a domain's levels).
+  return tk(errorKey(r.code), { n: String(r.body?.count ?? '') });
 }
 
 function setSaveState(text: string): void {
@@ -1170,7 +1171,8 @@ const pairText = (v: unknown) => {
 async function rebase(ed: Editor): Promise<void> {
   if (!ed.fresh) return;
   const values = currentValues(ed);
-  const data = applyValues(ed.model, ed.fresh.data, values);
+  // Ids the site's version lacks are emptied (A4): the next save gives those cards new ones.
+  const data = rebased(ed.model, ed.fresh.data, values);
   if (!ed.draft) {
     // Not saved yet: carry on from the site's version, the form redrawn
     // from the rebased data, which later saves write onto.
@@ -1185,9 +1187,7 @@ async function rebase(ed: Editor): Promise<void> {
     await saveNow();
     return;
   }
-  // A new draft: ids the old one was given are not its own (A4), so its save gives those cards new ones.
-  const fresh = ed.model.fields.some((f) => f.identity === 'id' || f.fields?.some((x) => x.identity === 'id')) ? withoutUnpublishedIds(data, ed.fresh.data) : data;
-  const made = await api<{ draft: Draft }>('POST', '/api/cms/drafts', { type: ed.model.key, action: 'update', entry_id: ed.draft.entry_id, data: fresh, base_shas: ed.fresh.base_shas });
+  const made = await api<{ draft: Draft }>('POST', '/api/cms/drafts', { type: ed.model.key, action: 'update', entry_id: ed.draft.entry_id, data, base_shas: ed.fresh.base_shas });
   if (!made.ok) { notice(esc(errorText(made))); return; }
   const gone = await api('DELETE', `/api/cms/drafts/${ed.draft.id}`);
   // Said on the new draft: whether the old one is gone, and the note it was sent back with.
@@ -1259,7 +1259,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
       ed.lostSave = null;
       const now2 = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${ed.draft.id}`);
       if (editor !== ed) return false;
-      if (now2.ok && sameData(now2.body.draft.data, lost.data)) {
+      if (now2.ok && sameSave(now2.body.draft.data, lost.data)) {
         ed.draft = { ...ed.draft, ...now2.body.draft };
         r = await api<{ draft: Draft }>('PATCH', `/api/cms/drafts/${ed.draft.id}`, { data, write_nonce: ed.draft.write_nonce });
       }
@@ -1288,7 +1288,9 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   }
   // What the server added (a new learning-path resource's id, a stage's
   // number) is drawn into the form, which saves write onto from now on.
+  // While the person typed, only the new cards' ids are filled in.
   if (ed.edits === editsAtStart) restamp(ed, data, r.body.draft.data);
+  else if (ed.model.resourceIds) fillGivenIds(ed, data, r.body.draft.data);
   if (ed.edits === editsAtStart) {
     dropBackup(ed.backupKey);
     guard?.reset();
@@ -1330,6 +1332,43 @@ function restamp(ed: Editor, sent: unknown, answer: unknown): void {
     refreshRows(ed.model, box);
     updateFileName(ed, currentValues(ed));
   }
+}
+
+/**
+ * The ids the server gave new cards, written into those cards' id inputs
+ * while the person typed during the save (restamp would redraw over their
+ * typing). A card is filled only where its list has as many cards as were
+ * sent and its id is still empty; ids are read-only, so typing never
+ * touched them. ed.origin is left alone: a new card is not in it (it has no
+ * origin row), and its id travels with the row on the next save.
+ */
+function fillGivenIds(ed: Editor, sent: unknown, answer: unknown): void {
+  const box = $('cmsFields');
+  if (!box || editor !== ed) return;
+  const fm = (d: unknown) => (d as { en?: { frontmatter?: Record<string, unknown> } } | null)?.en?.frontmatter;
+  const listAt = (path: string[]): Element | null => {
+    let scope: Element | null = box.querySelector(`[data-field-wrap="${path[0]}"]`);
+    for (let i = 0; i + 1 < path.length && scope; i += 2) {
+      const rows = scope.querySelector(`[data-objects="${path[i]}"] > [data-rows]`);
+      scope = rows?.children[Number(path[i + 1])]?.querySelector(':scope > [data-row-body]') ?? null;
+    }
+    return scope?.querySelector(`[data-objects="${path.at(-1)}"] > [data-rows]`) ?? null;
+  };
+  const lists = (d: unknown) => {
+    const f = fm(d);
+    return Array.isArray(f?.sections) ? (f.sections as { resources?: unknown[] }[]).map((s, i) => ({ path: ['sections', String(i), 'resources'], list: s?.resources ?? [] }))
+      : [{ path: ['resources'], list: (f?.resources as unknown[]) ?? [] }];
+  };
+  const got = lists(answer);
+  lists(sent).forEach(({ path, list }, i) => {
+    const rows = listAt(path);
+    if (!rows || rows.children.length !== list.length) return;
+    list.forEach((r, j) => {
+      const given = (got[i]?.list[j] as { id?: unknown } | undefined)?.id;
+      const input = rows.children[j]?.querySelector<HTMLInputElement>(':scope > [data-row-body] > [data-sub-wrap="id"] input');
+      if ((r as { id?: unknown })?.id === '' && typeof given === 'string' && given && input && input.value === '') input.value = given;
+    });
+  });
 }
 
 function saveFailed(ed: Editor, r: { status: number; code: string; body: Record<string, any> }, auto: boolean, data: unknown): boolean {
@@ -1574,9 +1613,12 @@ async function openReview(id: string, route: string): Promise<void> {
     const diff = diffEntry(model, published ?? emptyData(model), draft.data, fields);
     noteChanged = diff.changed.some((c) => c.field.approverOnly);
     nothing = diff.changed.length === 0;
+    // Each published progress key the draft drops, said one by one.
+    const removed = model.resourceIds ? removedResourceIds(published, draft.data) : [];
     bodyHtml = nothing ? `<p class="text-sm text-gray-600">${esc(tk('admin.cms.review.nothing'))}</p>`
       : `<p class="text-sm font-semibold text-navy">${esc(tk('admin.cms.review.changed', { n: diff.changed.length }))}</p>
-        <div class="flex flex-wrap gap-1 mt-1 mb-2">${diff.changed.map((c) => chip(tk(c.field.label), 'navy')).join('')}</div>${renderDiff(diff)}`;
+        <div class="flex flex-wrap gap-1 mt-1 mb-2">${diff.changed.map((c) => chip(tk(c.field.label), 'navy')).join('')}</div>
+        ${removed.length ? `<ul data-cms-removed-ids class="mb-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 [overflow-wrap:anywhere]">${removed.map((id) => `<li>${esc(tk('admin.cms.review.removedId', { id }))}</li>`).join('')}</ul>` : ''}${renderDiff(diff)}`;
     // Under the fields, the files themselves: bytes the form does not show
     // are never approved unseen. Changed bytes with no changed field are
     // shown open, with a warning, and can be approved after reading them.

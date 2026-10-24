@@ -15,6 +15,7 @@
  * nobody edited is written back exactly as it was.
  */
 import { checkId, slugify } from '../../lib/cms/slug';
+import { resourceId, resourceIdsOf, resourcesOf, sideFrontmatter } from '../../lib/cms/lp-resources';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
 export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap';
@@ -39,8 +40,8 @@ export interface FieldDef {
   /** select: each option's label, where it is not an i18n key (an entry's title). */
   optionLabels?: Record<string, string>;
   /** A pair type's per-language text: an empty Turkish value is written as
-   * the English one (a resource's link, the same in both languages unless
-   * the Turkish one adds /tr). */
+   * the English one (a resource's link), with /tr added to a link to this
+   * site so it opens the Turkish page (trLinkFrom). */
   trFallback?: boolean;
   /** A list written even when empty (`[]`), so a new file has every key. */
   always?: boolean;
@@ -150,6 +151,8 @@ export interface TypeModel {
   titleField?: string;
   /** The editor's heading, where no one field is the title (a level: its domain and level). */
   heading?: (values: Values) => string;
+  /** The registry's resourceIds: learning-path cards whose ids are progress keys (rule 8). */
+  resourceIds?: boolean;
   /** The registry's appendKey: a new entry's number, the highest + 1 (a roadmap stage). */
   appendKey?: string;
   /** Fields shown read-only once the entry exists (the registry's lockedKeys:
@@ -357,7 +360,7 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     // One domain at one level: its sections of resource cards. Domain and
     // level make the file name and the page's place, so they are chosen once.
     key: 'lp-levels', format: 'markdown-pair', sub: 'ogrenme-seviyeleri', group: 'ogrenme', idField: 'en.frontmatter.domain', label: 'admin.cms.type.lp-levels',
-    lockedOnUpdate: ['domain', 'level'],
+    lockedOnUpdate: ['domain', 'level'], resourceIds: true,
     heading: (v) => [(v.domain as Bi | undefined)?.en, (v.level as Bi | undefined)?.en].filter(Boolean).join(' · '),
     fields: [
       { key: 'domain', kind: 'select', options: [], optionsFrom: 'lp-domains', label: 'admin.cms.f.lpDomain', help: 'admin.cms.h.lpDomain', group: 'main', required: true },
@@ -379,7 +382,7 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     // One stage of the beginner roadmap. A new stage comes last; its number
     // is the highest + 1, set by the server, and never changes (A11).
     key: 'lp-roadmap', format: 'markdown-pair', sub: 'yol-haritasi', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'admin.cms.type.lp-roadmap',
-    lockedOnUpdate: ['number'], appendKey: 'number',
+    lockedOnUpdate: ['number'], appendKey: 'number', resourceIds: true,
     fields: [
       { key: 'number', kind: 'number', label: 'admin.cms.f.stageNumber', help: 'admin.cms.h.stageNumber', group: 'main', readOnly: true },
       { key: 'emoji', kind: 'text', label: 'admin.cms.f.emoji', group: 'main', required: true },
@@ -639,7 +642,7 @@ function writeRow(fields: FieldDef[], row: Row, base: Obj | null, lang: 'en' | '
     } else if (lang && (s.perLang || isSplit(v))) {
       const b = v as Bi<unknown> | undefined;
       // An empty Turkish link is the English one (trFallback).
-      writeOne(s, out, lang === 'tr' && s.trFallback && isEmptyValue(s, b?.tr) ? b?.en : b?.[lang]);
+      writeOne(s, out, lang === 'tr' && s.trFallback && isEmptyValue(s, b?.tr) ? trLinkFrom(b?.en) : b?.[lang]);
     }
     else writeOne(s, out, v);
   }
@@ -863,19 +866,60 @@ export function withId(model: TypeModel, data: unknown, id: string): unknown {
  * the new draft's save gives those cards new ones (A4).
  */
 export function withoutUnpublishedIds(data: unknown, main: unknown): unknown {
-  const lists = (fm: unknown): Obj[][] => {
-    if (!isObj(fm)) return [];
-    if (Array.isArray(fm.sections)) return fm.sections.map((x) => (isObj(x) && Array.isArray(x.resources) ? x.resources.filter(isObj) : []));
-    return Array.isArray(fm.resources) ? [fm.resources.filter(isObj)] : [];
-  };
-  const known = new Set((['en', 'tr'] as const).flatMap((l) => lists(side(main, l).frontmatter).flat().map((r) => str(r.id))));
+  // The cards are walked by src/lib/cms/lp-resources.ts, as the server walks them.
+  const known = resourceIdsOf(main);
   const out = clone(data);
   for (const l of ['en', 'tr'] as const) {
-    for (const r of lists(isObj(out) && isObj(out[l]) ? (out[l] as Obj).frontmatter : null).flat()) {
-      if (typeof r.id === 'string' && r.id !== '' && !known.has(r.id)) r.id = '';
-    }
+    for (const { r } of resourcesOf(sideFrontmatter(out, l))) if (resourceId(r) && !known.has(resourceId(r))) r.id = '';
   }
   return out;
+}
+
+/**
+ * The form's values written onto the site's newer version (a rebase, saved
+ * or not): for a type with progress ids, an id that version lacks is
+ * emptied, so the next save gives that card a fresh one (A4).
+ */
+export function rebased(model: TypeModel, fresh: unknown, values: Values): unknown {
+  const data = applyValues(model, fresh, values);
+  return model.resourceIds ? withoutUnpublishedIds(data, fresh) : data;
+}
+
+/**
+ * The published resource ids a draft no longer has, in the site's order:
+ * the approver is shown each one, since members' progress is saved under
+ * it (a resource deleted, or its id emptied through the API).
+ */
+export function removedResourceIds(published: unknown, draft: unknown): string[] {
+  const now = resourceIdsOf(draft);
+  return [...resourceIdsOf(published)].filter((id) => !now.has(id));
+}
+
+/**
+ * Whether the draft the server holds is the save this tab sent (a save whose
+ * answer was lost): the same data once what only the server writes is left
+ * out of both: `_assigned`, each side's `source`, and the ids it gave
+ * (the tab sent those cards with an empty id).
+ */
+export function sameSave(stored: unknown, sent: unknown): boolean {
+  const given = new Set(isObj(stored) && Array.isArray(stored._assigned) ? (stored._assigned as unknown[]).map(str) : []);
+  const plain = (d: unknown) => {
+    if (!isObj(d)) return d;
+    const out = clone(d) as Obj;
+    delete out._assigned;
+    for (const l of ['en', 'tr'] as const) {
+      if (isObj(out[l])) delete (out[l] as Obj).source;
+      for (const { r } of resourcesOf(sideFrontmatter(out, l))) if (given.has(resourceId(r))) r.id = '';
+    }
+    return out;
+  };
+  return sameData(plain(stored), plain(sent));
+}
+
+/** A Turkish link left empty is the English one; a link to this site gets the Turkish page (/tr). */
+export function trLinkFrom(en: unknown): string {
+  const v = str(en);
+  return v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/tr/') ? `/tr${v}` : v;
 }
 
 // ── Half translations ────────────────────────────────────────────────────────
@@ -1034,7 +1078,10 @@ export function messageKey(message: string): string {
   if (/^Add at least one tag$/.test(m)) return 'admin.cms.v.tagsMissing';
   if (/^Give as many Turkish tags/.test(m)) return 'admin.cms.v.tagsParity';
   if (/^Not an id of this entry/.test(m)) return 'admin.cms.v.lpIdForeign';
+  if (/^This id is used twice: another learning-path file/.test(m)) return 'admin.cms.v.lpIdElsewhere';
   if (/^This id is used twice/.test(m)) return 'admin.cms.v.lpIdTwice';
+  if (/same sections, each with as many resources/.test(m)) return 'admin.cms.v.lpStructure';
+  if (/^A new id may not start with tr-/.test(m)) return 'admin.cms.v.lpIdTr';
   if (/same resources in the same order/.test(m)) return 'admin.cms.v.lpOrder';
   if (/^Must be the same as in English/.test(m)) return 'admin.cms.v.lpShared';
   if (/^Not a published domain/.test(m)) return 'admin.cms.v.lpDomain';
@@ -1107,7 +1154,7 @@ export const LIVE: readonly Status[] = ['submitted', 'approved', 'pr_open', 'mer
 
 const ERROR_CODES = ['changed_since', 'entry_busy', 'superseded', 'exists', 'github_failed', 'bad_state', 'draft_changed', 'invalid',
   'unauthenticated', 'forbidden', 'not_found', 'index_unavailable', 'already_merged', 'network', 'csrf', 'unwritable',
-  'feed_failed', 'rate_limited'] as const;
+  'feed_failed', 'rate_limited', 'stage_taken', 'has_levels'] as const;
 
 /** The sentence for an API error code. */
 export function errorKey(code: string | undefined): string {

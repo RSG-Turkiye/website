@@ -120,6 +120,7 @@ const USERS = {
   yazilar: { id: 'u4', email: 'yazar@example.org', grants: [{ role: 'content.yazilar.edit', expires_at: null }] },
   topluluk: { id: 'u5', email: 'komite@example.org', grants: [{ role: 'content.topluluk.edit', expires_at: null }] },
   ogrenme: { id: 'u7', email: 'ogrenme@example.org', grants: [{ role: 'content.ogrenme.edit', expires_at: null }] },
+  ogrenmeOnay: { id: 'u8', email: 'ogrenme-onay@example.org', grants: [{ role: 'content.ogrenme.approve', expires_at: null }] },
   // Two groups: the tab bar shows each group's name.
   both: { id: 'u6', email: 'iki@example.org', grants: [{ role: 'content.etkinlikler.edit', expires_at: null }, { role: 'content.topluluk.approve', expires_at: null }] },
   // DEMO=admin only: an admin, for the Roles tab and every group.
@@ -191,7 +192,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       const type = url.searchParams.get('type');
       if (type === 'committees') return json({ type, id, data: COM, base_shas: { [COM_PATH]: 'sha-c' }, files: { [COM_PATH]: `${JSON.stringify(COM, null, 2)}\n` } });
       if (type === 'resources') return json({ type, id, data: RES, base_shas: { [RES_PATH]: 'sha-r' }, files: { [RES_PATH]: `${JSON.stringify(RES, null, 2)}\n` } });
-      if (type === 'lp-levels') return json({ type, id, data: LEVEL, base_shas: { [LEVEL_PATHS.en]: 'sha-le', [LEVEL_PATHS.tr]: 'sha-lt' } });
+      if (type === 'lp-levels') return json({ type, id, data: state.levelData ?? LEVEL, base_shas: state.levelShas ?? { [LEVEL_PATHS.en]: 'sha-le', [LEVEL_PATHS.tr]: 'sha-lt' } });
       if (type === 'lp-domains' || type === 'lp-roadmap') {
         const side = (l) => (type === 'lp-domains'
           ? { name: l === 'en' ? 'Fixture domain' : 'Örnek alan', emoji: '🧪', tagline: 'T.', order: 90, goDeeper: [{ title: `Further ${l}`, description: 'D.', url: 'https://example.org/further' }] }
@@ -235,6 +236,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       if (!m[2] && method === 'GET') return json({ draft: d, files: state.draftFiles ?? null });
       if (!m[2] && method === 'PATCH') {
         if (state.nextPatch) { const [s, v] = state.nextPatch; state.nextPatch = null; return json(v, s); }
+        if (state.patchDelay) await new Promise((res) => setTimeout(res, state.patchDelay));
         if (body.write_nonce !== undefined && body.write_nonce !== d.write_nonce) return json({ error: 'changed', code: 'draft_changed' }, 409);
         d.data = /^lp-(levels|roadmap)$/.test(d.type) ? assignLpIds(JSON.parse(JSON.stringify(body.data)), state) : body.data;
         d.updated_at = Math.floor(Date.now() / 1000); d.write_nonce = `n${Math.random()}`;
@@ -1238,6 +1240,77 @@ await section('35) a rule-8 refusal is said in plain words on the right card', a
   const summary = (await page.textContent('#cmsErrors')).replace(/\s+/g, ' ');
   ok(summary.includes('Bölüm 1') && summary.includes('Kaynak 2') && summary.includes('İngilizcesiyle aynı olmalı'), `the card and the rule in plain words: "${summary.slice(0, 200)}"`);
   ok(await page.evaluate(() => document.activeElement?.matches('[data-sub-wrap="url"] input[data-lang="tr"]')), 'the Turkish link has the focus');
+  await page.close();
+});
+
+await section('36) typing during a save: the new card still gets the id the server gave, and the next save sends it', async () => {
+  const { page, state, calls } = await open(browser, 'ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer', { width: 1440, height: 900 });
+  await page.waitForSelector('[data-field-wrap="sections"] [data-orow]');
+  const SECTIONS = '[data-field-wrap="sections"] [data-objects="sections"]';
+  const RES1 = `${SECTIONS} > [data-rows] > [data-orow]:nth-child(1) [data-objects="resources"]`;
+  await page.click(`${SECTIONS} > [data-rows] > [data-orow]:nth-child(1) > summary`);
+  // The first save makes the draft; the card comes with the second, slow one.
+  await page.fill('[data-field="orientation"][data-lang="en"]', 'Start here, again.');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'the draft is made');
+  await page.click(`${RES1} > div > [data-row-add]`);
+  const NEW = `${RES1} > [data-rows] > [data-orow]:nth-child(3)`;
+  await page.fill(`${NEW} [data-sub-wrap="title"] input[data-lang="en"]`, 'Slow Card');
+  await page.fill(`${NEW} [data-sub-wrap="title"] input[data-lang="tr"]`, 'Yavaş Kart');
+  await page.fill(`${NEW} [data-sub-wrap="description"] textarea[data-lang="en"]`, 'D.');
+  await page.fill(`${NEW} [data-sub-wrap="description"] textarea[data-lang="tr"]`, 'A.');
+  await page.selectOption(`${NEW} [data-sub-wrap="tag"] select`, 'Paper');
+  state.patchDelay = 600;
+  await page.click('#cmsSave');
+  await page.waitForTimeout(100);
+  await page.fill(`${NEW} [data-sub-wrap="description"] textarea[data-lang="en"]`, 'Typed while saving.');
+  ok(await waitFor(page, (sel) => !!document.querySelector(`${sel} [data-sub-wrap="id"] input`)?.value, NEW), 'the card shows the key the server gave');
+  ok(await page.inputValue(`${NEW} [data-sub-wrap="description"] textarea[data-lang="en"]`) === 'Typed while saving.', 'the typing is kept');
+  const given = await page.inputValue(`${NEW} [data-sub-wrap="id"] input`);
+  state.patchDelay = 0;
+  const patches = calls.filter((c) => c.method === 'PATCH').length;
+  await page.click('#cmsSave');
+  for (let i = 0; i < 50 && calls.filter((c) => c.method === 'PATCH').length === patches; i++) await page.waitForTimeout(100);
+  ok(calls.filter((c) => c.method === 'PATCH').length > patches, 'saved again');
+  const last = calls.filter((c) => c.method === 'PATCH').at(-1);
+  const card = (l) => last?.body?.data?.[l]?.frontmatter?.sections?.[0]?.resources?.[2];
+  ok(card('en')?.id === given && card('tr')?.id === given, `the next save sends that id on both sides: ${card('en')?.id} / ${given}`);
+  ok(card('en')?.description === 'Typed while saving.', 'with the typing');
+  ok(state.given.length === 1, `one id given, not two: ${state.given.join(', ')}`);
+  await page.close();
+});
+
+await section('37) a first save that meets a newer level: a card the site deleted loses its key, and the save asks for a new one', async () => {
+  const { page, state, calls } = await open(browser, 'ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer', { width: 1440, height: 900 });
+  await page.waitForSelector('[data-field-wrap="sections"] [data-orow]');
+  // Meanwhile the site deleted the first card.
+  const newer = JSON.parse(JSON.stringify(LEVEL));
+  for (const l of ['en', 'tr']) newer[l].frontmatter.sections[0].resources.shift();
+  state.levelData = newer;
+  state.levelShas = { [LEVEL_PATHS.en]: 'sha-le2', [LEVEL_PATHS.tr]: 'sha-lt2' };
+  state.nextPost = [409, { error: 'changed', code: 'changed_since', paths: [LEVEL_PATHS.en] }];
+  await page.fill('[data-field="orientation"][data-lang="en"]', 'Start here, now.');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => !!document.getElementById('cmsRebase')), 'the site\'s version and the form, side by side');
+  await page.click('#cmsRebase');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'carried on and saved');
+  const post = calls.filter((c) => c.method === 'POST' && c.path === '/api/cms/drafts').at(-1);
+  const first = (l) => post?.body?.data?.[l]?.frontmatter?.sections?.[0]?.resources?.[0];
+  ok(first('en')?.title === 'fx-a en' && first('en')?.id === '' && first('tr')?.id === '', `the deleted card is kept, with its key emptied: ${JSON.stringify(first('en'))}`);
+  ok(post?.body?.data?.en?.frontmatter?.sections?.[0]?.resources?.[1]?.id === 'fx-b', 'the cards still on the site keep theirs');
+  await page.close();
+});
+
+await section('38) the approver is told each published key a level drops', async () => {
+  const id = '00000000-0000-4000-8000-000000000805';
+  const dropped = JSON.parse(JSON.stringify(LEVEL));
+  for (const l of ['en', 'tr']) dropped[l].frontmatter.sections[0].resources.shift();
+  const { page } = await open(browser, 'ogrenmeOnay', `#icerik/onay/${id}`, { width: 1440, height: 900 }, (st) => {
+    st.drafts.set(id, draftRow({ id, type: 'lp-levels', status: 'submitted', entry_id: 'fixture-explorer', author_id: 'u7', data: dropped, base_shas: { [LEVEL_PATHS.en]: 'sha-le', [LEVEL_PATHS.tr]: 'sha-lt' } }));
+  });
+  ok(await waitFor(page, () => !!document.querySelector('[data-cms-removed-ids]')), 'a removed key is flagged');
+  const text = (await page.textContent('[data-cms-removed-ids]')).replace(/\s+/g, ' ');
+  ok(text.includes('Kaldırılan kaynak: fx-a') && text.includes('ilerlemesi'), `in plain words: "${text}"`);
   await page.close();
 });
 

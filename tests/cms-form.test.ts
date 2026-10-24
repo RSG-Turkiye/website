@@ -1308,3 +1308,59 @@ test('learning paths: an empty Turkish link is not a half translation; a rebase 
   }
   assert.equal(drafted.en.frontmatter.sections[1].resources[0].id, 'new-card-abc123', 'the input is not changed');
 });
+
+import { rebased, trLinkFrom } from '../src/scripts/admin/cms-form';
+
+test('fix round 1: a rebase, saved or not, empties ids the site\'s version lacks; only types with progress ids', () => {
+  const site = aLevel();
+  const form = copy(aLevel());
+  for (const l of ['en', 'tr'] as const) form[l].frontmatter.sections[1].resources.push({ id: 'given-abc123', title: 'N', description: 'D', tag: 'Paper' });
+  const out = rebased(MODELS['lp-levels'], site, formValues(MODELS['lp-levels'], form)) as any;
+  for (const l of ['en', 'tr'] as const) {
+    assert.equal(out[l].frontmatter.sections[1].resources[0].id, '', `${l}: given to another draft`);
+    assert.equal(out[l].frontmatter.sections[0].resources[0].id, 'fx-a');
+  }
+  assert.ok(MODELS['lp-levels'].resourceIds && MODELS['lp-roadmap'].resourceIds && !MODELS['lp-domains'].resourceIds);
+  for (const key of LP) assert.equal(MODELS[key].resourceIds ?? false, cmsType(key)!.resourceIds, key);
+  // A type without progress ids is only written onto the new version.
+  const ev = JSON.parse(FILES[EVENT_PATH]);
+  assert.deepEqual(rebased(MODELS.events, ev, formValues(MODELS.events, ev)), ev);
+});
+
+test('fix round 1: an empty Turkish link to this site gets /tr; an external one is copied as it is', () => {
+  assert.equal(trLinkFrom('/learning-paths/genomics/'), '/tr/learning-paths/genomics/');
+  assert.equal(trLinkFrom('/tr/events/'), '/tr/events/');
+  assert.equal(trLinkFrom('https://example.org/x'), 'https://example.org/x');
+  assert.equal(trLinkFrom('//cdn.example.org/x'), '//cdn.example.org/x');
+  const data = aLevel();
+  const values = copy(formValues(MODELS['lp-levels'], data));
+  ((values.sections as Row[])[0].resources as Row[])[0].url = { en: '/events/', tr: '' };
+  const out = applyValues(MODELS['lp-levels'], data, values) as any;
+  assert.equal(out.tr.frontmatter.sections[0].resources[0].url, '/tr/events/');
+  assert.equal(out.en.frontmatter.sections[0].resources[0].url, '/events/');
+  for (const [m, k] of [['This id is used twice: another learning-path file has it', 'lpIdElsewhere'], ['A new id may not start with tr-', 'lpIdTr'],
+    ['The English and Turkish sides must have the same sections, each with as many resources', 'lpStructure'], ['Not a published domain: no such domain file on the site\'s main branch', 'lpDomain']]) {
+    assert.equal(messageKey(m), `admin.cms.v.${k}`, m);
+  }
+});
+
+import { removedResourceIds, sameSave } from '../src/scripts/admin/cms-form';
+
+test('fix round 1: the approver is told each published id a draft drops; a lost save is recognised with the server\'s own keys left out', () => {
+  const site = aLevel();
+  const draft = copy(site);
+  for (const l of ['en', 'tr'] as const) draft[l].frontmatter.sections[0].resources.shift();
+  assert.deepEqual(removedResourceIds(site, draft), ['fx-a']);
+  assert.deepEqual(removedResourceIds(site, site), []);
+  // The tab sent a new card with an empty id; the server stored it with its id, _assigned and source.
+  const sent = copy(site);
+  for (const l of ['en', 'tr'] as const) { delete sent[l].source; sent[l].frontmatter.sections[1].resources.push({ id: '', title: 'N', description: 'D', tag: 'Paper' }); }
+  const stored = copy(sent);
+  for (const l of ['en', 'tr'] as const) { stored[l].source = 'x: 1\n'; stored[l].frontmatter.sections[1].resources[0].id = 'n-abc123'; }
+  stored._assigned = ['n-abc123'];
+  assert.ok(sameSave(stored, sent));
+  assert.ok(!sameData(stored, sent), 'a plain comparison would miss it');
+  const other = copy(sent);
+  other.en.frontmatter.orientation = 'changed';
+  assert.ok(!sameSave(stored, other), 'a different save is not this one');
+});
