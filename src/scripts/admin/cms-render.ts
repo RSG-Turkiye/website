@@ -23,6 +23,10 @@ const summaryOf = (f: FieldDef, row: Row): string => {
 /** A select's option as words: its own label (an entry's title), else the i18n one. */
 const optionLabel = (f: FieldDef | undefined, o: string): string => f?.optionLabels?.[o] ?? tk(`admin.cms.opt.${o}`);
 const esc = (v: unknown) => escapeHtml(String(v ?? ''));
+/** A text area's content: the HTML parser drops one line break right after
+ * <textarea>, so one is written first, and a value that starts with a blank
+ * line (a Markdown body after its frontmatter) is shown and saved as it is. */
+const areaText = (v: unknown) => `\n${esc(v)}`;
 const INPUT = 'w-full min-w-0 px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border bg-white text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid disabled:bg-[#F7F7F6] disabled:text-gray-600';
 const SMALL_BTN = BTN.ghost;
 /** Side by side from lg, stacked on a phone. */
@@ -40,7 +44,7 @@ function control(f: FieldDef, v: unknown, lang: Lang | null): string {
   const wrap = (inner: string) => (lang && lang !== 'both' ? `<label class="flex ${align.split(' ')[0]} gap-1 min-w-0"><span class="${align.includes('pt') ? 'pt-2.5 lg:pt-2' : ''}">${langTag(lang)}</span><span class="flex-1 min-w-0">${inner}</span></label>` : inner);
   switch (f.kind) {
     case 'textarea':
-      return wrap(`<textarea ${a} rows="3" class="${INPUT} min-h-20">${esc(v)}</textarea>`);
+      return wrap(`<textarea ${a} rows="3" class="${INPUT} min-h-20">${areaText(v)}</textarea>`);
     case 'date':
       return wrap(`<input type="date" ${a} value="${esc(v)}" class="${INPUT}" />`);
     case 'number':
@@ -67,7 +71,7 @@ function listButtons(i: number, n: number): string {
 function stringsList(f: FieldDef, items: string[], lang: Lang | null): string {
   // multiline: each item is a paragraph (the privacy notice's), a text area.
   const item = (s: string, i: number) => (f.multiline
-    ? `<textarea ${attrs(f, lang, 'data-item')} aria-label="${aria(f, lang)} ${i + 1}" rows="3" class="${INPUT} min-h-20 flex-1 basis-full">${esc(s)}</textarea>`
+    ? `<textarea ${attrs(f, lang, 'data-item')} aria-label="${aria(f, lang)} ${i + 1}" rows="3" class="${INPUT} min-h-20 flex-1 basis-full">${areaText(s)}</textarea>`
     : `<input type="text" ${attrs(f, lang, 'data-item')} aria-label="${aria(f, lang)} ${i + 1}" value="${esc(s)}" class="${INPUT} flex-1 basis-full sm:basis-0" />`);
   const rows = items.map((s, i) => `<div data-row class="flex flex-wrap ${f.multiline ? '' : 'sm:flex-nowrap '}items-center gap-2">
       ${item(s, i)}
@@ -110,7 +114,7 @@ function imageField(f: FieldDef, v: unknown): string {
 
 function markdownField(f: FieldDef, v: Bi, langs: readonly ('en' | 'tr')[]): string {
   const side = (lang: 'en' | 'tr') => `<label class="flex flex-col gap-1 min-w-0">${langTag(lang)}
-    <textarea ${attrs(f, lang)} aria-label="${aria(f, lang)}" rows="8" class="${INPUT} font-mono text-xs">${esc(v[lang])}</textarea></label>`;
+    <textarea ${attrs(f, lang)} aria-label="${aria(f, lang)}" rows="8" class="${INPUT} font-mono text-xs">${areaText(v[lang])}</textarea></label>`;
   return `<div class="${sides(langs)}">${langs.map(side).join('')}</div>
     <div class="mt-2"><button type="button" data-preview="${f.key}" aria-expanded="false" class="${BTN.ghost} px-0">${esc(t('admin.cms.preview.show' as never))}</button></div>
     <div data-preview-box="${f.key}" class="hidden ${sides(langs)} mt-1"></div>`;

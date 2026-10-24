@@ -102,6 +102,10 @@ const NOTICE = (l) => ({
 });
 const PRIVACY = { updated: '2026-10-23', en: NOTICE('en'), tr: NOTICE('tr') };
 const PRIVACY_PATH = 'src/content/privacy/privacy.json';
+/** Blog posts, synthetic: one in Turkish only (as GET /api/cms/entry answers it: the English side null), one in English only. */
+const POST_TR_SIDE = { title: 'Örnek yazı', pubDate: '2026-01-05', description: 'Bir örnek.', author: 'Ada Örnek', category: 'general', tags: ['genomik'], image: '/api/images/a.webp', draft: false };
+const POST_TR = { en: null, tr: { frontmatter: POST_TR_SIDE, body: '\nTürkçe metin.\n', source: 'title: "Örnek yazı"\n' } };
+const POST_TR_PATHS = { en: 'src/content/blog/en/ornek-yazi.md', tr: 'src/content/blog/tr/ornek-yazi.md' };
 const ENTRIES = {
   events: [
     { id: 'symposium-2026', title: SYM.title.en, date: '2026-10-10', shas: { [PATH]: 'sha-1' } },
@@ -109,6 +113,10 @@ const ENTRIES = {
   ],
   workshops: [{ id: 'nextflow', title: 'Nextflow', date: '2024', shas: {} }],
   webinars: [{ id: 'w1', title: 'A webinar', date: '2024-04-16', paths: { en: 'src/content/webinars/en/w1.md', tr: 'src/content/webinars/tr/w1-tr.md' }, shas: {} }],
+  blog: [
+    { id: 'ornek-yazi', title: POST_TR_SIDE.title, date: '2026-01-05', paths: { en: null, tr: POST_TR_PATHS.tr }, shas: {} },
+    { id: 'an-example-post', title: 'An example post', date: '2025-06-01', paths: { en: 'src/content/blog/en/an-example-post.md', tr: null }, shas: {} },
+  ],
   committees: [{ id: 'example', title: COM.name.en, shas: { [COM_PATH]: 'sha-c' } }],
   podcast: [{ id: 'podcast', title: POD.title, date: '2025-02-10', shas: { [POD_PATH]: 'sha-p' } }],
   resources: [{ id: 'example-tool-md-drug', title: RES.title.en, section: 'md-drug', shas: { [RES_PATH]: 'sha-r' } }, { id: 'zz-learning', title: 'Another', section: 'learning', shas: {} }],
@@ -123,6 +131,7 @@ const TYPES = [
   { key: 'events', group: 'etkinlikler', label: { en: 'Events', tr: 'Etkinlikler' } },
   { key: 'workshops', group: 'etkinlikler', label: { en: 'Workshops', tr: 'Atölyeler' } },
   { key: 'webinars', group: 'etkinlikler', label: { en: 'Webinars', tr: 'Webinarlar' } },
+  { key: 'blog', group: 'yazilar', label: { en: 'Posts', tr: 'Yazılar' } },
   { key: 'committees', group: 'topluluk', label: { en: 'Committees', tr: 'Komiteler' } },
   { key: 'podcast', group: 'topluluk', label: { en: 'Podcast', tr: 'Podcast' } },
   { key: 'resources', group: 'ogrenme', label: { en: 'Resources', tr: 'Kaynaklar' } },
@@ -221,6 +230,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
         const dir = type === 'lp-domains' ? 'lp-domains' : 'lp-roadmap';
         return json({ type, id, data: { en: { frontmatter: side('en'), body: '', source: '' }, tr: { frontmatter: side('tr'), body: '', source: '' } }, base_shas: { [`src/content/${dir}/en/${id}.md`]: 'sha-de', [`src/content/${dir}/tr/${id}.md`]: 'sha-dt' } });
       }
+      if (type === 'blog') return json({ type, id, data: state.postData ?? POST_TR, base_shas: state.postShas ?? { [POST_TR_PATHS.en]: null, [POST_TR_PATHS.tr]: 'sha-bt' } });
       if (type === 'pages') return json({ type, id, data: PAGE, base_shas: { [PAGE_PATH]: 'sha-pg' }, files: { [PAGE_PATH]: `${JSON.stringify(PAGE, null, 2)}\n` } });
       if (type === 'privacy') return json({ type, id, data: PRIVACY, base_shas: { [PRIVACY_PATH]: 'sha-pv' }, files: { [PRIVACY_PATH]: `${JSON.stringify(PRIVACY, null, 2)}\n` } });
       if (type === 'podcast') return json({ type, id, data: POD, base_shas: { [POD_PATH]: 'sha-p' }, files: { [POD_PATH]: `${JSON.stringify(POD, null, 2)}\n` } });
@@ -309,7 +319,10 @@ const noSideScroll = (page) => page.evaluate(() => document.documentElement.scro
  * (Sayfa metinleri › about): one English and Turkish text per key; the
  * Gizlilik bildirimi tab has the privacy notice, and a privacy draft sent
  * back whose Turkish list is short. DEMO=sayfalarOnay is the group's
- * approver: Onay holds a page text to approve. DEMO_LANG=en for English.
+ * approver: Onay holds a page text to approve. DEMO=yazilar opens Blog
+ * yazıları: a post in Turkish only (İngilizcesini ekle adds English), one in
+ * English only, and Yeni starts a post in the panel's language, dated today.
+ * DEMO_LANG=en for English.
  *
  *   npm run build && npx astro preview --port 4329 &
  *   DEMO=approver BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
@@ -321,7 +334,7 @@ if (process.env.DEMO) {
   const demo = await chromium.launch({ headless: false, ...(process.env.CHROME ? { executablePath: process.env.CHROME } : {}) });
   const who = Object.hasOwn(USERS, process.env.DEMO) ? process.env.DEMO : 'editor';
   const me = USERS[who].id;
-  const start = { topluluk: '#icerik/komiteler/example', ogrenme: '#icerik/ogrenme-seviyeleri', sayfalar: '#icerik/sayfa-metinleri/about', sayfalarOnay: '#icerik/onay' }[who] ?? '#icerik';
+  const start = { yazilar: '#icerik/blog', topluluk: '#icerik/komiteler/example', ogrenme: '#icerik/ogrenme-seviyeleri', sayfalar: '#icerik/sayfa-metinleri/about', sayfalarOnay: '#icerik/onay' }[who] ?? '#icerik';
   const { page } = await open(demo, who, start, { width: 1440, height: 900 }, (s) => {
     const mk = (n, o) => s.drafts.set(`00000000-0000-4000-8000-00000000020${n}`, draftRow({ id: `00000000-0000-4000-8000-00000000020${n}`, author_id: me, ...o }));
     if (who === 'ogrenme') {
@@ -932,10 +945,12 @@ console.log('23) a Yazılar-only editor: only that group\'s tabs, no Onay, no Et
   ok(!tabs.includes('onay'), 'no Onay');
   ok(await page.locator('[data-section="icerik"] [data-sub="etkinlikler"], [data-section="icerik"] [data-sub="onay"]').count() === 0, 'and their panes are gone from the page');
   ok(await page.locator('[data-nav="icerik"]').count() >= 1, 'the menu has İçerik');
-  ok(!calls.some((c) => c.path.startsWith('/api/cms/entries')), 'no type\'s index was loaded for an empty draft list');
+  ok(tabs.includes('blog'), `their Blog tab: ${tabs.join(', ')}`);
+  ok(!calls.some((c) => c.path.startsWith('/api/cms/entries') && !c.path.includes('type=blog')), 'no other type\'s index was loaded');
   // An Etkinlikler address falls back to what they may see.
   await page.evaluate(() => { location.hash = '#icerik/etkinlikler'; });
-  ok(await waitFor(page, () => location.hash === '#icerik/taslaklar'), `an Etkinlikler tab is not theirs: ${await page.evaluate(() => location.hash)}`);
+  ok(await waitFor(page, () => location.hash !== '#icerik/etkinlikler'), `an Etkinlikler tab is not theirs: ${await page.evaluate(() => location.hash)}`);
+  ok(!(await page.evaluate(() => location.hash)).startsWith('#icerik/etkinlikler'), 'it lands on one of theirs');
   await page.close();
 }
 
@@ -1438,8 +1453,81 @@ await section('42) a Sayfalar approver approves a page text, not the privacy not
   await page.close();
 });
 
+await section('43) Yazılar: a post in Turkish only shows only Turkish; a save sends no English side; no half-translated warning', async () => {
+  const { page, calls } = await open(browser, 'yazilar', '#icerik/blog', { width: 1366, height: 768 });
+  ok(await waitFor(page, () => !!document.querySelector('[data-cms-entry="ornek-yazi"]')), 'Blog yazıları lists the posts');
+  ok((await page.textContent('[data-cms-entry="ornek-yazi"]')).includes('Türkçe') && (await page.textContent('[data-cms-entry="an-example-post"]')).includes('İngilizce'), 'a one-language post says which language it is in');
+  await page.click('[data-cms-entry="ornek-yazi"] [data-cms-edit]');
+  await page.waitForSelector('#cmsForm [data-field="title"][data-lang="tr"]');
+  ok(await page.locator('#cmsFields [data-lang="en"]').count() === 0, 'no English column at all');
+  ok((await page.textContent('[data-cms-sides]')).includes('yalnızca Türkçe'), `it says the post is in Turkish only: ${(await page.textContent('[data-cms-sides]')).trim()}`);
+  ok(await page.locator('[data-side-add="en"]').count() === 1 && await page.locator('[data-side-remove]').count() === 0, '"İngilizcesini ekle", and no way to take out the published Turkish');
+  const bodyWidth = await page.locator('[data-field="body"][data-lang="tr"]').evaluate((e) => e.getBoundingClientRect().width);
+  const wrapWidth = await page.locator('[data-field-wrap="body"]').evaluate((e) => e.getBoundingClientRect().width);
+  ok(bodyWidth > wrapWidth * 0.8, `the one language takes the full width (${Math.round(bodyWidth)} of ${Math.round(wrapWidth)})`);
+  ok(await page.inputValue('[data-field="category"][data-lang="both"]') === 'general', 'a shared value is one control');
+  await page.fill('[data-field="title"][data-lang="tr"]', 'Örnek yazı, düzeltildi');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts')?.body;
+  ok(post?.action === 'update' && post?.data?.en === null, `the save sends no English side: ${JSON.stringify(post?.data?.en)}`);
+  ok(post?.data?.tr?.frontmatter?.title === 'Örnek yazı, düzeltildi' && post?.data?.tr?.frontmatter?.category === 'general' && post?.data?.tr?.body === POST_TR.tr.body, 'the Turkish side, edited, the rest as it was');
+  await page.click('#cmsSubmit');
+  ok(await waitFor(page, () => /Onay bekliyor/.test(document.getElementById('cmsStatus')?.textContent ?? '')), 'sent straight away: no "half translated" question');
+  await page.close();
+});
+
+await section('44) Yazılar: "İngilizcesini ekle" adds the English side under the same name; one added in the draft can be taken out', async () => {
+  const { page, calls } = await open(browser, 'yazilar', '#icerik/blog/ornek-yazi', { width: 1440, height: 900 });
+  await page.waitForSelector('[data-side-add="en"]');
+  await page.click('[data-side-add="en"]');
+  await page.waitForSelector('#cmsForm [data-field="title"][data-lang="en"]');
+  ok(await page.inputValue('[data-field="title"][data-lang="en"]') === '' && await page.inputValue('[data-field="title"][data-lang="tr"]') === POST_TR_SIDE.title, 'the English title starts empty, the Turkish one is kept');
+  ok(await page.locator('[data-field="body"][data-lang="en"]').count() === 1, 'an English body box');
+  ok(await page.inputValue('[data-field="category"][data-lang="both"]') === 'general', 'shared values stay one control, for both');
+  ok(await page.locator('[data-side-remove="en"]').count() === 1 && await page.locator('[data-side-remove="tr"]').count() === 0, 'English, added here, can be taken out; Turkish, on the site, cannot');
+  await page.fill('[data-field="title"][data-lang="en"]', 'Example post');
+  await page.fill('[data-field="description"][data-lang="en"]', 'An example.');
+  await page.fill('[data-field="body"][data-lang="en"]', 'English text.');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts')?.body;
+  ok(post?.entry_id === 'ornek-yazi', 'an update of the same entry: the English file gets its name');
+  const en = post?.data?.en;
+  ok(en?.frontmatter?.title === 'Example post' && en?.body === 'English text.' && en?.frontmatter?.category === 'general' && en?.frontmatter?.pubDate === '2026-01-05', `the English side, with the shared values: ${JSON.stringify(en?.frontmatter)}`);
+  ok(JSON.stringify(post?.data?.tr?.frontmatter) === JSON.stringify(POST_TR_SIDE), 'the Turkish side untouched');
+  await page.click('[data-side-remove="en"]');
+  ok(await waitFor(page, () => !document.querySelector('#cmsFields [data-lang="en"]')), 'taken out: the English column is gone');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => document.querySelectorAll('#cmsSaveState').length && /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved again');
+  const patch = calls.filter((c) => c.method === 'PATCH').at(-1)?.body;
+  ok(patch?.data?.en === null && patch?.data?.tr?.frontmatter?.title === POST_TR_SIDE.title, `the next save sends English as null again: ${JSON.stringify(patch?.data?.en)}`);
+  await page.close();
+});
+
+await section('45) Yazılar: a new post starts in the panel\'s language, dated today, named after its title', async () => {
+  const { page, calls } = await open(browser, 'yazilar', '#icerik/blog/_new', { width: 1280, height: 680 });
+  await page.waitForSelector('#cmsForm [data-field="title"][data-lang="tr"]');
+  ok(await page.locator('#cmsFields [data-lang="en"]').count() === 0, 'Turkish only, in the Turkish panel');
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  ok(await page.inputValue('[data-field="pubDate"][data-lang="both"]') === today, `dated today: ${await page.inputValue('[data-field="pubDate"][data-lang="both"]')}`);
+  await page.fill('[data-field="title"][data-lang="tr"]', 'Yeni Bir Yazı');
+  ok(await waitFor(page, () => document.getElementById('cmsFileName')?.textContent === 'yeni-bir-yazi'), `the file name from the Turkish title: ${await page.textContent('#cmsFileName')}`);
+  await page.fill('[data-field="description"][data-lang="tr"]', 'Kısa bir özet.');
+  await page.fill('[data-field="category"][data-lang="both"]', 'general');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts')?.body;
+  ok(post?.action === 'create' && post?.data?.en === null && post?.data?.tr?.frontmatter?.title === 'Yeni Bir Yazı' && post?.data?.tr?.frontmatter?.pubDate === today, `a create with Turkish only: ${JSON.stringify(post?.data)}`);
+  await page.close();
+  const en = await open(browser, 'yazilar', '#icerik/blog/_new', { width: 1280, height: 680 }, () => {}, 'en');
+  await en.page.waitForSelector('#cmsForm [data-field="title"][data-lang="en"]');
+  ok(await en.page.locator('#cmsFields [data-lang="tr"]').count() === 0 && (await en.page.textContent('[data-cms-sides]')).includes('English only'), 'English only, in the English panel');
+  await en.page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
-for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction'], ['sayfalar', '#icerik/sayfa-metinleri'], ['sayfalar', '#icerik/sayfa-metinleri/about'], ['sayfalar', '#icerik/gizlilik/privacy'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000006'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000007']]) {
+for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction'], ['sayfalar', '#icerik/sayfa-metinleri'], ['sayfalar', '#icerik/sayfa-metinleri/about'], ['sayfalar', '#icerik/gizlilik/privacy'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000006'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000007'], ['yazilar', '#icerik/blog'], ['yazilar', '#icerik/blog/ornek-yazi'], ['yazilar', '#icerik/blog/_new']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));
     // A page text and a privacy notice in review, with words too long for the line.
