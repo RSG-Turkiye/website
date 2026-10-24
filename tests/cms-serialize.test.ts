@@ -366,3 +366,61 @@ test('checkId refuses anything that is not a string, before the pattern sees it'
   }
   assert.equal(checkId('symposium-2026'), 'symposium-2026');
 });
+
+// ── Plan 4, Task 3: nested frontmatter (learning paths) ──────────────────────
+// The lp types are not registered yet (Task 6b); a stand-in carries only the
+// schema, which is all the serializer reads.
+
+import { z } from 'astro/zod';
+import type { CmsType } from '../src/lib/cms/types';
+
+const NESTED = { schema: z.object({
+  title: z.string(),
+  type: z.string(),
+  sections: z.array(z.object({ type: z.string(), items: z.array(z.object({ id: z.string(), label: z.string(), year: z.number().optional() })) })),
+}) } as unknown as CmsType;
+
+test('a new entry is written with keys in the schema\'s order at every depth', () => {
+  const out = serializeMarkdown(NESTED, {
+    frontmatter: {
+      sections: [{ items: [{ label: 'One: a', year: 2020, id: 'one' }, { label: 'Two', id: 'two' }], type: 'reading' }, { items: [], type: 'tools' }],
+      type: 'path',
+      title: 'Nested',
+    },
+    body: '\nBody.\n',
+  });
+  assert.equal(out, [
+    '---',
+    'title: "Nested"',
+    'type: path',
+    'sections:',
+    '  - type: reading',
+    '    items:',
+    '      - id: "one"',
+    '        label: "One: a"',
+    '        year: 2020',
+    '      - id: "two"',
+    '        label: "Two"',
+    '  - type: tools',
+    '    items: []',
+    '---',
+    '',
+    'Body.',
+    '',
+  ].join('\n'));
+});
+
+test('an edited nested list is rewritten in schema order and the same style, so an edit to one item changes one line', () => {
+  const { source: _s, ...fresh } = parseMarkdown(NESTED, serializeMarkdown(NESTED, {
+    frontmatter: { title: 'Nested', type: 'path', sections: [{ type: 'reading', items: [{ id: 'one', label: 'One' }, { id: 'two', label: 'Two' }] }] },
+    body: '\n',
+  }));
+  const text = serializeMarkdown(NESTED, fresh);
+  const p = parseMarkdown(NESTED, text);
+  const sections = structuredClone(p.frontmatter.sections) as { type: string; items: Record<string, unknown>[] }[];
+  // The panel's form may hand the keys back in any order.
+  sections[0].items[1] = { label: 'Two, edited', id: 'two' };
+  const out = serializeMarkdown(NESTED, { ...p, frontmatter: { ...p.frontmatter, sections } });
+  assert.deepEqual(changedLines(text, out), [text.split('\n').indexOf('        label: "Two"')]);
+  assert.match(out, /^ {8}label: "Two, edited"$/m);
+});
