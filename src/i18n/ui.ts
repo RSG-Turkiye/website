@@ -206,6 +206,7 @@ export const ui = {
     'footer.contact': 'Contact',
     'footer.follow': 'Follow Us',
     'footer.privacy': 'Privacy Policy',
+    'privacy.updated': 'Last updated',
     'footer.copyright': '© {year} RSG-Turkiye. All rights reserved.',
 
     // Common
@@ -1811,6 +1812,7 @@ export const ui = {
     'footer.contact': 'İletişim',
     'footer.follow': 'Bizi Takip Edin',
     'footer.privacy': 'Gizlilik Politikası',
+    'privacy.updated': 'Son güncelleme',
     'footer.copyright': '© {year} RSG-Türkiye. Tüm hakları saklıdır.',
 
     // Common

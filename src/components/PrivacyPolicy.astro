@@ -1,17 +1,20 @@
 ---
 import { PRIVACY, PRIVACY_UPDATED } from '../data/privacy';
+import { useTranslations } from '../i18n/ui';
 
 interface Props {
   lang: 'en' | 'tr';
 }
 
 const { lang } = Astro.props;
+// The texts come with {contact} already filled in (src/data/privacy.ts).
 const notice = PRIVACY[lang];
+const t = useTranslations(lang);
 ---
 <div class="bg-navy py-12 text-center">
   <div class="max-w-7xl mx-auto px-6">
     <h1 class="text-3xl font-bold text-white">{notice.title}</h1>
-    <p class="mt-2 text-sm text-white/70">{notice.updated}: <time datetime={PRIVACY_UPDATED}>{PRIVACY_UPDATED}</time></p>
+    <p class="mt-2 text-sm text-white/70">{t('privacy.updated')}: <time datetime={PRIVACY_UPDATED}>{PRIVACY_UPDATED}</time></p>
   </div>
 </div>
 
@@ -22,8 +25,8 @@ const notice = PRIVACY[lang];
     {notice.sections.map((section) => (
       <div class="mt-10">
         <h2 class="text-2xl font-semibold text-navy mb-4">{section.heading}</h2>
-        {section.paragraphs?.map((p) => <p class="text-gray-600 leading-relaxed mb-3">{p}</p>)}
-        {section.items && (
+        {section.paragraphs.map((p) => <p class="text-gray-600 leading-relaxed mb-3">{p}</p>)}
+        {section.items.length > 0 && (
           <ul class="list-disc pl-6 space-y-2 text-gray-600 leading-relaxed">
             {section.items.map((item) => <li>{item}</li>)}
           </ul>
