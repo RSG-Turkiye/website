@@ -55,6 +55,13 @@ const POD = {
 };
 const POD_PATH = 'src/data/podcast.json';
 const POD_NEW = { ...POD, syncedAt: '2026-10-24T00:00:00.000Z', episodes: [EP(3, { title: 'Yepyeni bölüm' }), ...POD.episodes] };
+/** A resource link, synthetic, named like a second placement (not the slug of its title). */
+const RES = {
+  section: 'md-drug', order: 30, title: { en: 'Example Tool', tr: 'Örnek Araç' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' }, url: 'https://example.org/tool',
+  tags: { en: ['CADD', 'drug-design'], tr: ['CADD', 'ilac-tasarimi'] }, opensource: true,
+};
+const RES_PATH = 'src/content/resources/example-tool-md-drug.json';
 const ENTRIES = {
   events: [
     { id: 'symposium-2026', title: SYM.title.en, date: '2026-10-10', shas: { [PATH]: 'sha-1' } },
@@ -64,6 +71,7 @@ const ENTRIES = {
   webinars: [{ id: 'w1', title: 'A webinar', date: '2024-04-16', paths: { en: 'src/content/webinars/en/w1.md', tr: 'src/content/webinars/tr/w1-tr.md' }, shas: {} }],
   committees: [{ id: 'example', title: COM.name.en, shas: { [COM_PATH]: 'sha-c' } }],
   podcast: [{ id: 'podcast', title: POD.title, date: '2025-02-10', shas: { [POD_PATH]: 'sha-p' } }],
+  resources: [{ id: 'example-tool-md-drug', title: RES.title.en, section: 'md-drug', shas: { [RES_PATH]: 'sha-r' } }, { id: 'zz-learning', title: 'Another', section: 'learning', shas: {} }],
 };
 /** What /api/cms/types answers: the types of the groups `who` edits, approve per type (`state.adminOnly` lists keys only an admin approves). */
 const TYPES = [
@@ -72,12 +80,14 @@ const TYPES = [
   { key: 'webinars', group: 'etkinlikler', label: { en: 'Webinars', tr: 'Webinarlar' } },
   { key: 'committees', group: 'topluluk', label: { en: 'Committees', tr: 'Komiteler' } },
   { key: 'podcast', group: 'topluluk', label: { en: 'Podcast', tr: 'Podcast' } },
+  { key: 'resources', group: 'ogrenme', label: { en: 'Resources', tr: 'Kaynaklar' } },
 ];
 const USERS = {
   approver: { id: 'u1', email: 'onay@example.org', grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] },
   editor: { id: 'u2', email: 'editor@example.org', grants: [{ role: 'content.etkinlikler.edit', expires_at: null }] },
   yazilar: { id: 'u4', email: 'yazar@example.org', grants: [{ role: 'content.yazilar.edit', expires_at: null }] },
   topluluk: { id: 'u5', email: 'komite@example.org', grants: [{ role: 'content.topluluk.edit', expires_at: null }] },
+  ogrenme: { id: 'u7', email: 'ogrenme@example.org', grants: [{ role: 'content.ogrenme.edit', expires_at: null }] },
   // Two groups: the tab bar shows each group's name.
   both: { id: 'u6', email: 'iki@example.org', grants: [{ role: 'content.etkinlikler.edit', expires_at: null }, { role: 'content.topluluk.approve', expires_at: null }] },
   // DEMO=admin only: an admin, for the Roles tab and every group.
@@ -148,6 +158,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       const id = url.searchParams.get('id');
       const type = url.searchParams.get('type');
       if (type === 'committees') return json({ type, id, data: COM, base_shas: { [COM_PATH]: 'sha-c' }, files: { [COM_PATH]: `${JSON.stringify(COM, null, 2)}\n` } });
+      if (type === 'resources') return json({ type, id, data: RES, base_shas: { [RES_PATH]: 'sha-r' }, files: { [RES_PATH]: `${JSON.stringify(RES, null, 2)}\n` } });
       if (type === 'podcast') return json({ type, id, data: POD, base_shas: { [POD_PATH]: 'sha-p' }, files: { [POD_PATH]: `${JSON.stringify(POD, null, 2)}\n` } });
       const e = (ENTRIES[type] ?? []).find((x) => x.id === id);
       if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas, ...(state.entryFiles ? { files: state.entryFiles } : {}) });
@@ -223,18 +234,27 @@ const noSideScroll = (page) => page.evaluate(() => document.documentElement.scro
  * the window to stop. DEMO=admin also fills Users and roles → Roles
  * (#kullanicilar/yetkiler) with every role's card. DEMO=topluluk opens the
  * committee form (Komiteler → Örnek Komite): add a member, upload a photo,
- * tick the consent box, save, send. DEMO_LANG=en for English.
+ * tick the consent box, save, send. DEMO=ogrenme opens Kaynaklar: open a
+ * link, change a tag, save; or "Yeni" for a new one. DEMO_LANG=en for English.
  *
  *   npm run build && npx astro preview --port 4329 &
  *   DEMO=approver BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
  *   DEMO=topluluk BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
+ *   DEMO=ogrenme BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
  */
 if (process.env.DEMO) {
   const demo = await chromium.launch({ headless: false, ...(process.env.CHROME ? { executablePath: process.env.CHROME } : {}) });
   const who = Object.hasOwn(USERS, process.env.DEMO) ? process.env.DEMO : 'editor';
   const me = USERS[who].id;
-  const { page } = await open(demo, who, who === 'topluluk' ? '#icerik/komiteler/example' : '#icerik', { width: 1440, height: 900 }, (s) => {
+  const start = { topluluk: '#icerik/komiteler/example', ogrenme: '#icerik/kaynaklar' }[who] ?? '#icerik';
+  const { page } = await open(demo, who, start, { width: 1440, height: 900 }, (s) => {
     const mk = (n, o) => s.drafts.set(`00000000-0000-4000-8000-00000000020${n}`, draftRow({ id: `00000000-0000-4000-8000-00000000020${n}`, author_id: me, ...o }));
+    if (who === 'ogrenme') {
+      // A new link sent back: its Turkish tags are fewer than the English ones.
+      mk(1, { type: 'resources', action: 'create', status: 'rejected', entry_id: 'nf-core-training', review_note: 'Türkçe etiketlerden biri eksik.', base_shas: { 'src/content/resources/nf-core-training.json': null },
+        data: { section: 'learning', order: 70, title: { en: 'nf-core training', tr: 'nf-core eğitimi' }, description: { en: 'Training material.', tr: 'Eğitim materyali.' }, url: 'https://example.org/training', tags: { en: ['nextflow', 'pipelines'], tr: ['nextflow'] }, opensource: true } });
+      return;
+    }
     if (who === 'topluluk') {
       // A committee sent back, to see a member's error in place.
       mk(1, { type: 'committees', status: 'rejected', entry_id: 'example', review_note: 'Bora için onay kutusu işaretli değil.', base_shas: { [COM_PATH]: 'sha-c' },
@@ -979,8 +999,78 @@ await section('30) the podcast: a draft on its way hides the button', async () =
   await page.close();
 });
 
+await section('31) a resource link: listed with its section, a Turkish tag changed and saved; a new one created', async () => {
+  const { page, calls } = await open(browser, 'ogrenme', '#icerik/kaynaklar', { width: 1440, height: 900 });
+  ok(await waitFor(page, () => !!document.querySelector('[data-cms-entry="example-tool-md-drug"]')), 'Kaynaklar lists the link');
+  ok((await page.textContent('[data-cms-entry="example-tool-md-drug"]')).includes('MD ve İlaç Tasarımı'), 'with its section under the title');
+  ok(await page.locator('[data-sub-link="kaynaklar"]').count() === 1 && await page.locator('[data-sub-link="komiteler"]').count() === 0, 'an Öğrenme editor sees Kaynaklar, not the other groups');
+  await page.click('[data-cms-entry="example-tool-md-drug"] [data-cms-edit]');
+  await page.waitForSelector('[data-field-wrap="tags"] [data-list-lang="tr"] [data-item]');
+  ok((await page.textContent('#cmsTitle')).includes('Örnek Araç'), 'the heading is the link\'s title');
+  ok(await page.locator('[data-field="section"]').inputValue() === 'md-drug', 'the section is chosen');
+  const trTags = page.locator('[data-field-wrap="tags"] [data-list-lang="tr"] [data-item]');
+  ok(await trTags.count() === 2 && await page.locator('[data-field-wrap="tags"] [data-list-lang="en"] [data-item]').count() === 2, 'two tag lists, English and Turkish');
+  await trTags.nth(1).fill('ilaç-tasarımı');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts');
+  ok(post?.body?.type === 'resources' && post.body.action === 'update' && post.body.entry_id === 'example-tool-md-drug', 'an update draft under the file\'s own name');
+  const expected = { ...RES, tags: { en: RES.tags.en, tr: ['CADD', 'ilaç-tasarımı'] } };
+  ok(JSON.stringify(post?.body?.data) === JSON.stringify(expected), `only the Turkish tag changed, keys in the file's order: ${JSON.stringify(post?.body?.data)}`);
+  await page.close();
+
+  const fresh = await open(browser, 'ogrenme', '#icerik/kaynaklar/_new', { width: 1440, height: 900 });
+  const p = fresh.page;
+  await p.waitForSelector('[data-field="title"][data-lang="en"]');
+  await p.selectOption('[data-field="section"]', 'learning');
+  await p.click('#cmsMore > summary');
+  await p.fill('[data-field="order"]', '70');
+  await p.fill('[data-field="title"][data-lang="en"]', 'New Course');
+  await p.fill('[data-field="title"][data-lang="tr"]', 'Yeni Ders');
+  await p.fill('[data-field="description"][data-lang="en"]', 'A course.');
+  await p.fill('[data-field="description"][data-lang="tr"]', 'Bir ders.');
+  await p.fill('[data-field="url"]', 'https://example.org/course');
+  await p.click('[data-field-wrap="tags"] [data-add][data-list-lang="en"]');
+  await p.fill('[data-field-wrap="tags"] [data-list-lang="en"] [data-item]', 'python');
+  await p.click('[data-field-wrap="tags"] [data-add][data-list-lang="tr"]');
+  await p.fill('[data-field-wrap="tags"] [data-list-lang="tr"] [data-item]', 'python');
+  ok(!(await p.isChecked('[data-field="opensource"]')), 'open source starts unticked');
+  await p.click('#cmsSave');
+  ok(await waitFor(p, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'the new link is saved');
+  const made = fresh.calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts');
+  ok(made?.body?.type === 'resources' && made.body.action === 'create', 'a create draft');
+  ok(JSON.stringify(made?.body?.data) === JSON.stringify({ section: 'learning', order: 70, title: { en: 'New Course', tr: 'Yeni Ders' }, description: { en: 'A course.', tr: 'Bir ders.' }, url: 'https://example.org/course', tags: { en: ['python'], tr: ['python'] }, opensource: false }),
+    `every key, in the schema's order, opensource false: ${JSON.stringify(made?.body?.data)}`);
+  ok((await p.textContent('#cmsTitle')).includes('Yeni Ders'), 'the heading follows the title');
+  await p.close();
+});
+
+await section('32) a resource sent back: the tag error is said in plain words, on the Turkish list', async () => {
+  const id = '00000000-0000-4000-8000-000000000801';
+  const { page } = await open(browser, 'ogrenme', `#icerik/taslaklar/${id}`, { width: 1366, height: 768 }, (s) => {
+    s.drafts.set(id, draftRow({ id, type: 'resources', entry_id: 'example-tool-md-drug', author_id: 'u7', data: { ...RES, tags: { en: ['CADD', 'drug-design'], tr: ['CADD'] } }, base_shas: { [RES_PATH]: 'sha-r' } }));
+    s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'tags.tr': 'Give as many Turkish tags as English ones' } }];
+  });
+  await page.waitForSelector('#cmsSubmit');
+  await page.click('#cmsSubmit');
+  ok(await waitFor(page, () => /alan düzeltilmeli/.test(document.getElementById('cmsErrors')?.textContent ?? '')), 'a summary of what to fix');
+  const summary = (await page.textContent('#cmsErrors')).replace(/\s+/g, ' ');
+  ok(summary.includes('Etiketler') && summary.includes('Türkçe etiketler İngilizcelerle aynı sayıda olmalı'), `the field and the rule in plain words: "${summary.slice(0, 160)}"`);
+  await page.close();
+
+  // Published: "Sitede aç" lands on the link's section of the page.
+  const pub = '00000000-0000-4000-8000-000000000802';
+  const live = await open(browser, 'ogrenme', '#icerik/taslaklar', { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(pub, draftRow({ id: pub, type: 'resources', status: 'published', entry_id: 'example-tool-md-drug', author_id: 'u7' }));
+  });
+  ok(await waitFor(live.page, () => !!document.querySelector('[data-cms-draft] [data-cms-open-site]')), 'a published link has "Sitede aç"');
+  const href = await live.page.getAttribute('[data-cms-draft] [data-cms-open-site]', 'href');
+  ok(href === '/tr/resources/#md-drug', `it opens the section: ${href}`);
+  await live.page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
-for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast']]) {
+for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));
   });

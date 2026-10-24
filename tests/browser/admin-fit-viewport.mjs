@@ -89,7 +89,12 @@ const CMS_PODCAST = { syncedAt: '2025-06-01T00:00:00.000Z', title: 'Podcast', de
   episodes: Array.from({ length: 14 }, (_, i) => POD_EP(14 - 1 - i)) };
 const CMS_PODCAST_NEW = { ...CMS_PODCAST, episodes: [POD_EP(14), ...CMS_PODCAST.episodes] };
 const POD_DRAFT = '00000000-0000-4000-8000-000000000399';
+const CMS_RESOURCE = {
+  section: 'tools', order: 10, title: { en: 'Resource', tr: 'Kaynak' }, description: { en: 'Description', tr: 'Açıklama' }, url: 'https://example.org/',
+  tags: { en: N(6, (i) => `tag-${i}`), tr: N(6, (i) => `etiket-${i}`) }, opensource: true,
+};
 const CMS_ENTRIES = {
+  resources: N(36, (i) => ({ id: `r${i}`, title: `Resource ${i}`, section: 'tools', shas: {} })),
   podcast: [{ id: 'podcast', title: CMS_PODCAST.title, date: '2025-01-01', shas: {} }],
   committees: N(8, (i) => ({ id: `c${i}`, title: `Committee ${i}`, shas: {} })),
   events: [{ id: 'symposium-2026', title: 'Symposium 2026', date: '2026-10-10', shas: {} }, ...N(59, (i) => ({ id: `e${i}`, title: `Event ${i}`, date: '2025-01-01', shas: {} }))],
@@ -129,10 +134,11 @@ async function open(path, viewport, user = ADMIN, { podcast = true, posts = POST
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
     // An admin approves every type (approve per type: functions/api/cms/types.ts).
-    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk']].map(([key, group]) => ({ key, group, canApprove: true })) });
+    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme']].map(([key, group]) => ({ key, group, canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'podcast') return json({ data: CMS_PODCAST, base_shas: { 'src/data/podcast.json': 'sha' }, files: { 'src/data/podcast.json': JSON.stringify(CMS_PODCAST, null, 2) } });
     if (url.pathname === `/api/cms/drafts/${POD_DRAFT}`) return json({ draft: { ...CMS_DRAFTS[1], id: POD_DRAFT, type: 'podcast', entry_id: 'podcast', status: 'draft', write_nonce: 'n', data: CMS_PODCAST_NEW, base_shas: { 'src/data/podcast.json': 'sha' } }, files: null });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'resources') return json({ data: CMS_RESOURCE, base_shas: { 'src/content/resources/r0.json': 'sha' } });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/c0.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
@@ -201,6 +207,7 @@ async function routes(lang, user) {
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t60');
   if (out.includes('#icerik/etkinlikler')) out.push('#icerik/etkinlikler/symposium-2026', '#icerik/webinarlar/_new', '#icerik/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik/onay/00000000-0000-4000-8000-000000000001');
   if (out.includes('#icerik/komiteler')) out.push('#icerik/komiteler/c0');
+  if (out.includes('#icerik/kaynaklar')) out.push('#icerik/kaynaklar/r0');
   if (out.includes('#icerik/podcast')) out.push(`#icerik/taslaklar/${POD_DRAFT}`, `#icerik/onay/${POD_DRAFT}`);
   return [...new Set(out)];
 }
