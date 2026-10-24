@@ -36,7 +36,7 @@ import {
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
 import { diffEntry, fileDiffs, hiddenFileChanges } from '../cms-diff';
-import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll, renderDiff, renderField, renderFileDiff, rowsClick, show, showIn } from '../cms-render';
+import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll, renderDiff, renderField, renderFileDiff, rowsClick, setRowImage, show, showIn } from '../cms-render';
 
 const SECTION = '#icerik';
 const PAGE = 20;
@@ -792,6 +792,9 @@ async function onImageFile(input: HTMLInputElement): Promise<void> {
   const ed = editor;
   const file = input.files?.[0];
   if (!ed || !file) return;
+  // A photo inside a row (a committee member's): that row's field, redrawn in place.
+  const leaf = input.closest<HTMLElement>('[data-sub-wrap]');
+  if (leaf) { await onRowImageFile(ed, leaf, input, file); return; }
   const f = ed.model.fields.find((x) => x.key === input.dataset.imageFile)!;
   const status = $('cmsFields')?.querySelector<HTMLElement>(`[data-image-status="${f.key}"]`);
   if (status) status.textContent = tk('admin.cms.image.uploading');
@@ -810,6 +813,30 @@ async function onImageFile(input: HTMLInputElement): Promise<void> {
       if (st) st.textContent = tk('admin.cms.image.uploaded');
     } catch (err) {
       if (status) status.textContent = tk(uploadErrorKey(err instanceof Error ? err.message : ''));
+    } finally {
+      input.disabled = false;
+      input.value = '';
+    }
+  })();
+  ed.uploads.add(job);
+  await job;
+  ed.uploads.delete(job);
+}
+
+/** onImageFile for a photo inside a row: its status line and its value are that row's. */
+async function onRowImageFile(ed: Editor, leaf: HTMLElement, input: HTMLInputElement, file: File): Promise<void> {
+  const status = (el: HTMLElement | null, key: string) => { const p = el?.querySelector<HTMLElement>(':scope [data-image-status]'); if (p) p.textContent = tk(key); };
+  status(leaf, 'admin.cms.image.uploading');
+  input.disabled = true;
+  const job = (async () => {
+    try {
+      const url = await uploadImage(file);
+      if (editor !== ed || !leaf.isConnected) return;
+      const fresh = setRowImage(ed.model, leaf, url);
+      $<HTMLFormElement>('cmsForm')!.dispatchEvent(new Event('input'));
+      status(fresh, 'admin.cms.image.uploaded');
+    } catch (err) {
+      if (leaf.isConnected) status(leaf, uploadErrorKey(err instanceof Error ? err.message : ''));
     } finally {
       input.disabled = false;
       input.value = '';

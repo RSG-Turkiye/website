@@ -270,23 +270,16 @@ export function rowsClick(model: TypeModel, target: HTMLElement): boolean {
   const add = target.closest('[data-row-add]');
   const move = target.closest<HTMLElement>('[data-row-move]');
   const remove = target.closest('[data-row-remove]');
-  // A list (strings, links) inside a row: redraw that field alone.
+  // A list (strings, links) inside a row, or a photo's Kaldır: redraw that field alone.
   const leaf = target.closest<HTMLElement>('[data-sub-wrap]');
   if (!add && !move && !remove && leaf && list.contains(leaf)) {
-    const defs = defsAt(model, leaf);
-    const s = defs.at(-1);
+    const s = defsAt(model, leaf).at(-1);
     if (!s || s.kind === 'objects') return false;
-    const row = leaf.closest('[data-orow]')!;
-    const parent = defs.at(-2)!;
+    if (s.kind === 'image' && target.closest('[data-image-remove]')) return !!setRowImage(model, leaf, '');
     const value = readIn(mode, s, leaf);
     const next = listEdit(leafMode(mode, s, value), s, value, target);
     if (next === undefined) return false;
-    const hidden = leaf.hidden;
-    const values = { ...readRowEl(mode, parent, row), [s.key]: next };
-    leaf.outerHTML = subField(mode, s, values);
-    const fresh = row.querySelector<HTMLElement>(`:scope > [data-row-body] > [data-sub-wrap="${s.key}"]`);
-    if (fresh) fresh.hidden = hidden;
-    return true;
+    return !!redrawSubField(model, leaf, next);
   }
   const f = defsAt(model, list).at(-1);
   if (!f || f.kind !== 'objects' || f.key !== list.dataset.objects) return false;
@@ -318,6 +311,43 @@ export function rowsClick(model: TypeModel, target: HTMLElement): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * One field inside a row drawn again with a new value, in place: the row
+ * stays open and keeps its other values. Returns the new wrap, or null when
+ * `leaf` is not a row's field.
+ */
+export function redrawSubField(model: TypeModel, leaf: HTMLElement, value: unknown): HTMLElement | null {
+  const defs = defsAt(model, leaf);
+  const s = defs.at(-1);
+  const parent = defs.at(-2);
+  const row = leaf.closest('[data-orow]');
+  const list = leaf.closest<HTMLElement>('[data-objects]');
+  if (!s || !parent || !row || !list) return null;
+  const mode = list.dataset.mode as Mode;
+  const hidden = leaf.hidden;
+  const values = { ...readRowEl(mode, parent, row), [s.key]: value };
+  leaf.outerHTML = subField(mode, s, values);
+  const fresh = row.querySelector<HTMLElement>(`:scope > [data-row-body] > [data-sub-wrap="${s.key}"]`);
+  if (fresh) fresh.hidden = hidden;
+  return fresh;
+}
+
+/**
+ * A photo inside a row set to an uploaded file's address, or cleared with
+ * ''. Kept in the shape the field holds: a plain address, both sides of a
+ * pair row, or an image object with its description.
+ */
+export function setRowImage(model: TypeModel, leaf: HTMLElement, url: string): HTMLElement | null {
+  const s = defsAt(model, leaf).at(-1);
+  const list = leaf.closest<HTMLElement>('[data-objects]');
+  if (!s || s.kind !== 'image' || !list) return null;
+  const before = readIn(list.dataset.mode as Mode, s, leaf);
+  const next = isSplit(before) ? { en: url, tr: url }
+    : s.image === 'object' ? (url ? { ...((before as ImageObject | null) ?? { alt: { en: '', tr: '' } }), thumb: url, full: url } : null)
+    : url;
+  return redrawSubField(model, leaf, next);
 }
 
 /** The new value of a strings/links/bilingualStrings list after a click on its Ekle, ↑, ↓ or Çıkar; undefined for any other click. */

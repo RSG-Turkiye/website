@@ -50,8 +50,8 @@ export interface FieldDef {
    * objects: the fields of one row, in the schema's key order: a row is
    * written in this order (the Markdown serializer writes nested keys as
    * they come). Rows hold text, choice, number, date, checkbox, bilingual,
-   * strings, links, bilingualStrings and objects fields: no images, no
-   * Markdown body.
+   * strings, links, bilingualStrings, image and objects fields: no Markdown
+   * body. An image in a row uploads like one at the top (cms.ts onImageFile).
    */
   fields?: FieldDef[];
   /** objects: one row's name, an i18n key with {n} ("Bölüm {n}"). Default admin.cms.rows.item. */
