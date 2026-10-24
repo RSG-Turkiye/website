@@ -1012,6 +1012,19 @@ five times in ten minutes.
 is the fallback for when the panel cannot reach the feed. Both use
 `src/lib/podcast-feed.ts` and the schema in `src/data/podcast.ts`.
 
+### Resource links
+
+The links on `/resources` are edited in İçerik › Kaynaklar
+(`#icerik/kaynaklar`), by the Öğrenme group. Each link is one file in
+`src/content/resources/`. A new link is named after its English title; an
+existing file keeps its name when the title changes. A link listed in two
+sections is two files (the two TeachOpenCADD ones), so a second placement
+needs a title that gives a new file name, or a pull request. Orders go in
+tens within a section; equal orders sort by title. Submit asks for the
+title, description and address in both languages, at least one tag, and as
+many Turkish tags as English ones, the same as
+`tests/content-resources.test.ts`.
+
 ### What the statuses mean
 
 The panel shows each draft with one of these (Turkish in `tr`, the words are
@@ -1180,7 +1193,7 @@ These are JSON collections, one file per entry (page texts: one file per page). 
 | --- | --- | --- |
 | Events | `src/content/events/<id>.json` | The home page, the events page and the calendar. The file name is the event `id`. |
 | Workshops | `src/content/workshops/` | The workshops page. `repo` is the GitHub repository name with its real case; the file name is the same name in lower case. |
-| Resources | `src/content/resources/` | The `/resources` page, in both languages. Not the learning paths; those are Markdown (below). |
+| Resources | `src/content/resources/` | The `/resources` page, in both languages; edited in the panel (İçerik › Kaynaklar). Not the learning paths; those are Markdown (below). |
 | Committees | `src/content/committees/` | `/about`. Published profiles, with the member's consent (`consent: true`). E-mail addresses are not allowed; the schema refuses them. |
 | Page texts | `src/content/pages/{home,about,join,resources}.json` | The visible wording of those pages, as `{ en, tr }` pairs. |
 
