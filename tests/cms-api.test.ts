@@ -49,9 +49,7 @@ function contentFiles(): Record<string, string> {
 const FILES = contentFiles();
 const INDEX: CmsIndex = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
-const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
-/** A title whose slug is the pair's Turkish file name. */
-const PAIR_TR_TITLE = PAIR_TR.replace(/^.*\//, '').replace(/\.md$/, '').replace(/-/g, ' ');
+const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_TR_TITLE, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
 
 const blobSha = (content: string) => createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0${content}`).digest('hex');
 

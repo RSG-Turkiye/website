@@ -9,6 +9,7 @@
  * different names", and gets whichever entry fits today.
  */
 import type { CmsIndex } from '../../src/lib/cms/cms-index';
+import { slugify } from '../../src/lib/cms/slug';
 
 const base = (p: string) => p.replace(/^.*\//, '').replace(/\.(json|md)$/, '');
 
@@ -26,8 +27,12 @@ export function realFixtures(files: Record<string, string>, index: CmsIndex) {
   const pairs = index.webinars.filter((w) => w.paths?.en && w.paths?.tr);
   // Tied by translationKey: the two files have different names.
   const keyed = pairs.filter((w) => base(w.paths!.en!) !== base(w.paths!.tr!) && frontmatterValue(files[w.paths!.en!], 'translationKey'));
-  if (keyed.length < 2) throw new Error('the CMS tests need two webinar pairs tied by translationKey');
-  const [a, b] = keyed;
+  // The tests also need a title whose slug is the Turkish file name, built
+  // from its words; a name like `a--b` has none.
+  const titleOf = (w: (typeof pairs)[number]) => base(w.paths!.tr!).replace(/-/g, ' ');
+  const a = keyed.find((w) => slugify(titleOf(w)) === base(w.paths!.tr!));
+  const b = keyed.find((w) => w !== a && frontmatterValue(files[w.paths!.en!], 'translationKey') !== frontmatterValue(files[a?.paths!.en! ?? ''] ?? '', 'translationKey'));
+  if (!a || !b) throw new Error('the CMS tests need two webinar pairs tied by translationKey, one with a plain Turkish file name');
   const sameName = pairs.find((w) => base(w.paths!.en!) === base(w.paths!.tr!));
   if (!sameName) throw new Error('the CMS tests need a webinar pair with the same file name');
 
@@ -42,6 +47,8 @@ export function realFixtures(files: Record<string, string>, index: CmsIndex) {
     PAIR_ID: a.id,
     PAIR_EN: a.paths!.en!,
     PAIR_TR: a.paths!.tr!,
+    /** A title whose slug is the pair's Turkish file name. */
+    PAIR_TR_TITLE: titleOf(a),
     PAIR_KEY: frontmatterValue(files[a.paths!.en!], 'translationKey'),
     /** The translationKey of another published pair. */
     OTHER_KEY: frontmatterValue(files[b.paths!.en!], 'translationKey'),

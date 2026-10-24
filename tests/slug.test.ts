@@ -108,11 +108,9 @@ test('every blog filename in the repository survives the character rules', () =>
   // One exception, and it is the bug: a file whose name ends in a hyphen,
   // left there by the old strip-then-slice cap. Its URL is live so the file
   // is not renamed, and the merged rule can no longer mint that shape.
-  assert.deepEqual(
-    moved,
-    ['computational-analysis-and-integration-of-large-scale-biological-data-with-deep-'],
-    'a published slug changed shape, which would change its URL',
-  );
+  // A subset, not an exact list: deleting that post must not fail this (A2).
+  const known = ['computational-analysis-and-integration-of-large-scale-biological-data-with-deep-'];
+  for (const s of moved) assert.ok(known.includes(s), `${s}: a published slug changed shape, which would change its URL`);
 });
 
 test('the two posts longer than the cap predate it, and are left alone', () => {
@@ -122,9 +120,9 @@ test('the two posts longer than the cap predate it, and are left alone', () => {
   const dirs = ['en', 'tr'].map((lang) => new URL(`../src/content/blog/${lang}/`, import.meta.url).pathname);
   const slugs = dirs.flatMap((d) => readdirSync(d).filter((f) => f.endsWith('.md')).map((f) => f.replace(/\.md$/, '')));
   const overLong = [...new Set(slugs.filter((s) => s.length > 80))];
-  assert.deepEqual(overLong, [
-    'from-biological-big-data-to-meaningful-information-bioinformatics-and-its-applications',
-  ]);
+  // A subset of the known two: a new long one fails, a deleted one does not (A2).
+  const known = ['from-biological-big-data-to-meaningful-information-bioinformatics-and-its-applications'];
+  for (const s of overLong) assert.ok(known.includes(s), `${s} is longer than the cap`);
 });
 
 test('every symposium speaker slug survives too', () => {

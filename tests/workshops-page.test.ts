@@ -34,7 +34,10 @@ test('both languages render the nf-core section first, with the local-site pages
     // Every link of every nf-core hackathon, read from the data, not named
     // here: the panel edits those links (A2).
     for (const e of events.filter((x) => x.nfcore && x.type === 'hackathon')) {
-      for (const l of e.links ?? []) assert.ok(html.includes(`href="${l.url}"`), `${page}: ${e.id} link ${l.url}`);
+      for (const l of e.links ?? []) {
+        const href = l.url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        assert.ok(html.includes(`href="${href}"`), `${page}: ${e.id} link ${l.url}`);
+      }
     }
   }
 });
