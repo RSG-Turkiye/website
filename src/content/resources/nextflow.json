@@ -1,6 +1,6 @@
 {
   "section": "tools",
-  "order": 4,
+  "order": 40,
   "title": {
     "en": "Nextflow",
     "tr": "Nextflow"

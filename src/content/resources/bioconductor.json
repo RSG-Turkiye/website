@@ -1,6 +1,6 @@
 {
   "section": "tools",
-  "order": 2,
+  "order": 20,
   "title": {
     "en": "Bioconductor",
     "tr": "Bioconductor"

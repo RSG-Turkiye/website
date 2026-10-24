@@ -1,6 +1,6 @@
 {
   "section": "databases",
-  "order": 2,
+  "order": 20,
   "title": {
     "en": "RCSB Protein Data Bank (PDB)",
     "tr": "RCSB Protein Veri Bankası (PDB)"

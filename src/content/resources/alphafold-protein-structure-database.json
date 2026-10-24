@@ -1,6 +1,6 @@
 {
   "section": "databases",
-  "order": 3,
+  "order": 30,
   "title": {
     "en": "AlphaFold Protein Structure Database",
     "tr": "AlphaFold Protein Yapısı Veritabanı"
