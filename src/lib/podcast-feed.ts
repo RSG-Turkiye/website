@@ -44,26 +44,70 @@ export interface PodcastData {
 /** Why a feed could not be used. The message is ours, never the feed's text. */
 export class FeedError extends Error {}
 
-const cdata = (s: string): string => s.replace(/^\s*<!\[CDATA\[/, '').replace(/\]\]>\s*$/, '').trim();
+/** More items than this and the feed is not the show's (it publishes monthly). */
+export const MAX_EPISODES = 500;
 
+/*
+ * Scanning. The feed is third-party and up to 2 MB, so nothing here may be
+ * worse than linear in its length: indexOf scans that always move forward,
+ * no backtracking regular expressions over the feed's text. A hostile feed
+ * (unclosed tags, a million attributes) fails or parses in milliseconds.
+ */
+
+/** Where `<name` starts as a whole tag name (followed by `>`, `/` or white space), from `from`, or -1. */
+function openAt(source: string, name: string, from: number): number {
+  for (let at = source.indexOf(`<${name}`, from); at !== -1; at = source.indexOf(`<${name}`, at + 1)) {
+    const next = source.charAt(at + name.length + 1);
+    if (next === '>' || next === '/' || next === ' ' || next === '\t' || next === '\n' || next === '\r') return at;
+  }
+  return -1;
+}
+
+/** The text of the first `<name ...>...</name>`, CDATA unwrapped; '' if there is none. An unclosed one fails the feed. */
 function tag(source: string, name: string): string {
-  const m = new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`).exec(source);
-  return m ? cdata(m[1]) : '';
+  const at = openAt(source, name, 0);
+  if (at === -1) return '';
+  const gt = source.indexOf('>', at);
+  if (gt === -1) throw new FeedError(`An unclosed <${name}>`);
+  if (source.charAt(gt - 1) === '/') return '';
+  const end = source.indexOf(`</${name}>`, gt + 1);
+  if (end === -1) throw new FeedError(`An unclosed <${name}>`);
+  return cdata(source.slice(gt + 1, end));
 }
 
+function cdata(raw: string): string {
+  const s = raw.trim();
+  return s.startsWith('<![CDATA[') && s.endsWith(']]>') ? s.slice(9, -3).trim() : s;
+}
+
+/** An attribute of the first `<element ...>`, entities decoded; '' if there is none. */
 function attr(source: string, element: string, name: string): string {
-  const m = new RegExp(`<${element}[^>]*\\s${name}="([^"]*)"`).exec(source);
-  return m ? decodeEntities(m[1]) : '';
+  const at = openAt(source, element, 0);
+  if (at === -1) return '';
+  const gt = source.indexOf('>', at);
+  if (gt === -1) return '';
+  const tagText = source.slice(at, gt);
+  for (let i = tagText.indexOf(`${name}="`); i !== -1; i = tagText.indexOf(`${name}="`, i + 1)) {
+    if (!/\s/.test(tagText.charAt(i - 1))) continue;
+    const start = i + name.length + 2;
+    const close = tagText.indexOf('"', start);
+    return close === -1 ? '' : decodeEntities(tagText.slice(start, close));
+  }
+  return '';
 }
 
+/** A code point an entity may stand for: not NUL, not a lone surrogate, in range. */
+function fromCode(n: number, raw: string): string {
+  return n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : raw;
+}
+
+/** Named and numeric entities, once: `&amp;#8212;` stays the text `&#8212;`. */
 function decodeEntities(s: string): string {
-  return s
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&amp;/g, '&');
+  const named: Record<string, string> = { nbsp: ' ', lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
+  return s.replace(/&(#\d{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]{2,5});/g, (raw, body: string) => {
+    if (body[0] !== '#') return Object.hasOwn(named, body) ? named[body] : raw;
+    return fromCode(body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1)), raw);
+  });
 }
 
 /**
@@ -74,24 +118,34 @@ function decodeEntities(s: string): string {
  * panel (submit refuses it) and would fail CI if synced by hand.
  */
 export function houseText(s: string): string {
-  return s.replace(/\s*—\s*/g, ' - ').replace(/(\w)\s+--\s+(?=\w)/g, '$1 - ');
+  const parts = s.split('—');
+  const joined = parts.map((p, i) => {
+    let q = p;
+    if (i > 0) q = q.trimStart();
+    if (i < parts.length - 1) q = q.trimEnd();
+    return q;
+  }).join(' - ');
+  return joined.replace(/(\w)\s+--\s+(?=\w)/g, '$1 - ');
 }
 
-/** Entities, then tags, then collapse. Feed descriptions are HTML. */
+/** Tags dropped, linearly: an unclosed `<` stays as text. */
+function stripTags(html: string): string {
+  let out = '';
+  let at = 0;
+  for (let lt = html.indexOf('<'); lt !== -1; lt = html.indexOf('<', at)) {
+    const gt = html.indexOf('>', lt + 1);
+    if (gt === -1) break;
+    const name = html.slice(lt + 1, Math.min(gt, lt + 4)).toLowerCase();
+    // A line break or the end of a paragraph is a space between words.
+    out += html.slice(at, lt) + (name.startsWith('br') || name.startsWith('/p') ? ' ' : '');
+    at = gt + 1;
+  }
+  return out + html.slice(at);
+}
+
+/** Tags, then entities, then collapse. Feed descriptions are HTML. */
 export function plainText(html: string): string {
-  const text = html
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<\/p>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-  return houseText(text);
+  return houseText(decodeEntities(stripTags(html)).replace(/\s+/g, ' ').trim());
 }
 
 /** `itunes:duration` is HH:MM:SS, MM:SS, or already seconds. */
@@ -101,6 +155,19 @@ export function durationSeconds(raw: string): number {
   const parts = raw.split(':').map(Number);
   if (parts.some(Number.isNaN)) return 0;
   return parts.reduce((total, p) => total * 60 + p, 0);
+}
+
+/** Each `<item>...</item>`, in order. An unclosed one, or too many, fails the feed. */
+function itemsOf(xml: string): string[] {
+  const items: string[] = [];
+  for (let at = xml.indexOf('<item>'); at !== -1; at = xml.indexOf('<item>', at)) {
+    const end = xml.indexOf('</item>', at + 6);
+    if (end === -1) throw new FeedError('An unclosed <item>');
+    if (items.length === MAX_EPISODES) throw new FeedError(`More than ${MAX_EPISODES} episodes`);
+    items.push(xml.slice(at + 6, end));
+    at = end + 7;
+  }
+  return items;
 }
 
 function isoDate(raw: string): string {
@@ -117,12 +184,12 @@ function isoDate(raw: string): string {
 export function parseFeed(xml: string, syncedAt: string): PodcastData {
   const first = xml.indexOf('<item>');
   const channel = first === -1 ? xml : xml.slice(0, first);
-  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map((m) => m[1]);
+  const items = itemsOf(xml);
   if (items.length === 0) throw new FeedError('The feed has no episodes');
 
   const episodes: PodcastEpisode[] = items.map((item) => {
     const audioUrl = attr(item, 'enclosure', 'url');
-    const title = houseText(decodeEntities(tag(item, 'title')));
+    const title = houseText(decodeEntities(tag(item, 'title')).trim());
     if (!audioUrl || !title) throw new FeedError('An episode has no audio or no title');
     return {
       guid: tag(item, 'guid') || audioUrl,

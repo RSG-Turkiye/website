@@ -14,6 +14,8 @@
 import { z } from "astro/zod";
 
 const https = z.string().regex(/^https:\/\//, "Must be an https:// address");
+/** Artwork may be missing (an episode without its own); when given, https only. */
+const httpsOrEmpty = z.string().regex(/^(https:\/\/.+)?$/, "Must be empty or an https:// address");
 const readableDate = z.string().refine((s) => Number.isFinite(Date.parse(s)), "Not a readable date");
 
 export const episodeSchema = z
@@ -24,7 +26,7 @@ export const episodeSchema = z
     durationSeconds: z.number().int().min(0),
     audioUrl: https,
     audioBytes: z.number().int().min(0),
-    image: z.string(),
+    image: httpsOrEmpty,
     description: z.string(),
   })
   .strict();

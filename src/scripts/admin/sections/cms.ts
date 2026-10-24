@@ -388,8 +388,9 @@ async function showList(model: TypeModel): Promise<void> {
 interface Episode { guid?: unknown; title?: unknown; pubDate?: unknown; durationSeconds?: unknown }
 
 /**
- * A type the server builds from a feed (the podcast): what the site has and
- * one button, "Yeni bölümleri çek". The episodes are read from main (one
+ * A type the server builds from a feed (the podcast): what the repository's
+ * main branch has (the site follows it a few minutes after a merge) and one
+ * button, "Yeni bölümleri çek". The episodes are read from main (one
  * light read); everything in them is the feed's text, so it is only ever
  * escaped, never rendered as HTML. A new pull opens its draft.
  */
@@ -415,7 +416,7 @@ async function showGenerated(model: TypeModel, host: HTMLElement): Promise<void>
   })).join('');
   host.innerHTML = `${myDraftsRow()}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-      <h2 class="text-sm font-semibold text-navy">${esc(episodes ? tk('admin.cms.podcast.onSite', { n: episodes.length }) : tk(model.label))}</h2>
+      <h2 class="text-sm font-semibold text-navy">${esc(episodes ? tk('admin.cms.podcast.onMain', { n: episodes.length }) : tk(model.label))}</h2>
       <div class="flex flex-wrap items-center gap-2">
         <a href="${livePath(model.key, id, [], lang)}" target="_blank" rel="noopener" class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>
         ${action}

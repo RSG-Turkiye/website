@@ -44,6 +44,7 @@ const FIXED: Record<string, Label> = {
   'cms.pr.failed': { en: 'Content pull request failed', tr: 'İçerik PR\'ı başarısız' },
   'cms.pr.cancel': { en: 'Cancelled a content PR', tr: 'İçerik PR\'ını iptal etti' },
   'cms.podcast.pull': { en: 'Checked the podcast feed for new episodes', tr: 'Podcast akışında yeni bölüm aradı' },
+  'cms.podcast.result': { en: 'Podcast feed check ended without a draft', tr: 'Podcast akışı kontrolü taslaksız bitti' },
   'cms.draft.prune': { en: 'Removed finished content drafts older than 90 days', tr: '90 günden eski bitmiş taslaklar silindi' },
 
   'mail.send': { en: 'Sent an e-mail', tr: 'E-posta gönderdi' },

@@ -10,15 +10,16 @@ import { FEED, FeedError, parseFeed, type PodcastData } from '../../../../src/li
 
 /** Pulls per person in PULL_WINDOW_SECONDS. There is no paid WAF here, so
  * the limit lives in the Function (CLAUDE.md), counted from the audit log,
- * which records every pull anyway: no table of its own, no migration. */
+ * which records every attempt anyway: no table of its own, no migration. */
 export const PULL_LIMIT = 5;
 export const PULL_WINDOW_SECONDS = 600;
 /** The feed is third-party: one request, this long at most, this big at most. */
 export const FEED_TIMEOUT_MS = 10_000;
 export const FEED_MAX_BYTES = 2 * 1024 * 1024;
 
-const PULLED = `SELECT COUNT(*) AS n FROM audit_log
-  WHERE user_id = ? AND at > ? AND (action = 'cms.podcast.pull' OR (action = 'cms.draft.create' AND details LIKE '%"generated":"podcast"%'))`;
+/** Every attempt writes one cms.podcast.pull row before the feed is read, so
+ * a request killed mid-fetch still counts. */
+const PULLED = `SELECT COUNT(*) AS n FROM audit_log WHERE user_id = ? AND at > ? AND action = 'cms.podcast.pull'`;
 const LIVE = LIVE_STATUSES.map((s) => `'${s}'`).join(', ');
 
 const feedFailed = () => fail(502, 'feed_failed', 'The podcast feed could not be read; try again later');
@@ -96,8 +97,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     .bind(type.key, type.fixedId).first();
   if (busy) return fail(409, 'entry_busy', 'Another podcast draft is waiting for approval or going live; wait for it to finish');
 
+  // The attempt, before the feed is read (and counted by the rate limit).
+  await appendAudit(env.DB, { userId: gate.user.id, action: 'cms.podcast.pull', targetType: 'content', targetId: type.fixedId, details: {} }, gate.now);
+  // How it ended, unless it ended in a draft (cms.draft.create says that).
   const logPull = (result: string) => appendAudit(env.DB, {
-    userId: gate.user.id, action: 'cms.podcast.pull', targetType: 'content', targetId: type.fixedId, details: { result },
+    userId: gate.user.id, action: 'cms.podcast.result', targetType: 'content', targetId: type.fixedId, details: { result },
   }, gate.now);
 
   const xml = await readFeed();

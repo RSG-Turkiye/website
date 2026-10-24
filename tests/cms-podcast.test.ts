@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { call } from './lib/social';
-import { FEED, FeedError, PLATFORMS, houseText, parseFeed, type PodcastData } from '../src/lib/podcast-feed';
+import { FEED, FeedError, MAX_EPISODES, PLATFORMS, houseText, parseFeed, type PodcastData } from '../src/lib/podcast-feed';
 import { podcastSchema } from '../src/data/podcast';
 import { cmsType } from '../src/lib/cms/types';
 import { serializeJson } from '../src/lib/cms/serialize';
@@ -207,10 +207,10 @@ test('one new episode in the feed: an update draft by the caller, whose diff is 
   assert.deepEqual((rows as any).rows.map((r: any) => [r.state, r.row.guid]), [['added', EXPECTED.episodes[0].guid]]);
 
   const log = audit();
-  assert.deepEqual(log.map((a) => a.action), ['cms.draft.create']);
-  assert.equal(log[0].user_id, 'community');
-  assert.equal(log[0].target_id, row.id);
-  assert.deepEqual(JSON.parse(log[0].details), { type: 'podcast', entry_id: 'podcast', draft_action: 'update', generated: 'podcast' });
+  assert.deepEqual(log.map((a) => a.action), ['cms.podcast.pull', 'cms.draft.create'], 'the attempt is logged before the feed is read');
+  assert.equal(log[1].user_id, 'community');
+  assert.equal(log[1].target_id, row.id);
+  assert.deepEqual(JSON.parse(log[1].details), { type: 'podcast', entry_id: 'podcast', draft_action: 'update', generated: 'podcast' });
   assert.equal(feedCalls.length, 1, 'one request to the feed');
   assert.ok(feedCalls[0].signal, 'with a timeout');
 
@@ -225,7 +225,7 @@ test('the same episodes: no_new_episodes and no draft, whatever syncedAt says', 
   assert.equal(res.status, 200);
   assert.equal((await res.json() as any).code, 'no_new_episodes');
   assert.equal(drafts().length, 0);
-  assert.deepEqual(audit().map((a) => [a.action, JSON.parse(a.details).result]), [['cms.podcast.pull', 'no_new_episodes']]);
+  assert.deepEqual(audit().map((a) => [a.action, JSON.parse(a.details).result]), [['cms.podcast.pull', undefined], ['cms.podcast.result', 'no_new_episodes']]);
 });
 
 test('the feed down, empty, too large or broken: 502 feed_failed, no draft, and none of the feed\'s text in the answer', async () => {
@@ -249,7 +249,7 @@ test('the feed down, empty, too large or broken: 502 feed_failed, no draft, and 
     assert.equal(JSON.parse(text).code, 'feed_failed', what);
     assert.doesNotMatch(text, /secret-upstream-detail|example\.org/, `${what}: nothing of the feed is echoed`);
     assert.equal(drafts().length, 0, what);
-    assert.deepEqual(audit().map((a) => [a.action, JSON.parse(a.details).result]), [['cms.podcast.pull', 'feed_failed']], what);
+    assert.deepEqual(audit().map((a) => [a.action, JSON.parse(a.details).result]), [['cms.podcast.pull', undefined], ['cms.podcast.result', 'feed_failed']], what);
   }
 });
 
@@ -320,5 +320,75 @@ test('GitHub down after the feed was read: the pull still counts toward the limi
     globalThis.fetch = real;
   }
   assert.equal(drafts().length, 0);
-  assert.deepEqual(audit().map((a) => [a.action, JSON.parse(a.details).result]), [['cms.podcast.pull', 'github_failed']]);
+  assert.deepEqual(audit().map((a) => [a.action, JSON.parse(a.details).result]), [['cms.podcast.pull', undefined], ['cms.podcast.result', 'github_failed']]);
+});
+
+// ── fix round 1 ───────────────────────────────────────────────────────────────
+
+test('hostile feeds of 2 MB parse or fail in well under a second (no quadratic scans)', () => {
+  const item = FIXTURE.slice(FIXTURE.indexOf('<item>'), FIXTURE.indexOf('</item>') + 7).replace('Hizalama', 'x'.repeat(3000));
+  const many = Array.from({ length: 60 }, (_, i) => item.replace(/000000000002/g, String(i).padStart(12, '0')).replace('24 May 2025', `${(i % 28) + 1} May 2024`)).join('\n');
+  const cases: Record<string, string> = {
+    unclosedItems: '<item>'.repeat(Math.floor(2e6 / 6)),
+    unclosedTitles: `<item>${'<title>'.repeat(Math.floor(2e6 / 7))}</item>`,
+    enclosureAttrs: `<item><title>x</title><enclosure ${' a'.repeat(1e6)}></item>`,
+    manyEnclosure: `<item><title>x</title>${'<enclosure '.repeat(Math.floor(2e6 / 11))}</item>`,
+    unclosedTagsInText: `<item><title>x</title><description>${'<'.repeat(2e6)}</description><enclosure url="https://example.org/a.m4a"/><pubDate>Sat, 24 May 2025 10:30:00 GMT</pubDate></item>`,
+    spacesInTitle: `<item><title>a${' '.repeat(2e6)}b</title><enclosure url="https://example.org/a.m4a"/><pubDate>Sat, 24 May 2025 10:30:00 GMT</pubDate></item>`,
+    realisticLarge: FIXTURE.slice(0, FIXTURE.indexOf('<item>')) + many + '</channel></rss>',
+  };
+  for (const [what, xml] of Object.entries(cases)) {
+    const t = performance.now();
+    try { parseFeed(xml, SYNCED); } catch (e) { assert.ok(e instanceof FeedError, `${what}: ${e}`); }
+    const ms = performance.now() - t;
+    assert.ok(ms < 1000, `${what}: ${Math.round(ms)} ms`);
+  }
+});
+
+test('an unclosed item or title fails the feed; more than MAX_EPISODES items fails it', () => {
+  const last = FIXTURE.lastIndexOf('</item>');
+  assert.throws(() => parseFeed(FIXTURE.slice(0, last) + FIXTURE.slice(last + 7), SYNCED), FeedError, 'the last item never closes');
+  assert.throws(() => parseFeed(FIXTURE.replace('<title><![CDATA[Fragman]]></title>', '<title><![CDATA[Fragman]]>'), SYNCED), FeedError);
+  const one = FIXTURE.slice(FIXTURE.indexOf('<item>'), FIXTURE.indexOf('</item>') + 7);
+  const feedOfN = (n: number) => `<rss><channel><title>x</title>${Array.from({ length: n }, (_, i) => one.replace(/000000000002/g, String(i).padStart(12, '0')).replace('ep2.m4a', `ep${i}.m4a`)).join('')}</channel></rss>`;
+  assert.equal(MAX_EPISODES, 500);
+  assert.equal(parseFeed(feedOfN(MAX_EPISODES), SYNCED).episodes.length, MAX_EPISODES);
+  assert.throws(() => parseFeed(feedOfN(MAX_EPISODES + 1), SYNCED), FeedError);
+});
+
+test('numeric entities are decoded, and a numeric em dash is written as a hyphen too', () => {
+  const xml = FIXTURE
+    .replace('<title>Birinci bölüm &amp; giriş</title>', '<title>Birinci&#8217;s &#x27;bölüm&#x27; &#8212; giriş</title>')
+    .replace('<![CDATA[Düz metin açıklama.]]>', 'Düz&#160;metin &amp;#8212; açıklama&#x2014;son.');
+  const ep = parseFeed(xml, SYNCED).episodes.find((e) => e.guid.endsWith('001'))!;
+  assert.equal(ep.title, 'Birinci’s \'bölüm\' - giriş');
+  assert.equal(ep.description, 'Düz metin &#8212; açıklama - son.', 'an escaped entity stays text, decoded once');
+  assert.ok(!JSON.stringify(parseFeed(xml, SYNCED)).includes('—'));
+});
+
+test('episode and show artwork are https or empty', () => {
+  const bad = (f: (d: PodcastData) => void) => { const d = structuredClone(EXPECTED); f(d); return podcastSchema.safeParse(d).success; };
+  assert.equal(bad((d) => { d.episodes[0].image = 'http://example.org/a.jpg'; }), false);
+  assert.equal(bad((d) => { d.episodes[0].image = 'javascript:alert(1)'; }), false);
+  assert.equal(bad((d) => { d.episodes[0].image = ''; }), true, 'no artwork is fine');
+  assert.equal(bad((d) => { d.image = 'http://example.org/a.jpg'; }), false);
+});
+
+test('the attempt is logged before the feed is read, so a request killed mid-fetch still counts', async () => {
+  const { env, audit } = setup(olderMain());
+  const real = globalThis.fetch;
+  let reading = false;
+  // The feed never answers: as far as this request goes, the platform kills it here.
+  globalThis.fetch = ((input: string | URL, init?: RequestInit) => {
+    if (String(input) === FEED) { reading = true; return new Promise(() => {}); }
+    return real(input, init);
+  }) as never;
+  try {
+    void doPull(env, 'community');
+    for (let i = 0; i < 100 && !reading; i++) await new Promise((r) => setImmediate(r));
+    assert.ok(reading, 'the feed is being read');
+    assert.deepEqual(audit().map((a) => a.action), ['cms.podcast.pull']);
+  } finally {
+    globalThis.fetch = real;
+  }
 });

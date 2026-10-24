@@ -930,9 +930,9 @@ await section('28) two groups: each group\'s tabs are a tab list named by the gr
 
 await section('29) the podcast: the episodes on the site, "Yeni bölümleri çek", the draft\'s diff, sent; the approver\'s diff', async () => {
   const { page, state, calls } = await open(browser, 'topluluk', '#icerik/podcast');
-  ok(await waitFor(page, () => document.querySelectorAll('[data-sub="podcast"] [data-cms-episode]').length === 2), 'the episodes on the site, one row each');
+  ok(await waitFor(page, () => document.querySelectorAll('[data-sub="podcast"] [data-cms-episode]').length === 2), 'the episodes on main, one row each');
   const sub = page.locator('[data-sub="podcast"]');
-  ok((await sub.textContent()).includes('Sitede: 2 bölüm'), 'how many');
+  ok((await sub.textContent()).includes('Depoda (main): 2 bölüm'), 'how many, and that the list is the repository\'s');
   ok((await sub.textContent()).includes('<img src=x data-injected>') && await page.locator('[data-injected]').count() === 0, 'the feed\'s text is shown as text, never as HTML');
   ok((await page.locator('[data-cms-episode="guid-2"]').textContent()).includes('51 dk'), 'a length in minutes');
   ok(await page.locator('[data-sub="podcast"] [data-cms-new]').count() === 0, 'no "Yeni": the file is generated');
