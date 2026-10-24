@@ -9,6 +9,7 @@ import { CMS_TYPES, cmsType, type CmsType } from '../src/lib/cms/types';
 import { jsonSchemaFor } from '../src/lib/cms/json-schema';
 import { parseMarkdown } from '../src/lib/cms/serialize';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
+import { realFixtures } from './lib/cms-fixtures';
 import { FAILURE } from '../functions/_lib/cms-drafts';
 import { ui } from '../src/i18n/ui';
 import {
@@ -31,6 +32,8 @@ function files(): Record<string, string> {
 }
 const FILES = files();
 const INDEX = buildCmsIndex(FILES);
+// Entries picked by shape, never by name: the panel edits and deletes them (A2).
+const { EVENT_ID, EVENT_PATH, SAME_NAME_ID } = realFixtures(FILES, INDEX);
 /** A webinar pair as GET /api/cms/entry answers it (JSON round trip included). */
 const pair = (id: string) => {
   const w = INDEX.webinars.find((e) => e.id === id)!;
@@ -129,15 +132,17 @@ test('the internal note is for approvers only', () => {
   assert.ok(visibleFields(MODELS.events, true).some((f) => f.key === 'note'));
 });
 
-test('symposium-2026 goes through the form and back unchanged; an edited when.tr comes back changed', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+test('an event goes through the form and back unchanged; an edited when.tr comes back changed', () => {
+  const data = JSON.parse(read(EVENT_PATH));
+  const original = structuredClone(data);
   const values = formValues(MODELS.events, data);
   assert.deepEqual(applyValues(MODELS.events, data, values), data);
-  const edited = { ...values, when: { ...(values.when as Bi), tr: '10-11 Ekim 2026, Ankara' } };
+  const changed = `${data.when.tr} (edited)`;
+  const edited = { ...values, when: { ...(values.when as Bi), tr: changed } };
   const out = applyValues(MODELS.events, data, edited) as typeof data;
-  assert.equal(out.when.tr, '10-11 Ekim 2026, Ankara');
+  assert.equal(out.when.tr, changed);
   assert.deepEqual({ ...out, when: data.when }, data, 'nothing else moved');
-  assert.deepEqual(data.when.tr, '10–11 Ekim 2026', 'the input is not changed');
+  assert.deepEqual(data, original, 'the input is not changed');
 });
 
 test('every event and workshop file round-trips', () => {
@@ -154,7 +159,7 @@ test('every webinar pair round-trips, legacy lang and source included', () => {
 });
 
 test('a webinar body round-trips and an edit to one language stays in that language', () => {
-  const data = pair('ai-approaches-biomolecular-representation');
+  const data = pair(SAME_NAME_ID);
   const values = formValues(MODELS.webinars, data);
   const body = values.body as Bi;
   assert.equal(body.en, data.en.body);
@@ -166,7 +171,7 @@ test('a webinar body round-trips and an edit to one language stays in that langu
 test('a shared webinar field shows one control and writes both sides; one whose sides differ shows two', () => {
   const model = MODELS.webinars;
   const date = model.fields.find((f) => f.key === 'date')!;
-  const data = pair('ai-approaches-biomolecular-representation');
+  const data = pair(SAME_NAME_ID);
   const values = formValues(model, data);
   assert.ok(sharedShowsOne(date, values.date as Bi));
   const out = applyValues(model, data, { ...values, date: { en: '2024-05-01', tr: '2024-05-01' } }) as typeof data;
@@ -182,7 +187,7 @@ test('an untouched new entry adds nothing; cleared optional fields leave the fil
     const base = emptyData(MODELS[key]);
     assert.deepEqual(applyValues(MODELS[key], base, formValues(MODELS[key], base)), base, key);
   }
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(read(EVENT_PATH));
   const values = formValues(MODELS.events, data);
   const out = applyValues(MODELS.events, data, { ...values, end: '' }) as Record<string, unknown>;
   assert.ok(!('end' in out), 'a cleared end date is removed, not ""');
@@ -277,23 +282,23 @@ test('every label, help and error sentence exists in both languages', () => {
 });
 
 test('half-translated texts are found, whole and empty ones are not', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(read(EVENT_PATH));
   const values = formValues(MODELS.events, data);
   assert.deepEqual(halfTranslated(MODELS.events, values), []);
   const half = { ...values, location: { en: 'Ankara', tr: '' }, links: [{ label: { en: 'Site', tr: '' }, url: 'https://x' }] };
   assert.deepEqual(halfTranslated(MODELS.events, half).map((h) => h.key), ['links'], 'location is required: its field error covers it');
-  const w = formValues(MODELS.webinars, pair('ai-approaches-biomolecular-representation'));
+  const w = formValues(MODELS.webinars, pair(SAME_NAME_ID));
   assert.deepEqual(halfTranslated(MODELS.webinars, { ...w, topic: { en: 'ML', tr: '' } }).map((h) => h.key), ['topic']);
 });
 
 test('the approver\'s diff: values, both languages, items added, removed and moved, body lines', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(read(EVENT_PATH));
   const links = [{ label: { en: 'A', tr: 'A' }, url: 'a' }, { label: { en: 'B', tr: 'B' }, url: 'b' }, { label: { en: 'C', tr: 'C' }, url: 'c' }];
   const before = { ...data, links };
-  const after = { ...data, when: { ...data.when, tr: 'Ekim' }, links: [links[2], links[0], { label: { en: 'D', tr: 'D' }, url: 'd' }] };
+  const after = { ...data, when: { ...data.when, tr: `${data.when.tr} (edited)` }, links: [links[2], links[0], { label: { en: 'D', tr: 'D' }, url: 'd' }] };
   const d = diffEntry(MODELS.events, before, after);
   assert.deepEqual(d.changed.map((c) => c.field.key), ['when', 'links']);
-  assert.deepEqual(d.changed[0].changes, [{ type: 'bilingual', en: null, tr: { before: data.when.tr, after: 'Ekim' } }]);
+  assert.deepEqual(d.changed[0].changes, [{ type: 'bilingual', en: null, tr: { before: data.when.tr, after: `${data.when.tr} (edited)` } }]);
   const items = (d.changed[1].changes[0] as { items: { state: string; value: any }[] }).items.map((i) => `${i.state}:${i.value.url}`);
   assert.deepEqual(items, ['moved:c', 'same:a', 'added:d', 'removed:b']);
   assert.ok(d.unchanged.some((f) => f.key === 'title'));
@@ -301,10 +306,12 @@ test('the approver\'s diff: values, both languages, items added, removed and mov
 
   assert.deepEqual(listDiff(['a', 'b'], ['b', 'a']).map((i) => i.state).sort(), ['moved', 'same']);
   assert.deepEqual(lineDiff('one\ntwo\nthree', 'one\n2\nthree'), [{ op: ' ', text: 'one' }, { op: '-', text: 'two' }, { op: '+', text: '2' }, { op: ' ', text: 'three' }]);
-  const w = pair('ai-approaches-biomolecular-representation');
+  const w = pair(SAME_NAME_ID);
   const w2 = JSON.parse(JSON.stringify(w));
   w2.tr.body += 'Ek.\n';
-  w2.en.frontmatter.date = w2.tr.frontmatter.date = '2024-04-17';
+  // A day the entry is not on, whatever date it has.
+  const day = String(w.en.frontmatter.date).slice(0, 10) === '2000-01-01' ? '2000-01-02' : '2000-01-01';
+  w2.en.frontmatter.date = w2.tr.frontmatter.date = day;
   const wd = diffEntry(MODELS.webinars, w, w2);
   assert.deepEqual(wd.changed.map((c) => c.field.key), ['date', 'body']);
   assert.equal(wd.changed[0].changes[0].type, 'value', 'a shared field both sides agree on is one value');
@@ -312,7 +319,7 @@ test('the approver\'s diff: values, both languages, items added, removed and mov
 });
 
 test('the live page of a published entry', () => {
-  assert.equal(livePath('events', 'symposium-2026', [], 'tr'), '/tr/events/');
+  assert.equal(livePath('events', EVENT_ID, [], 'tr'), '/tr/events/');
   assert.equal(livePath('workshops', 'x', [], 'en'), '/workshops/');
   const paths = ['src/content/webinars/en/integrative-modeling-of-biomolecular-complexes.md', 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md'];
   assert.equal(livePath('webinars', 'integrative-modeling-of-biomolecular-complexes', paths, 'tr'), '/tr/webinars/first-webinar-2018-integrative-modeling/');
@@ -390,7 +397,7 @@ test('a webinar\'s year follows its date and is not typed', () => {
 });
 
 test('required fields are marked; the half-translation warning is only for optional ones', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(read(EVENT_PATH));
   const values = formValues(MODELS.events, data);
   // A required field half-filled is a field error at submit, not this warning.
   assert.deepEqual(halfTranslated(MODELS.events, { ...values, title: { en: 'x', tr: '' } }), []);
@@ -409,8 +416,8 @@ test('image upload errors in plain words', () => {
 });
 
 test('a change to the internal note alone is a change the approver sees', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
-  const d = diffEntry(MODELS.events, data, { ...data, note: 'updated' }, visibleFields(MODELS.events, true));
+  const data = JSON.parse(read(EVENT_PATH));
+  const d = diffEntry(MODELS.events, data, { ...data, note: `${data.note ?? ''} (edited)` }, visibleFields(MODELS.events, true));
   assert.deepEqual(d.changed.map((c) => c.field.key), ['note']);
 });
 

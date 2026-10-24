@@ -16,12 +16,19 @@ test('every resource validates and has every field in both languages', () => {
   }
 });
 
-test('slugs are unique and each section has contiguous orders from 0', () => {
+test('slugs are unique, and orders are non-negative and unique within a section', () => {
+  // Not contiguous: orders go in steps of 10, and a deleted link leaves a gap.
   assert.equal(new Set(entries.map((e) => e.f)).size, entries.length);
   for (const s of new Set(all.map((r) => r.section))) {
-    const orders = all.filter((r) => r.section === s).map((r) => r.order).sort((a, b) => a - b);
-    assert.deepEqual(orders, orders.map((_, i) => i), s);
+    const orders = all.filter((r) => r.section === s).map((r) => r.order);
+    assert.equal(new Set(orders).size, orders.length, `${s}: two links share an order`);
+    for (const o of orders) assert.ok(Number.isInteger(o) && o >= 0, `${s}: ${o}`);
   }
+});
+
+test('a tie on order sorts by English title', () => {
+  const r = (order: number, en: string) => ({ ...all[0], section: 'tools' as const, order, title: { en, tr: en } });
+  assert.deepEqual(sortResources([r(10, 'B'), r(20, 'A'), r(10, 'A')]).map((x) => `${x.order}${x.title.en}`), ['10A', '10B', '20A']);
 });
 
 test('sections sort in page order, then by order within a section', () => {

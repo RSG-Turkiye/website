@@ -81,7 +81,7 @@ test('an event\'s file name is its id; every JSON file name is a valid id', () =
 });
 
 test('parseJson keeps dates as written: it returns the input, not the parsed schema output', () => {
-  const data = parseJson(events, read('src/content/events/meetup-izmir-2025.json')) as { start: unknown };
+  const data = parseJson(events, '{\n  "id": "x",\n  "start": "2025-11-30"\n}\n') as { start: unknown };
   assert.equal(data.start, '2025-11-30');
 });
 
@@ -100,6 +100,71 @@ test('the parsed frontmatter of every webinar passes the schema Astro builds wit
   }
 });
 
+// Synthetic webinars in the styles the real files are written in: plain
+// values, quoted values with trailing comments, and a frontmatter that ends
+// on a blank line. They live here rather than being read from
+// src/content/webinars, so a panel edit to any real webinar cannot fail the
+// serializer's tests (A2). The real files are covered by the round-trip tests
+// above, which hold whatever the files say.
+const PLAIN = `---
+title: A Talk in the Plain Style
+date: 2020-05-05
+speaker: Ada Örnek
+speakerAffiliation: Example University / Example Institute
+speakerTitle: Researcher
+description: A talk whose values are written plain, as most older files are.
+youtubeUrl: "https://www.youtube.com/watch?v=plainplain1"
+slidesUrl: ""
+year: 2020
+type: bioinfonet
+image: ""
+topic: ""
+keyTakeaways:
+  - "The first point of the talk"
+  - "The second point of the talk"
+---
+
+Body text.
+`;
+const QUOTED = `---
+title: "A Talk in the Quoted Style"
+date: 2025-12-12
+speaker: "Ada Örnek"
+speakerTitle: "Researcher"
+speakerAffiliation: "Example University"
+description: "A talk whose values are quoted, with comments on two keys."
+youtubeUrl: "https://www.youtube.com/watch?v=quotedquote"
+slidesUrl: ""    # leave empty string if none: ""
+image: ""
+topic: "Structural Bioinformatics"
+keyTakeaways:
+  - "The first point of the talk."
+year: 2025
+type: bioinfonet   # use "student" for student webinar series
+---
+
+Body text.
+`;
+const TRAILING_BLANK = `---
+title: Boş Satırla Biten Bir Konuşma
+date: 2022-04-13
+speaker: Ada Örnek
+speakerAffiliation: Örnek Üniversitesi
+speakerTitle: Doçent
+description: Ön bilgisi bir boş satırla biten bir konuşma.
+youtubeUrl: "https://www.youtube.com/watch?v=blankblank1"
+slidesUrl: ""
+year: 2022
+type: bioinfonet
+image: ""
+topic: ""
+keyTakeaways: []
+
+---
+
+**Gövde**
+`;
+
 /** The lines that differ between two texts of the same line count. */
 function changedLines(a: string, b: string) {
   const x = a.split('\n');
@@ -113,6 +178,7 @@ test('editing one frontmatter value changes that line and no other, in every web
     const text = read(f);
     const parsed = parseMarkdown(webinars, text);
     const lineOf = text.split('\n').findIndex((l) => l.startsWith('youtubeUrl:'));
+    if (lineOf === -1) continue; // youtubeUrl is optional; this edit then adds a line
     const out = serializeMarkdown(webinars, {
       ...parsed,
       frontmatter: { ...parsed.frontmatter, youtubeUrl: 'https://www.youtube.com/watch?v=NEW' },
@@ -123,7 +189,7 @@ test('editing one frontmatter value changes that line and no other, in every web
 });
 
 test('an edited value keeps its own quoting: plain stays plain, quoted stays quoted', () => {
-  const plain = read('src/content/webinars/en/accessing-multi-omics-data-tumour-profiling-aashil-batavia.md');
+  const plain = PLAIN;
   const p = parseMarkdown(webinars, plain);
   const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, speaker: 'Someone Else' } });
   assert.match(out, /^speaker: Someone Else$/m);
@@ -131,14 +197,14 @@ test('an edited value keeps its own quoting: plain stays plain, quoted stays quo
   const out2 = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, speaker: 'A: B' } });
   assert.equal(parseMarkdown(webinars, out2).frontmatter.speaker, 'A: B');
 
-  const quoted = read('src/content/webinars/en/physics-based-and-ai-methods-for-protein-interaction-analysis-2025.md');
+  const quoted = QUOTED;
   const q = parseMarkdown(webinars, quoted);
   const out3 = serializeMarkdown(webinars, { ...q, frontmatter: { ...q.frontmatter, speaker: 'Someone Else' } });
   assert.match(out3, /^speaker: "Someone Else"$/m);
 });
 
 test('a trailing comment stays with its line when the value changes', () => {
-  const text = read('src/content/webinars/en/physics-based-and-ai-methods-for-protein-interaction-analysis-2025.md');
+  const text = QUOTED;
   const p = parseMarkdown(webinars, text);
   const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, type: 'student' } });
   assert.match(out, /^type: student {3}# use "student" for student webinar series$/m);
@@ -146,7 +212,7 @@ test('a trailing comment stays with its line when the value changes', () => {
 });
 
 test('lists: emptied, filled, and removed keys; the body is replaced untouched', () => {
-  const text = read('src/content/webinars/en/accessing-multi-omics-data-tumour-profiling-aashil-batavia.md');
+  const text = PLAIN;
   const p = parseMarkdown(webinars, text);
   const emptied = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, keyTakeaways: [] } });
   assert.match(emptied, /^keyTakeaways: \[\]\n---\n/m);
@@ -164,7 +230,7 @@ test('lists: emptied, filled, and removed keys; the body is replaced untouched',
 });
 
 test('a key the file did not have is added inside the frontmatter, before a trailing blank line', () => {
-  const text = read('src/content/webinars/tr/modelling-complex-microbial-communities-nagarajan.md');
+  const text = TRAILING_BLANK;
   const p = parseMarkdown(webinars, text);
   const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, speakerPhoto: '/api/images/x.jpg' } });
   assert.match(out, /^keyTakeaways: \[\]\nspeakerPhoto: "\/api\/images\/x.jpg"\n\n---\n/m);
@@ -246,7 +312,7 @@ test('jsonSchemaFor: webinars are the frontmatter plus a required body string, d
 });
 
 test('a multi-line value on a key with a trailing comment stays one line; the comment stays a comment', () => {
-  const text = read('src/content/webinars/en/physics-based-and-ai-methods-for-protein-interaction-analysis-2025.md');
+  const text = QUOTED;
   const p = parseMarkdown(webinars, text);
   const out = serializeMarkdown(webinars, { ...p, frontmatter: { ...p.frontmatter, type: 'a\nb', slidesUrl: 'x\n---\ny' } });
   assert.match(out, /^type: "a\\nb" {3}# use "student" for student webinar series$/m);
@@ -257,7 +323,7 @@ test('a multi-line value on a key with a trailing comment stays one line; the co
   assert.equal(back.frontmatter.slidesUrl, 'x\n---\ny');
   assert.equal(back.body, p.body);
   // A plain-style key and a list item with a line break are quoted too.
-  const plain = parseMarkdown(webinars, read('src/content/webinars/en/accessing-multi-omics-data-tumour-profiling-aashil-batavia.md'));
+  const plain = parseMarkdown(webinars, PLAIN);
   const out2 = serializeMarkdown(webinars, {
     ...plain, frontmatter: { ...plain.frontmatter, speaker: 'x\ny', keyTakeaways: ['p\nq'] },
   });

@@ -84,7 +84,11 @@ export interface Committee {
   members: CommitteeMember[];
 }
 
-export const sortCommittees = (list: CommitteeEntry[]) => [...list].sort((a, b) => a.order - b.order);
+/** By order; two committees with the same order fall back to their English
+ * name, so a duplicate order (two drafts approved apart) still sorts the same
+ * way every build instead of failing anything. */
+export const sortCommittees = (list: CommitteeEntry[]) =>
+  [...list].sort((a, b) => a.order - b.order || a.name.en.localeCompare(b.name.en, "en"));
 
 /** The committees in one language, in the shape the cards render. */
 export function committeesFor(list: CommitteeEntry[], lang: Lang): Committee[] {

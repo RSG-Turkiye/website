@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { call } from './lib/social';
 import { buildCmsIndex, type CmsIndex } from '../src/lib/cms/cms-index';
+import { realFixtures } from './lib/cms-fixtures';
 import { z } from 'astro/zod';
 import { cmsType, defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
 import { parseJson, parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
@@ -47,6 +48,10 @@ function contentFiles(): Record<string, string> {
 }
 const FILES = contentFiles();
 const INDEX: CmsIndex = buildCmsIndex(FILES);
+// Entries picked by shape, never by name: the panel edits and deletes them (A2).
+const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
+/** A title whose slug is the pair's Turkish file name. */
+const PAIR_TR_TITLE = PAIR_TR.replace(/^.*\//, '').replace(/\.md$/, '').replace(/-/g, ' ');
 
 const blobSha = (content: string) => createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0${content}`).digest('hex');
 
@@ -249,7 +254,7 @@ async function create(env: Env, as: string, body: unknown) {
 const on = (env: Env, h: unknown, method: string, id: string, as: string, body?: unknown, suffix = '') =>
   req(env, h, method, `/api/cms/drafts/${id}${suffix}`, as, body, { id });
 
-const symposium2026 = () => JSON.parse(FILES['src/content/events/symposium-2026.json']);
+const anEvent = () => JSON.parse(FILES[EVENT_PATH]);
 const newEvent = () => ({
   id: 'meetup-ankara-2027',
   type: 'meetup',
@@ -263,14 +268,20 @@ const newEvent = () => ({
 // ── the build-time index ──────────────────────────────────────────────────────
 
 test('the index pairs every webinar by the translation rule, not by file name', () => {
-  assert.equal(INDEX.webinars.length, 82);
+  // One entry per English file (tests/webinar-translation-parity.test.ts
+  // keeps every webinar in both languages), each with both sides.
+  assert.equal(INDEX.webinars.length, readdirSync(`${ROOT}src/content/webinars/en`).filter((f) => f.endsWith('.md')).length);
   for (const w of INDEX.webinars) assert.ok(w.paths?.en && w.paths?.tr, w.id);
-  const pair = INDEX.webinars.find((w) => w.id === 'integrative-modeling-of-biomolecular-complexes')!;
-  assert.deepEqual(pair.paths, {
-    en: 'src/content/webinars/en/integrative-modeling-of-biomolecular-complexes.md',
-    tr: 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md',
-  });
-  assert.ok(INDEX.events.some((e) => e.id === 'symposium-2026' && e.title === symposium2026().title.en));
+  // A pair whose files have different names is tied by the key both declare.
+  const name = (p: string) => p.replace(/^.*\//, '');
+  const keyOf = (p: string) => /^translationKey:\s*"?([^"\n]*)"?/m.exec(FILES[p])?.[1].trim() ?? '';
+  const renamed = INDEX.webinars.filter((w) => name(w.paths!.en!) !== name(w.paths!.tr!));
+  assert.ok(renamed.some((w) => w.id === PAIR_ID));
+  for (const w of renamed) {
+    assert.ok(keyOf(w.paths!.en!), `${w.id}: different names and no translationKey`);
+    assert.equal(keyOf(w.paths!.tr!), keyOf(w.paths!.en!), w.id);
+  }
+  assert.ok(INDEX.events.some((e) => e.id === EVENT_ID && e.title === anEvent().title.en));
   assert.equal(INDEX.workshops.length, readdirSync(`${ROOT}src/content/workshops`).length);
 });
 
@@ -302,16 +313,16 @@ test('types lists what the user can edit, with its JSON Schema', async () => {
 
 test('entry reads the current files and their shas from main; a webinar finds its pair', async () => {
   const { env } = setup();
-  const res = await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=integrative-modeling-of-biomolecular-complexes', 'editor');
+  const res = await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor');
   assert.equal(res.status, 200);
   const body = await res.json() as any;
-  const tr = 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md';
+  const tr = PAIR_TR;
   assert.equal(body.base_shas[tr], blobSha(FILES[tr]));
   assert.deepEqual(body.data.tr.frontmatter, parseMarkdown(WEBINARS, FILES[tr]).frontmatter);
   assert.equal(body.data.tr.source, parseMarkdown(WEBINARS, FILES[tr]).source);
 
-  const ev = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=symposium-2026', 'editor')).json() as any;
-  assert.deepEqual(ev.data, symposium2026());
+  const ev = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=events&id=${EVENT_ID}`, 'editor')).json() as any;
+  assert.deepEqual(ev.data, anEvent());
   assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=no-such-event', 'editor')).status, 404);
   assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=../x', 'editor')).status, 400);
 });
@@ -364,7 +375,7 @@ test('create, save, submit, approve: a pull request is opened and every step is 
 
 test('the pull request title and body carry no @ and no name, whoever wrote and approved it', async () => {
   const { env } = setup();
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'x' }, base_shas: loaded('src/content/events/symposium-2026.json') });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'x' }, base_shas: loaded(EVENT_PATH) });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   await on(env, approve.onRequestPost, 'POST', body.draft.id, 'admin', {}, '/approve');
   const pr = gh.prs[0];
@@ -409,7 +420,7 @@ test('someone with no content role gets 403 from every endpoint, and no draft da
   const calls: [unknown, string, string, unknown?, Record<string, string>?][] = [
     [types.onRequestGet, 'GET', '/api/cms/types'],
     [entries.onRequestGet, 'GET', '/api/cms/entries?type=events'],
-    [entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=symposium-2026'],
+    [entry.onRequestGet, 'GET', `/api/cms/entry?type=events&id=${EVENT_ID}`],
     [drafts.onRequestGet, 'GET', '/api/cms/drafts'],
     [drafts.onRequestPost, 'POST', '/api/cms/drafts', { type: 'events', action: 'create', data: newEvent() }],
     [draft.onRequestGet, 'GET', `/api/cms/drafts/${id}`, undefined, { id }],
@@ -455,8 +466,8 @@ test('mutating calls from another origin are refused', async () => {
 
 test('approval refuses with changed_since when the file changed on main, and opens nothing', async () => {
   const { env, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'draft' }, base_shas: loaded(path) });
   assert.equal(body.draft.base_shas[path], blobSha(FILES[path]));
   const id = body.draft.id;
   await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
@@ -484,16 +495,16 @@ test('a new entry whose file appeared on main meanwhile is changed_since too', a
 
 test('creating an entry that already exists is refused', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'create', data: symposium2026() });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'create', data: anEvent() });
   assert.equal(res.status, 409);
   assert.equal(body.code, 'exists');
 });
 
 test('a draft started from a stale read is refused at once', async () => {
   const { env } = setup();
-  const path = 'src/content/events/symposium-2026.json';
+  const path = EVENT_PATH;
   const { res, body } = await create(env, 'editor', {
-    type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: { [path]: 'b'.repeat(40) },
+    type: 'events', action: 'update', entry_id: EVENT_ID, data: anEvent(), base_shas: { [path]: 'b'.repeat(40) },
   });
   assert.equal(res.status, 409);
   assert.equal(body.code, 'changed_since');
@@ -523,15 +534,15 @@ test('a new webinar writes exactly two files, with the same name in both languag
 
 test('editing an existing pair with different file names writes back to both existing files, unchanged keys byte for byte', async () => {
   const { env } = setup();
-  const en = 'src/content/webinars/en/integrative-modeling-of-biomolecular-complexes.md';
-  const tr = 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md';
-  const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=integrative-modeling-of-biomolecular-complexes', 'editor')).json() as any;
+  const en = PAIR_EN;
+  const tr = PAIR_TR;
+  const current = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor')).json() as any;
   // The client sends back what it read, minus `source`: the server keeps its own.
   const data = {
-    en: { frontmatter: { ...current.data.en.frontmatter, topic: 'Integrative modelling' }, body: current.data.en.body },
+    en: { frontmatter: { ...current.data.en.frontmatter, title: `${current.data.en.frontmatter.title} (edited)` }, body: current.data.en.body },
     tr: { frontmatter: current.data.tr.frontmatter, body: current.data.tr.body },
   };
-  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'integrative-modeling-of-biomolecular-complexes', data, base_shas: current.base_shas });
+  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: PAIR_ID, data, base_shas: current.base_shas });
   assert.equal(res.status, 201);
   assert.deepEqual(Object.keys(body.draft.base_shas).sort(), [en, tr]);
 
@@ -551,7 +562,7 @@ test('editing an existing pair with different file names writes back to both exi
 });
 
 test('the two sides of a webinar must share their translationKey', () => {
-  const fm = parseMarkdown(WEBINARS, FILES['src/content/webinars/en/molecular-simulations.md']).frontmatter;
+  const fm = parseMarkdown(WEBINARS, FILES[PAIR_EN]).frontmatter;
   const result = validateDraft(WEBINARS, {
     en: { frontmatter: fm, body: '' },
     tr: { frontmatter: { ...fm, translationKey: 'something-else' }, body: '' },
@@ -584,7 +595,7 @@ test('a schema-invalid save answers with an error per field and keeps the last g
 
 test('an update cannot rename the file', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), id: 'symposium-2026b' }, base_shas: loaded('src/content/events/symposium-2026.json') });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), id: `${EVENT_ID}b` }, base_shas: loaded(EVENT_PATH) });
   assert.equal(res.status, 422);
   assert.ok(body.errors.id);
 });
@@ -593,20 +604,20 @@ test('an update cannot rename the file', async () => {
 
 test('a delete draft produces null files and deletes them on the branch', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'delete', entry_id: 'meetup-izmir-2025', base_shas: loaded('src/content/events/meetup-izmir-2025.json') });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'delete', entry_id: OTHER_EVENT_ID, base_shas: loaded(OTHER_EVENT_PATH) });
   assert.equal(res.status, 201);
   const files = filesFor({ ...body.draft, data: JSON.stringify(body.draft.data), base_shas: JSON.stringify(body.draft.base_shas) });
-  assert.deepEqual(files, [{ path: 'src/content/events/meetup-izmir-2025.json', content: null }]);
+  assert.deepEqual(files, [{ path: OTHER_EVENT_PATH, content: null }]);
 
-  const pair = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: 'molecular-simulations', base_shas: loaded('src/content/webinars/en/molecular-simulations.md', 'src/content/webinars/tr/molekuler-simulasyonlar.md') });
+  const pair = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: PAIR_ID, base_shas: loaded(PAIR_EN, PAIR_TR) });
   const pairFiles = filesFor({ ...pair.body.draft, data: JSON.stringify(pair.body.draft.data), base_shas: JSON.stringify(pair.body.draft.base_shas) });
   assert.deepEqual(pairFiles.map((f) => f.content), [null, null]);
-  assert.deepEqual(pairFiles.map((f) => f.path).sort(), ['src/content/webinars/en/molecular-simulations.md', 'src/content/webinars/tr/molekuler-simulasyonlar.md']);
+  assert.deepEqual(pairFiles.map((f) => f.path).sort(), [PAIR_EN, PAIR_TR]);
 
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve')).status, 200);
-  assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: 'src/content/events/meetup-izmir-2025.json' }]);
-  assert.equal(gh.prs[0].title, 'CMS: delete events meetup-izmir-2025');
+  assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: OTHER_EVENT_PATH }]);
+  assert.equal(gh.prs[0].title, `CMS: delete events ${OTHER_EVENT_ID}`);
 });
 
 // ── the other transitions, each with its log row ──────────────────────────────
@@ -644,7 +655,7 @@ test('send back, edit, resubmit; discard; each writes its row', async () => {
 
 test('content already on main: the draft is merged (the shepherd publishes it), logged as a merge with noop', async () => {
   const { env, audit, row } = setup();
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: loaded('src/content/events/symposium-2026.json') });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: anEvent(), base_shas: loaded(EVENT_PATH) });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   gh.pulls = 'no-commits';
   const res = await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve');
@@ -699,8 +710,8 @@ test('a draft can be approved only once', async () => {
 });
 
 test('the stored JSON draft round-trips a real file unchanged', () => {
-  const path = 'src/content/events/symposium-2026.json';
-  const files = filesFor({ type: 'events', entry_id: 'symposium-2026', action: 'update', data: JSON.stringify(parseJson(EVENTS, FILES[path])), base_shas: JSON.stringify({ [path]: blobSha(FILES[path]) }) });
+  const path = EVENT_PATH;
+  const files = filesFor({ type: 'events', entry_id: EVENT_ID, action: 'update', data: JSON.stringify(parseJson(EVENTS, FILES[path])), base_shas: JSON.stringify({ [path]: blobSha(FILES[path]) }) });
   assert.deepEqual(files, [{ path, content: FILES[path] }]);
 });
 
@@ -805,7 +816,7 @@ test('a slow approval overtaken by a retry writes no outcome and answers superse
 test('an update or delete without the shas the editor loaded is refused', async () => {
   const { env } = setup();
   for (const action of ['update', 'delete']) {
-    const { res, body } = await create(env, 'editor', { type: 'events', action, entry_id: 'symposium-2026', data: symposium2026() });
+    const { res, body } = await create(env, 'editor', { type: 'events', action, entry_id: EVENT_ID, data: anEvent() });
     assert.equal(res.status, 400, action);
     assert.equal(body.code, 'base_shas_required');
   }
@@ -841,10 +852,10 @@ test('a retried draft renamed after a failure commits only its current files', a
 
 test('a webinar delete covers both sides even when one is missing on main, and rechecks it', async () => {
   const { env } = setup();
-  const en = 'src/content/webinars/en/molecular-simulations.md';
-  const tr = 'src/content/webinars/tr/molekuler-simulasyonlar.md';
+  const en = PAIR_EN;
+  const tr = PAIR_TR;
   gh.main.delete(tr);
-  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: 'molecular-simulations', base_shas: loaded(en, tr) });
+  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: PAIR_ID, base_shas: loaded(en, tr) });
   assert.equal(res.status, 201);
   assert.deepEqual(body.draft.base_shas, { [en]: blobSha(FILES[en]), [tr]: null });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
@@ -865,10 +876,10 @@ test('a new webinar may not reuse a published pair\'s translationKey or file nam
     frontmatter: { title, translationKey: key, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet' },
     body: '\n',
   });
-  const byKey = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk', 'molecular-simulations'), tr: side('Yeni', 'molecular-simulations') } });
+  const byKey = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk', PAIR_KEY), tr: side('Yeni', PAIR_KEY) } });
   assert.equal(byKey.res.status, 409);
   assert.equal(byKey.body.code, 'exists');
-  const byName = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Molekuler Simulasyonlar'), tr: side('Molekuler Simulasyonlar') } });
+  const byName = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side(PAIR_TR_TITLE), tr: side(PAIR_TR_TITLE) } });
   assert.equal(byName.res.status, 409);
   assert.equal(byName.body.code, 'exists');
   const fine = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
@@ -896,8 +907,8 @@ async function submitted(env: Env, as = 'editor', body: unknown = { type: 'event
 
 test('the branch starts from the commit the shas were checked at, not from a main that moved since', async () => {
   const { env, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'draft' }, base_shas: loaded(path) });
   const checked = gh.head();
   // A hand edit merges right after the approval checked the file.
   // Any byte change will do; the test must not depend on what the file says,
@@ -913,9 +924,9 @@ test('the branch starts from the commit the shas were checked at, not from a mai
 
 test('a stale approval adopts its own merged pull request: merged, recovered, no changed_since', async () => {
   const { env, db, audit, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const data = { ...symposium2026(), note: 'draft' };
-  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const data = { ...anEvent(), note: 'draft' };
+  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data, base_shas: loaded(path) });
   db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = updated_at - 400 WHERE id = ?`).run(id);
   gh.prs.push({ title: 't', body: 'b', head: `cms/${id}`, number: 77, state: 'closed', merged: true });
   gh.main.set(path, serializeJson(EVENTS, data)); // its own merge moved the file
@@ -978,32 +989,32 @@ test('constructor, toString and __proto__ are unknown fields, at the top and nes
 
 test('a translationKey of another published pair is refused on update, at submit and at approval', async () => {
   const { env, db } = setup();
-  const en = 'src/content/webinars/en/molecular-simulations.md';
-  const tr = 'src/content/webinars/tr/molekuler-simulasyonlar.md';
-  const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=molecular-simulations', 'editor')).json() as any;
+  const en = PAIR_EN;
+  const tr = PAIR_TR;
+  const current = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor')).json() as any;
   const withKey = (key: string) => ({
     en: { frontmatter: { ...current.data.en.frontmatter, translationKey: key }, body: current.data.en.body },
     tr: { frontmatter: { ...current.data.tr.frontmatter, translationKey: key }, body: current.data.tr.body },
   });
-  const upd = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'molecular-simulations', data: withKey('open-student-webinars'), base_shas: loaded(en, tr) });
+  const upd = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: PAIR_ID, data: withKey(OTHER_KEY), base_shas: loaded(en, tr) });
   assert.equal(upd.res.status, 409);
   assert.equal(upd.body.code, 'exists');
 
   // Its own key is fine; a save may then change it, and submit refuses.
-  const ok = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'molecular-simulations', data: withKey('molecular-simulations'), base_shas: loaded(en, tr) });
+  const ok = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: PAIR_ID, data: withKey(PAIR_KEY), base_shas: loaded(en, tr) });
   assert.equal(ok.res.status, 201);
   const id = ok.body.draft.id;
-  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey('open-student-webinars') })).status, 200);
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey(OTHER_KEY) })).status, 200);
   const sub = await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
   assert.equal(sub.status, 409);
   assert.equal((await sub.json() as any).code, 'exists');
 
   // A row that reached the queue with a clashing key is refused at approval.
-  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey('molecular-simulations') })).status, 200);
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey(PAIR_KEY) })).status, 200);
   assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit')).status, 200);
   const stored = JSON.parse((db.prepare('SELECT data FROM content_drafts WHERE id = ?').get(id) as { data: string }).data);
-  stored.tr.frontmatter.translationKey = 'open-student-webinars';
-  stored.en.frontmatter.translationKey = 'open-student-webinars';
+  stored.tr.frontmatter.translationKey = OTHER_KEY;
+  stored.en.frontmatter.translationKey = OTHER_KEY;
   db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(stored), id);
   const app = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
   assert.equal(app.status, 409);
@@ -1155,8 +1166,8 @@ test('cancel: GitHub refusing to close it changes nothing and logs nothing', asy
 
 test('entry_busy: a second draft of an entry cannot be sent while another is in review or on its way', async () => {
   const { env, db, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note }, base_shas: loaded(path) });
   const first = await submitted(env, 'editor', body('one'));
   const second = (await create(env, 'editor2', body('two'))).body.draft.id as string;
 
@@ -1180,8 +1191,8 @@ test('entry_busy: a second draft of an entry cannot be sent while another is in 
 
 test('entry_busy is part of the guarded write: a draft that becomes live meanwhile still blocks', async () => {
   const { env, db, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note }, base_shas: loaded(path) });
   const first = (await create(env, 'editor', body('one'))).body.draft.id as string;
   const second = (await create(env, 'editor2', body('two'))).body.draft.id as string;
   // The first is sent between the second's busy check and its write.
@@ -1375,19 +1386,22 @@ test('a draft carries its author\'s display name, never an id or address in its 
 
 test('the drafts list says which entries are held by a live draft, without saying whose', async () => {
   const { env } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: anEvent(), base_shas: loaded(path) });
   const other = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor2')).json() as any;
   assert.deepEqual(other.mine, []);
-  assert.deepEqual(other.live, [{ type: 'events', entry_id: 'symposium-2026', status: 'submitted' }]);
+  assert.deepEqual(other.live, [{ type: 'events', entry_id: EVENT_ID, status: 'submitted' }]);
   const none = await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'member');
   assert.equal(none.status, 403);
 });
 
 test('each index entry carries its date, for the panel\'s list', () => {
-  assert.equal(INDEX.events.find((e) => e.id === 'symposium-2026')!.date, '2026-10-10');
+  for (const e of INDEX.events) assert.equal(e.date, JSON.parse(FILES[`src/content/events/${e.id}.json`]).start, e.id);
   assert.ok(INDEX.workshops.every((w) => /^\d{4}$/.test(w.date ?? '')));
-  assert.equal(INDEX.webinars.find((w) => w.id === 'ai-approaches-biomolecular-representation')!.date, '2024-04-16');
+  for (const w of INDEX.webinars) {
+    const written = /^date:\s*"?(\d{4}-\d{2}-\d{2})/m.exec(FILES[w.paths!.en!])?.[1];
+    assert.equal(w.date, written, w.id);
+  }
 });
 
 // ── Task 7, fix round 1 ───────────────────────────────────────────────────────
@@ -1414,7 +1428,7 @@ test('renaming a new entry onto a published one is refused on the field its name
   const { env, row } = setup();
   const made = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
   const id = made.body.draft.id;
-  const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), id: 'symposium-2026' } });
+  const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), id: EVENT_ID } });
   assert.equal(res.status, 422);
   assert.match((await res.json() as any).errors.id, /already/);
   assert.equal(row(id).entry_id, 'meetup-ankara-2027');
@@ -1682,7 +1696,7 @@ test('an update keeps its file name whatever the data says; only an id kept in t
   assert.equal(row(id).entry_id, entryId);
   assert.deepEqual(filesFor(row(id) as never).map((f) => f.path), [path]);
   // Events keep their id in the data (idInData): changing it is still refused.
-  const ev = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), id: 'other-id' }, base_shas: loaded('src/content/events/symposium-2026.json') });
+  const ev = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), id: 'other-id' }, base_shas: loaded(EVENT_PATH) });
   assert.equal(ev.res.status, 422);
   assert.ok(ev.body.errors.id);
 });
@@ -1701,16 +1715,16 @@ test('the registry\'s defaults keep the Etkinlikler types as they were', () => {
 
 test('entry also answers each file as it is on main, and a draft the files it would write', async () => {
   const { env } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const ev = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=symposium-2026', 'editor')).json() as any;
+  const path = EVENT_PATH;
+  const ev = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=events&id=${EVENT_ID}`, 'editor')).json() as any;
   assert.deepEqual(ev.files, { [path]: FILES[path] });
-  const w = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=integrative-modeling-of-biomolecular-complexes', 'editor')).json() as any;
-  const tr = 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md';
+  const w = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor')).json() as any;
+  const tr = PAIR_TR;
   assert.equal(w.files[tr], FILES[tr]);
 
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'x' }, base_shas: loaded(path) });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'x' }, base_shas: loaded(path) });
   const got = await (await on(env, draft.onRequestGet, 'GET', body.draft.id, 'editor')).json() as any;
-  assert.deepEqual(got.files, [{ path, content: serializeJson(EVENTS, { ...symposium2026(), note: 'x' }) }]);
+  assert.deepEqual(got.files, [{ path, content: serializeJson(EVENTS, { ...anEvent(), note: 'x' }) }]);
   // The drafts list stays light: no files there.
   const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor')).json() as any;
   assert.ok(list.mine.every((d: any) => !('files' in d)));
