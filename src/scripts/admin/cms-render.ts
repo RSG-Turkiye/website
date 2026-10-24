@@ -177,7 +177,7 @@ function subField(mode: Mode, f: FieldDef, row: Row): string {
  */
 function rowHtml(mode: Mode, f: FieldDef, row: Row, i: number, n: number, open = false): string {
   const label = rowSummary(f, row, lang());
-  const from = typeof row[ROW_FROM] === 'number' ? ` data-row-from="${row[ROW_FROM]}"` : '';
+  const from = typeof row[ROW_FROM] === 'string' ? ` data-row-from="${esc(row[ROW_FROM])}"` : '';
   return `<details data-orow${from} class="group min-w-0 rounded-xl border border-border bg-white"${open ? ' open' : ''}>
     <summary class="flex items-center gap-1 min-h-11 lg:min-h-9 pl-3 pr-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
       <span aria-hidden="true" class="shrink-0 w-3 text-gray-500 transition-transform group-open:rotate-90">›</span>
@@ -248,7 +248,7 @@ function readRowEl(mode: Mode, f: FieldDef, row: Element): Row {
     out[s.key] = wrap ? readIn(mode, s, wrap) : (emptyRow(f, mode === 'pairRow')[s.key]);
   }
   const from = (row as HTMLElement).dataset.rowFrom;
-  if (from !== undefined) out[ROW_FROM] = Number(from);
+  if (from !== undefined) out[ROW_FROM] = from;
   return out;
 }
 

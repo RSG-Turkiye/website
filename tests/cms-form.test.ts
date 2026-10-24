@@ -525,7 +525,9 @@ test('objects: a JSON entry three lists deep goes through the form and back byte
   assert.equal(JSON.stringify(applyValues(GUIDE, GUIDE_DATA, values)), JSON.stringify(GUIDE_DATA));
   const rows = values.sections as Row[];
   assert.equal(rows.length, 2);
-  assert.deepEqual(((rows[0].resources as Row[])[1].notes as Row[])[0], { text: 'n1', done: true, $from: 0 }, 'with the row it came from');
+  const note0 = ((rows[0].resources as Row[])[1].notes as Row[])[0];
+  assert.deepEqual({ ...note0, $from: undefined }, { text: 'n1', done: true, $from: undefined });
+  assert.match(String(note0.$from), /^0:[0-9a-z]+$/, 'with the row and list it came from');
   // An edit three lists down changes that value and nothing else.
   const edited = copy(values);
   (((edited.sections as Row[])[0].resources as Row[])[1].notes as Row[])[1].text = 'n2 edited';
@@ -557,7 +559,8 @@ test('objects in a pair type: one list for both sides, per-language fields per s
   const rows = values.sections as Row[];
   assert.deepEqual(rows[0].heading, { en: 'Basics', tr: 'Temeller' });
   const r = (rows[0].resources as Row[])[1];
-  assert.deepEqual(r, { id: 'b-2', title: { en: 'Beta', tr: 'Beta TR' }, url: 'https://b', tags: [], $from: 1 });
+  assert.deepEqual({ ...r, $from: undefined }, { id: 'b-2', title: { en: 'Beta', tr: 'Beta TR' }, url: 'https://b', tags: [], $from: undefined });
+  assert.match(String(r.$from), /^1:[0-9a-z]+:[0-9a-z]+$/, 'row 1, of the English and the Turkish list');
 
   // A per-language edit lands on its side; a shared one on both, same row.
   const v = copy(values);
@@ -837,4 +840,77 @@ test('fix 5: the file diff, and a warning when the files change but no field doe
   assert.deepEqual(fileDiffs(null, [{ path, content: after }]), [], 'nothing to compare without main');
   for (const k of ['admin.cms.review.fileDiff', 'admin.cms.review.hiddenChanges', 'admin.cms.review.fileSame']) assert.ok(k in ui.tr && k in ui.en, k);
   assert.equal(ui.tr['admin.cms.review.hiddenChanges'], 'Dosyada formda görünmeyen değişiklikler var');
+});
+
+// ── Task 2, fix round 2: a row's origin counts only against the data it was read from ──
+
+const R2J = {
+  key: 'j', format: 'json', sub: 'j', group: 'ogrenme', idField: 'title', label: 'x', hidden: {},
+  fields: [f({ key: 'title', kind: 'text' }), f({ key: 'rows', kind: 'objects', identity: 'name', fields: [f({ key: 'name', kind: 'text' }), f({ key: 'note', kind: 'text' })] })],
+} as unknown as TypeModel;
+const R2J_BASE = { title: 'a', rows: [{ name: 'A', extra: 'a-secret' }, { name: 'B', extra: 'b-secret' }] };
+const R2P = {
+  key: 'p', format: 'markdown-pair', sub: 'p', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'x', hidden: {},
+  fields: [f({ key: 'title', kind: 'text', perLang: true }), f({ key: 'res', kind: 'objects', fields: [f({ key: 'title', kind: 'text', perLang: true }), f({ key: 'url', kind: 'text' })] })],
+} as unknown as TypeModel;
+const r2side = (rows: object[]) => ({ frontmatter: { title: 'T', res: rows }, body: '' });
+const R2P_BASE = { en: r2side([{ title: 'a', url: '/a', x: 'ea' }, { title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'a', url: '/a', x: 'ta' }, { title: 'b', url: '/b', x: 'tb' }]) };
+
+test('fix round 2: a restored copy is applied to the opened data without moving keys between rows', () => {
+  // JSON: row A deleted, the copy backed up, restored after a reload, saved again.
+  const v = copy(formValues(R2J, R2J_BASE));
+  (v.rows as Row[]).splice(0, 1);
+  const backup = applyValues(R2J, R2J_BASE, v);
+  assert.deepEqual(backup, { title: 'a', rows: [{ name: 'B', extra: 'b-secret' }] });
+  assert.deepEqual(applyValues(R2J, R2J_BASE, formValues(R2J, backup)), backup, 'B keeps its own key, not A\'s');
+  // Pair: a new row with only a shared url survives the restore, on both sides.
+  const pv = copy(formValues(R2P, R2P_BASE));
+  (pv.res as Row[]).push({ ...emptyRow(R2P.fields[1], true), url: '/new' });
+  const pbak = applyValues(R2P, R2P_BASE, pv) as typeof R2P_BASE;
+  assert.deepEqual(pbak.tr.frontmatter.res.at(-1), { url: '/new' });
+  const again = applyValues(R2P, R2P_BASE, formValues(R2P, pbak)) as typeof R2P_BASE;
+  assert.deepEqual(again.en.frontmatter.res.map((r: any) => r.url), ['/a', '/b', '/new']);
+  assert.deepEqual(again.tr.frontmatter.res.map((r: any) => r.url), ['/a', '/b', '/new']);
+  // Pair: the first row deleted, restored: the second keeps its own hidden keys.
+  const pd = copy(formValues(R2P, R2P_BASE));
+  (pd.res as Row[]).splice(0, 1);
+  const pdel = applyValues(R2P, R2P_BASE, pd) as typeof R2P_BASE;
+  const pdel2 = applyValues(R2P, R2P_BASE, formValues(R2P, pdel)) as typeof R2P_BASE;
+  // No identity key: the restored row is new to the opened data. It loses its hidden key, and never takes row a's.
+  assert.deepEqual(pdel2.en.frontmatter.res, [{ title: 'b', url: '/b' }]);
+  assert.deepEqual(pdel2.tr.frontmatter.res, [{ title: 'b', url: '/b' }], 'no identity: matched as new, never another row\'s keys');
+});
+
+test('fix round 2: rebase onto a version where the site deleted a row', () => {
+  // JSON: the form was read from base; the site removed A meanwhile.
+  const fresh = { title: 'a', rows: [{ name: 'B', extra: 'b-secret' }] };
+  const v = copy(formValues(R2J, R2J_BASE));
+  v.title = 'z';
+  const out = applyValues(R2J, fresh, v) as typeof R2J_BASE;
+  assert.deepEqual(out.rows.find((r) => r.name === 'B'), { name: 'B', extra: 'b-secret' }, 'B by its name, with its own key');
+  assert.ok(!out.rows.some((r) => r.name === 'A' && r.extra), 'A, which the form still has, does not take B\'s key');
+  // Pair: the site removed the first row on both sides.
+  const pfresh = { en: r2side([{ title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'b', url: '/b', x: 'tb' }]) };
+  const pv = copy(formValues(R2P, R2P_BASE));
+  (pv.title as Bi).en = 'T2';
+  const pout = applyValues(R2P, pfresh, pv) as typeof R2P_BASE;
+  assert.deepEqual(pout.en.frontmatter.res.map((r: any) => [r.title, r.x]), [['a', undefined], ['b', undefined]], 'rows the form holds, none with another row\'s hidden key');
+  assert.equal(pout.tr.frontmatter.res.length, 2, 'not dropped: they are the form\'s rows');
+});
+
+test('fix round 2: "take" copies another version\'s rows into a form opened on base', () => {
+  const site = { title: 'a', rows: [{ name: 'B', extra: 'b-secret' }, { name: 'C', extra: 'c' }] };
+  const v = { ...formValues(R2J, R2J_BASE), rows: formValues(R2J, site).rows };
+  const out = applyValues(R2J, R2J_BASE, v) as typeof R2J_BASE;
+  assert.deepEqual(out.rows, [{ name: 'B', extra: 'b-secret' }, { name: 'C' }], 'B matched by name; C is new to this base');
+  const psite = { en: r2side([{ title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'b', url: '/b', x: 'tb' }]) };
+  const pv = { ...formValues(R2P, R2P_BASE), res: formValues(R2P, psite).res };
+  const pout = applyValues(R2P, R2P_BASE, pv) as typeof R2P_BASE;
+  assert.deepEqual(pout.en.frontmatter.res, [{ title: 'b', url: '/b' }], 'without an identity: a new row, not row 0\'s keys');
+  assert.deepEqual(pout.tr.frontmatter.res, [{ title: 'b', url: '/b' }]);
+  // The deliberate rule: a row re-added under a deleted row's identity inherits that row's hidden keys.
+  const v3 = copy(formValues(R2J, R2J_BASE));
+  (v3.rows as Row[]).splice(0, 1);
+  (v3.rows as Row[]).push({ ...emptyRow(R2J.fields[1], false), name: 'A' });
+  assert.deepEqual((applyValues(R2J, R2J_BASE, v3) as typeof R2J_BASE).rows, [{ name: 'B', extra: 'b-secret' }, { name: 'A', extra: 'a-secret' }]);
 });

@@ -74,12 +74,26 @@ export interface FieldDef {
 export type Row = Record<string, unknown>;
 
 /**
- * A row's index in the data the form was opened with (absent on a row the
- * person added). Writing starts from that row, so keys the form does not
- * show, empty values and `false`s survive, and a pair type's side that had
- * no such row gains none. Never written to the file.
+ * Where a row was read from: `<index>:<list token>` (a pair type:
+ * `<index>:<en token>:<tr token>`), absent on a row the person added. The
+ * token is a fingerprint of the list the row was read from, so the index
+ * counts only when the row is written onto that same list (the data the
+ * form was opened with). Written onto other data (a restored copy, a
+ * rebase, a value taken from another version), the row is matched by its
+ * identity instead, else written as new. Writing starts from the origin
+ * row, so keys the form does not show, empty values and `false`s survive,
+ * and a pair type's side that had no such row gains none. Never written to
+ * the file.
  */
 export const ROW_FROM = '$from';
+
+/** A short fingerprint of a list (FNV-1a over its JSON). */
+export function listToken(list: unknown): string {
+  const text = JSON.stringify(Array.isArray(list) ? list : []);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36) + text.length.toString(36);
+}
 
 /**
  * A shared field inside a pair type's row whose two sides differ in the
@@ -221,7 +235,11 @@ function readOne(f: FieldDef, raw: unknown): unknown {
     case 'strings': return strs(raw);
     case 'bilingualStrings': return { en: strs(isObj(raw) ? raw.en : null), tr: strs(isObj(raw) ? raw.tr : null) };
     case 'links': return Array.isArray(raw) ? raw.map((l) => ({ label: bi(isObj(l) ? l.label : null), url: str(isObj(l) ? l.url : '') })) : [];
-    case 'objects': return Array.isArray(raw) ? raw.map((r, i) => readRow(f.fields ?? [], isObj(r) ? r : {}, i)) : [];
+    case 'objects': {
+      if (!Array.isArray(raw)) return [];
+      const token = listToken(raw);
+      return raw.map((r, i) => readRow(f.fields ?? [], isObj(r) ? r : {}, `${i}:${token}`));
+    }
     case 'image':
       if (f.image === 'url') return str(raw);
       return isObj(raw) ? clone(raw) : null;
@@ -229,7 +247,7 @@ function readOne(f: FieldDef, raw: unknown): unknown {
   }
 }
 
-function readRow(fields: FieldDef[], obj: Obj, from?: number): Row {
+function readRow(fields: FieldDef[], obj: Obj, from?: string): Row {
   const row: Row = Object.fromEntries(fields.map((s) => [s.key, readOne(s, obj[s.key])]));
   if (from !== undefined) row[ROW_FROM] = from;
   return row;
@@ -246,6 +264,7 @@ function readRow(fields: FieldDef[], obj: Obj, from?: number): Row {
 function readPairRows(f: FieldDef, en: unknown, tr: unknown): Row[] {
   const a = Array.isArray(en) ? en : [];
   const b = Array.isArray(tr) ? tr : [];
+  const tokens = `${listToken(a)}:${listToken(b)}`;
   return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => {
     const e = isObj(a[i]) ? a[i] as Obj : {};
     const t = isObj(b[i]) ? b[i] as Obj : {};
@@ -257,7 +276,7 @@ function readPairRows(f: FieldDef, en: unknown, tr: unknown): Row[] {
       if (s.perLang || (both && !same(ve, vt))) return [s.key, { en: ve, tr: vt }];
       return [s.key, i < a.length ? ve : vt];
     }));
-    row[ROW_FROM] = i;
+    row[ROW_FROM] = `${i}:${tokens}`;
     return row;
   });
 }
@@ -327,14 +346,18 @@ function writeOne(f: FieldDef, into: Obj, v: unknown): void {
  * The row of `base` a form row was read from: by its origin (ROW_FROM),
  * else by its identity value; null for a row the person added.
  */
-function baseRowOf(f: FieldDef, row: Row, base: unknown, lang: 'en' | 'tr' | null): Obj | null {
-  const list = Array.isArray(base) ? base : [];
-  const from = row?.[ROW_FROM];
-  if (typeof from === 'number') return isObj(list[from]) ? list[from] as Obj : null;
-  if (!f.identity) return null;
+function baseRowOf(f: FieldDef, row: Row, list: unknown[], token: string, lang: 'en' | 'tr' | null): { row: Obj | null; known: boolean } {
+  const from = typeof row?.[ROW_FROM] === 'string' ? (row[ROW_FROM] as string).split(':') : [];
+  // The origin counts only on the list it was read from (this side's, for a pair).
+  if (from.length && from[lang === 'tr' ? 2 : 1] === token) {
+    const i = Number(from[0]);
+    return { row: isObj(list[i]) ? list[i] as Obj : null, known: true };
+  }
+  if (!f.identity) return { row: null, known: false };
   const v = row?.[f.identity];
   const id = str(isObj(v) ? (lang ? v[lang] : v.en) : v);
-  return id ? (list.find((r) => isObj(r) && str(r[f.identity!]) === id) as Obj | undefined) ?? null : null;
+  // Deliberate: a row (re-)added under an identity the list has takes that row's hidden keys.
+  return { row: id ? (list.find((r) => isObj(r) && str(r[f.identity!]) === id) as Obj | undefined) ?? null : null, known: false };
 }
 
 /**
@@ -345,11 +368,16 @@ function baseRowOf(f: FieldDef, row: Row, base: unknown, lang: 'en' | 'tr' | nul
  */
 function writeRows(f: FieldDef, rows: Row[], base: unknown, lang: 'en' | 'tr' | null, fresh = false): Obj[] {
   const out: Obj[] = [];
+  const list = Array.isArray(base) ? base : [];
+  const token = listToken(list);
   for (const r of Array.isArray(rows) ? rows : []) {
-    const b = fresh ? null : baseRowOf(f, r, base, lang);
-    // Inside a row new to this side (`fresh`), every row is written.
-    if (lang && !fresh && !b && typeof r?.[ROW_FROM] === 'number' && !filledOn(f, r, lang)) continue;
-    out.push(writeRow(f.fields ?? [], r, b, lang));
+    const b = fresh ? { row: null, known: false } : baseRowOf(f, r, list, token, lang);
+    // A row read from the other, longer side: this side never had it. Not
+    // written unless this side's own text is filled in. A row new to this
+    // list (added, restored, rebased, taken) is always written; so is
+    // every row inside a row new to this side (`fresh`).
+    if (lang && b.known && !b.row && !filledOn(f, r, lang)) continue;
+    out.push(writeRow(f.fields ?? [], r, b.row, lang));
   }
   return out;
 }
