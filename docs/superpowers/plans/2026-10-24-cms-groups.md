@@ -50,6 +50,93 @@ Facts gathered for this plan: `plan4-inventory` (controller scratchpad); every c
    - The GitHub issue that announced a new submission, which carried the submitter's e-mail, is removed. The panel badge replaces it.
 8. **Page texts are values only.** Each `src/content/pages/*.json` is a `fixedKeys` type with no create and no delete. Its form is built from the file's own keys, one bilingual textarea per key, labelled with the key. The server refuses any key that is added or missing compared with `main`.
 
+## Amendments after the GLM and DeepSeek plan review (2026-10-24; binding, and they override the text below where they conflict)
+
+**A1. A file name never changes on update.**
+- `idFrom` runs only when an entry is created.
+- An update keeps `entry_id`, whatever the data says. 7 of the 8 committee files, and both TeachOpenCADD resources, do not match the slug of their title.
+- `checkSameId` applies only to types whose id is itself a data field (`idInData: true`, which today is events only).
+- Page texts take their id from the file.
+
+**A2. No test may depend on the text of real content.** A panel edit once broke CI this way (#323).
+- Task 3 starts with a sweep of every test that reads `src/content/**`, `src/data/podcast.json` or `src/data/privacy.ts`.
+- Assertions about wording, contiguous orders, or exact counts that a legitimate edit can change become structural ones: schema-valid, unique, non-negative, en/tr parity.
+- Known cases:
+  - `tests/content-committees.test.ts:43-45, 93-96`: contiguous orders.
+  - `tests/content-resources.test.ts`: contiguous orders per section.
+  - `tests/privacy-page.test.ts:48-64`: the DM wording and the banned old sentences.
+- Retention pins that read code constants stay.
+- `sortCommittees` and `sortResources` break ties by name or title, so a duplicate order can never fail anything.
+- The sweep's report lists every test changed and why.
+
+**A3. Order fields need no cross-file check.**
+- Committees and resources are renumbered in steps of 10, in Task 3.
+- With A2, a duplicate order only sorts by name. Drop the "order unused" submit check: it raced the deploy lag.
+
+**A4. Rule 8 is enforced from main, not from the index.**
+- On save (POST and PATCH), the server assigns an id to every learning-path resource whose `id` is empty: `<slug of the English title, cut to 90 characters>-<6 random hex>`, lower case, matching `^[a-z0-9_-]+$` and at most 110 characters.
+- The client never sends a new id.
+- At submit, and again at approve against the pinned head, the server reads the entry's two files from main and refuses:
+  - any id that is neither on main in this entry nor assigned by the server to this draft (a hand-typed or reused id);
+  - ids that differ between en and tr, or are in a different order;
+  - a shared field that differs between en and tr.
+- This needs no uniqueness check against other files: the only new ids are fresh random ones, and a moved resource keeps its id.
+- To record which ids the server assigned, the draft keeps `data._assigned: string[]`. `serialize` strips it, it is never written to git, and the unknown-key check allows it for these types only.
+
+**A5. `sides: 'either'` is handled end to end.**
+- `newEntryId` reads whichever side exists, English first.
+- `entryPaths`, `base_shas`, `filesFor` and `newPaths` skip an absent side, so no phantom file is written.
+- `validateDraft` checks the sides present.
+- Pairing keeps the existing rule (same file name unless `translationKey` says otherwise). Drop `pairBy`.
+- `pairClash` treats a missing `translationKey` field (the lp schemas have none) as "paired by file name".
+
+**A6. New field kinds:** `objects` (Task 2) and `bilingualStrings`, which is `{ en: string[], tr: string[] }`, two string lists side by side. Privacy paragraphs and items, and resource tags, use it.
+
+**A7. A model can be built from data.** `TypeModel` may carry `fieldsFor(data)` instead of a static `fields`; page texts use it.
+- `fixedKeys` compares a PATCH's keys with the draft's own stored data, which the server read from main at create. So it costs no GitHub read per autosave.
+
+**A8. The privacy `updated` date is set by the server at approval** (today, Istanbul time) before the files are written, not by the form. Shape: `{ updated, en: { title, description, intro: string[], sections: [{ heading, paragraphs: string[], items: string[] }] }, tr: { ... } }`. Submit enforces en/tr parity structurally: the same number of intro paragraphs and sections, and the same number of paragraphs and items per section.
+
+**A9. Blog fixes.**
+- `/account`'s writer card is shown to anyone with `content.yazilar.edit` or approve (read from `/api/me`'s CMS rights), not `is_writer`.
+- `functions/_lib/stats.ts` counts blog posts published through the CMS (`content_drafts` with `type = 'blog'`, `status = 'published'`) plus the old `blog_submissions` history.
+- The upload endpoint is not moved; it keeps its path (`/api/blog-submissions/upload-image`), so symposium, social and CMS callers are untouched.
+- Also remove `functions/_lib/blog-submission.ts` and its tests, `tests/blog-approval.test.ts`, and any `pull-number` test used only by the removed code. Check each before deleting.
+- Update `tests/admin-sections.test.ts`, `tests/role-grants.test.ts`, `tests/me.test.ts` and `tests/atomic-writes.test.ts` for the removed `writer` and blog section.
+
+**A10. Migration 8k.**
+- The moved grant ends at the earlier of the old grant's end and 30 days from now. An edit-level role is at most one month.
+- The owner renews it in the panel.
+- The `writer` grant is ended, with a `role.revoke` audit row.
+
+**A11. Learning-path roadmap.**
+- A new stage is appended: `number` = the highest + 1, and the file is `NN-slug`.
+- A deleted stage leaves a gap in the numbers, so the test asserts unique numbers, not contiguous ones (A2).
+
+**A12. Normalisation (Task 3) re-renders with `renderNew`, dropping `source`.** `serializeMarkdown` with `source` is byte-identical by design, so it would change nothing.
+
+**A13. Task splits.**
+- Task 1 becomes 1a (rights, registry options, the index) and 1b (the İçerik section in the panel).
+- Task 6 becomes 6a (resources) and 6b (the three lp types).
+- Task 8 becomes 8a (the blog type and `sides: 'either'`) and 8b (retiring the old flow, the /account card, 8k, stats).
+
+**A14. Every task that changes the panel re-runs `admin-overflow.mjs` and `admin-fit-viewport.mjs`.**
+
+**A15. Sub-page ids.** The old ones (`etkinlikler`, `atolyeler`, `webinarlar`) stay, so the `#icerik-etkinlikler/...` alias is a prefix swap. New tabs get Turkish slugs:
+- `blog`
+- `komiteler`
+- `podcast`
+- `ogrenme-alanlari`
+- `ogrenme-seviyeleri`
+- `yol-haritasi`
+- `kaynaklar`
+- `sayfa-metinleri`
+- `gizlilik`
+
+**A16. Podcast.**
+- The schema mirrors `tests/podcast.test.ts`'s checks (audio URL, guid, newest first after sort), so a pulled feed cannot fail that test.
+- `npm run podcast:sync` stays as the fallback. README says the panel is the normal way.
+
 ## Global Constraints
 
 - Everything in plan 3's Global Constraints still holds:
