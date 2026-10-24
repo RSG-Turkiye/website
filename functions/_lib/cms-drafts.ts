@@ -233,23 +233,53 @@ function unknownKeys(schema: unknown, value: unknown, at: string, into: FieldErr
 
 /** The em dash, written as an escape: tests/no-em-dashes.test.ts bans the character in every reader-facing file. */
 const EM_DASH = '\u2014';
-/** Two hyphens between words: shown as they are in frontmatter, turned into an em dash in a Markdown body. */
+/** Two hyphens between words: what the built-page check in that test reads as a dash, code included. */
 const SPACED_DOUBLE_HYPHEN = /\w\s--\s\w/;
 
 export const EM_DASH_MESSAGE = 'Em dash (\u2014) is not used: write a hyphen (-) or a comma';
+export const DOUBLE_HYPHEN_MESSAGE = 'Two hyphens (--) become a long dash on the page: put a command-line flag in backticks (`--flag`), or write one hyphen';
 export const NO_AT_MESSAGE = 'No e-mail addresses: an @ cannot be in this file';
 
-/** A Markdown body without its code, where a dash or an @ is code, not prose. */
-const prose = (body: string) => body.replace(/^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm, '').replace(/`[^`\n]*`/g, '');
+/**
+ * A Markdown body's prose: without fenced code (any fence length), indented
+ * code blocks, inline code, HTML comments, URLs, and lines that are only
+ * dashes, pipes and colons (rules and table separators). Smartypants turns a
+ * `--` there into an em dash; in code it stays two hyphens.
+ */
+export function markdownProse(body: string): string {
+  const out: string[] = [];
+  let fence: { ch: string; n: number } | null = null;
+  let blank = true;
+  let indented = false;
+  for (const line of body.split('\n')) {
+    const open = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      if (open && open[1][0] === fence.ch && open[1].length >= fence.n && /^ {0,3}[`~]+\s*$/.test(line)) fence = null;
+      continue;
+    }
+    if (open) { fence = { ch: open[1][0], n: open[1].length }; continue; }
+    // An indented line after a blank line (or after another such line) is code.
+    if (/^( {4}|\t)/.test(line) && (blank || indented)) { indented = true; continue; }
+    indented = false;
+    blank = line.trim() === '';
+    if (/^[\s|:-]+$/.test(line) && line.includes('-')) continue;
+    out.push(line);
+  }
+  return out.join('\n')
+    .replace(/(`+)(?:[^`]|[^`][\s\S]*?[^`])\1/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/https?:\/\/\S+/g, '');
+}
 
 /**
  * Every string in the data, with its path as the form names fields
- * (`links.0.label.en`, `en.frontmatter.title`, `en.body`). A pair side's
- * `source` is the server's copy of main, not something the draft writes.
+ * (`links.0.label.en`, `en.frontmatter.title`, `en.body`) and whether it is
+ * a Markdown body. A pair side's `source` is the server's copy of main, not
+ * something the draft writes.
  */
-function eachString(type: CmsType, data: unknown, visit: (path: string, text: string) => void): void {
+function eachString(type: CmsType, data: unknown, visit: (path: string, text: string, body: boolean) => void): void {
   const walk = (v: unknown, at: string) => {
-    if (typeof v === 'string') visit(at, at.endsWith('.body') && type.format === 'markdown-pair' ? prose(v) : v);
+    if (typeof v === 'string') visit(at, v, type.format === 'markdown-pair' && /^(en|tr)\.body$/.test(at));
     else if (Array.isArray(v)) v.forEach((x, i) => walk(x, at ? `${at}.${i}` : String(i)));
     else if (isObject(v)) for (const [k, x] of Object.entries(v)) {
       if (type.format === 'markdown-pair' && (at === 'en' || at === 'tr') && k === 'source') continue;
@@ -260,18 +290,24 @@ function eachString(type: CmsType, data: unknown, visit: (path: string, text: st
 }
 
 /**
- * What the repository's own tests would refuse once the file is on main:
- * an em dash anywhere (tests/no-em-dashes.test.ts scans src/content, and a
- * spaced `--` reaches the reader as one), and, for a type whose files are
- * profiles (`noAt`), an @, the test's own rule for e-mail addresses
- * (tests/content-committees.test.ts). Checked at submit and approval, so a
- * merged panel edit can never fail CI on main.
+ * What the repository's own tests would refuse once the file is on main,
+ * checked at submit and approval so a merged panel edit never fails CI:
+ * - an em dash anywhere, code included (tests/no-em-dashes.test.ts scans
+ *   every line of src/content);
+ * - a spaced ` -- ` anywhere (its built-page check, <code> included);
+ * - any `--` in a Markdown body's prose (smartypants makes it an em dash);
+ * - for a type whose files are profiles (`noAt`), an @, the content test's
+ *   own rule for e-mail addresses (tests/content-committees.test.ts).
+ * A field that breaks more than one rule gets every message, one per line.
  */
 export function houseRuleErrors(type: CmsType, data: unknown): FieldErrors {
   const errors: FieldErrors = {};
-  eachString(type, data, (path, text) => {
-    if (text.includes(EM_DASH) || SPACED_DOUBLE_HYPHEN.test(text)) setOnce(errors, path, EM_DASH_MESSAGE);
-    else if (type.noAt && text.includes('@')) setOnce(errors, path, NO_AT_MESSAGE);
+  eachString(type, data, (path, text, body) => {
+    const found: string[] = [];
+    if (text.includes(EM_DASH) || SPACED_DOUBLE_HYPHEN.test(text)) found.push(EM_DASH_MESSAGE);
+    else if (body && markdownProse(text).includes('--')) found.push(DOUBLE_HYPHEN_MESSAGE);
+    if (type.noAt && text.includes('@')) found.push(NO_AT_MESSAGE);
+    if (found.length) setOnce(errors, path, found.join('\n'));
   });
   return errors;
 }

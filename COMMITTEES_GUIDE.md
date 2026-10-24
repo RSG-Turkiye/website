@@ -33,7 +33,7 @@ birleştirmez.
   bir daha değişmez; mevcut dosyalar (örneğin `website.json`) adları ne
   olursa olsun kendi adlarını korur.
 - **Gönderirken panel şunları reddeder:** dosyada herhangi bir `@` (e-posta
-  adresi olmasın diye), uzun tire (—) ya da kelimeler arasında ` -- `, boş
+  adresi olmasın diye), uzun tire (—) ya da kelimeler arasında ` -- ` (kod içinde de), boş
   bir ad, açıklama ya da görev, onayı olmayan üye.
 
 Aşağıdaki elle düzenleme adımları yedek yoldur: panel çalışmıyorsa ya da
@@ -75,7 +75,7 @@ panelin göstermediği bir değişiklik gerekiyorsa kullanılır.
 
 | Alan | Zorunlu | Açıklama |
 | --- | --- | --- |
-| `order` | evet | Komitenin sayfadaki sırası: küçük olan önce gelir. Onar onar numaralıdır (0, 10, 20, ...); iki komitenin arasına girmek için aradaki bir sayı seçilir. Boşluk olabilir; iki komite aynı sırayı alırsa İngilizce adlarına göre dizilir. |
+| `order` | evet | Komitenin sayfadaki sırası, 0 ya da daha büyük bir tam sayı: küçük olan önce gelir. Onar onar numaralıdır (0, 10, 20, ...); iki komitenin arasına girmek için aradaki bir sayı seçilir. Boşluk olabilir ve sıralar benzersiz olmak zorunda değildir: aynı sırayı alan komiteler İngilizce adlarına göre dizilir. |
 | `name`, `description` | evet | `{ "en": ..., "tr": ... }`: iki dil de dolu olmalı (şema boş olanı reddeder). |
 | `members` | evet | Üyeler, sayfada göründükleri sırayla. |
 | `members[].name` | evet | Üyenin adı, her iki dilde aynı. |
@@ -107,7 +107,7 @@ aynısı yapılır.
 ## Komite eklemek veya çıkarmak
 
 Yeni bir komite için yeni bir dosya oluşturun (`src/content/committees/<ad>.json`)
-ve ona diğerleriyle çakışmayan bir `order` verin. Bir komiteyi kaldırırken
+ve ona bir `order` verin (aynı sırayı alan iki komite İngilizce adlarına göre dizilir). Bir komiteyi kaldırırken
 yalnızca dosyasını silin; kalanları yeniden numaralandırmak gerekmez.
 
 Bir dosyayı sildikten sonra yerelde build almadan önce

@@ -632,8 +632,8 @@ test('an em dash, or a spaced double hyphen, is refused at submit in any text of
   out = await res.json() as any;
   assert.match(out.errors['en.frontmatter.title'], /em dash/i);
   assert.match(out.errors['tr.body'], /em dash/i);
-  // The en dash is allowed (date ranges), and so is `--` in code.
-  const ok = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Ranges 1\u20132', 'Run `nextflow run -- x` or\n\n```\na -- b\n```\n'), tr: side('Aralık 1\u20132', 'Tamam.') } });
+  // The en dash is allowed (date ranges), and so is a flag's `--` in code.
+  const ok = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Ranges 1\u20132', 'Run `nextflow run --profile x` or\n\n```\na --b\n```\n'), tr: side('Aralık 1\u20132', 'Tamam.') } });
   assert.equal((await on(env, submit.onRequestPost, 'POST', ok.body.draft.id, 'editor', {}, '/submit')).status, 200);
 });
 

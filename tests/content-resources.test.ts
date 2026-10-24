@@ -16,12 +16,12 @@ test('every resource validates and has every field in both languages', () => {
   }
 });
 
-test('slugs are unique, and orders are non-negative and unique within a section', () => {
-  // Not contiguous: orders go in steps of 10, and a deleted link leaves a gap.
+test('slugs are unique, and orders are non-negative integers', () => {
+  // Not contiguous and not unique: orders go in steps of 10, a deleted link
+  // leaves a gap, and a tie sorts by English title (A3, amended).
   assert.equal(new Set(entries.map((e) => e.f)).size, entries.length);
   for (const s of new Set(all.map((r) => r.section))) {
     const orders = all.filter((r) => r.section === s).map((r) => r.order);
-    assert.equal(new Set(orders).size, orders.length, `${s}: two links share an order`);
     for (const o of orders) assert.ok(Number.isInteger(o) && o >= 0, `${s}: ${o}`);
   }
 });

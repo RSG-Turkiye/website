@@ -783,6 +783,11 @@ export function placePhrases(model: TypeModel, p: ErrorPlace): Phrase[] {
   if (p.part === 'alt') out.push({ key: 'admin.cms.f.alt' });
   return out;
 }
+/** The i18n keys of a server message that may hold several, one per line (houseRuleErrors). */
+export function messageKeys(message: string): string[] {
+  return String(message ?? '').split('\n').filter((m) => m.trim()).map(messageKey);
+}
+
 /** The i18n key for a server message (zod's English, or the API's own words). */
 export function messageKey(message: string): string {
   const m = message ?? '';
@@ -799,6 +804,7 @@ export function messageKey(message: string): string {
   if (/already exists/.test(m)) return 'admin.cms.v.exists';
   if (/not the date's year/.test(m)) return 'admin.cms.v.year';
   if (/^Em dash/.test(m)) return 'admin.cms.v.emDash';
+  if (/^Two hyphens/.test(m)) return 'admin.cms.v.doubleHyphen';
   if (/^No e-mail addresses/.test(m)) return 'admin.cms.v.noAt';
   if (/expected true$/.test(m)) return 'admin.cms.v.consent';
   return 'admin.cms.v.invalid';

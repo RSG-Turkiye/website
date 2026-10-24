@@ -10,11 +10,11 @@ import { jsonSchemaFor } from '../src/lib/cms/json-schema';
 import { parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
-import { EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE } from '../functions/_lib/cms-drafts';
+import { DOUBLE_HYPHEN_MESSAGE, EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE } from '../functions/_lib/cms-drafts';
 import { ui } from '../src/i18n/ui';
 import {
   MODELS, applyValues, emptyData, errorKey, failureKey, formValues, halfTranslated, isEmptyValue, livePath, messageKey, placeOf, sharedShowsOne,
-  statusView, suggestedId, visibleFields, type Bi, type FieldDef, type TypeKey, type TypeModel,
+  messageKeys, statusView, suggestedId, visibleFields, type Bi, type FieldDef, type TypeKey, type TypeModel,
 } from '../src/scripts/admin/cms-form';
 import { diffEntry, lineDiff, listDiff } from '../src/scripts/admin/cms-diff';
 
@@ -1047,4 +1047,30 @@ test('committees: the form\'s groups, the file name of a new one, and its page',
   const consent = MODELS.committees.fields.find((f) => f.key === 'members')!.fields!.find((f) => f.key === 'consent')!;
   assert.equal(consent.kind, 'checkbox');
   assert.equal(consent.required, true);
+});
+
+test('house rules match what CI rejects: em dash and spaced -- anywhere (code too), any -- in body prose', () => {
+  const w = cmsType('webinars')!;
+  const c = cmsType('committees')!;
+  const body = (b: string) => houseRuleErrors(w, { en: { frontmatter: { title: 'x' }, body: b }, tr: { frontmatter: { title: 'y' }, body: 'ok' } });
+  // tests/no-em-dashes.test.ts scans every source line: code is no exception.
+  assert.equal(body('Text\n\n```\nout — here\n```\n')['en.body'], EM_DASH_MESSAGE);
+  assert.equal(body('Run `a — b` now')['en.body'], EM_DASH_MESSAGE);
+  assert.equal(body('````\n```\nx\n```\n—\n````\n')['en.body'], EM_DASH_MESSAGE);
+  // The built-page check reads `\w\s--\s\w` in visible HTML, <code> included.
+  assert.equal(body('Para\n\n    a -- b\n')['en.body'], EM_DASH_MESSAGE);
+  assert.equal(body('Run `a -- b`')['en.body'], EM_DASH_MESSAGE);
+  // Smartypants turns a bare `--` in prose into an em dash.
+  assert.equal(body('Run nextflow with --profile docker')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('foo--bar')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  // In code it stays two hyphens.
+  assert.deepEqual(body('Run nextflow with `--profile docker`\n\n```\nx --y\n```\n\n    z --w\n'), {});
+  assert.deepEqual(body('A table\n\n| a | b |\n| --- | --- |\n\n---\n\n<!-- note -->\n'), {});
+  assert.equal(messageKey(DOUBLE_HYPHEN_MESSAGE), 'admin.cms.v.doubleHyphen');
+  assert.match(ui.tr['admin.cms.v.doubleHyphen'], /ters tırnak/);
+  assert.match(ui.en['admin.cms.v.doubleHyphen'], /backticks/);
+  // A field with both an @ and a dash says both.
+  const both = houseRuleErrors(c, { name: { en: 'a — b@x', tr: 'y' } })['name.en'];
+  assert.ok(both.includes(EM_DASH_MESSAGE) && both.includes(NO_AT_MESSAGE), both);
+  assert.equal(messageKeys(both).join(), 'admin.cms.v.emDash,admin.cms.v.noAt');
 });

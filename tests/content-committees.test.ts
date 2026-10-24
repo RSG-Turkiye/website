@@ -41,11 +41,10 @@ test('the schema refuses a member without consent or with an e-mail', () => {
   assert.equal(committeeSchema.safeParse({ ...base, members: [{ ...member, email: 'x@example.org' }] }).success, false);
 });
 
-test('orders are unique and non-negative', () => {
-  // Not contiguous: orders go in steps of 10, so a new committee or a move is
-  // one file, and a deleted one leaves a gap.
+test('orders are non-negative integers', () => {
+  // Not contiguous and not unique: orders go in steps of 10, a deleted one
+  // leaves a gap, and two equal ones sort by English name (A3, amended).
   const orders = all.map((c) => c.order);
-  assert.equal(new Set(orders).size, orders.length, 'two committees share an order');
   for (const o of orders) assert.ok(Number.isInteger(o) && o >= 0, String(o));
 });
 

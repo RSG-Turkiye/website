@@ -30,7 +30,7 @@ import { dateLocale, lang, t, tf } from '../context';
 import { refreshCounts, noteAddress } from '../shell';
 import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
-  applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
+  applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKeys, modelFor, modelForSub,
   placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
@@ -1176,7 +1176,7 @@ function placeLabel(model: TypeModel, path: string): { key: string | null; label
 function showErrors(errors: Record<string, string>, focus: boolean): void {
   const ed = editor;
   if (!ed) return;
-  const items = Object.entries(errors).map(([path, msg]) => ({ ...placeLabel(ed.model, path), msg: tk(messageKey(msg)) }));
+  const items = Object.entries(errors).map(([path, msg]) => ({ ...placeLabel(ed.model, path), msg: messageKeys(msg).map((k) => tk(k)).join(' ') }));
   if (!items.length) return;
   const box = $('cmsErrors');
   if (!box) return;
@@ -1415,7 +1415,7 @@ function wireReview(ed: Editor): void {
     if (!r.ok) {
       b.disabled = false;
       if (r.code === 'invalid') {
-        const items = Object.entries(r.body.errors ?? {}).map(([p, m]) => `${placeLabel(ed.model, p).label}: ${tk(messageKey(String(m)))}`);
+        const items = Object.entries(r.body.errors ?? {}).map(([p, m]) => `${placeLabel(ed.model, p).label}: ${messageKeys(String(m)).map((k) => tk(k)).join(' ')}`);
         notice(`${esc(tk('admin.cms.error.invalid'))}<ul class="mt-1">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`);
       } else if (r.code === 'changed_since') {
         notice(`${esc(tk('admin.cms.error.changed_since'))} ${esc(tk('admin.cms.reject.changedHint'))}`);
