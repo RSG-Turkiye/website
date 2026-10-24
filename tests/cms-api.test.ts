@@ -114,6 +114,13 @@ const aNotice = (lang: 'en' | 'tr') => ({
 });
 const aPrivacy = () => ({ updated: '2020-01-02', en: aNotice('en'), tr: aNotice('tr') });
 FILES[PRIVACY_PATH] = `${JSON.stringify(aPrivacy(), null, 2)}\n`;
+/** Blog posts on main, synthetic (A2): one in English only, one in Turkish only (sides: 'either'). */
+const POST_EN = 'src/content/blog/en/fixture-english-post.md';
+const POST_TR = 'src/content/blog/tr/fixture-turkce-yazi.md';
+const postFile = (title: string, body: string) =>
+  `---\ntitle: "${title}"\npubDate: 2026-01-05\ndescription: "A fixture."\nauthor: "An Author"\ncategory: general\ntags: []\nimage: ""\ndraft: false\n---\n\n${body}\n`;
+FILES[POST_EN] = postFile('Fixture English post', 'English text.');
+FILES[POST_TR] = postFile('Fixture Türkçe yazı', 'Türkçe metin.');
 const INDEX: CmsIndex = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
 const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_TR_TITLE, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
@@ -1840,8 +1847,8 @@ test('a Yazılar-only editor sees only Yazılar types, none of the Etkinlikler d
   try {
     const { env } = setupGroups();
     const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'yeditor')).json() as any;
-    assert.deepEqual(listed.types.map((t: any) => t.key), ['testposts']);
-    assert.equal(listed.types[0].group, 'yazilar');
+    assert.deepEqual(listed.types.map((t: any) => t.key), ['blog', 'testposts']);
+    assert.ok(listed.types.every((t: any) => t.group === 'yazilar'));
 
     // An Etkinlikler draft, sent for approval.
     const ev = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
@@ -1855,7 +1862,7 @@ test('a Yazılar-only editor sees only Yazılar types, none of the Etkinlikler d
     for (const as of ['yeditor', 'yapprover']) {
       const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', as)).json() as any;
       const all = [...list.mine, ...list.queue, ...list.inflight, ...list.live];
-      assert.ok(all.every((d: any) => d.type === 'testposts'), as);
+      assert.ok(all.every((d: any) => d.type === 'testposts' || d.type === 'blog'), as);
       assert.equal((await on(env, draft.onRequestGet, 'GET', ev.body.draft.id, as)).status, 403, as);
       assert.equal((await on(env, approve.onRequestPost, 'POST', ev.body.draft.id, as, {}, '/approve')).status, 403, as);
     }
@@ -2605,6 +2612,175 @@ test('approval writes a draft of a type without approvedOnKey exactly as stored:
     db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(spaced, id);
     assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 200);
     assert.equal(row(id).data, spaced);
+  } finally {
+    done();
+  }
+});
+
+// ── Yazılar: blog posts, in one language or both (Task 8a, Review Focus 2) ────
+
+/** A post's side as the form sends it. */
+const postSide = (title: string, lang: 'en' | 'tr', o: Record<string, unknown> = {}) => ({
+  frontmatter: { title, pubDate: '2026-10-25', description: `${lang} description`, author: 'An Author', category: 'general', tags: [], image: '', draft: false, type: 'post', ...o },
+  body: `\n${lang} body\n`,
+});
+const BLOG_EN = (id: string) => `src/content/blog/en/${id}.md`;
+const BLOG_TR = (id: string) => `src/content/blog/tr/${id}.md`;
+
+test('blog: the registry entry (group, folder, either side, title extractors)', () => {
+  const t = cmsType('blog')!;
+  assert.equal(t.group, 'yazilar');
+  assert.equal(t.dir, 'src/content/blog');
+  assert.equal(t.format, 'markdown-pair');
+  assert.equal(t.sides, 'either');
+  assert.equal(t.idField, 'en.frontmatter.title');
+  assert.equal(t.indexTitle({ title: 'A title' }, 'en'), 'A title');
+  assert.equal(t.indexDate!({ pubDate: new Date('2026-01-05T00:00:00Z') }), '2026-01-05');
+  // The index lists the one-sided posts under their own names, the missing side null.
+  const en = INDEX.blog.find((e) => e.id === 'fixture-english-post')!;
+  assert.deepEqual(en.paths, { en: POST_EN, tr: null });
+  const tr = INDEX.blog.find((e) => e.id === 'fixture-turkce-yazi')!;
+  assert.deepEqual(tr.paths, { en: null, tr: POST_TR });
+});
+
+test('Review Focus 2: a post in English only creates, saves, submits and is approved with no empty-twin error; one file is written', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide('A New Post', 'en'), tr: null } });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    const id = body.draft.id;
+    assert.equal(body.draft.entry_id, 'a-new-post');
+    // A later save, still one language.
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'yeditor', { data: { en: postSide('A New Post', 'en', { tags: ['genomics'] }), tr: null } })).status, 200);
+    const files = filesFor(row(id) as never);
+    assert.deepEqual(files.map((f) => f.path), [BLOG_EN('a-new-post')], 'no phantom Turkish file');
+    const sent = await on(env, submit.onRequestPost, 'POST', id, 'yeditor', {}, '/submit');
+    assert.equal(sent.status, 200, await sent.clone().text());
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'yapprover', {}, '/approve')).status, 200);
+    assert.deepEqual(gh.writes(), [{ method: 'PUT', path: BLOG_EN('a-new-post') }]);
+    const written = gh.branches.get(`cms/${id}`)!.get(BLOG_EN('a-new-post'))!;
+    assert.match(written, /^---\ntitle: /);
+    assert.ok(written.includes('tags: ["genomics"]') || written.includes('- genomics') || written.includes('"genomics"'), written);
+    assert.ok(!written.includes('lang:'), 'no legacy lang key on a new post');
+  } finally {
+    done();
+  }
+});
+
+test('Review Focus 2: a post in Turkish only is named after its Turkish title and writes only the Turkish file', async () => {
+  try {
+    const { env } = setupGroups();
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { tr: postSide('Yeni Bir Yazı', 'tr') } });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    assert.equal(body.draft.entry_id, 'yeni-bir-yazi');
+    assert.equal((await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'yapprover', {}, '/approve')).status, 200);
+    assert.deepEqual(gh.writes(), [{ method: 'PUT', path: BLOG_TR('yeni-bir-yazi') }]);
+    // A Turkish-only post with no title: the error is on the Turkish title.
+    const untitled = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: null, tr: postSide('', 'tr') } });
+    assert.equal(untitled.res.status, 422);
+    assert.ok(untitled.body.errors['tr.frontmatter.title'], JSON.stringify(untitled.body.errors));
+  } finally {
+    done();
+  }
+});
+
+test('Review Focus 2: the twin added later writes the second file under the same name, the first untouched', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-english-post', 'yeditor')).json() as any;
+    assert.equal(current.data.tr, null);
+    assert.deepEqual(current.base_shas, { [POST_EN]: blobSha(FILES[POST_EN]), [BLOG_TR('fixture-english-post')]: null });
+    const en = { frontmatter: current.data.en.frontmatter, body: current.data.en.body };
+    // Started in English only (no change yet), then the Turkish side is added on a save.
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-english-post', data: { en, tr: null }, base_shas: current.base_shas });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    const id = body.draft.id;
+    assert.deepEqual(filesFor(row(id) as never).map((f) => f.path), [POST_EN]);
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'yeditor', { data: { en, tr: postSide('Örnek İngilizce yazı', 'tr') } })).status, 200);
+    assert.deepEqual(filesFor(row(id) as never).map((f) => f.path), [POST_EN, BLOG_TR('fixture-english-post')]);
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'yeditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'yapprover', {}, '/approve')).status, 200);
+    const branch = gh.branches.get(`cms/${id}`)!;
+    assert.equal(branch.get(POST_EN), FILES[POST_EN], 'the English file is byte for byte as it was');
+    assert.match(branch.get(BLOG_TR('fixture-english-post'))!, /^---\ntitle: "Örnek İngilizce yazı"/);
+  } finally {
+    done();
+  }
+});
+
+test('blog: a twin file that appears on main after the draft started is changed_since at approval', async () => {
+  try {
+    const { env } = setupGroups();
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-english-post', 'yeditor')).json() as any;
+    const en = { frontmatter: current.data.en.frontmatter, body: current.data.en.body };
+    const { body } = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-english-post', data: { en, tr: postSide('Başka', 'tr') }, base_shas: current.base_shas });
+    await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit');
+    gh.main.set(BLOG_TR('fixture-english-post'), postFile('Someone else', 'x'));
+    const refused = await on(env, approve.onRequestPost, 'POST', body.draft.id, 'yapprover', {}, '/approve');
+    assert.equal(refused.status, 409);
+    assert.deepEqual((await refused.json() as any).paths, [BLOG_TR('fixture-english-post')]);
+  } finally {
+    done();
+  }
+});
+
+test('blog: a post needs one language; a language already published cannot be dropped by an update', async () => {
+  try {
+    const { env, row } = setupGroups();
+    for (const data of [{ en: null, tr: null }, {}]) {
+      const r = await create(env, 'yeditor', { type: 'blog', action: 'create', data });
+      assert.equal(r.res.status, 422, JSON.stringify(data));
+    }
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-turkce-yazi', 'yeditor')).json() as any;
+    const tr = { frontmatter: current.data.tr.frontmatter, body: current.data.tr.body };
+    // Dropping the published Turkish side: refused at the start, nothing stored.
+    const dropped = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-turkce-yazi', data: { en: postSide('Now English', 'en'), tr: null }, base_shas: current.base_shas });
+    assert.equal(dropped.res.status, 422);
+    assert.ok(dropped.body.errors.tr, JSON.stringify(dropped.body.errors));
+    // And on a save.
+    const { body } = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-turkce-yazi', data: { tr }, base_shas: current.base_shas });
+    const before = row(body.draft.id).data;
+    const patch = await on(env, draft.onRequestPatch, 'PATCH', body.draft.id, 'yeditor', { data: { en: postSide('Now English', 'en') } });
+    assert.equal(patch.status, 422);
+    assert.equal(row(body.draft.id).data, before);
+    // A webinar still needs both sides.
+    const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: postSide('Only English', 'en'), tr: null } });
+    assert.equal(w.res.status, 422);
+    assert.equal(w.body.errors.tr, 'Missing');
+  } finally {
+    done();
+  }
+});
+
+test('blog: a new post named like a published one-sided post gets -2, so the two are never paired by name', async () => {
+  try {
+    const { env } = setupGroups();
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide('Fixture Türkçe yazı', 'en') } });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    assert.equal(body.draft.entry_id, 'fixture-turkce-yazi-2');
+  } finally {
+    done();
+  }
+});
+
+test('blog: the house rules apply at submit, on the side that breaks them', async () => {
+  try {
+    const { env } = setupGroups();
+    const { body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { tr: { ...postSide('Bir yazı', 'tr'), body: 'Komut --help ile çalışır.' } } });
+    const r = await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit');
+    assert.equal(r.status, 422);
+    assert.ok((await r.json() as any).errors['tr.body']);
+  } finally {
+    done();
+  }
+});
+
+test('blog: only the Yazılar group edits posts', async () => {
+  try {
+    const { env } = setupGroups();
+    assert.equal((await create(env, 'editor', { type: 'blog', action: 'create', data: { en: postSide('Nope', 'en') } })).res.status, 403);
+    assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-english-post', 'editor')).status, 403);
   } finally {
     done();
   }

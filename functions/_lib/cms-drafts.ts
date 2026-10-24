@@ -47,7 +47,15 @@ export interface DraftRow {
 /** One language of a webinar. `source` is the original frontmatter text,
  * set by the server from main and never taken from the client. */
 export interface MarkdownSide { frontmatter: Frontmatter; body: string; source?: string }
+/** A pair's two sides. For a `sides: 'either'` type (a blog post) one of
+ * them may be null: the entry has no file in that language. */
 export type PairData = { en: MarkdownSide; tr: MarkdownSide };
+
+/** The languages a pair's data has a side for: both, or for a `sides: 'either'` type the ones that are not null. */
+export function sidesIn(type: CmsType, data: unknown): ('en' | 'tr')[] {
+  if (type.sides !== 'either') return ['en', 'tr'];
+  return (['en', 'tr'] as const).filter((l) => isObject(data) && isObject(data[l]));
+}
 
 // ── Transitions ───────────────────────────────────────────────────────────────
 
@@ -239,6 +247,9 @@ function unknownKeys(schema: unknown, value: unknown, at: string, into: FieldErr
 const EM_DASH = '\u2014';
 /** Two hyphens between words: what the built-page check in that test reads as a dash, code included. */
 const SPACED_DOUBLE_HYPHEN = /\w\s--\s\w/;
+/** Exactly two hyphens: the run smartypants turns into an em dash. A longer
+ * run (`a --- b`, an escaped `\-----` rule) stays hyphens on the page. */
+const DOUBLE_HYPHEN = /(?<!-)--(?!-)/;
 
 export const EM_DASH_MESSAGE = 'Em dash (\u2014) is not used: write a hyphen (-) or a comma';
 export const DOUBLE_HYPHEN_MESSAGE = 'Two hyphens (--) become a long dash on the page: put a command-line flag in backticks (`--flag`), or write one hyphen';
@@ -299,7 +310,8 @@ function eachString(type: CmsType, data: unknown, visit: (path: string, text: st
  * - an em dash anywhere, code included (tests/no-em-dashes.test.ts scans
  *   every line of src/content);
  * - a spaced ` -- ` anywhere (its built-page check, <code> included);
- * - any `--` in a Markdown body's prose (smartypants makes it an em dash);
+ * - exactly two hyphens in a Markdown body's prose (smartypants makes them
+ *   an em dash; a run of three or more it leaves alone);
  * - for a type whose files are profiles (`noAt`), an @, the content test's
  *   own rule for e-mail addresses (tests/content-committees.test.ts).
  * A field that breaks more than one rule gets every message, one per line.
@@ -309,7 +321,7 @@ export function houseRuleErrors(type: CmsType, data: unknown): FieldErrors {
   eachString(type, data, (path, text, body) => {
     const found: string[] = [];
     if (text.includes(EM_DASH) || SPACED_DOUBLE_HYPHEN.test(text)) found.push(EM_DASH_MESSAGE);
-    else if (body && markdownProse(text).includes('--')) found.push(DOUBLE_HYPHEN_MESSAGE);
+    else if (body && DOUBLE_HYPHEN.test(markdownProse(text))) found.push(DOUBLE_HYPHEN_MESSAGE);
     if (type.noAt && text.includes('@')) found.push(NO_AT_MESSAGE);
     if (found.length) setOnce(errors, path, found.join('\n'));
   });
@@ -333,10 +345,13 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
     return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data };
   }
 
-  if (!isObject(data)) return { ok: false, errors: { '': 'The entry must have an English and a Turkish side' } };
-  const out: Partial<PairData> = {};
+  const either = type.sides === 'either';
+  if (!isObject(data)) return { ok: false, errors: { '': either ? 'The entry must have an English or a Turkish side' : 'The entry must have an English and a Turkish side' } };
+  const out: Record<'en' | 'tr', MarkdownSide | null | undefined> = { en: undefined, tr: undefined };
   for (const lang of ['en', 'tr'] as const) {
     const side = data[lang];
+    // A post may lack a language altogether: that side is null, never an empty one.
+    if (either && (side === null || side === undefined)) { out[lang] = null; continue; }
     if (!isObject(side) || !isObject(side.frontmatter)) { errors[lang] = 'Missing'; continue; }
     if (typeof side.body !== 'string') errors[`${lang}.body`] = 'Must be text';
     unknownKeys(type.schema, side.frontmatter, `${lang}.frontmatter`, errors);
@@ -352,6 +367,7 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
     const key = (side: MarkdownSide) => String(side.frontmatter.translationKey ?? '').trim();
     if (key(out.en) !== key(out.tr)) setOnce(errors, 'tr.frontmatter.translationKey', 'Must be the same as the English side');
   }
+  if (either && out.en === null && out.tr === null) setOnce(errors, '', 'Write the entry in English, Turkish or both');
   if (mode === 'strict') for (const [k, m] of Object.entries(houseRuleErrors(type, out))) setOnce(errors, k, m);
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data: out as PairData };
 }
@@ -359,12 +375,32 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
 /** The file id a new entry gets, from validated data. Only for a create:
  * an update keeps its entry_id whatever the data says (plan 4, A1). */
 export function newEntryId(type: CmsType, data: unknown): Validated<string> {
+  // A one-language entry (sides: 'either') is named from the side it has, English first.
+  const lang = type.format === 'json' ? null : sidesIn(type, data)[0] ?? 'en';
   try {
-    const id = type.idFrom(type.format === 'json' ? data : { frontmatter: (data as PairData).en.frontmatter });
+    const id = type.idFrom(lang === null ? data : { frontmatter: (data as PairData)[lang].frontmatter });
     return { ok: true, data: checkId(id) };
   } catch (e) {
-    return { ok: false, errors: { [type.idField]: e instanceof Error ? e.message : 'Not a valid id' } };
+    const field = lang === 'tr' ? type.idField.replace(/^en\./, 'tr.') : type.idField;
+    return { ok: false, errors: { [field]: e instanceof Error ? e.message : 'Not a valid id' } };
   }
+}
+
+/**
+ * For a `sides: 'either'` type: the languages that have a file on main (a
+ * non-null sha in `baseShas`) but no side in the update's data. A draft
+ * writes files and never deletes one of a pair, so dropping a published
+ * language is refused; deleting the entry removes both files. Null when none.
+ */
+export function droppedSides(type: CmsType, baseShas: Record<string, string | null>, data: unknown): FieldErrors | null {
+  if (type.sides !== 'either') return null;
+  const has = sidesIn(type, data);
+  const errors: FieldErrors = {};
+  for (const [path, sha] of Object.entries(baseShas)) {
+    const lang = langOf(type, path);
+    if (sha !== null && !has.includes(lang)) setOnce(errors, lang, 'Published in this language: it cannot be removed in a draft. Delete the entry to remove it');
+  }
+  return Object.keys(errors).length ? errors : null;
 }
 
 /**
@@ -490,7 +526,15 @@ export function filesFor(draft: Pick<DraftRow, 'type' | 'entry_id' | 'action' | 
     return [{ path, content: serializeJson(type, data) }];
   }
   const pair = data as PairData;
-  return paths.map((path) => {
+  const base = JSON.parse(draft.base_shas) as Record<string, string | null>;
+  const has = sidesIn(type, data);
+  // A language the entry does not have (sides: 'either') is no file: none is
+  // written for it. One that is on main must still be in the data.
+  return paths.filter((path) => {
+    if (has.includes(langOf(type, path))) return true;
+    if (base[path] !== null) throw new Error(`A ${type.key} draft lacks a side that is published: ${path}`);
+    return false;
+  }).map((path) => {
     const side = pair[langOf(type, path)];
     return { path, content: serializeMarkdown(type, { frontmatter: side.frontmatter, body: side.body, source: side.source }) };
   });

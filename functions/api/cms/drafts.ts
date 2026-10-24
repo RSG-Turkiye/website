@@ -5,7 +5,7 @@ import {
   actionRefused, approvesType, cmsGate, lpIdsElsewhere, refuseDomainDelete, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
 import {
-  actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, inOrderOf, langOf, withServerKey, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
+  actionAllowed, checkSameId, DRAFT_ACTIONS, droppedSides, fixedKeysErrors, inOrderOf, langOf, withServerKey, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
 } from '../../_lib/cms-drafts';
 import { filesOnBase } from '../../_lib/github';
 import { assignIds, lockedKeysErrors, type LpDraftData } from '../../_lib/cms-lp';
@@ -147,6 +147,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     baseShas = Object.fromEntries(paths.map((p) => [p, files[p]?.sha ?? null]));
     const stale = paths.filter((p) => (sent[p] ?? null) !== baseShas[p]);
     if (stale.length) return fail(409, 'changed_since', 'The entry changed on the site since you opened it', { paths: stale });
+    // A language the entry has on main stays (sides: 'either').
+    const dropped = action === 'update' ? droppedSides(type, baseShas, data) : null;
+    if (dropped) return invalid(dropped);
 
     if (action === 'update' && type.fixedKeys) {
       // The keys of the file on main are the ones the draft keeps; saves
@@ -198,7 +201,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         for (const p of paths) {
           const side = pair[langOf(type, p)];
           const file = files[p];
-          if (file) side.source = parseMarkdown(type, file.content).source;
+          // A side the entry does not have yet (sides: 'either') has no file to keep.
+          if (file && side) side.source = parseMarkdown(type, file.content).source;
         }
       } catch (e) {
         console.error('cms: an entry on main could not be parsed', entryId, e);

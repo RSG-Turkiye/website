@@ -18,7 +18,7 @@ import { checkId, slugify } from '../../lib/cms/slug';
 import { resourceId, resourceIdsOf, resourcesOf, sideFrontmatter } from '../../lib/cms/lp-resources';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
-export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' | 'pages' | 'privacy';
+export type TypeKey = 'events' | 'workshops' | 'webinars' | 'blog' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' | 'pages' | 'privacy';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
   | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
@@ -51,6 +51,8 @@ export interface FieldDef {
   image?: 'object' | 'url';
   /** Webinars: a value per language (title), not one for both (date). */
   perLang?: boolean;
+  /** A new entry starts with today's date in it (a post's pubDate). */
+  today?: boolean;
   /** Shown, never edited (translationKey). */
   readOnly?: boolean;
   /** Hidden from editors, read-only for approvers ("İç not"). */
@@ -166,6 +168,12 @@ export interface TypeModel {
   /** Fields shown read-only once the entry exists (the registry's lockedKeys:
    * what the file name or the page's address comes from). */
   lockedOnUpdate?: readonly string[];
+  /** The registry's sides: 'either' when an entry may be in one language
+   * only (a blog post). An absent language is a null side in the data. */
+  sides?: 'both' | 'either';
+  /** The languages the open entry has (withSides), for a sides: 'either'
+   * type: the form shows and writes only these. Unset: both. */
+  present?: readonly ('en' | 'tr')[];
 }
 
 const EVENT_TYPES = ['symposium', 'workshop', 'hackathon', 'meetup'] as const;
@@ -259,6 +267,34 @@ export const MODELS: Record<TypeKey, TypeModel> = {
       { key: 'translationKey', kind: 'text', label: 'admin.cms.f.translationKey', group: 'more', readOnly: true },
     ],
     hidden: { lang: 'legacy; the language comes from the folder' },
+  },
+  blog: {
+    key: 'blog', format: 'markdown-pair', sub: 'blog', group: 'yazilar', idField: 'en.frontmatter.title', label: 'admin.cms.type.blog', sides: 'either',
+    // Prose is per language; the rest is one value while both languages agree
+    // (two, side by side, where a published pair differs).
+    fields: [
+      { key: 'title', kind: 'text', perLang: true, label: 'admin.cms.f.title', group: 'main', required: true },
+      { key: 'description', kind: 'textarea', perLang: true, label: 'admin.cms.f.description', help: 'admin.cms.h.postDescription', group: 'main', required: true },
+      { key: 'pubDate', kind: 'date', label: 'admin.cms.f.pubDate', group: 'main', required: true, today: true },
+      { key: 'author', kind: 'text', label: 'admin.cms.f.author', help: 'admin.cms.h.author', group: 'main' },
+      { key: 'category', kind: 'text', label: 'admin.cms.f.category', help: 'admin.cms.h.category', group: 'main', required: true },
+      { key: 'tags', kind: 'strings', perLang: true, label: 'admin.cms.f.tags', help: 'admin.cms.h.postTags', group: 'main' },
+      { key: 'image', kind: 'image', image: 'url', label: 'admin.cms.f.image', help: 'admin.cms.h.postImage', group: 'main' },
+      { key: 'body', kind: 'markdown', perLang: true, label: 'admin.cms.f.body', help: 'admin.cms.h.body', group: 'main' },
+      { key: 'type', kind: 'select', label: 'admin.cms.f.postType', options: ['post', 'webinar'], group: 'more' },
+      { key: 'youtubeUrl', kind: 'text', label: 'admin.cms.f.youtubeUrl', help: 'admin.cms.h.youtubeUrl', group: 'more' },
+      { key: 'speaker', kind: 'text', label: 'admin.cms.f.speaker', group: 'more' },
+      { key: 'speakerAffiliation', kind: 'text', perLang: true, label: 'admin.cms.f.speakerAffiliation', group: 'more' },
+      { key: 'speakerTitle', kind: 'text', perLang: true, label: 'admin.cms.f.speakerTitle', group: 'more' },
+      { key: 'topic', kind: 'text', perLang: true, label: 'admin.cms.f.topic', group: 'more' },
+      { key: 'keyTakeaways', kind: 'strings', perLang: true, label: 'admin.cms.f.keyTakeaways', group: 'more' },
+      { key: 'slidesUrl', kind: 'text', label: 'admin.cms.f.slidesUrl', group: 'more' },
+      { key: 'draft', kind: 'checkbox', label: 'admin.cms.f.draft', help: 'admin.cms.h.draft', group: 'more' },
+    ],
+    hidden: {
+      lang: 'legacy; the language comes from the folder',
+      translationKey: 'ties two differently named files; kept as the file has it, and given to a language added later',
+    },
   },
   committees: {
     key: 'committees', format: 'json', sub: 'komiteler', group: 'topluluk', idField: 'name.en', label: 'admin.cms.type.committees', titleField: 'name',
@@ -437,7 +473,7 @@ export const MODELS: Record<TypeKey, TypeModel> = {
   },
 };
 
-export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast', 'resources', 'lp-domains', 'lp-levels', 'lp-roadmap', 'pages', 'privacy'];
+export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'blog', 'committees', 'podcast', 'resources', 'lp-domains', 'lp-levels', 'lp-roadmap', 'pages', 'privacy'];
 
 /** Whether the form holds a value per language for each field (a pair type, or a JSON entry with langSides). */
 export const pairForm = (model: Pick<TypeModel, 'format' | 'langSides'>): boolean => model.format === 'markdown-pair' || model.langSides === true;
@@ -740,10 +776,60 @@ function side(data: unknown, lang: 'en' | 'tr'): { frontmatter: Obj; body: strin
   return { ...s, frontmatter: isObj(s.frontmatter) ? s.frontmatter : {}, body: str(s.body) };
 }
 
-/** The data a form for a new entry starts from. */
-export function emptyData(model: TypeModel): unknown {
+/**
+ * The data a form for a new entry starts from. A sides: 'either' type
+ * starts in one language (`lang`, default English), the other null. A
+ * field marked `today` starts with `today` (YYYY-MM-DD) when it is given.
+ */
+export function emptyData(model: TypeModel, opts: { lang?: 'en' | 'tr'; today?: string } = {}): unknown {
+  const dated = (into: Obj) => {
+    if (opts.today) for (const f of model.fields) if (f.today) into[f.key] = opts.today;
+    return into;
+  };
   if (model.langSides) return { en: {}, tr: {} };
-  return model.format === 'json' ? {} : { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } };
+  if (model.format === 'json') return dated({});
+  const blank = () => ({ frontmatter: dated({}), body: '' });
+  if (model.sides === 'either') {
+    const lang = opts.lang ?? 'en';
+    return { en: lang === 'en' ? blank() : null, tr: lang === 'tr' ? blank() : null };
+  }
+  return { en: blank(), tr: blank() };
+}
+
+// ── Languages of a sides: 'either' entry ─────────────────────────────────────
+
+/** The languages `data` has a side for: both, or for a sides: 'either' type the ones not null. */
+export function sidesOf(model: Pick<TypeModel, 'sides'>, data: unknown): ('en' | 'tr')[] {
+  if (model.sides !== 'either') return ['en', 'tr'];
+  return (['en', 'tr'] as const).filter((l) => isObj(data) && isObj(data[l]));
+}
+
+/** The model with the languages this entry has (`present`): what the form shows and writes. */
+export function withSides(model: TypeModel, data: unknown): TypeModel {
+  if (model.sides !== 'either') return model;
+  // No side at all (a delete draft's empty data): nothing to narrow the form to.
+  const has = sidesOf(model, data);
+  return has.length ? { ...model, present: has } : { ...model, present: undefined };
+}
+
+/**
+ * `data` with an empty side for `lang` ("Türkçesini ekle"). Its texts are
+ * the person's to write; a translationKey the other side has is given to it,
+ * since the two must agree. `data` is not changed.
+ */
+export function withSide(data: unknown, lang: 'en' | 'tr'): unknown {
+  const out = (isObj(data) ? clone(data) : {}) as Obj;
+  const other = side(data, lang === 'en' ? 'tr' : 'en').frontmatter;
+  const key = str(other.translationKey).trim();
+  out[lang] = { frontmatter: key ? { translationKey: other.translationKey } : {}, body: '' };
+  return out;
+}
+
+/** `data` without its `lang` side (null): a language added in this draft, taken out again. */
+export function withoutSide(data: unknown, lang: 'en' | 'tr'): unknown {
+  const out = (isObj(data) ? clone(data) : {}) as Obj;
+  out[lang] = null;
+  return out;
 }
 
 /**
@@ -759,8 +845,17 @@ export function formValues(model: TypeModel, data: unknown): Values {
     return out;
   }
   const pairData = model.langSides ? asPair(data) : data;
-  const en = side(pairData, 'en');
-  const tr = side(pairData, 'tr');
+  let en = side(pairData, 'en');
+  let tr = side(pairData, 'tr');
+  // A language the entry does not have (sides: 'either'): its texts are
+  // empty, and a value both languages share reads as the other side's, so
+  // it shows as one control and a language added later starts with it.
+  const has = sidesOf(model, pairData);
+  if (has.length === 1) {
+    const from = has[0] === 'en' ? en : tr;
+    const absent = { frontmatter: Object.fromEntries(model.fields.filter((f) => !f.perLang && Object.hasOwn(from.frontmatter, f.key)).map((f) => [f.key, from.frontmatter[f.key]])), body: '' };
+    if (has[0] === 'en') tr = absent; else en = absent;
+  }
   for (const f of model.fields) {
     out[f.key] = f.kind === 'markdown' ? { en: en.body, tr: tr.body }
       : f.kind === 'objects' ? readPairRows(f, en.frontmatter[f.key], tr.frontmatter[f.key])
@@ -791,17 +886,21 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
   }
   const pairBase = model.langSides ? asPair(base) : base;
   const out = { en: clone(side(pairBase, 'en')), tr: clone(side(pairBase, 'tr')) };
+  // The languages the form writes: the ones it shows (`present`), else the
+  // entry's own. A sides: 'either' entry's other languages stay as `base`
+  // has them (a side the site gained meanwhile), or null.
+  const langs = model.present ?? sidesOf(model, pairBase);
   for (const f of model.fields) {
     // Plain `untouched`, not the JSON branch's `untouchedHere`: that exception
     // is for a required bilingualStrings field, a JSON-only kind (a pair's
     // per-language lists are perLang strings). A required checkbox is written
     // per side by writeOne either way.
     // A list marked `always` that a side lacks is written even untouched (a new file).
-    const lacking = f.always && (!Object.hasOwn(out.en.frontmatter, f.key) || !Object.hasOwn(out.tr.frontmatter, f.key));
+    const lacking = f.always && langs.some((l) => !Object.hasOwn(out[l].frontmatter, f.key));
     if (f.readOnly || !Object.hasOwn(values, f.key) || (untouched(f) && !lacking)) continue;
     if (f.kind === 'objects') {
       const rows = Array.isArray(values[f.key]) ? values[f.key] as Row[] : [];
-      for (const lang of ['en', 'tr'] as const) {
+      for (const lang of langs) {
         const fm = out[lang].frontmatter;
         if (rows.length === 0 && !Object.hasOwn(fm, f.key) && !f.always) continue;
         fm[f.key] = writeRows(f, rows, fm[f.key], lang);
@@ -809,10 +908,15 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
       continue;
     }
     const v = values[f.key] as Bi<unknown>;
-    for (const lang of ['en', 'tr'] as const) {
+    for (const lang of langs) {
       if (f.kind === 'markdown') out[lang].body = str(v[lang]);
       else writeOne(f, out[lang].frontmatter, v[lang]);
     }
+  }
+  if (model.sides === 'either') {
+    const kept = sidesOf(model, pairBase);
+    const pick = (l: 'en' | 'tr') => (langs.includes(l) ? out[l] : kept.includes(l) ? clone((pairBase as Obj)[l]) : null);
+    return { en: pick('en'), tr: pick('tr') };
   }
   // A webinar's year is its date's year (the schema checks it): never typed.
   if (model.key === 'webinars') {
@@ -841,11 +945,14 @@ export function withFieldFrom(model: TypeModel, origin: unknown, other: unknown,
   }
   const view = (d: unknown) => (model.langSides ? asPair(d) : d);
   const out = { en: clone(side(view(origin), 'en')), tr: clone(side(view(origin), 'tr')) };
-  for (const lang of ['en', 'tr'] as const) {
+  // Only the languages the form has: a sides: 'either' entry gains none here.
+  const langs = sidesOf(model, view(origin));
+  for (const lang of langs) {
     const from = side(view(other), lang);
     if (key === 'body' && model.fields.find((f) => f.key === key)?.kind === 'markdown') out[lang].body = from.body;
     else put(out[lang].frontmatter, from.frontmatter, key);
   }
+  if (model.sides === 'either') return { en: langs.includes('en') ? out.en : null, tr: langs.includes('tr') ? out.tr : null };
   return model.langSides ? fromPair(out, origin) : out;
 }
 
@@ -918,7 +1025,9 @@ export function suggestedId(model: TypeModel, values: Values): string {
     // The number comes first (07-direction); the form shows the one the server will give.
     return slug && /^\d+$/.test(en('number')) ? `${en('number').padStart(2, '0')}-${slug}` : '';
   }
-  return tryId(str((values[model.titleField ?? 'title'] as Bi | undefined)?.en));
+  // A sides: 'either' entry is named from the language it has, English first (as the server does).
+  const from = model.present?.[0] ?? 'en';
+  return tryId(str((values[model.titleField ?? 'title'] as Bi | undefined)?.[from]));
 }
 
 /** The data to save for a new entry: an event also carries its id. */
@@ -1002,6 +1111,8 @@ export interface Half { key: string; label: string; sub?: string; trail?: RowSte
 export function halfTranslated(model: TypeModel, values: Values): Half[] {
   const out: Half[] = [];
   const pair = pairForm(model);
+  // An entry in one language only (sides: 'either') is not half translated.
+  if (model.present && model.present.length < 2) return out;
   for (const f of model.fields) {
     const v = values[f.key];
     // A required text half-filled is a field error at submit, not a warning.
@@ -1139,6 +1250,8 @@ export function messageKey(message: string): string {
   if (/gives the file its name/.test(m)) return 'admin.cms.v.idFixed';
   if (/no letters or digits|Invalid id/.test(m)) return 'admin.cms.v.idMissing';
   if (/same as the English side/.test(m)) return 'admin.cms.v.keySame';
+  if (/^Write the entry in English, Turkish or both/.test(m)) return 'admin.cms.v.oneSide';
+  if (/^Published in this language/.test(m)) return 'admin.cms.v.sideKept';
   if (/already exists/.test(m)) return 'admin.cms.v.exists';
   if (/not the date's year/.test(m)) return 'admin.cms.v.year';
   if (/^Em dash/.test(m)) return 'admin.cms.v.emDash';
@@ -1261,6 +1374,13 @@ export function livePath(typeKey: string, entryId: string, paths: string[], lang
   }
   // Each stage is an element whose id is its file, with the language folder.
   if (typeKey === 'lp-roadmap') return `${prefix}/learning-paths/roadmap/#${lang}/${entryId}`;
+  if (typeKey === 'blog') {
+    // A post in one language only opens in that language, whatever the panel's.
+    const own = paths.find((p) => p.includes(`/blog/${lang}/`));
+    const file = own ?? paths.find((p) => /\/blog\/(en|tr)\//.test(p));
+    const slug = file ? file.slice(file.lastIndexOf('/') + 1, -'.md'.length) : entryId;
+    return `${file?.includes('/blog/tr/') ? '/tr' : file ? '' : prefix}/blog/${slug}/`;
+  }
   const file = paths.find((p) => p.includes(`/webinars/${lang}/`));
   const slug = file ? file.slice(file.lastIndexOf('/') + 1, -'.md'.length) : entryId;
   return `${prefix}/webinars/${slug}/`;

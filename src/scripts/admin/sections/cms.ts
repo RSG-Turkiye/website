@@ -32,6 +32,7 @@ import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
   applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKeys, modelFor, modelForSub,
   pairForm, placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, rebased, removedResourceIds, sameSave, MODELS,
+  sidesOf, withSide, withSides, withoutSide,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
@@ -126,6 +127,8 @@ let guard: { reset(): void } | null = null;
 let pendingNotice: { html: string; tone: 'info' | 'warn' | 'error' } | null = null;
 
 const now = () => Math.floor(Date.now() / 1000);
+/** Today in Istanbul, YYYY-MM-DD: a new post's date. */
+const istanbulToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const approves = (type: string): boolean => canApprove[type] === true;
 const sv = (d: DraftSummary): StatusView => statusView(d, { approver: approves(d.type), now: now() });
 const labelOf = (type: string): string => { const m = modelFor(type); return m ? tk(m.label) : typeLabels[type] ?? type; };
@@ -307,10 +310,17 @@ function loadFailed(host: HTMLElement): void {
     : `<p class="text-sm text-[#8a1c1c]" data-cms-load-failed>${esc(tk(loadError === 'index_unavailable' ? 'admin.cms.error.index_unavailable' : 'admin.cms.listFailed'))}</p>`;
 }
 
-/** The files of a published entry, for its live page (a webinar's Turkish name may differ). */
-function entryPaths(type: string, entryId: string, fallback: Record<string, unknown> | undefined): string[] {
+/**
+ * The files of a published entry, for its live page (a webinar's Turkish
+ * name may differ). Without the index, the draft's own files: for a post in
+ * one language only, the languages its data has (its base_shas name both).
+ */
+function entryPaths(type: string, entryId: string, fallback: Record<string, unknown> | undefined, data?: unknown): string[] {
   const e = entries[type]?.find((x) => x.id === entryId);
-  return e?.paths ? [e.paths.en, e.paths.tr].filter((p): p is string => !!p) : Object.keys(fallback ?? {});
+  if (e?.paths) return [e.paths.en, e.paths.tr].filter((p): p is string => !!p);
+  const model = modelFor(type);
+  const has = model && data ? sidesOf(model, data) : ['en', 'tr'];
+  return Object.keys(fallback ?? {}).filter((p) => !/\/(en|tr)\/[^/]+\.md$/.test(p) || has.some((l) => p.includes(`/${l}/`)));
 }
 
 /** Where on its page an entry sits (a resource's section): the draft's own, else the index's. */
@@ -385,7 +395,9 @@ async function showList(model: TypeModel): Promise<void> {
       trailing = `<a href="${SECTION}/taslaklar/${mine.id}" class="${BTN.secondary}">${esc(tk('admin.cms.continue'))}</a>`;
     }
     // A resource has no date: its section tells two links of one title apart.
-    const subtitle = e.section ? tk(`admin.cms.opt.${e.section}`) : dateText(model, e.date);
+    // A post in one language only says which.
+    const only = model.sides === 'either' && e.paths && (!e.paths.en || !e.paths.tr) ? tk(`admin.cms.sides.lang.${e.paths.en ? 'en' : 'tr'}`) : '';
+    const subtitle = e.section ? tk(`admin.cms.opt.${e.section}`) : [dateText(model, e.date), only].filter(Boolean).join(' · ');
     return row({ title: e.title, subtitle, chips, trailing, attrs: `data-cms-entry="${esc(e.id)}"`, stack: true });
   }).join('');
   const more = list.length > n ? `<button type="button" data-cms-more class="${BTN.secondary} mt-3">${esc(tk('admin.cms.more'))}</button>` : '';
@@ -479,7 +491,7 @@ function draftRow(d: Draft, href: string): string {
   const v = sv(d);
   const next: Record<string, string> = { continue: 'admin.cms.continue', fix: 'admin.cms.fix', retry: 'admin.cms.retry', openSite: 'admin.cms.openSite', discard: 'admin.cms.open' };
   const trailing = v.next === 'openSite'
-    ? `<a href="${livePath(d.type, d.entry_id, entryPaths(d.type, d.entry_id, d.base_shas), lang, sectionOf(d.type, d.entry_id, d.data))}" target="_blank" rel="noopener" data-cms-open-site class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
+    ? `<a href="${livePath(d.type, d.entry_id, entryPaths(d.type, d.entry_id, d.base_shas, d.data), lang, sectionOf(d.type, d.entry_id, d.data))}" target="_blank" rel="noopener" data-cms-open-site class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
     : `<a href="${href}" class="${BTN.secondary}">${esc(tk(v.next ? next[v.next] : 'admin.cms.open'))}</a>`;
   const action = d.action === 'delete' ? ` · ${tk('admin.cms.action.delete')}` : '';
   return row({
@@ -619,6 +631,8 @@ function fieldsFor(model: TypeModel): FieldDef[] {
 }
 
 function renderForm(ed: Editor, values: Values): void {
+  // The languages the form shows and writes follow what it writes onto (a post may have one).
+  ed.model = withSides(ed.model, ed.origin);
   const fields = fieldsFor(ed.model);
   const main = fields.filter((f) => f.group === 'main');
   const more = fields.filter((f) => f.group === 'more');
@@ -630,6 +644,7 @@ function renderForm(ed: Editor, values: Values): void {
     <div id="cmsChanged" class="hidden mb-3"></div>
     <div class="bg-white rounded-2xl border border-border p-4 lg:p-3 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-3">
       <h3 class="lg:col-span-3 text-sm font-semibold text-navy">${esc(tk('admin.cms.group.main'))}</h3>
+      ${sidesBar(ed)}
       ${main.map(draw).join('')}
       <p class="lg:col-span-3 text-xs text-gray-500">${esc(tk('admin.cms.fileName'))}: <span id="cmsFileName" class="font-mono text-gray-600 [overflow-wrap:anywhere]"></span></p>
     </div>
@@ -639,6 +654,39 @@ function renderForm(ed: Editor, values: Values): void {
   renderBar(ed);
   updateFileName(ed, values);
   refreshRows(ed.model, box);
+}
+
+/** Whether `lang` of the entry is on the site: its file is on main (a non-null sha the draft started from). */
+function onMain(ed: Editor, l: 'en' | 'tr'): boolean {
+  const shas = ed.draft?.base_shas ?? ed.baseShas ?? {};
+  return Object.entries(shas).some(([p, sha]) => sha !== null && p.includes(`/${l}/`));
+}
+
+/**
+ * A sides: 'either' type (a blog post): which languages the entry has, with
+ * "Türkçesini ekle" / "İngilizcesini ekle" for the missing one, and a way to
+ * take out again a language this draft added (one on the site stays).
+ */
+function sidesBar(ed: Editor): string {
+  if (ed.model.sides !== 'either') return '';
+  const has = ed.model.present ?? sidesOf(ed.model, ed.origin);
+  const text = has.length === 1 ? tk('admin.cms.sides.only', { lang: tk(`admin.cms.sides.lang.${has[0]}`) }) : tk('admin.cms.sides.both');
+  const buttons = ed.readOnly ? [] : [
+    ...(['en', 'tr'] as const).filter((l) => !has.includes(l)).map((l) => `<button type="button" data-side-add="${l}" class="${BTN.secondary}">${esc(tk(`admin.cms.sides.add.${l}`))}</button>`),
+    ...(has.length === 2 ? has.filter((l) => !onMain(ed, l)) : []).map((l) => `<button type="button" data-side-remove="${l}" class="${BTN.ghost}">${esc(tk(`admin.cms.sides.remove.${l}`))}</button>`),
+  ];
+  return `<div data-cms-sides class="lg:col-span-3 flex flex-wrap items-center gap-2 text-sm text-gray-600"><span class="min-w-0">${esc(text)}</span>${buttons.join('')}</div>`;
+}
+
+/** Adds or takes out a language: the form is redrawn with what it holds, on the new set of languages. */
+function changeSides(ed: Editor, l: 'en' | 'tr', add: boolean): void {
+  const values = currentValues(ed);
+  ed.origin = add ? withSide(ed.origin, l) : withoutSide(ed.origin, l);
+  // An added language's texts start empty; values both languages share come with it.
+  const shown = formValues(withSides(ed.model, ed.origin), applyValues(withSides(ed.model, ed.origin), ed.origin, values));
+  renderForm(ed, shown);
+  $<HTMLFormElement>('cmsForm')!.dispatchEvent(new Event('input'));
+  $('cmsFields')?.querySelector<HTMLElement>(add ? `[data-lang="${l}"]` : '[data-side-add]')?.focus();
 }
 
 /**
@@ -674,7 +722,7 @@ function renderBar(ed: Editor): void {
   if (approver && !ed.model.noDelete && !ed.draft && ed.entryId && !ed.readOnly) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
   const editable = !ed.readOnly;
   const live = ed.draft?.status === 'published'
-    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined), lang, sectionOf(ed.model.key, ed.draft.entry_id, ed.draft.data))}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
+    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined, ed.draft.data), lang, sectionOf(ed.model.key, ed.draft.entry_id, ed.draft.data))}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
   bar.innerHTML = `<div class="flex flex-wrap items-center gap-2">
       ${editable ? `<button type="button" id="cmsSave" class="${BTN.secondary}">${esc(tk('admin.cms.save'))}</button>
       <button type="button" id="cmsSubmit" class="${BTN.primary}">${esc(tk(ed.draft?.status === 'rejected' ? 'admin.cms.resubmit' : ed.draft?.status === 'pr_failed' ? 'admin.cms.retry' : 'admin.cms.submit'))}</button>` : ''}
@@ -713,7 +761,7 @@ async function loadOptionSources(model: TypeModel): Promise<void> {
 /** The form's model for this data: its fields (page texts) and its options (a level's domains), once. */
 function modelOf(model: TypeModel, base: unknown): TypeModel {
   const sources = Object.fromEntries(Object.entries(entries).map(([k, list]) => [k, (list ?? []).map((e) => ({ id: e.id, title: e.title }))]));
-  return withOptions(withFields(model, base), sources, base);
+  return withSides(withOptions(withFields(model, base), sources, base), base);
 }
 
 function newEditor(model: TypeModel, route: string, base: unknown, extra: Partial<Editor>): Editor {
@@ -865,6 +913,12 @@ function onFormClick(e: Event): void {
   const preview = target.closest<HTMLButtonElement>('[data-preview]');
   if (preview) { togglePreview(ed, preview); return; }
   if (ed.readOnly) return;
+  const side = target.closest<HTMLButtonElement>('[data-side-add], [data-side-remove]');
+  if (side) {
+    const l = (side.dataset.sideAdd ?? side.dataset.sideRemove) as 'en' | 'tr';
+    changeSides(ed, l, side.dataset.sideAdd !== undefined);
+    return;
+  }
   // Rows of an objects field, and lists inside them: changed on the page, in place.
   if (rowsClick(ed.model, target)) {
     // A button in a row's summary line must not also open or close the row.
@@ -892,7 +946,7 @@ function togglePreview(ed: Editor, button: HTMLButtonElement): void {
   if (!open) return;
   const f = ed.model.fields.find((x) => x.key === key)!;
   const v = readField(ed.model, f, button.closest('[data-field-wrap]')!) as { en: string; tr: string };
-  box.innerHTML = (['en', 'tr'] as const).map((l) => `<div class="min-w-0 rounded-lg border border-border p-3 text-sm text-navy [&_p]:mb-2 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5">
+  box.innerHTML = (ed.model.present ?? (['en', 'tr'] as const)).map((l) => `<div class="min-w-0 rounded-lg border border-border p-3 text-sm text-navy [&_p]:mb-2 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5">
     <p class="text-[11px] font-semibold uppercase text-gray-500">${l}</p>${previewHtml(renderBody(v[l]).html)}</div>`).join('');
 }
 
@@ -981,7 +1035,8 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
   await loadOptionSources(model);
   if (editor !== placeholder) return;
   if (!entryId) {
-    const base = emptyData(model);
+    // A post starts in the panel's language, dated today (Istanbul).
+    const base = emptyData(model, { lang, today: istanbulToday() });
     if (model.appendKey) {
       // A new roadmap stage: the number the server will give it, shown read-only (A11).
       const list = await loadEntries(model);

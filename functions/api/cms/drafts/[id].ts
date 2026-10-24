@@ -4,7 +4,7 @@ import { runGuardedWithAudit } from '../../../_lib/audit';
 import { loadCmsIndex, lpIdsElsewhere } from '../../../_lib/cms-api';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
-import { canTransition, checkSameId, filesFor, fixedKeysErrors, inOrderOf, newPaths, withServerKey, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { canTransition, checkSameId, droppedSides, filesFor, fixedKeysErrors, inOrderOf, newPaths, withServerKey, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 import { assignIds, lockedKeysErrors, type LpDraftData } from '../../../_lib/cms-lp';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
@@ -79,6 +79,9 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   } else {
     const renamed = checkSameId(type, entryId, v.data);
     if (renamed) return invalid(renamed);
+    // A language the entry has on main stays (sides: 'either').
+    const dropped = droppedSides(type, JSON.parse(row.base_shas) as Record<string, string | null>, v.data);
+    if (dropped) return invalid(dropped);
     // Against the stored draft, whose keys are main's (checked when it began).
     const keys = fixedKeysErrors(type, JSON.parse(row.data), v.data);
     if (keys) return invalid(keys);
@@ -91,7 +94,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
     if (type.format === 'markdown-pair') {
       const stored = JSON.parse(row.data) as PairData;
       const next = v.data as PairData;
-      for (const lang of ['en', 'tr'] as const) if (stored[lang]?.source !== undefined) next[lang].source = stored[lang].source;
+      for (const lang of ['en', 'tr'] as const) if (stored[lang]?.source !== undefined && next[lang]) next[lang].source = stored[lang].source;
     }
   }
   if (type.resourceIds) {

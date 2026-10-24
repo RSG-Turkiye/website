@@ -108,13 +108,17 @@ function imageField(f: FieldDef, v: unknown): string {
   </div>`;
 }
 
-function markdownField(f: FieldDef, v: Bi): string {
+function markdownField(f: FieldDef, v: Bi, langs: readonly ('en' | 'tr')[]): string {
   const side = (lang: 'en' | 'tr') => `<label class="flex flex-col gap-1 min-w-0">${langTag(lang)}
     <textarea ${attrs(f, lang)} aria-label="${aria(f, lang)}" rows="8" class="${INPUT} font-mono text-xs">${esc(v[lang])}</textarea></label>`;
-  return `<div class="${PAIR}">${side('en')}${side('tr')}</div>
+  return `<div class="${sides(langs)}">${langs.map(side).join('')}</div>
     <div class="mt-2"><button type="button" data-preview="${f.key}" aria-expanded="false" class="${BTN.ghost} px-0">${esc(t('admin.cms.preview.show' as never))}</button></div>
-    <div data-preview-box="${f.key}" class="hidden ${PAIR} mt-1"></div>`;
+    <div data-preview-box="${f.key}" class="hidden ${sides(langs)} mt-1"></div>`;
 }
+
+/** Both languages side by side, or one at the full width (a post in one language). */
+const sides = (langs: readonly ('en' | 'tr')[]) => (langs.length === 2 ? PAIR : 'grid grid-cols-1 gap-2');
+const BOTH = ['en', 'tr'] as const;
 
 /**
  * How a value is held (cms-diff's Mode): a JSON entry's; a pair type's
@@ -131,21 +135,24 @@ const rowMode = (mode: Mode): Mode => (mode === 'json' ? 'json' : 'pairRow');
  */
 const leafMode = (mode: Mode, f: FieldDef, v?: unknown): Mode => (mode === 'pairRow' ? (f.perLang || isSplit(v) ? 'pair' : 'json') : mode);
 
-/** The body of one field: its controls, for how its value is held. */
-function bodyOf(mode: Mode, f: FieldDef, v: unknown): string {
+/**
+ * The body of one field: its controls, for how its value is held. `langs`:
+ * the languages a pair type's entry has (a post may have one), each a column.
+ */
+function bodyOf(mode: Mode, f: FieldDef, v: unknown, langs: readonly ('en' | 'tr')[] = BOTH): string {
   if (f.kind === 'objects') return objectsList(rowMode(mode), f, Array.isArray(v) ? v as Row[] : []);
   const m = leafMode(mode, f, v);
   if (m === 'pair') {
     const b = v as Bi<unknown>;
-    if (f.kind === 'markdown') return markdownField(f, b as Bi);
+    if (f.kind === 'markdown') return markdownField(f, b as Bi, langs);
     if (sharedShowsOne(f, b)) {
       if (f.kind === 'strings') return stringsList(f, b.en as string[], 'both');
       if (f.kind === 'image') return imageField(f, b.en);
       return control(f, b.en, 'both');
     }
-    if (f.kind === 'strings') return `<div class="${PAIR}">${stringsList(f, b.en as string[], 'en')}${stringsList(f, b.tr as string[], 'tr')}</div>`;
-    if (f.kind === 'image') return `<p class="text-xs text-gray-500">${esc(t('admin.cms.image.split' as never))}</p><div class="${PAIR}">${control({ ...f, kind: 'text' }, b.en, 'en')}${control({ ...f, kind: 'text' }, b.tr, 'tr')}</div>`;
-    return `<div class="${PAIR}">${control(f, b.en, 'en')}${control(f, b.tr, 'tr')}</div>`;
+    if (f.kind === 'strings') return `<div class="${sides(langs)}">${langs.map((l) => stringsList(f, b[l] as string[], l)).join('')}</div>`;
+    if (f.kind === 'image') return `<p class="text-xs text-gray-500">${esc(t('admin.cms.image.split' as never))}</p><div class="${sides(langs)}">${langs.map((l) => control({ ...f, kind: 'text' }, b[l], l)).join('')}</div>`;
+    return `<div class="${sides(langs)}">${langs.map((l) => control(f, b[l], l)).join('')}</div>`;
   }
   switch (f.kind) {
     case 'bilingual': {
@@ -442,7 +449,7 @@ export function renderField(model: TypeModel, f: FieldDef, v: unknown, opts: { r
   return `<div data-field-wrap="${f.key}" class="flex flex-col gap-1 min-w-0 ${isShort(f) ? '' : 'lg:col-span-3'}">
     <p class="relative text-xs font-medium text-gray-600 [overflow-wrap:anywhere]">${esc(label)}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}</p>
     ${f.help ? `<p class="text-xs text-gray-500 -mt-0.5">${esc(tk(f.help))}</p>` : ''}
-    <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${bodyOf(modeOf(model), f, v)}</fieldset>
+    <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${bodyOf(modeOf(model), f, v, model.present ?? BOTH)}</fieldset>
     <p data-error="${f.key}" role="alert" class="hidden text-xs text-red"></p>
   </div>`;
 }

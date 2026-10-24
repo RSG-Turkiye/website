@@ -11,6 +11,7 @@ import type { CmsGroup } from "../../../functions/_lib/roles";
 import { eventSchema } from "../../data/events";
 import { workshopSchema } from "../../data/workshops";
 import { webinarSchema } from "../../data/webinars";
+import { blogSchema } from "../../data/blog";
 import { committeeSchema } from "../../data/committees";
 import { podcastSchema } from "../../data/podcast";
 import { resourceSchema } from "../../data/resources";
@@ -19,7 +20,7 @@ import { pageTextSchema } from "../../data/page-text";
 import { privacySchema } from "../../data/privacy-schema";
 import { checkId, slugify, stageId } from "./slug";
 
-export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap" | "pages" | "privacy";
+export type CmsTypeKey = "events" | "workshops" | "webinars" | "blog" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap" | "pages" | "privacy";
 
 /** What a type declares. The options after `label` have defaults (see defineType). */
 export interface CmsTypeSpec {
@@ -34,7 +35,8 @@ export interface CmsTypeSpec {
   schema: ZodType;
   /** The id (file name without extension) a new entry is saved under. JSON
    * types take the entry; Markdown types take `{ frontmatter }` of the
-   * English side. Runs only when an entry is created: an update keeps its
+   * English side (for `sides: 'either'`, of whichever side the entry has,
+   * English first). Runs only when an entry is created: an update keeps its
    * file name whatever the data says. Always a valid id (checkId); throws
    * otherwise. */
   idFrom: (data: any) => string;
@@ -185,6 +187,22 @@ export const CMS_TYPES: readonly CmsType[] = [
     // YAML may give a Date or a string; the list shows the day.
     indexDate: (fm: { date?: unknown }) => dateOf(fm.date),
     label: { en: "Webinars", tr: "Webinarlar" },
+  }),
+  defineType({
+    key: "blog",
+    group: "yazilar",
+    dir: "src/content/blog",
+    format: "markdown-pair",
+    schema: blogSchema,
+    // A post may be written in one language only, or both; a new one is
+    // named after the title of the side it has (English first), and the
+    // twin added later gets the same name (src/data/blog.ts).
+    sides: "either",
+    idFrom: (data: { frontmatter: { title?: string } }) => idFromText(data.frontmatter.title, "title"),
+    idField: "en.frontmatter.title",
+    indexTitle: (fm: { title?: unknown }) => (fm.title === undefined || fm.title === null ? undefined : String(fm.title)),
+    indexDate: (fm: { pubDate?: unknown }) => dateOf(fm.pubDate),
+    label: { en: "Posts", tr: "Yazılar" },
   }),
   defineType({
     key: "committees",

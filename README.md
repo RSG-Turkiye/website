@@ -996,6 +996,21 @@ A webinar that exists only in English is edited as a pair: the form shows an
 empty Turkish side, and the draft cannot be sent until it is filled in. The
 approved draft adds the Turkish file.
 
+### Blog posts
+
+İçerik › Yazılar › **Blog yazıları** (`#icerik/blog`) edits
+`src/content/blog/<lang>/<name>.md`. Unlike a webinar, a post may be in
+English only, Turkish only, or both. A new post starts in the panel's
+language, dated today, and its file name is the slug of its title (with
+`-2`, `-3` when the name is taken in either language, so a new post is never
+paired with an old one by accident). **Türkçesini ekle** / **İngilizcesini
+ekle** adds the other language; the approved draft then writes the second
+file under the same name. A language added in the draft can be taken out
+again before it is sent; one that is on the site cannot (delete the post to
+remove it). Images upload through the same endpoint as everywhere else in the
+panel and are served from `/api/images/`. In the data, a language a post
+does not have is `null` (the registry's `sides: 'either'`).
+
 ### Podcast episodes
 
 The podcast's episodes come from its RSS feed into `src/data/podcast.json`.

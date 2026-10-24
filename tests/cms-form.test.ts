@@ -14,7 +14,7 @@ import { DOUBLE_HYPHEN_MESSAGE, EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT
 import { ui } from '../src/i18n/ui';
 import { resourceSections } from '../src/data/resources';
 import {
-  MODELS, applyValues, emptyData, errorKey, failureKey, formValues, halfTranslated, isEmptyValue, livePath, messageKey, placeOf, sharedShowsOne,
+  MODELS, applyValues, emptyData, sidesOf, withSide, withSides, withoutSide, errorKey, failureKey, formValues, halfTranslated, isEmptyValue, livePath, messageKey, placeOf, sharedShowsOne,
   messageKeys, RESOURCE_SECTIONS, statusView, suggestedId, visibleFields, type Bi, type FieldDef, type TypeKey, type TypeModel,
 } from '../src/scripts/admin/cms-form';
 import { diffEntry, lineDiff, listDiff } from '../src/scripts/admin/cms-diff';
@@ -26,7 +26,7 @@ const WEBINARS = cmsType('webinars')!;
 
 function files(): Record<string, string> {
   const out: Record<string, string> = {};
-  const lp = ['lp-domains', 'lp-levels', 'lp-roadmap'].flatMap((d) => [`src/content/${d}/en`, `src/content/${d}/tr`]);
+  const lp = ['lp-domains', 'lp-levels', 'lp-roadmap', 'blog'].flatMap((d) => [`src/content/${d}/en`, `src/content/${d}/tr`]);
   for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees', 'src/content/resources', 'src/content/pages', 'src/content/privacy', ...lp]) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = read(`${dir}/${f}`);
   }
@@ -37,7 +37,7 @@ const INDEX = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
 const { EVENT_ID, EVENT_PATH, SAME_NAME_ID } = realFixtures(FILES, INDEX);
 /** A webinar pair as GET /api/cms/entry answers it (JSON round trip included). */
-const pair = (id: string, key: 'webinars' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' = 'webinars') => {
+const pair = (id: string, key: 'webinars' | 'blog' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' = 'webinars') => {
   const w = INDEX[key].find((e) => e.id === id)!;
   const side = (p: string | null | undefined) => (p ? parseMarkdown(cmsType(key)!, FILES[p]) : null);
   return JSON.parse(JSON.stringify({ en: side(w.paths?.en), tr: side(w.paths?.tr) }));
@@ -55,6 +55,7 @@ test('every registered type has a model, and the model mirrors the registry the 
     assert.equal(m.noDelete ?? false, type.noDelete, `${type.key} noDelete`);
     assert.equal(m.generated ?? false, type.generated, `${type.key} generated`);
     assert.equal(m.approve ?? 'group', type.approve, `${type.key} approve`);
+    assert.equal(m.sides ?? 'both', type.sides, `${type.key} sides`);
   }
 });
 
@@ -68,6 +69,7 @@ test('tab ids are unique, safe for the address, and the old Etkinlikler ones are
   assert.equal(MODELS.events.sub, 'etkinlikler');
   assert.equal(MODELS.workshops.sub, 'atolyeler');
   assert.equal(MODELS.webinars.sub, 'webinarlar');
+  assert.equal(MODELS.blog.sub, 'blog');
 });
 
 type JS = { type?: string; properties?: Record<string, JS>; items?: JS; enum?: string[]; additionalProperties?: unknown };
@@ -1080,6 +1082,14 @@ test('house rules match what CI rejects: em dash and spaced -- anywhere (code to
   // In code it stays two hyphens.
   assert.deepEqual(body('Run nextflow with `--profile docker`\n\n```\nx --y\n```\n\n    z --w\n'), {});
   assert.deepEqual(body('A table\n\n| a | b |\n| --- | --- |\n\n---\n\n<!-- note -->\n'), {});
+  // Smartypants turns exactly two hyphens into a dash, never a longer run:
+  // `a --- b` and an escaped `\-----` rule stay hyphens on the page.
+  assert.deepEqual(body('a --- b, a ---- b\n\n**\\-----------**\n'), {});
+  assert.equal(body('x --> y')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('--flag at the start')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('a ---- b and c--d')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  // A fenced line indented by one space is still code.
+  assert.deepEqual(body('```\n (base) $ conda config --set x\n```\n'), {});
   assert.equal(messageKey(DOUBLE_HYPHEN_MESSAGE), 'admin.cms.v.doubleHyphen');
   assert.match(ui.tr['admin.cms.v.doubleHyphen'], /ters tırnak/);
   assert.match(ui.en['admin.cms.v.doubleHyphen'], /backticks/);
@@ -1482,4 +1492,113 @@ test('privacy: server errors land on their field and language; the parity senten
   const msg = parity.error.issues.find((i) => i.path.join('.') === 'tr.intro')?.message ?? '';
   assert.equal(messageKey(msg), 'admin.cms.v.privacyParity');
   assert.equal(messageKey(NO_AT_MESSAGE), 'admin.cms.v.noAt');
+});
+
+// ── Blog posts (Yazılar): one language or both ───────────────────────────────
+
+const BLOG = MODELS.blog;
+const BLOG_TYPE = cmsType('blog')!;
+/** A synthetic post side (A2). */
+const postSide = (lang: 'en' | 'tr', o: Record<string, unknown> = {}) => ({
+  frontmatter: { title: lang === 'en' ? 'A post' : 'Bir yazı', pubDate: '2026-01-05', description: `${lang} d`, author: 'An Author', category: 'general', tags: [lang === 'en' ? 'genomics' : 'genomik'], image: '/api/images/a.webp', ...o },
+  body: `\n${lang} body\n`,
+});
+
+test('blog: every published post, one language or both, goes through the form and back unchanged', () => {
+  assert.ok(INDEX.blog.length > 0);
+  let single = 0;
+  for (const e of INDEX.blog) {
+    const data = pair(e.id, 'blog');
+    if (!data.en || !data.tr) single++;
+    const model = withSides(BLOG, data);
+    assert.deepEqual(applyValues(model, data, formValues(model, data)), data, e.id);
+    assert.deepEqual(applyValues(BLOG, data, formValues(BLOG, data)), data, `${e.id} (no present)`);
+  }
+  assert.ok(single > 0, 'some posts are in one language only');
+});
+
+test('blog: the form groups, as the brief lists them', () => {
+  assert.deepEqual(BLOG.fields.filter((f) => f.group === 'main').map((f) => f.key), ['title', 'description', 'pubDate', 'author', 'category', 'tags', 'image', 'body']);
+  assert.deepEqual(BLOG.fields.filter((f) => f.group === 'more').map((f) => f.key), ['type', 'youtubeUrl', 'speaker', 'speakerAffiliation', 'speakerTitle', 'topic', 'keyTakeaways', 'slidesUrl', 'draft']);
+  assert.equal(BLOG.fields.find((f) => f.key === 'pubDate')!.today, true);
+});
+
+test('blog: a new post starts in one language with today\'s date; the other is null, never an empty side', () => {
+  assert.deepEqual(emptyData(BLOG, { lang: 'tr', today: '2026-10-25' }), { en: null, tr: { frontmatter: { pubDate: '2026-10-25' }, body: '' } });
+  assert.deepEqual(emptyData(BLOG, { today: '2026-10-25' }), { en: { frontmatter: { pubDate: '2026-10-25' }, body: '' }, tr: null });
+  // Other pair types are unchanged.
+  assert.deepEqual(emptyData(MODELS.webinars), { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } });
+  assert.deepEqual(sidesOf(BLOG, { en: null, tr: postSide('tr') }), ['tr']);
+  assert.deepEqual(sidesOf(MODELS.webinars, { en: null, tr: postSide('tr') }), ['en', 'tr']);
+});
+
+test('blog: a post in one language writes only that language; the other stays null', () => {
+  const data = { en: null, tr: postSide('tr') };
+  const model = withSides(BLOG, data);
+  assert.deepEqual(model.present, ['tr']);
+  const values = formValues(model, data);
+  // A shared value reads as one (the other side takes the present one's), texts of the absent side are empty.
+  assert.ok(sharedShowsOne(BLOG.fields.find((f) => f.key === 'category')!, values.category as Bi<unknown>));
+  assert.deepEqual(values.title, { en: '', tr: 'Bir yazı' });
+  const out = applyValues(model, data, { ...values, title: { en: 'ignored', tr: 'Yeni başlık' } }) as any;
+  assert.equal(out.en, null, 'the absent language gets nothing, whatever the form holds for it');
+  assert.equal(out.tr.frontmatter.title, 'Yeni başlık');
+  // Not half translated: there is no second language.
+  assert.deepEqual(halfTranslated(model, { ...values, tags: { en: [], tr: ['x'] } }), []);
+  // Its file name comes from the title it has.
+  assert.equal(suggestedId(model, { title: { en: '', tr: 'Yeni Bir Yazı' } }), 'yeni-bir-yazi');
+  assert.equal(suggestedId(withSides(BLOG, { en: postSide('en'), tr: postSide('tr') }), { title: { en: 'A Post', tr: 'Bir Yazı' } }), 'a-post');
+});
+
+test('blog: adding the other language starts it empty with the shared values; taking it out again leaves null', () => {
+  const data = { en: postSide('en'), tr: null };
+  const values = formValues(withSides(BLOG, data), data);
+  const added = withSide(data, 'tr') as any;
+  assert.deepEqual(added.tr, { frontmatter: {}, body: '' });
+  assert.equal(data.tr, null, 'the input is not changed');
+  const model = withSides(BLOG, added);
+  assert.deepEqual(model.present, ['en', 'tr']);
+  // The form's values as they stand (shared ones are one value for both).
+  const out = applyValues(model, added, { ...values, title: { en: 'A post', tr: 'Bir yazı' }, description: { en: 'en d', tr: 'tr d' }, body: { en: (values.body as Bi).en, tr: 'Türkçe' } }) as any;
+  assert.equal(out.tr.frontmatter.category, 'general');
+  assert.equal(out.tr.frontmatter.pubDate, '2026-01-05');
+  assert.equal(out.tr.frontmatter.image, '/api/images/a.webp');
+  assert.equal(out.tr.frontmatter.title, 'Bir yazı');
+  assert.equal(out.tr.body, 'Türkçe');
+  assert.deepEqual(out.en, data.en, 'the English side is untouched');
+  // Now half translated is a warning again: two languages.
+  assert.ok(halfTranslated(model, { ...formValues(model, out), tags: { en: ['a'], tr: [] } }).length > 0);
+  // A translationKey the other side has goes with it (the two must agree).
+  assert.equal((withSide({ en: postSide('en', { translationKey: 'k' }), tr: null }, 'tr') as any).tr.frontmatter.translationKey, 'k');
+  assert.deepEqual(withoutSide(out, 'tr'), { en: out.en, tr: null });
+});
+
+test('blog: a rebase keeps a language the site gained, and one the draft added', () => {
+  // The form shows English only; the site meanwhile has a Turkish side too.
+  const fresh = { en: postSide('en'), tr: postSide('tr') };
+  const shown = withSides(BLOG, { en: postSide('en'), tr: null });
+  const values = formValues(shown, { en: postSide('en'), tr: null });
+  const out = applyValues(shown, fresh, { ...values, title: { en: 'Edited', tr: '' } }) as any;
+  assert.equal(out.en.frontmatter.title, 'Edited');
+  assert.deepEqual(out.tr, fresh.tr, 'the Turkish side the form never showed is kept, not emptied');
+  // The draft added Turkish; the site still has English only.
+  const both = withSides(BLOG, { en: postSide('en'), tr: postSide('tr') });
+  const kept = applyValues(both, { en: postSide('en'), tr: null }, formValues(both, { en: postSide('en'), tr: postSide('tr') })) as any;
+  assert.equal(kept.tr.frontmatter.title, 'Bir yazı');
+});
+
+test('blog: the live link opens the language the post has', () => {
+  const en = 'src/content/blog/en/a-post.md';
+  const tr = 'src/content/blog/tr/bir-yazi.md';
+  assert.equal(livePath('blog', 'a-post', [en, tr], 'tr'), '/tr/blog/bir-yazi/');
+  assert.equal(livePath('blog', 'a-post', [en, tr], 'en'), '/blog/a-post/');
+  assert.equal(livePath('blog', 'a-post', [en], 'tr'), '/blog/a-post/');
+  assert.equal(livePath('blog', 'bir-yazi', [tr], 'en'), '/tr/blog/bir-yazi/');
+});
+
+test('blog: an error on a Turkish-only post\'s title lands on the Turkish title', () => {
+  assert.deepEqual(placeOf(BLOG, 'tr.frontmatter.title'), { key: 'title', lang: 'tr' });
+  assert.equal(messageKey('Write the entry in English, Turkish or both'), 'admin.cms.v.oneSide');
+  assert.equal(messageKey('Published in this language: it cannot be removed in a draft. Delete the entry to remove it'), 'admin.cms.v.sideKept');
+  assert.equal(BLOG_TYPE.sides, 'either');
 });

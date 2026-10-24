@@ -7,6 +7,7 @@ import {
 } from '../src/lib/cms/serialize';
 import { jsonSchemaFor } from '../src/lib/cms/json-schema';
 import { webinarSchema } from '../src/data/webinars';
+import { blogSchema } from '../src/data/blog';
 import { eventSchema } from '../src/data/events';
 import { workshopSchema } from '../src/data/workshops';
 
@@ -25,7 +26,7 @@ const WEBINAR_FILES = [
 ];
 
 test('the registry lists its types, each in its group, and every dir exists', () => {
-  assert.deepEqual(CMS_TYPES.map((t) => `${t.group}/${t.key}`), ['etkinlikler/events', 'etkinlikler/workshops', 'etkinlikler/webinars', 'topluluk/committees', 'topluluk/podcast', 'ogrenme/resources', 'ogrenme/lp-domains', 'ogrenme/lp-levels', 'ogrenme/lp-roadmap', 'sayfalar/pages', 'sayfalar/privacy']);
+  assert.deepEqual(CMS_TYPES.map((t) => `${t.group}/${t.key}`), ['etkinlikler/events', 'etkinlikler/workshops', 'etkinlikler/webinars', 'yazilar/blog', 'topluluk/committees', 'topluluk/podcast', 'ogrenme/resources', 'ogrenme/lp-domains', 'ogrenme/lp-levels', 'ogrenme/lp-roadmap', 'sayfalar/pages', 'sayfalar/privacy']);
   for (const t of CMS_TYPES) {
     assert.ok(existsSync(ROOT + t.dir), t.dir);
     assert.ok(t.label.en && t.label.tr);
@@ -39,7 +40,7 @@ test('the registry lists its types, each in its group, and every dir exists', ()
 });
 
 test('cmsType answers null for anything not in the registry', () => {
-  assert.equal(cmsType('blog'), null);
+  assert.equal(cmsType('blog-submissions'), null);
   assert.equal(cmsType('constructor'), null);
   assert.equal(cmsType(''), null);
 });
@@ -90,6 +91,23 @@ test('every existing webinar file survives parse then serialize byte for byte', 
   for (const f of WEBINAR_FILES) {
     const text = read(f);
     assert.equal(serializeMarkdown(webinars, parseMarkdown(webinars, text)), text, f);
+  }
+});
+
+const blog = cmsType('blog')!;
+const BLOG_FILES = [...files('src/content/blog/en', '.md'), ...files('src/content/blog/tr', '.md')];
+
+test('every blog post survives parse then serialize byte for byte, passes its schema, and one edit changes one line', () => {
+  assert.ok(BLOG_FILES.length > 0);
+  for (const f of BLOG_FILES) {
+    const text = read(f);
+    const parsed = parseMarkdown(blog, text);
+    assert.equal(serializeMarkdown(blog, parsed), text, f);
+    const r = blogSchema.safeParse(parsed.frontmatter);
+    assert.ok(r.success, `${f}: ${r.success ? '' : r.error.message}`);
+    const lineOf = text.split('\n').findIndex((l) => l.startsWith('description:'));
+    const out = serializeMarkdown(blog, { ...parsed, frontmatter: { ...parsed.frontmatter, description: 'Edited.' } });
+    assert.deepEqual(changedLines(text, out), [lineOf], f);
   }
 });
 
