@@ -1211,6 +1211,8 @@ Curated resource paths organised by domain and experience level. All content is 
 
 **Resource ids:** every resource has an `id`. It is the key under which members' progress is saved, so never change or reuse one; reorder, add and delete freely. `tests/lp-resource-ids.test.ts` checks this.
 
+**In the panel:** domains, levels and roadmap stages are edited in İçerik › Öğrenme (tabs Öğrenme alanları, Öğrenme seviyeleri, Yol haritası). A new resource card gets its id from the server when it is saved (the slug of its English title and 6 random hex digits); nobody types one. At submit and approval the server refuses an id that is not the entry's own or newly given, a resource missing or moved in one language only, and a shared field (kind, link, webinar fields) that differs between the languages; a Turkish link to this site may add `/tr`. A level's domain and level, and a stage's number, are fixed once it exists; a new stage is numbered after the last one. Hand edits in a PR still work: run `npm run cms:normalize` after one.
+
 **Levels:** explorer → practitioner → researcher → specialist
 
 **Routes:**
