@@ -41,12 +41,16 @@ export async function cmsGate(request: Request, env: Env, mutating: boolean): Pr
 
 export const rightsIn = (rights: GroupRights, group: CmsGroup) => rights[group] ?? { edit: false, approve: false };
 
-/** An approver of the group may act on any draft in it; an editor on their own. */
-export function mayEdit(gate: { user: User; rights: GroupRights }, row: Pick<DraftRow, 'type' | 'author_id'>): boolean {
+/**
+ * Who may open, save, send or discard a draft: its author while they edit
+ * the group, and whoever approves its type (approvesType). For an
+ * `approve: 'admin'` type (the privacy notice) that is an admin: the
+ * group's approvers act only on their own drafts of it, like its editors.
+ */
+export function mayEdit(gate: { user: Pick<User, 'id' | 'is_admin'>; rights: GroupRights }, row: Pick<DraftRow, 'type' | 'author_id'>): boolean {
   const type = cmsType(row.type);
   if (!type) return false;
-  const r = rightsIn(gate.rights, type.group);
-  return r.approve || (r.edit && row.author_id === gate.user.id);
+  return approvesType(gate, type) || (rightsIn(gate.rights, type.group).edit && row.author_id === gate.user.id);
 }
 
 /**

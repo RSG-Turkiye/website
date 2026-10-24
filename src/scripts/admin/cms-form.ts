@@ -18,7 +18,7 @@ import { checkId, slugify } from '../../lib/cms/slug';
 import { resourceId, resourceIdsOf, resourcesOf, sideFrontmatter } from '../../lib/cms/lp-resources';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
-export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap';
+export type TypeKey = 'events' | 'workshops' | 'webinars' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' | 'pages' | 'privacy';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
   | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
@@ -45,7 +45,7 @@ export interface FieldDef {
   trFallback?: boolean;
   /** A list written even when empty (`[]`), so a new file has every key. */
   always?: boolean;
-  /** bilingual: two text areas instead of two lines. */
+  /** bilingual: two text areas instead of two lines; strings: each item a text area (a paragraph). */
   multiline?: boolean;
   /** image: an object with thumb, full and alt (events), or a plain URL (webinars). */
   image?: 'object' | 'url';
@@ -151,6 +151,14 @@ export interface TypeModel {
   titleField?: string;
   /** The editor's heading, where no one field is the title (a level: its domain and level). */
   heading?: (values: Values) => string;
+  /**
+   * A JSON entry whose two languages are its `en` and `tr` keys, each the
+   * same object (the privacy notice). The form treats it as a pair type:
+   * `data.en` and `data.tr` are the two sides, fields are per side
+   * (perLang) and rows are matched across them by position. Other
+   * top-level keys (the notice's `updated`) pass through untouched.
+   */
+  langSides?: boolean;
   /** The registry's resourceIds: learning-path cards whose ids are progress keys (rule 8). */
   resourceIds?: boolean;
   /** The registry's appendKey: a new entry's number, the highest + 1 (a roadmap stage). */
@@ -393,9 +401,60 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     ],
     hidden: { body: LP_NO_BODY },
   },
+  pages: {
+    // The hand-written text of one page (src/content/pages/<page>.json):
+    // one bilingual text per key, labelled with the key, in the file's
+    // order. Values only: the page looks its keys up (A7).
+    key: 'pages', format: 'json', sub: 'sayfa-metinleri', group: 'sayfalar', idField: '', label: 'admin.cms.type.pages',
+    noCreate: true, noDelete: true,
+    fields: [],
+    fieldsFor: (data) => (isObj(data) ? Object.keys(data) : [])
+      .map((key): FieldDef => ({ key, kind: 'bilingual', multiline: true, label: key, group: 'main', required: true })),
+    hidden: {},
+  },
+  privacy: {
+    // The privacy notice: one file, the two languages side by side. Only an
+    // admin approves it; the date it shows is set at approval (A8).
+    key: 'privacy', format: 'json', langSides: true, sub: 'gizlilik', group: 'sayfalar', idField: 'en.title', label: 'admin.cms.type.privacy',
+    noCreate: true, noDelete: true, approve: 'admin',
+    fields: [
+      { key: 'title', kind: 'text', perLang: true, label: 'admin.cms.f.title', group: 'main', required: true },
+      { key: 'description', kind: 'textarea', perLang: true, label: 'admin.cms.f.description', help: 'admin.cms.h.privacyDescription', group: 'main', required: true },
+      { key: 'intro', kind: 'strings', perLang: true, multiline: true, label: 'admin.cms.f.privacyIntro', help: 'admin.cms.h.privacyContact', group: 'main', required: true, always: true },
+      {
+        // The schema's order: heading, paragraphs, items. A section is
+        // paragraphs, a list, or both; both keys are always written.
+        key: 'sections', kind: 'objects', label: 'admin.cms.f.privacySections', help: 'admin.cms.h.privacySections', group: 'main', required: true, always: true,
+        rowName: 'admin.cms.rows.section', rowLabel: (r, l) => { const h = r.heading as Bi | undefined; return str(h?.[l]).trim() || str(h?.[l === 'en' ? 'tr' : 'en']).trim(); },
+        fields: [
+          { key: 'heading', kind: 'text', perLang: true, label: 'admin.cms.f.heading', group: 'main', required: true },
+          { key: 'paragraphs', kind: 'strings', perLang: true, multiline: true, label: 'admin.cms.f.paragraphs', group: 'main', always: true },
+          { key: 'items', kind: 'strings', perLang: true, multiline: true, label: 'admin.cms.f.listItems', help: 'admin.cms.h.listItems', group: 'main', always: true },
+        ],
+      },
+    ],
+    hidden: { updated: 'the day the change is approved, set by the server (A8)' },
+  },
 };
 
-export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast', 'resources', 'lp-domains', 'lp-levels', 'lp-roadmap'];
+export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'committees', 'podcast', 'resources', 'lp-domains', 'lp-levels', 'lp-roadmap', 'pages', 'privacy'];
+
+/** Whether the form holds a value per language for each field (a pair type, or a JSON entry with langSides). */
+export const pairForm = (model: Pick<TypeModel, 'format' | 'langSides'>): boolean => model.format === 'markdown-pair' || model.langSides === true;
+
+/** A langSides entry as the pair the form works on: its `en` and `tr` are the two sides' frontmatter. */
+function asPair(data: unknown): { en: { frontmatter: Obj; body: string }; tr: { frontmatter: Obj; body: string } } {
+  const half = (lang: 'en' | 'tr') => (isObj(data) && isObj(data[lang]) ? data[lang] as Obj : {});
+  return { en: { frontmatter: half('en'), body: '' }, tr: { frontmatter: half('tr'), body: '' } };
+}
+
+/** The pair the form wrote, back into the entry `base`: its other keys, and their order, as they were. */
+function fromPair(pair: { en: { frontmatter: Obj }; tr: { frontmatter: Obj } }, base: unknown): Obj {
+  const out = (isObj(base) ? clone(base) : {}) as Obj;
+  out.en = pair.en.frontmatter;
+  out.tr = pair.tr.frontmatter;
+  return out;
+}
 /**
  * Models a browser check adds (tests/browser/cms-rows.mjs), so a draft of a
  * synthetic type opens in the real editor before any real type has rows.
@@ -560,7 +619,12 @@ function writeOne(f: FieldDef, into: Obj, v: unknown): void {
       into[f.key] = s !== '' && Number.isFinite(n) ? n : s;
       return;
     }
-    case 'bilingual': into[f.key] = { en: str((v as Bi).en), tr: str((v as Bi).tr) }; return;
+    case 'bilingual': {
+      const next = { en: str((v as Bi).en), tr: str((v as Bi).tr) };
+      // Unchanged: as it was, key order included.
+      if (!(had && sameData(into[f.key], next))) into[f.key] = next;
+      return;
+    }
     case 'strings': into[f.key] = (v as string[]).map(str); return;
     case 'bilingualStrings': {
       const next = { en: strs((v as Bi<unknown>)?.en), tr: strs((v as Bi<unknown>)?.tr) };
@@ -678,6 +742,7 @@ function side(data: unknown, lang: 'en' | 'tr'): { frontmatter: Obj; body: strin
 
 /** The data a form for a new entry starts from. */
 export function emptyData(model: TypeModel): unknown {
+  if (model.langSides) return { en: {}, tr: {} };
   return model.format === 'json' ? {} : { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } };
 }
 
@@ -688,13 +753,14 @@ export function emptyData(model: TypeModel): unknown {
  */
 export function formValues(model: TypeModel, data: unknown): Values {
   const out: Values = {};
-  if (model.format === 'json') {
+  if (!pairForm(model)) {
     const d = isObj(data) ? data : {};
     for (const f of model.fields) out[f.key] = readOne(f, d[f.key]);
     return out;
   }
-  const en = side(data, 'en');
-  const tr = side(data, 'tr');
+  const pairData = model.langSides ? asPair(data) : data;
+  const en = side(pairData, 'en');
+  const tr = side(pairData, 'tr');
   for (const f of model.fields) {
     out[f.key] = f.kind === 'markdown' ? { en: en.body, tr: tr.body }
       : f.kind === 'objects' ? readPairRows(f, en.frontmatter[f.key], tr.frontmatter[f.key])
@@ -713,7 +779,7 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
   // A list nobody touched is left exactly as the file has it.
   const before = model.fields.some((f) => f.kind === 'objects' || f.kind === 'bilingualStrings') ? formValues(model, base) : {};
   const untouched = (f: FieldDef) => (f.kind === 'objects' || f.kind === 'bilingualStrings') && same(values[f.key], before[f.key]);
-  if (model.format === 'json') {
+  if (!pairForm(model)) {
     const out = (isObj(base) ? clone(base) : {}) as Obj;
     // A required list the entry lacks is written even untouched (writeOne).
     const untouchedHere = (f: FieldDef) => untouched(f) && !(f.required && f.kind === 'bilingualStrings' && !Object.hasOwn(out, f.key));
@@ -723,7 +789,8 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
     }
     return out;
   }
-  const out = { en: clone(side(base, 'en')), tr: clone(side(base, 'tr')) };
+  const pairBase = model.langSides ? asPair(base) : base;
+  const out = { en: clone(side(pairBase, 'en')), tr: clone(side(pairBase, 'tr')) };
   for (const f of model.fields) {
     // Plain `untouched`, not the JSON branch's `untouchedHere`: that exception
     // is for a required bilingualStrings field, a JSON-only kind (a pair's
@@ -755,7 +822,7 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
       if (y && fm.year !== Number(y[1])) fm.year = Number(y[1]);
     }
   }
-  return out;
+  return model.langSides ? fromPair(out, base) : out;
 }
 
 /**
@@ -767,18 +834,19 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
  */
 export function withFieldFrom(model: TypeModel, origin: unknown, other: unknown, key: string): unknown {
   const put = (into: Obj, from: Obj, k: string) => { if (Object.hasOwn(from, k)) into[k] = clone(from[k]); else delete into[k]; };
-  if (model.format === 'json') {
+  if (!pairForm(model)) {
     const out = (isObj(origin) ? clone(origin) : {}) as Obj;
     put(out, isObj(other) ? other : {}, key);
     return out;
   }
-  const out = { en: clone(side(origin, 'en')), tr: clone(side(origin, 'tr')) };
+  const view = (d: unknown) => (model.langSides ? asPair(d) : d);
+  const out = { en: clone(side(view(origin), 'en')), tr: clone(side(view(origin), 'tr')) };
   for (const lang of ['en', 'tr'] as const) {
-    const from = side(other, lang);
+    const from = side(view(other), lang);
     if (key === 'body' && model.fields.find((f) => f.key === key)?.kind === 'markdown') out[lang].body = from.body;
     else put(out[lang].frontmatter, from.frontmatter, key);
   }
-  return out;
+  return model.langSides ? fromPair(out, origin) : out;
 }
 
 /** Deep equality of plain JSON values. */
@@ -933,7 +1001,7 @@ export interface Half { key: string; label: string; sub?: string; trail?: RowSte
 /** Labels (i18n keys plus a suffix) of texts filled in one language and empty in the other. */
 export function halfTranslated(model: TypeModel, values: Values): Half[] {
   const out: Half[] = [];
-  const pair = model.format === 'markdown-pair';
+  const pair = pairForm(model);
   for (const f of model.fields) {
     const v = values[f.key];
     // A required text half-filled is a field error at submit, not a warning.
@@ -988,10 +1056,12 @@ export interface ErrorPlace { key: string | null; lang?: 'en' | 'tr'; row?: numb
  * → sections, rows 0 and 2, leaf title, en.
  */
 export function placeOf(model: TypeModel, path: string): ErrorPlace {
-  const parts = path.split('.').filter((p) => p !== '');
+  let parts = path.split('.').filter((p) => p !== '');
+  // A langSides entry's `en.intro.0` is a pair's `en.frontmatter.intro.0`.
+  if (model.langSides && (parts[0] === 'en' || parts[0] === 'tr')) parts = [parts[0], 'frontmatter', ...parts.slice(1)];
   let lang: 'en' | 'tr' | undefined;
   let rest = parts;
-  if (model.format === 'markdown-pair') {
+  if (pairForm(model)) {
     lang = parts[0] === 'en' || parts[0] === 'tr' ? parts[0] : undefined;
     if (parts[1] === 'body') return { key: 'body', lang };
     if (parts[1] !== 'frontmatter' || !parts[2]) return { key: null, lang };
@@ -1084,6 +1154,7 @@ export function messageKey(message: string): string {
   if (/^A new id may not start with tr-/.test(m)) return 'admin.cms.v.lpIdTr';
   if (/same resources in the same order/.test(m)) return 'admin.cms.v.lpOrder';
   if (/^Must be the same as in English/.test(m)) return 'admin.cms.v.lpShared';
+  if (/^The Turkish notice must have as many/.test(m)) return 'admin.cms.v.privacyParity';
   if (/^Not a published domain/.test(m)) return 'admin.cms.v.lpDomain';
   if (/^Choose the domain and the level/.test(m)) return 'admin.cms.v.required';
   return 'admin.cms.v.invalid';
@@ -1177,6 +1248,9 @@ export function livePath(typeKey: string, entryId: string, paths: string[], lang
   // Every committee is a card on the about page (no anchor there to land on).
   if (typeKey === 'committees') return `${prefix}/about/`;
   if (typeKey === 'podcast') return `${prefix}/podcast/`;
+  if (typeKey === 'privacy') return `${prefix}/privacy/`;
+  // A page's texts are its file (src/content/pages/<page>.json); home is the front page.
+  if (typeKey === 'pages') return entryId === 'home' ? `${prefix}/` : `${prefix}/${entryId}/`;
   if (typeKey === 'lp-domains') return `${prefix}/learning-paths/${entryId}/`;
   if (typeKey === 'lp-levels') {
     // <domain>-<level>: the domain's page, opened at that level.

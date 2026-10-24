@@ -31,7 +31,7 @@ import { refreshCounts, noteAddress } from '../shell';
 import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
   applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKeys, modelFor, modelForSub,
-  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, rebased, removedResourceIds, sameSave, MODELS,
+  pairForm, placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, rebased, removedResourceIds, sameSave, MODELS,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
@@ -42,7 +42,8 @@ import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll,
 const SECTION = '#icerik';
 const PAGE = 20;
 const AUTOSAVE_MS = 20_000;
-const tk = (k: string, vars?: Record<string, string | number>) => (vars ? tf(k as never, vars) : t(k as never)) as string;
+// A label that is not an i18n key is shown as it is: a page text's key (cms-form's pages model).
+const tk = (k: string, vars?: Record<string, string | number>) => ((vars ? tf(k as never, vars) : t(k as never)) as string | undefined) ?? k;
 const esc = (v: unknown) => escapeHtml(String(v ?? ''));
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T | null;
 
@@ -776,7 +777,7 @@ function drawCompare(ed: Editor, box: HTMLElement, o: {
     const otherData = o.other();
     const other = formValues(ed.model, otherData);
     const fields = fieldsFor(ed.model).filter((f) => !f.readOnly && !f.approverOnly && !same(other[f.key], form[f.key]));
-    const text = (f: FieldDef, v: unknown) => esc(f.kind === 'objects' ? showIn('json', f, v) : show(f, ed.model.format === 'markdown-pair' ? pairText(v) : v));
+    const text = (f: FieldDef, v: unknown) => esc(f.kind === 'objects' ? showIn('json', f, v) : show(f, pairForm(ed.model) ? pairText(v) : v));
     box.innerHTML = `<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 lg:p-3">
       <p class="text-sm font-semibold text-amber-900">${esc(o.title)}</p>
       ${o.sub ? `<p class="text-xs text-amber-800 mt-0.5 break-all">${esc(o.sub)}</p>` : ''}
@@ -874,10 +875,10 @@ function onFormClick(e: Event): void {
   const wrap = target.closest<HTMLElement>('[data-field-wrap]');
   const f = wrap ? ed.model.fields.find((x) => x.key === wrap.dataset.fieldWrap) : undefined;
   if (!wrap || !f || f.kind === 'objects') return;
-  const next = listEdit(ed.model.format === 'json' ? 'json' : 'pair', f, readField(ed.model, f, wrap), target);
+  const next = listEdit(pairForm(ed.model) ? 'pair' : 'json', f, readField(ed.model, f, wrap), target);
   if (next !== undefined) redraw(ed, f, next);
   else if (target.closest('[data-image-remove]')) {
-    redraw(ed, f, ed.model.format === 'markdown-pair' ? { en: '', tr: '' } : f.image === 'url' ? '' : null);
+    redraw(ed, f, pairForm(ed.model) ? { en: '', tr: '' } : f.image === 'url' ? '' : null);
   }
 }
 
@@ -913,7 +914,7 @@ async function onImageFile(input: HTMLInputElement): Promise<void> {
       if (editor !== ed) return;
       const wrap = $('cmsFields')!.querySelector(`[data-field-wrap="${f.key}"]`)!;
       const before = readField(ed.model, f, wrap);
-      if (ed.model.format === 'markdown-pair') redraw(ed, f, { en: url, tr: url });
+      if (pairForm(ed.model)) redraw(ed, f, { en: url, tr: url });
       else if (f.image === 'url') redraw(ed, f, url);
       // One upload for both sizes in this release: the card and the click show the same file.
       else redraw(ed, f, { ...(before as ImageObject | null ?? { alt: { en: '', tr: '' } }), thumb: url, full: url, alt: (before as ImageObject | null)?.alt ?? { en: '', tr: '' } });

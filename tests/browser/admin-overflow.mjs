@@ -154,7 +154,13 @@ const LP_STAGE = JSON.parse(JSON.stringify({ en: { frontmatter: LP_STAGE_SIDE('e
 const LP_DOMAIN_SIDE = () => ({ name: long, emoji: '🧬', tagline: long, order: 1, goDeeper: [{ title: long, description: long, url: 'https://example.org/' + long }] });
 const LP_DOMAIN = { en: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' }, tr: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' } };
 const lpPaths = (dir, id) => ({ en: `src/content/${dir}/en/${id}.md`, tr: `src/content/${dir}/tr/${id}.md` });
+/** Page texts with a long key and long values; a privacy notice whose texts are long: they must wrap. */
+const CMS_PAGE = { [long.slice(0, 60).toLowerCase().replace(/[^a-z0-9]+/g, '_')]: { en: long + long, tr: long }, short: { en: long, tr: long } };
+const PRIV_SIDE = () => ({ title: long, description: long, intro: [long + long, long], sections: [{ heading: long, paragraphs: [long + long], items: [long, long + long] }, { heading: long, paragraphs: [], items: [long] }] });
+const CMS_PRIVACY = { updated: '2026-10-23', en: PRIV_SIDE(), tr: PRIV_SIDE() };
 const CMS_ENTRIES = {
+  pages: [{ id: 'about', title: 'about', shas: {} }],
+  privacy: [{ id: 'privacy', title: long, date: '2026-10-23', shas: {} }],
   resources: [{ id: 'example', title: long, section: 'md-drug', shas: {} }],
   'lp-domains': [{ id: 'example', title: long, paths: lpPaths('lp-domains', 'example'), shas: {} }],
   'lp-levels': [{ id: 'example-explorer', title: long, paths: lpPaths('lp-levels', 'example-explorer'), shas: {} }],
@@ -192,7 +198,7 @@ async function open(path, viewport, user = ADMIN) {
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
     // An admin approves every type (approve per type: functions/api/cms/types.ts).
-    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme'], ['lp-domains', 'ogrenme'], ['lp-levels', 'ogrenme'], ['lp-roadmap', 'ogrenme']].map(([key, group]) => ({ key, group, canApprove: true })) });
+    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme'], ['lp-domains', 'ogrenme'], ['lp-levels', 'ogrenme'], ['lp-roadmap', 'ogrenme'], ['pages', 'sayfalar'], ['privacy', 'sayfalar']].map(([key, group]) => ({ key, group, canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'podcast') return json({ data: CMS_PODCAST, base_shas: { 'src/data/podcast.json': 'sha' }, files: { 'src/data/podcast.json': JSON.stringify(CMS_PODCAST, null, 2) } });
     if (url.pathname === `/api/cms/drafts/${POD_DRAFT}`) return json({ draft: { ...CMS_DRAFTS[1], id: POD_DRAFT, type: 'podcast', entry_id: 'podcast', status: 'draft', write_nonce: 'n', data: CMS_PODCAST_NEW, base_shas: { 'src/data/podcast.json': 'sha' } }, files: null });
@@ -200,6 +206,8 @@ async function open(path, viewport, user = ADMIN) {
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-levels') return json({ data: LP_LEVEL, base_shas: {} });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-roadmap') return json({ data: LP_STAGE, base_shas: {} });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-domains') return json({ data: LP_DOMAIN, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'pages') return json({ data: CMS_PAGE, base_shas: { 'src/content/pages/about.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'privacy') return json({ data: CMS_PRIVACY, base_shas: { 'src/content/privacy/privacy.json': 'sha' } });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/example.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
@@ -274,6 +282,7 @@ async function routes(lang, user) {
   if (out.includes('#icerik/kaynaklar')) out.push('#icerik/kaynaklar/example', '#icerik/kaynaklar/_new');
   if (out.includes('#icerik/ogrenme-seviyeleri')) out.push('#icerik/ogrenme-seviyeleri/example-explorer', '#icerik/ogrenme-seviyeleri/_new', '#icerik/yol-haritasi/07-example', '#icerik/yol-haritasi/_new', '#icerik/ogrenme-alanlari/example', '#icerik/ogrenme-alanlari/_new');
   if (out.includes('#icerik/podcast')) out.push(`#icerik/taslaklar/${POD_DRAFT}`, `#icerik/onay/${POD_DRAFT}`);
+  if (out.includes('#icerik/sayfa-metinleri')) out.push('#icerik/sayfa-metinleri/about', '#icerik/gizlilik/privacy');
   return [...new Set(out)];
 }
 

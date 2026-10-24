@@ -15,9 +15,11 @@ import { committeeSchema } from "../../data/committees";
 import { podcastSchema } from "../../data/podcast";
 import { resourceSchema } from "../../data/resources";
 import { lpDomainSchema, lpLevelSchema, lpRoadmapSchema } from "../../data/learning-paths";
+import { pageTextSchema } from "../../data/page-text";
+import { privacySchema } from "../../data/privacy-schema";
 import { checkId, slugify, stageId } from "./slug";
 
-export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap";
+export type CmsTypeKey = "events" | "workshops" | "webinars" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap" | "pages" | "privacy";
 
 /** What a type declares. The options after `label` have defaults (see defineType). */
 export interface CmsTypeSpec {
@@ -96,6 +98,10 @@ export interface CmsTypeSpec {
    * may hold others (src/data). The index lists only it, and no other id is
    * an entry of the type. Default '' (every file in dir). */
   fixedId?: string;
+  /** JSON only: a top-level key the server sets to the day of approval
+   * (YYYY-MM-DD, Istanbul time) before the file is written, whatever the
+   * draft holds (the privacy notice's `updated`, A8). Default "". */
+  approvedOnKey?: string;
 }
 
 /** A type with every option resolved. */
@@ -113,6 +119,7 @@ export function defineType(spec: CmsTypeSpec): CmsType {
     generated: false,
     noAt: false,
     fixedId: "",
+    approvedOnKey: "",
     lockedKeys: [],
     appendKey: "",
     resourceIds: false,
@@ -285,6 +292,50 @@ export const CMS_TYPES: readonly CmsType[] = [
     lockedKeys: ["number"],
     appendKey: "number",
     resourceIds: true,
+  }),
+  defineType({
+    key: "pages",
+    group: "sayfalar",
+    dir: "src/content/pages",
+    format: "json",
+    schema: pageTextSchema,
+    // One file per page (home, about, join, resources), named by the page
+    // that reads it: never created or deleted in the panel, and an update
+    // keeps its name (A1).
+    idFrom: () => {
+      throw new Error("Page texts are not created in the panel");
+    },
+    idField: "",
+    // The file name says which page it is.
+    indexTitle: () => undefined,
+    label: { en: "Page texts", tr: "Sayfa metinleri" },
+    // Values only: the page looks its keys up and the build fails on an
+    // unknown one, so a key added or dropped would break the site (A7).
+    fixedKeys: true,
+    noCreate: true,
+    noDelete: true,
+  }),
+  defineType({
+    key: "privacy",
+    group: "sayfalar",
+    dir: "src/content/privacy",
+    format: "json",
+    schema: privacySchema,
+    fixedId: "privacy",
+    idFrom: () => "privacy",
+    idField: "en.title",
+    indexTitle: (d: { en?: { title?: string } }) => d.en?.title,
+    indexDate: (d: { updated?: string }) => d.updated,
+    label: { en: "Privacy notice", tr: "Gizlilik bildirimi" },
+    // A promise about what the site does with personal data: an admin
+    // approves every change (Call 6), and the day it was approved is the
+    // date the page shows.
+    approve: "admin",
+    approvedOnKey: "updated",
+    noCreate: true,
+    noDelete: true,
+    // The contact address is {contact} in the text (src/data/privacy.ts).
+    noAt: true,
   }),
 ];
 

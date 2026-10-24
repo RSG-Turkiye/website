@@ -9,11 +9,12 @@ import { escapeHtml } from '../escape-html';
 import { BTN, chip } from './ui-kit';
 import { t, tf } from './context';
 import {
-  emptyRow, isSplit, lockedAfterSave, ROW_FROM, ROW_NAME, rowSummary, sharedShowsOne, shown, type Bi, type FieldDef, type ImageObject, type LinkItem, type Row, type TypeModel, type Values,
+  emptyRow, isSplit, lockedAfterSave, pairForm, ROW_FROM, ROW_NAME, rowSummary, sharedShowsOne, shown, type Bi, type FieldDef, type ImageObject, type LinkItem, type Row, type TypeModel, type Values,
 } from './cms-form';
 import type { Change, EntryDiff, FileDiff, RowChange } from './cms-diff';
 
-const tk = (k: string) => t(k as never) as string;
+// A label that is not an i18n key is shown as it is: a page text's key (cms-form's pages model).
+const tk = (k: string) => (t(k as never) as string | undefined) ?? k;
 /** A row's one-line summary; a row named by a choice (rowOption) shows the choice's words. */
 const summaryOf = (f: FieldDef, row: Row): string => {
   const v = rowSummary(f, row, lang());
@@ -64,8 +65,12 @@ function listButtons(i: number, n: number): string {
 }
 
 function stringsList(f: FieldDef, items: string[], lang: Lang | null): string {
-  const rows = items.map((s, i) => `<div data-row class="flex flex-wrap sm:flex-nowrap items-center gap-2">
-      <input type="text" ${attrs(f, lang, 'data-item')} aria-label="${aria(f, lang)} ${i + 1}" value="${esc(s)}" class="${INPUT} flex-1 basis-full sm:basis-0" />
+  // multiline: each item is a paragraph (the privacy notice's), a text area.
+  const item = (s: string, i: number) => (f.multiline
+    ? `<textarea ${attrs(f, lang, 'data-item')} aria-label="${aria(f, lang)} ${i + 1}" rows="3" class="${INPUT} min-h-20 flex-1 basis-full">${esc(s)}</textarea>`
+    : `<input type="text" ${attrs(f, lang, 'data-item')} aria-label="${aria(f, lang)} ${i + 1}" value="${esc(s)}" class="${INPUT} flex-1 basis-full sm:basis-0" />`);
+  const rows = items.map((s, i) => `<div data-row class="flex flex-wrap ${f.multiline ? '' : 'sm:flex-nowrap '}items-center gap-2">
+      ${item(s, i)}
       ${listButtons(i, items.length)}</div>`).join('');
   return `<div data-list="${f.key}"${lang ? ` data-list-lang="${lang}"` : ''} class="flex flex-col gap-2">${lang && lang !== 'both' ? `<p class="text-[11px] font-semibold uppercase text-gray-500">${lang}</p>` : ''}${rows}
     <div><button type="button" data-add data-list-key="${f.key}"${lang ? ` data-list-lang="${lang}"` : ''} class="${BTN.secondary}">${esc(t('admin.cms.list.add' as never))}</button></div></div>`;
@@ -117,7 +122,7 @@ function markdownField(f: FieldDef, v: Bi): string {
  * per-language field is `{ en, tr }` and a shared one is plain.
  */
 export type Mode = 'json' | 'pair' | 'pairRow';
-const modeOf = (model: TypeModel): Mode => (model.format === 'json' ? 'json' : 'pair');
+const modeOf = (model: TypeModel): Mode => (pairForm(model) ? 'pair' : 'json');
 /** The mode of a value inside a row: rows of a pair type hold pairRow values. */
 const rowMode = (mode: Mode): Mode => (mode === 'json' ? 'json' : 'pairRow');
 /**
@@ -435,7 +440,7 @@ export function renderField(model: TypeModel, f: FieldDef, v: unknown, opts: { r
   const ro = opts.readOnly || f.readOnly || f.approverOnly;
   const label = f.approverOnly ? tk('admin.cms.f.note') : tk(f.label);
   return `<div data-field-wrap="${f.key}" class="flex flex-col gap-1 min-w-0 ${isShort(f) ? '' : 'lg:col-span-3'}">
-    <p class="relative text-xs font-medium text-gray-600">${esc(label)}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}</p>
+    <p class="relative text-xs font-medium text-gray-600 [overflow-wrap:anywhere]">${esc(label)}${f.required && !ro ? `<span class="text-red" aria-hidden="true"> *</span><span class="sr-only"> (${esc(tk('admin.cms.required'))})</span>` : ''}</p>
     ${f.help ? `<p class="text-xs text-gray-500 -mt-0.5">${esc(tk(f.help))}</p>` : ''}
     <fieldset class="min-w-0" ${ro ? 'disabled' : ''}>${bodyOf(modeOf(model), f, v)}</fieldset>
     <p data-error="${f.key}" role="alert" class="hidden text-xs text-red"></p>
@@ -453,7 +458,7 @@ function readControl(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElem
 
 function readList(wrap: Element, f: FieldDef, lang: Lang | null): string[] {
   const list = wrap.querySelector(`[data-list="${f.key}"]${lang ? `[data-list-lang="${lang}"]` : ''}`);
-  return list ? q<HTMLInputElement>(list, 'input[data-item]').map((i) => i.value) : [];
+  return list ? q<HTMLInputElement | HTMLTextAreaElement>(list, '[data-item]').map((i) => i.value) : [];
 }
 
 function readLinks(wrap: Element): LinkItem[] {
@@ -589,10 +594,10 @@ function rowChangeHtml(f: FieldDef, r: RowChange): string {
 /** The changed fields, open, and the unchanged ones under one collapsed line. */
 export function renderDiff(diff: EntryDiff): string {
   const changed = diff.changed.map(({ field, changes }) => `<div data-diff-field="${field.key}" class="flex flex-col gap-2 py-3 lg:py-2 border-b border-border last:border-0">
-      <p class="text-sm font-semibold text-navy">${esc(tk(field.label))}</p>${changes.map((c) => changeHtml(field, c)).join('')}</div>`).join('');
+      <p class="text-sm font-semibold text-navy [overflow-wrap:anywhere]">${esc(tk(field.label))}</p>${changes.map((c) => changeHtml(field, c)).join('')}</div>`).join('');
   const unchanged = diff.unchanged.length
     ? `<details class="mt-2"><summary class="cursor-pointer min-h-11 lg:min-h-9 flex items-center text-sm text-gray-500">${esc(tf('admin.cms.review.unchanged' as never, { n: diff.unchanged.length }))}</summary>
-        <p class="text-sm text-gray-600 pb-2">${diff.unchanged.map((f) => esc(tk(f.label))).join(', ')}</p></details>` : '';
+        <p class="text-sm text-gray-600 pb-2 [overflow-wrap:anywhere]">${diff.unchanged.map((f) => esc(tk(f.label))).join(', ')}</p></details>` : '';
   return `${changed}${unchanged}`;
 }
 

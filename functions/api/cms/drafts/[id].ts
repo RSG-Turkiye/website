@@ -4,7 +4,7 @@ import { runGuardedWithAudit } from '../../../_lib/audit';
 import { loadCmsIndex, lpIdsElsewhere } from '../../../_lib/cms-api';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
-import { canTransition, checkSameId, filesFor, fixedKeysErrors, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { canTransition, checkSameId, filesFor, fixedKeysErrors, inOrderOf, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 import { assignIds, lockedKeysErrors, type LpDraftData } from '../../../_lib/cms-lp';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
@@ -82,6 +82,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
     // Against the stored draft, whose keys are main's (checked when it began).
     const keys = fixedKeysErrors(type, JSON.parse(row.data), v.data);
     if (keys) return invalid(keys);
+    // And their order: the stored draft's, which is main's (set at create).
+    if (type.fixedKeys && type.format === 'json') v.data = inOrderOf(stored, v.data);
     const locked = lockedKeysErrors(type, entryId, stored, v.data);
     if (locked) return invalid(locked);
     if (type.format === 'markdown-pair') {

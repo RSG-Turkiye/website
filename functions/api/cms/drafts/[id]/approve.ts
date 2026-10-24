@@ -4,7 +4,7 @@ import { runGuardedWithAudit } from '../../../../_lib/audit';
 import {
   actionRefused, badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, newNonce, nonceProof, refuseDomainDelete, refuseLp, refusePairClash,
 } from '../../../../_lib/cms-api';
-import { actionAllowed, canTransition, filesFor, prBody, prTitle, STALE_APPROVAL_SECONDS, validateDraft, type DraftRow } from '../../../../_lib/cms-drafts';
+import { actionAllowed, canTransition, filesFor, prBody, prTitle, STALE_APPROVAL_SECONDS, stampedOnApproval, validateDraft, type DraftRow } from '../../../../_lib/cms-drafts';
 import { fileShasOnBase, mainHeadSha, openContentPR, prForBranch, pullNumberFromUrl } from '../../../../_lib/github';
 
 /**
@@ -47,11 +47,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   // The claim names the row as read (its nonce), so an approval decided on
   // a row that changed meanwhile does not land.
   const claim = newNonce();
-  const takeClaim = () => runGuardedWithAudit(
+  // `data`: what the draft writes, stored with the claim (the approval's
+  // stamp, approvedOnKey): the PR shepherd compares the files the stored
+  // draft writes with the deployed site's.
+  const takeClaim = (data = row.data) => runGuardedWithAudit(
     env.DB,
-    env.DB.prepare(`UPDATE content_drafts SET status = 'approved', reviewer_id = ?, updated_at = ?, write_nonce = ?
+    env.DB.prepare(`UPDATE content_drafts SET status = 'approved', data = ?, reviewer_id = ?, updated_at = ?, write_nonce = ?
                     WHERE id = ? AND write_nonce IS ? AND (status = 'submitted' OR (status = 'approved' AND updated_at < ?))`)
-      .bind(gate.user.id, gate.now, claim, row.id, row.write_nonce, staleBefore),
+      .bind(data, gate.user.id, gate.now, claim, row.id, row.write_nonce, staleBefore),
     nonceProof(row.id, claim),
     [],
     { userId: gate.user.id, action: 'cms.draft.approve', targetType: 'content_draft', targetId: row.id, details: { ...details, draft_action: row.action } },
@@ -112,8 +115,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const moved = paths.filter((p) => atHead[p] !== base[p]);
   if (moved.length) return fail(409, 'changed_since', 'The entry changed on the site since this draft was started', { paths: moved });
 
+  // The privacy notice's date is the day it is approved (A8), set here,
+  // never by the form.
+  const written = row.action === 'delete' ? row.data : JSON.stringify(stampedOnApproval(type, JSON.parse(row.data), gate.now));
   if (row.action !== 'delete') {
-    const data = JSON.parse(row.data) as unknown;
+    const data = JSON.parse(written) as unknown;
     const v = validateDraft(type, data);
     if (!v.ok) return invalid(v.errors);
     const clash = await refusePairClash(request, env, type, row.entry_id, row.action, data);
@@ -128,13 +134,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   }
   let files: ReturnType<typeof filesFor>;
   try {
-    files = filesFor(row);
+    files = filesFor({ ...row, data: written });
   } catch (e) {
     console.error('cms: draft could not be written out', row.id, e);
     return fail(422, 'unwritable', 'This draft could not be turned into files');
   }
 
-  if (!(await takeClaim())) return badState();
+  if (!(await takeClaim(written))) return badState();
 
   const result = await openContentPR(
     { branchPrefix: 'cms', branchSlug: row.id, files, title: prTitle(row), prBody: prBody(row), retitle: false, resetBranch: true, baseSha: head },

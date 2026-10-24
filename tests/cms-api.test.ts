@@ -13,7 +13,7 @@ import { realFixtures } from './lib/cms-fixtures';
 import { z } from 'astro/zod';
 import { cmsType, defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
 import { parseJson, parseMarkdown, serializeJson, serializeMarkdown } from '../src/lib/cms/serialize';
-import { filesFor, validateDraft, prTitle, prBody } from '../functions/_lib/cms-drafts';
+import { filesFor, istanbulDay, validateDraft, prTitle, prBody } from '../functions/_lib/cms-drafts';
 import { setCmsIndexLoader } from '../functions/_lib/cms-api';
 import * as types from '../functions/api/cms/types';
 import * as entries from '../functions/api/cms/entries';
@@ -37,7 +37,7 @@ const WEBINARS = cmsType('webinars')!;
 
 function contentFiles(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const dir of ['src/content/events', 'src/content/workshops']) {
+  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/pages', 'src/content/privacy']) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = readFileSync(`${ROOT}${dir}/${f}`, 'utf8');
   }
   for (const lang of ['en', 'tr']) {
@@ -97,6 +97,23 @@ for (const lang of ['en', 'tr'] as const) {
   FILES[LP_LEVEL[lang]] = lpFile('lp-levels', aLevelSide(lang));
   FILES[LP_STAGE[lang]] = lpFile('lp-roadmap', aStageSide(lang));
 }
+/** Page texts on main, synthetic (A2), keys in no alphabetical order: a save must keep it. */
+const PAGE_PATH = 'src/content/pages/fixture-page.json';
+const PAGE_TEXT = `${JSON.stringify({ zeta_title: { en: 'Last first', tr: 'Sonuncu önce' }, alpha_intro: { en: 'Hello', tr: 'Merhaba' }, mid_cta: { en: 'Join', tr: 'Katıl' } }, null, 2)}\n`;
+FILES[PAGE_PATH] = PAGE_TEXT;
+/** The privacy notice on main, synthetic (A2): it replaces the real one in this fake repository. */
+const PRIVACY_PATH = 'src/content/privacy/privacy.json';
+const aNotice = (lang: 'en' | 'tr') => ({
+  title: lang === 'en' ? 'Privacy' : 'Gizlilik',
+  description: lang === 'en' ? 'What we keep.' : 'Ne saklıyoruz.',
+  intro: [lang === 'en' ? 'Write to {contact}.' : '{contact} adresine yazın.'],
+  sections: [
+    { heading: lang === 'en' ? 'What' : 'Ne', paragraphs: [], items: [lang === 'en' ? 'Your name.' : 'Adınız.', lang === 'en' ? 'Your photo.' : 'Fotoğrafınız.'] },
+    { heading: lang === 'en' ? 'Changes' : 'Değişiklikler', paragraphs: [lang === 'en' ? 'The date changes.' : 'Tarih değişir.'], items: [] },
+  ],
+});
+const aPrivacy = () => ({ updated: '2020-01-02', en: aNotice('en'), tr: aNotice('tr') });
+FILES[PRIVACY_PATH] = `${JSON.stringify(aPrivacy(), null, 2)}\n`;
 const INDEX: CmsIndex = buildCmsIndex(FILES);
 // Entries picked by shape, never by name: the panel edits and deletes them (A2).
 const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_TR_TITLE, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
@@ -1871,7 +1888,7 @@ test('an approve: admin type is approved by an admin only, not by the group\'s a
     assert.deepEqual(await queueOf('sapprover'), [], 'not in a queue they cannot act on');
     assert.ok((await queueOf('admin')).includes(id));
     const c = async (as: string) => await (await req(env, counts.onRequestGet, 'GET', '/api/admin/counts', as)).json() as any;
-    assert.equal((await c('sapprover')).cmsQueue, undefined, 'no queue: nothing in their groups they approve');
+    assert.equal((await c('sapprover')).cmsQueue, 0, 'they approve page texts, not this: nothing waits for them');
     assert.equal((await c('admin')).cmsQueue, 1);
 
     assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 403);
@@ -2301,4 +2318,206 @@ test('submit drops given ids whose cards are gone; approval re-checks locked key
   assert.equal(res.status, 422);
   assert.match(((await res.json()) as any).errors['en.frontmatter.level'], /gives the file its name/);
   assert.equal(gh.prs.length, 0);
+});
+
+// ── Task 7: Sayfalar (page texts and the privacy notice) ─────────────────────
+
+const PAGES = cmsType('pages')!;
+const PRIVACY = cmsType('privacy')!;
+const pageData = () => JSON.parse(PAGE_TEXT);
+const startPage = (env: Env, as: string, data: unknown) => create(env, as, { type: 'pages', action: 'update', entry_id: 'fixture-page', data, base_shas: loaded(PAGE_PATH) });
+const startPrivacy = (env: Env, as: string, data: unknown = aPrivacy()) => create(env, as, { type: 'privacy', action: 'update', entry_id: 'privacy', data, base_shas: loaded(PRIVACY_PATH) });
+const count = (db: DatabaseSync) => (db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n;
+
+test('the Sayfalar types: page texts values only, the privacy notice approved by an admin; neither created nor deleted', () => {
+  assert.deepEqual([PAGES.group, PAGES.format, PAGES.fixedKeys, PAGES.noCreate, PAGES.noDelete, PAGES.approve], ['sayfalar', 'json', true, true, true, 'group']);
+  assert.deepEqual([PRIVACY.group, PRIVACY.format, PRIVACY.fixedId, PRIVACY.noCreate, PRIVACY.noDelete, PRIVACY.approve, PRIVACY.approvedOnKey], ['sayfalar', 'json', 'privacy', true, true, 'admin', 'updated']);
+  // Every file of each lists under its own name; the notice is one entry.
+  assert.ok(INDEX.pages.some((e) => e.id === 'fixture-page'));
+  assert.deepEqual(INDEX.privacy.map((e) => [e.id, e.title, e.date]), [['privacy', 'Privacy', '2020-01-02']]);
+});
+
+test('Review Focus 4: a page-text draft that adds or drops a key, sent to the API, is refused at the start and on every save; nothing is stored', async () => {
+  try {
+    const { env, db, row } = setupGroups();
+    const added = await startPage(env, 'seditor', { ...pageData(), new_key: { en: 'New', tr: 'Yeni' } });
+    assert.equal(added.res.status, 422);
+    assert.ok(added.body.errors.new_key);
+    const dropped = pageData();
+    delete dropped.mid_cta;
+    const missing = await startPage(env, 'seditor', dropped);
+    assert.equal(missing.res.status, 422);
+    assert.ok(missing.body.errors.mid_cta);
+    // A third language inside a text is not a value either.
+    const inner = await startPage(env, 'seditor', { ...pageData(), mid_cta: { en: 'Join', tr: 'Katıl', de: 'Mach mit' } });
+    assert.equal(inner.res.status, 422);
+    assert.equal(count(db), 0);
+
+    const ok = await startPage(env, 'seditor', { ...pageData(), mid_cta: { en: 'Join us', tr: 'Katılın' } });
+    assert.equal(ok.res.status, 201);
+    const id = ok.body.draft.id;
+    const before = row(id).data;
+    const save = (data: unknown) => on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data });
+    for (const bad of [{ ...pageData(), extra: { en: 'x', tr: 'y' } }, { zeta_title: pageData().zeta_title, alpha_intro: pageData().alpha_intro }]) {
+      const r = await save(bad);
+      assert.equal(r.status, 422);
+    }
+    assert.equal(row(id).data, before, 'nothing stored');
+    // An empty text is work in progress while saving, refused at submit (the page would show nothing).
+    assert.equal((await save({ ...pageData(), mid_cta: { en: '', tr: 'Katılın' } })).status, 200);
+    const sent = await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    assert.ok(((await sent.json()) as any).errors['mid_cta.en']);
+  } finally {
+    done();
+  }
+});
+
+test('a page-text save never reorders the file\'s keys, whatever order the editor sends; the pull request changes one line', async () => {
+  try {
+    const { env, row } = setupGroups();
+    // Sent alphabetically, inner keys swapped: stored in main's order.
+    const sorted = { alpha_intro: { tr: 'Merhaba', en: 'Hello' }, mid_cta: { en: 'Join us', tr: 'Katılın' }, zeta_title: { en: 'Last first', tr: 'Sonuncu önce' } };
+    const made = await startPage(env, 'seditor', sorted);
+    assert.equal(made.res.status, 201);
+    const id = made.body.draft.id;
+    const order = (d: string) => { const o = JSON.parse(d); return [Object.keys(o), Object.keys(o.alpha_intro)]; };
+    assert.deepEqual(order(row(id).data), [['zeta_title', 'alpha_intro', 'mid_cta'], ['en', 'tr']]);
+    const saved = await on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data: { mid_cta: { en: 'Join now', tr: 'Hemen katılın' }, alpha_intro: pageData().alpha_intro, zeta_title: pageData().zeta_title } });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(order(row(id).data), [['zeta_title', 'alpha_intro', 'mid_cta'], ['en', 'tr']]);
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 200, 'a page text is approved by the group');
+    const written = gh.branches.get(`cms/${id}`)!.get(PAGE_PATH)!;
+    assert.equal(written, PAGE_TEXT.replace('"en": "Join"', '"en": "Join now"').replace('"tr": "Katıl"', '"tr": "Hemen katılın"'));
+  } finally {
+    done();
+  }
+});
+
+test('page texts and the privacy notice cannot be created or deleted, and only the Sayfalar group edits them', async () => {
+  try {
+    const { env, db } = setupGroups();
+    for (const body of [
+      { type: 'pages', action: 'create', data: { a: { en: 'x', tr: 'y' } } },
+      { type: 'pages', action: 'delete', entry_id: 'fixture-page', base_shas: loaded(PAGE_PATH) },
+      { type: 'privacy', action: 'create', data: aPrivacy() },
+      { type: 'privacy', action: 'delete', entry_id: 'privacy', base_shas: loaded(PRIVACY_PATH) },
+    ]) {
+      const r = await create(env, 'admin', body);
+      assert.equal(r.res.status, 400, `${body.type} ${body.action}`);
+      assert.equal(r.body.code, 'bad_action');
+    }
+    for (const as of ['editor', 'community', 'learning', 'yeditor']) {
+      assert.equal((await startPage(env, as, pageData())).res.status, 403, as);
+      assert.equal((await startPrivacy(env, as)).res.status, 403, as);
+    }
+    // No other file is a privacy entry.
+    const other = await create(env, 'admin', { type: 'privacy', action: 'update', entry_id: 'terms', data: aPrivacy(), base_shas: {} });
+    assert.equal(other.res.status, 404);
+    assert.equal(count(db), 0);
+  } finally {
+    done();
+  }
+});
+
+test('privacy: en/tr parity and the {contact} rule are work in progress while saving, refused at submit', async () => {
+  try {
+    const { env } = setupGroups();
+    const short = aPrivacy();
+    short.tr.sections[0].items.pop();
+    short.tr.intro.push('Bir paragraf daha.');
+    const made = await startPrivacy(env, 'seditor', short);
+    assert.equal(made.res.status, 201, 'saved: a translation in progress');
+    const id = made.body.draft.id;
+    const sent = await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    const errors = ((await sent.json()) as any).errors;
+    assert.ok(errors['tr.intro'], JSON.stringify(errors));
+    assert.ok(errors['tr.sections.0.items'], JSON.stringify(errors));
+    // An address typed into the text instead of {contact}.
+    const withAt = aPrivacy();
+    withAt.en.intro[0] = 'Write to someone@example.org.';
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data: withAt })).status, 200);
+    const again = await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit');
+    assert.equal(again.status, 422);
+    assert.ok(((await again.json()) as any).errors['en.intro.0']);
+  } finally {
+    done();
+  }
+});
+
+test('privacy: only an admin approves; the date written is the day of approval in Istanbul, stored with the draft', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const edited = aPrivacy();
+    edited.en.sections[0].items[1] = 'Your profile photo.';
+    edited.updated = '1999-12-31';
+    const made = await startPrivacy(env, 'seditor', edited);
+    const id = made.body.draft.id;
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    for (const as of ['sapprover', 'seditor', 'yapprover', 'approver']) {
+      assert.equal((await on(env, approve.onRequestPost, 'POST', id, as, {}, '/approve')).status, 403, as);
+    }
+    assert.equal(row(id).status, 'submitted');
+    const res = await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve');
+    assert.equal(res.status, 200);
+    const today = istanbulDay(Math.floor(Date.now() / 1000));
+    const file = JSON.parse(gh.branches.get(`cms/${id}`)!.get(PRIVACY_PATH)!);
+    assert.equal(file.updated, today);
+    assert.equal(file.en.sections[0].items[1], 'Your profile photo.');
+    assert.equal(JSON.parse(row(id).data).updated, today, 'the stored draft writes what the branch has (the shepherd compares them)');
+    assert.deepEqual(filesFor(row(id) as never), [{ path: PRIVACY_PATH, content: gh.branches.get(`cms/${id}`)!.get(PRIVACY_PATH)! }]);
+    // Istanbul is UTC+3: 22:30 UTC is already the next day there.
+    assert.equal(istanbulDay(Date.UTC(2026, 9, 24, 22, 30) / 1000), '2026-10-25');
+    assert.equal(istanbulDay(Date.UTC(2026, 9, 24, 20, 30) / 1000), '2026-10-24');
+  } finally {
+    done();
+  }
+});
+
+test('privacy (approve: admin): the group\'s approver cannot open, save, send, discard or cancel someone else\'s draft; an admin can', async () => {
+  try {
+    const { env, db, row } = setupGroups();
+    const made = await startPrivacy(env, 'seditor');
+    const id = made.body.draft.id;
+    const as = (who: string) => ({
+      get: async () => (await on(env, draft.onRequestGet, 'GET', id, who)).status,
+      patch: async () => (await on(env, draft.onRequestPatch, 'PATCH', id, who, { data: aPrivacy() })).status,
+      submit: async () => (await on(env, submit.onRequestPost, 'POST', id, who, {}, '/submit')).status,
+      discard: async () => (await on(env, draft.onRequestDelete, 'DELETE', id, who)).status,
+      cancel: async () => (await on(env, cancel.onRequestPost, 'POST', id, who, {}, '/cancel')).status,
+    });
+    const set = (status: string) => db.prepare('UPDATE content_drafts SET status = ?, updated_at = updated_at - 400 WHERE id = ?').run(status, id);
+    const sap = as('sapprover');
+    assert.deepEqual([await sap.get(), await sap.patch(), await sap.submit(), await sap.discard()], [403, 403, 403, 403], 'draft');
+    for (const status of ['pr_failed', 'merged', 'rejected', 'submitted', 'approved']) {
+      set(status);
+      assert.equal(await sap.discard(), 403, status);
+    }
+    set('pr_open');
+    assert.equal(await sap.cancel(), 403, 'pr_open');
+    assert.equal(row(id).status, 'pr_open', 'nothing changed');
+    // The author keeps their own draft; an admin acts on it.
+    set('draft');
+    const author = as('seditor');
+    assert.deepEqual([await author.get(), await author.patch()], [200, 200]);
+    const admin = as('admin');
+    assert.equal(await admin.get(), 200);
+    set('pr_failed');
+    assert.equal(await admin.discard(), 200);
+    assert.equal(row(id).status, 'discarded');
+    // The group's approver starts, edits and discards a privacy draft of their own.
+    const own = await startPrivacy(env, 'sapprover');
+    assert.equal(own.res.status, 201);
+    const ownId = own.body.draft.id;
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', ownId, 'sapprover', { data: aPrivacy() })).status, 200);
+    assert.equal((await on(env, draft.onRequestDelete, 'DELETE', ownId, 'sapprover')).status, 200);
+    // Page texts are the group's: its approver acts on others' drafts as before.
+    const page = await startPage(env, 'seditor', pageData());
+    assert.equal((await on(env, draft.onRequestGet, 'GET', page.body.draft.id, 'sapprover')).status, 200);
+    assert.equal((await on(env, draft.onRequestDelete, 'DELETE', page.body.draft.id, 'sapprover')).status, 200);
+  } finally {
+    done();
+  }
 });

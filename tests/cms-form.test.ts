@@ -27,7 +27,7 @@ const WEBINARS = cmsType('webinars')!;
 function files(): Record<string, string> {
   const out: Record<string, string> = {};
   const lp = ['lp-domains', 'lp-levels', 'lp-roadmap'].flatMap((d) => [`src/content/${d}/en`, `src/content/${d}/tr`]);
-  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees', 'src/content/resources', ...lp]) {
+  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees', 'src/content/resources', 'src/content/pages', 'src/content/privacy', ...lp]) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = read(`${dir}/${f}`);
   }
   return out;
@@ -99,10 +99,21 @@ function coverage(where: string, fields: FieldDef[], schema: JS, hidden: Record<
   return out;
 }
 
-/** A type's coverage. A fixedKeys type may have a z.record schema: its form is built from its data (fieldsFor). */
+/**
+ * A type's coverage. A fixedKeys type may have a z.record schema: its form is
+ * built from its data (fieldsFor). A langSides model's fields are those of
+ * its `en` (and identical `tr`) object; its other top-level keys are hidden.
+ */
 function typeCoverage(type: CmsType, model: TypeModel): string[] {
   const schema = jsonSchemaFor(type) as JS;
   if (!schema.properties) return type.fixedKeys && schema.additionalProperties && model.fieldsFor ? [] : [`${type.key}: the schema has no keys and the type is not fixedKeys with fieldsFor`];
+  if (model.langSides) {
+    const { en, tr, ...rest } = schema.properties;
+    if (!en || JSON.stringify(en) !== JSON.stringify(tr)) return [`${type.key}: langSides needs the same en and tr objects`];
+    const top = Object.keys(rest).filter((k) => !Object.hasOwn(model.hidden, k)).map((k) => `${type.key}.${k} is neither shown nor hidden`);
+    const sideHidden = Object.fromEntries(Object.entries(model.hidden).filter(([k]) => !Object.hasOwn(rest, k)));
+    return [...top, ...coverage(`${type.key}.en`, model.fields, en, sideHidden)];
+  }
   return coverage(type.key, model.fields, schema, model.hidden);
 }
 
@@ -1363,4 +1374,112 @@ test('fix round 1: the approver is told each published id a draft drops; a lost 
   const other = copy(sent);
   other.en.frontmatter.orientation = 'changed';
   assert.ok(!sameSave(stored, other), 'a different save is not this one');
+});
+
+// ── Task 7: Sayfalar (page texts and the privacy notice) ─────────────────────
+
+import { pairForm, withFieldFrom } from '../src/scripts/admin/cms-form';
+
+const PAGE_FILES = Object.keys(FILES).filter((p) => p.startsWith('src/content/pages/')).sort();
+const PRIVACY_FILE = 'src/content/privacy/privacy.json';
+
+test('pages: every page file goes through the form and is written back byte for byte, one field per key in the file\'s order', () => {
+  assert.ok(PAGE_FILES.length > 0);
+  for (const path of PAGE_FILES) {
+    const data = JSON.parse(FILES[path]);
+    const m = withFields(MODELS.pages, data);
+    assert.deepEqual(m.fields.map((x) => x.key), Object.keys(data), path);
+    assert.ok(m.fields.every((x) => x.kind === 'bilingual' && x.multiline && x.required && x.label === x.key), path);
+    assert.equal(serializeJson(cmsType('pages')!, applyValues(m, data, formValues(m, data))), FILES[path], path);
+  }
+});
+
+test('pages: an edit keeps the file\'s key order, also when it is not alphabetical, and changes one value', () => {
+  const text = `${JSON.stringify({ zeta: { en: 'Z', tr: 'Ze' }, alpha: { tr: 'A tr', en: 'A' }, mid: { en: 'M', tr: 'Em' } }, null, 2)}\n`;
+  const data = JSON.parse(text);
+  const m = withFields(MODELS.pages, data);
+  const values = formValues(m, data);
+  (values.mid as Bi).en = 'Middle';
+  const out = applyValues(m, data, values) as Record<string, Record<string, string>>;
+  assert.deepEqual(Object.keys(out), ['zeta', 'alpha', 'mid']);
+  assert.deepEqual(Object.keys(out.alpha), ['tr', 'en'], 'an untouched text keeps even its inner order');
+  assert.equal(serializeJson(cmsType('pages')!, out), text.replace('"en": "M"', '"en": "Middle"'));
+});
+
+test('pages: a key is its own label (no page key is an i18n key), the page is its live link, no new and no delete', () => {
+  const uiKeys = new Set(Object.keys(ui.en));
+  for (const path of PAGE_FILES) for (const k of Object.keys(JSON.parse(FILES[path]))) assert.ok(!uiKeys.has(k), `${path}: ${k} is also an i18n key`);
+  assert.equal(livePath('pages', 'home', [], 'en'), '/');
+  assert.equal(livePath('pages', 'home', [], 'tr'), '/tr/');
+  assert.equal(livePath('pages', 'about', [], 'tr'), '/tr/about/');
+  assert.equal(livePath('privacy', 'privacy', [], 'en'), '/privacy/');
+  assert.equal(livePath('privacy', 'privacy', [], 'tr'), '/tr/privacy/');
+  assert.equal(MODELS.pages.sub, 'sayfa-metinleri');
+  assert.equal(MODELS.privacy.sub, 'gizlilik');
+});
+
+/** A privacy notice, synthetic (A2): one section of items, one of a paragraph. */
+const notice = (lang: 'en' | 'tr') => ({
+  title: lang === 'en' ? 'Privacy' : 'Gizlilik',
+  description: lang === 'en' ? 'What we keep.' : 'Ne saklıyoruz.',
+  intro: [lang === 'en' ? 'Write to {contact}.' : '{contact} adresine yazın.'],
+  sections: [
+    { heading: lang === 'en' ? 'What' : 'Ne', paragraphs: [], items: [lang === 'en' ? 'Name.' : 'Ad.', lang === 'en' ? 'Photo.' : 'Fotoğraf.'] },
+    { heading: lang === 'en' ? 'Changes' : 'Değişiklikler', paragraphs: [lang === 'en' ? 'The date changes.' : 'Tarih değişir.'], items: [] },
+  ],
+});
+const PRIVACY_DATA = { updated: '2020-01-02', en: notice('en'), tr: notice('tr') };
+const PRIVACY = cmsType('privacy')!;
+
+test('privacy: the file goes through the form and back byte for byte; the form is the two languages side by side', () => {
+  for (const [name, text] of [[PRIVACY_FILE, FILES[PRIVACY_FILE]], ['synthetic', `${JSON.stringify(PRIVACY_DATA, null, 2)}\n`]]) {
+    const data = JSON.parse(text);
+    assert.equal(serializeJson(PRIVACY, applyValues(MODELS.privacy, data, formValues(MODELS.privacy, data))), text, name);
+  }
+  assert.ok(pairForm(MODELS.privacy) && !pairForm(MODELS.pages) && pairForm(MODELS.webinars));
+  const v = formValues(MODELS.privacy, PRIVACY_DATA);
+  assert.deepEqual(v.title, { en: 'Privacy', tr: 'Gizlilik' });
+  assert.deepEqual(v.intro, { en: ['Write to {contact}.'], tr: ['{contact} adresine yazın.'] });
+  const rows = v.sections as Row[];
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows[0].items, { en: ['Name.', 'Photo.'], tr: ['Ad.', 'Fotoğraf.'] });
+  assert.equal(v.updated, undefined, 'the date is not in the form');
+});
+
+test('privacy: an edit in one language stays there; a new section is written with every key, in the schema\'s order; the date passes through', () => {
+  const v = formValues(MODELS.privacy, PRIVACY_DATA);
+  const rows = copy(v.sections as Row[]);
+  (rows[0].items as Bi<string[]>).tr = ['Ad.', 'Profil fotoğrafı.'];
+  rows.push({ heading: { en: 'Rights', tr: 'Haklar' }, paragraphs: { en: ['Ask us.'], tr: ['Bize sorun.'] }, items: { en: [], tr: [] } });
+  const out = applyValues(MODELS.privacy, PRIVACY_DATA, { ...v, sections: rows }) as typeof PRIVACY_DATA;
+  assert.deepEqual(Object.keys(out), ['updated', 'en', 'tr']);
+  assert.equal(out.updated, '2020-01-02');
+  assert.deepEqual(out.en.sections[0], PRIVACY_DATA.en.sections[0], 'English untouched');
+  assert.deepEqual(out.tr.sections[0].items, ['Ad.', 'Profil fotoğrafı.']);
+  assert.deepEqual(out.en.sections[2], { heading: 'Rights', paragraphs: ['Ask us.'], items: [] });
+  assert.deepEqual(Object.keys(out.tr.sections[2]), ['heading', 'paragraphs', 'items']);
+  assert.ok(PRIVACY.schema.safeParse(out).success);
+  // "Take the site's value" for one field takes both languages of it.
+  const other = copy(PRIVACY_DATA);
+  other.en.title = 'Privacy policy';
+  other.tr.title = 'Gizlilik politikası';
+  const taken = withFieldFrom(MODELS.privacy, out, other, 'title') as typeof PRIVACY_DATA;
+  assert.deepEqual([taken.en.title, taken.tr.title, taken.updated], ['Privacy policy', 'Gizlilik politikası', '2020-01-02']);
+  assert.deepEqual(taken.tr.sections, out.tr.sections);
+});
+
+test('privacy: server errors land on their field and language; the parity sentence has its own words', () => {
+  assert.deepEqual(placeOf(MODELS.privacy, 'tr.intro'), { key: 'intro', lang: 'tr' });
+  const p = placeOf(MODELS.privacy, 'tr.sections.1.items');
+  assert.equal(p.key, 'sections');
+  assert.equal(p.lang, 'tr');
+  assert.deepEqual(p.trail, [{ key: 'sections', row: 1 }]);
+  assert.equal(p.leaf, 'items');
+  assert.equal(placeOf(MODELS.privacy, 'en.title').key, 'title');
+  assert.equal(placeOf(MODELS.privacy, 'updated').key, null);
+  const parity = PRIVACY.schema.safeParse({ ...PRIVACY_DATA, tr: { ...notice('tr'), intro: ['Bir.', 'İki.'] } });
+  assert.ok(!parity.success);
+  const msg = parity.error.issues.find((i) => i.path.join('.') === 'tr.intro')?.message ?? '';
+  assert.equal(messageKey(msg), 'admin.cms.v.privacyParity');
+  assert.equal(messageKey(NO_AT_MESSAGE), 'admin.cms.v.noAt');
 });

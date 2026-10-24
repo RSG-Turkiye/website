@@ -407,6 +407,39 @@ export function fixedKeysErrors(type: CmsType, before: unknown, next: unknown): 
   return Object.keys(errors).length ? errors : null;
 }
 
+/**
+ * For a fixedKeys JSON type: `next` with its keys in `before`'s order, at
+ * every depth where `before` has an object. The keys are the same (checked
+ * with fixedKeysErrors first), so a save that sends them in another order
+ * changes values only: a page-text file keeps main's order, and its pull
+ * request shows only the lines whose text changed. A record schema (page
+ * texts) has no shape for serializeJson to order by, so this is what does it.
+ */
+export function inOrderOf(before: unknown, next: unknown): unknown {
+  if (Array.isArray(next)) return Array.isArray(before) ? next.map((v, i) => inOrderOf(before[i], v)) : next;
+  if (!isObject(next) || !isObject(before)) return next;
+  const keys = [...Object.keys(before).filter((k) => Object.hasOwn(next, k)), ...Object.keys(next).filter((k) => !Object.hasOwn(before, k))];
+  const out: Record<string, unknown> = {};
+  // defineProperty: a `__proto__` key stays a key (validateDraft refuses unknown ones before this runs).
+  for (const k of keys) Object.defineProperty(out, k, { value: inOrderOf(before[k], next[k]), enumerable: true, writable: true, configurable: true });
+  return out;
+}
+
+/** The day `now` (seconds) falls on in Istanbul, YYYY-MM-DD: the date an approval stamps (approvedOnKey). */
+export function istanbulDay(now: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now * 1000));
+}
+
+/**
+ * The data an approval writes: for a type with an approvedOnKey (the
+ * privacy notice), that key set to the day of approval, whatever the draft
+ * held. Other types' data is returned as it is.
+ */
+export function stampedOnApproval(type: CmsType, data: unknown, now: number): unknown {
+  if (!type.approvedOnKey || type.format !== 'json' || !isObject(data)) return data;
+  return { ...data, [type.approvedOnKey]: istanbulDay(now) };
+}
+
 // ── Files ─────────────────────────────────────────────────────────────────────
 
 /** The paths a new entry is written to. */

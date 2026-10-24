@@ -53,9 +53,9 @@ Everything runs on the free plans, under the organisation's shared account
 /
 ├── src/
 │   ├── pages/            Routes. English at the root, Turkish under tr/
-│   ├── content/          Markdown (blog, webinars, learning paths) and JSON (events, workshops, resources, committees, pages)
+│   ├── content/          Markdown (blog, webinars, learning paths) and JSON (events, workshops, resources, committees, pages, privacy)
 │   ├── content.config.ts Content schemas
-│   ├── data/             Schemas and helpers for the JSON collections, privacy text, podcast
+│   ├── data/             Schemas and helpers for the JSON collections and the privacy notice, podcast
 │   ├── i18n/ui.ts        UI strings in both languages
 │   ├── components/, layouts/, styles/
 │   ├── lib/              Build-time helpers
@@ -1012,6 +1012,27 @@ five times in ten minutes.
 is the fallback for when the panel cannot reach the feed. Both use
 `src/lib/podcast-feed.ts` and the schema in `src/data/podcast.ts`.
 
+### Page texts and the privacy notice
+
+İçerik › Sayfalar holds two types:
+
+- **Sayfa metinleri** (`#icerik/sayfa-metinleri`): the wording of the home,
+  about, join and resources pages, `src/content/pages/<page>.json`. The form
+  shows one English and Turkish text per key of the file, labelled with the
+  key, in the file's order. Only the values change: a draft that adds or
+  drops a key is refused, because the page looks each key up and the build
+  fails on one it lacks. A new key comes with the page change that uses it,
+  in a pull request. Pages are not created or deleted in the panel.
+- **Gizlilik bildirimi** (`#icerik/gizlilik`): the privacy notice,
+  `src/content/privacy/privacy.json` (schema: `src/data/privacy-schema.ts`).
+  The two languages are edited side by side and must match in shape (as
+  many intro paragraphs, sections, paragraphs and items); a draft that does
+  not is saved but cannot be sent. The contact address is written
+  `{contact}` and filled in from `PRIVACY_CONTACT` in `src/data/privacy.ts`;
+  an `@` in the file is refused. Only an admin approves a change (a Sayfalar
+  approver cannot act on someone else's privacy draft), and the approval
+  sets `updated`, the date the page shows, to that day in Istanbul.
+
 ### Resource links
 
 The links on `/resources` are edited in İçerik › Kaynaklar
@@ -1199,7 +1220,8 @@ These are JSON collections, one file per entry (page texts: one file per page). 
 | Workshops | `src/content/workshops/` | The workshops page. `repo` is the GitHub repository name with its real case; the file name is the same name in lower case. |
 | Resources | `src/content/resources/` | The `/resources` page, in both languages; edited in the panel (İçerik › Kaynaklar). Not the learning paths; those are Markdown (below). |
 | Committees | `src/content/committees/` | `/about`. Published profiles, with the member's consent (`consent: true`). E-mail addresses are not allowed; the schema refuses them. |
-| Page texts | `src/content/pages/{home,about,join,resources}.json` | The visible wording of those pages, as `{ en, tr }` pairs. |
+| Page texts | `src/content/pages/{home,about,join,resources}.json` | The visible wording of those pages, as `{ en, tr }` pairs; the values are edited in the panel (İçerik › Sayfa metinleri). |
+| Privacy notice | `src/content/privacy/privacy.json` | `/privacy`, both languages in one file; edited in the panel (İçerik › Gizlilik bildirimi), approved by an admin. |
 
 The schemas and helpers are in `src/data/*.ts`; the loaders are in `src/lib/get-*.ts` and `src/lib/page-text.ts`. A file that does not match its schema fails the build; the schemas are strict, so a misspelt key fails too. File names are lowercase slugs (`[a-z0-9-]+.json`); `tests/content-file-names.test.ts` checks it. `tests/content-not-in-code.test.ts` fails if a data array comes back into `src/data/events.ts`, `src/data/workshops.ts` or `src/data/committees.ts`, or a literal resource list into `src/pages/resources.astro` or `src/pages/tr/resources.astro`.
 

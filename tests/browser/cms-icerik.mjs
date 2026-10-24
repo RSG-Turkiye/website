@@ -88,6 +88,20 @@ function assignLpIds(data, state) {
   data._assigned = [...(data._assigned ?? []), ...state.given.filter((g) => !(data._assigned ?? []).includes(g))];
   return data;
 }
+/** Page texts, synthetic, keys in no alphabetical order: a save must keep it. */
+const PAGE = { zeta_title: { en: 'Who we are', tr: 'Biz kimiz' }, alpha_intro: { en: 'A student group.', tr: 'Bir öğrenci grubu.' }, mid_cta: { en: 'Join', tr: 'Katıl' } };
+const PAGE_PATH = 'src/content/pages/about.json';
+/** The privacy notice, synthetic. */
+const NOTICE = (l) => ({
+  title: l === 'en' ? 'Privacy Policy' : 'Gizlilik Politikası', description: l === 'en' ? 'What we keep.' : 'Ne saklıyoruz.',
+  intro: [l === 'en' ? 'Questions go to {contact}.' : 'Sorular için: {contact}.'],
+  sections: [
+    { heading: l === 'en' ? 'What we collect' : 'Topladıklarımız', paragraphs: [], items: [l === 'en' ? 'Your name, as you enter it on your profile.' : 'Profilinize girdiğiniz adınız.', l === 'en' ? 'Your photo.' : 'Fotoğrafınız.'] },
+    { heading: l === 'en' ? 'Changes' : 'Değişiklikler', paragraphs: [l === 'en' ? 'The date at the top changes with the page.' : 'Sayfa değişince en üstteki tarih de değişir.'], items: [] },
+  ],
+});
+const PRIVACY = { updated: '2026-10-23', en: NOTICE('en'), tr: NOTICE('tr') };
+const PRIVACY_PATH = 'src/content/privacy/privacy.json';
 const ENTRIES = {
   events: [
     { id: 'symposium-2026', title: SYM.title.en, date: '2026-10-10', shas: { [PATH]: 'sha-1' } },
@@ -100,6 +114,8 @@ const ENTRIES = {
   resources: [{ id: 'example-tool-md-drug', title: RES.title.en, section: 'md-drug', shas: { [RES_PATH]: 'sha-r' } }, { id: 'zz-learning', title: 'Another', section: 'learning', shas: {} }],
   'lp-domains': [{ id: 'fixture', title: 'Fixture domain', paths: { en: 'src/content/lp-domains/en/fixture.md', tr: 'src/content/lp-domains/tr/fixture.md' }, shas: {} }, { id: 'genomics', title: 'Genomics', paths: { en: 'src/content/lp-domains/en/genomics.md', tr: 'src/content/lp-domains/tr/genomics.md' }, shas: {} }],
   'lp-levels': [{ id: 'fixture-explorer', title: 'fixture · explorer', paths: LEVEL_PATHS, shas: {} }],
+  pages: [{ id: 'about', title: 'about', shas: { [PAGE_PATH]: 'sha-pg' } }, { id: 'home', title: 'home', shas: {} }],
+  privacy: [{ id: 'privacy', title: PRIVACY.en.title, date: PRIVACY.updated, shas: { [PRIVACY_PATH]: 'sha-pv' } }],
   'lp-roadmap': [{ id: '07-direction', title: '7. Direction', paths: { en: 'src/content/lp-roadmap/en/07-direction.md', tr: 'src/content/lp-roadmap/tr/07-direction.md' }, shas: {} }, { id: '08-first-project', title: '8. First project', paths: { en: 'src/content/lp-roadmap/en/08-first-project.md', tr: 'src/content/lp-roadmap/tr/08-first-project.md' }, shas: {} }],
 };
 /** What /api/cms/types answers: the types of the groups `who` edits, approve per type (`state.adminOnly` lists keys only an admin approves). */
@@ -113,6 +129,9 @@ const TYPES = [
   { key: 'lp-domains', group: 'ogrenme', label: { en: 'Learning-path domains', tr: 'Öğrenme alanları' } },
   { key: 'lp-levels', group: 'ogrenme', label: { en: 'Learning-path levels', tr: 'Öğrenme seviyeleri' } },
   { key: 'lp-roadmap', group: 'ogrenme', label: { en: 'Roadmap stages', tr: 'Yol haritası' } },
+  { key: 'pages', group: 'sayfalar', label: { en: 'Page texts', tr: 'Sayfa metinleri' } },
+  // Only an admin approves it (approve: 'admin').
+  { key: 'privacy', group: 'sayfalar', label: { en: 'Privacy notice', tr: 'Gizlilik bildirimi' }, adminOnly: true },
 ];
 const USERS = {
   approver: { id: 'u1', email: 'onay@example.org', grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] },
@@ -121,6 +140,8 @@ const USERS = {
   topluluk: { id: 'u5', email: 'komite@example.org', grants: [{ role: 'content.topluluk.edit', expires_at: null }] },
   ogrenme: { id: 'u7', email: 'ogrenme@example.org', grants: [{ role: 'content.ogrenme.edit', expires_at: null }] },
   ogrenmeOnay: { id: 'u8', email: 'ogrenme-onay@example.org', grants: [{ role: 'content.ogrenme.approve', expires_at: null }] },
+  sayfalar: { id: 'u9', email: 'sayfa@example.org', grants: [{ role: 'content.sayfalar.edit', expires_at: null }] },
+  sayfalarOnay: { id: 'u10', email: 'sayfa-onay@example.org', grants: [{ role: 'content.sayfalar.approve', expires_at: null }] },
   // Two groups: the tab bar shows each group's name.
   both: { id: 'u6', email: 'iki@example.org', grants: [{ role: 'content.etkinlikler.edit', expires_at: null }, { role: 'content.topluluk.approve', expires_at: null }] },
   // DEMO=admin only: an admin, for the Roles tab and every group.
@@ -167,7 +188,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
     if (p === '/api/cms/types') {
       if (state.typesFail) return json({ error: 'x', code: 'boom' }, 500);
       const approves = (t) => user.is_admin || user.grants.some((g) => g.role === `content.${t.group}.approve`);
-      return json({ types: TYPES.filter((t) => groups.has(t.group)).map((t) => ({ ...t, format: 'json', schema: {}, canApprove: approves(t) && !state.adminOnly.includes(t.key) })) });
+      return json({ types: TYPES.filter((t) => groups.has(t.group)).map(({ adminOnly, ...t }) => ({ ...t, format: 'json', schema: {}, canApprove: approves(t) && !state.adminOnly.includes(t.key) && !(adminOnly && !user.is_admin) })) });
     }
     if (p === '/api/admin/users' && method === 'GET') return json({ users: DEMO_PEOPLE, badge_catalog: [] });
     if (p === '/api/admin/health') return json({ issues: [], canFix: false });
@@ -200,6 +221,8 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
         const dir = type === 'lp-domains' ? 'lp-domains' : 'lp-roadmap';
         return json({ type, id, data: { en: { frontmatter: side('en'), body: '', source: '' }, tr: { frontmatter: side('tr'), body: '', source: '' } }, base_shas: { [`src/content/${dir}/en/${id}.md`]: 'sha-de', [`src/content/${dir}/tr/${id}.md`]: 'sha-dt' } });
       }
+      if (type === 'pages') return json({ type, id, data: PAGE, base_shas: { [PAGE_PATH]: 'sha-pg' }, files: { [PAGE_PATH]: `${JSON.stringify(PAGE, null, 2)}\n` } });
+      if (type === 'privacy') return json({ type, id, data: PRIVACY, base_shas: { [PRIVACY_PATH]: 'sha-pv' }, files: { [PRIVACY_PATH]: `${JSON.stringify(PRIVACY, null, 2)}\n` } });
       if (type === 'podcast') return json({ type, id, data: POD, base_shas: { [POD_PATH]: 'sha-p' }, files: { [POD_PATH]: `${JSON.stringify(POD, null, 2)}\n` } });
       const e = (ENTRIES[type] ?? []).find((x) => x.id === id);
       if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas, ...(state.entryFiles ? { files: state.entryFiles } : {}) });
@@ -271,7 +294,7 @@ const waitFor = (page, fn, arg, timeout = 5000) => page.waitForFunction(fn, arg,
 const noSideScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 
 /*
- * DEMO=editor, DEMO=approver, DEMO=yazilar, DEMO=topluluk or DEMO=admin: no checks; a
+ * DEMO=editor, DEMO=approver, DEMO=yazilar, DEMO=topluluk, DEMO=ogrenme, DEMO=sayfalar or DEMO=admin: no checks; a
  * visible browser on the panel with this file's mock server and a few seeded
  * drafts, to click through by hand. Saving, sending, approving and sending
  * back all work, in memory only; nothing reaches GitHub or a database. Close
@@ -282,18 +305,23 @@ const noSideScroll = (page) => page.evaluate(() => document.documentElement.scro
  * open the level, add a resource card in a section, save (the mock server
  * gives it its progress key, as the real one does), save again; a new
  * roadmap stage (Yol haritası → Yeni) is numbered after the last; Kaynaklar
- * and Öğrenme alanları are next to them. DEMO_LANG=en for English.
+ * and Öğrenme alanları are next to them. DEMO=sayfalar opens a page's texts
+ * (Sayfa metinleri › about): one English and Turkish text per key; the
+ * Gizlilik bildirimi tab has the privacy notice, and a privacy draft sent
+ * back whose Turkish list is short. DEMO=sayfalarOnay is the group's
+ * approver: Onay holds a page text to approve. DEMO_LANG=en for English.
  *
  *   npm run build && npx astro preview --port 4329 &
  *   DEMO=approver BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
  *   DEMO=topluluk BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
  *   DEMO=ogrenme BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
+ *   DEMO=sayfalar BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
  */
 if (process.env.DEMO) {
   const demo = await chromium.launch({ headless: false, ...(process.env.CHROME ? { executablePath: process.env.CHROME } : {}) });
   const who = Object.hasOwn(USERS, process.env.DEMO) ? process.env.DEMO : 'editor';
   const me = USERS[who].id;
-  const start = { topluluk: '#icerik/komiteler/example', ogrenme: '#icerik/ogrenme-seviyeleri' }[who] ?? '#icerik';
+  const start = { topluluk: '#icerik/komiteler/example', ogrenme: '#icerik/ogrenme-seviyeleri', sayfalar: '#icerik/sayfa-metinleri/about', sayfalarOnay: '#icerik/onay' }[who] ?? '#icerik';
   const { page } = await open(demo, who, start, { width: 1440, height: 900 }, (s) => {
     const mk = (n, o) => s.drafts.set(`00000000-0000-4000-8000-00000000020${n}`, draftRow({ id: `00000000-0000-4000-8000-00000000020${n}`, author_id: me, ...o }));
     if (who === 'ogrenme') {
@@ -305,6 +333,16 @@ if (process.env.DEMO) {
       off.tr.frontmatter.sections[0].resources[0].url = 'https://example.org/baska';
       mk(2, { type: 'lp-levels', status: 'rejected', entry_id: 'fixture-explorer', review_note: 'İlk kartın Türkçe bağlantısı farklı.', base_shas: { [LEVEL_PATHS.en]: 'sha-le', [LEVEL_PATHS.tr]: 'sha-lt' }, data: off });
       s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'tr.frontmatter.sections.0.resources.0.url': 'Must be the same as in English (a Turkish link may add /tr)' } }];
+      return;
+    }
+    if (who === 'sayfalar' || who === 'sayfalarOnay') {
+      // A privacy draft sent back: the Turkish list is one item short (submit says where).
+      const short = JSON.parse(JSON.stringify(PRIVACY));
+      short.tr.sections[0].items.pop();
+      mk(1, { type: 'privacy', status: 'rejected', entry_id: 'privacy', author_id: USERS.sayfalar.id, review_note: 'Türkçede bir madde eksik.', base_shas: { [PRIVACY_PATH]: 'sha-pv' }, data: short });
+      s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'tr.sections.0.items': 'The Turkish notice must have as many paragraphs, sections and items as the English one' } }];
+      // A page text waiting: its approver approves it; a privacy one only an admin does.
+      mk(2, { type: 'pages', status: 'submitted', entry_id: 'about', author_id: USERS.sayfalar.id, base_shas: { [PAGE_PATH]: 'sha-pg' }, data: { ...PAGE, mid_cta: { en: 'Join us', tr: 'Bize katılın' } } });
       return;
     }
     if (who === 'topluluk') {
@@ -1314,10 +1352,101 @@ await section('38) the approver is told each published key a level drops', async
   await page.close();
 });
 
+await section('39) page texts: one English and Turkish text per key, labelled with the key, in the file\'s order; a save keeps the keys', async () => {
+  const { page, calls } = await open(browser, 'sayfalar', '#icerik/sayfa-metinleri', { width: 1440, height: 900 });
+  ok(await waitFor(page, () => !!document.querySelector('[data-cms-entry="about"]')), 'Sayfa metinleri lists the pages by file name');
+  ok(!(await visible(page, '[data-cms-new]')), 'no "Yeni": pages are not made in the panel');
+  ok(await page.locator('[data-sub-link="gizlilik"]').count() === 1, 'Gizlilik bildirimi is the next tab');
+  await page.click('[data-cms-entry="about"] [data-cms-edit]');
+  await page.waitForSelector('#cmsForm [data-field="mid_cta"][data-lang="tr"]');
+  const keys = await page.evaluate(() => [...document.querySelectorAll('#cmsFields [data-field-wrap]')].map((w) => w.getAttribute('data-field-wrap')));
+  ok(JSON.stringify(keys) === JSON.stringify(Object.keys(PAGE)), `one field per key, in the file's order: ${keys.join(', ')}`);
+  ok((await page.textContent('[data-field-wrap="alpha_intro"]')).includes('alpha_intro'), 'labelled with the key');
+  ok(await page.evaluate(() => document.querySelector('[data-field="alpha_intro"][data-lang="en"]')?.tagName === 'TEXTAREA'), 'a text area per language');
+  ok(await page.locator('[data-cms-delete-entry]').count() === 0, 'no delete');
+  await page.fill('[data-field="mid_cta"][data-lang="tr"]', 'Bize katılın');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts');
+  ok(post?.body?.type === 'pages' && post.body.action === 'update' && post.body.entry_id === 'about', 'an update draft of the page');
+  ok(JSON.stringify(post?.body?.data) === JSON.stringify({ ...PAGE, mid_cta: { en: 'Join', tr: 'Bize katılın' } }), `the same keys, in the same order, one value changed: ${JSON.stringify(post?.body?.data)}`);
+  await page.close();
+});
+
+await section('40) the privacy notice: both languages side by side, a Turkish item changed and saved; the date is not in the form', async () => {
+  const { page, calls } = await open(browser, 'sayfalar', '#icerik/gizlilik', { width: 1366, height: 768 });
+  ok(await waitFor(page, () => !!document.querySelector('[data-cms-entry="privacy"]')), 'Gizlilik bildirimi lists the notice');
+  ok(!(await visible(page, '[data-cms-new]')), 'no "Yeni"');
+  await page.click('[data-cms-entry="privacy"] [data-cms-edit]');
+  await page.waitForSelector('#cmsForm [data-field="title"][data-lang="tr"]');
+  ok((await page.textContent('#cmsTitle')).includes('Gizlilik Politikası'), 'the heading is the notice\'s title');
+  ok(await page.inputValue('[data-field="title"][data-lang="en"]') === 'Privacy Policy' && await page.inputValue('[data-field="title"][data-lang="tr"]') === 'Gizlilik Politikası', 'the two languages side by side');
+  ok(await page.locator('[data-field-wrap="updated"]').count() === 0, 'no date field: the approval sets it');
+  ok((await page.textContent('[data-field-wrap="intro"]')).includes('{contact}'), 'the help says to write {contact}');
+  const sections = '[data-field-wrap="sections"] [data-objects="sections"]';
+  ok((await page.textContent(`${sections} > [data-rows] > [data-orow]:nth-child(1) > summary`)).includes('Topladıklarımız'), 'a section row is summed up by its heading');
+  await page.locator(`${sections} > [data-rows] > [data-orow]:nth-child(1)`).evaluate((d) => { d.open = true; });
+  const item = `${sections} > [data-rows] > [data-orow]:nth-child(1) [data-sub-wrap="items"] [data-list-lang="tr"] [data-item]`;
+  ok(await page.locator(item).first().evaluate((e) => e.tagName === 'TEXTAREA'), 'each item is a text area');
+  await page.locator(item).nth(1).fill('Profil fotoğrafınız.');
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const data = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts')?.body?.data;
+  ok(data?.updated === PRIVACY.updated && JSON.stringify(Object.keys(data ?? {})) === '["updated","en","tr"]', 'the date and the file\'s keys pass through');
+  ok(JSON.stringify(data?.en) === JSON.stringify(PRIVACY.en), 'the English untouched');
+  ok(JSON.stringify(data?.tr?.sections?.[0]?.items) === JSON.stringify([PRIVACY.tr.sections[0].items[0], 'Profil fotoğrafınız.']), `the Turkish item changed: ${JSON.stringify(data?.tr?.sections?.[0]?.items)}`);
+  await page.close();
+});
+
+await section('41) privacy: a Turkish list one item short is said in plain words, on that section', async () => {
+  const id = '00000000-0000-4000-8000-000000000901';
+  const short = JSON.parse(JSON.stringify(PRIVACY));
+  short.tr.sections[0].items.pop();
+  const { page } = await open(browser, 'sayfalar', `#icerik/taslaklar/${id}`, { width: 1280, height: 680 }, (s) => {
+    s.drafts.set(id, draftRow({ id, type: 'privacy', entry_id: 'privacy', author_id: 'u9', data: short, base_shas: { [PRIVACY_PATH]: 'sha-pv' } }));
+    s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'tr.sections.0.items': 'The Turkish notice must have as many paragraphs, sections and items as the English one' } }];
+  });
+  await page.waitForSelector('#cmsSubmit');
+  await page.click('#cmsSubmit');
+  if (await waitFor(page, () => !!document.getElementById('cmsHalfSend'), undefined, 1500)) await page.click('#cmsHalfSend');
+  ok(await waitFor(page, () => /alan düzeltilmeli/.test(document.getElementById('cmsErrors')?.textContent ?? '')), 'a summary of what to fix');
+  const summary = (await page.textContent('#cmsErrors')).replace(/\s+/g, ' ');
+  ok(summary.includes('Bölüm 1') && summary.includes('Liste maddeleri'), `the section and the list by name: "${summary.slice(0, 200)}"`);
+  ok(summary.includes('Türkçede İngilizcedeki kadar paragraf, bölüm ve liste maddesi olmalı'), 'the parity rule in plain words');
+  ok(await page.locator('[data-objects="sections"] > [data-rows] > [data-orow]:nth-child(1)').evaluate((d) => d.open), 'the section is opened');
+  await page.close();
+});
+
+await section('42) a Sayfalar approver approves a page text, not the privacy notice (only an admin does)', async () => {
+  const pg = '00000000-0000-4000-8000-000000000911';
+  const pv = '00000000-0000-4000-8000-000000000912';
+  const { page, calls } = await open(browser, 'sayfalarOnay', `#icerik/onay/${pv}`, { width: 1440, height: 900 }, (s) => {
+    s.drafts.set(pg, draftRow({ id: pg, type: 'pages', status: 'submitted', entry_id: 'about', author_id: 'u9', data: { ...PAGE, mid_cta: { en: 'Join us', tr: 'Bize katılın' } }, base_shas: { [PAGE_PATH]: 'sha-pg' } }));
+    const edited = JSON.parse(JSON.stringify(PRIVACY));
+    edited.tr.sections[0].items[1] = 'Profil fotoğrafınız.';
+    s.drafts.set(pv, draftRow({ id: pv, type: 'privacy', status: 'submitted', entry_id: 'privacy', author_id: 'u9', data: edited, base_shas: { [PRIVACY_PATH]: 'sha-pv' } }));
+  });
+  ok(await waitFor(page, () => !!document.getElementById('cmsReview')?.textContent?.trim()), 'the privacy change is shown');
+  ok(await page.locator('#cmsApprove').count() === 0, 'no Approve on the privacy notice');
+  await page.evaluate((h) => { location.hash = h; }, `#icerik/onay/${pg}`);
+  ok(await waitFor(page, () => !!document.getElementById('cmsApprove')), 'Approve on a page text');
+  const review = (await page.textContent('#cmsReview')).replace(/\s+/g, ' ');
+  ok(review.includes('mid_cta') && review.includes('Bize katılın'), `the changed text, by its key: "${review.slice(0, 160)}"`);
+  await page.click('#cmsApprove');
+  ok(await waitFor(page, () => /Onaylandı/.test(document.getElementById('cmsNotice')?.textContent ?? '')) && calls.some((c) => c.method === 'POST' && c.path.endsWith(`${pg}/approve`)), 'the approval goes out');
+  ok(!calls.some((c) => c.path.endsWith(`${pv}/approve`)), 'the privacy draft was never approved');
+  await page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
-for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction']]) {
+for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction'], ['sayfalar', '#icerik/sayfa-metinleri'], ['sayfalar', '#icerik/sayfa-metinleri/about'], ['sayfalar', '#icerik/gizlilik/privacy'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000006'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000007']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));
+    // A page text and a privacy notice in review, with words too long for the line.
+    s.drafts.set('00000000-0000-4000-8000-000000000006', draftRow({ id: '00000000-0000-4000-8000-000000000006', type: 'pages', status: 'submitted', entry_id: 'about', data: { ...PAGE, alpha_intro: { en: 'y'.repeat(200), tr: 'z'.repeat(200) } } }));
+    const edited = JSON.parse(JSON.stringify(PRIVACY));
+    edited.tr.sections[0].items[1] = 'q'.repeat(200);
+    s.drafts.set('00000000-0000-4000-8000-000000000007', draftRow({ id: '00000000-0000-4000-8000-000000000007', type: 'privacy', status: 'submitted', entry_id: 'privacy', data: edited }));
   });
   await page.waitForSelector('[data-cms-entry], [data-cms-episode], #cmsFields [data-field-wrap], #cmsReview [data-diff-field]');
   await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));

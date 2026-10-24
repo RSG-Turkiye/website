@@ -5,7 +5,7 @@
  * works on the form's values (cms-form.ts), so it sees fields the way the
  * form shows them.
  */
-import { formValues, isSplit, same, type Bi, type FieldDef, type Row, type TypeModel, type Values } from './cms-form';
+import { formValues, isSplit, pairForm, same, type Bi, type FieldDef, type Row, type TypeModel, type Values } from './cms-form';
 
 export type ItemState = 'added' | 'removed' | 'moved' | 'same';
 export type LineOp = '+' | '-' | ' ';
@@ -199,7 +199,7 @@ export function diffEntry(model: TypeModel, published: unknown, draft: unknown, 
   const changed: FieldChange[] = [];
   const unchanged: FieldDef[] = [];
   for (const f of fields) {
-    const changes = fieldChanges(model.format === 'json' ? 'json' : 'pair', f, b[f.key], a[f.key]);
+    const changes = fieldChanges(pairForm(model) ? 'pair' : 'json', f, b[f.key], a[f.key]);
     if (changes.length) changed.push({ field: f, changes });
     else unchanged.push(f);
   }

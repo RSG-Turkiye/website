@@ -103,7 +103,13 @@ const LP_STAGE = JSON.parse(JSON.stringify({ en: { frontmatter: LP_STAGE_SIDE('e
 const LP_DOMAIN_SIDE = () => ({ name: 'Domain', emoji: '🧬', tagline: 'Tagline', order: 1, goDeeper: N(4, (i) => ({ title: `Link ${i}`, description: 'D', url: `https://example.org/${i}` })) });
 const LP_DOMAIN = { en: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' }, tr: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' } };
 const lpPaths = (dir, id) => ({ en: `src/content/${dir}/en/${id}.md`, tr: `src/content/${dir}/tr/${id}.md` });
+/** Page texts with many keys; a privacy notice with many sections, closed: the form must still fit. */
+const CMS_PAGE = Object.fromEntries(N(24, (i) => [`text_${i}`, { en: `Text ${i}`, tr: `Metin ${i}` }]));
+const PRIV_SIDE = () => ({ title: 'Privacy', description: 'What we keep.', intro: N(3, (i) => `Intro ${i}`), sections: N(8, (i) => ({ heading: `Section ${i}`, paragraphs: [`Paragraph ${i}`], items: N(6, (j) => `Item ${j}`) })) });
+const CMS_PRIVACY = { updated: '2026-10-23', en: PRIV_SIDE(), tr: PRIV_SIDE() };
 const CMS_ENTRIES = {
+  pages: ['about', 'home', 'join', 'resources'].map((id) => ({ id, title: id, shas: {} })),
+  privacy: [{ id: 'privacy', title: 'Privacy', date: '2026-10-23', shas: {} }],
   resources: N(36, (i) => ({ id: `r${i}`, title: `Resource ${i}`, section: 'tools', shas: {} })),
   'lp-domains': N(4, (i) => ({ id: `d${i}`, title: `Domain ${i}`, paths: lpPaths('lp-domains', `d${i}`), shas: {} })),
   'lp-levels': N(13, (i) => ({ id: `d${i % 4}-explorer${i}`, title: `d${i % 4} · explorer`, paths: lpPaths('lp-levels', `d${i % 4}-explorer${i}`), shas: {} })),
@@ -147,7 +153,7 @@ async function open(path, viewport, user = ADMIN, { podcast = true, posts = POST
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
     // An admin approves every type (approve per type: functions/api/cms/types.ts).
-    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme'], ['lp-domains', 'ogrenme'], ['lp-levels', 'ogrenme'], ['lp-roadmap', 'ogrenme']].map(([key, group]) => ({ key, group, canApprove: true })) });
+    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme'], ['lp-domains', 'ogrenme'], ['lp-levels', 'ogrenme'], ['lp-roadmap', 'ogrenme'], ['pages', 'sayfalar'], ['privacy', 'sayfalar']].map(([key, group]) => ({ key, group, canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'podcast') return json({ data: CMS_PODCAST, base_shas: { 'src/data/podcast.json': 'sha' }, files: { 'src/data/podcast.json': JSON.stringify(CMS_PODCAST, null, 2) } });
     if (url.pathname === `/api/cms/drafts/${POD_DRAFT}`) return json({ draft: { ...CMS_DRAFTS[1], id: POD_DRAFT, type: 'podcast', entry_id: 'podcast', status: 'draft', write_nonce: 'n', data: CMS_PODCAST_NEW, base_shas: { 'src/data/podcast.json': 'sha' } }, files: null });
@@ -155,6 +161,8 @@ async function open(path, viewport, user = ADMIN, { podcast = true, posts = POST
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-levels') return json({ data: LP_LEVEL, base_shas: {} });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-roadmap') return json({ data: LP_STAGE, base_shas: {} });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-domains') return json({ data: LP_DOMAIN, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'pages') return json({ data: CMS_PAGE, base_shas: { 'src/content/pages/about.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'privacy') return json({ data: CMS_PRIVACY, base_shas: { 'src/content/privacy/privacy.json': 'sha' } });
     if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/c0.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
@@ -226,6 +234,7 @@ async function routes(lang, user) {
   if (out.includes('#icerik/kaynaklar')) out.push('#icerik/kaynaklar/r0');
   if (out.includes('#icerik/ogrenme-seviyeleri')) out.push('#icerik/ogrenme-seviyeleri/d0-explorer0', '#icerik/yol-haritasi/01-stage', '#icerik/ogrenme-alanlari/d0');
   if (out.includes('#icerik/podcast')) out.push(`#icerik/taslaklar/${POD_DRAFT}`, `#icerik/onay/${POD_DRAFT}`);
+  if (out.includes('#icerik/sayfa-metinleri')) out.push('#icerik/sayfa-metinleri/about', '#icerik/gizlilik/privacy');
   return [...new Set(out)];
 }
 
