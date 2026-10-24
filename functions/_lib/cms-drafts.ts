@@ -264,29 +264,56 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data: out as PairData };
 }
 
-/** The form field a type's file name comes from, for errors about the id. */
-export const ID_FIELD: Record<string, string> = { events: 'id', workshops: 'repo', webinars: 'en.frontmatter.title' };
-
-/** The file id a new entry gets, from validated data. */
+/** The file id a new entry gets, from validated data. Only for a create:
+ * an update keeps its entry_id whatever the data says (plan 4, A1). */
 export function newEntryId(type: CmsType, data: unknown): Validated<string> {
   try {
     const id = type.idFrom(type.format === 'json' ? data : { frontmatter: (data as PairData).en.frontmatter });
     return { ok: true, data: checkId(id) };
   } catch (e) {
-    return { ok: false, errors: { [ID_FIELD[type.key]]: e instanceof Error ? e.message : 'Not a valid id' } };
+    return { ok: false, errors: { [type.idField]: e instanceof Error ? e.message : 'Not a valid id' } };
   }
 }
 
 /**
- * An update keeps its file name, so for JSON types the field the name comes
- * from must still give it. Webinars are named by hand and keep theirs
- * whatever the title becomes.
+ * An update keeps its file name. Where the id is itself a field of the data
+ * (idInData: events' `id`), that field must still give it, or the file
+ * would say one id and be named another. Other types are named once, at
+ * creation, and keep the name whatever their title or repo becomes.
  */
 export function checkSameId(type: CmsType, entryId: string, data: unknown): FieldErrors | null {
-  if (type.format !== 'json') return null;
+  if (!type.idInData) return null;
   const id = newEntryId(type, data);
   if (id.ok && id.data === entryId) return null;
-  return { [ID_FIELD[type.key]]: `This gives the file its name (${entryId}) and cannot change. To rename, create a new entry and delete this one.` };
+  return { [type.idField]: `This gives the file its name (${entryId}) and cannot change. To rename, create a new entry and delete this one.` };
+}
+
+/** Whether the type lets the panel create or delete entries (noCreate, noDelete). */
+export function actionAllowed(type: CmsType, action: DraftAction): boolean {
+  return !(action === 'create' && type.noCreate) && !(action === 'delete' && type.noDelete);
+}
+
+/**
+ * For a fixedKeys type: the top-level keys `next` adds or lacks compared
+ * with `before` (for a pair, each side's frontmatter keys), or null when
+ * they are the same. Values may change; keys may not.
+ */
+export function fixedKeysErrors(type: CmsType, before: unknown, next: unknown): FieldErrors | null {
+  if (!type.fixedKeys) return null;
+  const errors: FieldErrors = {};
+  const compare = (was: unknown, now: unknown, at: string) => {
+    const a = isObject(was) ? Object.keys(was) : [];
+    const b = isObject(now) ? Object.keys(now) : [];
+    const path = (k: string) => (at ? `${at}.${k}` : k);
+    for (const k of b) if (!a.includes(k)) setOnce(errors, path(k), 'Not in the file: only the values of its own keys can change');
+    for (const k of a) if (!b.includes(k)) setOnce(errors, path(k), 'Missing: every key of the file must stay');
+  };
+  if (type.format === 'json') compare(before, next, '');
+  else for (const lang of ['en', 'tr'] as const) {
+    const side = (d: unknown) => (isObject(d) && isObject(d[lang]) ? (d[lang] as Record<string, unknown>).frontmatter : undefined);
+    compare(side(before), side(next), `${lang}.frontmatter`);
+  }
+  return Object.keys(errors).length ? errors : null;
 }
 
 // ── Files ─────────────────────────────────────────────────────────────────────
@@ -332,8 +359,9 @@ export function filesFor(draft: Pick<DraftRow, 'type' | 'entry_id' | 'action' | 
 // ── The pull request ──────────────────────────────────────────────────────────
 
 /** The panel, by its public address: a request through a preview hostname
- * must not put a *.pages.dev link into a public pull request. */
-const PANEL = 'https://rsg-turkiye.iscbsc.org/admin#icerik-etkinlikler/taslaklar';
+ * must not put a *.pages.dev link into a public pull request. One İçerik
+ * section holds every group's drafts. */
+const PANEL = 'https://rsg-turkiye.iscbsc.org/admin#icerik/taslaklar';
 
 /** Type, action and entry id only: no names, no e-mail addresses (public repository). */
 export function prTitle(d: Pick<DraftRow, 'action' | 'type' | 'entry_id'>): string {

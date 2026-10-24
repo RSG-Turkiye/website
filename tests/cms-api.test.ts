@@ -9,7 +9,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { call } from './lib/social';
 import { buildCmsIndex, type CmsIndex } from '../src/lib/cms/cms-index';
-import { cmsType } from '../src/lib/cms/types';
+import { z } from 'astro/zod';
+import { cmsType, defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
 import { parseJson, parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
 import { filesFor, validateDraft, prTitle, prBody } from '../functions/_lib/cms-drafts';
 import { setCmsIndexLoader } from '../functions/_lib/cms-api';
@@ -22,6 +23,7 @@ import * as submit from '../functions/api/cms/drafts/[id]/submit';
 import * as approve from '../functions/api/cms/drafts/[id]/approve';
 import * as reject from '../functions/api/cms/drafts/[id]/reject';
 import * as cancel from '../functions/api/cms/drafts/[id]/cancel';
+import * as counts from '../functions/api/admin/counts';
 import { shepherd } from '../functions/_lib/cms-shepherd';
 import { REQUIRED_CHECKS } from '../functions/_lib/github';
 
@@ -349,7 +351,7 @@ test('create, save, submit, approve: a pull request is opened and every step is 
   assert.equal(pr.head, `cms/${id}`);
   assert.equal(pr.title, 'CMS: create events meetup-ankara-2027');
   assert.ok(pr.body.includes(id) && pr.body.includes('events') && pr.body.includes('meetup-ankara-2027'));
-  assert.ok(pr.body.includes(`https://rsg-turkiye.iscbsc.org/admin#icerik-etkinlikler/taslaklar/${id}`));
+  assert.ok(pr.body.includes(`https://rsg-turkiye.iscbsc.org/admin#icerik/taslaklar/${id}`));
   assert.equal(gh.branches.get(`cms/${id}`)!.get('src/content/events/meetup-ankara-2027.json'), serializeJson(EVENTS, edited));
 
   assert.deepEqual(audit().map((a) => a.action), ['cms.draft.create', 'cms.draft.update', 'cms.draft.submit', 'cms.draft.approve', 'cms.pr.open']);
@@ -1497,4 +1499,200 @@ test('approvers get the drafts that are on their way or stuck; editors do not', 
   assert.deepEqual(body.inflight.map((d: any) => d.entry_id).sort(), ['a', 'b', 'c', 'd']);
   const ed = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor2')).json() as any;
   assert.deepEqual(ed.inflight, []);
+});
+
+// ── plan 4: every content group, and the registry's options ──────────────────
+//
+// No real type of the new groups exists yet, so two test types stand in:
+// a Yazılar type that behaves like any JSON type, and a Sayfalar type with
+// every restriction (fixedKeys, noCreate, noDelete, approve: 'admin').
+
+const TEST_POSTS = defineType({
+  key: 'testposts' as CmsTypeKey,
+  group: 'yazilar',
+  dir: 'src/content/testposts',
+  format: 'json',
+  schema: z.object({ name: z.string().min(1), text: z.string().optional() }),
+  idFrom: (d: { name: string }) => String(d.name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+  idField: 'name',
+  indexTitle: (d: { name: string }) => d.name,
+  label: { en: 'Test posts', tr: 'Test yazıları' },
+});
+const TEST_PAGES = defineType({
+  key: 'testpages' as CmsTypeKey,
+  group: 'sayfalar',
+  dir: 'src/content/testpages',
+  format: 'json',
+  schema: z.object({ a: z.string().optional(), b: z.string().optional(), c: z.string().optional() }),
+  idFrom: () => { throw new Error('page texts take their id from the file'); },
+  idField: 'a',
+  indexTitle: () => 'Home',
+  fixedKeys: true,
+  noCreate: true,
+  noDelete: true,
+  approve: 'admin',
+  label: { en: 'Test pages', tr: 'Test sayfaları' },
+});
+const HOME = 'src/content/testpages/home.json';
+const HOME_TEXT = '{\n  "a": "one",\n  "b": "two"\n}\n';
+
+/** setup(), the two test types registered, a page on main, and people in the new groups. */
+function setupGroups() {
+  setTestCmsTypes([TEST_POSTS, TEST_PAGES]);
+  const s = setup();
+  gh.main.set(HOME, HOME_TEXT);
+  const add = s.db.prepare('INSERT INTO users (id, google_id, email, is_admin, is_member, created_at, last_login) VALUES (?, ?, ?, 0, 1, 1, 1)');
+  const grant = s.db.prepare('INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES (?, ?, ?, NULL, NULL, 1)');
+  for (const [id, role] of [['yeditor', 'content.yazilar.edit'], ['yapprover', 'content.yazilar.approve'], ['seditor', 'content.sayfalar.edit'], ['sapprover', 'content.sayfalar.approve']]) {
+    add.run(id, `g-${id}`, `${id}@example.org`);
+    grant.run(`g-${id}`, id, role);
+    s.db.prepare('INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, 4000000000, 1)').run(`s-${id}`, id);
+  }
+  return s;
+}
+const done = () => setTestCmsTypes([]);
+
+test('a Yazılar-only editor sees only Yazılar types, none of the Etkinlikler drafts, and gets 403 on them', async () => {
+  try {
+    const { env } = setupGroups();
+    const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'yeditor')).json() as any;
+    assert.deepEqual(listed.types.map((t: any) => t.key), ['testposts']);
+    assert.equal(listed.types[0].group, 'yazilar');
+
+    // An Etkinlikler draft, sent for approval.
+    const ev = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+    await on(env, submit.onRequestPost, 'POST', ev.body.draft.id, 'editor', {}, '/submit');
+    // A Yazılar draft of their own.
+    const post = await create(env, 'yeditor', { type: 'testposts', action: 'create', data: { name: 'First post' } });
+    assert.equal(post.res.status, 201);
+    assert.equal(post.body.draft.entry_id, 'first-post');
+    await on(env, submit.onRequestPost, 'POST', post.body.draft.id, 'yeditor', {}, '/submit');
+
+    for (const as of ['yeditor', 'yapprover']) {
+      const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', as)).json() as any;
+      const all = [...list.mine, ...list.queue, ...list.inflight, ...list.live];
+      assert.ok(all.every((d: any) => d.type === 'testposts'), as);
+      assert.equal((await on(env, draft.onRequestGet, 'GET', ev.body.draft.id, as)).status, 403, as);
+      assert.equal((await on(env, approve.onRequestPost, 'POST', ev.body.draft.id, as, {}, '/approve')).status, 403, as);
+    }
+    const queue = (await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'yapprover')).json() as any).queue;
+    assert.deepEqual(queue.map((d: any) => d.id), [post.body.draft.id]);
+    // Nor may they start an Etkinlikler draft, and the other way round.
+    assert.equal((await create(env, 'yeditor', { type: 'events', action: 'create', data: newEvent() })).res.status, 403);
+    assert.equal((await create(env, 'editor', { type: 'testposts', action: 'create', data: { name: 'Nope' } })).res.status, 403);
+    assert.equal((await on(env, draft.onRequestGet, 'GET', post.body.draft.id, 'approver')).status, 403);
+    // The Yazılar approver approves it: the pull request links the one İçerik section.
+    assert.equal((await on(env, approve.onRequestPost, 'POST', post.body.draft.id, 'yapprover', {}, '/approve')).status, 200);
+    assert.ok(gh.prs[0].body.includes(`https://rsg-turkiye.iscbsc.org/admin#icerik/taslaklar/${post.body.draft.id}`));
+  } finally {
+    done();
+  }
+});
+
+test('an approve: admin type is approved by an admin only, not by the group\'s approver', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const made = await create(env, 'seditor', { type: 'testpages', action: 'update', entry_id: 'home', data: { a: 'one!', b: 'two' }, base_shas: loaded(HOME) });
+    assert.equal(made.res.status, 201);
+    const id = made.body.draft.id;
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+
+    const typesFor = async (as: string) => (await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', as)).json() as any).types;
+    assert.equal((await typesFor('sapprover')).find((t: any) => t.key === 'testpages').canApprove, false);
+    assert.equal((await typesFor('admin')).find((t: any) => t.key === 'testpages').canApprove, true);
+    const queueOf = async (as: string) => (await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', as)).json() as any).queue.map((d: any) => d.id);
+    assert.deepEqual(await queueOf('sapprover'), [], 'not in a queue they cannot act on');
+    assert.ok((await queueOf('admin')).includes(id));
+    const c = async (as: string) => await (await req(env, counts.onRequestGet, 'GET', '/api/admin/counts', as)).json() as any;
+    assert.equal((await c('sapprover')).cmsQueue, undefined, 'no queue: nothing in their groups they approve');
+    assert.equal((await c('admin')).cmsQueue, 1);
+
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 403);
+    assert.equal((await on(env, reject.onRequestPost, 'POST', id, 'sapprover', { note: 'no' }, '/reject')).status, 403);
+    assert.equal(row(id).status, 'submitted');
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve')).status, 200);
+    assert.equal(row(id).status, 'pr_open');
+    assert.equal(gh.branches.get(`cms/${id}`)!.get(HOME), serializeJson(TEST_PAGES, { a: 'one!', b: 'two' }));
+  } finally {
+    done();
+  }
+});
+
+test('a noCreate type refuses a new entry; a noDelete type refuses a delete', async () => {
+  try {
+    const { env, db } = setupGroups();
+    const created = await create(env, 'sapprover', { type: 'testpages', action: 'create', data: { a: 'x' } });
+    assert.equal(created.res.status, 400);
+    assert.equal(created.body.code, 'bad_action');
+    const deleted = await create(env, 'admin', { type: 'testpages', action: 'delete', entry_id: 'home', base_shas: loaded(HOME) });
+    assert.equal(deleted.res.status, 400);
+    assert.equal(deleted.body.code, 'bad_action');
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
+    // The same actions on a type without the options are fine.
+    assert.equal((await create(env, 'yeditor', { type: 'testposts', action: 'create', data: { name: 'Fine' } })).res.status, 201);
+  } finally {
+    done();
+  }
+});
+
+test('a fixedKeys type: values may change, keys may not, at the start and on every save', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const start = (data: unknown) => create(env, 'seditor', { type: 'testpages', action: 'update', entry_id: 'home', data, base_shas: loaded(HOME) });
+    const added = await start({ a: 'one', b: 'two', c: 'three' });
+    assert.equal(added.res.status, 422);
+    assert.ok(added.body.errors.c);
+    const missing = await start({ a: 'one' });
+    assert.equal(missing.res.status, 422);
+    assert.ok(missing.body.errors.b);
+
+    const ok = await start({ a: 'ONE', b: 'TWO' });
+    assert.equal(ok.res.status, 201);
+    const id = ok.body.draft.id;
+    const before = row(id).data;
+    const save = (data: unknown) => on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data });
+    const more = await save({ a: 'ONE', b: 'TWO', c: 'new' });
+    assert.equal(more.status, 422);
+    assert.ok(((await more.json()) as any).errors.c);
+    const fewer = await save({ b: 'TWO' });
+    assert.equal(fewer.status, 422);
+    assert.ok(((await fewer.json()) as any).errors.a);
+    assert.equal(row(id).data, before, 'nothing stored');
+    // The keys in another order are the same keys.
+    assert.equal((await save({ b: 'two again', a: 'one again' })).status, 200);
+    // Each save reads no file from GitHub: the stored draft is the baseline.
+    const reads = gh.requests.length;
+    assert.equal((await save({ a: '1', b: '2' })).status, 200);
+    assert.equal(gh.requests.length, reads);
+  } finally {
+    done();
+  }
+});
+
+test('an update keeps its file name whatever the data says; only an id kept in the data must still match (A1)', async () => {
+  const { env, row } = setup();
+  const path = Object.keys(FILES).filter((p) => p.startsWith('src/content/workshops/')).sort()[0];
+  const entryId = path.slice('src/content/workshops/'.length, -'.json'.length);
+  const data = { ...JSON.parse(FILES[path]), repo: 'Quite_A_Different_Repo' };
+  const made = await create(env, 'editor', { type: 'workshops', action: 'update', entry_id: entryId, data, base_shas: loaded(path) });
+  assert.equal(made.res.status, 201);
+  assert.equal(made.body.draft.entry_id, entryId);
+  const id = made.body.draft.id;
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...data, repo: 'Yet_Another' } })).status, 200);
+  assert.equal(row(id).entry_id, entryId);
+  assert.deepEqual(filesFor(row(id) as never).map((f) => f.path), [path]);
+  // Events keep their id in the data (idInData): changing it is still refused.
+  const ev = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), id: 'other-id' }, base_shas: loaded('src/content/events/symposium-2026.json') });
+  assert.equal(ev.res.status, 422);
+  assert.ok(ev.body.errors.id);
+});
+
+test('the registry\'s defaults keep the Etkinlikler types as they were', () => {
+  for (const key of ['events', 'workshops', 'webinars']) {
+    const t = cmsType(key)!;
+    assert.deepEqual([t.sides, t.fixedKeys, t.noCreate, t.noDelete, t.approve, t.generated], ['both', false, false, false, 'group', false], key);
+    assert.equal(t.idInData, key === 'events', key);
+  }
+  assert.deepEqual(['events', 'workshops', 'webinars'].map((k) => cmsType(k)!.idField), ['id', 'repo', 'en.frontmatter.title']);
+  assert.equal(cmsType('testposts'), null, 'test types are gone after the tests');
 });

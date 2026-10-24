@@ -1,7 +1,7 @@
 import type { Env } from '../../_lib/auth';
 import { jsonResponse } from '../../_lib/auth';
-import { cmsGate, rightsIn } from '../../_lib/cms-api';
-import { CMS_TYPES } from '../../../src/lib/cms/types';
+import { approvesType, cmsGate, rightsIn } from '../../_lib/cms-api';
+import { cmsTypes } from '../../../src/lib/cms/types';
 import { jsonSchemaFor } from '../../../src/lib/cms/json-schema';
 
 /**
@@ -14,12 +14,12 @@ import { jsonSchemaFor } from '../../../src/lib/cms/json-schema';
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
-  const types = CMS_TYPES.filter((t) => rightsIn(gate.rights, t.group).edit).map((t) => ({
+  const types = cmsTypes().filter((t) => rightsIn(gate.rights, t.group).edit).map((t) => ({
     key: t.key,
     group: t.group,
     format: t.format,
     label: t.label,
-    canApprove: rightsIn(gate.rights, t.group).approve,
+    canApprove: approvesType(gate, t),
     schema: jsonSchemaFor(t),
   }));
   return jsonResponse({ types });

@@ -45,10 +45,22 @@ export function mayEdit(gate: { user: User; rights: GroupRights }, row: Pick<Dra
   return r.approve || (r.edit && row.author_id === gate.user.id);
 }
 
-export function mayApprove(gate: { rights: GroupRights }, row: Pick<DraftRow, 'type'>): boolean {
-  const type = cmsType(row.type);
-  return !!type && rightsIn(gate.rights, type.group).approve;
+/**
+ * Whether this person approves drafts of `type`: the group's approvers, or,
+ * for an `approve: 'admin'` type (the privacy notice), admins only.
+ */
+export function approvesType(gate: { user: Pick<User, 'is_admin'>; rights: GroupRights }, type: CmsType): boolean {
+  return rightsIn(gate.rights, type.group).approve && (type.approve !== 'admin' || gate.user.is_admin === 1);
 }
+
+export function mayApprove(gate: { user: Pick<User, 'is_admin'>; rights: GroupRights }, row: Pick<DraftRow, 'type'>): boolean {
+  const type = cmsType(row.type);
+  return !!type && approvesType(gate, type);
+}
+
+/** 400 for an action the type does not allow in the panel (noCreate, noDelete). */
+export const actionRefused = (action: string) =>
+  fail(400, 'bad_action', action === 'create' ? 'New entries of this type cannot be made in the panel' : 'Entries of this type cannot be deleted in the panel');
 
 /** The draft and its type, or the response to send instead. */
 export async function loadDraft(env: Env, id: unknown): Promise<{ ok: true; row: DraftRow; type: CmsType } | { ok: false; response: Response }> {

@@ -2,9 +2,9 @@ import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../../_lib/audit';
 import {
-  badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, newNonce, nonceProof, refusePairClash,
+  actionRefused, badState, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, newNonce, nonceProof, refusePairClash,
 } from '../../../../_lib/cms-api';
-import { canTransition, filesFor, prBody, prTitle, STALE_APPROVAL_SECONDS, validateDraft, type DraftRow } from '../../../../_lib/cms-drafts';
+import { actionAllowed, canTransition, filesFor, prBody, prTitle, STALE_APPROVAL_SECONDS, validateDraft, type DraftRow } from '../../../../_lib/cms-drafts';
 import { fileShasOnBase, mainHeadSha, openContentPR, prForBranch, pullNumberFromUrl } from '../../../../_lib/github';
 
 /**
@@ -36,6 +36,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (!found.ok) return found.response;
   const { row, type } = found;
   if (!mayApprove(gate, row)) return forbidden();
+  // Refused at POST already; checked again so no path writes one.
+  if (!actionAllowed(type, row.action)) return actionRefused(row.action);
   const staleBefore = gate.now - STALE_APPROVAL_SECONDS;
   const retry = row.status === 'approved' && row.updated_at < staleBefore;
   if (!canTransition('approve', row.status) && !retry) return badState();

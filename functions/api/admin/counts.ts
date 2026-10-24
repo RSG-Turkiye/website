@@ -8,7 +8,8 @@ import type { Env } from '../../_lib/auth';
 import { getSessionUser, jsonResponse } from '../../_lib/auth';
 import { canOpenAdminPanel, groupRights } from '../../_lib/cms-access';
 import { STALE_APPROVAL_SECONDS } from '../../_lib/cms-drafts';
-import { CMS_TYPES } from '../../../src/lib/cms/types';
+import { approvesType } from '../../_lib/cms-api';
+import { cmsTypes } from '../../../src/lib/cms/types';
 
 const WEEK = 7 * 86400;
 
@@ -42,9 +43,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   // Content drafts: my own that need me (sent back, or failed), and for
   // approvers the queue (/api/cms/drafts' rule: submitted, or an approval
   // that never finished). cmsTotal is the menu badge.
+  // Across every group the person edits or approves; an admin-only type
+  // (approve: 'admin') is in an approver's queue only if they are an admin.
   const rights = await groupRights(env.DB, user, now);
-  const editable = CMS_TYPES.filter((t) => rights[t.group]?.edit).map((t) => t.key as string);
-  const approvable = CMS_TYPES.filter((t) => rights[t.group]?.approve).map((t) => t.key as string);
+  const editable = cmsTypes().filter((t) => rights[t.group]?.edit).map((t) => t.key as string);
+  const approvable = cmsTypes().filter((t) => approvesType({ user, rights }, t)).map((t) => t.key as string);
   const inTypes = (keys: string[]) => keys.map(() => '?').join(', ');
   if (editable.length) {
     await count('cmsMine', `SELECT COUNT(*) AS n FROM content_drafts WHERE author_id = ? AND status IN ('rejected', 'pr_failed') AND type IN (${inTypes(editable)})`, user.id, ...editable);

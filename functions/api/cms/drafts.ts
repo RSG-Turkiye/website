@@ -2,12 +2,14 @@ import type { Env } from '../../_lib/auth';
 import { generateId, jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import {
-  cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, refusePairClash, rightsIn,
+  actionRefused, approvesType, cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
-import { checkSameId, DRAFT_ACTIONS, langOf, LIVE_STATUSES, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
+import {
+  actionAllowed, checkSameId, DRAFT_ACTIONS, fixedKeysErrors, langOf, LIVE_STATUSES, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
+} from '../../_lib/cms-drafts';
 import { fileShasOnBase, filesOnBase } from '../../_lib/github';
-import { CMS_TYPES, checkId, cmsType } from '../../../src/lib/cms/types';
-import { parseMarkdown } from '../../../src/lib/cms/serialize';
+import { checkId, cmsType, cmsTypes } from '../../../src/lib/cms/types';
+import { parseJson, parseMarkdown } from '../../../src/lib/cms/serialize';
 
 const COLUMNS = ['id', 'type', 'entry_id', 'action', 'status', 'author_id', 'reviewer_id', 'review_note', 'pr_url', 'pr_number', 'failure', 'created_at', 'updated_at']
   .map((c) => `d.${c}`).join(', ');
@@ -24,8 +26,8 @@ const QUEUE_CAP = 200;
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
-  const editable = new Set(CMS_TYPES.filter((t) => rightsIn(gate.rights, t.group).edit).map((t) => t.key as string));
-  const approvable = CMS_TYPES.filter((t) => rightsIn(gate.rights, t.group).approve).map((t) => t.key as string);
+  const editable = new Set(cmsTypes().filter((t) => rightsIn(gate.rights, t.group).edit).map((t) => t.key as string));
+  const approvable = cmsTypes().filter((t) => approvesType(gate, t)).map((t) => t.key as string);
 
   const mine = await env.DB.prepare(
     `SELECT ${COLUMNS}, p.display_name AS author_name, '' AS data, '{}' AS base_shas FROM content_drafts d ${AUTHOR}
@@ -82,6 +84,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!rightsIn(gate.rights, type.group).edit) return forbidden();
   const action = body.action as DraftAction;
   if (!DRAFT_ACTIONS.includes(action)) return fail(400, 'bad_action', 'action is create, update or delete');
+  if (!actionAllowed(type, action)) return actionRefused(action);
 
   // Validated before anything reads an id out of it (idFrom, jsonPath).
   // Leniently: a draft may start incomplete; submit checks it in full.
@@ -138,6 +141,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     baseShas = Object.fromEntries(paths.map((p) => [p, files[p]?.sha ?? null]));
     const stale = paths.filter((p) => (sent[p] ?? null) !== baseShas[p]);
     if (stale.length) return fail(409, 'changed_since', 'The entry changed on the site since you opened it', { paths: stale });
+
+    if (action === 'update' && type.fixedKeys) {
+      // The keys of the file on main are the ones the draft keeps; saves
+      // then compare with the stored draft, without reading GitHub again.
+      let before: unknown;
+      try {
+        before = type.format === 'json'
+          ? parseJson(type, files[paths[0]]!.content)
+          : Object.fromEntries(paths.map((p) => [langOf(type, p), files[p] ? parseMarkdown(type, files[p]!.content) : null]));
+      } catch (e) {
+        console.error('cms: an entry on main could not be parsed', entryId, e);
+        return fail(500, 'unreadable', 'The file on main could not be read');
+      }
+      const keys = fixedKeysErrors(type, before, data);
+      if (keys) return invalid(keys);
+    }
 
     if (action === 'update' && type.format === 'markdown-pair') {
       // Keep each file's frontmatter text, so keys the draft does not change

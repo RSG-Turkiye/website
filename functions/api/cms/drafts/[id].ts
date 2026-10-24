@@ -4,7 +4,7 @@ import { runGuardedWithAudit } from '../../../_lib/audit';
 import { badState, changed, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { fileShasOnBase } from '../../../_lib/github';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
-import { canTransition, checkSameId, ID_FIELD, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { canTransition, checkSameId, fixedKeysErrors, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -21,7 +21,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
  * Save `{ data }`. Only while the draft is with its author (TRANSITIONS.save);
  * the status does not change. Checked leniently: what is missing or empty may
  * stay so until submit, which checks the whole entry. A new entry's id follows its data, so its file
- * name follows a changed event id or webinar title; an update keeps its files.
+ * name follows a changed event id or webinar title; an update keeps its files
+ * (and a fixedKeys type its keys).
  */
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await cmsGate(request, env, true);
@@ -46,7 +47,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
     const id = newEntryId(type, v.data);
     if (!id.ok) return invalid(id.errors);
     entryId = id.data;
-    const taken = { [ID_FIELD[type.key]]: 'An entry with this name already exists' };
+    const taken = { [type.idField]: 'An entry with this name already exists' };
     if (entryId !== row.entry_id) {
       // A new name: the file must not be on main (as when the draft began).
       let onMain: Record<string, string | null>;
@@ -68,6 +69,9 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   } else {
     const renamed = checkSameId(type, entryId, v.data);
     if (renamed) return invalid(renamed);
+    // Against the stored draft, whose keys are main's (checked when it began).
+    const keys = fixedKeysErrors(type, JSON.parse(row.data), v.data);
+    if (keys) return invalid(keys);
     if (type.format === 'markdown-pair') {
       const stored = JSON.parse(row.data) as PairData;
       const next = v.data as PairData;
