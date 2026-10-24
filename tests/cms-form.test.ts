@@ -914,3 +914,46 @@ test('fix round 2: "take" copies another version\'s rows into a form opened on b
   (v3.rows as Row[]).push({ ...emptyRow(R2J.fields[1], false), name: 'A' });
   assert.deepEqual((applyValues(R2J, R2J_BASE, v3) as typeof R2J_BASE).rows, [{ name: 'B', extra: 'b-secret' }, { name: 'A', extra: 'a-secret' }]);
 });
+
+// ── Task 2, fix round 3: every save writes onto the data the form was stamped from ──
+
+import { withFieldFrom } from '../src/scripts/admin/cms-form';
+
+test('fix round 3: the same stamped values saved twice onto their origin keep hidden keys and add no rows', () => {
+  const J = { ...R2J, fields: [R2J.fields[0], { ...R2J.fields[1], identity: undefined }] } as TypeModel;
+  const base = { title: 'a', rows: [{ name: 'A', note: '', extra: 'a-secret' }, { name: 'B', note: '', extra: 'b-secret' }] };
+  const v = copy(formValues(J, base));
+  (v.rows as Row[])[0].note = 'edited';
+  const save1 = applyValues(J, base, v);
+  v.title = 'later edit';
+  const save2 = applyValues(J, base, v) as typeof base;
+  assert.deepEqual(save2.rows, [{ name: 'A', note: 'edited', extra: 'a-secret' }, { name: 'B', note: '', extra: 'b-secret' }]);
+  assert.deepEqual({ ...save2, title: 'a' }, save1, 'the second save is the first plus its own edit');
+
+  const pb = { en: r2side([{ title: 'a', url: '/a', x: 'ea' }]), tr: r2side([{ title: 'a', url: '/a', x: 'ta' }, { title: 'tronly', url: '/t', x: 'tt' }]) };
+  const pv = copy(formValues(R2P, pb));
+  (pv.res as Row[])[0].url = '/a2';
+  applyValues(R2P, pb, pv);
+  (pv.title as Bi).en = 'T2';
+  const p2 = applyValues(R2P, pb, pv) as typeof pb;
+  assert.deepEqual(p2.en.frontmatter.res, [{ title: 'a', url: '/a2', x: 'ea' }], 'English gains no row');
+  assert.deepEqual(p2.tr.frontmatter.res, [{ title: 'a', url: '/a2', x: 'ta' }, { title: 'tronly', url: '/t', x: 'tt' }]);
+});
+
+test('fix round 3: "take" moves the origin to the other version\'s data for that field, so its rows stay its own', () => {
+  const origin = { en: r2side([{ title: 'a', url: '/a', x: 'ea' }]), tr: r2side([{ title: 'a', url: '/a', x: 'ta' }]) };
+  const site = { en: r2side([{ title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'b', url: '/b', x: 'tb' }, { title: 'tronly', url: '/t', x: 'tt' }]) };
+  const next = withFieldFrom(R2P, origin, site, 'res') as typeof origin;
+  assert.deepEqual(next.tr.frontmatter.res, site.tr.frontmatter.res);
+  assert.equal(next.en.frontmatter.title, 'T', 'other fields stay the origin\'s');
+  assert.deepEqual(origin.en.frontmatter.res, [{ title: 'a', url: '/a', x: 'ea' }], 'the origin itself is not changed');
+  // The form's value for the field is redrawn from the new origin; a save is the site's list exactly.
+  const values = { ...formValues(R2P, origin), res: formValues(R2P, next).res };
+  ((values.res as Row[])[0].title as Bi).tr = 'b!';
+  const out = applyValues(R2P, next, values) as typeof origin;
+  assert.deepEqual(out.en.frontmatter.res, [{ title: 'b', url: '/b', x: 'eb' }], 'no Turkish-only row on the English side');
+  assert.deepEqual(out.tr.frontmatter.res, [{ title: 'b!', url: '/b', x: 'tb' }, { title: 'tronly', url: '/t', x: 'tt' }]);
+  // JSON, and a field the other version lacks.
+  assert.deepEqual(withFieldFrom(R2J, R2J_BASE, { title: 'x' }, 'rows'), { title: 'a' });
+  assert.deepEqual(withFieldFrom(R2J, R2J_BASE, { title: 'x' }, 'title'), { ...R2J_BASE, title: 'x' });
+});

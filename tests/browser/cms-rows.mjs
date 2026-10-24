@@ -159,6 +159,68 @@ console.log('6) a pair type: per-language and shared fields; sides that differ s
   await page.close();
 }
 
+console.log('8) the real editor: edit inside a row, save, edit another field, save again: the file keeps what the form does not show');
+for (const [type, data, check] of [
+  ['guide', {
+    title: { en: 'Guide', tr: 'Rehber' },
+    sections: [{ name: 'basics', heading: { en: 'Basics', tr: 'Temeller' }, resources: [
+      { id: 'r-one', title: { en: 'One', tr: 'Bir' }, kind: 'bioinfonet', notes: [{ text: { en: 'n1', tr: 'n1' }, url: 'https://n1', extra: 'keep-1' }, { text: { en: 'n2', tr: 'n2' }, extra: 'keep-2' }] },
+    ] }],
+  }, (d) => {
+    const notes = d.sections[0].resources[0].notes;
+    return JSON.stringify(notes) === JSON.stringify([{ text: { en: 'n1', tr: 'n1' }, url: 'https://n1-edited', extra: 'keep-1' }, { text: { en: 'n2', tr: 'n2' }, extra: 'keep-2' }]) && d.title.en === 'Guide 2';
+  }],
+  ['path', {
+    en: { frontmatter: { title: 'Path', resources: [{ id: 'a-1', title: 'Alpha', url: 'https://a', x: 'ea' }] }, body: '\n' },
+    tr: { frontmatter: { title: 'Yol', resources: [{ id: 'a-1', title: 'Alfa', url: 'https://a', x: 'ta' }, { id: 'c-3', title: 'Gama', url: '/tr/c', x: 'tc' }] }, body: '\n' },
+  }, (d) => JSON.stringify(d.en.frontmatter.resources) === JSON.stringify([{ id: 'a-1', title: 'Alpha', url: 'https://a-edited', x: 'ea' }])
+    && JSON.stringify(d.tr.frontmatter.resources) === JSON.stringify([{ id: 'a-1', title: 'Alfa', url: 'https://a-edited', x: 'ta' }, { id: 'c-3', title: 'Gama', url: '/tr/c', x: 'tc' }])
+    && d.en.frontmatter.title === 'Path 2'],
+]) {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  page.on('pageerror', (e) => bad.push(`pageerror: ${String(e.stack ?? e).slice(0, 400)}`));
+  const id = '00000000-0000-4000-8000-000000000901';
+  const d = { id, type, entry_id: `${type}-1`, action: 'update', status: 'draft', author_id: 'u2', author_name: 'Editör', reviewer_id: null, review_note: null, pr_url: null, pr_number: null,
+    failure: null, stale_merge: false, created_at: 1, updated_at: 1, write_nonce: 'n0', data, base_shas: { x: 'sha' } };
+  const saved = [];
+  await page.route('**/api/**', (r) => {
+    const req = r.request();
+    const p = new URL(req.url()).pathname;
+    const json = (v) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(v) });
+    if (p === '/api/me') return json({ user: USER, profile: {} });
+    if (p === '/api/cms/types') return json({ types: [{ key: 'events', group: 'etkinlikler', label: { en: 'Events', tr: 'Etkinlikler' }, format: 'json', schema: {}, canApprove: false }] });
+    if (p === `/api/cms/drafts/${id}` && req.method() === 'GET') return json({ draft: d, files: null });
+    if (p === `/api/cms/drafts/${id}` && req.method() === 'PATCH') {
+      const body = JSON.parse(req.postData());
+      d.data = body.data; d.write_nonce = `n${saved.length + 1}`; saved.push(body.data);
+      return json({ draft: d });
+    }
+    if (p === '/api/cms/drafts') return json({ mine: [d], queue: [], more: false, live: [], inflight: [] });
+    if (p === '/api/cms/entries') return json({ type, entries: [] });
+    if (p === '/api/admin/counts') return json({ cmsMine: 1, cmsTotal: 1 });
+    if (p === '/api/admin/health') return json({ issues: [], canFix: false });
+    return json({});
+  });
+  await page.goto(`${BASE}/tr/admin#icerik/taslaklar`, { waitUntil: 'networkidle' });
+  await page.addScriptTag({ content: HARNESS });
+  await page.evaluate((h) => { location.hash = h; }, `#icerik/taslaklar/${id}`);
+  await page.waitForSelector('#cmsFields [data-objects]');
+  // Open every row, edit a url inside a row, save.
+  await page.evaluate(() => document.querySelectorAll('#cmsFields [data-orow]').forEach((x) => { x.open = true; }));
+  if (type === 'guide') await page.fill('[data-objects="notes"] > [data-rows] > [data-orow]:nth-child(1) [data-sub-wrap="url"] input', 'https://n1-edited');
+  else await page.fill('[data-objects="resources"] > [data-rows] > [data-orow]:nth-child(1) [data-sub-wrap="url"] input', 'https://a-edited');
+  await page.click('#cmsSave');
+  await page.waitForFunction(() => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+  // Another field, another save.
+  if (type === 'guide') await page.fill('[data-field-wrap="title"] input[data-lang="en"]', 'Guide 2');
+  else await page.fill('[data-field-wrap="title"] input[data-lang="en"]', 'Path 2');
+  await page.click('#cmsSave');
+  await page.waitForTimeout(500);
+  ok(saved.length >= 2, `${type}: two saves sent (${saved.length})`);
+  ok(saved.length >= 2 && check(saved.at(-1)), `${type}: the second save keeps every hidden key and adds no row (${JSON.stringify(saved.at(-1)).slice(0, 400)})`);
+  await page.close();
+}
+
 console.log('7) phone (390 px) and the six desktop sizes: three levels open, nothing sideways, no inner scrollbars, 44 px buttons on the phone');
 for (const [w, h] of [[390, 844], [1280, 680], [1366, 768], [1440, 800], [1536, 864], [1440, 900], [1920, 1080]]) {
   for (const lang of ['tr', 'en']) {

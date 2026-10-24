@@ -107,6 +107,9 @@ function error(path: string): { label: string; found: boolean; visible: boolean;
   return { label, found: !!el, visible: !!el && el.getClientRects().length > 0, lang: el?.getAttribute('data-lang') ?? null };
 }
 
+// The same models, for drafts of these types opened in the real editor (cms-form modelFor).
+(globalThis as unknown as { __cmsTestModels: Record<string, TypeModel> }).__cmsTestModels = { guide: GUIDE, path: PATH };
+
 (window as unknown as { harness: unknown }).harness = {
   mount,
   values: () => readValues(current!.model, current!.root),

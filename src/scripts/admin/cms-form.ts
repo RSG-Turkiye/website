@@ -193,7 +193,14 @@ export const MODELS: Record<TypeKey, TypeModel> = {
 };
 
 export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars'];
-export const modelFor = (key: string): TypeModel | null => (TYPE_KEYS as readonly string[]).includes(key) ? MODELS[key as TypeKey] : null;
+/**
+ * Models a browser check adds (tests/browser/cms-rows.mjs), so a draft of a
+ * synthetic type opens in the real editor before any real type has rows.
+ * Only drafts: no tab, no list. The server refuses any type it does not know.
+ */
+const extraModels = (): Record<string, TypeModel> => (globalThis as { __cmsTestModels?: Record<string, TypeModel> }).__cmsTestModels ?? {};
+export const modelFor = (key: string): TypeModel | null => (TYPE_KEYS as readonly string[]).includes(key) ? MODELS[key as TypeKey]
+  : Object.hasOwn(extraModels(), key) ? extraModels()[key] : null;
 export const modelForSub = (sub: string): TypeModel | null => TYPE_KEYS.map((k) => MODELS[k]).find((m) => m.sub === sub) ?? null;
 
 /** The model with its fields for this data: `fieldsFor`'s, or the static ones. */
@@ -509,6 +516,29 @@ export function applyValues(model: TypeModel, base: unknown, values: Values): un
       const y = /^(\d{4})-\d{2}-\d{2}$/.exec(str(fm.date));
       if (y && fm.year !== Number(y[1])) fm.year = Number(y[1]);
     }
+  }
+  return out;
+}
+
+/**
+ * `origin` with one field's data taken from `other` ("take the site's
+ * value" / "take this copy's"): the key itself in a JSON entry, each side's
+ * frontmatter key (or body) in a pair. The editor then writes onto this,
+ * and redraws the field from it, so the taken rows are stamped from the
+ * data they are written onto. `origin` is not changed.
+ */
+export function withFieldFrom(model: TypeModel, origin: unknown, other: unknown, key: string): unknown {
+  const put = (into: Obj, from: Obj, k: string) => { if (Object.hasOwn(from, k)) into[k] = clone(from[k]); else delete into[k]; };
+  if (model.format === 'json') {
+    const out = (isObj(origin) ? clone(origin) : {}) as Obj;
+    put(out, isObj(other) ? other : {}, key);
+    return out;
+  }
+  const out = { en: clone(side(origin, 'en')), tr: clone(side(origin, 'tr')) };
+  for (const lang of ['en', 'tr'] as const) {
+    const from = side(other, lang);
+    if (key === 'body' && model.fields.find((f) => f.key === key)?.kind === 'markdown') out[lang].body = from.body;
+    else put(out[lang].frontmatter, from.frontmatter, key);
   }
   return out;
 }

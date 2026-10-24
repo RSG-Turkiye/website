@@ -31,7 +31,7 @@ import { refreshCounts, noteAddress } from '../shell';
 import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
   applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
-  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFields, withId,
+  placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
   type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
@@ -92,8 +92,17 @@ interface Editor {
   /** The published entry an update starts from, and the shas it was read at. */
   entryId: string | null;
   baseShas: Record<string, string | null> | null;
-  /** What the form writes onto: the data it was opened with, then each save's. */
+  /** The server's latest: the data the form was opened with, then each save's answer. Not written onto. */
   base: unknown;
+  /**
+   * What every save writes the form's values onto: the data the form's rows
+   * were stamped from (cms-form ROW_FROM). One rule: it changes only together
+   * with a redraw of what was stamped from it. Opening sets it (base),
+   * restoring a copy (the copy's data), "take" (it with that field from the
+   * other version, the field redrawn from it), and a rebase before the first
+   * save (the rebased data, the form redrawn). A save never changes it.
+   */
+  origin: unknown;
   readOnly: boolean;
   backupKey: string;
   edits: number;
@@ -531,7 +540,7 @@ function renderForm(ed: Editor, values: Values): void {
   const fields = fieldsFor(ed.model);
   const main = fields.filter((f) => f.group === 'main');
   const more = fields.filter((f) => f.group === 'more');
-  const draw = (f: FieldDef) => renderField(ed.model, f, values[f.key] ?? formValues(ed.model, ed.base)[f.key], { readOnly: ed.readOnly });
+  const draw = (f: FieldDef) => renderField(ed.model, f, values[f.key] ?? formValues(ed.model, ed.origin)[f.key], { readOnly: ed.readOnly });
   const box = $('cmsFields')!;
   box.innerHTML = `
     <div id="cmsErrors" class="hidden mb-3 rounded-xl border border-red-200 bg-red-tint px-3 py-2 text-sm text-[#8a1c1c]" role="alert"></div>
@@ -601,7 +610,7 @@ function wireBar(ed: Editor): void {
 function newEditor(model: TypeModel, route: string, base: unknown, extra: Partial<Editor>): Editor {
   return {
     // A form built from the entry (page texts) gets its fields here, once.
-    model: withFields(model, base), route, draft: null, entryId: null, baseShas: null, base, readOnly: false, backupKey: `new:${model.key}`,
+    model: withFields(model, base), route, draft: null, entryId: null, baseShas: null, base, origin: base, readOnly: false, backupKey: `new:${model.key}`,
     edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, conflict: false, signedOutShown: false, lostSave: null, ...extra,
   };
 }
@@ -628,7 +637,7 @@ function start(ed: Editor): void {
   // Restored on its own only when it cannot be older than what was saved;
   // otherwise the person compares the two and chooses.
   const restored = choice === 'restore';
-  if (restored) values = formValues(ed.model, backup!.data);
+  if (restored) { ed.origin = backup!.data; values = formValues(ed.model, ed.origin); }
   renderForm(ed, values);
   guard?.reset();
   if (!ed.readOnly) ed.autosave = autosaveFor(ed);
@@ -652,11 +661,12 @@ function autosaveFor(ed: Editor): AutosaveQueue {
  * version's value into the form. Never a merge on its own.
  */
 function drawCompare(ed: Editor, box: HTMLElement, o: {
-  other: () => Values; title: string; sub?: string; otherLabel: string; formLabel: string; take: string; none: string; footer: string; footerId: string; onFooter: () => void;
+  other: () => unknown; title: string; sub?: string; otherLabel: string; formLabel: string; take: string; none: string; footer: string; footerId: string; onFooter: () => void;
 }): void {
   const draw = () => {
     const form = currentValues(ed);
-    const other = o.other();
+    const otherData = o.other();
+    const other = formValues(ed.model, otherData);
     const fields = fieldsFor(ed.model).filter((f) => !f.readOnly && !f.approverOnly && !same(other[f.key], form[f.key]));
     const text = (f: FieldDef, v: unknown) => esc(f.kind === 'objects' ? showIn('json', f, v) : show(f, ed.model.format === 'markdown-pair' ? pairText(v) : v));
     box.innerHTML = `<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 lg:p-3">
@@ -672,7 +682,10 @@ function drawCompare(ed: Editor, box: HTMLElement, o: {
       <div class="mt-3"><button type="button" id="${o.footerId}" data-compare-footer class="${BTN.primary}">${esc(o.footer)}</button></div></div>`;
     box.querySelectorAll<HTMLButtonElement>('[data-take]').forEach((b) => b.addEventListener('click', () => {
       const f = ed.model.fields.find((x) => x.key === b.dataset.take)!;
-      redraw(ed, f, other[f.key]);
+      // The field's data comes from the other version, and the field is
+      // redrawn from it: its rows are then stamped from what saves write onto.
+      ed.origin = withFieldFrom(ed.model, ed.origin, otherData, f.key);
+      redraw(ed, f, formValues(ed.model, ed.origin)[f.key]);
       draw();
     }));
     box.querySelector('[data-compare-footer]')?.addEventListener('click', o.onFooter);
@@ -693,7 +706,7 @@ function offerBackup(ed: Editor, backup: Backup): void {
     <button type="button" data-backup-drop class="${BTN.danger}">${esc(tk('admin.cms.backup.drop'))}</button></div>`;
   box.querySelector('[data-backup-drop]')!.addEventListener('click', drop);
   box.querySelector('[data-backup-compare]')!.addEventListener('click', () => drawCompare(ed, box, {
-    other: () => formValues(ed.model, backup.data), title: tk('admin.cms.backup.ask'),
+    other: () => backup.data, title: tk('admin.cms.backup.ask'),
     otherLabel: tk('admin.cms.backup.device'), formLabel: tk('admin.cms.backup.saved'), take: tk('admin.cms.backup.take'),
     none: tk('admin.cms.backup.none'), footer: tk('admin.cms.backup.drop'), footerId: 'cmsBackupDrop', onFooter: drop,
   }));
@@ -706,7 +719,7 @@ function currentValues(ed: Editor): Values {
 /** The data the form holds now, as the server will store it. */
 function currentData(ed: Editor): unknown {
   const values = currentValues(ed);
-  const data = applyValues(ed.model, ed.base, values);
+  const data = applyValues(ed.model, ed.origin, values);
   const isNew = ed.draft ? ed.draft.action === 'create' : ed.entryId === null;
   return isNew ? withId(ed.model, data, suggestedId(ed.model, values)) : data;
 }
@@ -936,7 +949,7 @@ function showChanged(ed: Editor, fresh: { data: unknown; base_shas: Record<strin
   if (!box) return;
   const files = Object.keys(fresh.base_shas).filter((p) => (ed.draft?.base_shas?.[p] ?? ed.baseShas?.[p] ?? null) !== fresh.base_shas[p]);
   drawCompare(ed, box, {
-    other: () => formValues(ed.model, fresh.data), title: tk('admin.cms.changed.title'), sub: tk('admin.cms.changed.files', { files: files.join(', ') }),
+    other: () => fresh.data, title: tk('admin.cms.changed.title'), sub: tk('admin.cms.changed.files', { files: files.join(', ') }),
     otherLabel: tk('admin.cms.changed.site'), formLabel: tk('admin.cms.changed.draft'), take: tk('admin.cms.changed.take'),
     none: tk('admin.cms.changed.none'), footer: tk('admin.cms.changed.continue'), footerId: 'cmsRebase', onFooter: () => void rebase(ed),
   });
@@ -955,10 +968,13 @@ async function rebase(ed: Editor): Promise<void> {
   const values = currentValues(ed);
   const data = applyValues(ed.model, ed.fresh.data, values);
   if (!ed.draft) {
-    // Not saved yet: carry on from the site's version.
+    // Not saved yet: carry on from the site's version, the form redrawn
+    // from the rebased data, which later saves write onto.
     ed.base = ed.fresh.data;
+    ed.origin = data;
     ed.baseShas = ed.fresh.base_shas;
     ed.fresh = null;
+    renderForm(ed, formValues(ed.model, data));
     $('cmsChanged')?.classList.add('hidden');
     const s = $<HTMLButtonElement>('cmsSubmit');
     if (s) s.disabled = false;
