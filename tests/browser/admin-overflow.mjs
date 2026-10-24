@@ -121,7 +121,18 @@ const CMS_EVENT = {
   title: { en: 'Symposium ' + long, tr: 'Sempozyum ' + long }, when: { en: '10 October 2026', tr: '10 Ekim 2026' },
   location: { en: 'Ankara', tr: 'Ankara' }, description: { en: long + long, tr: long }, links: [{ label: { en: long, tr: long }, url: 'https://example.org/' + long }],
 };
+/** A committee whose texts are long, with members open: rows must wrap, not overflow. */
+const CMS_COMMITTEE = {
+  order: 10, name: { en: long, tr: long }, description: { en: long, tr: long },
+  members: [0, 1].map((i) => ({
+    name: `${long} ${i}`, role: { en: long, tr: long }, image: 'https://res.cloudinary.com/demo/image/upload/v1/a.jpg',
+    education: [{ degree: { en: long, tr: long }, field: { en: long, tr: long }, institution: { en: long, tr: long }, year: '2027' }],
+    socialMedia: [{ platform: 'linkedin', url: `https://www.linkedin.com/in/${long}/` }],
+    consent: true,
+  })),
+};
 const CMS_ENTRIES = {
+  committees: [{ id: 'example', title: long, shas: {} }],
   events: [{ id: 'symposium-2026', title: CMS_EVENT.title.en, date: '2026-10-10', shas: {} }, { id: 'meetup-x', title: 'Meetup', date: '2025-01-01', shas: {} }],
   workshops: [{ id: 'w', title: long, date: '2024', shas: {} }],
   webinars: [{ id: 'webinar', title: long, date: '2024-04-16', paths: { en: 'src/content/webinars/en/webinar.md', tr: 'src/content/webinars/tr/webinar.md' }, shas: {} }],
@@ -155,6 +166,7 @@ async function open(path, viewport, user = ADMIN) {
     // An admin approves every type (approve per type: functions/api/cms/types.ts).
     if (url.pathname === '/api/cms/types') return json({ types: ['events', 'workshops', 'webinars'].map((key) => ({ key, group: 'etkinlikler', canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/example.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
     if (/^\/api\/cms\/drafts\/[^/]+$/.test(url.pathname)) return json({ draft: { ...CMS_DRAFTS.find((d) => d.id === url.pathname.split('/').pop()) ?? CMS_DRAFTS[1], data: CMS_EVENT, base_shas: {} } });
@@ -224,6 +236,7 @@ async function routes(lang, user) {
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t2');
   // An entry's form, a draft (the link a pull request carries) and an approver's review.
   if (out.includes('#icerik/etkinlikler')) out.push('#icerik/etkinlikler/symposium-2026', '#icerik/etkinlikler/_new', '#icerik/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik/onay/00000000-0000-4000-8000-000000000001');
+  if (out.includes('#icerik/komiteler')) out.push('#icerik/komiteler/example', '#icerik/komiteler/_new');
   return [...new Set(out)];
 }
 

@@ -29,6 +29,20 @@ const SYM = {
   links: [{ label: { en: 'Programme', tr: 'Program' }, url: 'https://example.org/a' }, { label: { en: 'Venue', tr: 'Mekân' }, url: 'https://example.org/b' }],
 };
 const PATH = 'src/content/events/symposium-2026.json';
+/** A committee, synthetic: a member with a Cloudinary photo that must come back untouched. */
+const CLOUDINARY = 'https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_600/v1/rsgturkey/committee/ada.jpg';
+const COM = {
+  order: 30,
+  name: { en: 'Example Committee', tr: 'Örnek Komite' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' },
+  members: [{
+    name: 'Ada Örnek', role: { en: 'Leader', tr: 'Lider' }, image: CLOUDINARY,
+    education: [{ degree: { en: 'MSc', tr: 'Yüksek Lisans' }, field: { en: 'Biology', tr: 'Biyoloji' }, institution: { en: 'A University', tr: 'A Üniversitesi' } }],
+    socialMedia: [{ platform: 'linkedin', url: 'https://www.linkedin.com/in/example/' }],
+    consent: true,
+  }],
+};
+const COM_PATH = 'src/content/committees/example.json';
 const ENTRIES = {
   events: [
     { id: 'symposium-2026', title: SYM.title.en, date: '2026-10-10', shas: { [PATH]: 'sha-1' } },
@@ -36,17 +50,22 @@ const ENTRIES = {
   ],
   workshops: [{ id: 'nextflow', title: 'Nextflow', date: '2024', shas: {} }],
   webinars: [{ id: 'w1', title: 'A webinar', date: '2024-04-16', paths: { en: 'src/content/webinars/en/w1.md', tr: 'src/content/webinars/tr/w1-tr.md' }, shas: {} }],
+  committees: [{ id: 'example', title: COM.name.en, shas: { [COM_PATH]: 'sha-c' } }],
 };
 /** What /api/cms/types answers: the types of the groups `who` edits, approve per type (`state.adminOnly` lists keys only an admin approves). */
 const TYPES = [
   { key: 'events', group: 'etkinlikler', label: { en: 'Events', tr: 'Etkinlikler' } },
   { key: 'workshops', group: 'etkinlikler', label: { en: 'Workshops', tr: 'Atölyeler' } },
   { key: 'webinars', group: 'etkinlikler', label: { en: 'Webinars', tr: 'Webinarlar' } },
+  { key: 'committees', group: 'topluluk', label: { en: 'Committees', tr: 'Komiteler' } },
 ];
 const USERS = {
   approver: { id: 'u1', email: 'onay@example.org', grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] },
   editor: { id: 'u2', email: 'editor@example.org', grants: [{ role: 'content.etkinlikler.edit', expires_at: null }] },
   yazilar: { id: 'u4', email: 'yazar@example.org', grants: [{ role: 'content.yazilar.edit', expires_at: null }] },
+  topluluk: { id: 'u5', email: 'komite@example.org', grants: [{ role: 'content.topluluk.edit', expires_at: null }] },
+  // Two groups: the tab bar shows each group's name.
+  both: { id: 'u6', email: 'iki@example.org', grants: [{ role: 'content.etkinlikler.edit', expires_at: null }, { role: 'content.topluluk.approve', expires_at: null }] },
   // DEMO=admin only: an admin, for the Roles tab and every group.
   admin: { id: 'u1', email: 'admin@example.org', display_name: 'Ada Admin', is_admin: true, grants: [] },
 };
@@ -90,7 +109,8 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
     if (p === '/api/me') return json({ user, profile: {} });
     if (p === '/api/cms/types') {
       if (state.typesFail) return json({ error: 'x', code: 'boom' }, 500);
-      return json({ types: TYPES.filter((t) => groups.has(t.group)).map((t) => ({ ...t, format: 'json', schema: {}, canApprove: (who === 'approver' || who === 'admin') && !state.adminOnly.includes(t.key) })) });
+      const approves = (t) => user.is_admin || user.grants.some((g) => g.role === `content.${t.group}.approve`);
+      return json({ types: TYPES.filter((t) => groups.has(t.group)).map((t) => ({ ...t, format: 'json', schema: {}, canApprove: approves(t) && !state.adminOnly.includes(t.key) })) });
     }
     if (p === '/api/admin/users' && method === 'GET') return json({ users: DEMO_PEOPLE, badge_catalog: [] });
     if (p === '/api/admin/health') return json({ issues: [], canFix: false });
@@ -113,6 +133,7 @@ async function open(browser, who, hash, viewport = { width: 1440, height: 900 },
       // The symposium as the fixture has it; any other entry as itself, so a click-through shows its own title.
       const id = url.searchParams.get('id');
       const type = url.searchParams.get('type');
+      if (type === 'committees') return json({ type, id, data: COM, base_shas: { [COM_PATH]: 'sha-c' }, files: { [COM_PATH]: `${JSON.stringify(COM, null, 2)}\n` } });
       const e = (ENTRIES[type] ?? []).find((x) => x.id === id);
       if (id === 'symposium-2026' || !e || type !== 'events') return json({ type, id, data: state.entryData, base_shas: state.entryShas, ...(state.entryFiles ? { files: state.entryFiles } : {}) });
       return json({ type, id, data: { ...SYM, id, note: undefined, start: e.date, end: undefined, title: { en: e.title, tr: e.title } }, base_shas: { [`src/content/events/${id}.json`]: `sha-${id}` } });
@@ -172,22 +193,31 @@ const waitFor = (page, fn, arg, timeout = 5000) => page.waitForFunction(fn, arg,
 const noSideScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 
 /*
- * DEMO=editor, DEMO=approver, DEMO=yazilar or DEMO=admin: no checks; a
+ * DEMO=editor, DEMO=approver, DEMO=yazilar, DEMO=topluluk or DEMO=admin: no checks; a
  * visible browser on the panel with this file's mock server and a few seeded
  * drafts, to click through by hand. Saving, sending, approving and sending
  * back all work, in memory only; nothing reaches GitHub or a database. Close
  * the window to stop. DEMO=admin also fills Users and roles → Roles
- * (#kullanicilar/yetkiler) with every role's card. DEMO_LANG=en for English.
+ * (#kullanicilar/yetkiler) with every role's card. DEMO=topluluk opens the
+ * committee form (Komiteler → Örnek Komite): add a member, upload a photo,
+ * tick the consent box, save, send. DEMO_LANG=en for English.
  *
  *   npm run build && npx astro preview --port 4329 &
  *   DEMO=approver BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
+ *   DEMO=topluluk BASE=http://localhost:4329 node tests/browser/cms-icerik.mjs
  */
 if (process.env.DEMO) {
   const demo = await chromium.launch({ headless: false, ...(process.env.CHROME ? { executablePath: process.env.CHROME } : {}) });
   const who = Object.hasOwn(USERS, process.env.DEMO) ? process.env.DEMO : 'editor';
   const me = USERS[who].id;
-  const { page } = await open(demo, who, '#icerik', { width: 1440, height: 900 }, (s) => {
+  const { page } = await open(demo, who, who === 'topluluk' ? '#icerik/komiteler/example' : '#icerik', { width: 1440, height: 900 }, (s) => {
     const mk = (n, o) => s.drafts.set(`00000000-0000-4000-8000-00000000020${n}`, draftRow({ id: `00000000-0000-4000-8000-00000000020${n}`, author_id: me, ...o }));
+    if (who === 'topluluk') {
+      // A committee sent back, to see a member's error in place.
+      mk(1, { type: 'committees', status: 'rejected', entry_id: 'example', review_note: 'Bora için onay kutusu işaretli değil.', base_shas: { [COM_PATH]: 'sha-c' },
+        data: { ...COM, members: [...COM.members, { name: 'Bora Örnek', role: { en: 'Member', tr: 'Üye' }, image: '/api/images/uploaded.webp', consent: false }] } });
+      return;
+    }
     mk(1, { status: 'submitted', author_id: 'u2', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: '10–11 Ekim 2026, ODTÜ' }, links: [SYM.links[1], SYM.links[0]] }, base_shas: { [PATH]: 'sha-1' } });
     mk(2, { status: 'rejected', entry_id: 'meetup-3', review_note: 'Tarihi kontrol edin.', data: { ...SYM, id: 'meetup-3' } });
     mk(3, { status: 'pr_failed', entry_id: 'meetup-4', failure: 'check failed: build', data: { ...SYM, id: 'meetup-4' } });
@@ -805,8 +835,78 @@ console.log('25) /api/cms/types fails: the list says so, it does not guess anyon
   await page.close();
 }
 
+await section('26) a real type with rows: a committee, a member added with a photo and consent, saved', async () => {
+  const { page, calls } = await open(browser, 'topluluk', '#icerik/komiteler', { width: 1440, height: 900 });
+  ok(await waitFor(page, () => !!document.querySelector('[data-cms-entry="example"]')), 'Komiteler lists the committee');
+  await page.click('[data-cms-entry="example"] [data-cms-edit]');
+  await page.waitForSelector('[data-field="name"][data-lang="tr"]');
+  ok((await page.textContent('#cmsTitle')).includes('Örnek Komite'), 'the heading is the committee\'s name');
+  const members = '[data-field-wrap="members"] [data-objects="members"]';
+  ok((await page.textContent(`${members} > [data-rows] > [data-orow] > summary`)).includes('Ada Örnek'), 'a member row is summed up by the name');
+  await page.click(`${members} > div > [data-row-add]`);
+  const row = `${members} > [data-rows] > [data-orow]:nth-child(2)`;
+  ok(await page.locator(row).evaluate((d) => d.open), 'the new row opens');
+  await page.fill(`${row} [data-sub-wrap="name"] input`, 'Bora Örnek');
+  await page.fill(`${row} [data-sub-wrap="role"] [data-lang="en"]`, 'Member');
+  await page.fill(`${row} [data-sub-wrap="role"] [data-lang="tr"]`, 'Üye');
+  await page.setInputFiles(`${row} [data-image-file]`, { name: 'b.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') });
+  ok(await waitFor(page, (sel) => !!document.querySelector(`${sel} [data-sub-wrap="image"] img`), row), 'the photo shows in its own row');
+  ok(await page.locator(`${members} > [data-rows] > [data-orow]:nth-child(1) [data-sub-wrap="image"] [data-image-value]`).inputValue() === JSON.stringify(CLOUDINARY), 'the other member\'s photo is untouched');
+  ok(await page.locator(row).evaluate((d) => d.open) && (await page.textContent(`${row} [data-image-status]`)).length > 0, 'the row stays open, with "Yüklendi"');
+  ok((await page.textContent(`${row} [data-sub-wrap="consent"]`)).includes('*'), 'consent is marked required');
+  await page.check(`${row} [data-sub-wrap="consent"] input[type=checkbox]`);
+  await page.click('#cmsSave');
+  ok(await waitFor(page, () => /Kaydedildi/.test(document.getElementById('cmsSaveState')?.textContent ?? '')), 'saved');
+  const post = calls.find((c) => c.method === 'POST' && c.path === '/api/cms/drafts');
+  const m = post?.body?.data?.members ?? [];
+  ok(post?.body?.type === 'committees' && post.body.action === 'update' && post.body.entry_id === 'example', 'an update draft of the committee');
+  ok(m.length === 2 && JSON.stringify(m[0]) === JSON.stringify(COM.members[0]), 'the first member is sent exactly as it was (Cloudinary photo, education, links)');
+  ok(JSON.stringify(m[1]) === JSON.stringify({ name: 'Bora Örnek', role: { en: 'Member', tr: 'Üye' }, image: '/api/images/uploaded.webp', consent: true }), `the new member, in the file's key order: ${JSON.stringify(m[1])}`);
+  // Kaldır on the new photo empties that row's photo only.
+  await page.click(`${row} [data-image-remove]`);
+  ok(await page.locator(`${row} [data-sub-wrap="image"] img`).count() === 0 && await page.locator(`${members} > [data-rows] > [data-orow]:nth-child(1) [data-sub-wrap="image"] img`).count() === 1, 'removing a photo removes that row\'s only');
+  await page.close();
+});
+
+await section('27) a member\'s error is said in place; an em dash is refused in plain words', async () => {
+  const id = '00000000-0000-4000-8000-000000000701';
+  const { page } = await open(browser, 'topluluk', `#icerik/taslaklar/${id}`, { width: 1366, height: 768 }, (s) => {
+    s.drafts.set(id, draftRow({ id, type: 'committees', entry_id: 'example', author_id: 'u5', data: { ...COM, members: [...COM.members, { name: 'Bora Örnek', role: { en: 'Member', tr: 'Üye' }, image: '/api/images/b.webp', consent: false }] }, base_shas: { [COM_PATH]: 'sha-c' } }));
+    s.nextSubmit = [422, { error: 'Some fields are not valid', code: 'invalid', errors: { 'members.1.consent': 'Invalid input: expected true', 'description.tr': 'Em dash (\u2014) is not used: write a hyphen (-) or a comma' } }];
+  });
+  await page.waitForSelector('#cmsSubmit');
+  await page.click('#cmsSubmit');
+  ok(await waitFor(page, () => /alan düzeltilmeli/.test(document.getElementById('cmsErrors')?.textContent ?? '')), 'a summary of what to fix');
+  const summary = (await page.textContent('#cmsErrors')).replace(/\s+/g, ' ');
+  ok(summary.includes('Üyeler › Üye 2 › Yayın onayı') || summary.includes('Üye 2 › Yayın onayı'), `the member and the box by name: "${summary.slice(0, 160)}"`);
+  ok(summary.includes('Profil yalnızca üyenin onayıyla yayımlanır'), 'consent in plain words');
+  ok(summary.includes('Uzun tire (\u2014) kullanılmıyor; kısa tire (-) ya da virgül kullanın'), 'the em dash in plain words');
+  ok(await page.locator('[data-objects="members"] > [data-rows] > [data-orow]:nth-child(2)').evaluate((d) => d.open), 'the member\'s row is opened');
+  await page.close();
+});
+
+await section('28) two groups: each group\'s tabs are a tab list named by the group; nothing else inside a tab list', async () => {
+  const { page } = await open(browser, 'both', '#icerik', { width: 1440, height: 900 });
+  ok(await waitFor(page, () => !!document.querySelector('[data-sub-link="komiteler"]')), 'Komiteler is there beside Etkinlikler');
+  const a11y = await page.evaluate(() => {
+    const lists = [...document.querySelectorAll('#subNav [role="tablist"]')];
+    return {
+      names: lists.map((l) => l.getAttribute('aria-label')),
+      stray: lists.flatMap((l) => [...l.children].filter((c) => c.getAttribute('role') !== 'tab')).length,
+      headingsInside: [...document.querySelectorAll('#subNav [data-tab-heading]')].filter((h) => h.closest('[role="tablist"]')).length,
+      headings: [...document.querySelectorAll('#subNav [data-tab-heading]')].map((h) => h.textContent.trim()),
+    };
+  });
+  ok(a11y.names.length === 3 && a11y.names.every(Boolean), `three named tab lists: ${a11y.names.join(' | ')}`);
+  ok(a11y.names.includes('Etkinlikler') && a11y.names.includes('Topluluk'), 'named by the groups');
+  ok(a11y.stray === 0 && a11y.headingsInside === 0, 'only tabs inside each tab list; the group names outside');
+  ok(a11y.headings.join() === 'Etkinlikler,Topluluk', `the group names shown: ${a11y.headings.join(', ')}`);
+  ok(await page.locator('[data-sub-link="onay"]').count() === 1, 'a Topluluk approver has Onay');
+  await page.close();
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
-for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005']]) {
+for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {
     s.drafts.set('00000000-0000-4000-8000-000000000005', draftRow({ id: '00000000-0000-4000-8000-000000000005', status: 'submitted', entry_id: 'symposium-2026', data: { ...SYM, when: { ...SYM.when, tr: 'x '.repeat(80) } } }));
   });

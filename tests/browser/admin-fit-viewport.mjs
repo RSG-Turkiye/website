@@ -77,7 +77,12 @@ const CMS_EVENT = {
   location: { en: 'Ankara', tr: 'Ankara' }, description: { en: 'Description', tr: 'Açıklama' },
   links: N(6, (i) => ({ label: { en: `Link ${i}`, tr: `Bağlantı ${i}` }, url: `https://example.org/${i}` })),
 };
+const CMS_COMMITTEE = {
+  order: 10, name: { en: 'Committee', tr: 'Komite' }, description: { en: 'Description', tr: 'Açıklama' },
+  members: N(8, (i) => ({ name: `Member ${i}`, role: { en: 'Role', tr: 'Görev' }, image: '/api/images/a.webp', consent: true })),
+};
 const CMS_ENTRIES = {
+  committees: N(8, (i) => ({ id: `c${i}`, title: `Committee ${i}`, shas: {} })),
   events: [{ id: 'symposium-2026', title: 'Symposium 2026', date: '2026-10-10', shas: {} }, ...N(59, (i) => ({ id: `e${i}`, title: `Event ${i}`, date: '2025-01-01', shas: {} }))],
   workshops: N(20, (i) => ({ id: `w${i}`, title: `Workshop ${i}`, date: '2024', shas: {} })),
   webinars: N(60, (i) => ({ id: `wb${i}`, title: `Webinar ${i}`, date: '2024-04-16', paths: { en: `src/content/webinars/en/wb${i}.md`, tr: `src/content/webinars/tr/wb${i}.md` }, shas: {} })),
@@ -117,6 +122,7 @@ async function open(path, viewport, user = ADMIN, { podcast = true, posts = POST
     // An admin approves every type (approve per type: functions/api/cms/types.ts).
     if (url.pathname === '/api/cms/types') return json({ types: ['events', 'workshops', 'webinars'].map((key) => ({ key, group: 'etkinlikler', canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/c0.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
     if (/^\/api\/cms\/drafts\/[^/]+$/.test(url.pathname)) return json({ draft: { ...CMS_DRAFTS.find((d) => d.id === url.pathname.split('/').pop()) ?? CMS_DRAFTS[1], data: CMS_EVENT, base_shas: {} } });
@@ -183,6 +189,7 @@ async function routes(lang, user) {
   await page.close();
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t60');
   if (out.includes('#icerik/etkinlikler')) out.push('#icerik/etkinlikler/symposium-2026', '#icerik/webinarlar/_new', '#icerik/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik/onay/00000000-0000-4000-8000-000000000001');
+  if (out.includes('#icerik/komiteler')) out.push('#icerik/komiteler/c0');
   return [...new Set(out)];
 }
 
