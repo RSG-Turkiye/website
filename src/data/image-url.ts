@@ -22,6 +22,9 @@ export const isReachableImageUrl = (s: string): boolean => {
   return !BLOCKED_HOST.test(host);
 };
 
-export const imageUrl = z.string().min(1).refine(isReachableImageUrl, {
-  message: "image URL is on r2.dev, pages.dev or workers.dev, which are blocked in Türkiye; serve it through /api/images",
-});
+const BLOCKED_MESSAGE = "image URL is on r2.dev, pages.dev or workers.dev, which are blocked in Türkiye; serve it through /api/images";
+
+export const imageUrl = z.string().min(1).refine(isReachableImageUrl, { message: BLOCKED_MESSAGE });
+
+/** The same, where no image is written "" (a blog post's or a webinar's `image`). */
+export const optionalImageUrl = z.string().refine((s) => s === "" || isReachableImageUrl(s), { message: BLOCKED_MESSAGE }).default("");

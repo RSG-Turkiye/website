@@ -1538,7 +1538,7 @@ await section('46) Yazılar: the approver sees a Turkish-only post\'s added Engl
   added.en = { frontmatter: { ...POST_TR_SIDE, title: 'Example post', description: 'An example.', tags: [] }, body: 'English text.' };
   const { page, calls } = await open(browser, 'yazilarOnay', `#icerik/onay/${id}`, { width: 1440, height: 900 }, (st) => {
     st.drafts.set(id, draftRow({ id, type: 'blog', status: 'submitted', entry_id: 'ornek-yazi', author_id: 'u4', data: added, base_shas: { [POST_TR_PATHS.en]: null, [POST_TR_PATHS.tr]: 'sha-bt' } }));
-    st.draftFiles = [{ path: POST_TR_PATHS.en, content: '---\ntitle: "Example post"\n---\nEnglish text.' }, { path: POST_TR_PATHS.tr, content: '---\ntitle: "Örnek yazı"\n---\n\nTürkçe metin.\n' }];
+    st.draftFiles = [{ path: POST_TR_PATHS.en, content: '---\ntitle: "Example post"\n---\n\nEnglish text.\n' }, { path: POST_TR_PATHS.tr, content: '---\ntitle: "Örnek yazı"\n---\n\nTürkçe metin.\n' }];
   });
   ok(await waitFor(page, () => !!document.getElementById('cmsApprove')), 'Approve is there');
   const review = (await page.textContent('#cmsReview')).replace(/\s+/g, ' ');

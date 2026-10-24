@@ -111,6 +111,16 @@ test('every blog post survives parse then serialize byte for byte, passes its sc
   }
 });
 
+test('a new file is written in the repository\'s format: a blank line after the frontmatter, one final line break; an empty body stays empty', () => {
+  const fm = { title: 'A post', pubDate: '2026-10-25', description: 'D', category: 'general' };
+  const want = '---\ntitle: "A post"\npubDate: 2026-10-25\ndescription: "D"\ncategory: "general"\n---\n\nText.\n\nMore.\n';
+  for (const body of ['Text.\n\nMore.', '\nText.\n\nMore.\n', '\n\n\nText.\n\nMore.\n\n\n']) assert.equal(serializeMarkdown(blog, { frontmatter: fm, body }), want, JSON.stringify(body));
+  assert.equal(serializeMarkdown(blog, { frontmatter: fm, body: '' }), '---\ntitle: "A post"\npubDate: 2026-10-25\ndescription: "D"\ncategory: "general"\n---\n');
+  // A file read from disk keeps its body as it is, even without the blank line.
+  const odd = '---\ntitle: "A post"\n---\nText.';
+  assert.equal(serializeMarkdown(blog, parseMarkdown(blog, odd)), odd);
+});
+
 test('the parsed frontmatter of every webinar passes the schema Astro builds with', () => {
   for (const f of WEBINAR_FILES) {
     const r = webinarSchema.safeParse(parseMarkdown(webinars, read(f)).frontmatter);

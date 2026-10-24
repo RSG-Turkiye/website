@@ -1,4 +1,5 @@
 import { z } from "astro/zod";
+import { optionalImageUrl } from "./image-url";
 
 /**
  * The frontmatter of a blog post. Posts are Markdown, organized by language:
@@ -21,7 +22,7 @@ export const blogSchema = z.object({
   author: z.string().default(""),
   category: z.string(),
   tags: z.array(z.string()).default([]),
-  image: z.string().default(""),
+  image: optionalImageUrl,
   lang: z.enum(["en", "tr"]).optional(), // kept for legacy frontmatter; language now inferred from directory
   draft: z.boolean().default(false),
   type: z.enum(["post", "webinar"]).default("post"),

@@ -2663,10 +2663,9 @@ test('Review Focus 2: a post in English only creates, saves, submits and is appr
     assert.equal(sent.status, 200, await sent.clone().text());
     assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'yapprover', {}, '/approve')).status, 200);
     assert.deepEqual(gh.writes(), [{ method: 'PUT', path: BLOG_EN('a-new-post') }]);
-    const written = gh.branches.get(`cms/${id}`)!.get(BLOG_EN('a-new-post'))!;
-    assert.match(written, /^---\ntitle: /);
-    assert.ok(written.includes('tags: ["genomics"]') || written.includes('- genomics') || written.includes('"genomics"'), written);
-    assert.ok(!written.includes('lang:'), 'no legacy lang key on a new post');
+    // A new file in the repository's format, no legacy lang key.
+    assert.equal(gh.branches.get(`cms/${id}`)!.get(BLOG_EN('a-new-post')),
+      '---\ntitle: "A New Post"\npubDate: 2026-10-25\ndescription: "en description"\nauthor: "An Author"\ncategory: "general"\ntags:\n  - "genomics"\nimage: ""\ndraft: false\ntype: post\n---\n\nen body\n');
   } finally {
     done();
   }
@@ -2786,6 +2785,39 @@ test('blog: only the Yazılar group edits posts', async () => {
     const { env } = setupGroups();
     assert.equal((await create(env, 'editor', { type: 'blog', action: 'create', data: { en: postSide('Nope', 'en') } })).res.status, 403);
     assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-english-post', 'editor')).status, 403);
+  } finally {
+    done();
+  }
+});
+
+test('blog: deleting a post in one language deletes its one file, and approval checks the other is still absent', async () => {
+  try {
+    const { env } = setupGroups();
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-turkce-yazi', 'yeditor')).json() as any;
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'delete', entry_id: 'fixture-turkce-yazi', base_shas: current.base_shas });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    assert.deepEqual(body.draft.base_shas, { [BLOG_EN('fixture-turkce-yazi')]: null, [POST_TR]: blobSha(FILES[POST_TR]) });
+    assert.equal((await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'yapprover', {}, '/approve')).status, 200);
+    assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: POST_TR }]);
+  } finally {
+    done();
+  }
+});
+
+test('blog and webinars: an image on a host blocked in Türkiye is refused, on its field; "" and /api/images pass', async () => {
+  try {
+    const { env } = setupGroups();
+    const bad = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide('A post', 'en', { image: 'https://x.r2.dev/a.webp' }) } });
+    assert.equal(bad.res.status, 422);
+    assert.ok(bad.body.errors['en.frontmatter.image'], JSON.stringify(bad.body.errors));
+    for (const image of ['', '/api/images/a.webp', 'https://res.cloudinary.com/demo/a.jpg']) {
+      assert.equal((await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide(`Post ${image.length}`, 'en', { image }) } })).res.status, 201, image);
+    }
+    const side = (lang: string, o: object = {}) => ({ frontmatter: { title: `Talk ${lang}`, date: '2027-01-15', speaker: 'S', description: 'D', year: 2027, type: 'bioinfonet', ...o }, body: '' });
+    const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('en', { speakerPhoto: 'https://a.pages.dev/p.jpg' }), tr: side('tr', { image: 'https://b.workers.dev/i.png' }) } });
+    assert.equal(w.res.status, 422);
+    assert.ok(w.body.errors['en.frontmatter.speakerPhoto'] && w.body.errors['tr.frontmatter.image'], JSON.stringify(w.body.errors));
   } finally {
     done();
   }

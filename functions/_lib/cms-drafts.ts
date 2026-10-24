@@ -250,6 +250,10 @@ const SPACED_DOUBLE_HYPHEN = /\w\s--\s\w/;
 /** Exactly two hyphens: the run smartypants turns into an em dash. A longer
  * run (`a --- b`, an escaped `\-----` rule) stays hyphens on the page. */
 const DOUBLE_HYPHEN = /(?<!-)--(?!-)/;
+/** Prose with each escaped hyphen (`\-`) as the hyphen Markdown renders:
+ * `\-\-` and `-\-` reach smartypants as `--`, an escaped `\-----` rule as
+ * five hyphens. An escaped backslash (`\\-`) is left alone. */
+const unescapedHyphens = (prose: string) => prose.replace(/(?<!\\)\\-/g, '-');
 
 export const EM_DASH_MESSAGE = 'Em dash (\u2014) is not used: write a hyphen (-) or a comma';
 export const DOUBLE_HYPHEN_MESSAGE = 'Two hyphens (--) become a long dash on the page: put a command-line flag in backticks (`--flag`), or write one hyphen';
@@ -321,7 +325,7 @@ export function houseRuleErrors(type: CmsType, data: unknown): FieldErrors {
   eachString(type, data, (path, text, body) => {
     const found: string[] = [];
     if (text.includes(EM_DASH) || SPACED_DOUBLE_HYPHEN.test(text)) found.push(EM_DASH_MESSAGE);
-    else if (body && DOUBLE_HYPHEN.test(markdownProse(text))) found.push(DOUBLE_HYPHEN_MESSAGE);
+    else if (body && DOUBLE_HYPHEN.test(unescapedHyphens(markdownProse(text)))) found.push(DOUBLE_HYPHEN_MESSAGE);
     if (type.noAt && text.includes('@')) found.push(NO_AT_MESSAGE);
     if (found.length) setOnce(errors, path, found.join('\n'));
   });

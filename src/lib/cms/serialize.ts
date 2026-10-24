@@ -98,8 +98,17 @@ export function parseMarkdown(_type: CmsType, text: string): MarkdownEntry {
 }
 
 export function serializeMarkdown(type: CmsType, entry: MarkdownEntry): string {
-  const fm = entry.source === undefined ? renderNew(type, entry.frontmatter) : renderEdited(type, entry.source, entry.frontmatter);
-  return `---\n${fm}---\n${entry.body}`;
+  if (entry.source !== undefined) return `---\n${renderEdited(type, entry.source, entry.frontmatter)}---\n${entry.body}`;
+  return `---\n${renderNew(type, entry.frontmatter)}---\n${newBody(entry.body)}`;
+}
+
+/** A new file's body in the repository's format: a blank line after the
+ * frontmatter and one final line break. An empty body stays empty (a
+ * learning-path file is frontmatter only). A file read from disk (with
+ * `source`) keeps its body as it is. */
+function newBody(body: string): string {
+  if (body.trim() === "") return body;
+  return `\n${body.replace(/^(\r?\n)+/, "").replace(/(\r?\n)*$/, "")}\n`;
 }
 
 /** `src/content/webinars/{en,tr}/<id>.md`. Existing pairs whose files have
@@ -113,8 +122,8 @@ export function markdownPairPaths(type: CmsType, id: string): { en: string; tr: 
 
 // ── Frontmatter rendering ────────────────────────────────────────────────────
 
-/** Written plain in (nearly) every file: `date: 2020-05-05`, `type: bioinfonet`. */
-const PLAIN_KEYS = new Set(["date", "type", "lang"]);
+/** Written plain in (nearly) every file: `date: 2020-05-05`, `pubDate: 2026-01-05`, `type: bioinfonet`. */
+const PLAIN_KEYS = new Set(["date", "pubDate", "type", "lang"]);
 
 /** Scalar style to use for a value, given the style it had (if any). */
 type Style = { scalar?: Scalar.Type; item?: Scalar.Type };

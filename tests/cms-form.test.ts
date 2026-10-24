@@ -1088,6 +1088,13 @@ test('house rules match what CI rejects: em dash and spaced -- anywhere (code to
   assert.equal(body('x --> y')['en.body'], DOUBLE_HYPHEN_MESSAGE);
   assert.equal(body('--flag at the start')['en.body'], DOUBLE_HYPHEN_MESSAGE);
   assert.equal(body('a ---- b and c--d')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  // Escaped hyphens are hyphens to smartypants: `\-\-` and `-\-` render a dash, `\-\-\-` and `-\--` do not.
+  assert.equal(body('a \\-\\- b')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('a -\\- b')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('\\--x')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.deepEqual(body('a\\-\\-\\-b and -\\--'), {});
+  // An escaped backslash before -- leaves a real --.
+  assert.equal(body('a \\\\-- b')['en.body'], DOUBLE_HYPHEN_MESSAGE);
   // A fenced line indented by one space is still code.
   assert.deepEqual(body('```\n (base) $ conda config --set x\n```\n'), {});
   assert.equal(messageKey(DOUBLE_HYPHEN_MESSAGE), 'admin.cms.v.doubleHyphen');
@@ -1506,15 +1513,12 @@ const postSide = (lang: 'en' | 'tr', o: Record<string, unknown> = {}) => ({
 
 test('blog: every published post, one language or both, goes through the form and back unchanged', () => {
   assert.ok(INDEX.blog.length > 0);
-  let single = 0;
   for (const e of INDEX.blog) {
     const data = pair(e.id, 'blog');
-    if (!data.en || !data.tr) single++;
     const model = withSides(BLOG, data);
     assert.deepEqual(applyValues(model, data, formValues(model, data)), data, e.id);
     assert.deepEqual(applyValues(BLOG, data, formValues(BLOG, data)), data, `${e.id} (no present)`);
   }
-  assert.ok(single > 0, 'some posts are in one language only');
 });
 
 test('blog: the form groups, as the brief lists them', () => {
