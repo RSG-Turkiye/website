@@ -88,6 +88,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!gate.ok) return gate.response;
   const type = cmsType('podcast')!;
   if (!rightsIn(gate.rights, type.group).edit) return forbidden();
+  const agent = gate.agent?.tokenId ?? null;
 
   const used = await env.DB.prepare(PULLED).bind(gate.user.id, gate.now - PULL_WINDOW_SECONDS).first<{ n: number }>();
   if ((used?.n ?? 0) >= PULL_LIMIT) return fail(429, 'rate_limited', 'Too many pulls; try again in a few minutes');
@@ -98,10 +99,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (busy) return fail(409, 'entry_busy', 'Another podcast draft is waiting for approval or going live; wait for it to finish');
 
   // The attempt, before the feed is read (and counted by the rate limit).
-  await appendAudit(env.DB, { userId: gate.user.id, action: 'cms.podcast.pull', targetType: 'content', targetId: type.fixedId, details: {} }, gate.now);
+  await appendAudit(env.DB, { userId: gate.user.id, action: 'cms.podcast.pull', targetType: 'content', targetId: type.fixedId, details: {}, agent }, gate.now);
   // How it ended, unless it ended in a draft (cms.draft.create says that).
   const logPull = (result: string) => appendAudit(env.DB, {
-    userId: gate.user.id, action: 'cms.podcast.result', targetType: 'content', targetId: type.fixedId, details: { result },
+    userId: gate.user.id, action: 'cms.podcast.result', targetType: 'content', targetId: type.fixedId, details: { result }, agent,
   }, gate.now);
 
   const xml = await readFeed();
@@ -149,13 +150,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: type.fixedId, action: 'update', data: JSON.stringify(data), base_shas: JSON.stringify({ [path]: file.sha }),
     status: 'draft', author_id: gate.user.id, reviewer_id: null, review_note: null, pr_url: null, pr_number: null, failure: null,
-    write_nonce: newNonce(), last_checked_at: null, created_at: gate.now, updated_at: gate.now,
+    write_nonce: newNonce(), last_checked_at: null, agent_token_id: agent, created_at: gate.now, updated_at: gate.now,
   };
   await runWithAudit(env.DB, [env.DB.prepare(
-    `INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, write_nonce, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)`,
-  ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.write_nonce, row.created_at, row.updated_at)],
-  { userId: gate.user.id, action: 'cms.draft.create', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action, generated: 'podcast' } },
+    `INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, write_nonce, agent_token_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
+  ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.write_nonce, row.agent_token_id, row.created_at, row.updated_at)],
+  { userId: gate.user.id, action: 'cms.draft.create', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action, generated: 'podcast' }, agent },
   gate.now);
   return jsonResponse({ draft: draftJson(row, true), added: data.episodes.filter((e) => !known.has(e.guid)).length }, 201);
 };

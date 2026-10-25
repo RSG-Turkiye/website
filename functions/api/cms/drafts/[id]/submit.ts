@@ -55,7 +55,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       .bind(data, gate.now, nonce, row.id, row.status, row.write_nonce, row.type, row.entry_id, row.id),
     nonceProof(row.id, nonce),
     [],
-    { userId: gate.user.id, action: 'cms.draft.submit', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id } },
+    { userId: gate.user.id, action: 'cms.draft.submit', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id }, agent: gate.agent?.tokenId ?? null },
     gate.now,
   );
   if (!done) {

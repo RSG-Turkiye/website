@@ -46,7 +46,9 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   const body = await readJson(request);
   if (!body) return fail(400, 'bad_request', 'Send a JSON object of at most 256 KB');
   // A save made on an older version (another tab, another device) would
-  // undo what was saved since: refused, and the panel says so.
+  // undo what was saved since: refused, and the panel says so. An agent
+  // always names the version it read: it cannot see a person's newer edit.
+  if (gate.agent && typeof body.write_nonce !== 'string') return fail(400, 'write_nonce_required', 'Send the write_nonce of the draft you read');
   if (body.write_nonce !== undefined && body.write_nonce !== row.write_nonce) return changed();
 
   const v = validateDraft(type, body.data, 'lenient');
@@ -106,18 +108,20 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   }
   const data = JSON.stringify(v.data);
   const nonce = newNonce();
+  const agent = gate.agent?.tokenId ?? null;
 
+  // agent_token_id is sticky: a token's save sets it, a person's keeps it.
   const done = await runGuardedWithAudit(
     env.DB,
-    env.DB.prepare('UPDATE content_drafts SET data = ?, entry_id = ?, base_shas = ?, updated_at = ?, write_nonce = ? WHERE id = ? AND status = ? AND write_nonce IS ?')
-      .bind(data, entryId, baseShas, gate.now, nonce, row.id, row.status, row.write_nonce),
+    env.DB.prepare('UPDATE content_drafts SET data = ?, entry_id = ?, base_shas = ?, updated_at = ?, write_nonce = ?, agent_token_id = COALESCE(?, agent_token_id) WHERE id = ? AND status = ? AND write_nonce IS ?')
+      .bind(data, entryId, baseShas, gate.now, nonce, agent, row.id, row.status, row.write_nonce),
     nonceProof(row.id, nonce),
     [],
-    { userId: gate.user.id, action: 'cms.draft.update', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: entryId } },
+    { userId: gate.user.id, action: 'cms.draft.update', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: entryId }, agent },
     gate.now,
   );
   if (!done) return changed();
-  return jsonResponse({ draft: draftJson({ ...row, data, entry_id: entryId, base_shas: baseShas, updated_at: gate.now, write_nonce: nonce }, true) });
+  return jsonResponse({ draft: draftJson({ ...row, data, entry_id: entryId, base_shas: baseShas, updated_at: gate.now, write_nonce: nonce, agent_token_id: agent ?? row.agent_token_id }, true) });
 };
 
 /**
@@ -133,6 +137,9 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const { row } = found;
   if (!mayEdit(gate, row)) return forbidden();
   if (!canTransition('discard', row.status)) return badState();
+  // An agent discards only what is still with its author; a submitted or
+  // failed draft is a person's to withdraw (plan 5, Call 9).
+  if (gate.agent && row.status !== 'draft' && row.status !== 'rejected') return badState();
   if (row.status === 'merged' && !mayApprove(gate, row)) return forbidden();
   if (row.status === 'approved') {
     if (!mayApprove(gate, row)) return forbidden();
@@ -146,7 +153,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
       .bind(gate.now, nonce, row.id, row.status, row.write_nonce),
     nonceProof(row.id, nonce),
     [],
-    { userId: gate.user.id, action: 'cms.draft.discard', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, from: row.status } },
+    { userId: gate.user.id, action: 'cms.draft.discard', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, from: row.status }, agent: gate.agent?.tokenId ?? null },
     gate.now,
   );
   if (!done) return changed();

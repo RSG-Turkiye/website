@@ -38,6 +38,9 @@ export interface DraftRow {
   /** When the PR shepherd last looked at it (cms-shepherd.ts). Bookkeeping
    * only: it changes neither updated_at nor write_nonce. */
   last_checked_at: number | null;
+  /** The agent token that created or last saved it (migration 8l). Set by a
+   * token's create or save, never cleared by a person's later save. */
+  agent_token_id: string | null;
   created_at: number;
   updated_at: number;
   /** Not a column: the author's profile display name, where a query joined it. */
