@@ -8,7 +8,7 @@
 
 import { jsonResponse, type Env, type User } from './auth';
 import { activeGrants } from './role-grants';
-import { CMS_GROUPS, rightsFromRoles, type CmsGroup, type GroupRights } from './roles';
+import { CMS_GROUPS, ROLES, rightsFromRoles, type CmsGroup, type GroupRights } from './roles';
 import { safeEqual } from './secret';
 import { routeFor, type AgentLevel, type AgentRoute } from './agent-routes';
 import { checkQuota, checkToken } from './agent-limits';
@@ -118,8 +118,9 @@ export async function authenticateAgent(request: Request, env: Env, now: number)
   if (!row || !safeEqual(row.token_hash, hash) || row.revoked_at !== null || row.expires_at <= now) return refused(unauthorized());
   const scopes = storedScopes(row.scopes);
   if (!scopes) return refused(unauthorized());
-  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(row.user_id).first<User>();
-  if (!user) return refused(unauthorized());
+  const stored = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(row.user_id).first<User>();
+  if (!stored) return refused(unauthorized());
+  const user = withoutRightsColumns(stored);
 
   const route = routeFor(request.method, new URL(request.url).pathname);
   if (!route) return refused(humanOnly());
@@ -136,6 +137,18 @@ export async function authenticateAgent(request: Request, env: Env, now: number)
     await env.DB.prepare('UPDATE agent_tokens SET last_used_at = ? WHERE id = ?').bind(now, row.id).run();
   }
   return { kind: 'agent', user, agent };
+}
+
+// The legacy users.is_* columns that mirror a role (is_admin, is_social_publisher
+// and the rest; not is_member, which is membership). On the token path they are
+// all 0, so no helper that reads them (groupRights, canSocialPublish,
+// approvesType) can give a token more than its scope and live grants allow.
+const RIGHTS_COLUMNS = ROLES.flatMap((r) => (r.column ? [r.column] : []));
+
+function withoutRightsColumns(user: User): User {
+  const out: Record<string, unknown> = { ...user };
+  for (const c of RIGHTS_COLUMNS) out[c] = 0;
+  return out as unknown as User;
 }
 
 // Requests the MCP endpoint builds for a tool call, each with the member and

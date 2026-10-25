@@ -12,7 +12,10 @@ import {
 import { AGENT_ROUTES, routeFor } from '../functions/_lib/agent-routes';
 import { onRequest as middleware } from '../functions/api/_middleware';
 import { grantRole, revokeRole } from '../functions/_lib/role-grants';
-import { CMS_GROUPS } from '../functions/_lib/roles';
+import { CMS_GROUPS, ROLES } from '../functions/_lib/roles';
+import { canSocialPublish } from '../functions/_lib/auth';
+import { approvesType } from '../functions/_lib/cms-api';
+import { CMS_TYPES } from '../src/lib/cms/types';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const SCHEMA = readFileSync(join(ROOT, 'db/schema.sql'), 'utf8');
@@ -162,6 +165,31 @@ test('every route in the table is served by a file under functions/api that expo
   }
 });
 
+test('no literal file under functions/api is reachable through a [param] row of the table', () => {
+  // Pages serves a literal name before a [param] one. A literal file beside an
+  // [id] route (functions/api/social/posts/queue.ts, or queue/submit.ts) would
+  // answer a path the table's id pattern matches, and so be open to tokens
+  // whatever it does. Only the table's own literal rows may match a literal file.
+  const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n);
+    return statSync(p).isDirectory() ? walk(p) : n.endsWith('.ts') ? [p] : [];
+  });
+  const literal = walk(join(ROOT, 'functions/api'))
+    .map((p) => relative(join(ROOT, 'functions'), p))
+    .filter((p) => !/\[\w+\]/.test(p) && !p.split('/').some((seg) => seg.startsWith('_')));
+  const hasParam = (route: { pattern: RegExp }) => route.pattern.source.includes('[');
+  const reached: string[] = [];
+  for (const file of literal) {
+    const path = '/' + file.replace(/\.ts$/, '').replace(/\/index$/, '');
+    for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
+      const route = routeFor(method, path);
+      if (route && hasParam(route)) reached.push(`${method} ${path} (functions/${file})`);
+    }
+  }
+  assert.deepEqual(reached, []);
+  assert.ok(literal.includes('api/social/posts/index.ts'), 'the walk sees the directories it guards');
+});
+
 test('only the listed files import agent-tokens', () => {
   const ALLOWED = new Set([
     'functions/api/_middleware.ts', 'functions/_lib/cms-api.ts', 'functions/_lib/social-api.ts',
@@ -291,6 +319,30 @@ test('an admin is a live admin grant, not the is_admin column', async () => {
   const a = agentOf(await authenticateAgent(req('GET', '/api/cms/drafts', bearer(value)), env, NOW));
   assert.equal(agentGroupRights(a, 'read').yazilar.edit, false);
   assert.equal(agentMaySocial(a, 'read'), false);
+});
+
+test('on the token path the users.is_* rights columns are zeroed, so nothing can derive rights from them', async () => {
+  const { db, DB, env } = setup();
+  const columns = ROLES.flatMap((r) => (r.column ? [r.column] : []));
+  db.prepare(`UPDATE users SET is_member = 1, ${columns.map((c) => `${c} = 1`).join(', ')} WHERE id = 'admin'`).run();
+  await grantRole(DB, { userId: 'admin', role: 'admin', expiresAt: null, by: null }, NOW - 100);
+  const value = await mintToken(db, 'admin', ['cms.sayfalar:draft', 'social:draft']);
+  const auth = await authenticateAgent(req('GET', '/api/cms/drafts', bearer(value)), env, NOW);
+  assert.equal(auth.kind, 'agent');
+  const { user, agent } = auth as Extract<AgentAuth, { kind: 'agent' }>;
+  for (const c of columns) assert.equal((user as unknown as Record<string, number>)[c], 0, c);
+  assert.equal(user.id, 'admin');
+  assert.equal(user.email, 'admin@example.org');
+  assert.equal(user.is_member, 1, 'membership is not a right and stays as stored');
+  assert.equal(canSocialPublish(user), false);
+  // An approve: 'admin' type (the privacy notice) also asks users.is_admin. Even with
+  // approve rights handed in by mistake, the zeroed column keeps the token out.
+  const adminType = CMS_TYPES.find((t) => t.approve === 'admin')!;
+  const allRights = Object.fromEntries(CMS_GROUPS.map((g) => [g, { edit: true, approve: true }])) as ReturnType<typeof agentGroupRights>;
+  assert.equal(approvesType({ user, rights: allRights }, adminType), false);
+  assert.equal(agentGroupRights(agent, 'draft').sayfalar.approve, false);
+  // The row itself is unchanged.
+  assert.equal((db.prepare(`SELECT is_admin FROM users WHERE id = 'admin'`).get() as { is_admin: number }).is_admin, 1);
 });
 
 test('areasHeld lists the areas the live roles allow', () => {

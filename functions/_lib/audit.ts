@@ -54,6 +54,20 @@ export function hashRow(row: Omit<AuditRow, 'seq' | 'hash'>): Promise<string> {
   return sha256Hex(JSON.stringify([row.at, row.user_id, row.action, row.target_type, row.target_id, row.details, row.prev_hash]));
 }
 
+/**
+ * details with the agent marker added last. A plain object keeps its keys; any
+ * other value (a string, an array) is kept whole under `value` rather than
+ * spread into index keys. An empty token id is refused: it would read as a
+ * person's act, and the throw comes before the batch, so nothing is written.
+ */
+function agentDetails(details: unknown, agent: string): Record<string, unknown> {
+  if (agent === '') throw new Error('audit_log: empty agent token id');
+  const own = details === undefined || details === null ? {}
+    : typeof details === 'object' && !Array.isArray(details) ? details as Record<string, unknown>
+    : { value: details };
+  return { ...own, via: 'agent', agent_token: agent };
+}
+
 const isChainCollision = (err: unknown) => /UNIQUE constraint failed: audit_log\.prev_hash/.test(String(err));
 
 type AuditBase = Omit<AuditRow, 'seq' | 'hash'>;
@@ -77,9 +91,7 @@ async function appendWithRetry<R>(
       action: entry.action,
       target_type: entry.targetType ?? null,
       target_id: entry.targetId ?? null,
-      details: JSON.stringify(entry.agent
-        ? { ...(entry.details ?? {}) as object, via: 'agent', agent_token: entry.agent }
-        : entry.details ?? {}),
+      details: JSON.stringify(entry.agent != null ? agentDetails(entry.details, entry.agent) : entry.details ?? {}),
       prev_hash: last?.hash ?? GENESIS,
     };
     const hash = await hashRow(base);
