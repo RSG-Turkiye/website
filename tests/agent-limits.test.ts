@@ -136,6 +136,11 @@ test('the agents\' budget: 12,000 general a day, then 3,000 for social work only
   assert.equal(Number(res.headers.get('Retry-After')), left);
   assert.equal(changes(db), before);
 
+  // A token that may not do social work now does not reach the reserve, even on a social route.
+  const noSocial = await authenticateAgent(req('GET', '/api/social/posts', { headers: bearer(social) }), env, NOW + 2);
+  assert.equal(((await (noSocial as Extract<AgentAuth, { kind: 'refused' }>).response.json()) as { code: string }).code, 'agent_budget');
+  await grantRole(env.DB as never, { userId: 'ed', role: 'social', expiresAt: null, by: null }, NOW - 100);
+
   // Social routes go on, from the reserve; a cms route does not.
   for (const [method, path] of [['GET', '/api/social/posts'], ['POST', '/api/social/posts'], ['POST', `/api/social/posts/${UUID}/submit`], ['PATCH', `/api/social/plans/${UUID}`]]) {
     assert.equal(status(await authenticateAgent(req(method, path, { headers: bearer(social), body: method === 'GET' ? undefined : '{}' }), env, NOW + 2)), 200, `${method} ${path}`);
@@ -144,8 +149,6 @@ test('the agents\' budget: 12,000 general a day, then 3,000 for social work only
   assert.deepEqual([mine.general, mine.reserve], [0, 4]);
   // An upload is social work for a token that may draft social posts now (scope and a live grant).
   const upload = () => authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(social), body: new Uint8Array(10) }), env, NOW + 3);
-  assert.equal(status(await upload()), 429, 'no live social grant: not social work');
-  await grantRole(env.DB as never, { userId: 'ed', role: 'social', expiresAt: null, by: null }, NOW - 100);
   assert.equal(status(await upload()), 200);
   assert.equal(status(await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(cms), body: new Uint8Array(10) }), env, NOW + 3)), 429, 'a cms token\'s upload is not');
 

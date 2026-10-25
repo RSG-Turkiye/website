@@ -1351,10 +1351,11 @@ twice a limit can pass around a window's edge.
   `resets: "00:00 UTC"`.
 - When the agents' budget is spent the answer is 429
   `{ "code": "agent_budget", "retry_after": <seconds to 00:00 UTC>, "message": "Ajan kotası bugün doldu, yarın tekrar deneyin / Agent quota is used up for today, try again tomorrow" }`.
-  Social work goes on from the reserve: the social routes, an image upload
-  by a token that may draft social posts now, and over MCP a social tool
-  call or any other message (initialize, `tools/list`) from a token that
-  may do social work. Posting is the work that must not stop.
+  Social work goes on from the reserve, from a token that may do social
+  work now (its scope and a live social role): the social routes, an image
+  upload (with `social:draft`), and over MCP a social tool call or any
+  other message (initialize, `tools/list`). Posting is the work that must
+  not stop.
 - A write or submit counts even when it is refused by the handler, and so
   does a body over the size limit (413). Over MCP each message counts once
   as a request, and a tool call spends its tool's write or submit quota

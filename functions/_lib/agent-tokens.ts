@@ -73,13 +73,14 @@ export type ChargeRule = (agent: AgentPrincipal, body: string) => Charge;
 
 /**
  * Social work may use the agents' reserve once the general pool is spent:
- * social routes, and an image upload by a token that may draft social
- * posts. The MCP endpoint decides per message (its ChargeRule), and names
+ * social routes from a token that may do social work now, and an image
+ * upload by a token that may draft social posts. The MCP endpoint decides per message (its ChargeRule), and names
  * the quota of the tool a message calls.
  */
 function chargeFor(route: AgentRoute, agent: () => AgentPrincipal, mcp: ChargeRule | undefined): (body: string) => Charge {
   const quota = route.quota;
-  if (route.area === 'social') return () => ({ reserve: true, quota });
+  // Only a token that may do social work now: one without it would spend the reserve and then be refused.
+  if (route.area === 'social') return () => ({ reserve: agentMaySocial(agent(), 'read'), quota });
   if (route.area === 'media') return () => ({ reserve: agentMaySocial(agent(), 'draft'), quota });
   if (route.area === 'mcp' && mcp) return (body) => mcp(agent(), body);
   return () => ({ reserve: false, quota });
