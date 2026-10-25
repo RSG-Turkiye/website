@@ -2,7 +2,7 @@ import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
 import { loadCmsIndex, lpIdsElsewhere } from '../../../_lib/cms-api';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, refuseDraft, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
 import { canTransition, checkSameId, droppedSides, filesFor, fixedKeysErrors, inOrderOf, newPaths, withServerKey, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 import { assignIds, lockedKeysErrors, type LpDraftData } from '../../../_lib/cms-lp';
@@ -13,7 +13,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   if (!gate.ok) return gate.response;
   const found = await loadDraft(env, params.id);
   if (!found.ok) return found.response;
-  if (!mayEdit(gate, found.row)) return forbidden();
+  if (!mayEdit(gate, found.row)) return refuseDraft(gate, found.row);
   const author = await env.DB.prepare('SELECT display_name FROM profiles WHERE user_id = ?').bind(found.row.author_id).first<{ display_name: string }>();
   // The files this draft would write, as the approval writes them: the
   // approver's file diff compares them with main. Null while the data
@@ -40,7 +40,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   const found = await loadDraft(env, params.id);
   if (!found.ok) return found.response;
   const { row, type } = found;
-  if (!mayEdit(gate, row)) return forbidden();
+  if (!mayEdit(gate, row)) return refuseDraft(gate, row);
   if (row.action === 'delete') return fail(409, 'bad_action', 'A delete has nothing to edit');
   if (!canTransition('save', row.status)) return badState();
   const body = await readJson(request);
@@ -135,7 +135,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const found = await loadDraft(env, params.id);
   if (!found.ok) return found.response;
   const { row } = found;
-  if (!mayEdit(gate, row)) return forbidden();
+  if (!mayEdit(gate, row)) return refuseDraft(gate, row);
   if (!canTransition('discard', row.status)) return badState();
   // An agent discards only what is still with its author; a submitted or
   // failed draft is a person's to withdraw (plan 5, Call 9).

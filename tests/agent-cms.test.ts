@@ -228,9 +228,10 @@ test('an approver\'s token reaches only the member\'s own drafts: no queue, no i
   // A draft still with its author, so only the approve-level reach could open it.
   db.prepare(`UPDATE content_drafts SET status = 'draft' WHERE id = ?`).run(id);
   const before = row(id);
-  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 403);
+  // Someone else's draft does not exist for a token: 404, as a missing id.
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 404);
   const patch = await on(env, draft.onRequestPatch, 'PATCH', id, { token }, { data: newEvent('Taken over'), write_nonce: before.write_nonce });
-  assert.equal(patch.status, 403);
+  assert.equal(patch.status, 404);
   assert.deepEqual(row(id), before);
 });
 
@@ -318,10 +319,10 @@ test('an admin\'s token (users.is_admin set, live admin grant) has no approve re
   const typesBody = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', { token })).json() as any;
   for (const t of typesBody.types) assert.equal(t.canApprove, false);
   const before = [row(id), row(other.id)];
-  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 403);
-  assert.equal((await on(env, draft.onRequestGet, 'GET', other.id, { token })).status, 403);
-  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', other.id, { token }, { data: newEvent('Taken over'), write_nonce: other.write_nonce })).status, 403);
-  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', other.id, { token })).status, 403);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 404);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', other.id, { token })).status, 404);
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', other.id, { token }, { data: newEvent('Taken over'), write_nonce: other.write_nonce })).status, 404);
+  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', other.id, { token })).status, 404);
   assert.equal((await on(env, approve.onRequestPost, 'POST', id, { token }, undefined, '/approve')).status, 403);
   assert.deepEqual([row(id), row(other.id)], before);
 });
@@ -332,9 +333,12 @@ test('follow-up: a token cannot submit another person\'s draft; it discards its 
   const theirs = (await createAs(env, { session: 'editor2' })).body.draft.id;
   const before = row(theirs);
   const log = audit();
-  assert.equal((await on(env, submit.onRequestPost, 'POST', theirs, { token }, undefined, '/submit')).status, 403);
+  const refused = await on(env, submit.onRequestPost, 'POST', theirs, { token }, undefined, '/submit');
+  assert.deepEqual([refused.status, ((await refused.json()) as { code: string }).code], [404, 'not_found']);
   assert.deepEqual(row(theirs), before);
   assert.deepEqual(audit(), log);
+  // A person in the panel is told 403, as before.
+  assert.equal((await on(env, submit.onRequestPost, 'POST', theirs, { session: 'editor' }, undefined, '/submit')).status, 403);
 
   const rejected = (await createAs(env, { token }, { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-izmir-2027' } })).body.draft.id;
   db.prepare(`UPDATE content_drafts SET status = 'rejected' WHERE id = ?`).run(rejected);
@@ -388,4 +392,16 @@ test('follow-up: a token\'s successful podcast pull makes a draft that carries a
   } finally {
     feed = null;
   }
+});
+
+test('the live list a token gets names only its member\'s own drafts; the panel\'s names every entry a draft holds', async () => {
+  const { db, env } = setup();
+  const theirs = (await createAs(env, { session: 'editor2' })).body.draft.id;
+  const mine = (await createAs(env, { session: 'editor' }, { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-izmir-2027' } })).body.draft.id;
+  // Both waiting for approval, as updates of published entries.
+  db.prepare(`UPDATE content_drafts SET status = 'submitted', action = 'update' WHERE id IN (?, ?)`).run(theirs, mine);
+  const token = await mintToken(db, 'editor', ['cms.etkinlikler:read']);
+  const live = (as: As) => req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', as).then(async (r) => ((await r.json()) as { live: { entry_id: string }[] }).live.map((l) => l.entry_id).sort());
+  assert.deepEqual(await live({ token }), ['meetup-izmir-2027']);
+  assert.deepEqual(await live({ session: 'editor' }), ['meetup-ankara-2027', 'meetup-izmir-2027']);
 });

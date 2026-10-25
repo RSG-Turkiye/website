@@ -52,13 +52,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   // Which entries a live draft holds, so the panel offers no second draft
   // that submit would refuse (entry_busy). Not whose draft it is. Someone
   // else's new entry is not listed: it is not published, so it has no row.
+  // A token sees only its member's own: a colleague's draft does not exist for it.
   const types = [...editable];
   const live = types.length === 0 ? { results: [] as { type: string; entry_id: string; status: string }[] } : await env.DB.prepare(
     `SELECT type, entry_id, status FROM content_drafts
      WHERE status IN (${LIVE_STATUSES.map(() => '?').join(', ')}) AND type IN (${types.map(() => '?').join(', ')})
-       AND (action != 'create' OR author_id = ?)
+       AND (action != 'create' OR author_id = ?)${gate.agent ? ' AND author_id = ?' : ''}
      ORDER BY type, entry_id LIMIT 500`,
-  ).bind(...LIVE_STATUSES, ...types, gate.user.id).all<{ type: string; entry_id: string; status: string }>();
+  ).bind(...LIVE_STATUSES, ...types, gate.user.id, ...(gate.agent ? [gate.user.id] : [])).all<{ type: string; entry_id: string; status: string }>();
 
   return jsonResponse({
     mine: mine.results.filter((r) => editable.has(r.type)).map((r) => draftJson(r, false)),

@@ -361,14 +361,20 @@ test('a social:draft token whose member holds no social grant is 403; a CMS-only
   assert.equal((await req(posts.onRequestGet, 'GET', `/api/social/posts?from=${NOW}&to=${NOW + 10}`, env, { token: cmsToken })).status, 403);
 });
 
-test('a social editor\'s token creates a post on an open plan, and the plan is linked', async () => {
+test('a social editor\'s token creates a post on an open plan its member made, and the plan is linked; never on a colleague\'s plan', async () => {
   const { env, db } = await setup();
-  const planId = (await (await req(plans.onRequestPost, 'POST', '/api/social/plans', env, { as: 'pub', body: validPlan })).json() as { id: string }).id;
+  const planId = (await (await req(plans.onRequestPost, 'POST', '/api/social/plans', env, { as: 'ed', body: validPlan })).json() as { id: string }).id;
+  const theirs = (await (await req(plans.onRequestPost, 'POST', '/api/social/plans', env, { as: 'pub', body: validPlan })).json() as { id: string }).id;
   const token = await mintToken(db, 'ed', ['social:draft'], { id: 'tok-ed' });
+  const refused = await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { token, body: { ...draft, planId: theirs } });
+  assert.deepEqual([refused.status, ((await refused.json()) as { code: string }).code], [400, 'invalid_plan']);
+  assert.equal((db.prepare('SELECT post_id FROM social_plans WHERE id = ?').get(theirs) as { post_id: string | null }).post_id, null);
+  // A person in the panel still links to any plan.
+  assert.equal((await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed', body: { ...draft, planId: theirs } })).status, 201);
   const id = await createByToken(env, token, { ...draft, planId });
   assert.equal((db.prepare('SELECT post_id FROM social_plans WHERE id = ?').get(planId) as { post_id: string }).post_id, id);
   assert.equal(postRow(db, id).agent_token_id, 'tok-ed');
-  const [d] = audits(db, 'social.post.create');
+  const d = audits(db, 'social.post.create').at(-1)!;
   assert.equal(d.planId, planId);
   assert.equal(d.via, 'agent');
 });
@@ -385,13 +391,24 @@ test('a token deletes its member\'s own draft; the delete is audited as agent', 
   assert.equal(d.agent_token, 'tok-ed');
 });
 
-test('a publisher\'s token cannot edit or delete another member\'s draft', async () => {
+test('a publisher\'s token cannot see, edit, delete or submit another member\'s draft: 404, as a missing id, whatever the revision', async () => {
   const { env, db } = await setup();
   const id = (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed', body: draft })).json() as { id: string }).id;
   const token = await mintToken(db, 'pub', ['social:draft']);
-  assert.equal((await req(post.onRequestPatch, 'PATCH', `/api/social/posts/${id}`, env, { token, params: { id }, body: { ...draft, revision: 0 } })).status, 403);
-  assert.equal((await req(post.onRequestDelete, 'DELETE', `/api/social/posts/${id}`, env, { token, params: { id }, body: { revision: 0 } })).status, 403);
-  assert.ok(db.prepare('SELECT id FROM social_posts WHERE id = ?').get(id));
+  for (const revision of [0, 7]) {
+    for (const [handler, method, path, body] of [
+      [post.onRequestGet, 'GET', `/api/social/posts/${id}`, undefined],
+      [post.onRequestPatch, 'PATCH', `/api/social/posts/${id}`, { ...draft, revision }],
+      [post.onRequestDelete, 'DELETE', `/api/social/posts/${id}`, { revision }],
+      [submit.onRequestPost, 'POST', `/api/social/posts/${id}/submit`, { revision }],
+    ] as const) {
+      const res = await req(handler, method, path, env, { token, params: { id }, body });
+      assert.deepEqual([res.status, ((await res.json()) as { code: string }).code], [404, 'not_found'], `${method} ${path} revision ${revision}`);
+    }
+  }
+  assert.deepEqual(postRow(db, id).status, 'draft');
+  // A publisher in the panel still reaches it.
+  assert.equal((await req(post.onRequestGet, 'GET', `/api/social/posts/${id}`, env, { as: 'pub', params: { id } })).status, 200);
 });
 
 // Plans ------------------------------------------------------------------------------
@@ -418,16 +435,21 @@ test('plans: a token creates, edits the date (reminder reset), deletes its own e
   }
 });
 
-test('plans: a token deleting a plan another member created is 403 not_allowed and the row stays', async () => {
+test('plans: a token editing or deleting a plan another member created is 404 not_found and the row stays', async () => {
   const { env, db } = await setup();
   const id = (await (await req(plans.onRequestPost, 'POST', '/api/social/plans', env, { as: 'ed2', body: validPlan })).json() as { id: string }).id;
   const audited = auditCount(db);
+  const stored = db.prepare('SELECT * FROM social_plans WHERE id = ?').get(id);
   const token = await mintToken(db, 'pub', ['social:draft']);
+  const patched = await req(plan.onRequestPatch, 'PATCH', `/api/social/plans/${id}`, env, { token, params: { id }, body: { title: '[x](https://evil.example)' } });
+  assert.deepEqual([patched.status, ((await patched.json()) as { code: string }).code], [404, 'not_found']);
   const res = await req(plan.onRequestDelete, 'DELETE', `/api/social/plans/${id}`, env, { token, params: { id } });
-  assert.equal(res.status, 403);
-  assert.equal((await res.json() as { code: string }).code, 'not_allowed');
-  assert.ok(db.prepare('SELECT id FROM social_plans WHERE id = ?').get(id));
+  assert.equal(res.status, 404);
+  assert.equal((await res.json() as { code: string }).code, 'not_found');
+  assert.deepEqual(db.prepare('SELECT * FROM social_plans WHERE id = ?').get(id), stored);
   assert.equal(auditCount(db), audited);
+  // A person still edits it in the panel.
+  assert.equal((await req(plan.onRequestPatch, 'PATCH', `/api/social/plans/${id}`, env, { as: 'pub', params: { id }, body: { note: 'x' } })).status, 200);
   // A person still deletes it in the panel.
   assert.equal((await req(plan.onRequestDelete, 'DELETE', `/api/social/plans/${id}`, env, { as: 'pub', params: { id } })).status, 200);
 });
@@ -521,4 +543,22 @@ test('socialGate lets a token through only on a social route, as cmsGate does fo
   const res = (gate as Extract<typeof gate, { ok: false }>).response;
   assert.equal(res.status, 403);
   assert.equal(((await res.json()) as { code: string }).code, 'human_only');
+});
+
+test('plans as a token lists them: the note and the linked post\'s status only on its member\'s own plans', async () => {
+  const { env, db } = await setup();
+  const mineId = (await (await req(plans.onRequestPost, 'POST', '/api/social/plans', env, { as: 'ed', body: { ...validPlan, note: 'bizim not' } })).json() as { id: string }).id;
+  const theirsId = (await (await req(plans.onRequestPost, 'POST', '/api/social/plans', env, { as: 'ed2', body: { ...validPlan, note: 'iç not' } })).json() as { id: string }).id;
+  await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed2', body: { ...draft, planId: theirsId } });
+  const token = await mintToken(db, 'ed', ['social:read']);
+  const list = await (await req(plans.onRequestGet, 'GET', `/api/social/plans?from=${NOW}&to=${NOW + 2 * 86400}`, env, { token })).json() as { plans: Record<string, unknown>[] };
+  const mine = list.plans.find((p) => p.id === mineId)!;
+  const theirs = list.plans.find((p) => p.id === theirsId)!;
+  assert.equal(mine.note, 'bizim not');
+  assert.deepEqual([theirs.note, theirs.postStatus, theirs.assigneeEmail], [null, null, null]);
+  assert.equal(theirs.title, validPlan.title);
+  assert.ok(theirs.postId);
+  // The panel still sees everything.
+  const panel = await (await req(plans.onRequestGet, 'GET', `/api/social/plans?from=${NOW}&to=${NOW + 2 * 86400}`, env, { as: 'ed' })).json() as { plans: Record<string, unknown>[] };
+  assert.deepEqual([panel.plans.find((p) => p.id === theirsId)!.note, panel.plans.find((p) => p.id === theirsId)!.postStatus], ['iç not', 'draft']);
 });

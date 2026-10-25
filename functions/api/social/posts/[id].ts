@@ -12,6 +12,8 @@ import { runGuardedWithAudit } from '../../../_lib/audit';
 
 const AGENT_EDITABLE: PostStatus[] = ['draft', 'rejected', 'pending_approval'];
 
+const notFound = () => jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+
 const revisionOf = (body: Record<string, unknown>) =>
   typeof body.revision === 'number' && Number.isInteger(body.revision) && body.revision >= 0 ? body.revision : null;
 
@@ -30,7 +32,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const found = await loadPost(env.DB, env, id);
-  if (!found) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  // What a token cannot see (a colleague's unpublished post) does not exist for it, as in GET.
+  if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return notFound();
   const { row } = found;
   if (!canEditPost(gate.actor, row)) return jsonResponse({ error: 'You cannot edit this post', code: 'not_allowed' }, 403);
   // A token never touches a post a person approved: editing it would pull the approval back.
@@ -95,7 +98,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const found = await loadPost(env.DB, env, id);
-  if (!found) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return notFound();
   const { row } = found;
   if (!canDeletePost(gate.actor, row)) {
     return (row.created_by === gate.user.id || gate.actor.isPublisher)

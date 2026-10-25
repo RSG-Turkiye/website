@@ -4,6 +4,8 @@ import { socialGate, readBody, malformed, nowSeconds } from '../../../_lib/socia
 import { parsePlanInput, isSocialEditor, type PlanInput } from '../../../_lib/social-plans';
 import { runWithAudit, runGuardedWithAudit } from '../../../_lib/audit';
 
+const notFound = () => jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+
 type Row = { id: string; title: string; scheduled_at: number; platforms: string; post_type: string; assignee_id: string | null; note: string; post_id: string | null; created_by: string };
 
 const COLUMN: Record<keyof PlanInput, string> = {
@@ -24,7 +26,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const row = await env.DB.prepare('SELECT * FROM social_plans WHERE id = ?').bind(id).first<Row>();
-  if (!row) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  // A token changes only a plan its own member made; a colleague's is not found, as a missing id.
+  if (!row || (gate.agent && row.created_by !== gate.user.id)) return notFound();
   const body = await readBody(request);
   if (!body) return malformed();
   const now = nowSeconds();
@@ -57,9 +60,8 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const row = await env.DB.prepare('SELECT * FROM social_plans WHERE id = ?').bind(id).first<Row>();
-  if (!row) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
-  // A token deletes only a plan its own member made.
-  if (gate.agent && row.created_by !== gate.user.id) return jsonResponse({ error: 'You cannot delete this plan', code: 'not_allowed' }, 403);
+  // A token deletes only a plan its own member made; a colleague's is not found, as a missing id.
+  if (!row || (gate.agent && row.created_by !== gate.user.id)) return notFound();
   if (row.post_id) return jsonResponse({ error: 'This plan already has a post', code: 'plan_has_post' }, 409);
   const done = await runGuardedWithAudit(
     env.DB,

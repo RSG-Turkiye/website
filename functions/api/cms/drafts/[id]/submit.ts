@@ -1,7 +1,7 @@
 import type { Env } from '../../../../_lib/auth';
 import { jsonResponse } from '../../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayEdit, newNonce, nonceProof, refuseLp, refusePairClash } from '../../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, refuseDraft, invalid, loadDraft, mayEdit, newNonce, nonceProof, refuseLp, refusePairClash } from '../../../../_lib/cms-api';
 import { canTransition, LIVE_STATUSES, validateDraft } from '../../../../_lib/cms-drafts';
 import { prunedAssigned, type LpDraftData } from '../../../../_lib/cms-lp';
 
@@ -28,7 +28,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const found = await loadDraft(env, params.id);
   if (!found.ok) return found.response;
   const { row, type } = found;
-  if (!mayEdit(gate, row)) return forbidden();
+  if (!mayEdit(gate, row)) return refuseDraft(gate, row);
   if (!canTransition('submit', row.status)) return badState();
   if (row.action !== 'delete') {
     const v = validateDraft(type, JSON.parse(row.data));

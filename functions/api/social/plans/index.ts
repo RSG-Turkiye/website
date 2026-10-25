@@ -9,13 +9,20 @@ type PlanRow = {
   assignee_email: string | null; note: string; post_id: string | null; post_status: string | null; created_by: string; created_at: number;
 };
 
-// An agent's answers carry no e-mail address: its model provider is a third party.
-function planResponse(r: PlanRow, forAgent: boolean) {
+/**
+ * `forAgent` is the member a token acts for, or null for the panel. An
+ * agent's answers carry no e-mail address (its model provider is a third
+ * party), and the team's note and the linked post's status only on plans
+ * its member made: on a colleague's plan they are null.
+ */
+function planResponse(r: PlanRow, forAgent: string | null) {
   let platforms: string[] = [];
   try { platforms = JSON.parse(r.platforms); } catch { platforms = []; }
+  const own = forAgent === null || r.created_by === forAgent;
   return {
     id: r.id, title: r.title, scheduledAt: r.scheduled_at, platforms, postType: r.post_type,
-    assigneeId: r.assignee_id, assigneeEmail: forAgent ? null : r.assignee_email, note: r.note, postId: r.post_id, postStatus: r.post_status,
+    assigneeId: r.assignee_id, assigneeEmail: forAgent !== null ? null : r.assignee_email,
+    note: own ? r.note : null, postId: r.post_id, postStatus: own ? r.post_status : null,
     createdBy: r.created_by, createdAt: r.created_at,
   };
 }
@@ -33,7 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       WHERE pl.scheduled_at BETWEEN ? AND ?
       ORDER BY pl.scheduled_at`,
   ).bind(range.from, range.to).all<PlanRow>()).results;
-  return jsonResponse({ plans: rows.map((r) => planResponse(r, gate.agent !== null)) });
+  return jsonResponse({ plans: rows.map((r) => planResponse(r, gate.agent ? gate.user.id : null)) });
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {

@@ -21,6 +21,14 @@ export const fail = (status: number, code: string, error: string, extra: Record<
 
 export const forbidden = () => fail(403, 'forbidden', 'Forbidden');
 
+/**
+ * The refusal when mayEdit is false. A colleague's draft does not exist for a
+ * token (404, as a missing id), so a token cannot learn that another
+ * member's draft id exists; a person in the panel gets 403 as before.
+ */
+export const refuseDraft = (gate: { user: Pick<User, 'id'>; agent: AgentPrincipal | null }, row: Pick<DraftRow, 'author_id'>) =>
+  gate.agent && row.author_id !== gate.user.id ? fail(404, 'not_found', 'Not found') : forbidden();
+
 export type Gate =
   /** `agent`: the token this request came with, or null for a person in the panel. */
   | { ok: true; user: User; rights: GroupRights; now: number; agent: AgentPrincipal | null }

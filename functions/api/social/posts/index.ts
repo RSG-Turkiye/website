@@ -59,8 +59,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ id, revision: 0 }, 201);
   }
 
-  const plan = await env.DB.prepare('SELECT id, scheduled_at, platforms, post_type, post_id FROM social_plans WHERE id = ?').bind(planId).first<PlanSlot>();
-  if (!plan) return jsonResponse({ error: 'Unknown plan', code: 'invalid_plan' }, 400);
+  const plan = await env.DB.prepare('SELECT id, scheduled_at, platforms, post_type, post_id, created_by FROM social_plans WHERE id = ?').bind(planId).first<PlanSlot & { created_by: string }>();
+  // A token links a post only to a plan its own member made, as it edits only those.
+  if (!plan || (gate.agent && plan.created_by !== gate.user.id)) return jsonResponse({ error: 'Unknown plan', code: 'invalid_plan' }, 400);
   if (plan.post_id) return jsonResponse({ error: 'This plan already has a post', code: 'plan_taken' }, 409);
   // The plan's slot fills whatever the draft left empty.
   const filled = {
