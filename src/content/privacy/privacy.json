@@ -16,7 +16,7 @@
           "Your profile: the name, username, photo, institution, bio and interests you choose to enter, and your learning progress and badges. Profiles are listed on the public members page; ask us and we hide yours.",
           "Session cookie: one cookie, rsg_session, keeps you signed in for 30 days. It is not used for tracking or advertising, and the site sets no other cookies.",
           "Email with members: messages we send to members through our Gmail account, and the replies we receive, are kept so the team can follow a conversation.",
-          "Blog posts: posts are written in the admin panel by people who have been given the right to edit them. Each draft (its title, text, author name and images) is kept in our database until it is published or discarded. We also keep the blog submissions sent through the earlier member form (title, text, author name and images).",
+          "Content drafts: site content is written in the admin panel by people who have been given the right to edit it. Each draft, such as a blog post (its title, text, author name and images) or a committee profile (members' names, roles and photos, given with their consent), is kept in our database until it is published or discarded. We also keep the blog submissions sent through the earlier member form (title, text, author name and images).",
           "Certificates: for symposium certificates we hold the participant's name and email address. When you look up a certificate we store a one-way hash of your IP address, not the address itself, to limit repeated lookups. We count how many times each certificate is viewed and downloaded; the team sees only totals, never who.",
           "Visit counts: this site and the symposium site use Cloudflare Web Analytics, which counts page views without cookies and without identifying you. We see totals only: which pages are read, from which country, on what kind of device, and which site linked here. It is not loaded on your account pages or the admin panel.",
           "Admin activity: actions taken in the admin panel are logged with the team member who took them.",
@@ -39,7 +39,7 @@
           "Certificate lookup records: 1 day.",
           "Sessions: 30 days, or until you sign out.",
           "Admin activity log: 1 year.",
-          "Blog post drafts: until they are published or discarded. Published and discarded drafts are deleted from our database 90 days later.",
+          "Drafts of site content written in the admin panel, such as blog posts and committee profiles: until they are published or discarded. Published and discarded drafts are deleted from our database 90 days later.",
           "Your account, profile, member emails and the blog submissions sent through the earlier form: until you ask us to delete them."
         ]
       },
@@ -87,7 +87,7 @@
           "Profiliniz: Girmeyi seçtiğiniz ad, kullanıcı adı, fotoğraf, kurum, kısa tanıtım ve ilgi alanları ile öğrenme ilerlemeniz ve rozetleriniz. Profiller herkese açık üyeler sayfasında listelenir; isterseniz sizinkini gizleriz.",
           "Oturum çerezi: Tek bir çerez, rsg_session, sizi 30 gün boyunca oturumda tutar. İzleme ya da reklam için kullanılmaz; site başka çerez koymaz.",
           "Üyelerle yazışmalar: Gmail hesabımızdan üyelere gönderdiğimiz mesajlar ve gelen yanıtlar, ekip bir yazışmayı takip edebilsin diye saklanır.",
-          "Blog yazıları: Yazılar, düzenleme yetkisi verilmiş kişiler tarafından yönetim panelinde yazılır. Her taslak (başlığı, metni, yazar adı ve görselleri) yayımlanana ya da silinene kadar veritabanımızda saklanır. Önceki üye formuyla gönderilmiş blog başvurularını (başlık, metin, yazar adı ve görseller) da saklarız.",
+          "İçerik taslakları: Site içeriği, düzenleme yetkisi verilmiş kişiler tarafından yönetim panelinde yazılır. Bir blog yazısı (başlığı, metni, yazar adı ve görselleri) ya da bir komite profili (üyelerin onayıyla verdikleri adları, görevleri ve fotoğrafları) gibi her taslak, yayımlanana ya da silinene kadar veritabanımızda saklanır. Önceki üye formuyla gönderilmiş blog başvurularını (başlık, metin, yazar adı ve görseller) da saklarız.",
           "Sertifikalar: Sempozyum sertifikaları için katılımcının adını ve e-posta adresini tutarız. Sertifika sorguladığınızda, tekrarlanan sorguları sınırlamak için IP adresinizin kendisini değil, tek yönlü bir özetini (hash) saklarız. Her sertifikanın kaç kez görüntülendiğini ve indirildiğini sayarız; ekip sadece toplamları görür, kimin olduğunu görmez.",
           "Ziyaret sayıları: Bu site ve sempozyum sitesi Cloudflare Web Analytics kullanır; sayfa görüntülemelerini çerez kullanmadan ve sizi tanımlamadan sayar. Biz sadece toplamları görürüz: hangi sayfaların okunduğu, hangi ülkeden, ne tür cihazdan girildiği ve hangi sitenin buraya bağlantı verdiği. Hesap sayfalarınızda ve yönetim panelinde yüklenmez.",
           "Yönetici işlemleri: Yönetim panelinde yapılan işlemler, yapan ekip üyesiyle birlikte kaydedilir.",
@@ -110,7 +110,7 @@
           "Sertifika sorgu kayıtları: 1 gün.",
           "Oturumlar: 30 gün ya da çıkış yapana kadar.",
           "Yönetici işlem kaydı: 1 yıl.",
-          "Blog yazısı taslakları: yayımlanana ya da silinene kadar. Yayımlanan ve silinen taslaklar 90 gün sonra veritabanımızdan da silinir.",
+          "Yönetim panelinde yazılan site içeriği taslakları (blog yazıları ve komite profilleri gibi): yayımlanana ya da silinene kadar. Yayımlanan ve silinen taslaklar 90 gün sonra veritabanımızdan da silinir.",
           "Hesabınız, profiliniz, üye yazışmaları ve önceki formla gönderilmiş blog başvuruları: silinmesini isteyene kadar."
         ]
       },
