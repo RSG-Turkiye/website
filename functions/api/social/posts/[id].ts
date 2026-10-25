@@ -6,7 +6,7 @@ import {
   updatePostGuarded, targetStatements, startedTargets, POST_PROOF, type PostColumn, type PostStatus,
 } from '../../../_lib/social-posts';
 import { coveringEvent } from '../../../_lib/social-events';
-import { loadPost } from '../../../_lib/social-post-read';
+import { loadPost, agentMaySee } from '../../../_lib/social-post-read';
 import { notifyLater } from '../../../_lib/social-actions';
 import { runGuardedWithAudit } from '../../../_lib/audit';
 
@@ -18,8 +18,10 @@ const revisionOf = (body: Record<string, unknown>) =>
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await socialGate(request, env, 'edit', false);
   if (!gate.ok) return gate.response;
-  const found = await loadPost(env.DB, env, String(params.id), gate.agent !== null);
-  return found ? jsonResponse(found.response) : jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  const found = await loadPost(env.DB, env, String(params.id), gate.agent ? gate.user.id : null);
+  // A colleague's unpublished post does not exist for a token.
+  if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  return jsonResponse(found.response);
 };
 
 export const onRequestPatch: PagesFunction<Env> = async (ctx) => {

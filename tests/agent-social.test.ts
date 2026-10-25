@@ -15,6 +15,8 @@ import * as post from '../functions/api/social/posts/[id]';
 import * as submit from '../functions/api/social/posts/[id]/submit';
 import * as approve from '../functions/api/social/posts/[id]/approve';
 import * as requeue from '../functions/api/social/posts/[id]/requeue';
+import * as reject from '../functions/api/social/posts/[id]/reject';
+import * as cancel from '../functions/api/social/posts/[id]/cancel';
 import * as plans from '../functions/api/social/plans/index';
 import * as plan from '../functions/api/social/plans/[id]';
 import * as upload from '../functions/api/blog-submissions/upload-image';
@@ -91,6 +93,14 @@ test('an admin\'s token (users.is_admin set) still only drafts: submit and story
     assert.equal(postRow(db, id).approved_by, null);
   }
   assert.equal(targetCount(db), 0);
+  // The admin schedules a post of their own in the panel; their token cannot edit it.
+  const sid = (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'admin', body: draft })).json() as { id: string }).id;
+  assert.equal((await (await req(submit.onRequestPost, 'POST', `/api/social/posts/${sid}/submit`, env, { as: 'admin', params: { id: sid }, body: { revision: 0 } })).json() as { status: string }).status, 'scheduled');
+  const before = db.prepare('SELECT * FROM social_posts WHERE id = ?').get(sid);
+  const res = await req(post.onRequestPatch, 'PATCH', `/api/social/posts/${sid}`, env, { token, params: { id: sid }, body: { ...draft, caption: 'Değişti', revision: 1 } });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json() as { code: string }).code, 'not_editable');
+  assert.deepEqual(db.prepare('SELECT * FROM social_posts WHERE id = ?').get(sid), before);
 });
 
 test('a token with a valid publisher session cookie beside it still acts as the token (pending)', async () => {
@@ -159,7 +169,7 @@ test('a person\'s later save keeps the agent mark', async () => {
   assert.equal(audits(db, 'social.post.update')[0].via, undefined);
 });
 
-test('approve and requeue answer 403 human_only to any token, and nothing changes', async () => {
+test('approve, reject, cancel and requeue answer 403 human_only to any token, and nothing changes', async () => {
   const { env, db } = await setup();
   const created = await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed', body: draft });
   const { id } = await created.json() as { id: string };
@@ -168,7 +178,7 @@ test('approve and requeue answer 403 human_only to any token, and nothing change
   const audited = auditCount(db);
   for (const [who, scope] of [['admin', 'social:draft'], ['pub', 'social:draft'], ['ed', 'social:read']] as const) {
     const token = await mintToken(db, who, [scope]);
-    for (const [handler, path] of [[approve.onRequestPost, 'approve'], [requeue.onRequestPost, 'requeue']] as const) {
+    for (const [handler, path] of [[approve.onRequestPost, 'approve'], [reject.onRequestPost, 'reject'], [cancel.onRequestPost, 'cancel'], [requeue.onRequestPost, 'requeue']] as const) {
       const res = await req(handler, 'POST', `/api/social/posts/${id}/${path}`, env, { token, as: who, params: { id }, body: { revision: 1 } });
       assert.equal(res.status, 403, `${who} ${path}`);
       assert.equal((await res.json() as { code: string }).code, 'human_only', `${who} ${path}`);
@@ -204,7 +214,21 @@ test('a bad bearer token beside a valid session is 401, on social and on upload'
   assert.equal(up.status, 401);
 });
 
-test('a token needs no CSRF header, and a revoked token is 401', async () => {
+test('a token passes with a foreign Origin (no CSRF check on the bearer path); the cookie path still refuses it', async () => {
+  const { env, db } = await setup();
+  const token = await mintToken(db, 'ed', ['social:draft']);
+  const foreign = { Origin: 'https://evil.example' };
+  const res = await call(posts.onRequestPost, 'POST', '/api/social/posts', { env, body: draft, headers: { ...foreign, ...bearer(token) } });
+  assert.equal(res.status, 201);
+  const up = await (upload.onRequestPost as (c: unknown) => Promise<Response>)({
+    request: new Request(`${BASE}/api/blog-submissions/upload-image`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg', ...foreign, ...bearer(token) }, body: jpeg(1080, 1350) }),
+    env: { ...env as object, BLOG_IMAGES: fakeR2() },
+  });
+  assert.equal(up.status, 200);
+  assert.equal((await call(posts.onRequestPost, 'POST', '/api/social/posts', { env, as: 'ed', body: draft, headers: foreign })).status, 403);
+});
+
+test('a revoked token is 401', async () => {
   const { env, db } = await setup();
   const token = await mintToken(db, 'ed', ['social:draft'], { revokedAt: NOW - 1 });
   const res = await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { token, body: draft });
@@ -244,6 +268,68 @@ test('a token sees authorEmail null on a post and in lists, assigneeEmail null o
   assert.equal(panel.authorEmail, 'pub@example.org');
   const panelPlans = await (await req(plans.onRequestGet, 'GET', `/api/social/plans?from=${NOW}&to=${NOW + 2 * 86400}`, env, { as: 'pub' })).json() as { plans: { assigneeEmail: unknown }[] };
   assert.equal(panelPlans.plans[0].assigneeEmail, 'ed@example.org');
+});
+
+test('a token sees only its member\'s own posts and published ones; colleagues\' unpublished posts are not there', async () => {
+  const { env, db } = await setup();
+  const make = async (as: string, body: Record<string, unknown> = draft) =>
+    (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as, body })).json() as { id: string }).id;
+  const othersDraft = await make('ed2');
+  const othersPending = await make('ed2');
+  await req(submit.onRequestPost, 'POST', `/api/social/posts/${othersPending}/submit`, env, { as: 'ed2', params: { id: othersPending }, body: { revision: 0 } });
+  const othersScheduled = await make('pub');
+  await req(submit.onRequestPost, 'POST', `/api/social/posts/${othersScheduled}/submit`, env, { as: 'pub', params: { id: othersScheduled }, body: { revision: 0 } });
+  const othersFailed = await make('ed2');
+  const othersPublished = await make('ed2');
+  const othersPartly = await make('ed2');
+  db.prepare(`UPDATE social_posts SET status = 'failed' WHERE id = ?`).run(othersFailed);
+  db.prepare(`UPDATE social_posts SET status = 'published', review_note = 'iç not' WHERE id = ?`).run(othersPublished);
+  db.prepare(`UPDATE social_posts SET status = 'partially_published' WHERE id = ?`).run(othersPartly);
+  const ownDraft = await make('ed');
+  const ownPending = await make('ed');
+  await req(submit.onRequestPost, 'POST', `/api/social/posts/${ownPending}/submit`, env, { as: 'ed', params: { id: ownPending }, body: { revision: 0 } });
+  const token = await mintToken(db, 'ed', ['social:read']);
+
+  const ids = async (query: string) =>
+    (await (await req(posts.onRequestGet, 'GET', `/api/social/posts?${query}`, env, { token })).json() as { posts: { id: string }[] }).posts.map((p) => p.id).sort();
+  assert.deepEqual(await ids(`from=${NOW}&to=${NOW + 86400}`), [othersPartly, othersPublished, ownDraft, ownPending].sort());
+  assert.deepEqual(await ids('status=pending_approval'), [ownPending]);
+  assert.deepEqual(await ids('status=scheduled'), []);
+  assert.deepEqual(await ids('done=1'), [othersPartly, othersPublished].sort());
+  // The panel, for the same member, still lists the whole calendar.
+  const panel = (await (await req(posts.onRequestGet, 'GET', `/api/social/posts?from=${NOW}&to=${NOW + 86400}`, env, { as: 'ed' })).json() as { posts: unknown[] }).posts;
+  assert.equal(panel.length, 8);
+
+  for (const id of [othersDraft, othersPending, othersScheduled, othersFailed]) {
+    const res = await req(post.onRequestGet, 'GET', `/api/social/posts/${id}`, env, { token, params: { id } });
+    assert.equal(res.status, 404, id);
+  }
+  for (const id of [ownDraft, ownPending, othersPublished, othersPartly]) {
+    assert.equal((await req(post.onRequestGet, 'GET', `/api/social/posts/${id}`, env, { token, params: { id } })).status, 200, id);
+  }
+});
+
+test('a token gets no platform error text, and a review note only on its member\'s own posts', async () => {
+  const { env, db } = await setup();
+  const make = async (as: string) =>
+    (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as, body: draft })).json() as { id: string }).id;
+  const own = await make('ed');
+  const others = await make('ed2');
+  for (const id of [own, others]) {
+    db.prepare(`UPDATE social_posts SET status = 'partially_published', review_note = 'not' WHERE id = ?`).run(id);
+    db.prepare(`INSERT INTO social_post_targets (post_id, platform, status, last_error) VALUES (?, 'linkedin', 'failed', 'platform said no')`).run(id);
+  }
+  const token = await mintToken(db, 'ed', ['social:read']);
+  type P = { id: string; reviewNote: string | null; targets: { lastError: string | null }[] };
+  const one = async (id: string) => await (await req(post.onRequestGet, 'GET', `/api/social/posts/${id}`, env, { token, params: { id } })).json() as P;
+  assert.equal((await one(own)).reviewNote, 'not');
+  assert.equal((await one(others)).reviewNote, null);
+  for (const id of [own, others]) assert.deepEqual((await one(id)).targets.map((t) => t.lastError), [null]);
+  const list = (await (await req(posts.onRequestGet, 'GET', `/api/social/posts?from=${NOW}&to=${NOW + 86400}`, env, { token })).json() as { posts: P[] }).posts;
+  assert.deepEqual(list.map((p) => [p.id === own, p.reviewNote, p.targets[0].lastError]).sort(), [[false, null, null], [true, 'not', null]]);
+  // The panel still sees both.
+  const panel = await (await req(post.onRequestGet, 'GET', `/api/social/posts/${others}`, env, { as: 'ed', params: { id: others } })).json() as P;
+  assert.deepEqual([panel.reviewNote, panel.targets[0].lastError], ['not', 'platform said no']);
 });
 
 test('a token\'s drafts list holds only its member\'s own drafts, even for a publisher', async () => {

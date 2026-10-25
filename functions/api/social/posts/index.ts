@@ -2,7 +2,7 @@ import type { Env } from '../../../_lib/auth';
 import { jsonResponse, generateId } from '../../../_lib/auth';
 import { socialGate, readBody, malformed, nowSeconds, rangeParams } from '../../../_lib/social-api';
 import { parseDraft, draftColumns } from '../../../_lib/social-posts';
-import { loadPosts } from '../../../_lib/social-post-read';
+import { loadPosts, AGENT_VISIBLE } from '../../../_lib/social-post-read';
 import { runWithAudit, runGuardedWithAudit } from '../../../_lib/audit';
 
 const LISTABLE_STATUSES = ['pending_approval', 'scheduled'];
@@ -10,26 +10,30 @@ const LISTABLE_STATUSES = ['pending_approval', 'scheduled'];
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await socialGate(request, env, 'edit', false);
   if (!gate.ok) return gate.response;
-  const forAgent = gate.agent !== null;
+  const forAgent = gate.agent ? gate.user.id : null;
+  // A token lists only its member's own posts and what already went out.
+  const list = (where: string, binds: unknown[]) => forAgent === null
+    ? loadPosts(env.DB, env, where, binds)
+    : loadPosts(env.DB, env, `(${where}) AND ${AGENT_VISIBLE}`, [...binds, forAgent], forAgent);
   const url = new URL(request.url);
   const status = url.searchParams.get('status');
   if (status !== null) {
     if (!LISTABLE_STATUSES.includes(status)) return jsonResponse({ error: 'Unknown status', code: 'invalid_status' }, 400);
-    return jsonResponse({ posts: await loadPosts(env.DB, env, 'p.status = ?', [status], forAgent) });
+    return jsonResponse({ posts: await list('p.status = ?', [status]) });
   }
   if (url.searchParams.get('done') === '1') {
     const since = Math.floor(Date.now() / 1000) - 60 * 86400;
-    const posts = await loadPosts(env.DB, env, `p.status IN ('published','partially_published','failed') AND p.scheduled_at >= ?`, [since], forAgent);
+    const posts = await list(`p.status IN ('published','partially_published','failed') AND p.scheduled_at >= ?`, [since]);
     return jsonResponse({ posts: posts.reverse() });
   }
   if (url.searchParams.get('drafts') === '1') {
     return gate.actor.isPublisher
-      ? jsonResponse({ posts: await loadPosts(env.DB, env, `p.status = 'draft' AND p.scheduled_at IS NULL`, [], forAgent) })
-      : jsonResponse({ posts: await loadPosts(env.DB, env, `p.status = 'draft' AND p.scheduled_at IS NULL AND p.created_by = ?`, [gate.user.id], forAgent) });
+      ? jsonResponse({ posts: await list(`p.status = 'draft' AND p.scheduled_at IS NULL`, []) })
+      : jsonResponse({ posts: await list(`p.status = 'draft' AND p.scheduled_at IS NULL AND p.created_by = ?`, [gate.user.id]) });
   }
   const range = rangeParams(url);
   if (!range) return jsonResponse({ error: 'from and to are required, at most 62 days apart', code: 'invalid_range' }, 400);
-  return jsonResponse({ posts: await loadPosts(env.DB, env, 'p.scheduled_at BETWEEN ? AND ?', [range.from, range.to], forAgent) });
+  return jsonResponse({ posts: await list('p.scheduled_at BETWEEN ? AND ?', [range.from, range.to]) });
 };
 
 type PlanSlot = { id: string; scheduled_at: number; platforms: string; post_type: string; post_id: string | null };
