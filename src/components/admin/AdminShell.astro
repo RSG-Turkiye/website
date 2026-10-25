@@ -82,6 +82,7 @@ const t = useTranslations(lang);
           <button type="button" id="phoneBack" aria-label={t('admin.nav.back')}
             class="hidden w-11 h-11 shrink-0 items-center justify-center rounded-xl text-navy text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">‹</button>
           <h1 id="phoneTitle" class="flex-1 min-w-0 truncate text-base font-semibold text-navy"></h1>
+          <a href="#anahtarlar" data-tokens-link class="hidden shrink-0 py-3 px-1 text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.tokens.heading')}</a>
         </div>
 
         <!-- Toasts -->
@@ -101,7 +102,10 @@ const t = useTranslations(lang);
           </aside>
 
           <div class="flex-1 min-w-0 w-full lg:self-stretch lg:flex lg:flex-col lg:min-h-0">
-            <h1 id="sectionTitle" class="hidden lg:block shrink-0 text-xl font-bold text-navy mb-2"></h1>
+            <div class="hidden lg:flex items-baseline gap-3 shrink-0 mb-2">
+              <h1 id="sectionTitle" class="flex-1 min-w-0 text-xl font-bold text-navy"></h1>
+              <a href="#anahtarlar" data-tokens-link class="hidden shrink-0 text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.tokens.heading')}</a>
+            </div>
             <div id="subNav" class="shrink-0"></div>
 
             <!-- From lg up the one scroll box for the section shown; a section

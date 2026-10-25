@@ -308,3 +308,36 @@ test('session only: no session is 401, a bearer header is not a session, and a f
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM agent_tokens').get()!.n, 1);
   assert.equal(db.prepare('SELECT revoked_at FROM agent_tokens').get()!.revoked_at, null);
 });
+
+test('a revoke that loses a race answers 409 and writes no log row (changes() = 1 proof)', async () => {
+  const { db, DB, env } = await setup();
+  const { token } = await create(env, 'ed');
+  // Someone else revokes it between this request's read and its write.
+  const racing = {
+    ...(DB as object),
+    prepare: (sql: string) => {
+      const stmt = (DB as { prepare(s: string): { bind(...a: unknown[]): { first(): Promise<unknown> } } }).prepare(sql);
+      if (!/^SELECT .* FROM agent_tokens WHERE id = \?$/.test(sql)) return stmt;
+      return { ...stmt, bind: (...a: unknown[]) => {
+        const bound = stmt.bind(...a);
+        return { ...bound, first: async () => {
+          const row = await bound.first();
+          db.prepare(`UPDATE agent_tokens SET revoked_at = 1, revoked_by = 'admin', revoke_reason = 'admin' WHERE id = ?`).run(token.id);
+          return row;
+        } };
+      } };
+    },
+  };
+  const res = await del({ DB: racing } as never, 'ed', token.id);
+  assert.equal(res.status, 409);
+  assert.equal(auditRows(db, 'agent_token.revoke').length, 0, 'no row for a revoke that did not happen');
+  assert.equal((db.prepare('SELECT revoked_by FROM agent_tokens WHERE id = ?').get(token.id) as { revoked_by: string }).revoked_by, 'admin');
+});
+
+test('two revokes at once: one 200, one 409, one log row', async () => {
+  const { db, env } = await setup();
+  const { token } = await create(env, 'ed');
+  const statuses = (await Promise.all([del(env, 'ed', token.id), del(env, 'ed', token.id)])).map((r) => r.status).sort();
+  assert.deepEqual(statuses, [200, 409]);
+  assert.equal(auditRows(db, 'agent_token.revoke').length, 1);
+});

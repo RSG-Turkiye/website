@@ -114,10 +114,25 @@ export const SECTIONS: Section[] = [
   { id: 'kayit', group: 'sistem', label: 'admin.nav.audit', subs: [], visible: adminOnly },
 ];
 
+/**
+ * Sections reached by their own link in the shell (shell.ts), which do not
+ * count toward "two sections": a one-section editor keeps landing in their
+ * section, with no menu, as before Agent tokens existed.
+ */
+export const LINKED_SECTIONS: readonly SectionId[] = ['anahtarlar'];
+const linked = (s: Section) => LINKED_SECTIONS.includes(s.id);
+
+/** Every section these roles may open. */
 export function visibleSections(r: RoleFlags): Section[] {
   const work = SECTIONS.filter((s) => s.id !== 'genel' && s.visible(r));
-  if (work.length === 0) return [];
-  return work.length >= 2 ? [SECTIONS[0], ...work] : work;
+  if (!work.some((s) => !linked(s))) return [];
+  return work.filter((s) => !linked(s)).length >= 2 ? [SECTIONS[0], ...work] : work;
+}
+
+/** The sections the menu lists: all of them with two or more, else the one (its linked sections have their link). */
+export function menuSections(r: RoleFlags): Section[] {
+  const all = visibleSections(r);
+  return all.some((s) => s.id === 'genel') ? all : all.filter((s) => !linked(s));
 }
 
 export function subsFor(s: Section, r: RoleFlags): SubPage[] {

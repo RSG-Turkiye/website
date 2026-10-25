@@ -4,7 +4,7 @@
  * drawer and the phone's list-then-page sub-navigation.
  */
 import { escapeHtml } from '../escape-html';
-import { SECTIONS, visibleSections, subsFor, tabHeadings, tabRuns, type RoleFlags, type SectionId, type SubPage } from './sections';
+import { SECTIONS, visibleSections, menuSections, subsFor, tabHeadings, tabRuns, type RoleFlags, type SectionId, type SubPage } from './sections';
 import { parseHash, toHash, resolveRoute, type Route } from './router';
 import { t } from './context';
 import { navigationAllowed } from './nav-guard';
@@ -37,7 +37,10 @@ export function startShell(r: RoleFlags, h: Hooks): void {
       if (!subsFor(s, r).some((x) => x.id === sub.id)) document.querySelectorAll(`[data-section="${s.id}"] [data-sub="${sub.id}"]`).forEach((el) => el.remove());
     }
   }
-  pruneNav(document.getElementById('sectionNav')!, visible);
+  pruneNav(document.getElementById('sectionNav')!, new Set(menuSections(r).map((s) => s.id)));
+  // Agent tokens has its own small link next to the title, so a one-section
+  // editor, who has no menu, can reach it too.
+  document.querySelectorAll<HTMLElement>('[data-tokens-link]').forEach((a) => { if (visible.has('anahtarlar')) a.classList.remove('hidden'); else a.remove(); });
   const panel = document.querySelector<HTMLElement>('[data-drawer-panel]')!;
   panel.replaceChildren(document.getElementById('sectionNav')!.cloneNode(true));
   panel.querySelector('nav')!.id = 'drawerNav';

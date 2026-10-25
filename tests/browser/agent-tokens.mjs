@@ -1,5 +1,6 @@
 /**
- * The Agent tokens section (#anahtarlar), in a real browser: create a token,
+ * The Agent tokens section (#anahtarlar), in a real browser: reached by its
+ * own link by a one-section editor who has no menu; create a token,
  * see its value once, reload and it is gone; revoke with the two-click
  * confirm; an admin sees everyone's tokens without e-mail; nothing scrolls
  * sideways at 390 px.
@@ -72,11 +73,42 @@ async function open(path, user, state, viewport = { width: 1280, height: 800 }) 
 
 const fresh = () => ({ mine: [], all: [], areas: ['cms.etkinlikler'], posts: [], deletes: [] });
 
+console.log('0) a one-section editor still lands in their section, with no menu, and reaches Agent tokens by its link');
+for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+  const state = fresh();
+  const page = await open('/admin', EDITOR, state, viewport);
+  const at = `${viewport.width}px`;
+  await page.waitForFunction(() => location.hash.startsWith('#icerik'), null, { timeout: 8000 }).catch(() => {});
+  ok((await page.evaluate(() => location.hash)).startsWith('#icerik'), `${at}: lands in İçerik (got ${await page.evaluate(() => location.hash)})`);
+  ok(await page.locator('[data-nav="genel"]').count() === 0, `${at}: no Overview`);
+  ok(!(await page.locator('#navToggle').isVisible()) && !(await page.locator('aside:has(#sectionNav)').isVisible()), `${at}: no menu`);
+  const link = page.locator('[data-tokens-link]:visible');
+  ok(await link.count() === 1, `${at}: one visible Agent tokens link`);
+  if (await link.count() === 1) {
+    ok((await link.innerText()).trim() === 'Agent tokens', `${at}: it is called Agent tokens`);
+    const box = await link.boundingBox();
+    if (viewport.width < 1024) ok(box && box.height >= 44, `${at}: a 44 px target (${box && Math.round(box.height)})`);
+    await link.click();
+    await page.waitForSelector('[data-section="anahtarlar"]:not(.hidden) #tokensAreas [data-area]', { timeout: 8000 }).catch(() => {});
+    ok(await page.evaluate(() => location.hash) === '#anahtarlar', `${at}: the link opens #anahtarlar`);
+    ok(await page.locator('#tokensAreas [data-area]').count() === 1, `${at}: the section loads`);
+    const w = await page.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth }));
+    ok(w.sw <= w.iw, `${at}: no horizontal scroll (scrollWidth ${w.sw})`);
+  }
+  await page.close();
+}
+{
+  // An announcer alone has no area a token can reach: no link.
+  const page = await open('/admin', { id: 'u5', email: 'ann@example.org', is_announcer: true, grants: [{ role: 'announcer', expires_at: null }] }, fresh());
+  ok(await page.locator('[data-tokens-link]').count() === 0, 'an announcer alone has no Agent tokens link');
+  await page.close();
+}
+
 console.log('1) an editor creates a token: the value shows once, and a reload drops it');
 {
   const state = fresh();
   const page = await open('/admin#anahtarlar', EDITOR, state);
-  ok(await page.locator('#sectionNav [data-nav="anahtarlar"]').count() === 1, 'the menu has Agent tokens');
+  ok(await page.locator('#sectionNav [data-nav="anahtarlar"]').count() === 0, 'one real section: Agent tokens is not in the (hidden) menu');
   await page.waitForSelector('#tokensAreas [data-area]');
   ok(await page.locator('#tokensAreas [data-area]').count() === 1, 'one area row: the one the server says is held');
   ok((await page.locator('[data-section="anahtarlar"]').innerText()).includes('https://rsg-turkiye.iscbsc.org/api/mcp'), 'the intro gives the MCP address');
@@ -138,6 +170,7 @@ console.log('3) an admin sees everyone\'s tokens, named without e-mail');
   await page.waitForFunction(() => !document.querySelector('#tokensAll [data-revoke="o1"]'));
   ok(JSON.stringify(state.deletes) === '["o1"]', 'an admin revokes another member\'s token');
   ok((await page.locator('h2', { hasText: 'Ajan anahtarları' }).count()) > 0, 'Turkish heading');
+  ok(await page.locator('#sectionNav [data-nav="anahtarlar"]').count() === 1, 'an admin\'s menu lists Ajan anahtarları');
   await page.close();
 }
 

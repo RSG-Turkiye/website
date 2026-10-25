@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SECTIONS, GROUPS, visibleSections, subsFor, landing, rolesFromMe, defaultSentScope, tabHeadings, tabRuns, type RoleFlags, type SubPage } from '../src/scripts/admin/sections';
+import { SECTIONS, GROUPS, visibleSections, menuSections, subsFor, landing, rolesFromMe, defaultSentScope, tabHeadings, tabRuns, type RoleFlags, type SubPage } from '../src/scripts/admin/sections';
 import { ui } from '../src/i18n/ui';
 import { CMS_GROUPS } from '../functions/_lib/roles';
 
@@ -11,15 +11,17 @@ const cmsOnly = (given: Record<string, { edit: boolean; approve: boolean }> = {}
 const allCms = cmsOnly(Object.fromEntries(CMS_GROUPS.map((g) => [g, { edit: true, approve: true }])));
 const noCms = cmsOnly();
 const none: RoleFlags = { admin: false, announcer: false, symposium: false, social: false, socialPublisher: false, sender: false, cms: noCms, canGrant: [] };
-const ids = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
+/** The menu: what the sidebar and drawer list. */
+const ids = (r: RoleFlags) => menuSections(r).map((s) => s.id);
+/** Every section the person may open, the menu's plus Agent tokens when it is reached by its own link. */
+const reachable = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
   assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'anahtarlar', 'kayit']);
 });
 
 test('one section: no Overview, and the panel lands in it', () => {
-  // A social editor has Agent tokens too, so two sections (tested below).
-  for (const [flag, id] of [['symposium', 'sempozyum'], ['announcer', 'duyurular']] as const) {
+  for (const [flag, id] of [['social', 'sosyal'], ['symposium', 'sempozyum'], ['announcer', 'duyurular']] as const) {
     const r = { ...none, [flag]: true };
     assert.deepEqual(ids(r), [id], flag);
     assert.equal(landing(r), id, flag);
@@ -140,8 +142,8 @@ test('İçerik: one section for every content group; the old Etkinlikler tabs ke
   const approverR = { ...none, cms: cmsOnly({ etkinlikler: { edit: true, approve: true } }) };
   assert.equal(icerik.group, 'icerik');
   assert.ok(!SECTIONS.some((s) => (s.id as string) === 'icerik-etkinlikler'), 'the old section is gone (its address is an alias)');
-  assert.deepEqual(ids(editor), ['genel', 'icerik', 'anahtarlar'], 'Agent tokens makes two sections, so Overview leads');
-  assert.equal(landing(editor), 'genel');
+  assert.deepEqual(ids(editor), ['icerik']);
+  assert.equal(landing(editor), 'icerik');
   assert.deepEqual(subIds(editor), ['etkinlikler', 'atolyeler', 'webinarlar', 'taslaklar']);
   assert.deepEqual(subIds(approverR), ['etkinlikler', 'atolyeler', 'webinarlar', 'taslaklar', 'onay']);
   assert.ok(!ids(none).includes('icerik'));
@@ -153,7 +155,7 @@ test('İçerik: one section for every content group; the old Etkinlikler tabs ke
 test('İçerik: a person sees only the tabs of the groups they edit', () => {
   for (const g of CMS_GROUPS) {
     const r = { ...none, cms: cmsOnly({ [g]: { edit: true, approve: false } }) };
-    assert.deepEqual(ids(r), ['genel', 'icerik', 'anahtarlar'], g);
+    assert.deepEqual(ids(r), ['icerik'], g);
     const tabs = subsFor(icerik, r).filter((s) => s.editGroup);
     assert.ok(tabs.every((s) => s.editGroup === g), `${g}: ${tabs.map((s) => s.id)}`);
     assert.ok(subIds(r).includes('taslaklar'), g);
@@ -214,12 +216,24 @@ test('Agent tokens: for social and content editors and admins, in System, with n
   assert.equal(tokens.group, 'sistem');
   assert.equal(tokens.label, 'admin.tokens.heading');
   assert.deepEqual(tokens.subs, []);
+  for (const r of [{ ...none, social: true }, { ...none, social: true, socialPublisher: true }, { ...none, admin: true },
+    ...CMS_GROUPS.map((g) => ({ ...none, cms: cmsOnly({ [g]: { edit: true, approve: false } }) }))]) {
+    assert.ok(reachable(r).includes('anahtarlar'), JSON.stringify(r));
+  }
+  for (const flag of ['announcer', 'symposium', 'sender'] as const) assert.ok(!reachable({ ...none, [flag]: true }).includes('anahtarlar'), flag);
+  assert.ok(!reachable({ ...none, announcer: true, canGrant: ['content.etkinlikler.edit'] }).includes('anahtarlar'), 'granting is not editing');
+});
+
+test('Agent tokens does not count as a second section: a one-section editor still lands in it, with no menu', () => {
   const social = { ...none, social: true };
-  assert.deepEqual(ids(social), ['genel', 'sosyal', 'anahtarlar']);
-  assert.equal(landing(social), 'genel');
-  assert.ok(ids({ ...none, social: true, socialPublisher: true }).includes('anahtarlar'), 'publisher');
-  for (const g of CMS_GROUPS) assert.ok(ids({ ...none, cms: cmsOnly({ [g]: { edit: true, approve: false } }) }).includes('anahtarlar'), g);
-  assert.ok(ids({ ...none, admin: true }).includes('anahtarlar'), 'admin');
-  for (const flag of ['announcer', 'symposium', 'sender'] as const) assert.ok(!ids({ ...none, [flag]: true }).includes('anahtarlar'), flag);
-  assert.ok(!ids({ ...none, announcer: true, canGrant: ['content.etkinlikler.edit'] }).includes('anahtarlar'), 'granting is not editing');
+  assert.deepEqual(reachable(social), ['sosyal', 'anahtarlar']);
+  assert.deepEqual(ids(social), ['sosyal']);
+  assert.equal(landing(social), 'sosyal');
+  const editor = { ...none, cms: cmsOnly({ etkinlikler: { edit: true, approve: false } }) };
+  assert.deepEqual(reachable(editor), ['icerik', 'anahtarlar']);
+  assert.equal(landing(editor), 'icerik');
+  // Two real sections: Overview leads and the menu lists Agent tokens too.
+  const two = { ...none, social: true, announcer: true };
+  assert.deepEqual(ids(two), ['genel', 'sosyal', 'duyurular', 'anahtarlar']);
+  assert.equal(landing(two), 'genel');
 });

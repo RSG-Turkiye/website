@@ -49,8 +49,7 @@ test('a forbidden sub-page falls back to the first allowed one', () => {
 
 test('an OAuth return always lands on Bağlantılar for an admin', () => {
   assert.deepEqual(resolveRoute({ section: 'eposta', sub: 'ekler', item: null }, admin, false, true), { section: 'baglantilar', sub: null, item: null });
-  // A symposium leader has one section (a social editor now also has Agent tokens, so lands on Overview).
-  assert.deepEqual(resolveRoute(null, { ...none, symposium: true }, false, true), { section: 'sempozyum', sub: 'baski', item: null }, 'not for someone who cannot see it');
+  assert.deepEqual(resolveRoute(null, { ...none, social: true }, false, true), { section: 'sosyal', sub: 'takvim', item: null }, 'not for someone who cannot see it');
 });
 
 test('the thread segment survives for a sender and drops with its sub-page', () => {
