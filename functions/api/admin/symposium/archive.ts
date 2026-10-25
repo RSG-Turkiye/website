@@ -27,7 +27,7 @@ import {
   archivePrTitle,
   archivePrBody,
 } from '../../../_lib/archive';
-import { openContentPR, getFileOnBaseBranch, notifyNewSubmission, prState } from '../../../_lib/github';
+import { openContentPR, getFileOnBaseBranch, notifyMaintainer, prState } from '../../../_lib/github';
 
 // What the SELECT below reads: EditionRow's own columns, plus archived_pr_url
 // and archived_at themselves. The public endpoint and the admin edition
@@ -355,7 +355,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       continue;
     }
 
-    // Tell a human, the way the blog flow does. The admin pane now shows
+    // Tell a human. The admin pane now shows
     // this PR too (functions/api/admin/symposium/edition.ts returns
     // archived_pr_url and SymposiumPane.astro renders it as a banner), but
     // only to someone who happens to open that panel -- without a real
@@ -363,7 +363,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     // nobody is told about, while the programme is missing from the live
     // site. Never throws, and deliberately awaited after the PR exists but
     // before the UPDATE, so a notification failure cannot cost us the URL.
-    await notifyNewSubmission(
+    await notifyMaintainer(
       `Merge the ${edition.year} symposium archive`,
       `${pr.prUrl}\n\nThe ${edition.year} symposium has ended and its CMS content is ` +
         `not in the repo yet. Until this merges, /schedule, /speakers and /committee ` +

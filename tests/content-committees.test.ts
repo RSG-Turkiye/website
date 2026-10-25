@@ -41,8 +41,11 @@ test('the schema refuses a member without consent or with an e-mail', () => {
   assert.equal(committeeSchema.safeParse({ ...base, members: [{ ...member, email: 'x@example.org' }] }).success, false);
 });
 
-test('orders are contiguous from 0', () => {
-  assert.deepEqual(all.map((c) => c.order).sort((a, b) => a - b), all.map((_, i) => i));
+test('orders are non-negative integers', () => {
+  // Not contiguous and not unique: orders go in steps of 10, a deleted one
+  // leaves a gap, and two equal ones sort by English name (A3, amended).
+  const orders = all.map((c) => c.order);
+  for (const o of orders) assert.ok(Number.isInteger(o) && o >= 0, String(o));
 });
 
 test('names, descriptions and roles have both languages', () => {
@@ -90,7 +93,9 @@ test('committeesFor picks one language and drops consent', () => {
   }
 });
 
-test('sortCommittees orders by order', () => {
+test('sortCommittees orders by order, then by English name on a tie', () => {
   const shuffled = [...all].reverse();
-  assert.deepEqual(sortCommittees(shuffled).map((c) => c.order), all.map((_, i) => i));
+  assert.deepEqual(sortCommittees(shuffled).map((c) => c.order), all.map((c) => c.order).sort((a, b) => a - b));
+  const c = (order: number, en: string) => ({ ...all[0], order, name: { en, tr: en } });
+  assert.deepEqual(sortCommittees([c(10, 'B'), c(20, 'A'), c(10, 'A')]).map((x) => `${x.order}${x.name.en}`), ['10A', '10B', '20A']);
 });

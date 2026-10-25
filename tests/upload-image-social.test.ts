@@ -46,8 +46,14 @@ test('someone with no writing or social role still cannot upload', async () => {
 
 test('before the 8d migration a blog upload still succeeds', async () => {
   const pre = SCHEMA.replace(/CREATE TABLE IF NOT EXISTS social_media[\s\S]*?\);/, '');
-  const { env } = setup({ is_writer: 1 }, pre);
+  const { env, db } = setup({ is_member: 1 }, pre);
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, granted_at) VALUES ('g1','u1','content.yazilar.edit',1)`).run();
   assert.equal((await upload(env, jpeg(800, 600))).status, 200);
+});
+
+test('the retired writer flag alone no longer uploads (migration 8k moves it to Yazılar)', async () => {
+  const { env } = setup({ is_writer: 1 });
+  assert.equal((await upload(env, jpeg(10, 10))).status, 403);
 });
 
 test('an Etkinlikler editor may upload, and the upload is logged', async () => {

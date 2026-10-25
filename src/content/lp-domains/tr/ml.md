@@ -1,6 +1,6 @@
 ---
-name: Biyolojide Makine Öğrenmesi
-emoji: 🤖
+name: "Biyolojide Makine Öğrenmesi"
+emoji: "🤖"
 tagline: "Protein dil modelleri, yapı tahmini ve diziler üzerinde derin öğrenme: yapay zekanın moleküler biyolojiyle buluştuğu yer."
 order: 2
 goDeeper:

@@ -1,10 +1,11 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, githubFailed, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, readJson, refusePairClash } from '../../../_lib/cms-api';
-import { fileShasOnBase } from '../../../_lib/github';
+import { loadCmsIndex, lpIdsElsewhere } from '../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
-import { canTransition, checkSameId, ID_FIELD, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { canTransition, checkSameId, droppedSides, filesFor, fixedKeysErrors, inOrderOf, newPaths, withServerKey, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
+import { assignIds, lockedKeysErrors, type LpDraftData } from '../../../_lib/cms-lp';
 
 /** One draft, with its data: for its author while they can edit, and for the group's approvers. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -14,14 +15,24 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   if (!found.ok) return found.response;
   if (!mayEdit(gate, found.row)) return forbidden();
   const author = await env.DB.prepare('SELECT display_name FROM profiles WHERE user_id = ?').bind(found.row.author_id).first<{ display_name: string }>();
-  return jsonResponse({ draft: draftJson({ ...found.row, author_name: author?.display_name ?? null }, true) });
+  // The files this draft would write, as the approval writes them: the
+  // approver's file diff compares them with main. Null while the data
+  // cannot be written yet (an incomplete draft).
+  let files: { path: string; content: string | null }[] | null = null;
+  try {
+    files = filesFor(found.row);
+  } catch {
+    files = null;
+  }
+  return jsonResponse({ draft: draftJson({ ...found.row, author_name: author?.display_name ?? null }, true), files });
 };
 
 /**
  * Save `{ data }`. Only while the draft is with its author (TRANSITIONS.save);
  * the status does not change. Checked leniently: what is missing or empty may
  * stay so until submit, which checks the whole entry. A new entry's id follows its data, so its file
- * name follows a changed event id or webinar title; an update keeps its files.
+ * name follows a changed event id or webinar title; an update keeps its files
+ * (and a fixedKeys type its keys).
  */
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await cmsGate(request, env, true);
@@ -40,27 +51,27 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
 
   const v = validateDraft(type, body.data, 'lenient');
   if (!v.ok) return invalid(v.errors);
+  const stored = JSON.parse(row.data) as LpDraftData;
+  if (row.action === 'create' && type.appendKey) {
+    // The number the server gave at create stays, whatever the client sent.
+    for (const lang of ['en', 'tr'] as const) {
+      const n = stored[lang]?.frontmatter?.[type.appendKey];
+      if (n !== undefined) (v.data as PairData)[lang].frontmatter[type.appendKey] = n;
+    }
+  }
   let entryId = row.entry_id;
   let baseShas = row.base_shas;
   if (row.action === 'create') {
-    const id = newEntryId(type, v.data);
-    if (!id.ok) return invalid(id.errors);
-    entryId = id.data;
-    const taken = { [ID_FIELD[type.key]]: 'An entry with this name already exists' };
-    if (entryId !== row.entry_id) {
-      // A new name: the file must not be on main (as when the draft began).
-      let onMain: Record<string, string | null>;
-      try {
-        onMain = await fileShasOnBase(newPaths(type, entryId), env);
-      } catch (e) {
-        return githubFailed(e);
-      }
-      if (Object.values(onMain).some((sha) => sha !== null)) return invalid(taken);
-    }
+    // The name chosen at create stays while the data still allows it; a
+    // new one is picked as at create (the file must not be on main).
+    const taken = { [type.idField]: 'An entry with this name already exists' };
+    const picked = await pickEntryId(request, env, type, v.data, row.entry_id);
+    if (!picked.ok) return picked.taken ? invalid(taken) : picked.response;
+    entryId = picked.id;
     // A pair can clash by name or by translationKey: checked when either changed.
     const keyOf = (d: unknown) => ['en', 'tr'].map((l) => String((d as PairData | null)?.[l as 'en' | 'tr']?.frontmatter?.translationKey ?? '').trim()).join('\n');
     if (entryId !== row.entry_id || keyOf(v.data) !== keyOf(JSON.parse(row.data))) {
-      const clash = await refusePairClash(request, env, type, entryId, 'create', v.data);
+      const clash = await refusePairClash(request, env, type, entryId, 'create', v.data, picked.index);
       if (clash) return clash.status === 409 ? invalid(taken) : clash;
     }
     // Checked against main at approval, as every path is.
@@ -68,11 +79,30 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   } else {
     const renamed = checkSameId(type, entryId, v.data);
     if (renamed) return invalid(renamed);
+    // A language the entry has on main stays (sides: 'either').
+    const dropped = droppedSides(type, JSON.parse(row.base_shas) as Record<string, string | null>, v.data);
+    if (dropped) return invalid(dropped);
+    // Against the stored draft, whose keys are main's (checked when it began).
+    const keys = fixedKeysErrors(type, JSON.parse(row.data), v.data);
+    if (keys) return invalid(keys);
+    // And their order: the stored draft's, which is main's (set at create).
+    if (type.fixedKeys && type.format === 'json') v.data = inOrderOf(stored, v.data);
+    // The approval's date stays as the stored draft has it (main's).
+    v.data = withServerKey(type, stored, v.data);
+    const locked = lockedKeysErrors(type, entryId, stored, v.data);
+    if (locked) return invalid(locked);
     if (type.format === 'markdown-pair') {
       const stored = JSON.parse(row.data) as PairData;
       const next = v.data as PairData;
-      for (const lang of ['en', 'tr'] as const) if (stored[lang]?.source !== undefined) next[lang].source = stored[lang].source;
+      for (const lang of ['en', 'tr'] as const) if (stored[lang]?.source !== undefined && next[lang]) next[lang].source = stored[lang].source;
     }
+  }
+  if (type.resourceIds) {
+    // New resources get their ids here (A4); the record of what the server
+    // gave is the stored one, never the client's.
+    const listed = await loadCmsIndex(request, env);
+    const given = assignIds(v.data as PairData, [...lpIdsElsewhere(listed, type, '').keys(), ...(Array.isArray(stored._assigned) ? stored._assigned : [])]);
+    (v.data as LpDraftData)._assigned = [...(Array.isArray(stored._assigned) ? stored._assigned : []), ...given];
   }
   const data = JSON.stringify(v.data);
   const nonce = newNonce();

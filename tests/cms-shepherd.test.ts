@@ -17,6 +17,7 @@ import { gitBlobSha, gitBlobShas } from '../src/lib/cms/blob-sha';
 import { buildCmsIndex, type CmsIndex } from '../src/lib/cms/cms-index';
 import { cmsType } from '../src/lib/cms/types';
 import { serializeJson } from '../src/lib/cms/serialize';
+import { realFixtures } from './lib/cms-fixtures';
 
 const ROOT = new URL('../', import.meta.url).pathname;
 const SCHEMA = readFileSync(`${ROOT}db/schema.sql`, 'utf8');
@@ -520,11 +521,12 @@ function contentFiles(): Record<string, string> {
 test('the index carries each file\'s git blob sha, the same number git computes', async () => {
   const files = contentFiles();
   const index = await indexWith(files);
-  const path = 'src/content/events/symposium-2026.json';
-  const entry = index.events.find((e) => e.id === 'symposium-2026')!;
+  // Any event will do; none is named, since the panel edits and deletes them (A2).
+  const { EVENT_ID, EVENT_PATH: path, PAIR_ID } = realFixtures(files, index);
+  const entry = index.events.find((e) => e.id === EVENT_ID)!;
   assert.deepEqual(Object.keys(entry.shas!), [path]);
-  assert.equal(entry.shas![path], execFileSync('git', ['hash-object', path], { cwd: ROOT, encoding: 'utf8' }).trim());
-  const pair = index.webinars.find((w) => w.id === 'integrative-modeling-of-biomolecular-complexes')!;
+  assert.equal(entry.shas![path], execFileSync('git', ['hash-object', '--stdin'], { input: files[path], encoding: 'utf8' }).trim());
+  const pair = index.webinars.find((w) => w.id === PAIR_ID)!;
   assert.deepEqual(Object.keys(pair.shas!).sort(), [pair.paths!.en, pair.paths!.tr].sort());
   // Multi-byte text: the length is in bytes, as git counts it.
   assert.equal(await gitBlobSha('ı\n'), execFileSync('git', ['hash-object', '--stdin'], { input: 'ı\n', encoding: 'utf8' }).trim());
@@ -563,14 +565,15 @@ test('merged becomes published only when the deployed index shows the draft\'s f
 test('a merged delete is published when its file is gone from the index; an index without shas proves nothing', async () => {
   const { db, env, row } = setup();
   const files = contentFiles();
-  const id = draft(db, { status: 'merged', pr: 41, entry: 'symposium-2026', action: 'delete' });
-  db.prepare('UPDATE content_drafts SET base_shas = ? WHERE id = ?').run(JSON.stringify({ [pathOf('symposium-2026')]: 'abc' }), id);
+  const { EVENT_ID } = realFixtures(files, buildCmsIndex(files));
+  const id = draft(db, { status: 'merged', pr: 41, entry: EVENT_ID, action: 'delete' });
+  db.prepare('UPDATE content_drafts SET base_shas = ? WHERE id = ?').run(JSON.stringify({ [pathOf(EVENT_ID)]: 'abc' }), id);
   let index: CmsIndex = await indexWith(files);
   setCmsIndexLoader(async () => index);
   try {
     await shepherd(env, NOW);
     assert.equal(row(id).status, 'merged');
-    const { [pathOf('symposium-2026')]: _gone, ...rest } = files;
+    const { [pathOf(EVENT_ID)]: _gone, ...rest } = files;
     index = buildCmsIndex(rest); // an old build: no shas
     await shepherd(env, NOW + 60);
     assert.equal(row(id).status, 'merged');

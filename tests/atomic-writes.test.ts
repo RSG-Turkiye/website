@@ -20,7 +20,8 @@ import { join } from 'node:path';
  *    not choose, after the profile row itself had already been written.
  *
  * The approve path has been batched since it was written and says why in a
- * comment. The rule existed; three places had not been given it.
+ * comment. The rule existed; three places had not been given it. (The two
+ * submission handlers are gone now: blog posts are panel CMS drafts.)
  *
  * This test is a lint rather than a behaviour check, because the behaviour is
  * D1's. It reads the handlers and requires that no route file awaits more than
@@ -49,18 +50,15 @@ function runCalls(source: string): number {
     .split('.run()').length - 1;
 }
 
-test('the three handlers that used to write in pieces now write in one', () => {
+test('the handler that used to write in pieces now writes in one', () => {
   // Stated as the shape each file should have, rather than a count, because a
   // count cannot tell one write from one write plus a batch.
   const expected: [string, { batch: true; run: number }][] = [
     // Every statement is in the batch: the profile row, both DELETEs and both
     // loops of INSERTs.
     ['profile.ts', { batch: true, run: 0 }],
-    // One batch holding the primary UPDATE and, for a pair, the translation's.
-    ['blog-submissions/[id].ts', { batch: true, run: 0 }],
-    // A batch for the paired path; the single-language path is one INSERT and
-    // has nothing to be atomic with.
-    ['blog-submissions.ts', { batch: true, run: 1 }],
+    // The other two, the member blog submission's create and resubmit, were
+    // removed when blog posts moved to the panel CMS (content drafts).
   ];
 
   for (const [file, shape] of expected) {
@@ -88,6 +86,6 @@ test('the three handlers that used to write in pieces now write in one', () => {
  *
  * Both false positives are control flow, which reading the text cannot see. An
  * exemption list would have grown until the test asserted nothing, so the
- * check stays on the three handlers that actually had the defect, and the rule
+ * check stays on the handlers that actually had the defect, and the rule
  * for the rest lives in the comments where those handlers explain themselves.
  */

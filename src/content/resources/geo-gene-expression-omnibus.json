@@ -1,6 +1,6 @@
 {
   "section": "databases",
-  "order": 5,
+  "order": 50,
   "title": {
     "en": "GEO: Gene Expression Omnibus",
     "tr": "GEO: Gen Ekspresyonu Omnibus"

@@ -110,6 +110,11 @@ export async function d1Stats(db: Db, periods: Period[]) {
         values: bucket(done.filter((r) => areaOf(r.resource_id) === area).map((r) => r.at), periods),
       })),
     ],
+    // The old member form's history only (blog_submissions, read only since
+    // the form was retired). Posts written in the panel CMS are not counted
+    // here: drafts are pruned after 90 days and audit rows after a year, so
+    // neither backs a yearly comparison. Published posts are counted from git
+    // instead (the Content block's "Blog posts" row, by pubDate).
     submissions: [
       { key: 'submitted', values: bucket(submitted, periods) },
       { key: 'approved', values: bucket(reviewed.results.filter((r) => r.status === 'approved').map((r) => r.at), periods) },

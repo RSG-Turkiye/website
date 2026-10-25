@@ -29,17 +29,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
-  // Writers upload blog images; the symposium panel uploads committee
-  // photographs through this same route rather than a second copy of the
-  // size, type and dimension checks below -- a second copy is a second place
-  // for one of them to be forgotten. The bucket is shared, which is fine:
-  // both are public images on the same two sites, published by people who
-  // can already publish to them. Social editors upload post images here too
-  // (spec §3).
-  // Content editors of any group upload too (approve implies edit). Their
-  // grants are read only when the fixed roles say no.
-  const legacy = user.is_writer === 1 || canManageSymposium(user) || canSocialEdit(user);
-  if (!legacy && !Object.values(await groupRights(env.DB, user, Math.floor(Date.now() / 1000))).some((r) => r.edit)) {
+  // The panel CMS uploads blog and other content images here; the symposium
+  // panel uploads committee photographs through this same route rather than
+  // a second copy of the size, type and dimension checks below -- a second
+  // copy is a second place for one of them to be forgotten. The bucket is
+  // shared, which is fine: both are public images on the same two sites,
+  // published by people who can already publish to them. Social editors
+  // upload post images here too (spec §3).
+  // The path is the old member blog form's: kept so no caller changes.
+  // Content editors of any group (approve implies edit) are read from their
+  // grants, only when the fixed roles say no.
+  const fixed = canManageSymposium(user) || canSocialEdit(user);
+  if (!fixed && !Object.values(await groupRights(env.DB, user, Math.floor(Date.now() / 1000))).some((r) => r.edit)) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
 

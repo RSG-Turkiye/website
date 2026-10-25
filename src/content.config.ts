@@ -1,5 +1,4 @@
 import { defineCollection } from "astro:content";
-import { z } from "astro/zod";
 import { glob } from "astro/loaders";
 import { workshopSchema } from "./data/workshops";
 import { eventSchema } from "./data/events";
@@ -7,37 +6,14 @@ import { resourceSchema as linkSchema } from "./data/resources";
 import { committeeSchema } from "./data/committees";
 import { pageTextSchema } from "./data/page-text";
 import { webinarSchema } from "./data/webinars";
+import { blogSchema } from "./data/blog";
+import { lpDomainSchema, lpLevelSchema, lpRoadmapSchema } from "./data/learning-paths";
 
-// Blog posts are organized by language:
-//   src/content/blog/en/<slug>.md  → /blog/<slug>
-//   src/content/blog/tr/<slug>.md  → /tr/blog/<slug>
-// To add a translation: create a file with the SAME filename in the other lang
-// folder -- or, when the two want different slugs, give both files the same
-// `translationKey`. Six talks were unreachable in one language because the
-// Turkish file had a Turkish name and nothing tied the two together.
+// blog -- posts in en/ and tr/ (see the schema in src/data/blog.ts for the
+// layout and how translations are tied).
 const blog = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/blog" }),
-  schema: z.object({
-    title: z.string(),
-    /** Ties this entry to its other-language twin when the slugs differ. */
-    translationKey: z.string().default(""),
-    pubDate: z.coerce.date(),
-    description: z.string(),
-    author: z.string().default(""),
-    category: z.string(),
-    tags: z.array(z.string()).default([]),
-    image: z.string().default(""),
-    lang: z.enum(["en", "tr"]).optional(), // kept for legacy frontmatter; language now inferred from directory
-    draft: z.boolean().default(false),
-    type: z.enum(["post", "webinar"]).default("post"),
-    youtubeUrl: z.string().default(""),
-    speaker: z.string().default(""),
-    speakerAffiliation: z.string().default(""),
-    speakerTitle: z.string().default(""),
-    topic: z.string().default(""),
-    keyTakeaways: z.array(z.string()).default([]),
-    slidesUrl: z.string().default(""),
-  }),
+  schema: blogSchema,
 });
 
 // Webinars are organized by language:
@@ -56,78 +32,15 @@ const webinars = defineCollection({
 
 // ── Learning Paths ────────────────────────────────────────────────────────────
 //
-// HOW THIS WORKS
-// ──────────────
-// Learning paths are built from three content collections:
-//
-//   lp-domains   one file per domain  (genomics.md, ml.md, …)
-//   lp-levels    one file per domain × level  (genomics-researcher.md, …)
-//   lp-roadmap   one file per stage of the sequential beginner roadmap
-//
-// TO ADD A RESOURCE to an existing path:
-//   Open the right lp-levels file and add an item to the correct section,
-//   starting with `- id:` and a new unique id. Add the same item, with the same
-//   id, tag and link, to the tr/ file too; only title and description are
-//   translated. tests/lp-resource-ids.test.ts checks both.
-//
-// TO FIX A DEAD LINK: change the url in place, in en/ and tr/ together, and
-//   keep the id. The weekly link check (scripts/check-lp-links.ts) reports
-//   dead links in the issue labelled `link-check`.
-//
-// TO ADD A WEBINAR reference:
-//   Use webinarSlug if the webinar has a page on this site (/webinars/<slug>).
-//   Use youtubeUrl if it's only on YouTube yet.
-//   Leave both empty to show the webinar as "Recording not yet available."
-//
-// TO ADD A NEW DOMAIN:
-//   1. Create src/content/lp-domains/<id>.md
-//   2. Create src/content/lp-levels/<id>-explorer.md  (and other levels)
-//   The pages pick them up automatically on the next build.
-
-const resourceSchema = z.object({
-  // The key members' progress is saved under, so it must never change once
-  // published: reorder, insert or delete freely, but leave every id alone.
-  // A new resource gets any new unique id (letters, digits, - and _), the
-  // same in en/ and tr/. Turkish pages store it with a "tr-" prefix.
-  // Existing ids look positional because they were seeded from the old
-  // position-based keys; they are not positions any more.
-  id: z.string().regex(/^[a-z0-9_-]+$/i).max(110),
-  title: z.string(),
-  // Explain WHY this resource — what does it give the reader that others don't?
-  description: z.string(),
-  tag: z.enum([
-    "Reading", "Course", "Tutorial", "Tool", "Pipeline",
-    "Videos", "Interactive", "Webinar", "Paper", "Dataset",
-    "Book", "Platform", "Challenge", "Action",
-  ]),
-  // For non-webinar resources: the external URL (required unless it's a webinar)
-  url: z.string().optional(),
-  // For webinar resources — use ONE of these, or neither:
-  webinarSlug: z.string().optional(), // slug of the /webinars/<slug> page on this site
-  youtubeUrl: z.string().optional(),  // YouTube URL (fallback before the page exists)
-  // Optional webinar metadata shown on the card
-  speaker: z.string().optional(),
-  year: z.number().optional(),
-});
+// Three collections: lp-domains, lp-levels and lp-roadmap. How they fit
+// together, and how to add a resource, a webinar or a domain, is written
+// next to their schemas in src/data/learning-paths.ts.
 
 // lp-domains — one file per domain, contains metadata and "go deeper" links
 // File name becomes the domain ID (e.g. genomics.md → id "genomics")
 const lpDomains = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/lp-domains" }),
-  schema: z.object({
-    name: z.string(),
-    emoji: z.string(),
-    // One sentence shown on the index page domain card
-    tagline: z.string(),
-    // Controls ordering on the index page
-    order: z.number(),
-    // Non-tracked "go further" links shown at the bottom of the domain page
-    goDeeper: z.array(z.object({
-      title: z.string(),
-      description: z.string(),
-      url: z.string(),
-    })).default([]),
-  }),
+  schema: lpDomainSchema,
 });
 
 // lp-levels — one file per domain × level combination
@@ -135,20 +48,7 @@ const lpDomains = defineCollection({
 // Valid levelIds: explorer, practitioner, researcher, specialist
 const lpLevels = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/lp-levels" }),
-  schema: z.object({
-    // Must match a domain ID in lp-domains (e.g. "genomics")
-    domain: z.string(),
-    level: z.enum(["explorer", "practitioner", "researcher", "specialist"]),
-    // 1–2 sentence paragraph shown at the top of this level section
-    orientation: z.string(),
-    // Bullet points shown in the "what you should already know" callout
-    prerequisites: z.array(z.string()).default([]),
-    sections: z.array(z.object({
-      // foundations = readings/courses, toolkit = tools, webinars = RSG-Turkiye, papers = landmark papers
-      type: z.enum(["foundations", "toolkit", "webinars", "papers"]),
-      resources: z.array(resourceSchema),
-    })),
-  }),
+  schema: lpLevelSchema,
 });
 
 // lp-roadmap — one file per stage of the sequential beginner roadmap (/learning-paths/roadmap)
@@ -156,15 +56,7 @@ const lpLevels = defineCollection({
 // Number controls the display order.
 const lpRoadmap = defineCollection({
   loader: glob({ pattern: "**/*.md", base: "./src/content/lp-roadmap" }),
-  schema: z.object({
-    number: z.number(),
-    emoji: z.string(),
-    title: z.string(),
-    subtitle: z.string(),
-    // "red" for action/milestone stages, "navy" for knowledge-building stages
-    color: z.enum(["red", "navy"]),
-    resources: z.array(resourceSchema),
-  }),
+  schema: lpRoadmapSchema,
 });
 
 // workshops — one JSON file per workshop, named after its repo (see the

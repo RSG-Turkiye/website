@@ -40,7 +40,7 @@ const col = (db: DatabaseSync, userId: string, column: string) =>
 
 /** The end resolveExpiry gives for `months` at some second inside [before, after]. */
 function endsWithin(actual: number | null, months: 1, before: number, after: number) {
-  const def = roleDef('writer')!;
+  const def = roleDef('social')!;
   const granter = { isAdmin: true, activeRoles: ['admin'] };
   const lo = resolveExpiry(def, { months }, before, granter);
   const hi = resolveExpiry(def, { months }, after, granter);
@@ -48,16 +48,16 @@ function endsWithin(actual: number | null, months: 1, before: number, after: num
   assert.ok(actual !== null && actual >= lo.expiresAt! && actual <= hi.expiresAt!, `ends ${actual}, expected ${lo.expiresAt}..${hi.expiresAt}`);
 }
 
-test('make_writer with no duration gives a grant ending in one month', async () => {
+test('make_social with no duration gives a grant ending in one month', async () => {
   const { db, env } = setup();
   const before = nowS();
-  const res = await patch(env, { user_id: 'u2', action: 'make_writer' });
+  const res = await patch(env, { user_id: 'u2', action: 'make_social' });
   const after = nowS();
   assert.equal(res.status, 200);
   const g = liveGrants(db, 'u2');
-  assert.deepEqual(g.map((r) => r.role), ['writer']);
+  assert.deepEqual(g.map((r) => r.role), ['social']);
   endsWithin(g[0].expires_at, 1, before, after);
-  assert.equal(col(db, 'u2', 'is_writer'), 1);
+  assert.equal(col(db, 'u2', 'is_social'), 1);
   const log = db.prepare(`SELECT action, target_id FROM audit_log`).all().map((r) => ({ ...r }));
   assert.deepEqual(log, [{ action: 'role.grant', target_id: 'u2' }]);
 });
@@ -69,9 +69,9 @@ test('make_admin with no duration gives a permanent grant', async () => {
   assert.equal(col(db, 'u2', 'is_admin'), 1);
 });
 
-test('make_writer for three months is 400 too_long and changes nothing', async () => {
+test('make_social for three months is 400 too_long and changes nothing', async () => {
   const { db, env } = setup();
-  const res = await patch(env, { user_id: 'u2', action: 'make_writer', duration: { months: 3 } });
+  const res = await patch(env, { user_id: 'u2', action: 'make_social', duration: { months: 3 } });
   assert.equal(res.status, 400);
   assert.equal(((await res.json()) as { code: string }).code, 'too_long');
   assert.deepEqual(liveGrants(db, 'u2'), []);
@@ -89,7 +89,7 @@ test('a leader role may be given an explicit length', async () => {
 test('a malformed duration is 400 malformed_request', async () => {
   const { env } = setup();
   for (const duration of ['1m', 3, null, [], {}, { months: '1' }, { permanent: 1 }, { until: 'soon' }, { months: 1, permanent: true }]) {
-    const res = await patch(env, { user_id: 'u2', action: 'make_writer', duration });
+    const res = await patch(env, { user_id: 'u2', action: 'make_social', duration });
     assert.equal(res.status, 400, JSON.stringify(duration));
     assert.equal(((await res.json()) as { code: string }).code, 'malformed_request', JSON.stringify(duration));
   }
@@ -323,7 +323,7 @@ test('GET for an approver: holders of the roles they grant, and a search, never 
   db.prepare('UPDATE users SET is_member = 1 WHERE id = ?').run('u4');
   db.prepare(`INSERT INTO profiles (user_id, username, display_name, updated_at) VALUES ('u4', 'fourth', 'Dört Kişi', 1)`).run();
   await patch(env, { user_id: 'u2', action: 'make_content.etkinlikler.edit' });
-  await patch(env, { user_id: 'u2', action: 'make_writer' });
+  await patch(env, { user_id: 'u2', action: 'make_social' });
   const get = (as: string, qs: string) => call(users.onRequestGet, 'GET', `/api/admin/users?${qs}`, { env, as });
 
   const roles = await get('u3', 'filter=roles');
@@ -385,4 +385,28 @@ test('an approver\'s search is literal, at least three characters, and ten peopl
   // An admin's search is unchanged.
   const res = await call(users.onRequestGet, 'GET', '/api/admin/users?filter=all&search=bulk', { env, as: 'admin' });
   assert.equal(((await res.json()) as { users: unknown[] }).users.length, 15);
+});
+
+test('make_writer is refused as retired, even for an admin; remove_writer still ends a live grant', async () => {
+  const { db, env } = setup();
+  const res = await patch(env, { user_id: 'u2', action: 'make_writer' });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, 'retired');
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
+
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('old', 'u2', 'writer', NULL, NULL, 1)`).run();
+  assert.equal((await patch(env, { user_id: 'u2', action: 'remove_writer' })).status, 200);
+  assert.deepEqual(liveGrants(db, 'u2'), []);
+});
+
+test('an approver of one group may grant that group\'s edit role and no other group\'s', async () => {
+  const { db, env } = setupApprover();
+  // u3 approves Etkinlikler (setupApprover); u4's approval there has lapsed. u4 now approves Yazılar.
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('ya', 'u4', 'content.yazilar.approve', NULL, NULL, 1)`).run();
+  assert.equal((await patchAs(env, 'u4', { user_id: 'u2', action: 'make_content.yazilar.edit', duration: { months: 1 } })).status, 200);
+  assert.equal((await patchAs(env, 'u4', { user_id: 'u2', action: 'make_content.etkinlikler.edit', duration: { months: 1 } })).status, 403);
+  assert.equal((await patchAs(env, 'u4', { user_id: 'u2', action: 'make_content.yazilar.approve' })).status, 403);
+  assert.equal((await patchAs(env, 'u3', { user_id: 'u2', action: 'remove_content.yazilar.edit' })).status, 403);
+  assert.deepEqual(liveGrants(db, 'u2').map((r) => r.role), ['content.yazilar.edit']);
 });

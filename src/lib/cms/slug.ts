@@ -26,3 +26,30 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** The longest file name (without extension) a new entry is given. A pasted
+ * long title would otherwise make a name past the 255 bytes a filesystem
+ * allows, and a PR that cannot be checked out. Existing names are kept. */
+export const ID_MAX = 80;
+
+/** An id cut to `max` characters, without the hyphens the cut may leave at its end. */
+export function capId(id: string, max: number = ID_MAX): string {
+  return id.slice(0, max).replace(/-+$/, "");
+}
+
+/** A roadmap stage's file name: its number, two digits at least, then the slug (07-direction). */
+export function stageId(n: number, slug: string): string {
+  return checkId(`${String(n).padStart(2, "0")}-${slug}`);
+}
+
+/** The number a roadmap stage's file name starts with, or null. */
+export function stageNumber(id: string): number | null {
+  const m = /^(\d+)-/.exec(id);
+  return m ? Number(m[1]) : null;
+}
+
+/** A new roadmap stage's number: after the highest one (A11). Numbers left
+ * by a deleted stage are not reused, so the order of the others never moves. */
+export function nextStageNumber(ids: readonly string[]): number {
+  return Math.max(0, ...ids.map(stageNumber).filter((n): n is number => n !== null)) + 1;
+}

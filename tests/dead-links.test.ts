@@ -23,10 +23,11 @@ test('no content links to a domain we no longer control', () => {
   assert.deepEqual(offenders, [], 'dead links found');
 });
 
-test('the 2017-2018 news post exists exactly once', () => {
+test('the 2017-2018 news post exists at most once', () => {
+  // At most, not exactly: deleting the post is a legitimate edit (A2).
   const matches = readdirSync('src/content/blog/tr')
     .filter((f) => f.replace(/-/g, '').startsWith('rsgturkiyedenhaberler'));
-  assert.equal(matches.length, 1, `found ${matches.join(', ')}`);
+  assert.ok(matches.length <= 1, `found ${matches.join(', ')}`);
 });
 
 // --- duplicate detection, collection-wide ----------------------------------

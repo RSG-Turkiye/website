@@ -47,7 +47,15 @@ export interface DraftRow {
 /** One language of a webinar. `source` is the original frontmatter text,
  * set by the server from main and never taken from the client. */
 export interface MarkdownSide { frontmatter: Frontmatter; body: string; source?: string }
+/** A pair's two sides. For a `sides: 'either'` type (a blog post) one of
+ * them may be null: the entry has no file in that language. */
 export type PairData = { en: MarkdownSide; tr: MarkdownSide };
+
+/** The languages a pair's data has a side for: both, or for a `sides: 'either'` type the ones that are not null. */
+export function sidesIn(type: CmsType, data: unknown): ('en' | 'tr')[] {
+  if (type.sides !== 'either') return ['en', 'tr'];
+  return (['en', 'tr'] as const).filter((l) => isObject(data) && isObject(data[l]));
+}
 
 // ── Transitions ───────────────────────────────────────────────────────────────
 
@@ -151,7 +159,7 @@ function setOnce(into: FieldErrors, key: string, message: string): void {
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-type Issue = { path: PropertyKey[]; message: string; code?: string; keys?: string[]; minimum?: unknown };
+type Issue = { path: PropertyKey[]; message: string; code?: string; keys?: string[]; minimum?: unknown; values?: unknown[]; params?: Record<string, unknown> };
 
 /**
  * How strictly a draft is checked. `strict` (submit, approve): the full
@@ -172,11 +180,18 @@ function valueAt(data: unknown, path: PropertyKey[]): unknown {
   return v;
 }
 
-/** An issue that only says the value is not there yet: missing, or an empty text. */
+/** An issue that only says the value is not there yet: missing, an empty
+ * text or list, a box that must be ticked and is not yet (a committee
+ * member's consent, `z.literal(true)`), or a schema's own check marked
+ * `params: { incomplete: true }` (a resource's Turkish tags not all written yet). */
 function onlyIncomplete(issue: Issue, data: unknown): boolean {
+  if (issue.code === 'custom' && issue.params?.incomplete === true) return true;
   const v = valueAt(data, issue.path);
   if (v === undefined) return issue.code !== 'unrecognized_keys';
-  return v === '' && (issue.code === 'too_small' || issue.code === 'invalid_format');
+  if (Array.isArray(v) && v.length === 0 && issue.code === 'too_small') return true;
+  if (v === false && issue.code === 'invalid_value' && issue.values?.length === 1 && issue.values[0] === true) return true;
+  // Whitespace only is as empty as '' (a text the page would show blank).
+  return typeof v === 'string' && v.trim() === '' && (issue.code === 'too_small' || issue.code === 'invalid_format');
 }
 
 function issuesToErrors(issues: Issue[], prefix: string, into: FieldErrors, mode: CheckMode = 'strict', data?: unknown): void {
@@ -226,6 +241,126 @@ function unknownKeys(schema: unknown, value: unknown, at: string, into: FieldErr
   }
 }
 
+// ── House rules: what the content tests refuse, refused at submit ─────────────
+
+/** The em dash, written as an escape: tests/no-em-dashes.test.ts bans the character in every reader-facing file. */
+const EM_DASH = '\u2014';
+/** Two hyphens between words: what the built-page check in that test reads as a dash, code included. */
+const SPACED_DOUBLE_HYPHEN = /\w\s--\s\w/;
+/** Exactly two hyphens: the run smartypants turns into an em dash. A longer
+ * run (`a --- b`, an escaped `\-----` rule) stays hyphens on the page. */
+const DOUBLE_HYPHEN = /(?<!-)--(?!-)/;
+/** Prose with each escaped hyphen (`\-`) as the hyphen Markdown renders:
+ * `\-\-` and `-\-` reach smartypants as `--`, an escaped `\-----` rule as
+ * five hyphens. An escaped backslash (`\\-`) is left alone. */
+const unescapedHyphens = (prose: string) => prose.replace(/(?<!\\)\\-/g, '-');
+
+export const EM_DASH_MESSAGE = 'Em dash (\u2014) is not used: write a hyphen (-) or a comma';
+export const DOUBLE_HYPHEN_MESSAGE = 'Two hyphens (--) become a long dash on the page: put a command-line flag in backticks (`--flag`), or write one hyphen';
+export const NO_AT_MESSAGE = 'No e-mail addresses: an @ cannot be in this file';
+
+/**
+ * A Markdown body's prose: without fenced code (any fence length), indented
+ * code blocks, inline code, HTML comments, URLs, and lines that are only
+ * dashes, pipes and colons (rules and table separators). Smartypants turns a
+ * `--` there into an em dash; in code it stays two hyphens.
+ */
+export function markdownProse(body: string): string {
+  const out: string[] = [];
+  let fence: { ch: string; n: number } | null = null;
+  let blank = true;
+  let indented = false;
+  for (const line of body.split('\n')) {
+    const open = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      if (open && open[1][0] === fence.ch && open[1].length >= fence.n && /^ {0,3}[`~]+\s*$/.test(line)) fence = null;
+      continue;
+    }
+    if (open) { fence = { ch: open[1][0], n: open[1].length }; continue; }
+    // An indented line after a blank line (or after another such line) is code.
+    if (/^( {4}|\t)/.test(line) && (blank || indented)) { indented = true; continue; }
+    indented = false;
+    blank = line.trim() === '';
+    if (/^[\s|:-]+$/.test(line) && line.includes('-')) continue;
+    out.push(line);
+  }
+  return out.join('\n')
+    .replace(/(`+)(?:[^`]|[^`][\s\S]*?[^`])\1/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/https?:\/\/\S+/g, '');
+}
+
+/**
+ * Every string in the data, with its path as the form names fields
+ * (`links.0.label.en`, `en.frontmatter.title`, `en.body`) and whether it is
+ * a Markdown body. A pair side's `source` is the server's copy of main, not
+ * something the draft writes.
+ */
+function eachString(type: CmsType, data: unknown, visit: (path: string, text: string, body: boolean) => void): void {
+  const walk = (v: unknown, at: string) => {
+    if (typeof v === 'string') visit(at, v, type.format === 'markdown-pair' && /^(en|tr)\.body$/.test(at));
+    else if (Array.isArray(v)) v.forEach((x, i) => walk(x, at ? `${at}.${i}` : String(i)));
+    else if (isObject(v)) for (const [k, x] of Object.entries(v)) {
+      if (type.format === 'markdown-pair' && (at === 'en' || at === 'tr') && k === 'source') continue;
+      walk(x, at ? `${at}.${k}` : k);
+    }
+  };
+  walk(data, '');
+}
+
+/**
+ * What the repository's own tests would refuse once the file is on main,
+ * checked at submit and approval so a merged panel edit never fails CI:
+ * - an em dash anywhere, code included (tests/no-em-dashes.test.ts scans
+ *   every line of src/content);
+ * - a spaced ` -- ` anywhere (its built-page check, <code> included);
+ * - exactly two hyphens in a Markdown body's prose (smartypants makes them
+ *   an em dash; a run of three or more it leaves alone);
+ * - for a type whose files are profiles (`noAt`), an @, the content test's
+ *   own rule for e-mail addresses (tests/content-committees.test.ts).
+ * A field that breaks more than one rule gets every message, one per line.
+ */
+export function houseRuleErrors(type: CmsType, data: unknown): FieldErrors {
+  const errors: FieldErrors = {};
+  eachString(type, data, (path, text, body) => {
+    const found: string[] = [];
+    if (text.includes(EM_DASH) || SPACED_DOUBLE_HYPHEN.test(text)) found.push(EM_DASH_MESSAGE);
+    else if (body && DOUBLE_HYPHEN.test(unescapedHyphens(markdownProse(text)))) found.push(DOUBLE_HYPHEN_MESSAGE);
+    if (type.noAt && text.includes('@')) found.push(NO_AT_MESSAGE);
+    if (found.length) setOnce(errors, path, found.join('\n'));
+  });
+  return errors;
+}
+
+/** The start of the whole-entry message for errors the form cannot show (client: messageKey). */
+export const NOT_IN_FORM = 'Not in the form, so it is fixed in the repository';
+
+/**
+ * Errors on a key the form never shows (the type's hiddenKeys, or a key the
+ * schema does not know) moved onto the whole entry (''), in one line naming
+ * each path: the editor sees them and knows the form cannot fix them.
+ */
+function toVisible(type: CmsType, errors: FieldErrors): FieldErrors {
+  const pair = type.format === 'markdown-pair';
+  const fieldOf = (path: string) => {
+    const parts = path.split('.');
+    return pair ? (parts[1] === 'body' ? 'body' : parts[1] === 'frontmatter' ? parts[2] : undefined) : parts[0];
+  };
+  const out: FieldErrors = {};
+  const moved: string[] = [];
+  for (const [path, message] of Object.entries(errors)) {
+    const field = fieldOf(path);
+    if (message === 'Unknown field' || (field !== undefined && type.hiddenKeys.includes(field))) moved.push(`${path} (${message})`);
+    else setOnce(out, path, message);
+  }
+  if (moved.length) {
+    const line = `${NOT_IN_FORM}: ${moved.join('; ')}`;
+    if (Object.hasOwn(out, '')) out[''] = `${out['']}\n${line}`;
+    else setOnce(out, '', line);
+  }
+  return out;
+}
+
 /**
  * The entry checked against its type's zod schema. On success `data` is the
  * input as written to the file (not zod's output, which would turn dates into
@@ -239,13 +374,17 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
     unknownKeys(type.schema, data, '', errors);
     const r = type.schema.safeParse(data);
     if (!r.success) issuesToErrors(r.error.issues as Issue[], '', errors, mode, data);
-    return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data };
+    if (mode === 'strict') for (const [k, m] of Object.entries(houseRuleErrors(type, data))) setOnce(errors, k, m);
+    return Object.keys(errors).length ? { ok: false, errors: toVisible(type, errors) } : { ok: true, data };
   }
 
-  if (!isObject(data)) return { ok: false, errors: { '': 'The entry must have an English and a Turkish side' } };
-  const out: Partial<PairData> = {};
+  const either = type.sides === 'either';
+  if (!isObject(data)) return { ok: false, errors: { '': either ? 'The entry must have an English or a Turkish side' : 'The entry must have an English and a Turkish side' } };
+  const out: Record<'en' | 'tr', MarkdownSide | null | undefined> = { en: undefined, tr: undefined };
   for (const lang of ['en', 'tr'] as const) {
     const side = data[lang];
+    // A post may lack a language altogether: that side is null, never an empty one.
+    if (either && (side === null || side === undefined)) { out[lang] = null; continue; }
     if (!isObject(side) || !isObject(side.frontmatter)) { errors[lang] = 'Missing'; continue; }
     if (typeof side.body !== 'string') errors[`${lang}.body`] = 'Must be text';
     unknownKeys(type.schema, side.frontmatter, `${lang}.frontmatter`, errors);
@@ -261,32 +400,129 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
     const key = (side: MarkdownSide) => String(side.frontmatter.translationKey ?? '').trim();
     if (key(out.en) !== key(out.tr)) setOnce(errors, 'tr.frontmatter.translationKey', 'Must be the same as the English side');
   }
-  return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data: out as PairData };
+  if (either && out.en === null && out.tr === null) setOnce(errors, '', 'Write the entry in English, Turkish or both');
+  if (mode === 'strict') for (const [k, m] of Object.entries(houseRuleErrors(type, out))) setOnce(errors, k, m);
+  return Object.keys(errors).length ? { ok: false, errors: toVisible(type, errors) } : { ok: true, data: out as PairData };
 }
 
-/** The form field a type's file name comes from, for errors about the id. */
-export const ID_FIELD: Record<string, string> = { events: 'id', workshops: 'repo', webinars: 'en.frontmatter.title' };
-
-/** The file id a new entry gets, from validated data. */
+/** The file id a new entry gets, from validated data. Only for a create:
+ * an update keeps its entry_id whatever the data says (plan 4, A1). */
 export function newEntryId(type: CmsType, data: unknown): Validated<string> {
+  // A one-language entry (sides: 'either') is named from the side it has, English first.
+  const lang = type.format === 'json' ? null : sidesIn(type, data)[0] ?? 'en';
   try {
-    const id = type.idFrom(type.format === 'json' ? data : { frontmatter: (data as PairData).en.frontmatter });
+    const id = type.idFrom(lang === null ? data : { frontmatter: (data as PairData)[lang].frontmatter });
     return { ok: true, data: checkId(id) };
   } catch (e) {
-    return { ok: false, errors: { [ID_FIELD[type.key]]: e instanceof Error ? e.message : 'Not a valid id' } };
+    const field = lang === 'tr' ? type.idField.replace(/^en\./, 'tr.') : type.idField;
+    return { ok: false, errors: { [field]: e instanceof Error ? e.message : 'Not a valid id' } };
   }
 }
 
 /**
- * An update keeps its file name, so for JSON types the field the name comes
- * from must still give it. Webinars are named by hand and keep theirs
- * whatever the title becomes.
+ * For a `sides: 'either'` type: the languages that have a file on main (a
+ * non-null sha in `baseShas`) but no side in the update's data. A draft
+ * writes files and never deletes one of a pair, so dropping a published
+ * language is refused; deleting the entry removes both files. Null when none.
+ */
+export function droppedSides(type: CmsType, baseShas: Record<string, string | null>, data: unknown): FieldErrors | null {
+  if (type.sides !== 'either') return null;
+  const has = sidesIn(type, data);
+  const errors: FieldErrors = {};
+  for (const [path, sha] of Object.entries(baseShas)) {
+    const lang = langOf(type, path);
+    if (sha !== null && !has.includes(lang)) setOnce(errors, lang, 'Published in this language: it cannot be removed in a draft. Delete the entry to remove it');
+  }
+  return Object.keys(errors).length ? errors : null;
+}
+
+/**
+ * An update keeps its file name. Where the id is itself a field of the data
+ * (idInData: events' `id`), that field must still give it, or the file
+ * would say one id and be named another. Other types are named once, at
+ * creation, and keep the name whatever their title or repo becomes.
  */
 export function checkSameId(type: CmsType, entryId: string, data: unknown): FieldErrors | null {
-  if (type.format !== 'json') return null;
+  if (!type.idInData) return null;
   const id = newEntryId(type, data);
   if (id.ok && id.data === entryId) return null;
-  return { [ID_FIELD[type.key]]: `This gives the file its name (${entryId}) and cannot change. To rename, create a new entry and delete this one.` };
+  return { [type.idField]: `This gives the file its name (${entryId}) and cannot change. To rename, create a new entry and delete this one.` };
+}
+
+/** Whether the type lets the panel create or delete entries (noCreate, noDelete). */
+export function actionAllowed(type: CmsType, action: DraftAction): boolean {
+  return !(action === 'create' && type.noCreate) && !(action === 'delete' && type.noDelete);
+}
+
+/**
+ * For a fixedKeys type: the top-level keys `next` adds or lacks compared
+ * with `before` (for a pair, each side's frontmatter keys), or null when
+ * they are the same. Values may change; keys may not.
+ */
+export function fixedKeysErrors(type: CmsType, before: unknown, next: unknown): FieldErrors | null {
+  if (!type.fixedKeys) return null;
+  const errors: FieldErrors = {};
+  const compare = (was: unknown, now: unknown, at: string) => {
+    const a = isObject(was) ? Object.keys(was) : [];
+    const b = isObject(now) ? Object.keys(now) : [];
+    const path = (k: string) => (at ? `${at}.${k}` : k);
+    for (const k of b) if (!a.includes(k)) setOnce(errors, path(k), 'Not in the file: only the values of its own keys can change');
+    for (const k of a) if (!b.includes(k)) setOnce(errors, path(k), 'Missing: every key of the file must stay');
+  };
+  if (type.format === 'json') compare(before, next, '');
+  else for (const lang of ['en', 'tr'] as const) {
+    const side = (d: unknown) => (isObject(d) && isObject(d[lang]) ? (d[lang] as Record<string, unknown>).frontmatter : undefined);
+    compare(side(before), side(next), `${lang}.frontmatter`);
+  }
+  return Object.keys(errors).length ? errors : null;
+}
+
+/**
+ * For a fixedKeys JSON type: `next` with its keys in `before`'s order, at
+ * every depth where `before` has an object. The keys are the same (checked
+ * with fixedKeysErrors first), so a save that sends them in another order
+ * changes values only: a page-text file keeps main's order, and its pull
+ * request shows only the lines whose text changed. A record schema (page
+ * texts) has no shape for serializeJson to order by, so this is what does it.
+ */
+export function inOrderOf(before: unknown, next: unknown): unknown {
+  if (Array.isArray(next)) return Array.isArray(before) ? next.map((v, i) => inOrderOf(before[i], v)) : next;
+  if (!isObject(next) || !isObject(before)) return next;
+  const keys = [...Object.keys(before).filter((k) => Object.hasOwn(next, k)), ...Object.keys(next).filter((k) => !Object.hasOwn(before, k))];
+  const out: Record<string, unknown> = {};
+  // defineProperty: a `__proto__` key stays a key (validateDraft refuses unknown ones before this runs).
+  for (const k of keys) Object.defineProperty(out, k, { value: inOrderOf(before[k], next[k]), enumerable: true, writable: true, configurable: true });
+  return out;
+}
+
+/**
+ * For a type with an approvedOnKey: `next` with that key as `from` has it
+ * (main's file at the start, the stored draft on a save), so the stored
+ * draft and the approver's file diff never carry a date the client sent.
+ * The approval alone sets it. Other types' data is returned as it is.
+ */
+export function withServerKey(type: CmsType, from: unknown, next: unknown): unknown {
+  if (!type.approvedOnKey || type.format !== 'json' || !isObject(next)) return next;
+  const key = type.approvedOnKey;
+  const out = { ...next };
+  if (isObject(from) && Object.hasOwn(from, key)) out[key] = from[key];
+  else delete out[key];
+  return isObject(from) ? inOrderOf(from, out) : out;
+}
+
+/** The day `now` (seconds) falls on in Istanbul, YYYY-MM-DD: the date an approval stamps (approvedOnKey). */
+export function istanbulDay(now: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now * 1000));
+}
+
+/**
+ * The data an approval writes: for a type with an approvedOnKey (the
+ * privacy notice), that key set to the day of approval, whatever the draft
+ * held. Other types' data is returned as it is.
+ */
+export function stampedOnApproval(type: CmsType, data: unknown, now: number): unknown {
+  if (!type.approvedOnKey || type.format !== 'json' || !isObject(data)) return data;
+  return { ...data, [type.approvedOnKey]: istanbulDay(now) };
 }
 
 // ── Files ─────────────────────────────────────────────────────────────────────
@@ -323,7 +559,15 @@ export function filesFor(draft: Pick<DraftRow, 'type' | 'entry_id' | 'action' | 
     return [{ path, content: serializeJson(type, data) }];
   }
   const pair = data as PairData;
-  return paths.map((path) => {
+  const base = JSON.parse(draft.base_shas) as Record<string, string | null>;
+  const has = sidesIn(type, data);
+  // A language the entry does not have (sides: 'either') is no file: none is
+  // written for it. One that is on main must still be in the data.
+  return paths.filter((path) => {
+    if (has.includes(langOf(type, path))) return true;
+    if (base[path] !== null) throw new Error(`A ${type.key} draft lacks a side that is published: ${path}`);
+    return false;
+  }).map((path) => {
     const side = pair[langOf(type, path)];
     return { path, content: serializeMarkdown(type, { frontmatter: side.frontmatter, body: side.body, source: side.source }) };
   });
@@ -332,8 +576,9 @@ export function filesFor(draft: Pick<DraftRow, 'type' | 'entry_id' | 'action' | 
 // ── The pull request ──────────────────────────────────────────────────────────
 
 /** The panel, by its public address: a request through a preview hostname
- * must not put a *.pages.dev link into a public pull request. */
-const PANEL = 'https://rsg-turkiye.iscbsc.org/admin#icerik-etkinlikler/taslaklar';
+ * must not put a *.pages.dev link into a public pull request. One İçerik
+ * section holds every group's drafts. */
+const PANEL = 'https://rsg-turkiye.iscbsc.org/admin#icerik/taslaklar';
 
 /** Type, action and entry id only: no names, no e-mail addresses (public repository). */
 export function prTitle(d: Pick<DraftRow, 'action' | 'type' | 'entry_id'>): string {

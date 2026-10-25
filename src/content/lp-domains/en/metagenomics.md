@@ -1,6 +1,6 @@
 ---
-name: Metagenomics & Microbiome
-emoji: 🦠
+name: "Metagenomics & Microbiome"
+emoji: "🦠"
 tagline: "Sequencing communities, not individuals: assembly, binning, taxonomic profiling, and microbial ecology."
 order: 4
 goDeeper:

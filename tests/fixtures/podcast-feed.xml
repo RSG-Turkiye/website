@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic: the structure of the show's anchor.fm feed, with made-up
+     episodes. No real episode text (CLAUDE.md rule 6). -->
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title><![CDATA[Örnek Biyoinformatik Podcast]]></title>
+    <description><![CDATA[<p>Bir <strong>örnek</strong> gösteri &amp; açıklaması.</p>]]></description>
+    <link>https://example.org/podcast</link>
+    <itunes:image href="https://example.org/show.jpg"/>
+    <generator>Anchor Podcasts</generator>
+    <item>
+      <title><![CDATA[İkinci bölüm: Dizileme — ve sonrası]]></title>
+      <description><![CDATA[<p>Hizalama -- varyant çağırma.</p><p>İkinci&nbsp;paragraf<br/>ve satır.</p>]]></description>
+      <link>https://example.org/ep2</link>
+      <guid isPermaLink="false">00000000-0000-4000-8000-000000000002</guid>
+      <dc:creator><![CDATA[Örnek]]></dc:creator>
+      <pubDate>Sat, 24 May 2025 10:30:00 GMT</pubDate>
+      <enclosure url="https://example.org/audio/ep2.m4a?a=1&amp;b=2" length="2000" type="audio/x-m4a"/>
+      <itunes:summary>&lt;p&gt;Özet.&lt;/p&gt;</itunes:summary>
+      <itunes:explicit>false</itunes:explicit>
+      <itunes:duration>00:51:05</itunes:duration>
+      <itunes:image href="https://example.org/ep2.jpg"/>
+    </item>
+    <item>
+      <title>Birinci bölüm &amp; giriş</title>
+      <description><![CDATA[Düz metin açıklama.]]></description>
+      <guid isPermaLink="false">00000000-0000-4000-8000-000000000001</guid>
+      <pubDate>Thu, 13 Mar 2025 11:00:00 GMT</pubDate>
+      <enclosure url="https://example.org/audio/ep1.m4a" length="1000" type="audio/x-m4a"/>
+      <itunes:duration>2448</itunes:duration>
+      <itunes:image href="https://example.org/ep1.jpg"/>
+    </item>
+    <item>
+      <title><![CDATA[Fragman]]></title>
+      <description><![CDATA[<p>Kısa.</p>]]></description>
+      <guid isPermaLink="false">00000000-0000-4000-8000-000000000003</guid>
+      <pubDate>Fri, 30 May 2025 09:00:00 GMT</pubDate>
+      <enclosure url="https://example.org/audio/ep3.m4a" length="300" type="audio/x-m4a"/>
+      <itunes:duration>05:00</itunes:duration>
+    </item>
+  </channel>
+</rss>

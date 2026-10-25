@@ -27,6 +27,14 @@ export const ROLE_SWITCHES = [
   { flag: 'is_social_publisher', role: 'social_publisher', on: 'make_social_publisher', off: 'remove_social_publisher', label: 'admin.roles.socialPublisher', hint: 'admin.roles.socialPublisherHint' },
   { flag: 'content.etkinlikler.edit', role: 'content.etkinlikler.edit', on: 'make_content.etkinlikler.edit', off: 'remove_content.etkinlikler.edit', label: 'admin.roles.etkinliklerEdit', hint: 'admin.roles.etkinliklerEditHint' },
   { flag: 'content.etkinlikler.approve', role: 'content.etkinlikler.approve', on: 'make_content.etkinlikler.approve', off: 'remove_content.etkinlikler.approve', label: 'admin.roles.etkinliklerApprove', hint: 'admin.roles.etkinliklerApproveHint' },
+  { flag: 'content.yazilar.edit', role: 'content.yazilar.edit', on: 'make_content.yazilar.edit', off: 'remove_content.yazilar.edit', label: 'admin.roles.yazilarEdit', hint: 'admin.roles.yazilarEditHint' },
+  { flag: 'content.yazilar.approve', role: 'content.yazilar.approve', on: 'make_content.yazilar.approve', off: 'remove_content.yazilar.approve', label: 'admin.roles.yazilarApprove', hint: 'admin.roles.yazilarApproveHint' },
+  { flag: 'content.ogrenme.edit', role: 'content.ogrenme.edit', on: 'make_content.ogrenme.edit', off: 'remove_content.ogrenme.edit', label: 'admin.roles.ogrenmeEdit', hint: 'admin.roles.ogrenmeEditHint' },
+  { flag: 'content.ogrenme.approve', role: 'content.ogrenme.approve', on: 'make_content.ogrenme.approve', off: 'remove_content.ogrenme.approve', label: 'admin.roles.ogrenmeApprove', hint: 'admin.roles.ogrenmeApproveHint' },
+  { flag: 'content.topluluk.edit', role: 'content.topluluk.edit', on: 'make_content.topluluk.edit', off: 'remove_content.topluluk.edit', label: 'admin.roles.toplulukEdit', hint: 'admin.roles.toplulukEditHint' },
+  { flag: 'content.topluluk.approve', role: 'content.topluluk.approve', on: 'make_content.topluluk.approve', off: 'remove_content.topluluk.approve', label: 'admin.roles.toplulukApprove', hint: 'admin.roles.toplulukApproveHint' },
+  { flag: 'content.sayfalar.edit', role: 'content.sayfalar.edit', on: 'make_content.sayfalar.edit', off: 'remove_content.sayfalar.edit', label: 'admin.roles.sayfalarEdit', hint: 'admin.roles.sayfalarEditHint' },
+  { flag: 'content.sayfalar.approve', role: 'content.sayfalar.approve', on: 'make_content.sayfalar.approve', off: 'remove_content.sayfalar.approve', label: 'admin.roles.sayfalarApprove', hint: 'admin.roles.sayfalarApproveHint' },
 ] as const;
 
 type RoleSwitch = (typeof ROLE_SWITCHES)[number];
@@ -75,6 +83,9 @@ export function setCurrentUserId(id: string | null): void {
 }
 
 const isSelfAdmin = (userId: string, flag: string) => flag === 'is_admin' && userId === meId;
+/** A role nobody may grant any more (writer): shown only where someone still holds it, so it can be taken away. */
+const retired = (r: RoleSwitch) => roleDef(r.role)?.retired === true;
+
 /** The column when the role has one, else a live grant. */
 const held = (u: User, r: RoleSwitch): boolean =>
   !!u[r.flag] || !!(u.grants as Grant[] | undefined)?.some((g) => g.role === r.role);
@@ -239,7 +250,7 @@ function renderDetail(u: User | null): void {
     </div>
 
     ${heading('admin.users.detail.roles')}
-    <div>${ROLE_SWITCHES.map((r) => {
+    <div>${ROLE_SWITCHES.filter((r) => !retired(r) || held(u, r)).map((r) => {
       const locked = isSelfAdmin(id, r.flag);
       return switchControl({
         id: `role-${r.flag}`,
@@ -475,7 +486,7 @@ function personChip(u: User, r: RoleSwitch, now: number): string {
   const ends = grantEnd(u, r);
   const soon = ends !== null && ends - now <= 7 * DAY;
   const icon = `shrink-0 min-w-11 min-h-11 lg:min-w-7 lg:min-h-7 px-2 inline-flex items-center justify-center rounded-full text-gray-500 ${FOCUS}`;
-  const renew = ends === null ? '' : `
+  const renew = ends === null || retired(r) ? '' : `
     <button type="button" data-renew aria-label="${escapeHtml(tf('admin.roles.renewPerson', { name: displayName(u) }))}"
       title="${escapeHtml(t('admin.roles.renew'))}" class="${icon} hover:text-navy">↻</button>`;
   // No × on one's own Admin chip: the server refuses it (see setCurrentUserId).
@@ -505,7 +516,7 @@ export function renderRolesView(users: User[]): void {
   if (!box) return;
   const now = nowSeconds();
   const mine = granter.isAdmin ? null : grantableBy(granter.activeRoles) as string[];
-  const cards = ROLE_SWITCHES.filter((r) => !mine || mine.includes(r.role));
+  const cards = ROLE_SWITCHES.filter((r) => (!mine || mine.includes(r.role)) && (!retired(r) || users.some((u) => held(u, r))));
   // A non-admin's search matches names, usernames or a whole address.
   const addHint = granter.isAdmin ? 'admin.roles.addPlaceholder' : 'admin.roles.addPlaceholderApprover';
   box.innerHTML = `<h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">${t('admin.nav.roles')}</h2>
@@ -518,12 +529,12 @@ export function renderRolesView(users: User[]): void {
           ${people.length ? people.map((u) => personChip(u, r, now)).join('') : `<p class="text-xs text-gray-500">${t('admin.roles.nobody')}</p>`}
         </div>
         <div data-renew-slot></div>
-        <button type="button" data-add-role aria-expanded="false" class="mt-3 ${BTN.ghost} border border-dashed border-border">+ ${t('admin.roles.addPerson')}</button>
+        ${retired(r) ? '' : `<button type="button" data-add-role aria-expanded="false" class="mt-3 ${BTN.ghost} border border-dashed border-border">+ ${t('admin.roles.addPerson')}</button>
         <div data-add-box class="hidden mt-2">
           <input data-add-input type="search" placeholder="${escapeHtml(t(addHint))}" aria-label="${escapeHtml(t(addHint))}"
             class="w-full min-h-11 lg:min-h-9 px-3 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus:border-navy-mid ${FOCUS}" />
           <div data-add-results class="flex flex-col gap-1 mt-2"></div>
-        </div>
+        </div>`}
       </div>`;
     }).join('')}</div>`;
 
@@ -540,6 +551,7 @@ export function renderRolesView(users: User[]): void {
       });
     });
 
+    if (retired(r)) continue;
     const toggle = card.querySelector('[data-add-role]') as HTMLButtonElement;
     const addBox = card.querySelector('[data-add-box]') as HTMLElement;
     const input = card.querySelector('[data-add-input]') as HTMLInputElement;

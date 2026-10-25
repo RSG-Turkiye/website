@@ -1,6 +1,6 @@
 ---
-name: Genomik & Transkriptomik
-emoji: 🧬
+name: "Genomik & Transkriptomik"
+emoji: "🧬"
 tagline: "Ham okumalardan gen ifadesine: dizileme verisi, hizalama, diferansiyel analiz ve tek hücre devrimi."
 order: 1
 goDeeper:

@@ -19,7 +19,7 @@
  * No astro:content, no browser APIs: the Pages Functions import this.
  */
 
-import { Document, isMap, isScalar, isSeq, parseDocument, Scalar, YAMLSeq, type Pair } from "yaml";
+import { Document, isMap, isScalar, isSeq, parseDocument, Scalar, YAMLMap, YAMLSeq, type Pair } from "yaml";
 import { checkId, type CmsType } from "./types";
 
 // ── JSON ─────────────────────────────────────────────────────────────────────
@@ -98,8 +98,17 @@ export function parseMarkdown(_type: CmsType, text: string): MarkdownEntry {
 }
 
 export function serializeMarkdown(type: CmsType, entry: MarkdownEntry): string {
-  const fm = entry.source === undefined ? renderNew(type, entry.frontmatter) : renderEdited(entry.source, entry.frontmatter);
-  return `---\n${fm}---\n${entry.body}`;
+  if (entry.source !== undefined) return `---\n${renderEdited(type, entry.source, entry.frontmatter)}---\n${entry.body}`;
+  return `---\n${renderNew(type, entry.frontmatter)}---\n${newBody(entry.body)}`;
+}
+
+/** A new file's body in the repository's format: a blank line after the
+ * frontmatter and one final line break. An empty body stays empty (a
+ * learning-path file is frontmatter only). A file read from disk (with
+ * `source`) keeps its body as it is. */
+function newBody(body: string): string {
+  if (body.trim() === "") return body;
+  return `\n${body.replace(/^(\r?\n)+/, "").replace(/(\r?\n)*$/, "")}\n`;
 }
 
 /** `src/content/webinars/{en,tr}/<id>.md`. Existing pairs whose files have
@@ -113,8 +122,8 @@ export function markdownPairPaths(type: CmsType, id: string): { en: string; tr: 
 
 // ── Frontmatter rendering ────────────────────────────────────────────────────
 
-/** Written plain in (nearly) every file: `date: 2020-05-05`, `type: bioinfonet`. */
-const PLAIN_KEYS = new Set(["date", "type", "lang"]);
+/** Written plain in (nearly) every file: `date: 2020-05-05`, `pubDate: 2026-01-05`, `type: bioinfonet`. */
+const PLAIN_KEYS = new Set(["date", "pubDate", "type", "lang"]);
 
 /** Scalar style to use for a value, given the style it had (if any). */
 type Style = { scalar?: Scalar.Type; item?: Scalar.Type };
@@ -132,6 +141,23 @@ function normalise(value: unknown): unknown {
   return value;
 }
 
+/** The default style below the top level: inside a list of objects (a
+ * learning path's sections and resources) every string is double-quoted,
+ * except under the keys in PLAIN_KEYS, as at the top; empty lists and
+ * objects are `[]` and `{}`, others block style. One fixed rule, so a changed
+ * list is written exactly as the rest of the file was. */
+function styleNested(node: unknown, key: string): void {
+  if (isScalar(node)) {
+    if (typeof node.value === "string") node.type = scalarType(node.value, PLAIN_KEYS.has(key) ? "PLAIN" : "QUOTE_DOUBLE");
+  } else if (isSeq(node)) {
+    node.flow = node.items.length === 0;
+    for (const item of node.items) styleNested(item, "");
+  } else if (isMap(node)) {
+    node.flow = node.items.length === 0;
+    for (const p of (node as YAMLMap).items as Pair[]) styleNested(p.value, String((p.key as Scalar).value));
+  }
+}
+
 /** One `key: value` pair as YAML, ending in a newline. */
 function renderPair(key: string, value: unknown, style: Style): string {
   const doc = new Document({ [key]: normalise(value) });
@@ -143,7 +169,10 @@ function renderPair(key: string, value: unknown, style: Style): string {
     node.flow = node.items.length === 0;
     for (const item of node.items) {
       if (isScalar(item) && typeof item.value === "string") item.type = scalarType(item.value, style.item ?? "QUOTE_DOUBLE");
+      else if (!isScalar(item)) styleNested(item, "");
     }
+  } else if (isMap(node)) {
+    styleNested(node, key);
   }
   // lineWidth 0: never fold a long description over several lines.
   // doubleQuotedMinMultiLineLength: a quoted value with line breaks is written
@@ -151,20 +180,23 @@ function renderPair(key: string, value: unknown, style: Style): string {
   return doc.toString({ lineWidth: 0, doubleQuotedMinMultiLineLength: Infinity });
 }
 
+/** The schema of one top-level frontmatter key, if the type's schema has it. */
+function keySchema(type: CmsType, key: string): unknown {
+  return defOf(unwrap(type.schema))?.shape?.[key];
+}
+
 /**
- * A new entry: the schema's key order (which is also the order the existing
- * files use), then any key the schema does not know. Strings double-quoted,
- * except `date`, `type` and `lang`, which every file writes plain; empty lists
- * as `[]`, others as a block list of quoted items. Keys whose value is
- * undefined are left out.
+ * A new entry: keys in the schema's order at every depth (which is also the
+ * order the existing files use), then any key the schema does not know.
+ * Strings double-quoted, except `date`, `type` and `lang`, which every file
+ * writes plain; empty lists as `[]`, others as block lists. Keys whose value
+ * is undefined are left out.
  */
 function renderNew(type: CmsType, fm: Frontmatter): string {
-  const shape = (type.schema as { shape?: Record<string, unknown> }).shape ?? {};
-  const known = Object.keys(shape).filter((k) => k in fm);
-  const rest = Object.keys(fm).filter((k) => !(k in shape));
-  return [...known, ...rest]
-    .filter((k) => fm[k] !== undefined)
-    .map((k) => renderPair(k, fm[k], {}))
+  const ordered = inSchemaOrder(type.schema, fm) as Frontmatter;
+  return Object.keys(ordered)
+    .filter((k) => ordered[k] !== undefined)
+    .map((k) => renderPair(k, ordered[k], {}))
     .join("");
 }
 
@@ -188,10 +220,14 @@ function styleOf(node: unknown): Style {
  * key before it. An unchanged key keeps its chunk byte for byte. A changed key
  * has only its `key: value` part re-rendered (in the style the value had,
  * when that is still valid YAML for the new value), keeping what followed it
- * on its chunk. A removed key loses its chunk. A new key is added after the
- * last key's content, before any trailing blank lines.
+ * on its chunk. A removed key loses its chunk. A new key the schema knows
+ * goes at its schema position: just before the first key in the file that
+ * the schema lists after it. So a key added by the panel lands where a newly
+ * written file would have it. A new key with no such key after it, or one
+ * the schema does not know, is added after the last key's content, before
+ * any trailing blank lines.
  */
-function renderEdited(source: string, fm: Frontmatter): string {
+function renderEdited(type: CmsType, source: string, fm: Frontmatter): string {
   const doc = parseDocument(source);
   const contents = doc.contents;
   if (contents !== null && !isMap(contents)) throw new Error("YAML frontmatter must be a mapping of keys to values");
@@ -199,13 +235,29 @@ function renderEdited(source: string, fm: Frontmatter): string {
   const before = doc.toJS() ?? {};
 
   const startOf = (p: Pair) => (p.key as Scalar).range![0];
+  const nameOf = (p: Pair) => String((p.key as Scalar).value);
+  const schemaKeys = Object.keys(defOf(unwrap(type.schema))?.shape ?? {});
+  const rank = (k: string) => schemaKeys.indexOf(k);
+  const render = (k: string) => renderPair(k, inSchemaOrder(keySchema(type, k), fm[k]), {});
+
+  // New keys, in schema order; each goes before the first later key, or last.
+  const added = Object.keys(fm)
+    .filter((k) => fm[k] !== undefined && !pairs.some((p) => nameOf(p) === k))
+    .sort((a, b) => (rank(a) < 0 ? Infinity : rank(a)) - (rank(b) < 0 ? Infinity : rank(b)));
+  const insertBefore = new Map<number, string[]>();
+  const atEnd: string[] = [];
+  for (const k of added) {
+    const at = rank(k) < 0 ? -1 : pairs.findIndex((p) => rank(nameOf(p)) > rank(k));
+    if (at < 0) atEnd.push(k);
+    else insertBefore.set(at, [...(insertBefore.get(at) ?? []), k]);
+  }
+
   const head = pairs.length > 0 ? source.slice(0, startOf(pairs[0])) : source;
   let out = head;
-  const seen = new Set<string>();
 
   pairs.forEach((p, i) => {
-    const key = String((p.key as Scalar).value);
-    seen.add(key);
+    const key = nameOf(p);
+    out += (insertBefore.get(i) ?? []).map(render).join("");
     const start = startOf(p);
     const end = i + 1 < pairs.length ? startOf(pairs[i + 1]) : source.length;
     const chunk = source.slice(start, end);
@@ -218,14 +270,13 @@ function renderEdited(source: string, fm: Frontmatter): string {
     // comment, the line break and blank lines, which stay.
     const valueEnd = (p.value as Scalar | null)?.range?.[1] ?? (p.key as Scalar).range![1];
     const own = source.slice(start, valueEnd);
-    let rendered = renderPair(key, fm[key], styleOf(p.value));
+    let rendered = renderPair(key, inSchemaOrder(keySchema(type, key), fm[key]), styleOf(p.value));
     if (!own.endsWith("\n")) rendered = rendered.slice(0, -1);
     out += rendered + source.slice(valueEnd, end);
   });
 
-  const added = Object.keys(fm).filter((k) => !seen.has(k) && fm[k] !== undefined);
-  if (added.length > 0) {
-    const text = added.map((k) => renderPair(k, fm[k], {})).join("");
+  if (atEnd.length > 0) {
+    const text = atEnd.map(render).join("");
     const trailing = /\n*$/.exec(out)![0];
     // Keep exactly one line break before the new keys; extra blank lines
     // stay at the end, where the file had them.

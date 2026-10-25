@@ -5,15 +5,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { CMS_TYPES, cmsType } from '../src/lib/cms/types';
+import { CMS_TYPES, cmsType, type CmsType } from '../src/lib/cms/types';
 import { jsonSchemaFor } from '../src/lib/cms/json-schema';
-import { parseMarkdown } from '../src/lib/cms/serialize';
+import { parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
-import { FAILURE } from '../functions/_lib/cms-drafts';
+import { realFixtures } from './lib/cms-fixtures';
+import { DOUBLE_HYPHEN_MESSAGE, EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE, NOT_IN_FORM } from '../functions/_lib/cms-drafts';
 import { ui } from '../src/i18n/ui';
+import { resourceSections } from '../src/data/resources';
 import {
-  MODELS, applyValues, emptyData, errorKey, failureKey, formValues, halfTranslated, livePath, messageKey, placeOf, sharedShowsOne,
-  statusView, suggestedId, visibleFields, type Bi, type TypeKey,
+  MODELS, applyValues, emptyData, sidesOf, withSide, withSides, withoutSide, errorKey, failureKey, formValues, halfTranslated, isEmptyValue, livePath, messageKey, placeOf, sharedShowsOne,
+  messageKeys, RESOURCE_SECTIONS, statusView, suggestedId, visibleFields, type Bi, type FieldDef, type TypeKey, type TypeModel,
 } from '../src/scripts/admin/cms-form';
 import { diffEntry, lineDiff, listDiff } from '../src/scripts/admin/cms-diff';
 
@@ -24,29 +26,110 @@ const WEBINARS = cmsType('webinars')!;
 
 function files(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr']) {
+  const lp = ['lp-domains', 'lp-levels', 'lp-roadmap', 'blog'].flatMap((d) => [`src/content/${d}/en`, `src/content/${d}/tr`]);
+  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/webinars/en', 'src/content/webinars/tr', 'src/content/committees', 'src/content/resources', 'src/content/pages', 'src/content/privacy', ...lp]) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = read(`${dir}/${f}`);
   }
   return out;
 }
 const FILES = files();
 const INDEX = buildCmsIndex(FILES);
+// Entries picked by shape, never by name: the panel edits and deletes them (A2).
+const { EVENT_ID, EVENT_PATH, SAME_NAME_ID } = realFixtures(FILES, INDEX);
 /** A webinar pair as GET /api/cms/entry answers it (JSON round trip included). */
-const pair = (id: string) => {
-  const w = INDEX.webinars.find((e) => e.id === id)!;
-  const side = (p: string | null | undefined) => (p ? parseMarkdown(WEBINARS, FILES[p]) : null);
+const pair = (id: string, key: 'webinars' | 'blog' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' = 'webinars') => {
+  const w = INDEX[key].find((e) => e.id === id)!;
+  const side = (p: string | null | undefined) => (p ? parseMarkdown(cmsType(key)!, FILES[p]) : null);
   return JSON.parse(JSON.stringify({ en: side(w.paths?.en), tr: side(w.paths?.tr) }));
 };
 
-test('every schema key of every type is in its field model, or hidden with a reason', () => {
+test('every registered type has a model, and the model mirrors the registry the panel cannot import', () => {
+  assert.deepEqual(Object.keys(MODELS).sort(), CMS_TYPES.map((t) => t.key).sort());
   for (const type of CMS_TYPES) {
-    const model = MODELS[type.key as TypeKey];
-    const props = Object.keys((jsonSchemaFor(type) as { properties: Record<string, unknown> }).properties);
-    const shown = new Set(model.fields.map((f) => f.key));
-    for (const k of props) assert.ok(shown.has(k) || Object.hasOwn(model.hidden, k), `${type.key}.${k} is neither shown nor hidden`);
-    for (const f of model.fields) assert.ok(props.includes(f.key), `${type.key}: the model has ${f.key}, the schema does not`);
-    for (const k of Object.keys(model.hidden)) assert.ok(!shown.has(k), `${type.key}.${k} is both hidden and shown`);
+    const m = MODELS[type.key as TypeKey];
+    assert.equal(m.key, type.key);
+    assert.equal(m.format, type.format, type.key);
+    assert.equal(m.group, type.group, type.key);
+    assert.equal(m.idField, type.idField, type.key);
+    assert.equal(m.noCreate ?? false, type.noCreate, `${type.key} noCreate`);
+    assert.equal(m.noDelete ?? false, type.noDelete, `${type.key} noDelete`);
+    assert.equal(m.generated ?? false, type.generated, `${type.key} generated`);
+    assert.equal(m.approve ?? 'group', type.approve, `${type.key} approve`);
+    assert.equal(m.sides ?? 'both', type.sides, `${type.key} sides`);
   }
+});
+
+test('tab ids are unique, safe for the address, and the old Etkinlikler ones are kept (A15)', () => {
+  const subs = Object.values(MODELS).map((m) => m.sub);
+  assert.equal(new Set(subs).size, subs.length);
+  for (const s of subs) {
+    assert.match(s, /^[a-z][a-z-]{0,39}$/);
+    assert.ok(!['taslaklar', 'onay'].includes(s), s);
+  }
+  assert.equal(MODELS.events.sub, 'etkinlikler');
+  assert.equal(MODELS.workshops.sub, 'atolyeler');
+  assert.equal(MODELS.webinars.sub, 'webinarlar');
+  assert.equal(MODELS.blog.sub, 'blog');
+});
+
+type JS = { type?: string; properties?: Record<string, JS>; items?: JS; enum?: string[]; additionalProperties?: unknown };
+
+/**
+ * What is wrong with `fields` against an object's JSON schema: a schema key
+ * neither shown nor hidden, a field the schema lacks, and, inside `objects`
+ * rows (to any depth), the same plus the rows' key order, which must be the
+ * schema's (rows are written in the fields' order).
+ */
+function coverage(where: string, fields: FieldDef[], schema: JS, hidden: Record<string, string> = {}): string[] {
+  const props = schema.properties ?? {};
+  const shown = fields.map((f) => f.key);
+  const out: string[] = [];
+  for (const k of Object.keys(props)) if (!shown.includes(k) && !Object.hasOwn(hidden, k)) out.push(`${where}.${k} is neither shown nor hidden`);
+  for (const k of Object.keys(hidden)) if (shown.includes(k)) out.push(`${where}.${k} is both hidden and shown`);
+  for (const f of fields) {
+    const p = props[f.key];
+    if (!p) { out.push(`${where}: the model has ${f.key}, the schema does not`); continue; }
+    if (p.enum && f.key !== 'lang' && (f.kind !== 'select' || JSON.stringify(f.options) !== JSON.stringify(p.enum))) out.push(`${where}.${f.key}: the enum is not the select's options`);
+    if (f.kind === 'bilingualStrings' && !(p.properties?.en?.type === 'array' && p.properties?.tr?.type === 'array')) out.push(`${where}.${f.key}: not { en: string[], tr: string[] }`);
+    if (f.kind !== 'objects') continue;
+    const item = p.items;
+    if (p.type !== 'array' || !item?.properties) { out.push(`${where}.${f.key}: the schema's is not a list of objects`); continue; }
+    out.push(...coverage(`${where}.${f.key}[]`, f.fields ?? [], item));
+    const order = Object.keys(item.properties).filter((k) => (f.fields ?? []).some((x) => x.key === k));
+    if (order.join() !== (f.fields ?? []).map((x) => x.key).filter((k) => k in item.properties!).join()) out.push(`${where}.${f.key}: the rows' fields are not in the schema's order`);
+  }
+  return out;
+}
+
+/**
+ * A type's coverage. A fixedKeys type may have a z.record schema: its form is
+ * built from its data (fieldsFor). A langSides model's fields are those of
+ * its `en` (and identical `tr`) object; its other top-level keys are hidden.
+ */
+function typeCoverage(type: CmsType, model: TypeModel): string[] {
+  const schema = jsonSchemaFor(type) as JS;
+  if (!schema.properties) return type.fixedKeys && schema.additionalProperties && model.fieldsFor ? [] : [`${type.key}: the schema has no keys and the type is not fixedKeys with fieldsFor`];
+  if (model.langSides) {
+    const { en, tr, ...rest } = schema.properties;
+    if (!en || JSON.stringify(en) !== JSON.stringify(tr)) return [`${type.key}: langSides needs the same en and tr objects`];
+    const top = Object.keys(rest).filter((k) => !Object.hasOwn(model.hidden, k)).map((k) => `${type.key}.${k} is neither shown nor hidden`);
+    const sideHidden = Object.fromEntries(Object.entries(model.hidden).filter(([k]) => !Object.hasOwn(rest, k)));
+    return [...top, ...coverage(`${type.key}.en`, model.fields, en, sideHidden)];
+  }
+  return coverage(type.key, model.fields, schema, model.hidden);
+}
+
+test('the server knows which keys the form hides, so it never puts an error on one', () => {
+  for (const type of CMS_TYPES) {
+    const hidden = Object.keys(MODELS[type.key as TypeKey].hidden)
+      // An event's id is shown read-only and its errors land on the title (placeOf).
+      .filter((k) => !(type.idInData && k === 'id'));
+    assert.deepEqual([...type.hiddenKeys].sort(), hidden.sort(), type.key);
+  }
+});
+
+test('every schema key of every type is in its field model (nested rows too), or hidden with a reason', () => {
+  for (const type of CMS_TYPES) assert.deepEqual(typeCoverage(type, MODELS[type.key as TypeKey]), [], type.key);
 });
 
 test('every enum in a schema is the select\'s options, in order', () => {
@@ -73,15 +156,17 @@ test('the internal note is for approvers only', () => {
   assert.ok(visibleFields(MODELS.events, true).some((f) => f.key === 'note'));
 });
 
-test('symposium-2026 goes through the form and back unchanged; an edited when.tr comes back changed', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+test('an event goes through the form and back unchanged; an edited when.tr comes back changed', () => {
+  const data = JSON.parse(FILES[EVENT_PATH]);
+  const original = structuredClone(data);
   const values = formValues(MODELS.events, data);
   assert.deepEqual(applyValues(MODELS.events, data, values), data);
-  const edited = { ...values, when: { ...(values.when as Bi), tr: '10-11 Ekim 2026, Ankara' } };
+  const changed = `${data.when.tr} (edited)`;
+  const edited = { ...values, when: { ...(values.when as Bi), tr: changed } };
   const out = applyValues(MODELS.events, data, edited) as typeof data;
-  assert.equal(out.when.tr, '10-11 Ekim 2026, Ankara');
+  assert.equal(out.when.tr, changed);
   assert.deepEqual({ ...out, when: data.when }, data, 'nothing else moved');
-  assert.deepEqual(data.when.tr, '10–11 Ekim 2026', 'the input is not changed');
+  assert.deepEqual(data, original, 'the input is not changed');
 });
 
 test('every event and workshop file round-trips', () => {
@@ -98,7 +183,7 @@ test('every webinar pair round-trips, legacy lang and source included', () => {
 });
 
 test('a webinar body round-trips and an edit to one language stays in that language', () => {
-  const data = pair('ai-approaches-biomolecular-representation');
+  const data = pair(SAME_NAME_ID);
   const values = formValues(MODELS.webinars, data);
   const body = values.body as Bi;
   assert.equal(body.en, data.en.body);
@@ -110,7 +195,7 @@ test('a webinar body round-trips and an edit to one language stays in that langu
 test('a shared webinar field shows one control and writes both sides; one whose sides differ shows two', () => {
   const model = MODELS.webinars;
   const date = model.fields.find((f) => f.key === 'date')!;
-  const data = pair('ai-approaches-biomolecular-representation');
+  const data = pair(SAME_NAME_ID);
   const values = formValues(model, data);
   assert.ok(sharedShowsOne(date, values.date as Bi));
   const out = applyValues(model, data, { ...values, date: { en: '2024-05-01', tr: '2024-05-01' } }) as typeof data;
@@ -126,7 +211,7 @@ test('an untouched new entry adds nothing; cleared optional fields leave the fil
     const base = emptyData(MODELS[key]);
     assert.deepEqual(applyValues(MODELS[key], base, formValues(MODELS[key], base)), base, key);
   }
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const values = formValues(MODELS.events, data);
   const out = applyValues(MODELS.events, data, { ...values, end: '' }) as Record<string, unknown>;
   assert.ok(!('end' in out), 'a cleared end date is removed, not ""');
@@ -205,10 +290,12 @@ test('every label, help and error sentence exists in both languages', () => {
   const keys = new Set<string>();
   for (const m of Object.values(MODELS)) {
     keys.add(m.label);
-    for (const f of m.fields) { keys.add(f.label); if (f.help) keys.add(f.help); }
+    const walk = (fs: FieldDef[]) => { for (const f of fs) { keys.add(f.label); if (f.help) keys.add(f.help); if (f.rowName) keys.add(f.rowName); walk(f.fields ?? []); } };
+    walk(m.fields);
   }
   for (const code of ['changed_since', 'entry_busy', 'superseded', 'exists', 'github_failed', 'unauthenticated', 'invalid', 'nonsense']) keys.add(errorKey(code));
-  for (const m of ['received undefined', 'end is before start', 'Unknown field', 'Invalid ISO date', 'Invalid option', 'expected number', 'blocked in Türkiye', 'gives the file its name', 'Invalid id', 'same as the English side', 'x']) keys.add(messageKey(m));
+  for (const m of ['received undefined', 'end is before start', 'Unknown field', 'Invalid ISO date', 'Invalid option', 'expected number', 'blocked in Türkiye', 'gives the file its name', 'Invalid id', 'same as the English side', EM_DASH_MESSAGE, NO_AT_MESSAGE, `${NOT_IN_FORM}: en.frontmatter.lang (x)`, 'Invalid input: expected true', 'x']) keys.add(messageKey(m));
+  assert.equal(messageKey(`${NOT_IN_FORM}: colour (Unknown field)`), 'admin.cms.v.notInForm');
   for (const k of keys) {
     assert.ok(k in ui.en, `en missing ${k}`);
     assert.ok(k in ui.tr, `tr missing ${k}`);
@@ -221,23 +308,23 @@ test('every label, help and error sentence exists in both languages', () => {
 });
 
 test('half-translated texts are found, whole and empty ones are not', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const values = formValues(MODELS.events, data);
   assert.deepEqual(halfTranslated(MODELS.events, values), []);
   const half = { ...values, location: { en: 'Ankara', tr: '' }, links: [{ label: { en: 'Site', tr: '' }, url: 'https://x' }] };
   assert.deepEqual(halfTranslated(MODELS.events, half).map((h) => h.key), ['links'], 'location is required: its field error covers it');
-  const w = formValues(MODELS.webinars, pair('ai-approaches-biomolecular-representation'));
+  const w = formValues(MODELS.webinars, pair(SAME_NAME_ID));
   assert.deepEqual(halfTranslated(MODELS.webinars, { ...w, topic: { en: 'ML', tr: '' } }).map((h) => h.key), ['topic']);
 });
 
 test('the approver\'s diff: values, both languages, items added, removed and moved, body lines', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const links = [{ label: { en: 'A', tr: 'A' }, url: 'a' }, { label: { en: 'B', tr: 'B' }, url: 'b' }, { label: { en: 'C', tr: 'C' }, url: 'c' }];
   const before = { ...data, links };
-  const after = { ...data, when: { ...data.when, tr: 'Ekim' }, links: [links[2], links[0], { label: { en: 'D', tr: 'D' }, url: 'd' }] };
+  const after = { ...data, when: { ...data.when, tr: `${data.when.tr} (edited)` }, links: [links[2], links[0], { label: { en: 'D', tr: 'D' }, url: 'd' }] };
   const d = diffEntry(MODELS.events, before, after);
   assert.deepEqual(d.changed.map((c) => c.field.key), ['when', 'links']);
-  assert.deepEqual(d.changed[0].changes, [{ type: 'bilingual', en: null, tr: { before: data.when.tr, after: 'Ekim' } }]);
+  assert.deepEqual(d.changed[0].changes, [{ type: 'bilingual', en: null, tr: { before: data.when.tr, after: `${data.when.tr} (edited)` } }]);
   const items = (d.changed[1].changes[0] as { items: { state: string; value: any }[] }).items.map((i) => `${i.state}:${i.value.url}`);
   assert.deepEqual(items, ['moved:c', 'same:a', 'added:d', 'removed:b']);
   assert.ok(d.unchanged.some((f) => f.key === 'title'));
@@ -245,10 +332,12 @@ test('the approver\'s diff: values, both languages, items added, removed and mov
 
   assert.deepEqual(listDiff(['a', 'b'], ['b', 'a']).map((i) => i.state).sort(), ['moved', 'same']);
   assert.deepEqual(lineDiff('one\ntwo\nthree', 'one\n2\nthree'), [{ op: ' ', text: 'one' }, { op: '-', text: 'two' }, { op: '+', text: '2' }, { op: ' ', text: 'three' }]);
-  const w = pair('ai-approaches-biomolecular-representation');
+  const w = pair(SAME_NAME_ID);
   const w2 = JSON.parse(JSON.stringify(w));
   w2.tr.body += 'Ek.\n';
-  w2.en.frontmatter.date = w2.tr.frontmatter.date = '2024-04-17';
+  // A day the entry is not on, whatever date it has.
+  const day = String(w.en.frontmatter.date).slice(0, 10) === '2000-01-01' ? '2000-01-02' : '2000-01-01';
+  w2.en.frontmatter.date = w2.tr.frontmatter.date = day;
   const wd = diffEntry(MODELS.webinars, w, w2);
   assert.deepEqual(wd.changed.map((c) => c.field.key), ['date', 'body']);
   assert.equal(wd.changed[0].changes[0].type, 'value', 'a shared field both sides agree on is one value');
@@ -256,7 +345,7 @@ test('the approver\'s diff: values, both languages, items added, removed and mov
 });
 
 test('the live page of a published entry', () => {
-  assert.equal(livePath('events', 'symposium-2026', [], 'tr'), '/tr/events/');
+  assert.equal(livePath('events', EVENT_ID, [], 'tr'), '/tr/events/');
   assert.equal(livePath('workshops', 'x', [], 'en'), '/workshops/');
   const paths = ['src/content/webinars/en/integrative-modeling-of-biomolecular-complexes.md', 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md'];
   assert.equal(livePath('webinars', 'integrative-modeling-of-biomolecular-complexes', paths, 'tr'), '/tr/webinars/first-webinar-2018-integrative-modeling/');
@@ -277,7 +366,8 @@ test('every admin.cms key the panel\'s scripts look up exists in both languages'
   // Keys built from a code: every value they can take.
   for (const s of ['create', 'update', 'delete']) assert.ok(`admin.cms.action.${s}` in ui.tr, s);
   for (const s of ['added', 'removed', 'moved', 'same']) assert.ok(`admin.cms.diff.${s}` in ui.tr, s);
-  for (const m of Object.values(MODELS)) for (const f of m.fields) for (const o of f.options ?? []) assert.ok(`admin.cms.opt.${o}` in ui.tr && `admin.cms.opt.${o}` in ui.en, o);
+  const options = (fs: FieldDef[]): string[] => fs.flatMap((f) => [...(f.options ?? []), ...options(f.fields ?? [])]);
+  for (const m of Object.values(MODELS)) for (const o of options(m.fields)) assert.ok(`admin.cms.opt.${o}` in ui.tr && `admin.cms.opt.${o}` in ui.en, o);
 });
 
 // ── Task 7, fix round 1 ───────────────────────────────────────────────────────
@@ -334,7 +424,7 @@ test('a webinar\'s year follows its date and is not typed', () => {
 });
 
 test('required fields are marked; the half-translation warning is only for optional ones', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
+  const data = JSON.parse(FILES[EVENT_PATH]);
   const values = formValues(MODELS.events, data);
   // A required field half-filled is a field error at submit, not this warning.
   assert.deepEqual(halfTranslated(MODELS.events, { ...values, title: { en: 'x', tr: '' } }), []);
@@ -353,7 +443,1203 @@ test('image upload errors in plain words', () => {
 });
 
 test('a change to the internal note alone is a change the approver sees', () => {
-  const data = JSON.parse(read('src/content/events/symposium-2026.json'));
-  const d = diffEntry(MODELS.events, data, { ...data, note: 'updated' }, visibleFields(MODELS.events, true));
+  const data = JSON.parse(FILES[EVENT_PATH]);
+  const d = diffEntry(MODELS.events, data, { ...data, note: `${data.note ?? ''} (edited)` }, visibleFields(MODELS.events, true));
   assert.deepEqual(d.changed.map((c) => c.field.key), ['note']);
+});
+
+// ── Task 2 (plan 4): the objects and bilingualStrings kinds ──────────────────
+// Synthetic schemas and models only: the real types that use them come later.
+
+import { z } from 'astro/zod';
+import { defineType } from '../src/lib/cms/types';
+import { emptyRow, lockedAfterSave, placePhrases, rowSummary, shown, withFields, type Row } from '../src/scripts/admin/cms-form';
+
+const BI = z.object({ en: z.string(), tr: z.string() });
+/** A JSON type three lists deep: sections › resources › notes. */
+const GUIDE_SCHEMA = z.object({
+  title: BI,
+  tags: z.object({ en: z.array(z.string()), tr: z.array(z.string()) }).optional(),
+  sections: z.array(z.object({
+    name: z.string(),
+    heading: BI,
+    resources: z.array(z.object({
+      id: z.string(),
+      title: BI,
+      kind: z.enum(['link', 'webinar']),
+      webinarSlug: z.string().optional(),
+      notes: z.array(z.object({ text: z.string(), done: z.boolean().optional() })).optional(),
+    })),
+  })),
+});
+const f = (o: Partial<FieldDef> & Pick<FieldDef, 'key' | 'kind'>): FieldDef => ({ label: `admin.cms.f.${o.key}`, group: 'main', ...o });
+const GUIDE = {
+  key: 'guide', format: 'json', sub: 'rehber', group: 'ogrenme', idField: 'title.en', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'bilingual', required: true }),
+    f({ key: 'tags', kind: 'bilingualStrings' }),
+    f({ key: 'sections', kind: 'objects', rowName: 'Bölüm {n}', identity: 'name', fields: [
+      f({ key: 'name', kind: 'text', required: true }),
+      f({ key: 'heading', kind: 'bilingual' }),
+      f({ key: 'resources', kind: 'objects', rowName: 'Kaynak {n}', identity: 'id', required: true, fields: [
+        f({ key: 'id', kind: 'text', readOnlyAfterSave: true }),
+        f({ key: 'title', kind: 'bilingual', label: 'Başlık' }),
+        f({ key: 'kind', kind: 'select', options: ['link', 'webinar'] }),
+        f({ key: 'webinarSlug', kind: 'text', showIf: (r: Row) => r.kind === 'webinar' }),
+        f({ key: 'notes', kind: 'objects', rowName: 'Not {n}', fields: [f({ key: 'text', kind: 'text', label: 'Metin' }), f({ key: 'done', kind: 'checkbox' })] }),
+      ] }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const GUIDE_DATA = {
+  title: { en: 'Guide', tr: 'Rehber' },
+  tags: { en: ['a', 'b'], tr: ['a'] },
+  sections: [
+    { name: 's1', heading: { en: 'Start', tr: 'Başla' }, resources: [
+      { id: 'r1', title: { en: 'One', tr: 'Bir' }, kind: 'link' },
+      { id: 'r2', title: { en: 'Two', tr: 'İki' }, kind: 'webinar', webinarSlug: 'w2', notes: [{ text: 'n1', done: true }, { text: 'n2' }] },
+    ] },
+    { name: 's2', heading: { en: 'Next', tr: 'Sonra' }, resources: [] },
+  ],
+};
+
+/** A pair type: rows mixing per-language fields and shared ones, two deep. */
+const PATH = {
+  key: 'path', format: 'markdown-pair', sub: 'yol', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'text', perLang: true }),
+    f({ key: 'sections', kind: 'objects', rowName: 'Bölüm {n}', fields: [
+      f({ key: 'heading', kind: 'text', perLang: true, label: 'Başlık' }),
+      f({ key: 'resources', kind: 'objects', rowName: 'Kaynak {n}', identity: 'id', fields: [
+        f({ key: 'id', kind: 'text', readOnlyAfterSave: true }),
+        f({ key: 'title', kind: 'text', perLang: true, label: 'Başlık' }),
+        f({ key: 'url', kind: 'text' }),
+        f({ key: 'tags', kind: 'strings' }),
+      ] }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const side = (lang: 'en' | 'tr') => ({
+  frontmatter: {
+    title: lang === 'en' ? 'Path' : 'Yol',
+    sections: [
+      { heading: lang === 'en' ? 'Basics' : 'Temeller', resources: [
+        { id: 'a-1', title: lang === 'en' ? 'Alpha' : 'Alfa', url: 'https://a', tags: ['x'] },
+        { id: 'b-2', title: lang === 'en' ? 'Beta' : 'Beta TR', url: 'https://b' },
+      ] },
+      { heading: lang === 'en' ? 'More' : 'Daha', resources: [{ id: 'c-3', title: lang === 'en' ? 'Gamma' : 'Gama', url: 'https://c' }] },
+    ],
+  },
+  body: '\nBody.\n',
+});
+const PATH_DATA = { en: side('en'), tr: side('tr') };
+const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+
+test('objects: the coverage walk goes into rows, checks their key order, and takes a fixedKeys record', () => {
+  const t = (schema: z.ZodType, extra: object = {}) => defineType({ key: 'guide' as never, group: 'ogrenme', dir: 'x', format: 'json', schema, idFrom: () => 'x', idField: 'x', indexTitle: () => undefined, label: { en: 'x', tr: 'x' }, ...extra });
+  assert.deepEqual(typeCoverage(t(GUIDE_SCHEMA), GUIDE), []);
+  // A key missing three lists down, and rows declared out of the schema's order, are both caught.
+  const deep = copy(GUIDE_SCHEMA.shape) as never;
+  const missing = t(GUIDE_SCHEMA.extend({ sections: z.array(z.object({ name: z.string(), heading: BI, resources: z.array(z.object({ id: z.string(), title: BI, kind: z.enum(['link', 'webinar']), webinarSlug: z.string().optional(), notes: z.array(z.object({ text: z.string(), done: z.boolean().optional(), extra: z.string() })) })) })) }));
+  assert.deepEqual(typeCoverage(missing, GUIDE), ['guide.sections[].resources[].notes[].extra is neither shown nor hidden']);
+  void deep;
+  const swapped = copy(GUIDE) as TypeModel;
+  const res = swapped.fields[2].fields![2];
+  res.fields = [res.fields![1], res.fields![0], ...res.fields!.slice(2)];
+  assert.ok(typeCoverage(t(GUIDE_SCHEMA), swapped).some((p) => p.includes("resources: the rows' fields are not in the schema's order")));
+  // Page texts (A7): a record of bilingual texts, its form built from the file.
+  const pages = { ...GUIDE, fields: [], fieldsFor: (d: unknown) => Object.keys(d as object).map((k) => f({ key: k, kind: 'bilingual' })) } as TypeModel;
+  const record = z.record(z.string(), BI);
+  assert.deepEqual(typeCoverage(t(record, { fixedKeys: true }), pages), []);
+  assert.equal(typeCoverage(t(record), pages).length, 1, 'only a fixedKeys type may be a record');
+});
+
+test('objects: a JSON entry three lists deep goes through the form and back byte for byte', () => {
+  const values = formValues(GUIDE, GUIDE_DATA);
+  assert.equal(JSON.stringify(applyValues(GUIDE, GUIDE_DATA, values)), JSON.stringify(GUIDE_DATA));
+  const rows = values.sections as Row[];
+  assert.equal(rows.length, 2);
+  const note0 = ((rows[0].resources as Row[])[1].notes as Row[])[0];
+  assert.deepEqual({ ...note0, $from: undefined }, { text: 'n1', done: true, $from: undefined });
+  assert.match(String(note0.$from), /^0:[0-9a-z]+$/, 'with the row and list it came from');
+  // An edit three lists down changes that value and nothing else.
+  const edited = copy(values);
+  (((edited.sections as Row[])[0].resources as Row[])[1].notes as Row[])[1].text = 'n2 edited';
+  const out = applyValues(GUIDE, GUIDE_DATA, edited) as typeof GUIDE_DATA;
+  assert.equal(out.sections[0].resources[1].notes![1].text, 'n2 edited');
+  const back = copy(out);
+  back.sections[0].resources[1].notes![1].text = 'n2';
+  assert.equal(JSON.stringify(back), JSON.stringify(GUIDE_DATA));
+  assert.equal(GUIDE_DATA.sections[0].resources[1].notes![1].text, 'n2', 'the input is not changed');
+});
+
+test('objects: a row is written in the fields\' order whatever order it was built in; empty optional values are left out', () => {
+  const row: Row = { notes: [], webinarSlug: '', kind: 'link', title: { en: 'T', tr: '' }, id: '' };
+  const values = { ...formValues(GUIDE, GUIDE_DATA) };
+  (values.sections as Row[])[1].resources = [row];
+  const out = applyValues(GUIDE, GUIDE_DATA, values) as typeof GUIDE_DATA;
+  assert.deepEqual(Object.keys(out.sections[1].resources[0]), ['title', 'kind'], 'empty id, slug and notes left out');
+  // A required list is written even empty, so the entry keeps its key.
+  (values.sections as Row[])[1].resources = [];
+  assert.deepEqual((applyValues(GUIDE, GUIDE_DATA, values) as typeof GUIDE_DATA).sections[1].resources, []);
+  const fresh = emptyRow(GUIDE.fields[2], false);
+  assert.deepEqual(Object.keys(fresh), ['name', 'heading', 'resources']);
+  assert.deepEqual(applyValues(GUIDE, {}, { sections: [fresh] }), { sections: [{ name: '', resources: [] }] }, 'required ones written empty, for submit to report');
+});
+
+test('objects in a pair type: one list for both sides, per-language fields per side, shared ones on both, at the same index', () => {
+  const values = formValues(PATH, PATH_DATA);
+  assert.equal(JSON.stringify(applyValues(PATH, PATH_DATA, values)), JSON.stringify(PATH_DATA), 'byte for byte');
+  const rows = values.sections as Row[];
+  assert.deepEqual(rows[0].heading, { en: 'Basics', tr: 'Temeller' });
+  const r = (rows[0].resources as Row[])[1];
+  assert.deepEqual({ ...r, $from: undefined }, { id: 'b-2', title: { en: 'Beta', tr: 'Beta TR' }, url: 'https://b', tags: [], $from: undefined });
+  assert.match(String(r.$from), /^1:[0-9a-z]+:[0-9a-z]+$/, 'row 1, of the English and the Turkish list');
+
+  // A per-language edit lands on its side; a shared one on both, same row.
+  const v = copy(values);
+  const res = (v.sections as Row[])[0].resources as Row[];
+  (res[1].title as Bi).tr = 'Beta (TR)';
+  res[1].url = 'https://b2';
+  let out = applyValues(PATH, PATH_DATA, v) as typeof PATH_DATA;
+  assert.equal(out.tr.frontmatter.sections[0].resources[1].title, 'Beta (TR)');
+  assert.equal(out.en.frontmatter.sections[0].resources[1].title, 'Beta');
+  assert.equal(out.en.frontmatter.sections[0].resources[1].url, 'https://b2');
+  assert.equal(out.tr.frontmatter.sections[0].resources[1].url, 'https://b2');
+
+  // Move, add and remove keep the two sides index-aligned.
+  const moved = copy(values);
+  const list = (moved.sections as Row[])[0].resources as Row[];
+  list.reverse();
+  list.push(emptyRow(PATH.fields[1].fields![1], true));
+  (moved.sections as Row[]).splice(1, 1);
+  out = applyValues(PATH, PATH_DATA, moved) as typeof PATH_DATA;
+  const ids = (lang: 'en' | 'tr') => out[lang].frontmatter.sections.map((s) => s.resources.map((x) => x.id ?? '·').join(','));
+  assert.deepEqual(ids('en'), ['b-2,a-1,·']);
+  assert.deepEqual(ids('tr'), ids('en'));
+  assert.deepEqual(out.tr.frontmatter.sections[0].resources.map((x) => x.title), ['Beta TR', 'Alfa', undefined], 'the new row is empty on both sides');
+  assert.equal(out.en.body, PATH_DATA.en.body, 'the body is not touched');
+
+  // A side with fewer rows reads as empty rows; it gains the row back only when its own text is filled in.
+  const short = copy(PATH_DATA);
+  short.tr.frontmatter.sections.pop();
+  const sv = formValues(PATH, short);
+  assert.equal((sv.sections as Row[]).length, 2);
+  assert.deepEqual((sv.sections as Row[])[1].heading, { en: 'More', tr: '' });
+  assert.equal(((sv.sections as Row[])[1].resources as Row[])[0].url, 'https://c', 'a shared value from the side that has it');
+  const touched = copy(sv);
+  (touched.sections as Row[])[0].heading = { en: 'Basics!', tr: 'Temeller' };
+  out = applyValues(PATH, short, touched) as typeof PATH_DATA;
+  assert.equal(out.tr.frontmatter.sections.length, 1, 'not filled in: the short side stays short');
+  assert.equal(out.en.frontmatter.sections.length, 2);
+  ((touched.sections as Row[])[1].heading as Bi).tr = 'Daha';
+  out = applyValues(PATH, short, touched) as typeof PATH_DATA;
+  assert.equal(out.tr.frontmatter.sections.length, 2, 'filled in: the row is written');
+  assert.equal(out.tr.frontmatter.sections[1].resources[0].url, 'https://c');
+  assert.equal(out.tr.frontmatter.sections[1].resources[0].id, 'c-3');
+});
+
+test('bilingualStrings: two lists side by side, read, written, empty and half-translated', () => {
+  const tags = GUIDE.fields[1];
+  const values = formValues(GUIDE, GUIDE_DATA);
+  assert.deepEqual(values.tags, { en: ['a', 'b'], tr: ['a'] });
+  assert.ok(isEmptyValue(tags, { en: [], tr: [] }));
+  assert.ok(!isEmptyValue(tags, { en: [], tr: ['x'] }));
+  assert.ok(!('tags' in (applyValues(GUIDE, {}, { tags: { en: [], tr: [] } }) as object)), 'an untouched empty pair adds nothing');
+  assert.deepEqual((applyValues(GUIDE, GUIDE_DATA, { ...values, tags: { en: ['a'], tr: ['b', 'c'] } }) as typeof GUIDE_DATA).tags, { en: ['a'], tr: ['b', 'c'] });
+  assert.deepEqual(halfTranslated(GUIDE, { ...values, tags: { en: ['a'], tr: [] } }).map((h) => h.key), ['tags']);
+});
+
+test('objects: half-translated texts inside rows are found, with the rows they are in', () => {
+  const values = copy(formValues(GUIDE, GUIDE_DATA));
+  assert.deepEqual(halfTranslated(GUIDE, values), []);
+  ((values.sections as Row[])[1].heading as Bi).tr = '';
+  (((values.sections as Row[])[0].resources as Row[])[1].title as Bi).en = '';
+  const half = halfTranslated(GUIDE, values);
+  assert.deepEqual(half.map((h) => [h.key, h.label, h.trail]), [
+    ['sections', 'Başlık', [{ key: 'sections', row: 0 }, { key: 'resources', row: 1 }]],
+    ['sections', 'admin.cms.f.heading', [{ key: 'sections', row: 1 }]],
+  ]);
+  const p = formValues(PATH, PATH_DATA);
+  const pv = copy(p);
+  ((pv.sections as Row[])[1].heading as Bi).tr = '';
+  assert.deepEqual(halfTranslated(PATH, pv).map((h) => h.trail), [[{ key: 'sections', row: 1 }]]);
+});
+
+test('objects: placeOf at depth 3, both formats, and the words of the place', () => {
+  const p = placeOf(GUIDE, 'sections.1.resources.2.notes.0.text');
+  assert.deepEqual(p, { key: 'sections', part: undefined, lang: undefined, trail: [{ key: 'sections', row: 1 }, { key: 'resources', row: 2 }, { key: 'notes', row: 0 }], leaf: 'text' });
+  assert.deepEqual(placeOf(GUIDE, 'sections.0.resources.2.title.en'), { key: 'sections', part: undefined, lang: 'en', trail: [{ key: 'sections', row: 0 }, { key: 'resources', row: 2 }], leaf: 'title' });
+  assert.deepEqual(placeOf(PATH, 'tr.frontmatter.sections.1.resources.0.title'), { key: 'sections', part: undefined, lang: 'tr', trail: [{ key: 'sections', row: 1 }, { key: 'resources', row: 0 }], leaf: 'title' });
+  assert.deepEqual(placeOf(PATH, 'en.frontmatter.sections.0'), { key: 'sections', part: undefined, lang: 'en', trail: [{ key: 'sections', row: 0 }] });
+  assert.deepEqual(placeOf(GUIDE, 'sections'), { key: 'sections', part: undefined, lang: undefined });
+  // The rows are named, then the field: "Bölüm 2 › Kaynak 3 › Başlık".
+  const words = (path: string, model = GUIDE) => placePhrases(model, placeOf(model, path))
+    .map((w) => Object.entries(w.vars ?? {}).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), w.key)).join(' › ');
+  assert.equal(words('sections.1.resources.2.title.tr'), 'Bölüm 2 › Kaynak 3 › Başlık');
+  assert.equal(words('sections.1.resources.2.notes.0.text'), 'Bölüm 2 › Kaynak 3 › Not 1 › Metin');
+  assert.equal(words('tr.frontmatter.sections.1.resources.0.title', PATH), 'Bölüm 2 › Kaynak 1 › Başlık');
+  assert.equal(words('sections.0'), 'Bölüm 1');
+  // Nothing changes for the old kinds.
+  assert.deepEqual(placePhrases(MODELS.events, placeOf(MODELS.events, 'links.1.url')), [{ key: 'admin.cms.f.links' }, { key: 'admin.cms.list.link', vars: { n: 2 } }, { key: 'admin.cms.f.url' }]);
+  assert.ok('admin.cms.rows.item' in ui.tr && 'admin.cms.rows.item' in ui.en);
+});
+
+test('objects: conditional fields, ids locked once they hold a value, row summaries', () => {
+  const res = GUIDE.fields[2].fields![2];
+  const slug = res.fields!.find((x) => x.key === 'webinarSlug')!;
+  assert.ok(shown(slug, { kind: 'webinar' }));
+  assert.ok(!shown(slug, { kind: 'link' }));
+  // Hidden is not cleared: a value kept while hidden is still written.
+  const values = copy(formValues(GUIDE, GUIDE_DATA));
+  ((values.sections as Row[])[0].resources as Row[])[1].kind = 'link';
+  assert.equal((applyValues(GUIDE, GUIDE_DATA, values) as typeof GUIDE_DATA).sections[0].resources[1].webinarSlug, 'w2');
+  const id = res.fields![0];
+  assert.ok(lockedAfterSave(id, 'r1', false));
+  assert.ok(!lockedAfterSave(id, '', false), 'a new row\'s id is editable');
+  assert.ok(!lockedAfterSave(res.fields![1], { en: 'x', tr: 'y' }, false), 'only readOnlyAfterSave fields lock');
+  const r0 = ((values.sections as Row[])[0].resources as Row[])[0];
+  assert.equal(rowSummary(res, r0, 'tr'), 'r1', 'the first text filled in');
+  assert.equal(rowSummary(res, { ...r0, id: '' }, 'tr'), 'Bir');
+  assert.equal(rowSummary(res, { ...r0, id: '' }, 'en'), 'One');
+  assert.equal(rowSummary({ ...res, rowLabel: (r) => `#${r.id}` }, r0, 'en'), '#r1');
+  assert.equal(rowSummary(res, emptyRow(res, false), 'en'), '');
+});
+
+test('fieldsFor (A7): a model built from the entry\'s own keys', () => {
+  const model = { ...GUIDE, fields: [], fieldsFor: (d: unknown) => Object.keys(d as object).map((k) => f({ key: k, kind: 'bilingual' })) } as TypeModel;
+  const data = { heroTitle: { en: 'Hi', tr: 'Selam' }, cta: { en: 'Join', tr: 'Katıl' } };
+  const m = withFields(model, data);
+  assert.deepEqual(m.fields.map((x) => x.key), ['heroTitle', 'cta']);
+  assert.equal(JSON.stringify(applyValues(m, data, formValues(m, data))), JSON.stringify(data));
+  assert.equal(withFields(MODELS.events, data), MODELS.events, 'a static model is itself');
+});
+
+test('objects diff: rows by identity (moved, added, removed, changed inside) and by position', () => {
+  const after = copy(GUIDE_DATA);
+  const res = after.sections[0].resources;
+  // r2 moves to the top and its title changes; r1 is removed; r9 is added.
+  after.sections[0].resources = [{ ...res[1], title: { en: 'Two', tr: 'İki!' } }, { id: 'r9', title: { en: 'Nine', tr: 'Dokuz' }, kind: 'link' }] as typeof res;
+  after.sections.reverse();
+  const d = diffEntry(GUIDE, GUIDE_DATA, after);
+  assert.deepEqual(d.changed.map((c) => c.field.key), ['sections']);
+  const top = d.changed[0].changes[0] as { type: 'rows'; rows: { state: string; n: number; row: Row; changes: { field: FieldDef; changes: any[] }[] }[] };
+  assert.equal(top.type, 'rows');
+  // Two rows swapped: one of them moved (s2, to the top); s1 kept its order relative to the rest and changed inside.
+  assert.deepEqual(top.rows.map((r) => [r.state, r.n, r.row.name, r.changes.length]), [['moved', 1, 's2', 0], ['changed', 2, 's1', 1]]);
+  const inner = top.rows[1].changes.find((c) => c.field.key === 'resources')!.changes[0];
+  assert.deepEqual(inner.rows.map((r: any) => [r.state, r.n, r.row.id]), [['changed', 1, 'r2'], ['added', 2, 'r9'], ['removed', 1, 'r1']]);
+  assert.deepEqual(inner.rows[0].changes.map((c: any) => [c.field.key, c.changes[0]]), [['title', { type: 'bilingual', en: null, tr: { before: 'İki', after: 'İki!' } }]]);
+  // A pure move is a move with nothing inside.
+  const swap = copy(GUIDE_DATA);
+  swap.sections[0].resources.reverse();
+  const sd = (diffEntry(GUIDE, GUIDE_DATA, swap).changed[0].changes[0] as any).rows[0].changes[0].changes[0].rows;
+  assert.deepEqual(sd.map((r: any) => [r.state, r.row.id, r.changes.length]), [['moved', 'r2', 0]]);
+  // Without an identity (notes), rows are compared by position.
+  const notes = copy(GUIDE_DATA);
+  notes.sections[0].resources[1].notes = [{ text: 'n2' }];
+  const nd = (diffEntry(GUIDE, GUIDE_DATA, notes).changed[0].changes[0] as any).rows[0].changes[0].changes[0].rows[0].changes[0].changes[0].rows;
+  assert.deepEqual(nd.map((r: any) => [r.state, r.n]), [['changed', 1], ['removed', 2]], 'n1 became n2, the second note is gone');
+  assert.deepEqual(nd[0].changes.map((c: any) => c.field.key), ['text', 'done']);
+  assert.deepEqual(diffEntry(GUIDE, GUIDE_DATA, copy(GUIDE_DATA)).changed, []);
+});
+
+test('objects diff in a pair type, and bilingualStrings per language', () => {
+  const after = copy(PATH_DATA);
+  for (const lang of ['en', 'tr'] as const) after[lang].frontmatter.sections[0].resources.reverse();
+  after.tr.frontmatter.sections[1].resources[0].title = 'Gama!';
+  after.en.frontmatter.sections[1].resources[0].url = after.tr.frontmatter.sections[1].resources[0].url = 'https://c2';
+  const rows = (diffEntry(PATH, PATH_DATA, after).changed[0].changes[0] as any).rows;
+  assert.deepEqual(rows.map((r: any) => [r.state, r.n]), [['changed', 1], ['changed', 2]]);
+  const moved = rows[0].changes[0].changes[0].rows;
+  assert.deepEqual(moved.map((r: any) => [r.state, r.row.id]), [['moved', 'b-2']]);
+  const c3 = rows[1].changes[0].changes[0].rows[0];
+  assert.deepEqual(c3.changes.map((c: any) => [c.field.key, c.changes[0]]), [
+    ['title', { type: 'bilingual', en: null, tr: { before: 'Gama', after: 'Gama!' } }],
+    ['url', { type: 'value', before: 'https://c', after: 'https://c2' }],
+  ]);
+  const t = diffEntry(GUIDE, GUIDE_DATA, { ...GUIDE_DATA, tags: { en: ['a', 'b'], tr: ['a', 'c'] } });
+  assert.deepEqual(t.changed[0].changes, [{ type: 'list', lang: 'tr', items: [{ state: 'same', value: 'a' }, { state: 'added', value: 'c' }] }]);
+});
+
+// ── Task 2, fix round 1: rows never lose what the form does not show ─────────
+
+const PROBE_J = {
+  key: 'j', format: 'json', sub: 'j', group: 'ogrenme', idField: 'title', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'text' }),
+    f({ key: 'rows', kind: 'objects', identity: 'name', fields: [
+      f({ key: 'name', kind: 'text' }),
+      f({ key: 'note', kind: 'text' }),
+      f({ key: 'flag', kind: 'checkbox', required: true }),
+      f({ key: 'opt', kind: 'checkbox' }),
+      f({ key: 'n', kind: 'number' }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const PROBE_J_DATA = { title: 'a', rows: [{ name: 'A', note: '', flag: false, opt: false, n: 0, extra: 1 }, { name: 'B', flag: true }] };
+const PROBE_P = {
+  key: 'p', format: 'markdown-pair', sub: 'p', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'x', hidden: {},
+  fields: [
+    f({ key: 'title', kind: 'text', perLang: true }),
+    f({ key: 'res', kind: 'objects', identity: 'id', fields: [
+      f({ key: 'id', kind: 'text' }),
+      f({ key: 'title', kind: 'text', perLang: true }),
+      f({ key: 'url', kind: 'text' }),
+    ] }),
+  ],
+} as unknown as TypeModel;
+const PROBE_P_DATA = {
+  en: { frontmatter: { title: 'E', res: [{ id: 'x', title: 'a', url: '/x/' }] }, body: '' },
+  tr: { frontmatter: { title: 'T', res: [{ id: 'x', title: 'b', url: '/tr/x/' }, { id: 'y', title: 'c', url: '/tr/y/' }] }, body: '' },
+};
+
+test('fix 1: an edit elsewhere leaves an untouched objects or bilingualStrings field byte for byte', () => {
+  const v = formValues(PROBE_J, PROBE_J_DATA);
+  v.title = 'b';
+  const out = applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows), JSON.stringify(PROBE_J_DATA.rows));
+  const pv = formValues(PROBE_P, PROBE_P_DATA);
+  (pv.title as Bi).en = 'E2';
+  const po = applyValues(PROBE_P, PROBE_P_DATA, pv) as typeof PROBE_P_DATA;
+  assert.equal(JSON.stringify(po.tr.frontmatter.res), JSON.stringify(PROBE_P_DATA.tr.frontmatter.res), 'the TR urls keep /tr and the longer side its rows');
+  assert.equal(JSON.stringify(po.en.frontmatter.res), JSON.stringify(PROBE_P_DATA.en.frontmatter.res));
+  const odd = { ...GUIDE_DATA, tags: { tr: ['z'], en: ['y'] } };
+  const gv = formValues(GUIDE, odd);
+  (gv.title as Bi).en = 'Guide 2';
+  assert.equal(JSON.stringify((applyValues(GUIDE, odd, gv) as typeof odd).tags), JSON.stringify(odd.tags), 'a bilingualStrings value keeps its key order');
+});
+
+test('fix 2: a row edited in one field keeps its undeclared keys, empty optionals and false checkboxes, also after a move', () => {
+  const v = copy(formValues(PROBE_J, PROBE_J_DATA));
+  (v.rows as Row[])[0].n = '5';
+  let out = applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows[0]), JSON.stringify({ name: 'A', note: '', flag: false, opt: false, n: 5, extra: 1 }));
+  assert.equal(JSON.stringify(out.rows[1]), JSON.stringify(PROBE_J_DATA.rows[1]), 'the other row is as it was');
+  (v.rows as Row[]).reverse();
+  out = applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows), JSON.stringify([PROBE_J_DATA.rows[1], { ...PROBE_J_DATA.rows[0], n: 5 }]), 'each row keeps its own base after a move');
+  // Values without their origin (a restored copy, say) find their row by identity.
+  const bare = { ...v, rows: (v.rows as Row[]).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith('$')))) };
+  out = applyValues(PROBE_J, PROBE_J_DATA, bare) as typeof PROBE_J_DATA;
+  assert.equal(out.rows[1].extra, 1);
+  // A new key lands in the schema's place, not at the end.
+  const w = copy(formValues(PROBE_J, PROBE_J_DATA));
+  (w.rows as Row[])[1].note = 'hi';
+  assert.deepEqual(Object.keys((applyValues(PROBE_J, PROBE_J_DATA, w) as typeof PROBE_J_DATA).rows[1]), ['name', 'note', 'flag']);
+});
+
+test('fix 3: a shared row field whose sides differ is two inputs and is written per side; a short side gains no row', () => {
+  const pv = formValues(PROBE_P, PROBE_P_DATA);
+  const rows = pv.res as Row[];
+  assert.deepEqual(rows[0].url, { en: '/x/', tr: '/tr/x/' }, 'split, not the English value');
+  assert.equal(rows[1].url, '/tr/y/', 'a row only one side has: that side\'s value');
+  const v = copy(pv);
+  ((v.res as Row[])[0].title as Bi).tr = 'b2';
+  const out = applyValues(PROBE_P, PROBE_P_DATA, v) as typeof PROBE_P_DATA;
+  assert.deepEqual(out.tr.frontmatter.res.map((r) => r.url), ['/tr/x/', '/tr/y/']);
+  assert.deepEqual(out.en.frontmatter.res.map((r) => r.url), ['/x/'], 'the shorter side does not gain the other\'s row');
+  assert.equal(out.tr.frontmatter.res[0].title, 'b2');
+  // A row the person adds goes to both sides.
+  const added = copy(pv);
+  (added.res as Row[]).push({ ...emptyRow(PROBE_P.fields[1], true), id: 'z', url: '/z/' });
+  const ao = applyValues(PROBE_P, PROBE_P_DATA, added) as typeof PROBE_P_DATA;
+  assert.deepEqual(ao.en.frontmatter.res.map((r) => r.id), ['x', 'z']);
+  assert.deepEqual(ao.tr.frontmatter.res.map((r) => r.id), ['x', 'y', 'z']);
+  // The diff sees a per-side change of a split field.
+  const d = diffEntry(PROBE_P, PROBE_P_DATA, { ...PROBE_P_DATA, tr: { ...PROBE_P_DATA.tr, frontmatter: { ...PROBE_P_DATA.tr.frontmatter, res: [{ id: 'x', title: 'b', url: '/tr/x2/' }, PROBE_P_DATA.tr.frontmatter.res[1]] } } });
+  const c = (d.changed[0].changes[0] as any).rows[0].changes[0];
+  assert.deepEqual([c.field.key, c.changes[0]], ['url', { type: 'bilingual', en: null, tr: { before: '/tr/x/', after: '/tr/x2/' } }]);
+});
+
+test('fix 4: a required checkbox set to false is written', () => {
+  const out = applyValues(PROBE_J, {}, { rows: [{ ...emptyRow(PROBE_J.fields[1], false), name: 'N' }] }) as typeof PROBE_J_DATA;
+  assert.equal(JSON.stringify(out.rows[0]), JSON.stringify({ name: 'N', flag: false }));
+  const v = copy(formValues(PROBE_J, PROBE_J_DATA));
+  (v.rows as Row[])[1].flag = false;
+  assert.equal((applyValues(PROBE_J, PROBE_J_DATA, v) as typeof PROBE_J_DATA).rows[1].flag, false);
+});
+
+test('fix 5: the file diff, and a warning when the files change but no field does', async () => {
+  const { fileDiffs, hiddenFileChanges } = await import('../src/scripts/admin/cms-diff');
+  const path = 'src/content/lp/en/x.md';
+  const before = '---\ntitle: "A"\nurl: "/tr/x/"\n---\n';
+  const after = '---\ntitle: "A"\nurl: "/x/"\n---\n';
+  const files = fileDiffs({ [path]: before }, [{ path, content: after }]);
+  assert.equal(files[0].changed, true);
+  assert.deepEqual(files[0].lines.filter((l) => l.op !== ' '), [{ op: '-', text: 'url: "/tr/x/"' }, { op: '+', text: 'url: "/x/"' }]);
+  assert.ok(hiddenFileChanges(files, { changed: [], unchanged: [] }), 'bytes changed, no field did: warn');
+  assert.ok(!hiddenFileChanges(files, { changed: [{ field: GUIDE.fields[0], changes: [] }], unchanged: [] }));
+  assert.ok(!hiddenFileChanges(fileDiffs({ [path]: before }, [{ path, content: before }]), { changed: [], unchanged: [] }));
+  assert.deepEqual(fileDiffs(null, [{ path, content: after }]), [], 'nothing to compare without main');
+  for (const k of ['admin.cms.review.fileDiff', 'admin.cms.review.hiddenChanges', 'admin.cms.review.fileSame']) assert.ok(k in ui.tr && k in ui.en, k);
+  assert.equal(ui.tr['admin.cms.review.hiddenChanges'], 'Dosyada formda görünmeyen değişiklikler var');
+});
+
+// ── Task 2, fix round 2: a row's origin counts only against the data it was read from ──
+
+const R2J = {
+  key: 'j', format: 'json', sub: 'j', group: 'ogrenme', idField: 'title', label: 'x', hidden: {},
+  fields: [f({ key: 'title', kind: 'text' }), f({ key: 'rows', kind: 'objects', identity: 'name', fields: [f({ key: 'name', kind: 'text' }), f({ key: 'note', kind: 'text' })] })],
+} as unknown as TypeModel;
+const R2J_BASE = { title: 'a', rows: [{ name: 'A', extra: 'a-secret' }, { name: 'B', extra: 'b-secret' }] };
+const R2P = {
+  key: 'p', format: 'markdown-pair', sub: 'p', group: 'ogrenme', idField: 'en.frontmatter.title', label: 'x', hidden: {},
+  fields: [f({ key: 'title', kind: 'text', perLang: true }), f({ key: 'res', kind: 'objects', fields: [f({ key: 'title', kind: 'text', perLang: true }), f({ key: 'url', kind: 'text' })] })],
+} as unknown as TypeModel;
+const r2side = (rows: object[]) => ({ frontmatter: { title: 'T', res: rows }, body: '' });
+const R2P_BASE = { en: r2side([{ title: 'a', url: '/a', x: 'ea' }, { title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'a', url: '/a', x: 'ta' }, { title: 'b', url: '/b', x: 'tb' }]) };
+
+test('fix round 2: a restored copy is applied to the opened data without moving keys between rows', () => {
+  // JSON: row A deleted, the copy backed up, restored after a reload, saved again.
+  const v = copy(formValues(R2J, R2J_BASE));
+  (v.rows as Row[]).splice(0, 1);
+  const backup = applyValues(R2J, R2J_BASE, v);
+  assert.deepEqual(backup, { title: 'a', rows: [{ name: 'B', extra: 'b-secret' }] });
+  assert.deepEqual(applyValues(R2J, R2J_BASE, formValues(R2J, backup)), backup, 'B keeps its own key, not A\'s');
+  // Pair: a new row with only a shared url survives the restore, on both sides.
+  const pv = copy(formValues(R2P, R2P_BASE));
+  (pv.res as Row[]).push({ ...emptyRow(R2P.fields[1], true), url: '/new' });
+  const pbak = applyValues(R2P, R2P_BASE, pv) as typeof R2P_BASE;
+  assert.deepEqual(pbak.tr.frontmatter.res.at(-1), { url: '/new' });
+  const again = applyValues(R2P, R2P_BASE, formValues(R2P, pbak)) as typeof R2P_BASE;
+  assert.deepEqual(again.en.frontmatter.res.map((r: any) => r.url), ['/a', '/b', '/new']);
+  assert.deepEqual(again.tr.frontmatter.res.map((r: any) => r.url), ['/a', '/b', '/new']);
+  // Pair: the first row deleted, restored: the second keeps its own hidden keys.
+  const pd = copy(formValues(R2P, R2P_BASE));
+  (pd.res as Row[]).splice(0, 1);
+  const pdel = applyValues(R2P, R2P_BASE, pd) as typeof R2P_BASE;
+  const pdel2 = applyValues(R2P, R2P_BASE, formValues(R2P, pdel)) as typeof R2P_BASE;
+  // No identity key: the restored row is new to the opened data. It loses its hidden key, and never takes row a's.
+  assert.deepEqual(pdel2.en.frontmatter.res, [{ title: 'b', url: '/b' }]);
+  assert.deepEqual(pdel2.tr.frontmatter.res, [{ title: 'b', url: '/b' }], 'no identity: matched as new, never another row\'s keys');
+});
+
+test('fix round 2: rebase onto a version where the site deleted a row', () => {
+  // JSON: the form was read from base; the site removed A meanwhile.
+  const fresh = { title: 'a', rows: [{ name: 'B', extra: 'b-secret' }] };
+  const v = copy(formValues(R2J, R2J_BASE));
+  v.title = 'z';
+  const out = applyValues(R2J, fresh, v) as typeof R2J_BASE;
+  assert.deepEqual(out.rows.find((r) => r.name === 'B'), { name: 'B', extra: 'b-secret' }, 'B by its name, with its own key');
+  assert.ok(!out.rows.some((r) => r.name === 'A' && r.extra), 'A, which the form still has, does not take B\'s key');
+  // Pair: the site removed the first row on both sides.
+  const pfresh = { en: r2side([{ title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'b', url: '/b', x: 'tb' }]) };
+  const pv = copy(formValues(R2P, R2P_BASE));
+  (pv.title as Bi).en = 'T2';
+  const pout = applyValues(R2P, pfresh, pv) as typeof R2P_BASE;
+  assert.deepEqual(pout.en.frontmatter.res.map((r: any) => [r.title, r.x]), [['a', undefined], ['b', undefined]], 'rows the form holds, none with another row\'s hidden key');
+  assert.equal(pout.tr.frontmatter.res.length, 2, 'not dropped: they are the form\'s rows');
+});
+
+test('fix round 2: "take" copies another version\'s rows into a form opened on base', () => {
+  const site = { title: 'a', rows: [{ name: 'B', extra: 'b-secret' }, { name: 'C', extra: 'c' }] };
+  const v = { ...formValues(R2J, R2J_BASE), rows: formValues(R2J, site).rows };
+  const out = applyValues(R2J, R2J_BASE, v) as typeof R2J_BASE;
+  assert.deepEqual(out.rows, [{ name: 'B', extra: 'b-secret' }, { name: 'C' }], 'B matched by name; C is new to this base');
+  const psite = { en: r2side([{ title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'b', url: '/b', x: 'tb' }]) };
+  const pv = { ...formValues(R2P, R2P_BASE), res: formValues(R2P, psite).res };
+  const pout = applyValues(R2P, R2P_BASE, pv) as typeof R2P_BASE;
+  assert.deepEqual(pout.en.frontmatter.res, [{ title: 'b', url: '/b' }], 'without an identity: a new row, not row 0\'s keys');
+  assert.deepEqual(pout.tr.frontmatter.res, [{ title: 'b', url: '/b' }]);
+  // The deliberate rule: a row re-added under a deleted row's identity inherits that row's hidden keys.
+  const v3 = copy(formValues(R2J, R2J_BASE));
+  (v3.rows as Row[]).splice(0, 1);
+  (v3.rows as Row[]).push({ ...emptyRow(R2J.fields[1], false), name: 'A' });
+  assert.deepEqual((applyValues(R2J, R2J_BASE, v3) as typeof R2J_BASE).rows, [{ name: 'B', extra: 'b-secret' }, { name: 'A', extra: 'a-secret' }]);
+});
+
+// ── Task 2, fix round 3: every save writes onto the data the form was stamped from ──
+
+import { withFieldFrom } from '../src/scripts/admin/cms-form';
+
+test('fix round 3: the same stamped values saved twice onto their origin keep hidden keys and add no rows', () => {
+  const J = { ...R2J, fields: [R2J.fields[0], { ...R2J.fields[1], identity: undefined }] } as TypeModel;
+  const base = { title: 'a', rows: [{ name: 'A', note: '', extra: 'a-secret' }, { name: 'B', note: '', extra: 'b-secret' }] };
+  const v = copy(formValues(J, base));
+  (v.rows as Row[])[0].note = 'edited';
+  const save1 = applyValues(J, base, v);
+  v.title = 'later edit';
+  const save2 = applyValues(J, base, v) as typeof base;
+  assert.deepEqual(save2.rows, [{ name: 'A', note: 'edited', extra: 'a-secret' }, { name: 'B', note: '', extra: 'b-secret' }]);
+  assert.deepEqual({ ...save2, title: 'a' }, save1, 'the second save is the first plus its own edit');
+
+  const pb = { en: r2side([{ title: 'a', url: '/a', x: 'ea' }]), tr: r2side([{ title: 'a', url: '/a', x: 'ta' }, { title: 'tronly', url: '/t', x: 'tt' }]) };
+  const pv = copy(formValues(R2P, pb));
+  (pv.res as Row[])[0].url = '/a2';
+  applyValues(R2P, pb, pv);
+  (pv.title as Bi).en = 'T2';
+  const p2 = applyValues(R2P, pb, pv) as typeof pb;
+  assert.deepEqual(p2.en.frontmatter.res, [{ title: 'a', url: '/a2', x: 'ea' }], 'English gains no row');
+  assert.deepEqual(p2.tr.frontmatter.res, [{ title: 'a', url: '/a2', x: 'ta' }, { title: 'tronly', url: '/t', x: 'tt' }]);
+});
+
+test('fix round 3: "take" moves the origin to the other version\'s data for that field, so its rows stay its own', () => {
+  const origin = { en: r2side([{ title: 'a', url: '/a', x: 'ea' }]), tr: r2side([{ title: 'a', url: '/a', x: 'ta' }]) };
+  const site = { en: r2side([{ title: 'b', url: '/b', x: 'eb' }]), tr: r2side([{ title: 'b', url: '/b', x: 'tb' }, { title: 'tronly', url: '/t', x: 'tt' }]) };
+  const next = withFieldFrom(R2P, origin, site, 'res') as typeof origin;
+  assert.deepEqual(next.tr.frontmatter.res, site.tr.frontmatter.res);
+  assert.equal(next.en.frontmatter.title, 'T', 'other fields stay the origin\'s');
+  assert.deepEqual(origin.en.frontmatter.res, [{ title: 'a', url: '/a', x: 'ea' }], 'the origin itself is not changed');
+  // The form's value for the field is redrawn from the new origin; a save is the site's list exactly.
+  const values = { ...formValues(R2P, origin), res: formValues(R2P, next).res };
+  ((values.res as Row[])[0].title as Bi).tr = 'b!';
+  const out = applyValues(R2P, next, values) as typeof origin;
+  assert.deepEqual(out.en.frontmatter.res, [{ title: 'b', url: '/b', x: 'eb' }], 'no Turkish-only row on the English side');
+  assert.deepEqual(out.tr.frontmatter.res, [{ title: 'b!', url: '/b', x: 'tb' }, { title: 'tronly', url: '/t', x: 'tt' }]);
+  // JSON, and a field the other version lacks.
+  assert.deepEqual(withFieldFrom(R2J, R2J_BASE, { title: 'x' }, 'rows'), { title: 'a' });
+  assert.deepEqual(withFieldFrom(R2J, R2J_BASE, { title: 'x' }, 'title'), { ...R2J_BASE, title: 'x' });
+});
+
+test('house rules: the em dash, the @ and the missing consent each have their own sentence', () => {
+  assert.equal(messageKey(EM_DASH_MESSAGE), 'admin.cms.v.emDash');
+  assert.equal(messageKey(NO_AT_MESSAGE), 'admin.cms.v.noAt');
+  assert.equal(messageKey('Invalid input: expected true'), 'admin.cms.v.consent');
+  assert.match(ui.tr['admin.cms.v.emDash'], /^Uzun tire \(—\) kullanılmıyor; kısa tire \(-\) ya da virgül kullanın$/);
+});
+
+test('house rules: no published file of any type is refused (no false alarm on what CI already accepts)', () => {
+  for (const type of CMS_TYPES) {
+    const ids = Object.keys(FILES).filter((p) => p.startsWith(`${type.dir}/`));
+    if (type.format === 'json') {
+      for (const p of ids) assert.deepEqual(houseRuleErrors(type, JSON.parse(FILES[p])), {}, p);
+    } else {
+      assert.ok(INDEX[type.key].length > 0, type.key);
+      for (const w of INDEX[type.key as 'webinars']) assert.deepEqual(houseRuleErrors(type, pair(w.id, type.key as 'webinars')), {}, `${type.key} ${w.id}`);
+    }
+  }
+});
+
+// ── Committees (Topluluk) ────────────────────────────────────────────────────
+
+const COMMITTEES = cmsType('committees')!;
+/** A synthetic committee (A2: no test reads what a real profile says). */
+const aCommittee = () => ({
+  order: 30,
+  name: { en: 'Example Committee', tr: 'Örnek Komite' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' },
+  members: [
+    {
+      name: 'Ada Örnek',
+      role: { en: 'Leader', tr: 'Lider' },
+      image: 'https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_600/v1/rsgturkey/committee/ada.jpg',
+      education: [{ degree: { en: 'MSc', tr: 'Yüksek Lisans' }, field: { en: 'Biology', tr: 'Biyoloji' }, institution: { en: 'A University', tr: 'A Üniversitesi' }, year: '2027' }],
+      socialMedia: [{ platform: 'linkedin', url: 'https://www.linkedin.com/in/example/' }],
+      consent: true,
+    },
+    { name: 'Bora Örnek', role: { en: 'Member', tr: 'Üye' }, image: '/api/images/bora.webp', consent: true },
+  ],
+});
+
+test('committees: every committee file goes through the form and is written back byte for byte', () => {
+  const paths = Object.keys(FILES).filter((p) => p.startsWith('src/content/committees/'));
+  assert.ok(paths.length > 0);
+  for (const p of paths) {
+    const data = JSON.parse(FILES[p]);
+    assert.equal(serializeJson(COMMITTEES, applyValues(MODELS.committees, data, formValues(MODELS.committees, data))), FILES[p], p);
+  }
+  const syn = aCommittee();
+  assert.equal(serializeJson(COMMITTEES, applyValues(MODELS.committees, syn, formValues(MODELS.committees, syn))), `${JSON.stringify(syn, null, 2)}\n`);
+});
+
+test('committees: a member added with consent is written in the schema\'s key order; the photos already there are untouched', () => {
+  const data = aCommittee();
+  const values = formValues(MODELS.committees, data);
+  const members = MODELS.committees.fields.find((f) => f.key === 'members')!;
+  const added = { ...emptyRow(members, false), name: 'Cem Örnek', role: { en: 'Member', tr: 'Üye' }, image: '/api/images/cem.webp', consent: true };
+  const out = applyValues(MODELS.committees, data, { ...values, members: [...(values.members as Row[]), added] }) as ReturnType<typeof aCommittee>;
+  assert.equal(out.members.length, 3);
+  assert.deepEqual(Object.keys(out.members[2]), ['name', 'role', 'image', 'consent']);
+  assert.equal(out.members[0].image, data.members[0].image, 'a Cloudinary URL comes back as it was');
+  assert.deepEqual(out.members.slice(0, 2), data.members);
+  // Unticked, consent is still written (false), so submit can name it.
+  const unticked = applyValues(MODELS.committees, data, { ...values, members: [{ ...added, consent: false }] }) as ReturnType<typeof aCommittee>;
+  assert.equal(unticked.members[0].consent, false);
+  // Members are matched by name across versions: a reorder is a move, not two changes.
+  assert.equal(members.identity, 'name');
+  assert.equal(rowSummary(members, (values.members as Row[])[0], 'tr'), 'Ada Örnek');
+});
+
+test('committees: the form\'s groups, the file name of a new one, and its page', () => {
+  assert.deepEqual(MODELS.committees.fields.filter((f) => f.group === 'main').map((f) => f.key), ['name', 'description', 'members']);
+  assert.deepEqual(MODELS.committees.fields.filter((f) => f.group === 'more').map((f) => f.key), ['order']);
+  assert.equal(MODELS.committees.sub, 'komiteler');
+  assert.equal(MODELS.committees.titleField, 'name');
+  assert.equal(suggestedId(MODELS.committees, { name: { en: 'Example Committee', tr: 'Örnek' } }), 'example-committee');
+  assert.equal(suggestedId(MODELS.committees, { name: { en: 'Example Committee', tr: '' } }), COMMITTEES.idFrom({ name: { en: 'Example Committee', tr: '' } }));
+  assert.equal(livePath('committees', 'website', ['src/content/committees/website.json'], 'en'), '/about/');
+  assert.equal(livePath('committees', 'website', ['src/content/committees/website.json'], 'tr'), '/tr/about/');
+  const consent = MODELS.committees.fields.find((f) => f.key === 'members')!.fields!.find((f) => f.key === 'consent')!;
+  assert.equal(consent.kind, 'checkbox');
+  assert.equal(consent.required, true);
+});
+
+test('house rules match what CI rejects: em dash and spaced -- anywhere (code too), any -- in body prose', () => {
+  const w = cmsType('webinars')!;
+  const c = cmsType('committees')!;
+  const body = (b: string) => houseRuleErrors(w, { en: { frontmatter: { title: 'x' }, body: b }, tr: { frontmatter: { title: 'y' }, body: 'ok' } });
+  // tests/no-em-dashes.test.ts scans every source line: code is no exception.
+  assert.equal(body('Text\n\n```\nout — here\n```\n')['en.body'], EM_DASH_MESSAGE);
+  assert.equal(body('Run `a — b` now')['en.body'], EM_DASH_MESSAGE);
+  assert.equal(body('````\n```\nx\n```\n—\n````\n')['en.body'], EM_DASH_MESSAGE);
+  // The built-page check reads `\w\s--\s\w` in visible HTML, <code> included.
+  assert.equal(body('Para\n\n    a -- b\n')['en.body'], EM_DASH_MESSAGE);
+  assert.equal(body('Run `a -- b`')['en.body'], EM_DASH_MESSAGE);
+  // Smartypants turns a bare `--` in prose into an em dash.
+  assert.equal(body('Run nextflow with --profile docker')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('foo--bar')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  // In code it stays two hyphens.
+  assert.deepEqual(body('Run nextflow with `--profile docker`\n\n```\nx --y\n```\n\n    z --w\n'), {});
+  assert.deepEqual(body('A table\n\n| a | b |\n| --- | --- |\n\n---\n\n<!-- note -->\n'), {});
+  // Smartypants turns exactly two hyphens into a dash, never a longer run:
+  // `a --- b` and an escaped `\-----` rule stay hyphens on the page.
+  assert.deepEqual(body('a --- b, a ---- b\n\n**\\-----------**\n'), {});
+  assert.equal(body('x --> y')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('--flag at the start')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('a ---- b and c--d')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  // Escaped hyphens are hyphens to smartypants: `\-\-` and `-\-` render a dash, `\-\-\-` and `-\--` do not.
+  assert.equal(body('a \\-\\- b')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('a -\\- b')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.equal(body('\\--x')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  assert.deepEqual(body('a\\-\\-\\-b and -\\--'), {});
+  // An escaped backslash before -- leaves a real --.
+  assert.equal(body('a \\\\-- b')['en.body'], DOUBLE_HYPHEN_MESSAGE);
+  // A fenced line indented by one space is still code.
+  assert.deepEqual(body('```\n (base) $ conda config --set x\n```\n'), {});
+  assert.equal(messageKey(DOUBLE_HYPHEN_MESSAGE), 'admin.cms.v.doubleHyphen');
+  assert.match(ui.tr['admin.cms.v.doubleHyphen'], /ters tırnak/);
+  assert.match(ui.en['admin.cms.v.doubleHyphen'], /backticks/);
+  // A field with both an @ and a dash says both.
+  const both = houseRuleErrors(c, { name: { en: 'a — b@x', tr: 'y' } })['name.en'];
+  assert.ok(both.includes(EM_DASH_MESSAGE) && both.includes(NO_AT_MESSAGE), both);
+  assert.equal(messageKeys(both).join(), 'admin.cms.v.emDash,admin.cms.v.noAt');
+});
+
+// ── Resource links (Öğrenme) ─────────────────────────────────────────────────
+
+const RESOURCES = cmsType('resources')!;
+/** A synthetic resource (A2: no test reads what a real link says). */
+const aResource = () => ({
+  section: 'tools',
+  order: 40,
+  title: { en: 'Example Tool', tr: 'Örnek Araç' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' },
+  url: 'https://example.org/tool',
+  tags: { en: ['alignment', 'python'], tr: ['hizalama', 'python'] },
+  opensource: true,
+});
+
+test('resources: every resource file goes through the form and is written back byte for byte', () => {
+  const paths = Object.keys(FILES).filter((p) => p.startsWith('src/content/resources/'));
+  assert.ok(paths.length > 0);
+  for (const p of paths) {
+    const data = JSON.parse(FILES[p]);
+    assert.equal(serializeJson(RESOURCES, applyValues(MODELS.resources, data, formValues(MODELS.resources, data))), FILES[p], p);
+  }
+  const syn = aResource();
+  assert.equal(serializeJson(RESOURCES, applyValues(MODELS.resources, syn, formValues(MODELS.resources, syn))), `${JSON.stringify(syn, null, 2)}\n`);
+});
+
+test('resources: a Turkish tag edited changes that tag only', () => {
+  const data = aResource();
+  const values = formValues(MODELS.resources, data);
+  const tags = values.tags as Bi<string[]>;
+  const out = applyValues(MODELS.resources, data, { ...values, tags: { en: tags.en, tr: ['dizi-hizalama', 'python'] } });
+  assert.deepEqual(out, { ...data, tags: { en: data.tags.en, tr: ['dizi-hizalama', 'python'] } });
+  assert.deepEqual(Object.keys(out as object), Object.keys(data));
+});
+
+test('resources: a new one that is not open source, with no tags, still has both keys, in the schema\'s order', () => {
+  const values = { ...formValues(MODELS.resources, emptyData(MODELS.resources)), section: 'learning', order: '0', title: { en: 'New Course', tr: 'Yeni Ders' },
+    description: { en: 'A course.', tr: 'Bir ders.' }, url: 'https://example.org/course' };
+  const out = applyValues(MODELS.resources, emptyData(MODELS.resources), values) as Record<string, unknown>;
+  assert.equal(out.opensource, false, 'an unticked box is written, so submit does not ask for it');
+  assert.deepEqual(out.tags, { en: [], tr: [] }, 'no tags is written as two empty lists');
+  assert.deepEqual(Object.keys(JSON.parse(serializeJson(RESOURCES, out))), ['section', 'order', 'title', 'description', 'url', 'tags', 'opensource']);
+  // Only the tags are still to do: submit names them, in plain words.
+  const issues = RESOURCES.schema.safeParse(out).error?.issues ?? [];
+  assert.deepEqual(issues.map((i) => i.path.join('.')), ['tags.en']);
+  assert.equal(messageKey(issues[0].message), 'admin.cms.v.tagsMissing');
+  const odd = RESOURCES.schema.safeParse({ ...out, tags: { en: ['a', 'b'], tr: ['a'] } }).error?.issues ?? [];
+  assert.deepEqual(odd.map((i) => i.path.join('.')), ['tags.tr']);
+  assert.equal(messageKey(odd[0].message), 'admin.cms.v.tagsParity');
+  assert.ok(RESOURCES.schema.safeParse({ ...out, tags: { en: ['a'], tr: ['b'] } }).success);
+  // Optional ones elsewhere are untouched: an event's empty nfcore and links still add nothing.
+  const ev = applyValues(MODELS.events, {}, formValues(MODELS.events, {})) as Record<string, unknown>;
+  assert.ok(!Object.hasOwn(ev, 'nfcore') && !Object.hasOwn(ev, 'links'));
+});
+
+test('resources: the form\'s groups, the file name of a new one, its list line and its page', () => {
+  assert.deepEqual(MODELS.resources.fields.map((f) => f.key), ['section', 'order', 'title', 'description', 'url', 'tags', 'opensource']);
+  assert.deepEqual(MODELS.resources.fields.filter((f) => f.group === 'more').map((f) => f.key), ['order']);
+  assert.equal(MODELS.resources.sub, 'kaynaklar');
+  assert.equal(MODELS.resources.fields.find((f) => f.key === 'tags')!.kind, 'bilingualStrings');
+  assert.deepEqual(MODELS.resources.fields.find((f) => f.key === 'section')!.options, ['learning', 'md-drug', 'databases', 'tools', 'community']);
+  // The panel cannot import the schema (zod stays out of the admin bundle): pinned here.
+  assert.deepEqual([...RESOURCE_SECTIONS], [...resourceSections]);
+  for (const o of MODELS.resources.fields.find((f) => f.key === 'section')!.options!) {
+    assert.ok(ui.tr[`admin.cms.opt.${o}` as keyof typeof ui.tr] && ui.en[`admin.cms.opt.${o}` as keyof typeof ui.en], o);
+  }
+  assert.equal(suggestedId(MODELS.resources, { title: { en: 'Example Tool', tr: 'Örnek' } }), 'example-tool');
+  assert.equal(suggestedId(MODELS.resources, { title: { en: 'Example Tool', tr: '' } }), RESOURCES.idFrom({ title: { en: 'Example Tool', tr: '' } }));
+  assert.equal(livePath('resources', 'blast', [], 'en', 'tools'), '/resources/#tools');
+  assert.equal(livePath('resources', 'blast', [], 'tr', 'md-drug'), '/tr/resources/#md-drug');
+  assert.equal(livePath('resources', 'blast', [], 'tr'), '/tr/resources/');
+  // Not a section the page has: no anchor.
+  assert.equal(livePath('resources', 'blast', [], 'en', 'x"><b>'), '/resources/');
+});
+
+// ── Learning paths (Öğrenme, Task 6b) ────────────────────────────────────────
+
+import { serializeMarkdown } from '../src/lib/cms/serialize';
+import { lpResourceTags } from '../src/data/learning-paths';
+import { LP_LEVELS, LP_TAGS, withOptions, withoutUnpublishedIds } from '../src/scripts/admin/cms-form';
+import { nextStageNumber, stageId, stageNumber } from '../src/lib/cms/slug';
+
+const LP = ['lp-domains', 'lp-levels', 'lp-roadmap'] as const;
+type LpKey = (typeof LP)[number];
+/** Both files of an lp entry written from the form's data, as approval writes them. */
+const lpFiles = (key: LpKey, data: any) => ['en', 'tr'].map((l) => serializeMarkdown(cmsType(key)!, data[l]));
+/** A synthetic level (A2): a webinar card, a Turkish link with /tr, and a card with no webinar fields. */
+const aLevel = () => {
+  const side = (lang: 'en' | 'tr') => ({
+    frontmatter: {
+      domain: 'fixture', level: 'explorer', orientation: lang === 'en' ? 'Start here.' : 'Buradan başlayın.', prerequisites: [lang === 'en' ? 'Some biology' : 'Biraz biyoloji'],
+      sections: [
+        { type: 'foundations', resources: [
+          { id: 'fx-a', title: lang === 'en' ? 'A' : 'A tr', description: 'D', tag: 'Reading', url: lang === 'en' ? '/learning-paths/fixture/' : '/tr/learning-paths/fixture/' },
+          { id: 'fx-b', title: 'B', description: 'D', tag: 'Webinar', webinarSlug: 'fx-webinar', speaker: 'Ada Örnek', year: 2024 },
+        ] },
+        { type: 'papers', resources: [] },
+      ],
+    },
+    body: '',
+  });
+  const text = (lang: 'en' | 'tr') => serializeMarkdown(cmsType('lp-levels')!, side(lang));
+  // As GET /api/cms/entry answers it: parsed from the files, with their source.
+  return JSON.parse(JSON.stringify({ en: parseMarkdown(cmsType('lp-levels')!, text('en')), tr: parseMarkdown(cmsType('lp-levels')!, text('tr')) }));
+};
+
+test('learning paths: every lp file pair goes through the form and is written back byte for byte', () => {
+  for (const key of LP) {
+    assert.ok(INDEX[key].length > 0, key);
+    for (const e of INDEX[key]) {
+      const data = pair(e.id, key);
+      const out = applyValues(MODELS[key], data, formValues(MODELS[key], data)) as any;
+      assert.deepEqual(lpFiles(key, out), [FILES[e.paths!.en!], FILES[e.paths!.tr!]], `${key} ${e.id}`);
+    }
+  }
+  const syn = aLevel();
+  assert.deepEqual(lpFiles('lp-levels', applyValues(MODELS['lp-levels'], syn, formValues(MODELS['lp-levels'], syn))), lpFiles('lp-levels', syn));
+});
+
+test('learning paths: the models mirror the schemas (tabs, enums, ids read-only, webinar fields for webinars only)', () => {
+  assert.deepEqual(LP.map((k) => MODELS[k].sub), ['ogrenme-alanlari', 'ogrenme-seviyeleri', 'yol-haritasi']);
+  assert.deepEqual([...LP_TAGS], [...lpResourceTags]);
+  assert.deepEqual([...LP_LEVELS], ['explorer', 'practitioner', 'researcher', 'specialist']);
+  const res = MODELS['lp-roadmap'].fields.find((x) => x.key === 'resources')!;
+  const id = res.fields!.find((x) => x.key === 'id')!;
+  assert.ok(id.readOnly && !id.readOnlyAfterSave, 'the id is never typed, not even for a new row');
+  assert.equal(res.identity, 'id');
+  assert.deepEqual(res.fields!.map((x) => x.key), ['id', 'title', 'description', 'tag', 'url', 'webinarSlug', 'youtubeUrl', 'speaker', 'year']);
+  assert.deepEqual(res.fields!.filter((x) => x.perLang).map((x) => x.key), ['title', 'description', 'url']);
+  for (const k of ['webinarSlug', 'youtubeUrl', 'speaker', 'year']) {
+    const fd = res.fields!.find((x) => x.key === k)!;
+    assert.ok(shown(fd, { tag: 'Webinar' }) && !shown(fd, { tag: 'Tool' }), k);
+    assert.ok(shown(fd, { tag: { en: 'Webinar', tr: 'Tool' } }), 'a split tag goes by the English side');
+  }
+  assert.deepEqual(MODELS['lp-levels'].lockedOnUpdate, ['domain', 'level']);
+  assert.deepEqual(MODELS['lp-roadmap'].lockedOnUpdate, ['number']);
+  assert.ok(MODELS['lp-roadmap'].fields.find((x) => x.key === 'number')!.readOnly, 'the server numbers a stage');
+  for (const key of LP) assert.deepEqual(cmsType(key)!.lockedKeys, MODELS[key].lockedOnUpdate ?? [], key);
+  for (const key of LP) assert.equal(MODELS[key].appendKey ?? '', cmsType(key)!.appendKey, key);
+  assert.equal(MODELS['lp-levels'].heading!({ domain: { en: 'ml', tr: 'ml' }, level: { en: 'researcher', tr: 'researcher' } }), 'ml · researcher');
+  // Every option has its words in both languages.
+  for (const key of LP) for (const fd of [...MODELS[key].fields, ...MODELS[key].fields.flatMap((x) => x.fields ?? []), ...res.fields!]) {
+    for (const o of fd.optionsFrom ? [] : fd.options ?? []) assert.ok(ui.tr[`admin.cms.opt.${o}` as keyof typeof ui.tr] && ui.en[`admin.cms.opt.${o}` as keyof typeof ui.en], `${key} ${o}`);
+  }
+  // A section's line is its kind; a resource's its title in the panel's language.
+  const sections = MODELS['lp-levels'].fields.find((x) => x.key === 'sections')!;
+  assert.equal(rowSummary(sections, { type: 'toolkit' }, 'tr'), 'toolkit');
+  assert.equal(sections.rowOption, 'type');
+  assert.equal(rowSummary(res, { id: 'x-1', title: { en: 'One', tr: 'Bir' } }, 'tr'), 'Bir');
+});
+
+test('learning paths: a new resource gets an empty id first, an empty Turkish link is the English one, the webinar fields are kept while hidden', () => {
+  const data = aLevel();
+  const model = MODELS['lp-levels'];
+  const values = copy(formValues(model, data));
+  const sections = values.sections as Row[];
+  const sres = sections[1].resources as Row[];
+  sres.push({ ...emptyRow(MODELS['lp-roadmap'].fields.find((x) => x.key === 'resources')!, true),
+    title: { en: 'Landmark', tr: 'Dönüm noktası' }, description: { en: 'Why.', tr: 'Neden.' }, tag: 'Paper', url: { en: 'https://example.org/p', tr: '' } });
+  // The webinar card becomes a tool card: its webinar fields hide, but stay.
+  (sections[0].resources as Row[])[1].tag = 'Tool';
+  const out = applyValues(model, data, values) as any;
+  for (const l of ['en', 'tr'] as const) {
+    const added = out[l].frontmatter.sections[1].resources[0];
+    assert.deepEqual(Object.keys(added), ['id', 'title', 'description', 'tag', 'url'], l);
+    assert.equal(added.id, '', 'the server gives it its id');
+    assert.equal(added.url, 'https://example.org/p', `${l}: one link for both languages`);
+    assert.equal(out[l].frontmatter.sections[0].resources[1].webinarSlug, 'fx-webinar');
+  }
+  // The /tr link of the first card is untouched on its side.
+  assert.equal(out.tr.frontmatter.sections[0].resources[0].url, '/tr/learning-paths/fixture/');
+  assert.equal(out.en.frontmatter.sections[0].resources[0].url, '/learning-paths/fixture/');
+});
+
+test('learning paths: a new level and a new stage are written with every key, in the schema\'s order', () => {
+  const level = MODELS['lp-levels'];
+  const v = { ...formValues(level, emptyData(level)), domain: { en: 'fixture', tr: 'fixture' }, level: { en: 'explorer', tr: 'explorer' }, orientation: { en: 'O.', tr: 'G.' } };
+  const out = applyValues(level, emptyData(level), v) as any;
+  for (const l of ['en', 'tr'] as const) assert.deepEqual(Object.keys(out[l].frontmatter), ['domain', 'level', 'orientation', 'prerequisites', 'sections'], l);
+  assert.deepEqual(out.en.frontmatter.prerequisites, []);
+  assert.deepEqual(out.tr.frontmatter.sections, []);
+  assert.equal(suggestedId(level, v), 'fixture-explorer');
+  const text = serializeMarkdown(cmsType('lp-levels')!, out.en);
+  const { source: _s, ...again } = parseMarkdown(cmsType('lp-levels')!, text);
+  assert.equal(serializeMarkdown(cmsType('lp-levels')!, again), text, 'in the form the normaliser checks');
+
+  const stage = MODELS['lp-roadmap'];
+  // The form opens a new stage with the number the server will give (cms.ts).
+  const base = { en: { frontmatter: { number: 9 }, body: '' }, tr: { frontmatter: { number: 9 }, body: '' } };
+  const sv = { ...formValues(stage, base), emoji: { en: '🧪', tr: '🧪' }, title: { en: 'Try it', tr: 'Deneyin' }, subtitle: { en: 'S.', tr: 'A.' }, color: { en: 'red', tr: 'red' } };
+  const st = applyValues(stage, base, sv) as any;
+  for (const l of ['en', 'tr'] as const) assert.deepEqual(Object.keys(st[l].frontmatter), ['number', 'emoji', 'title', 'subtitle', 'color', 'resources'], l);
+  assert.equal(st.tr.frontmatter.number, 9);
+  assert.equal(suggestedId(stage, sv), '09-try-it');
+  assert.equal(cmsType('lp-roadmap')!.idFrom({ frontmatter: st.en.frontmatter }), '09-try-it');
+  assert.equal(suggestedId(MODELS['lp-domains'], { name: { en: 'Systems Biology', tr: 'Sistem Biyolojisi' } }), 'systems-biology');
+});
+
+test('learning paths: stage numbers, live pages, and the domain choices', () => {
+  assert.equal(stageId(7, 'direction'), '07-direction');
+  assert.equal(stageId(12, 'x'), '12-x');
+  assert.equal(stageNumber('08-first-project'), 8);
+  assert.equal(nextStageNumber(['01-a', '02-b', '08-c']), 9, 'after the highest; a gap is not filled');
+  assert.equal(nextStageNumber([]), 1);
+  assert.equal(livePath('lp-domains', 'genomics', [], 'tr'), '/tr/learning-paths/genomics/');
+  assert.equal(livePath('lp-levels', 'metagenomics-practitioner', [], 'en'), '/learning-paths/metagenomics/?level=practitioner');
+  assert.equal(livePath('lp-levels', 'odd', [], 'en'), '/learning-paths/');
+  assert.equal(livePath('lp-roadmap', '07-direction', [], 'tr'), '/tr/learning-paths/roadmap/#tr/07-direction');
+  const m = withOptions(MODELS['lp-levels'], { 'lp-domains': [{ id: 'genomics', title: 'Genomics' }] }, { en: { frontmatter: { domain: 'old' } }, tr: { frontmatter: {} } });
+  const domain = m.fields.find((x) => x.key === 'domain')!;
+  assert.deepEqual(domain.options, ['genomics', 'old'], 'the published domains, and the entry\'s own');
+  assert.deepEqual(domain.optionLabels, { genomics: 'Genomics', old: 'old' });
+  assert.equal(withOptions(MODELS.events, {}, {}), MODELS.events);
+});
+
+test('learning paths: an empty Turkish link is not a half translation; a rebase empties ids main does not have', () => {
+  const data = aLevel();
+  const values = copy(formValues(MODELS['lp-levels'], data));
+  const card = ((values.sections as Row[])[0].resources as Row[])[0];
+  card.url = { en: 'https://example.org/x', tr: '' };
+  assert.deepEqual(halfTranslated(MODELS['lp-levels'], values), []);
+  // A draft whose new card was given an id is rebased onto main: that id is the old draft's only.
+  const drafted = copy(data);
+  for (const l of ['en', 'tr'] as const) drafted[l].frontmatter.sections[1].resources.push({ id: 'new-card-abc123', title: 'N', description: 'D', tag: 'Paper' });
+  const out = withoutUnpublishedIds(drafted, data) as any;
+  for (const l of ['en', 'tr'] as const) {
+    assert.equal(out[l].frontmatter.sections[1].resources[0].id, '', l);
+    assert.equal(out[l].frontmatter.sections[0].resources[0].id, 'fx-a', 'published ids stay');
+  }
+  assert.equal(drafted.en.frontmatter.sections[1].resources[0].id, 'new-card-abc123', 'the input is not changed');
+});
+
+import { rebased, trLinkFrom } from '../src/scripts/admin/cms-form';
+
+test('fix round 1: a rebase, saved or not, empties ids the site\'s version lacks; only types with progress ids', () => {
+  const site = aLevel();
+  const form = copy(aLevel());
+  for (const l of ['en', 'tr'] as const) form[l].frontmatter.sections[1].resources.push({ id: 'given-abc123', title: 'N', description: 'D', tag: 'Paper' });
+  const out = rebased(MODELS['lp-levels'], site, formValues(MODELS['lp-levels'], form)) as any;
+  for (const l of ['en', 'tr'] as const) {
+    assert.equal(out[l].frontmatter.sections[1].resources[0].id, '', `${l}: given to another draft`);
+    assert.equal(out[l].frontmatter.sections[0].resources[0].id, 'fx-a');
+  }
+  assert.ok(MODELS['lp-levels'].resourceIds && MODELS['lp-roadmap'].resourceIds && !MODELS['lp-domains'].resourceIds);
+  for (const key of LP) assert.equal(MODELS[key].resourceIds ?? false, cmsType(key)!.resourceIds, key);
+  // A type without progress ids is only written onto the new version.
+  const ev = JSON.parse(FILES[EVENT_PATH]);
+  assert.deepEqual(rebased(MODELS.events, ev, formValues(MODELS.events, ev)), ev);
+});
+
+test('fix round 1: an empty Turkish link to this site gets /tr; an external one is copied as it is', () => {
+  assert.equal(trLinkFrom('/learning-paths/genomics/'), '/tr/learning-paths/genomics/');
+  assert.equal(trLinkFrom('/tr/events/'), '/tr/events/');
+  assert.equal(trLinkFrom('https://example.org/x'), 'https://example.org/x');
+  assert.equal(trLinkFrom('//cdn.example.org/x'), '//cdn.example.org/x');
+  const data = aLevel();
+  const values = copy(formValues(MODELS['lp-levels'], data));
+  ((values.sections as Row[])[0].resources as Row[])[0].url = { en: '/events/', tr: '' };
+  const out = applyValues(MODELS['lp-levels'], data, values) as any;
+  assert.equal(out.tr.frontmatter.sections[0].resources[0].url, '/tr/events/');
+  assert.equal(out.en.frontmatter.sections[0].resources[0].url, '/events/');
+  for (const [m, k] of [['This id is used twice: another learning-path file has it', 'lpIdElsewhere'], ['A new id may not start with tr-', 'lpIdTr'],
+    ['The English and Turkish sides must have the same sections, each with as many resources', 'lpStructure'], ['Not a published domain: no such domain file on the site\'s main branch', 'lpDomain']]) {
+    assert.equal(messageKey(m), `admin.cms.v.${k}`, m);
+  }
+});
+
+import { removedResourceIds, sameSave } from '../src/scripts/admin/cms-form';
+
+test('fix round 1: the approver is told each published id a draft drops; a lost save is recognised with the server\'s own keys left out', () => {
+  const site = aLevel();
+  const draft = copy(site);
+  for (const l of ['en', 'tr'] as const) draft[l].frontmatter.sections[0].resources.shift();
+  assert.deepEqual(removedResourceIds(site, draft), ['fx-a']);
+  assert.deepEqual(removedResourceIds(site, site), []);
+  // The tab sent a new card with an empty id; the server stored it with its id, _assigned and source.
+  const sent = copy(site);
+  for (const l of ['en', 'tr'] as const) { delete sent[l].source; sent[l].frontmatter.sections[1].resources.push({ id: '', title: 'N', description: 'D', tag: 'Paper' }); }
+  const stored = copy(sent);
+  for (const l of ['en', 'tr'] as const) { stored[l].source = 'x: 1\n'; stored[l].frontmatter.sections[1].resources[0].id = 'n-abc123'; }
+  stored._assigned = ['n-abc123'];
+  assert.ok(sameSave(stored, sent));
+  assert.ok(!sameData(stored, sent), 'a plain comparison would miss it');
+  const other = copy(sent);
+  other.en.frontmatter.orientation = 'changed';
+  assert.ok(!sameSave(stored, other), 'a different save is not this one');
+});
+
+// ── Task 7: Sayfalar (page texts and the privacy notice) ─────────────────────
+
+import { pairForm, withFieldFrom } from '../src/scripts/admin/cms-form';
+
+const PAGE_FILES = Object.keys(FILES).filter((p) => p.startsWith('src/content/pages/')).sort();
+const PRIVACY_FILE = 'src/content/privacy/privacy.json';
+
+test('pages: every page file goes through the form and is written back byte for byte, one field per key in the file\'s order', () => {
+  assert.ok(PAGE_FILES.length > 0);
+  for (const path of PAGE_FILES) {
+    const data = JSON.parse(FILES[path]);
+    const m = withFields(MODELS.pages, data);
+    assert.deepEqual(m.fields.map((x) => x.key), Object.keys(data), path);
+    assert.ok(m.fields.every((x) => x.kind === 'bilingual' && x.multiline && x.required && x.label === x.key), path);
+    assert.equal(serializeJson(cmsType('pages')!, applyValues(m, data, formValues(m, data))), FILES[path], path);
+  }
+});
+
+test('pages: an edit keeps the file\'s key order, also when it is not alphabetical, and changes one value', () => {
+  const text = `${JSON.stringify({ zeta: { en: 'Z', tr: 'Ze' }, alpha: { tr: 'A tr', en: 'A' }, mid: { en: 'M', tr: 'Em' } }, null, 2)}\n`;
+  const data = JSON.parse(text);
+  const m = withFields(MODELS.pages, data);
+  const values = formValues(m, data);
+  (values.mid as Bi).en = 'Middle';
+  const out = applyValues(m, data, values) as Record<string, Record<string, string>>;
+  assert.deepEqual(Object.keys(out), ['zeta', 'alpha', 'mid']);
+  assert.deepEqual(Object.keys(out.alpha), ['tr', 'en'], 'an untouched text keeps even its inner order');
+  assert.equal(serializeJson(cmsType('pages')!, out), text.replace('"en": "M"', '"en": "Middle"'));
+});
+
+test('pages: a key is its own label (no page key is an i18n key), the page is its live link, no new and no delete', () => {
+  const uiKeys = new Set(Object.keys(ui.en));
+  for (const path of PAGE_FILES) for (const k of Object.keys(JSON.parse(FILES[path]))) assert.ok(!uiKeys.has(k), `${path}: ${k} is also an i18n key`);
+  assert.equal(livePath('pages', 'home', [], 'en'), '/');
+  assert.equal(livePath('pages', 'home', [], 'tr'), '/tr/');
+  assert.equal(livePath('pages', 'about', [], 'tr'), '/tr/about/');
+  assert.equal(livePath('privacy', 'privacy', [], 'en'), '/privacy/');
+  assert.equal(livePath('privacy', 'privacy', [], 'tr'), '/tr/privacy/');
+  assert.equal(MODELS.pages.sub, 'sayfa-metinleri');
+  assert.equal(MODELS.privacy.sub, 'gizlilik');
+});
+
+/** A privacy notice, synthetic (A2): one section of items, one of a paragraph. */
+const notice = (lang: 'en' | 'tr') => ({
+  title: lang === 'en' ? 'Privacy' : 'Gizlilik',
+  description: lang === 'en' ? 'What we keep.' : 'Ne saklıyoruz.',
+  intro: [lang === 'en' ? 'Write to {contact}.' : '{contact} adresine yazın.'],
+  sections: [
+    { heading: lang === 'en' ? 'What' : 'Ne', paragraphs: [], items: [lang === 'en' ? 'Name.' : 'Ad.', lang === 'en' ? 'Photo.' : 'Fotoğraf.'] },
+    { heading: lang === 'en' ? 'Changes' : 'Değişiklikler', paragraphs: [lang === 'en' ? 'The date changes.' : 'Tarih değişir.'], items: [] },
+  ],
+});
+const PRIVACY_DATA = { updated: '2020-01-02', en: notice('en'), tr: notice('tr') };
+const PRIVACY = cmsType('privacy')!;
+
+test('privacy: the file goes through the form and back byte for byte; the form is the two languages side by side', () => {
+  for (const [name, text] of [[PRIVACY_FILE, FILES[PRIVACY_FILE]], ['synthetic', `${JSON.stringify(PRIVACY_DATA, null, 2)}\n`]]) {
+    const data = JSON.parse(text);
+    assert.equal(serializeJson(PRIVACY, applyValues(MODELS.privacy, data, formValues(MODELS.privacy, data))), text, name);
+  }
+  assert.ok(pairForm(MODELS.privacy) && !pairForm(MODELS.pages) && pairForm(MODELS.webinars));
+  const v = formValues(MODELS.privacy, PRIVACY_DATA);
+  assert.deepEqual(v.title, { en: 'Privacy', tr: 'Gizlilik' });
+  assert.deepEqual(v.intro, { en: ['Write to {contact}.'], tr: ['{contact} adresine yazın.'] });
+  const rows = v.sections as Row[];
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows[0].items, { en: ['Name.', 'Photo.'], tr: ['Ad.', 'Fotoğraf.'] });
+  assert.equal(v.updated, undefined, 'the date is not in the form');
+});
+
+test('privacy: an edit in one language stays there; a new section is written with every key, in the schema\'s order; the date passes through', () => {
+  const v = formValues(MODELS.privacy, PRIVACY_DATA);
+  const rows = copy(v.sections as Row[]);
+  (rows[0].items as Bi<string[]>).tr = ['Ad.', 'Profil fotoğrafı.'];
+  rows.push({ heading: { en: 'Rights', tr: 'Haklar' }, paragraphs: { en: ['Ask us.'], tr: ['Bize sorun.'] }, items: { en: [], tr: [] } });
+  const out = applyValues(MODELS.privacy, PRIVACY_DATA, { ...v, sections: rows }) as typeof PRIVACY_DATA;
+  assert.deepEqual(Object.keys(out), ['updated', 'en', 'tr']);
+  assert.equal(out.updated, '2020-01-02');
+  assert.deepEqual(out.en.sections[0], PRIVACY_DATA.en.sections[0], 'English untouched');
+  assert.deepEqual(out.tr.sections[0].items, ['Ad.', 'Profil fotoğrafı.']);
+  assert.deepEqual(out.en.sections[2], { heading: 'Rights', paragraphs: ['Ask us.'], items: [] });
+  assert.deepEqual(Object.keys(out.tr.sections[2]), ['heading', 'paragraphs', 'items']);
+  assert.ok(PRIVACY.schema.safeParse(out).success);
+  // "Take the site's value" for one field takes both languages of it.
+  const other = copy(PRIVACY_DATA);
+  other.en.title = 'Privacy policy';
+  other.tr.title = 'Gizlilik politikası';
+  const taken = withFieldFrom(MODELS.privacy, out, other, 'title') as typeof PRIVACY_DATA;
+  assert.deepEqual([taken.en.title, taken.tr.title, taken.updated], ['Privacy policy', 'Gizlilik politikası', '2020-01-02']);
+  assert.deepEqual(taken.tr.sections, out.tr.sections);
+});
+
+test('privacy: server errors land on their field and language; the parity sentence has its own words', () => {
+  assert.deepEqual(placeOf(MODELS.privacy, 'tr.intro'), { key: 'intro', lang: 'tr' });
+  const p = placeOf(MODELS.privacy, 'tr.sections.1.items');
+  assert.equal(p.key, 'sections');
+  assert.equal(p.lang, 'tr');
+  assert.deepEqual(p.trail, [{ key: 'sections', row: 1 }]);
+  assert.equal(p.leaf, 'items');
+  assert.equal(placeOf(MODELS.privacy, 'en.title').key, 'title');
+  assert.equal(placeOf(MODELS.privacy, 'updated').key, null);
+  const parity = PRIVACY.schema.safeParse({ ...PRIVACY_DATA, tr: { ...notice('tr'), intro: ['Bir.', 'İki.'] } });
+  assert.ok(!parity.success);
+  const msg = parity.error.issues.find((i) => i.path.join('.') === 'tr.intro')?.message ?? '';
+  assert.equal(messageKey(msg), 'admin.cms.v.privacyParity');
+  assert.equal(messageKey(NO_AT_MESSAGE), 'admin.cms.v.noAt');
+});
+
+// ── Blog posts (Yazılar): one language or both ───────────────────────────────
+
+const BLOG = MODELS.blog;
+const BLOG_TYPE = cmsType('blog')!;
+/** A synthetic post side (A2). */
+const postSide = (lang: 'en' | 'tr', o: Record<string, unknown> = {}) => ({
+  frontmatter: { title: lang === 'en' ? 'A post' : 'Bir yazı', pubDate: '2026-01-05', description: `${lang} d`, author: 'An Author', category: 'general', tags: [lang === 'en' ? 'genomics' : 'genomik'], image: '/api/images/a.webp', ...o },
+  body: `\n${lang} body\n`,
+});
+
+test('blog: every published post, one language or both, goes through the form and back unchanged', () => {
+  assert.ok(INDEX.blog.length > 0);
+  for (const e of INDEX.blog) {
+    const data = pair(e.id, 'blog');
+    const model = withSides(BLOG, data);
+    assert.deepEqual(applyValues(model, data, formValues(model, data)), data, e.id);
+    assert.deepEqual(applyValues(BLOG, data, formValues(BLOG, data)), data, `${e.id} (no present)`);
+  }
+});
+
+test('blog: the form groups, as the brief lists them', () => {
+  assert.deepEqual(BLOG.fields.filter((f) => f.group === 'main').map((f) => f.key), ['title', 'description', 'pubDate', 'author', 'category', 'tags', 'image', 'body']);
+  assert.deepEqual(BLOG.fields.filter((f) => f.group === 'more').map((f) => f.key), ['type', 'youtubeUrl', 'speaker', 'speakerAffiliation', 'speakerTitle', 'topic', 'keyTakeaways', 'slidesUrl', 'draft']);
+  assert.equal(BLOG.fields.find((f) => f.key === 'pubDate')!.today, true);
+});
+
+test('blog: a new post starts in one language with today\'s date; the other is null, never an empty side', () => {
+  assert.deepEqual(emptyData(BLOG, { lang: 'tr', today: '2026-10-25' }), { en: null, tr: { frontmatter: { pubDate: '2026-10-25' }, body: '' } });
+  assert.deepEqual(emptyData(BLOG, { today: '2026-10-25' }), { en: { frontmatter: { pubDate: '2026-10-25' }, body: '' }, tr: null });
+  // Other pair types are unchanged.
+  assert.deepEqual(emptyData(MODELS.webinars), { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } });
+  assert.deepEqual(sidesOf(BLOG, { en: null, tr: postSide('tr') }), ['tr']);
+  assert.deepEqual(sidesOf(MODELS.webinars, { en: null, tr: postSide('tr') }), ['en', 'tr']);
+});
+
+test('blog: a post in one language writes only that language; the other stays null', () => {
+  const data = { en: null, tr: postSide('tr') };
+  const model = withSides(BLOG, data);
+  assert.deepEqual(model.present, ['tr']);
+  const values = formValues(model, data);
+  // A shared value reads as one (the other side takes the present one's), texts of the absent side are empty.
+  assert.ok(sharedShowsOne(BLOG.fields.find((f) => f.key === 'category')!, values.category as Bi<unknown>));
+  assert.deepEqual(values.title, { en: '', tr: 'Bir yazı' });
+  const out = applyValues(model, data, { ...values, title: { en: 'ignored', tr: 'Yeni başlık' } }) as any;
+  assert.equal(out.en, null, 'the absent language gets nothing, whatever the form holds for it');
+  assert.equal(out.tr.frontmatter.title, 'Yeni başlık');
+  // Not half translated: there is no second language.
+  assert.deepEqual(halfTranslated(model, { ...values, tags: { en: [], tr: ['x'] } }), []);
+  // Its file name comes from the title it has.
+  assert.equal(suggestedId(model, { title: { en: '', tr: 'Yeni Bir Yazı' } }), 'yeni-bir-yazi');
+  assert.equal(suggestedId(withSides(BLOG, { en: postSide('en'), tr: postSide('tr') }), { title: { en: 'A Post', tr: 'Bir Yazı' } }), 'a-post');
+});
+
+test('blog: adding the other language starts it empty with the shared values; taking it out again leaves null', () => {
+  const data = { en: postSide('en'), tr: null };
+  const values = formValues(withSides(BLOG, data), data);
+  const added = withSide(data, 'tr') as any;
+  assert.deepEqual(added.tr, { frontmatter: {}, body: '' });
+  assert.equal(data.tr, null, 'the input is not changed');
+  const model = withSides(BLOG, added);
+  assert.deepEqual(model.present, ['en', 'tr']);
+  // The form's values as they stand (shared ones are one value for both).
+  const out = applyValues(model, added, { ...values, title: { en: 'A post', tr: 'Bir yazı' }, description: { en: 'en d', tr: 'tr d' }, body: { en: (values.body as Bi).en, tr: 'Türkçe' } }) as any;
+  assert.equal(out.tr.frontmatter.category, 'general');
+  assert.equal(out.tr.frontmatter.pubDate, '2026-01-05');
+  assert.equal(out.tr.frontmatter.image, '/api/images/a.webp');
+  assert.equal(out.tr.frontmatter.title, 'Bir yazı');
+  assert.equal(out.tr.body, 'Türkçe');
+  assert.deepEqual(out.en, data.en, 'the English side is untouched');
+  // Now half translated is a warning again: two languages.
+  assert.ok(halfTranslated(model, { ...formValues(model, out), tags: { en: ['a'], tr: [] } }).length > 0);
+  // A translationKey the other side has goes with it (the two must agree).
+  assert.equal((withSide({ en: postSide('en', { translationKey: 'k' }), tr: null }, 'tr') as any).tr.frontmatter.translationKey, 'k');
+  assert.deepEqual(withoutSide(out, 'tr'), { en: out.en, tr: null });
+});
+
+test('blog: a rebase keeps a language the site gained, and one the draft added', () => {
+  // The form shows English only; the site meanwhile has a Turkish side too.
+  const fresh = { en: postSide('en'), tr: postSide('tr') };
+  const shown = withSides(BLOG, { en: postSide('en'), tr: null });
+  const values = formValues(shown, { en: postSide('en'), tr: null });
+  const out = applyValues(shown, fresh, { ...values, title: { en: 'Edited', tr: '' } }) as any;
+  assert.equal(out.en.frontmatter.title, 'Edited');
+  assert.deepEqual(out.tr, fresh.tr, 'the Turkish side the form never showed is kept, not emptied');
+  // The draft added Turkish; the site still has English only.
+  const both = withSides(BLOG, { en: postSide('en'), tr: postSide('tr') });
+  const kept = applyValues(both, { en: postSide('en'), tr: null }, formValues(both, { en: postSide('en'), tr: postSide('tr') })) as any;
+  assert.equal(kept.tr.frontmatter.title, 'Bir yazı');
+});
+
+test('blog: the live link opens the language the post has', () => {
+  const en = 'src/content/blog/en/a-post.md';
+  const tr = 'src/content/blog/tr/bir-yazi.md';
+  assert.equal(livePath('blog', 'a-post', [en, tr], 'tr'), '/tr/blog/bir-yazi/');
+  assert.equal(livePath('blog', 'a-post', [en, tr], 'en'), '/blog/a-post/');
+  assert.equal(livePath('blog', 'a-post', [en], 'tr'), '/blog/a-post/');
+  assert.equal(livePath('blog', 'bir-yazi', [tr], 'en'), '/tr/blog/bir-yazi/');
+});
+
+test('blog: the approver\'s file diff of a one-language post has its one file, no row for the language it lacks', async () => {
+  const { fileDiffs, hiddenFileChanges } = await import('../src/scripts/admin/cms-diff');
+  const en = 'src/content/blog/en/a-post.md';
+  const tr = 'src/content/blog/tr/a-post.md';
+  const before = '---\ntitle: "A post"\n---\n\nText.\n';
+  const after = '---\ntitle: "A post, edited"\n---\n\nText.\n';
+  // GET /api/cms/entry answers both paths (the missing one null); the draft writes one file.
+  const files = fileDiffs({ [en]: before, [tr]: null }, [{ path: en, content: after }]);
+  assert.deepEqual(files.map((f) => f.path), [en]);
+  assert.ok(files[0].changed);
+  // A Turkish side added in the draft is a new file: all of it shows as added.
+  const added = fileDiffs({ [en]: before, [tr]: null }, [{ path: en, content: before }, { path: tr, content: after }]);
+  assert.deepEqual(added.map((f) => [f.path, f.changed]), [[en, false], [tr, true]]);
+  const fields = diffEntry(BLOG, { en: postSide('en'), tr: null }, { en: postSide('en'), tr: postSide('tr') }, BLOG.fields);
+  assert.ok(fields.changed.length > 0, 'the added language shows in the field diff');
+  assert.ok(!hiddenFileChanges(added, fields));
+});
+
+test('blog: an error on a Turkish-only post\'s title lands on the Turkish title', () => {
+  assert.deepEqual(placeOf(BLOG, 'tr.frontmatter.title'), { key: 'title', lang: 'tr' });
+  assert.equal(messageKey('Write the entry in English, Turkish or both'), 'admin.cms.v.oneSide');
+  assert.equal(messageKey('Published in this language: it cannot be removed in a draft. Delete the entry to remove it'), 'admin.cms.v.sideKept');
+  assert.equal(BLOG_TYPE.sides, 'either');
+});
+
+test('the form previews the capped file name the server will give', () => {
+  const long = `${'Word '.repeat(60)}end`;
+  assert.equal(suggestedId(MODELS.blog, { title: { en: long, tr: '' } }), cmsType('blog')!.idFrom({ frontmatter: { title: long } }));
+  const event = suggestedId(MODELS.events, { title: { en: long, tr: '' }, start: '2027-03-06' });
+  assert.ok(event.length <= 80, `${event.length}`);
+  assert.match(event, /^[a-z0-9-]+-2027$/);
+  assert.doesNotMatch(event, /--/);
 });

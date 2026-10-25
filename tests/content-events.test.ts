@@ -35,10 +35,15 @@ test('every title, date line, location and description has both languages', () =
 });
 
 test('dates are read as UTC midnight of the day they name, not shifted a day', () => {
-  const s = readEvents().find((e) => e.id === 'symposium-2026');
-  assert.ok(s);
-  assert.equal(s.start.getTime(), Date.UTC(2026, 9, 10));
-  assert.equal(s.end?.getTime(), Date.UTC(2026, 9, 11));
+  // Every event, from its own file: no entry or date is named, since the
+  // panel edits them (A2).
+  const midnight = (day: string) => { const [y, m, d] = day.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  const raw = new Map(eventFiles().map(({ raw: r }) => [(r as { id: string }).id, r as { start: string; end?: string }]));
+  for (const e of readEvents()) {
+    const r = raw.get(e.id)!;
+    assert.equal(e.start.getTime(), midnight(r.start), e.id);
+    if (r.end) assert.equal(e.end?.getTime(), midnight(r.end), e.id);
+  }
 });
 
 const base = {

@@ -58,3 +58,26 @@ test('the thread segment survives for a sender and drops with its sub-page', () 
   assert.deepEqual(resolveRoute({ section: 'eposta', sub: 'yetki', item: '42' }, sender, false, false), { section: 'eposta', sub: 'gelen', item: null });
   assert.deepEqual(resolveRoute({ section: 'kayit', sub: null, item: '42' }, sender, false, false), { section: 'eposta', sub: 'gelen', item: null });
 });
+
+test('the old Etkinlikler address is the İçerik one with its prefix swapped (PR #325 links to it)', () => {
+  const editor = { ...none, cms: { etkinlikler: { edit: true, approve: false } } };
+  const id = '00000000-0000-4000-8000-000000000002';
+  assert.deepEqual(parseHash(`#icerik-etkinlikler/taslaklar/${id}`), { section: 'icerik', sub: 'taslaklar', item: id });
+  assert.deepEqual(resolveRoute(parseHash(`#icerik-etkinlikler/taslaklar/${id}`), editor, false, false), { section: 'icerik', sub: 'taslaklar', item: id });
+  assert.equal(toHash(resolveRoute(parseHash('#icerik-etkinlikler/webinarlar/_new'), editor, false, false)), '#icerik/webinarlar/_new');
+  assert.equal(toHash(resolveRoute(parseHash('#icerik-etkinlikler'), editor, false, false)), '#icerik/etkinlikler');
+  // Only that one prefix: a look-alike is not rewritten.
+  assert.equal(parseHash('#icerik-etkinliklerx/taslaklar')!.section, 'icerik-etkinliklerx');
+});
+
+test('the old Blog section (member submissions) opens İçerik\'s Blog tab', () => {
+  const admin = { ...none, admin: true, cms: { etkinlikler: { edit: true, approve: true }, yazilar: { edit: true, approve: true } } } as RoleFlags;
+  assert.deepEqual(parseHash('#blog'), { section: 'icerik', sub: 'blog', item: null });
+  // An old submission id after it is not a content entry: dropped.
+  assert.deepEqual(parseHash('#blog/00000000-0000-4000-8000-000000000009'), { section: 'icerik', sub: 'blog', item: null });
+  assert.deepEqual(parseHash('#blog/x/y'), { section: 'icerik', sub: 'blog', item: null });
+  assert.equal(toHash(resolveRoute(parseHash('#blog'), admin, false, false)), '#icerik/blog');
+  // Someone who no longer edits posts lands where they always would.
+  assert.equal(resolveRoute(parseHash('#blog'), { ...none, sender: true }, false, false).section, 'eposta');
+  assert.equal(parseHash('#blogx')!.section, 'blogx');
+});

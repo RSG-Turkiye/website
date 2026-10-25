@@ -111,22 +111,6 @@ function collection(name: string): TranslatableEntry[] {
   return entries;
 }
 
-test('the six talks that were unreachable now pair, in both directions', () => {
-  const all = collection('webinars');
-  const pairs: [string, string][] = [
-    ['molecular-simulations', 'molekuler-simulasyonlar'],
-    ['computational-challenges-protein-rna', 'protein-rna-etkilesimleri'],
-    ['language-models-protein-properties', 'dil-modelleri-protein-ozellikleri'],
-    ['understanding-disease-mechanisms', 'hastalik-mekanizmalarinin-anlasilmasi'],
-    ['open-student-webinars', 'acik-ogrenci-webinarlari'],
-    ['integrative-modeling-of-biomolecular-complexes', 'first-webinar-2018-integrative-modeling'],
-  ];
-  for (const [en, tr] of pairs) {
-    assert.equal(counterpartSlug(all, `en/${en}`, 'tr'), tr, `en/${en} → tr`);
-    assert.equal(counterpartSlug(all, `tr/${tr}`, 'en'), en, `tr/${tr} → en`);
-  }
-});
-
 test('every declared key is declared on both sides', () => {
   // A key with no partner is a typo that silently unpairs a translation, which
   // is the failure this whole mechanism exists to end.

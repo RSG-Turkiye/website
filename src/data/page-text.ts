@@ -16,7 +16,8 @@ export type Lang = "en" | "tr";
 
 export const pageTextSchema = z.record(
   z.string(),
-  z.object({ en: z.string().min(1), tr: z.string().min(1) }).strict(),
+  // Whitespace only is empty: the page would show nothing.
+  z.object({ en: z.string().trim().min(1), tr: z.string().trim().min(1) }).strict(),
 );
 
 export type PageText = z.infer<typeof pageTextSchema>;

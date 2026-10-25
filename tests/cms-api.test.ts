@@ -9,10 +9,13 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { call } from './lib/social';
 import { buildCmsIndex, type CmsIndex } from '../src/lib/cms/cms-index';
-import { cmsType } from '../src/lib/cms/types';
-import { parseJson, parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
-import { filesFor, validateDraft, prTitle, prBody } from '../functions/_lib/cms-drafts';
+import { realFixtures } from './lib/cms-fixtures';
+import { z } from 'astro/zod';
+import { CMS_TYPES, cmsType, defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
+import { parseJson, parseMarkdown, serializeJson, serializeMarkdown } from '../src/lib/cms/serialize';
+import { filesFor, istanbulDay, validateDraft, prTitle, prBody } from '../functions/_lib/cms-drafts';
 import { setCmsIndexLoader } from '../functions/_lib/cms-api';
+import { lpErrors } from '../functions/_lib/cms-lp';
 import * as types from '../functions/api/cms/types';
 import * as entries from '../functions/api/cms/entries';
 import * as entry from '../functions/api/cms/entry';
@@ -22,6 +25,7 @@ import * as submit from '../functions/api/cms/drafts/[id]/submit';
 import * as approve from '../functions/api/cms/drafts/[id]/approve';
 import * as reject from '../functions/api/cms/drafts/[id]/reject';
 import * as cancel from '../functions/api/cms/drafts/[id]/cancel';
+import * as counts from '../functions/api/admin/counts';
 import { shepherd } from '../functions/_lib/cms-shepherd';
 import { REQUIRED_CHECKS } from '../functions/_lib/github';
 
@@ -34,17 +38,93 @@ const WEBINARS = cmsType('webinars')!;
 
 function contentFiles(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const dir of ['src/content/events', 'src/content/workshops']) {
+  for (const dir of ['src/content/events', 'src/content/workshops', 'src/content/pages', 'src/content/privacy']) {
     for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = readFileSync(`${ROOT}${dir}/${f}`, 'utf8');
   }
   for (const lang of ['en', 'tr']) {
-    const dir = `src/content/webinars/${lang}`;
-    for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = readFileSync(`${ROOT}${dir}/${f}`, 'utf8');
+    for (const kind of ['webinars', 'lp-domains', 'lp-levels', 'lp-roadmap']) {
+      const dir = `src/content/${kind}/${lang}`;
+      for (const f of readdirSync(`${ROOT}${dir}`)) out[`${dir}/${f}`] = readFileSync(`${ROOT}${dir}/${f}`, 'utf8');
+    }
   }
   return out;
 }
 const FILES = contentFiles();
+/** A committee on main, synthetic (A2), whose file name is not the slug of its English name, as most real ones are not. */
+const COMMITTEE_PATH = 'src/content/committees/fixture-committee.json';
+const aCommittee = () => ({
+  order: 30,
+  name: { en: 'Example Committee', tr: 'Örnek Komite' },
+  description: { en: 'Does example things.', tr: 'Örnek işler yapar.' },
+  members: [{
+    name: 'Ada Örnek', role: { en: 'Leader', tr: 'Lider' },
+    image: 'https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_600/v1/rsgturkey/committee/ada.jpg',
+    socialMedia: [{ platform: 'linkedin', url: 'https://www.linkedin.com/in/example/' }],
+    consent: true,
+  }],
+});
+FILES[COMMITTEE_PATH] = `${JSON.stringify(aCommittee(), null, 2)}\n`;
+/** A resource link on main, synthetic (A2), named like the TeachOpenCADD ones: not the slug of its title. */
+const RESOURCE_PATH = 'src/content/resources/fixture-resource-learning.json';
+const aResource = () => ({
+  section: 'learning',
+  order: 40,
+  title: { en: 'Fixture Resource', tr: 'Örnek Kaynak' },
+  description: { en: 'Teaches example things.', tr: 'Örnek şeyler öğretir.' },
+  url: 'https://example.org/resource',
+  tags: { en: ['python'], tr: ['python'] },
+  opensource: true,
+});
+FILES[RESOURCE_PATH] = `${JSON.stringify(aResource(), null, 2)}\n`;
+/** Another on main whose file name is the slug of its title: a new one with that title collides. */
+const TAKEN_PATH = 'src/content/resources/fixture-taken.json';
+FILES[TAKEN_PATH] = `${JSON.stringify({ ...aResource(), title: { en: 'Fixture Taken', tr: 'Alınmış' } }, null, 2)}\n`;
+/** Learning paths on main, synthetic (A2): a domain, a level of it, and a roadmap stage, each in both languages. */
+const LP_LEVEL = { en: 'src/content/lp-levels/en/fixture-explorer.md', tr: 'src/content/lp-levels/tr/fixture-explorer.md' };
+const LP_STAGE = { en: 'src/content/lp-roadmap/en/50-fixture-stage.md', tr: 'src/content/lp-roadmap/tr/50-fixture-stage.md' };
+const lpRes = (id: string, lang: 'en' | 'tr', o: Record<string, unknown> = {}) =>
+  ({ id, title: `${id} ${lang}`, description: lang === 'en' ? 'Why.' : 'Neden.', tag: 'Reading', url: `https://example.org/${id}`, ...o });
+const aLevelSide = (lang: 'en' | 'tr') => ({
+  domain: 'fixture', level: 'explorer', orientation: lang === 'en' ? 'Start here.' : 'Buradan başlayın.', prerequisites: [],
+  sections: [
+    { type: 'foundations', resources: [lpRes('fx-a', lang), lpRes('fx-b', lang, { url: lang === 'en' ? '/learning-paths/fixture/' : '/tr/learning-paths/fixture/' })] },
+    { type: 'webinars', resources: [lpRes('fx-c', lang, { tag: 'Webinar', url: undefined, webinarSlug: 'fx-webinar', year: 2024 })] },
+  ],
+});
+const aStageSide = (lang: 'en' | 'tr') => ({ number: 50, emoji: '🧪', title: lang === 'en' ? 'Fixture stage' : 'Örnek aşama', subtitle: 'S.', color: 'navy', resources: [lpRes('fx-stage-1', lang)] });
+const lpFile = (key: CmsTypeKey, fm: object) => serializeMarkdown(cmsType(key)!, { frontmatter: JSON.parse(JSON.stringify(fm)), body: '' });
+for (const lang of ['en', 'tr'] as const) {
+  FILES[`src/content/lp-domains/${lang}/fixture.md`] = lpFile('lp-domains', { name: lang === 'en' ? 'Fixture domain' : 'Örnek alan', emoji: '🧪', tagline: 'T.', order: 90, goDeeper: [] });
+  FILES[LP_LEVEL[lang]] = lpFile('lp-levels', aLevelSide(lang));
+  FILES[LP_STAGE[lang]] = lpFile('lp-roadmap', aStageSide(lang));
+}
+/** Page texts on main, synthetic (A2), keys in no alphabetical order: a save must keep it. */
+const PAGE_PATH = 'src/content/pages/fixture-page.json';
+const PAGE_TEXT = `${JSON.stringify({ zeta_title: { en: 'Last first', tr: 'Sonuncu önce' }, alpha_intro: { en: 'Hello', tr: 'Merhaba' }, mid_cta: { en: 'Join', tr: 'Katıl' } }, null, 2)}\n`;
+FILES[PAGE_PATH] = PAGE_TEXT;
+/** The privacy notice on main, synthetic (A2): it replaces the real one in this fake repository. */
+const PRIVACY_PATH = 'src/content/privacy/privacy.json';
+const aNotice = (lang: 'en' | 'tr') => ({
+  title: lang === 'en' ? 'Privacy' : 'Gizlilik',
+  description: lang === 'en' ? 'What we keep.' : 'Ne saklıyoruz.',
+  intro: [lang === 'en' ? 'Write to {contact}.' : '{contact} adresine yazın.'],
+  sections: [
+    { heading: lang === 'en' ? 'What' : 'Ne', paragraphs: [], items: [lang === 'en' ? 'Your name.' : 'Adınız.', lang === 'en' ? 'Your photo.' : 'Fotoğrafınız.'] },
+    { heading: lang === 'en' ? 'Changes' : 'Değişiklikler', paragraphs: [lang === 'en' ? 'The date changes.' : 'Tarih değişir.'], items: [] },
+  ],
+});
+const aPrivacy = () => ({ updated: '2020-01-02', en: aNotice('en'), tr: aNotice('tr') });
+FILES[PRIVACY_PATH] = `${JSON.stringify(aPrivacy(), null, 2)}\n`;
+/** Blog posts on main, synthetic (A2): one in English only, one in Turkish only (sides: 'either'). */
+const POST_EN = 'src/content/blog/en/fixture-english-post.md';
+const POST_TR = 'src/content/blog/tr/fixture-turkce-yazi.md';
+const postFile = (title: string, body: string) =>
+  `---\ntitle: "${title}"\npubDate: 2026-01-05\ndescription: "A fixture."\nauthor: "An Author"\ncategory: general\ntags: []\nimage: ""\ndraft: false\n---\n\n${body}\n`;
+FILES[POST_EN] = postFile('Fixture English post', 'English text.');
+FILES[POST_TR] = postFile('Fixture Türkçe yazı', 'Türkçe metin.');
 const INDEX: CmsIndex = buildCmsIndex(FILES);
+// Entries picked by shape, never by name: the panel edits and deletes them (A2).
+const { EVENT_ID, EVENT_PATH, OTHER_EVENT_ID, OTHER_EVENT_PATH, PAIR_ID, PAIR_EN, PAIR_TR, PAIR_TR_TITLE, PAIR_KEY, OTHER_KEY } = realFixtures(FILES, INDEX);
 
 const blobSha = (content: string) => createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0${content}`).digest('hex');
 
@@ -132,7 +212,12 @@ class FakeGitHub {
           this.afterCheckedRead = null;
           hook();
         }
-        if (content === undefined) return json({ message: 'Not Found' }, 404);
+        if (content === undefined) {
+          // A folder: the files directly in it, as the contents API lists them.
+          const names = [...(this.files(ref)?.keys() ?? [])].filter((k) => k.startsWith(`${path}/`) && !k.slice(path.length + 1).includes('/')).map((k) => k.slice(path.length + 1));
+          if (names.length) return json(names.sort().map((name) => ({ name, type: 'file' })));
+          return json({ message: 'Not Found' }, 404);
+        }
         return json({ sha: blobSha(content), content: Buffer.from(content).toString('base64'), encoding: 'base64' });
       }
       const branch = this.branches.get(body.branch)!;
@@ -223,6 +308,12 @@ function setup() {
   grant.run('g1', 'editor', 'content.etkinlikler.edit');
   grant.run('g2', 'editor2', 'content.etkinlikler.edit');
   grant.run('g3', 'approver', 'content.etkinlikler.approve');
+  add.run('community', 'g-community', 'community@example.org', 0);
+  session.run('s-community', 'community');
+  grant.run('g4', 'community', 'content.topluluk.edit');
+  add.run('learning', 'g-learning', 'learning@example.org', 0);
+  session.run('s-learning', 'learning');
+  grant.run('g5', 'learning', 'content.ogrenme.edit');
   const assets = { fetch: async (req: Request) => new URL(req.url).pathname === '/cms-index.json' ? new Response(JSON.stringify(INDEX)) : new Response('', { status: 404 }) };
   const env = { DB: d1(db), GITHUB_PAT: 'unused', ASSETS: assets } as never;
   const audit = () => db.prepare('SELECT action, target_type, target_id, details FROM audit_log ORDER BY seq').all() as { action: string; target_type: string; target_id: string; details: string }[];
@@ -247,7 +338,7 @@ async function create(env: Env, as: string, body: unknown) {
 const on = (env: Env, h: unknown, method: string, id: string, as: string, body?: unknown, suffix = '') =>
   req(env, h, method, `/api/cms/drafts/${id}${suffix}`, as, body, { id });
 
-const symposium2026 = () => JSON.parse(FILES['src/content/events/symposium-2026.json']);
+const anEvent = () => JSON.parse(FILES[EVENT_PATH]);
 const newEvent = () => ({
   id: 'meetup-ankara-2027',
   type: 'meetup',
@@ -261,14 +352,20 @@ const newEvent = () => ({
 // ── the build-time index ──────────────────────────────────────────────────────
 
 test('the index pairs every webinar by the translation rule, not by file name', () => {
-  assert.equal(INDEX.webinars.length, 82);
+  // One entry per English file (tests/webinar-translation-parity.test.ts
+  // keeps every webinar in both languages), each with both sides.
+  assert.equal(INDEX.webinars.length, Object.keys(FILES).filter((p) => /^src\/content\/webinars\/en\/[^/]+\.md$/.test(p)).length);
   for (const w of INDEX.webinars) assert.ok(w.paths?.en && w.paths?.tr, w.id);
-  const pair = INDEX.webinars.find((w) => w.id === 'integrative-modeling-of-biomolecular-complexes')!;
-  assert.deepEqual(pair.paths, {
-    en: 'src/content/webinars/en/integrative-modeling-of-biomolecular-complexes.md',
-    tr: 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md',
-  });
-  assert.ok(INDEX.events.some((e) => e.id === 'symposium-2026' && e.title === symposium2026().title.en));
+  // A pair whose files have different names is tied by the key both declare.
+  const name = (p: string) => p.replace(/^.*\//, '');
+  const keyOf = (p: string) => /^translationKey:\s*"?([^"\n]*)"?/m.exec(FILES[p])?.[1].trim() ?? '';
+  const renamed = INDEX.webinars.filter((w) => name(w.paths!.en!) !== name(w.paths!.tr!));
+  assert.ok(renamed.some((w) => w.id === PAIR_ID));
+  for (const w of renamed) {
+    assert.ok(keyOf(w.paths!.en!), `${w.id}: different names and no translationKey`);
+    assert.equal(keyOf(w.paths!.tr!), keyOf(w.paths!.en!), w.id);
+  }
+  assert.ok(INDEX.events.some((e) => e.id === EVENT_ID && e.title === anEvent().title.en));
   assert.equal(INDEX.workshops.length, readdirSync(`${ROOT}src/content/workshops`).length);
 });
 
@@ -300,16 +397,16 @@ test('types lists what the user can edit, with its JSON Schema', async () => {
 
 test('entry reads the current files and their shas from main; a webinar finds its pair', async () => {
   const { env } = setup();
-  const res = await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=integrative-modeling-of-biomolecular-complexes', 'editor');
+  const res = await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor');
   assert.equal(res.status, 200);
   const body = await res.json() as any;
-  const tr = 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md';
+  const tr = PAIR_TR;
   assert.equal(body.base_shas[tr], blobSha(FILES[tr]));
   assert.deepEqual(body.data.tr.frontmatter, parseMarkdown(WEBINARS, FILES[tr]).frontmatter);
   assert.equal(body.data.tr.source, parseMarkdown(WEBINARS, FILES[tr]).source);
 
-  const ev = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=symposium-2026', 'editor')).json() as any;
-  assert.deepEqual(ev.data, symposium2026());
+  const ev = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=events&id=${EVENT_ID}`, 'editor')).json() as any;
+  assert.deepEqual(ev.data, anEvent());
   assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=no-such-event', 'editor')).status, 404);
   assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=../x', 'editor')).status, 400);
 });
@@ -349,7 +446,7 @@ test('create, save, submit, approve: a pull request is opened and every step is 
   assert.equal(pr.head, `cms/${id}`);
   assert.equal(pr.title, 'CMS: create events meetup-ankara-2027');
   assert.ok(pr.body.includes(id) && pr.body.includes('events') && pr.body.includes('meetup-ankara-2027'));
-  assert.ok(pr.body.includes(`https://rsg-turkiye.iscbsc.org/admin#icerik-etkinlikler/taslaklar/${id}`));
+  assert.ok(pr.body.includes(`https://rsg-turkiye.iscbsc.org/admin#icerik/taslaklar/${id}`));
   assert.equal(gh.branches.get(`cms/${id}`)!.get('src/content/events/meetup-ankara-2027.json'), serializeJson(EVENTS, edited));
 
   assert.deepEqual(audit().map((a) => a.action), ['cms.draft.create', 'cms.draft.update', 'cms.draft.submit', 'cms.draft.approve', 'cms.pr.open']);
@@ -362,7 +459,7 @@ test('create, save, submit, approve: a pull request is opened and every step is 
 
 test('the pull request title and body carry no @ and no name, whoever wrote and approved it', async () => {
   const { env } = setup();
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'x' }, base_shas: loaded('src/content/events/symposium-2026.json') });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'x' }, base_shas: loaded(EVENT_PATH) });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   await on(env, approve.onRequestPost, 'POST', body.draft.id, 'admin', {}, '/approve');
   const pr = gh.prs[0];
@@ -407,7 +504,7 @@ test('someone with no content role gets 403 from every endpoint, and no draft da
   const calls: [unknown, string, string, unknown?, Record<string, string>?][] = [
     [types.onRequestGet, 'GET', '/api/cms/types'],
     [entries.onRequestGet, 'GET', '/api/cms/entries?type=events'],
-    [entry.onRequestGet, 'GET', '/api/cms/entry?type=events&id=symposium-2026'],
+    [entry.onRequestGet, 'GET', `/api/cms/entry?type=events&id=${EVENT_ID}`],
     [drafts.onRequestGet, 'GET', '/api/cms/drafts'],
     [drafts.onRequestPost, 'POST', '/api/cms/drafts', { type: 'events', action: 'create', data: newEvent() }],
     [draft.onRequestGet, 'GET', `/api/cms/drafts/${id}`, undefined, { id }],
@@ -453,8 +550,8 @@ test('mutating calls from another origin are refused', async () => {
 
 test('approval refuses with changed_since when the file changed on main, and opens nothing', async () => {
   const { env, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'draft' }, base_shas: loaded(path) });
   assert.equal(body.draft.base_shas[path], blobSha(FILES[path]));
   const id = body.draft.id;
   await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
@@ -482,16 +579,16 @@ test('a new entry whose file appeared on main meanwhile is changed_since too', a
 
 test('creating an entry that already exists is refused', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'create', data: symposium2026() });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'create', data: anEvent() });
   assert.equal(res.status, 409);
   assert.equal(body.code, 'exists');
 });
 
 test('a draft started from a stale read is refused at once', async () => {
   const { env } = setup();
-  const path = 'src/content/events/symposium-2026.json';
+  const path = EVENT_PATH;
   const { res, body } = await create(env, 'editor', {
-    type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: { [path]: 'b'.repeat(40) },
+    type: 'events', action: 'update', entry_id: EVENT_ID, data: anEvent(), base_shas: { [path]: 'b'.repeat(40) },
   });
   assert.equal(res.status, 409);
   assert.equal(body.code, 'changed_since');
@@ -521,15 +618,15 @@ test('a new webinar writes exactly two files, with the same name in both languag
 
 test('editing an existing pair with different file names writes back to both existing files, unchanged keys byte for byte', async () => {
   const { env } = setup();
-  const en = 'src/content/webinars/en/integrative-modeling-of-biomolecular-complexes.md';
-  const tr = 'src/content/webinars/tr/first-webinar-2018-integrative-modeling.md';
-  const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=integrative-modeling-of-biomolecular-complexes', 'editor')).json() as any;
+  const en = PAIR_EN;
+  const tr = PAIR_TR;
+  const current = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor')).json() as any;
   // The client sends back what it read, minus `source`: the server keeps its own.
   const data = {
-    en: { frontmatter: { ...current.data.en.frontmatter, topic: 'Integrative modelling' }, body: current.data.en.body },
+    en: { frontmatter: { ...current.data.en.frontmatter, title: `${current.data.en.frontmatter.title} (edited)` }, body: current.data.en.body },
     tr: { frontmatter: current.data.tr.frontmatter, body: current.data.tr.body },
   };
-  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'integrative-modeling-of-biomolecular-complexes', data, base_shas: current.base_shas });
+  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: PAIR_ID, data, base_shas: current.base_shas });
   assert.equal(res.status, 201);
   assert.deepEqual(Object.keys(body.draft.base_shas).sort(), [en, tr]);
 
@@ -549,7 +646,7 @@ test('editing an existing pair with different file names writes back to both exi
 });
 
 test('the two sides of a webinar must share their translationKey', () => {
-  const fm = parseMarkdown(WEBINARS, FILES['src/content/webinars/en/molecular-simulations.md']).frontmatter;
+  const fm = parseMarkdown(WEBINARS, FILES[PAIR_EN]).frontmatter;
   const result = validateDraft(WEBINARS, {
     en: { frontmatter: fm, body: '' },
     tr: { frontmatter: { ...fm, translationKey: 'something-else' }, body: '' },
@@ -572,7 +669,8 @@ test('a schema-invalid save answers with an error per field and keeps the last g
   assert.equal(out.code, 'invalid');
   assert.ok(out.errors.start, 'start');
   assert.ok(out.errors['title.tr'], 'title.tr');
-  assert.ok(out.errors.colour, 'unknown key');
+  // An unknown key is not in the form: named on the whole entry.
+  assert.ok(out.errors[''].includes('colour (Unknown field)'), 'unknown key');
   assert.deepEqual(JSON.parse(row(id).data), newEvent());
 
   const created = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), id: undefined } });
@@ -580,9 +678,199 @@ test('a schema-invalid save answers with an error per field and keeps the last g
   assert.ok(created.body.errors.id);
 });
 
+test('an em dash, or a spaced double hyphen, is refused at submit in any text of any type, and saved meanwhile', async () => {
+  const { env, row } = setup();
+  const EM = '\u2014';
+  // An event: a nested text.
+  const ev = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), when: { en: '6 March 2027', tr: `6 Mart 2027 ${EM} akşam` } } });
+  assert.equal(ev.res.status, 201, 'a save keeps work in progress');
+  let res = await on(env, submit.onRequestPost, 'POST', ev.body.draft.id, 'editor', {}, '/submit');
+  assert.equal(res.status, 422);
+  let out = await res.json() as any;
+  assert.match(out.errors['when.tr'], /em dash/i);
+  assert.equal(row(ev.body.draft.id).status, 'draft');
+  // A link label inside a list.
+  const links = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-izmir-2027', links: [{ label: { en: `A ${EM} B`, tr: 'A' }, url: 'https://example.org' }] } });
+  out = await (await on(env, submit.onRequestPost, 'POST', links.body.draft.id, 'editor', {}, '/submit')).json() as any;
+  assert.match(out.errors['links.0.label.en'], /em dash/i);
+  // A webinar: frontmatter and body, each on its side; ` -- ` reads as a dash too.
+  const side = (title: string, body: string) => ({ frontmatter: { title, date: '2027-01-05', speaker: 'Ada Örnek', description: 'A talk.', year: 2027, type: 'student' }, body });
+  const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('A talk -- with a dash', 'Fine.'), tr: side('Bir konuşma', `Metin ${EM} burada.`) } });
+  assert.equal(w.res.status, 201);
+  res = await on(env, submit.onRequestPost, 'POST', w.body.draft.id, 'editor', {}, '/submit');
+  assert.equal(res.status, 422);
+  out = await res.json() as any;
+  assert.match(out.errors['en.frontmatter.title'], /em dash/i);
+  assert.match(out.errors['tr.body'], /em dash/i);
+  // The en dash is allowed (date ranges), and so is a flag's `--` in code.
+  const ok = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Ranges 1\u20132', 'Run `nextflow run --profile x` or\n\n```\na --b\n```\n'), tr: side('Aralık 1\u20132', 'Tamam.') } });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', ok.body.draft.id, 'editor', {}, '/submit')).status, 200);
+});
+
+test('committees: a new one is named after its English name; an update keeps its file whatever the name says (A1)', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), name: { en: 'Data Science Committee', tr: 'Veri Bilimi Komitesi' } } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, 'data-science-committee');
+  assert.deepEqual(made.body.draft.base_shas, { 'src/content/committees/data-science-committee.json': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'community', {}, '/submit')).status, 200);
+
+  const data = { ...aCommittee(), name: { en: 'Renamed Committee', tr: 'Yeni Ad' } };
+  const upd = await create(env, 'community', { type: 'committees', action: 'update', entry_id: 'fixture-committee', data, base_shas: loaded(COMMITTEE_PATH) });
+  assert.equal(upd.res.status, 201, JSON.stringify(upd.body));
+  assert.equal(upd.body.draft.entry_id, 'fixture-committee');
+  assert.equal((await on(env, submit.onRequestPost, 'POST', upd.body.draft.id, 'community', {}, '/submit')).status, 200);
+  assert.deepEqual(filesFor(row(upd.body.draft.id) as never).map((f) => f.path), [COMMITTEE_PATH]);
+  // An admin approves: the pull request writes the same file, in the repo's format.
+  assert.equal((await on(env, approve.onRequestPost, 'POST', upd.body.draft.id, 'admin', {}, '/approve')).status, 200);
+  const branch = gh.branches.get(`cms/${upd.body.draft.id}`)!;
+  assert.equal(branch.get(COMMITTEE_PATH), `${JSON.stringify(data, null, 2)}\n`);
+});
+
+test('committees: an e-mail address (any @) is refused at submit, on its field', async () => {
+  const { env } = setup();
+  const member = { ...aCommittee().members[0], socialMedia: [{ platform: 'linkedin', url: 'mailto:ada@example.org' }] };
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), members: [member] } });
+  assert.equal(made.res.status, 201, 'saved while being worked on');
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'community', {}, '/submit');
+  assert.equal(res.status, 422);
+  const out = await res.json() as any;
+  assert.match(out.errors['members.0.socialMedia.0.url'], /e-mail/i);
+  // A key the schema does not know, such as `email`, is refused at once.
+  const withKey = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), members: [{ ...aCommittee().members[0], email: 'x' }] } });
+  assert.equal(withKey.res.status, 422);
+  assert.ok(withKey.body.errors[''].includes('members.0.email (Unknown field)'));
+});
+
+test('committees: a member without consent is saved as work in progress and refused at submit', async () => {
+  const { env } = setup();
+  const member = { name: 'Bora Örnek', role: { en: 'Member', tr: '' }, consent: false };
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), members: [...aCommittee().members, member] } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'community', {}, '/submit');
+  assert.equal(res.status, 422);
+  const out = await res.json() as any;
+  assert.match(out.errors['members.1.consent'], /expected true/);
+  assert.ok(out.errors['members.1.image'], 'a photo is required');
+  // The content test wants both languages of every role: an empty one is refused here, not in CI.
+  assert.ok(out.errors['members.1.role.tr'], 'role.tr');
+});
+
+test('committees: only the Topluluk group edits them', async () => {
+  const { env } = setup();
+  const made = await create(env, 'editor', { type: 'committees', action: 'create', data: aCommittee() });
+  assert.equal(made.res.status, 403);
+  const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'community')).json() as any;
+  assert.deepEqual(listed.types.map((t: any) => t.key), ['committees', 'podcast']);
+});
+
+test('resources: a new one is named after its English title; an update keeps its file whatever the title says (A1)', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 2', tr: 'Örnek Ders 2' } } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, 'example-course-2');
+  assert.deepEqual(made.body.draft.base_shas, { 'src/content/resources/example-course-2.json': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+
+  // The second placement of a link shares its title with the first; its file keeps its own name.
+  const data = { ...aResource(), title: { en: 'Renamed Resource', tr: 'Yeni Ad' }, tags: { en: ['python'], tr: ['piton'] } };
+  const upd = await create(env, 'learning', { type: 'resources', action: 'update', entry_id: 'fixture-resource-learning', data, base_shas: loaded(RESOURCE_PATH) });
+  assert.equal(upd.res.status, 201, JSON.stringify(upd.body));
+  assert.equal(upd.body.draft.entry_id, 'fixture-resource-learning');
+  assert.equal((await on(env, submit.onRequestPost, 'POST', upd.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  assert.deepEqual(filesFor(row(upd.body.draft.id) as never).map((f) => f.path), [RESOURCE_PATH]);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', upd.body.draft.id, 'admin', {}, '/approve')).status, 200);
+  const branch = gh.branches.get(`cms/${upd.body.draft.id}`)!;
+  assert.equal(branch.get(RESOURCE_PATH), `${JSON.stringify(data, null, 2)}\n`);
+});
+
+test('resources: a new one whose title slugs to a file on main gets a free name: the section, then -2', async () => {
+  const { env } = setup();
+  // Same title and section as fixture-taken: a free name, and a soft warning naming it.
+  const same = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka' } } });
+  assert.equal(same.res.status, 201, JSON.stringify(same.body));
+  assert.equal(same.body.draft.entry_id, 'fixture-taken-learning');
+  assert.deepEqual(same.body.draft.base_shas, { 'src/content/resources/fixture-taken-learning.json': null });
+  assert.equal(same.body.duplicate_of, 'fixture-taken');
+  // Another section: a second placement, not a duplicate.
+  const other = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), section: 'tools', title: { en: 'fixture   TAKEN!', tr: 'Başka' } } });
+  assert.equal(other.res.status, 201, JSON.stringify(other.body));
+  assert.equal(other.body.draft.entry_id, 'fixture-taken-tools');
+  assert.equal(other.body.duplicate_of, undefined);
+  // The section's name taken too (on main, though the deployed index does not know it yet): -2.
+  gh.main.set('src/content/resources/fixture-taken-learning.json', FILES[TAKEN_PATH]);
+  const third = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka' } } });
+  assert.equal(third.body.draft.entry_id, 'fixture-taken-2');
+  // A title nobody has: its own slug, no warning.
+  const fresh = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fresh Link', tr: 'Yeni' } } });
+  assert.equal(fresh.body.draft.entry_id, 'fresh-link');
+  assert.equal(fresh.body.duplicate_of, undefined);
+  assert.equal(gh.main.get(TAKEN_PATH), FILES[TAKEN_PATH], 'nothing on main is written');
+});
+
+test('resources: saves keep the name chosen at create; a change of section picks again', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka' } } });
+  const id = made.body.draft.id;
+  assert.equal(made.body.draft.entry_id, 'fixture-taken-learning');
+  const patch = async (data: unknown) => {
+    const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'learning', { data, write_nonce: row(id).write_nonce });
+    return { status: res.status, body: await res.json() as any };
+  };
+  const kept = await patch({ ...aResource(), title: { en: 'Fixture Taken', tr: 'Başka ad' } });
+  assert.equal(kept.status, 200, JSON.stringify(kept.body));
+  assert.equal(row(id).entry_id, 'fixture-taken-learning');
+  const moved = await patch({ ...aResource(), section: 'databases', title: { en: 'Fixture Taken', tr: 'Başka ad' } });
+  assert.equal(moved.status, 200, JSON.stringify(moved.body));
+  assert.equal(row(id).entry_id, 'fixture-taken-databases');
+  assert.deepEqual(JSON.parse(row(id).base_shas), { 'src/content/resources/fixture-taken-databases.json': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'learning', {}, '/submit')).status, 200);
+});
+
+test('committees: a new one named like a published file gets -2; events and workshops still refuse (their name is the data)', async () => {
+  const { env } = setup();
+  const made = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), name: { en: 'Fixture Committee', tr: 'Örnek' } } });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, 'fixture-committee-2');
+  // A workshop's file name is its repo (tests/content-workshops.test.ts): a second file for one repo is refused.
+  const wPath = Object.keys(FILES).find((p) => p.startsWith('src/content/workshops/'))!;
+  const w = JSON.parse(FILES[wPath]);
+  const ws = await create(env, 'editor', { type: 'workshops', action: 'create', data: w });
+  assert.equal(ws.res.status, 409);
+  assert.equal(ws.body.code, 'exists');
+});
+
+test('resources: an unknown section or a missing key is refused at submit; only the Öğrenme group edits them', async () => {
+  const { env } = setup();
+  const made = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 3', tr: 'Örnek Ders 3' }, section: 'nope', opensource: undefined } });
+  assert.equal(made.res.status, 422, 'an unknown section is not work in progress');
+  const fine = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 3', tr: '' } } });
+  assert.equal(fine.res.status, 201, JSON.stringify(fine.body));
+  const res = await on(env, submit.onRequestPost, 'POST', fine.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(res.status, 422);
+  assert.ok((await res.json() as any).errors['title.tr'], 'the Turkish title is required at submit');
+  // Tags in English only, or none yet: kept as work in progress, refused at submit (the content test's rules).
+  const halfTags = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 4', tr: 'Örnek Ders 4' }, tags: { en: ['python', 'r'], tr: ['python'] } } });
+  assert.equal(halfTags.res.status, 201, JSON.stringify(halfTags.body));
+  const half = await on(env, submit.onRequestPost, 'POST', halfTags.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(half.status, 422);
+  assert.match((await half.json() as any).errors['tags.tr'], /as many Turkish tags/);
+  const noTags = await create(env, 'learning', { type: 'resources', action: 'create', data: { ...aResource(), title: { en: 'Example Course 5', tr: 'Örnek Ders 5' }, tags: { en: [], tr: [] } } });
+  assert.equal(noTags.res.status, 201, JSON.stringify(noTags.body));
+  const none = await on(env, submit.onRequestPost, 'POST', noTags.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(none.status, 422);
+  assert.match((await none.json() as any).errors['tags.en'], /at least one tag/);
+  assert.equal((await create(env, 'editor', { type: 'resources', action: 'create', data: aResource() })).res.status, 403);
+  assert.equal((await create(env, 'community', { type: 'resources', action: 'create', data: aResource() })).res.status, 403);
+  const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'learning')).json() as any;
+  assert.deepEqual(listed.types.map((t: any) => t.key), ['resources', 'lp-domains', 'lp-levels', 'lp-roadmap']);
+  const list = await (await req(env, entries.onRequestGet, 'GET', '/api/cms/entries?type=resources', 'learning')).json() as any;
+  assert.deepEqual(list.entries.find((e: any) => e.id === 'fixture-resource-learning'), { id: 'fixture-resource-learning', title: 'Fixture Resource', section: 'learning' });
+});
+
 test('an update cannot rename the file', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), id: 'symposium-2026b' }, base_shas: loaded('src/content/events/symposium-2026.json') });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), id: `${EVENT_ID}b` }, base_shas: loaded(EVENT_PATH) });
   assert.equal(res.status, 422);
   assert.ok(body.errors.id);
 });
@@ -591,20 +879,20 @@ test('an update cannot rename the file', async () => {
 
 test('a delete draft produces null files and deletes them on the branch', async () => {
   const { env } = setup();
-  const { res, body } = await create(env, 'editor', { type: 'events', action: 'delete', entry_id: 'meetup-izmir-2025', base_shas: loaded('src/content/events/meetup-izmir-2025.json') });
+  const { res, body } = await create(env, 'editor', { type: 'events', action: 'delete', entry_id: OTHER_EVENT_ID, base_shas: loaded(OTHER_EVENT_PATH) });
   assert.equal(res.status, 201);
   const files = filesFor({ ...body.draft, data: JSON.stringify(body.draft.data), base_shas: JSON.stringify(body.draft.base_shas) });
-  assert.deepEqual(files, [{ path: 'src/content/events/meetup-izmir-2025.json', content: null }]);
+  assert.deepEqual(files, [{ path: OTHER_EVENT_PATH, content: null }]);
 
-  const pair = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: 'molecular-simulations', base_shas: loaded('src/content/webinars/en/molecular-simulations.md', 'src/content/webinars/tr/molekuler-simulasyonlar.md') });
+  const pair = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: PAIR_ID, base_shas: loaded(PAIR_EN, PAIR_TR) });
   const pairFiles = filesFor({ ...pair.body.draft, data: JSON.stringify(pair.body.draft.data), base_shas: JSON.stringify(pair.body.draft.base_shas) });
   assert.deepEqual(pairFiles.map((f) => f.content), [null, null]);
-  assert.deepEqual(pairFiles.map((f) => f.path).sort(), ['src/content/webinars/en/molecular-simulations.md', 'src/content/webinars/tr/molekuler-simulasyonlar.md']);
+  assert.deepEqual(pairFiles.map((f) => f.path).sort(), [PAIR_EN, PAIR_TR]);
 
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve')).status, 200);
-  assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: 'src/content/events/meetup-izmir-2025.json' }]);
-  assert.equal(gh.prs[0].title, 'CMS: delete events meetup-izmir-2025');
+  assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: OTHER_EVENT_PATH }]);
+  assert.equal(gh.prs[0].title, `CMS: delete events ${OTHER_EVENT_ID}`);
 });
 
 // ── the other transitions, each with its log row ──────────────────────────────
@@ -642,7 +930,7 @@ test('send back, edit, resubmit; discard; each writes its row', async () => {
 
 test('content already on main: the draft is merged (the shepherd publishes it), logged as a merge with noop', async () => {
   const { env, audit, row } = setup();
-  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: loaded('src/content/events/symposium-2026.json') });
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: anEvent(), base_shas: loaded(EVENT_PATH) });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
   gh.pulls = 'no-commits';
   const res = await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve');
@@ -697,8 +985,8 @@ test('a draft can be approved only once', async () => {
 });
 
 test('the stored JSON draft round-trips a real file unchanged', () => {
-  const path = 'src/content/events/symposium-2026.json';
-  const files = filesFor({ type: 'events', entry_id: 'symposium-2026', action: 'update', data: JSON.stringify(parseJson(EVENTS, FILES[path])), base_shas: JSON.stringify({ [path]: blobSha(FILES[path]) }) });
+  const path = EVENT_PATH;
+  const files = filesFor({ type: 'events', entry_id: EVENT_ID, action: 'update', data: JSON.stringify(parseJson(EVENTS, FILES[path])), base_shas: JSON.stringify({ [path]: blobSha(FILES[path]) }) });
   assert.deepEqual(files, [{ path, content: FILES[path] }]);
 });
 
@@ -803,7 +1091,7 @@ test('a slow approval overtaken by a retry writes no outcome and answers superse
 test('an update or delete without the shas the editor loaded is refused', async () => {
   const { env } = setup();
   for (const action of ['update', 'delete']) {
-    const { res, body } = await create(env, 'editor', { type: 'events', action, entry_id: 'symposium-2026', data: symposium2026() });
+    const { res, body } = await create(env, 'editor', { type: 'events', action, entry_id: EVENT_ID, data: anEvent() });
     assert.equal(res.status, 400, action);
     assert.equal(body.code, 'base_shas_required');
   }
@@ -839,10 +1127,10 @@ test('a retried draft renamed after a failure commits only its current files', a
 
 test('a webinar delete covers both sides even when one is missing on main, and rechecks it', async () => {
   const { env } = setup();
-  const en = 'src/content/webinars/en/molecular-simulations.md';
-  const tr = 'src/content/webinars/tr/molekuler-simulasyonlar.md';
+  const en = PAIR_EN;
+  const tr = PAIR_TR;
   gh.main.delete(tr);
-  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: 'molecular-simulations', base_shas: loaded(en, tr) });
+  const { res, body } = await create(env, 'editor', { type: 'webinars', action: 'delete', entry_id: PAIR_ID, base_shas: loaded(en, tr) });
   assert.equal(res.status, 201);
   assert.deepEqual(body.draft.base_shas, { [en]: blobSha(FILES[en]), [tr]: null });
   await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
@@ -857,18 +1145,21 @@ test('a webinar delete covers both sides even when one is missing on main, and r
   assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: en }]);
 });
 
-test('a new webinar may not reuse a published pair\'s translationKey or file name', async () => {
+test('a new webinar may not reuse a published pair\'s translationKey; a file name taken gets -2', async () => {
   const { env } = setup();
   const side = (title: string, key = '') => ({
     frontmatter: { title, translationKey: key, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet' },
     body: '\n',
   });
-  const byKey = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk', 'molecular-simulations'), tr: side('Yeni', 'molecular-simulations') } });
+  const byKey = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk', PAIR_KEY), tr: side('Yeni', PAIR_KEY) } });
   assert.equal(byKey.res.status, 409);
   assert.equal(byKey.body.code, 'exists');
-  const byName = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Molekuler Simulasyonlar'), tr: side('Molekuler Simulasyonlar') } });
-  assert.equal(byName.res.status, 409);
-  assert.equal(byName.body.code, 'exists');
+  // A title that slugs to a published file's name: a free name, both sides checked.
+  const byName = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side(PAIR_TR_TITLE), tr: side(PAIR_TR_TITLE) } });
+  assert.equal(byName.res.status, 201, JSON.stringify(byName.body));
+  const base = byName.body.draft.entry_id.replace(/-2$/, '');
+  assert.equal(byName.body.draft.entry_id, `${base}-2`);
+  assert.deepEqual(byName.body.draft.base_shas, { [`src/content/webinars/en/${base}-2.md`]: null, [`src/content/webinars/tr/${base}-2.md`]: null });
   const fine = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
   assert.equal(fine.res.status, 201);
 });
@@ -894,8 +1185,8 @@ async function submitted(env: Env, as = 'editor', body: unknown = { type: 'event
 
 test('the branch starts from the commit the shas were checked at, not from a main that moved since', async () => {
   const { env, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note: 'draft' }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'draft' }, base_shas: loaded(path) });
   const checked = gh.head();
   // A hand edit merges right after the approval checked the file.
   // Any byte change will do; the test must not depend on what the file says,
@@ -911,9 +1202,9 @@ test('the branch starts from the commit the shas were checked at, not from a mai
 
 test('a stale approval adopts its own merged pull request: merged, recovered, no changed_since', async () => {
   const { env, db, audit, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const data = { ...symposium2026(), note: 'draft' };
-  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const data = { ...anEvent(), note: 'draft' };
+  const id = await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data, base_shas: loaded(path) });
   db.prepare(`UPDATE content_drafts SET status = 'approved', updated_at = updated_at - 400 WHERE id = ?`).run(id);
   gh.prs.push({ title: 't', body: 'b', head: `cms/${id}`, number: 77, state: 'closed', merged: true });
   gh.main.set(path, serializeJson(EVENTS, data)); // its own merge moved the file
@@ -962,46 +1253,48 @@ test('constructor, toString and __proto__ are unknown fields, at the top and nes
   for (const k of ['constructor', 'toString', '__proto__']) {
     const top = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), [k]: 'x' } });
     assert.equal(top.res.status, 422, k);
-    assert.ok(Object.hasOwn(top.body.errors, k), `${k}: ${JSON.stringify(top.body.errors)}`);
+    // Named on the whole entry (not in the form), and never an own key of the errors.
+    const named = (errors: Record<string, string>, path: string) => !Object.hasOwn(errors, path) && errors[''].replace(/^[^:]*: /, '').split('; ').includes(`${path} (Unknown field)`);
+    assert.ok(named(top.body.errors, k), `${k}: ${JSON.stringify(top.body.errors)}`);
     const nested = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), title: { en: 'A', tr: 'B', [k]: 'x' } } });
     assert.equal(nested.res.status, 422, k);
-    assert.ok(Object.hasOwn(nested.body.errors, `title.${k}`), `${k}: ${JSON.stringify(nested.body.errors)}`);
+    assert.ok(named(nested.body.errors, `title.${k}`), `${k}: ${JSON.stringify(nested.body.errors)}`);
     const fm = { title: 'T', date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet', [k]: 'x' };
     const pair = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: { frontmatter: fm, body: '' }, tr: { frontmatter: fm, body: '' } } });
     assert.equal(pair.res.status, 422, k);
-    assert.ok(Object.hasOwn(pair.body.errors, `en.frontmatter.${k}`), `${k}: ${JSON.stringify(pair.body.errors)}`);
+    assert.ok(named(pair.body.errors, `en.frontmatter.${k}`), `${k}: ${JSON.stringify(pair.body.errors)}`);
   }
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0, 'nothing stored');
 });
 
 test('a translationKey of another published pair is refused on update, at submit and at approval', async () => {
   const { env, db } = setup();
-  const en = 'src/content/webinars/en/molecular-simulations.md';
-  const tr = 'src/content/webinars/tr/molekuler-simulasyonlar.md';
-  const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=webinars&id=molecular-simulations', 'editor')).json() as any;
+  const en = PAIR_EN;
+  const tr = PAIR_TR;
+  const current = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor')).json() as any;
   const withKey = (key: string) => ({
     en: { frontmatter: { ...current.data.en.frontmatter, translationKey: key }, body: current.data.en.body },
     tr: { frontmatter: { ...current.data.tr.frontmatter, translationKey: key }, body: current.data.tr.body },
   });
-  const upd = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'molecular-simulations', data: withKey('open-student-webinars'), base_shas: loaded(en, tr) });
+  const upd = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: PAIR_ID, data: withKey(OTHER_KEY), base_shas: loaded(en, tr) });
   assert.equal(upd.res.status, 409);
   assert.equal(upd.body.code, 'exists');
 
   // Its own key is fine; a save may then change it, and submit refuses.
-  const ok = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: 'molecular-simulations', data: withKey('molecular-simulations'), base_shas: loaded(en, tr) });
+  const ok = await create(env, 'editor', { type: 'webinars', action: 'update', entry_id: PAIR_ID, data: withKey(PAIR_KEY), base_shas: loaded(en, tr) });
   assert.equal(ok.res.status, 201);
   const id = ok.body.draft.id;
-  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey('open-student-webinars') })).status, 200);
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey(OTHER_KEY) })).status, 200);
   const sub = await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit');
   assert.equal(sub.status, 409);
   assert.equal((await sub.json() as any).code, 'exists');
 
   // A row that reached the queue with a clashing key is refused at approval.
-  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey('molecular-simulations') })).status, 200);
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: withKey(PAIR_KEY) })).status, 200);
   assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit')).status, 200);
   const stored = JSON.parse((db.prepare('SELECT data FROM content_drafts WHERE id = ?').get(id) as { data: string }).data);
-  stored.tr.frontmatter.translationKey = 'open-student-webinars';
-  stored.en.frontmatter.translationKey = 'open-student-webinars';
+  stored.tr.frontmatter.translationKey = OTHER_KEY;
+  stored.en.frontmatter.translationKey = OTHER_KEY;
   db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(stored), id);
   const app = await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve');
   assert.equal(app.status, 409);
@@ -1098,7 +1391,7 @@ test('an unknown key inside an array element is refused and nothing is stored', 
     const link = { label: { en: 'Materials', tr: 'Materyaller' }, url: 'https://github.com/RSG-Turkiye/x', [k]: 'x' };
     const { res, body } = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), links: [link] } });
     assert.equal(res.status, 422, k);
-    assert.ok(Object.hasOwn(body.errors, `links.0.${k}`), `${k}: ${JSON.stringify(body.errors)}`);
+    assert.ok(!Object.hasOwn(body.errors, `links.0.${k}`) && body.errors[''].includes(`links.0.${k} (Unknown field)`), `${k}: ${JSON.stringify(body.errors)}`);
   }
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
 });
@@ -1153,8 +1446,8 @@ test('cancel: GitHub refusing to close it changes nothing and logs nothing', asy
 
 test('entry_busy: a second draft of an entry cannot be sent while another is in review or on its way', async () => {
   const { env, db, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note }, base_shas: loaded(path) });
   const first = await submitted(env, 'editor', body('one'));
   const second = (await create(env, 'editor2', body('two'))).body.draft.id as string;
 
@@ -1178,8 +1471,8 @@ test('entry_busy: a second draft of an entry cannot be sent while another is in 
 
 test('entry_busy is part of the guarded write: a draft that becomes live meanwhile still blocks', async () => {
   const { env, db, row } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: 'symposium-2026', data: { ...symposium2026(), note }, base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  const body = (note: string) => ({ type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note }, base_shas: loaded(path) });
   const first = (await create(env, 'editor', body('one'))).body.draft.id as string;
   const second = (await create(env, 'editor2', body('two'))).body.draft.id as string;
   // The first is sent between the second's busy check and its write.
@@ -1300,18 +1593,63 @@ test('the approval queue holds drafts stuck in approved past the stale time, not
 
 // ── Task 7: the panel's server side ───────────────────────────────────────────
 
-test('every published entry still validates under the stricter schemas', () => {
-  const WORKSHOPS = cmsType('workshops')!;
-  for (const [path, text] of Object.entries(FILES)) {
-    if (path.startsWith('src/content/events/')) assert.deepEqual(validateDraft(EVENTS, JSON.parse(text)), { ok: true, data: JSON.parse(text) }, path);
-    if (path.startsWith('src/content/workshops/')) assert.equal(validateDraft(WORKSHOPS, JSON.parse(text)).ok, true, path);
+test('every published entry of every type round-trips through the panel: strict validation, house rules and rule 8', () => {
+  // Read from disk, not FILES: FILES holds only some folders, plus synthetic
+  // entries. Structural (A2): whatever main holds must open, save and send.
+  const disk: Record<string, string> = {};
+  const walk = (dir: string) => {
+    for (const f of readdirSync(`${ROOT}${dir}`, { withFileTypes: true })) {
+      if (f.isDirectory()) walk(`${dir}/${f.name}`);
+      else if (/\.(json|md)$/.test(f.name)) disk[`${dir}/${f.name}`] = readFileSync(`${ROOT}${dir}/${f.name}`, 'utf8');
+    }
+  };
+  const types = CMS_TYPES;
+  for (const dir of new Set(types.map((t) => t.dir))) walk(dir);
+  const index = buildCmsIndex(disk, undefined, types);
+  // No count per type: the panel may delete a type's last entry (A2).
+  assert.ok(Object.keys(disk).length > 0, 'the content folders were read');
+  for (const type of types) {
+    for (const e of index[type.key]) {
+      let data: unknown;
+      if (type.format === 'json') data = parseJson(type, disk[`${type.dir}/${e.id}.json`]);
+      else {
+        const side = (p: string | null | undefined) => p ? parseMarkdown(type, disk[p]) : null;
+        data = { en: side(e.paths?.en), tr: side(e.paths?.tr) };
+      }
+      const v = validateDraft(type, data);
+      assert.equal(v.ok, true, `${type.key} ${e.id}: ${JSON.stringify(v.ok ? null : v.errors)}`);
+      if (v.ok && type.format === 'json') assert.deepEqual(v.data, data, `${type.key} ${e.id}: the data is kept as written`);
+      if (v.ok && type.resourceIds) {
+        // The parsed sides carry `source`, the file on main, as a draft opened from it does.
+        const lp = lpErrors(type, data as any, { assigned: [] });
+        assert.deepEqual(lp, {}, `${type.key} ${e.id}: rule 8`);
+      }
+    }
   }
-  for (const w of INDEX.webinars) {
-    const side = (p: string | null | undefined) => p ? parseMarkdown(WEBINARS, FILES[p]) : null;
-    const pair = { en: side(w.paths?.en), tr: side(w.paths?.tr) };
-    const v = validateDraft(WEBINARS, pair);
-    assert.equal(v.ok, true, `${w.id}: ${JSON.stringify(v.ok ? null : v.errors)}`);
+});
+
+test('an error on a key the form hides goes on the whole entry, never on the hidden field', () => {
+  const BLOG = cmsType('blog')!;
+  const side = (fm: object) => ({ frontmatter: { title: 'A post', pubDate: '2026-01-01', description: 'About it.', category: 'news', ...fm }, body: 'Text.' });
+  for (const mode of ['strict', 'lenient'] as const) {
+    // A legacy lang that contradicts the folder: refused, on the entry.
+    const v = validateDraft(BLOG, { en: side({ lang: 'tr' }), tr: null }, mode) as any;
+    assert.equal(v.ok, false, mode);
+    assert.deepEqual(Object.keys(v.errors), [''], mode);
+    assert.match(v.errors[''], /^Not in the form, so it is fixed in the repository: en\.frontmatter\.lang \(Must be "en" or left out\)$/);
   }
+  // Blog hides translationKey; webinars show it, so there it stays on the field.
+  const split = validateDraft(BLOG, { en: side({ translationKey: 'a' }), tr: side({ translationKey: 'b' }) }) as any;
+  assert.deepEqual(Object.keys(split.errors), ['']);
+  // A visible field keeps its own error, next to the moved one.
+  const both = validateDraft(BLOG, { en: side({ lang: 'tr', pubDate: 'soon' }), tr: null }, 'lenient') as any;
+  assert.deepEqual(Object.keys(both.errors).sort(), ['', 'en.frontmatter.pubDate']);
+  // A JSON type's hidden key (the privacy notice's server-set date).
+  const PRIVACY = cmsType('privacy')!;
+  const notice = JSON.parse(FILES['src/content/privacy/privacy.json']);
+  const p = validateDraft(PRIVACY, { ...notice, updated: 5 }, 'lenient') as any;
+  assert.deepEqual(Object.keys(p.errors), ['']);
+  assert.match(p.errors[''], /^Not in the form, so it is fixed in the repository: updated \(/);
 });
 
 test('the required display texts may not be empty at submit', () => {
@@ -1328,7 +1666,9 @@ test('lenient: missing or empty is allowed, unknown keys, wrong types and bad fo
   assert.equal(validateDraft(EVENTS, partial).ok, false, 'strict still refuses it');
   const wrong = validateDraft(EVENTS, { id: 'meetup-x', start: '6 March', title: { en: 5 }, colour: 'red', type: 'party' }, 'lenient') as any;
   assert.equal(wrong.ok, false);
-  assert.deepEqual(Object.keys(wrong.errors).sort(), ['colour', 'start', 'title.en', 'type']);
+  // An unknown key is not in the form: its error is on the whole entry.
+  assert.deepEqual(Object.keys(wrong.errors).sort(), ['', 'start', 'title.en', 'type']);
+  assert.match(wrong.errors[''], /^Not in the form, so it is fixed in the repository: colour \(Unknown field\)$/);
   // Nested unknown keys too, and the webinar pair's shape.
   assert.equal(validateDraft(EVENTS, { links: [{ label: { en: '', de: 'x' } }] }, 'lenient').ok, false);
   assert.equal(validateDraft(WEBINARS, { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } }, 'lenient').ok, true);
@@ -1373,19 +1713,22 @@ test('a draft carries its author\'s display name, never an id or address in its 
 
 test('the drafts list says which entries are held by a live draft, without saying whose', async () => {
   const { env } = setup();
-  const path = 'src/content/events/symposium-2026.json';
-  await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: 'symposium-2026', data: symposium2026(), base_shas: loaded(path) });
+  const path = EVENT_PATH;
+  await submitted(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: anEvent(), base_shas: loaded(path) });
   const other = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor2')).json() as any;
   assert.deepEqual(other.mine, []);
-  assert.deepEqual(other.live, [{ type: 'events', entry_id: 'symposium-2026', status: 'submitted' }]);
+  assert.deepEqual(other.live, [{ type: 'events', entry_id: EVENT_ID, status: 'submitted' }]);
   const none = await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'member');
   assert.equal(none.status, 403);
 });
 
 test('each index entry carries its date, for the panel\'s list', () => {
-  assert.equal(INDEX.events.find((e) => e.id === 'symposium-2026')!.date, '2026-10-10');
+  for (const e of INDEX.events) assert.equal(e.date, JSON.parse(FILES[`src/content/events/${e.id}.json`]).start, e.id);
   assert.ok(INDEX.workshops.every((w) => /^\d{4}$/.test(w.date ?? '')));
-  assert.equal(INDEX.webinars.find((w) => w.id === 'ai-approaches-biomolecular-representation')!.date, '2024-04-16');
+  for (const w of INDEX.webinars) {
+    const written = /^date:\s*"?(\d{4}-\d{2}-\d{2})/m.exec(FILES[w.paths!.en!])?.[1];
+    assert.equal(w.date, written, w.id);
+  }
 });
 
 // ── Task 7, fix round 1 ───────────────────────────────────────────────────────
@@ -1408,11 +1751,11 @@ test('a save names the version it was made on: a stale write_nonce is draft_chan
   assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), note: 'tab 1 again' }, write_nonce: after })).status, 200);
 });
 
-test('renaming a new entry onto a published one is refused on the field its name comes from', async () => {
+test('renaming a new event onto a published one is refused on the field its name comes from; a webinar gets -2', async () => {
   const { env, row } = setup();
   const made = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
   const id = made.body.draft.id;
-  const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), id: 'symposium-2026' } });
+  const res = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...newEvent(), id: EVENT_ID } });
   assert.equal(res.status, 422);
   assert.match((await res.json() as any).errors.id, /already/);
   assert.equal(row(id).entry_id, 'meetup-ankara-2027');
@@ -1420,9 +1763,10 @@ test('renaming a new entry onto a published one is refused on the field its name
   const side = (title: string) => ({ frontmatter: { title, date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet' }, body: '\n' });
   const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('Fresh Talk'), tr: side('Yeni') } });
   assert.equal(w.res.status, 201);
+  // A webinar takes the next free name instead (whenTaken 'next'): no refusal.
   const clash = await on(env, draft.onRequestPatch, 'PATCH', w.body.draft.id, 'editor', { data: { en: side('Molekuler Simulasyonlar'), tr: side('Yeni') } });
-  assert.equal(clash.status, 422);
-  assert.ok((await clash.json() as any).errors['en.frontmatter.title']);
+  assert.equal(clash.status, 200);
+  assert.equal(row(w.body.draft.id).entry_id, 'molekuler-simulasyonlar-2');
 });
 
 test('the live list leaves out other people\'s new entries, keeps one\'s own', async () => {
@@ -1497,4 +1841,1075 @@ test('approvers get the drafts that are on their way or stuck; editors do not', 
   assert.deepEqual(body.inflight.map((d: any) => d.entry_id).sort(), ['a', 'b', 'c', 'd']);
   const ed = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor2')).json() as any;
   assert.deepEqual(ed.inflight, []);
+});
+
+// ── plan 4: every content group, and the registry's options ──────────────────
+//
+// Two test types stand in beside the real ones: a Yazılar type that
+// behaves like any JSON type, and a Sayfalar type with every restriction
+// (fixedKeys, noCreate, noDelete, approve: 'admin'), so the group rules are
+// tested apart from what blog posts, page texts and privacy add.
+
+const TEST_POSTS = defineType({
+  key: 'testposts' as CmsTypeKey,
+  group: 'yazilar',
+  dir: 'src/content/testposts',
+  format: 'json',
+  schema: z.object({ name: z.string().min(1), text: z.string().optional() }),
+  idFrom: (d: { name: string }) => String(d.name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+  idField: 'name',
+  indexTitle: (d: { name: string }) => d.name,
+  label: { en: 'Test posts', tr: 'Test yazıları' },
+});
+const TEST_PAGES = defineType({
+  key: 'testpages' as CmsTypeKey,
+  group: 'sayfalar',
+  dir: 'src/content/testpages',
+  format: 'json',
+  schema: z.object({ a: z.string().optional(), b: z.string().optional(), c: z.string().optional() }),
+  idFrom: () => { throw new Error('page texts take their id from the file'); },
+  idField: 'a',
+  indexTitle: () => 'Home',
+  fixedKeys: true,
+  noCreate: true,
+  noDelete: true,
+  approve: 'admin',
+  label: { en: 'Test pages', tr: 'Test sayfaları' },
+});
+const HOME = 'src/content/testpages/home.json';
+const HOME_TEXT = '{\n  "a": "one",\n  "b": "two"\n}\n';
+
+/** setup(), the two test types registered, a page on main, and people in the new groups. */
+function setupGroups() {
+  setTestCmsTypes([TEST_POSTS, TEST_PAGES]);
+  const s = setup();
+  gh.main.set(HOME, HOME_TEXT);
+  const add = s.db.prepare('INSERT INTO users (id, google_id, email, is_admin, is_member, created_at, last_login) VALUES (?, ?, ?, 0, 1, 1, 1)');
+  const grant = s.db.prepare('INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES (?, ?, ?, NULL, NULL, 1)');
+  for (const [id, role] of [['yeditor', 'content.yazilar.edit'], ['yapprover', 'content.yazilar.approve'], ['seditor', 'content.sayfalar.edit'], ['sapprover', 'content.sayfalar.approve']]) {
+    add.run(id, `g-${id}`, `${id}@example.org`);
+    grant.run(`g-${id}`, id, role);
+    s.db.prepare('INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, 4000000000, 1)').run(`s-${id}`, id);
+  }
+  return s;
+}
+const done = () => setTestCmsTypes([]);
+
+test('a Yazılar-only editor sees only Yazılar types, none of the Etkinlikler drafts, and gets 403 on them', async () => {
+  try {
+    const { env } = setupGroups();
+    const listed = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', 'yeditor')).json() as any;
+    assert.deepEqual(listed.types.map((t: any) => t.key), ['blog', 'testposts']);
+    assert.ok(listed.types.every((t: any) => t.group === 'yazilar'));
+
+    // An Etkinlikler draft, sent for approval.
+    const ev = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+    await on(env, submit.onRequestPost, 'POST', ev.body.draft.id, 'editor', {}, '/submit');
+    // A Yazılar draft of their own.
+    const post = await create(env, 'yeditor', { type: 'testposts', action: 'create', data: { name: 'First post' } });
+    assert.equal(post.res.status, 201);
+    assert.equal(post.body.draft.entry_id, 'first-post');
+    await on(env, submit.onRequestPost, 'POST', post.body.draft.id, 'yeditor', {}, '/submit');
+
+    for (const as of ['yeditor', 'yapprover']) {
+      const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', as)).json() as any;
+      const all = [...list.mine, ...list.queue, ...list.inflight, ...list.live];
+      assert.ok(all.every((d: any) => d.type === 'testposts' || d.type === 'blog'), as);
+      assert.equal((await on(env, draft.onRequestGet, 'GET', ev.body.draft.id, as)).status, 403, as);
+      assert.equal((await on(env, approve.onRequestPost, 'POST', ev.body.draft.id, as, {}, '/approve')).status, 403, as);
+    }
+    const queue = (await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'yapprover')).json() as any).queue;
+    assert.deepEqual(queue.map((d: any) => d.id), [post.body.draft.id]);
+    // Nor may they start an Etkinlikler draft, and the other way round.
+    assert.equal((await create(env, 'yeditor', { type: 'events', action: 'create', data: newEvent() })).res.status, 403);
+    assert.equal((await create(env, 'editor', { type: 'testposts', action: 'create', data: { name: 'Nope' } })).res.status, 403);
+    assert.equal((await on(env, draft.onRequestGet, 'GET', post.body.draft.id, 'approver')).status, 403);
+    // The Yazılar approver approves it: the pull request links the one İçerik section.
+    assert.equal((await on(env, approve.onRequestPost, 'POST', post.body.draft.id, 'yapprover', {}, '/approve')).status, 200);
+    assert.ok(gh.prs[0].body.includes(`https://rsg-turkiye.iscbsc.org/admin#icerik/taslaklar/${post.body.draft.id}`));
+  } finally {
+    done();
+  }
+});
+
+test('an approve: admin type is approved by an admin only, not by the group\'s approver', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const made = await create(env, 'seditor', { type: 'testpages', action: 'update', entry_id: 'home', data: { a: 'one!', b: 'two' }, base_shas: loaded(HOME) });
+    assert.equal(made.res.status, 201);
+    const id = made.body.draft.id;
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+
+    const typesFor = async (as: string) => (await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', as)).json() as any).types;
+    assert.equal((await typesFor('sapprover')).find((t: any) => t.key === 'testpages').canApprove, false);
+    assert.equal((await typesFor('admin')).find((t: any) => t.key === 'testpages').canApprove, true);
+    const queueOf = async (as: string) => (await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', as)).json() as any).queue.map((d: any) => d.id);
+    assert.deepEqual(await queueOf('sapprover'), [], 'not in a queue they cannot act on');
+    assert.ok((await queueOf('admin')).includes(id));
+    const c = async (as: string) => await (await req(env, counts.onRequestGet, 'GET', '/api/admin/counts', as)).json() as any;
+    assert.equal((await c('sapprover')).cmsQueue, 0, 'they approve page texts, not this: nothing waits for them');
+    assert.equal((await c('admin')).cmsQueue, 1);
+
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 403);
+    assert.equal((await on(env, reject.onRequestPost, 'POST', id, 'sapprover', { note: 'no' }, '/reject')).status, 403);
+    assert.equal(row(id).status, 'submitted');
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve')).status, 200);
+    assert.equal(row(id).status, 'pr_open');
+    assert.equal(gh.branches.get(`cms/${id}`)!.get(HOME), serializeJson(TEST_PAGES, { a: 'one!', b: 'two' }));
+  } finally {
+    done();
+  }
+});
+
+test('a noCreate type refuses a new entry; a noDelete type refuses a delete', async () => {
+  try {
+    const { env, db } = setupGroups();
+    const created = await create(env, 'sapprover', { type: 'testpages', action: 'create', data: { a: 'x' } });
+    assert.equal(created.res.status, 400);
+    assert.equal(created.body.code, 'bad_action');
+    const deleted = await create(env, 'admin', { type: 'testpages', action: 'delete', entry_id: 'home', base_shas: loaded(HOME) });
+    assert.equal(deleted.res.status, 400);
+    assert.equal(deleted.body.code, 'bad_action');
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
+    // The same actions on a type without the options are fine.
+    assert.equal((await create(env, 'yeditor', { type: 'testposts', action: 'create', data: { name: 'Fine' } })).res.status, 201);
+  } finally {
+    done();
+  }
+});
+
+test('a fixedKeys type: values may change, keys may not, at the start and on every save', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const start = (data: unknown) => create(env, 'seditor', { type: 'testpages', action: 'update', entry_id: 'home', data, base_shas: loaded(HOME) });
+    const added = await start({ a: 'one', b: 'two', c: 'three' });
+    assert.equal(added.res.status, 422);
+    assert.ok(added.body.errors.c);
+    const missing = await start({ a: 'one' });
+    assert.equal(missing.res.status, 422);
+    assert.ok(missing.body.errors.b);
+
+    const ok = await start({ a: 'ONE', b: 'TWO' });
+    assert.equal(ok.res.status, 201);
+    const id = ok.body.draft.id;
+    const before = row(id).data;
+    const save = (data: unknown) => on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data });
+    const more = await save({ a: 'ONE', b: 'TWO', c: 'new' });
+    assert.equal(more.status, 422);
+    assert.ok(((await more.json()) as any).errors.c);
+    const fewer = await save({ b: 'TWO' });
+    assert.equal(fewer.status, 422);
+    assert.ok(((await fewer.json()) as any).errors.a);
+    assert.equal(row(id).data, before, 'nothing stored');
+    // The keys in another order are the same keys.
+    assert.equal((await save({ b: 'two again', a: 'one again' })).status, 200);
+    // Each save reads no file from GitHub: the stored draft is the baseline.
+    const reads = gh.requests.length;
+    assert.equal((await save({ a: '1', b: '2' })).status, 200);
+    assert.equal(gh.requests.length, reads);
+  } finally {
+    done();
+  }
+});
+
+test('an update keeps its file name whatever the data says; only an id kept in the data must still match (A1)', async () => {
+  const { env, row } = setup();
+  const path = Object.keys(FILES).filter((p) => p.startsWith('src/content/workshops/')).sort()[0];
+  const entryId = path.slice('src/content/workshops/'.length, -'.json'.length);
+  const data = { ...JSON.parse(FILES[path]), repo: 'Quite_A_Different_Repo' };
+  const made = await create(env, 'editor', { type: 'workshops', action: 'update', entry_id: entryId, data, base_shas: loaded(path) });
+  assert.equal(made.res.status, 201);
+  assert.equal(made.body.draft.entry_id, entryId);
+  const id = made.body.draft.id;
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: { ...data, repo: 'Yet_Another' } })).status, 200);
+  assert.equal(row(id).entry_id, entryId);
+  assert.deepEqual(filesFor(row(id) as never).map((f) => f.path), [path]);
+  // Events keep their id in the data (idInData): changing it is still refused.
+  const ev = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), id: 'other-id' }, base_shas: loaded(EVENT_PATH) });
+  assert.equal(ev.res.status, 422);
+  assert.ok(ev.body.errors.id);
+});
+
+test('the registry\'s defaults keep the Etkinlikler types as they were', () => {
+  for (const key of ['events', 'workshops', 'webinars']) {
+    const t = cmsType(key)!;
+    assert.deepEqual([t.sides, t.fixedKeys, t.noCreate, t.noDelete, t.approve, t.generated], ['both', false, false, false, 'group', false], key);
+    assert.equal(t.idInData, key === 'events', key);
+  }
+  assert.deepEqual(['events', 'workshops', 'webinars'].map((k) => cmsType(k)!.idField), ['id', 'repo', 'en.frontmatter.title']);
+  assert.equal(cmsType('testposts'), null, 'test types are gone after the tests');
+});
+
+// ── Task 2 fix round 1: the files an approver can compare ─────────────────────
+
+test('entry also answers each file as it is on main, and a draft the files it would write', async () => {
+  const { env } = setup();
+  const path = EVENT_PATH;
+  const ev = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=events&id=${EVENT_ID}`, 'editor')).json() as any;
+  assert.deepEqual(ev.files, { [path]: FILES[path] });
+  const w = await (await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=webinars&id=${PAIR_ID}`, 'editor')).json() as any;
+  const tr = PAIR_TR;
+  assert.equal(w.files[tr], FILES[tr]);
+
+  const { body } = await create(env, 'editor', { type: 'events', action: 'update', entry_id: EVENT_ID, data: { ...anEvent(), note: 'x' }, base_shas: loaded(path) });
+  const got = await (await on(env, draft.onRequestGet, 'GET', body.draft.id, 'editor')).json() as any;
+  assert.deepEqual(got.files, [{ path, content: serializeJson(EVENTS, { ...anEvent(), note: 'x' }) }]);
+  // The drafts list stays light: no files there.
+  const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'editor')).json() as any;
+  assert.ok(list.mine.every((d: any) => !('files' in d)));
+});
+
+// ── Learning paths: rule 8 (CLAUDE.md), enforced by the server (A4) ─────────
+
+import { nextStageNumber } from '../src/lib/cms/slug';
+import { LP_DOMAIN, LP_ID_FOREIGN, LP_ID_TWICE, LP_ORDER, LP_SHARED } from '../functions/_lib/cms-lp';
+
+/** An lp entry as the form sends it: both sides' frontmatter and body, no source. */
+const lpData = (en: object, tr: object) => JSON.parse(JSON.stringify({ en: { frontmatter: en, body: '' }, tr: { frontmatter: tr, body: '' } }));
+const levelUpdate = (data: unknown) => ({ type: 'lp-levels', action: 'update', entry_id: 'fixture-explorer', data, base_shas: loaded(LP_LEVEL.en, LP_LEVEL.tr) });
+/** Both sides of the level with `edit` applied to each side's frontmatter. */
+const levelWith = (edit: (fm: any, lang: 'en' | 'tr') => void) => {
+  const side = (lang: 'en' | 'tr') => { const fm = JSON.parse(JSON.stringify(aLevelSide(lang))); edit(fm, lang); return fm; };
+  return lpData(side('en'), side('tr'));
+};
+const ID = /^[a-z0-9_-]+$/;
+/** Save, then submit: the submit's status and errors. */
+async function saveAndSubmit(env: Env, data: unknown) {
+  const made = await create(env, 'learning', levelUpdate(data));
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit');
+  return { id: made.body.draft.id as string, status: res.status, errors: ((await res.json()) as any).errors ?? {} };
+}
+
+test('rule 8: a new resource gets a fresh unique id on both sides from the server, kept by later saves, never written to git as _assigned', async () => {
+  const { env, row } = setup();
+  const fresh = (lang: 'en' | 'tr') => ({ id: '', title: lang === 'en' ? 'A Landmark Paper' : 'Bir dönüm noktası', description: 'D.', tag: 'Paper', url: 'https://example.org/landmark' });
+  const data = levelWith((fm, lang) => {
+    fm.sections[1].resources.push(fresh(lang));
+    // A second card with the same title, and one whose id key is missing altogether.
+    const { id: _drop, ...noKey } = fresh(lang);
+    fm.sections[0].resources.push(fresh(lang), noKey);
+  });
+  const made = await create(env, 'learning', levelUpdate(data));
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  const saved = made.body.draft.data;
+  const en = [saved.en.frontmatter.sections[0].resources[2], saved.en.frontmatter.sections[0].resources[3], saved.en.frontmatter.sections[1].resources[1]];
+  const tr = [saved.tr.frontmatter.sections[0].resources[2], saved.tr.frontmatter.sections[0].resources[3], saved.tr.frontmatter.sections[1].resources[1]];
+  for (let i = 0; i < 3; i++) {
+    assert.match(en[i].id, /^a-landmark-paper-[0-9a-f]{6}$/);
+    assert.equal(tr[i].id, en[i].id, 'the same id on both sides');
+    assert.ok(ID.test(en[i].id) && en[i].id.length <= 110);
+    assert.equal(Object.keys(en[i])[0], 'id', 'the id is the first key, also where the key was missing');
+  }
+  assert.equal(new Set(en.map((r) => r.id)).size, 3, 'each new card its own id');
+  assert.deepEqual([...saved._assigned].sort(), en.map((r) => r.id).sort());
+  // Existing ids are untouched.
+  assert.equal(saved.en.frontmatter.sections[0].resources[0].id, 'fx-a');
+
+  // The form sends the ids back: kept, nothing new given. A client's _assigned is ignored.
+  const id = made.body.draft.id;
+  const again = await on(env, draft.onRequestPatch, 'PATCH', id, 'learning', { data: { ...saved, _assigned: ['fx-forged'] } });
+  assert.equal(again.status, 200);
+  const after = JSON.parse(row(id).data);
+  assert.deepEqual(after._assigned, saved._assigned);
+  assert.equal(after.en.frontmatter.sections[1].resources[1].id, en[2].id);
+
+  const sent = await on(env, submit.onRequestPost, 'POST', id, 'learning', {}, '/submit');
+  assert.equal(sent.status, 200, JSON.stringify(await sent.clone().json()));
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve')).status, 200);
+  const branch = gh.branches.get(`cms/${id}`)!;
+  for (const p of [LP_LEVEL.en, LP_LEVEL.tr]) {
+    const text = branch.get(p)!;
+    assert.ok(text.includes(`      - id: "${en[2].id}"\n`), `${p}: the new id, double-quoted, first`);
+    assert.ok(!text.includes('_assigned'), 'the record of given ids never reaches git');
+  }
+});
+
+test('rule 8, Review Focus 1: each break is refused at submit with a field error, and nothing reaches git', async () => {
+  const { env } = setup();
+  // A resource deleted from English but not Turkish.
+  const del = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'en') fm.sections[0].resources.splice(0, 1); }));
+  assert.equal(del.status, 422);
+  assert.equal(del.errors['tr.frontmatter.sections.0.resources.0.id'], LP_ORDER);
+  // Two resources swapped in one language only.
+  const swap = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[0].resources.reverse(); }));
+  assert.equal(swap.status, 422);
+  assert.equal(swap.errors['tr.frontmatter.sections.0.resources.0.id'], LP_ORDER);
+  // An id typed by hand through the API, the same on both sides: saved (work in progress), refused at submit.
+  const typed = await saveAndSubmit(env, levelWith((fm, lang) => fm.sections[0].resources.push(lpRes('my-own-id', lang))));
+  assert.equal(typed.status, 422);
+  assert.equal(typed.errors['en.frontmatter.sections.0.resources.2.id'], LP_ID_FOREIGN);
+  // An id that already exists in another file (the roadmap stage's).
+  const other = await saveAndSubmit(env, levelWith((fm, lang) => fm.sections[1].resources.push(lpRes('fx-stage-1', lang))));
+  assert.equal(other.status, 422);
+  assert.equal(other.errors['en.frontmatter.sections.1.resources.1.id'], LP_ID_FOREIGN);
+  // A shared field changed in one language.
+  const tag = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[0].resources[0].tag = 'Tool'; }));
+  assert.equal(tag.status, 422);
+  assert.deepEqual(tag.errors, { 'tr.frontmatter.sections.0.resources.0.tag': LP_SHARED });
+  const url = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[0].resources[0].url = 'https://example.org/elsewhere'; }));
+  assert.deepEqual(url.errors, { 'tr.frontmatter.sections.0.resources.0.url': LP_SHARED });
+  const year = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[1].resources[0].year = 2025; }));
+  assert.deepEqual(year.errors, { 'tr.frontmatter.sections.1.resources.0.year': LP_SHARED });
+  // The same id twice in one entry.
+  const twice = await saveAndSubmit(env, levelWith((fm, lang) => fm.sections[1].resources.push(lpRes('fx-a', lang))));
+  assert.equal(twice.errors['en.frontmatter.sections.1.resources.1.id'], LP_ID_TWICE);
+  // A Turkish link that adds /tr to a page of this site is the same link.
+  const fine = await saveAndSubmit(env, levelWith((fm, lang) => { fm.sections[0].resources[1].title = `${lang} edited`; }));
+  assert.equal(fine.status, 200, JSON.stringify(fine.errors));
+  assert.equal(gh.prs.length, 0);
+  assert.deepEqual(gh.writes(), [], 'nothing reaches git');
+});
+
+test('rule 8 is checked again at approval, against the stored draft: a row changed after submit is refused', async () => {
+  const { env, db, row } = setup();
+  const ok = await saveAndSubmit(env, levelWith((fm, lang) => { fm.orientation = `${lang} new`; }));
+  assert.equal(ok.status, 200);
+  const data = JSON.parse(row(ok.id).data);
+  data.en.frontmatter.sections[0].resources[0].id = 'fx-forged';
+  data.tr.frontmatter.sections[0].resources[0].id = 'fx-forged';
+  db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(data), ok.id);
+  const res = await on(env, approve.onRequestPost, 'POST', ok.id, 'admin', {}, '/approve');
+  assert.equal(res.status, 422);
+  assert.equal(((await res.json()) as any).errors['en.frontmatter.sections.0.resources.0.id'], LP_ID_FOREIGN);
+  assert.equal(row(ok.id).status, 'submitted');
+  assert.equal(gh.prs.length, 0);
+});
+
+test('learning paths: what names the file is locked on update; a level\'s domain must be published; a taken level is refused', async () => {
+  const { env } = setup();
+  const moved = await create(env, 'learning', levelUpdate(levelWith((fm) => { fm.level = 'researcher'; })));
+  assert.equal(moved.res.status, 422);
+  assert.match(moved.body.errors['en.frontmatter.level'], /gives the file its name \(fixture-explorer\)/);
+  const made = await create(env, 'learning', levelUpdate(levelWith(() => {})));
+  assert.equal(made.res.status, 201);
+  const patched = await on(env, draft.onRequestPatch, 'PATCH', made.body.draft.id, 'learning', { data: levelWith((fm) => { fm.domain = 'genomics'; }) });
+  assert.equal(patched.status, 422);
+
+  // A new level of a published domain and level: refused, never renamed to -2.
+  const taken = await create(env, 'learning', { type: 'lp-levels', action: 'create', data: levelWith(() => {}) });
+  assert.equal(taken.res.status, 409);
+  assert.equal(taken.body.code, 'exists');
+  // A new level of a domain that is not published: saved, refused at submit.
+  const lonely = await create(env, 'learning', { type: 'lp-levels', action: 'create', data: levelWith((fm) => { fm.domain = 'nowhere'; fm.sections = []; }) });
+  assert.equal(lonely.res.status, 201, JSON.stringify(lonely.body));
+  assert.equal(lonely.body.draft.entry_id, 'nowhere-explorer');
+  const res = await on(env, submit.onRequestPost, 'POST', lonely.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(res.status, 422);
+  assert.equal(((await res.json()) as any).errors['en.frontmatter.domain'], LP_DOMAIN);
+});
+
+test('roadmap: a new stage comes last, numbered by the server; the number and its file name stay; its resources get ids', async () => {
+  const { env, row } = setup();
+  const n = nextStageNumber(INDEX['lp-roadmap'].map((e) => e.id));
+  assert.ok(n > 50);
+  const side = (lang: 'en' | 'tr') => ({ number: 3, emoji: '🧪', title: lang === 'en' ? 'Try It Out' : 'Deneyin', subtitle: 'S.', color: 'red', resources: [{ id: '', title: 'One', description: 'D.', tag: 'Action', url: lang === 'en' ? '/events/' : '/tr/events/' }] });
+  const made = await create(env, 'learning', { type: 'lp-roadmap', action: 'create', data: lpData(side('en'), side('tr')) });
+  assert.equal(made.res.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.draft.entry_id, `${n}-try-it-out`, 'the number the client sent is not used');
+  assert.equal(made.body.draft.data.en.frontmatter.number, n);
+  assert.equal(made.body.draft.data.tr.frontmatter.number, n);
+  const rid = made.body.draft.data.en.frontmatter.resources[0].id;
+  assert.match(rid, /^one-[0-9a-f]{6}$/);
+  // A save keeps the number whatever it sends.
+  const data = made.body.draft.data;
+  data.en.frontmatter.number = 1;
+  data.tr.frontmatter.number = 1;
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', made.body.draft.id, 'learning', { data })).status, 200);
+  assert.equal(JSON.parse(row(made.body.draft.id).data).en.frontmatter.number, n);
+  assert.equal(row(made.body.draft.id).entry_id, `${n}-try-it-out`);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+
+  // An update may not renumber a stage.
+  const stage = lpData({ ...aStageSide('en'), number: 49 }, { ...aStageSide('tr'), number: 49 });
+  const re = await create(env, 'learning', { type: 'lp-roadmap', action: 'update', entry_id: '50-fixture-stage', data: stage, base_shas: loaded(LP_STAGE.en, LP_STAGE.tr) });
+  assert.equal(re.res.status, 422);
+  assert.ok(re.body.errors['en.frontmatter.number']);
+});
+
+test('learning paths: only the Öğrenme group edits them, and a new domain is named after its English name', async () => {
+  const { env } = setup();
+  const dom = (lang: 'en' | 'tr') => ({ name: lang === 'en' ? 'Systems Biology' : 'Sistem Biyolojisi', emoji: '🕸️', tagline: 'T.', order: 5, goDeeper: [] });
+  assert.equal((await create(env, 'editor', { type: 'lp-domains', action: 'create', data: lpData(dom('en'), dom('tr')) })).res.status, 403);
+  const made = await create(env, 'learning', { type: 'lp-domains', action: 'create', data: lpData(dom('en'), dom('tr')) });
+  assert.equal(made.res.status, 201);
+  assert.equal(made.body.draft.entry_id, 'systems-biology');
+  assert.deepEqual(made.body.draft.base_shas, { 'src/content/lp-domains/en/systems-biology.md': null, 'src/content/lp-domains/tr/systems-biology.md': null });
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  // A domain already published: refused, not renamed.
+  const again = await create(env, 'learning', { type: 'lp-domains', action: 'create', data: lpData({ ...dom('en'), name: 'Fixture' }, dom('tr')) });
+  assert.equal(again.res.status, 409, 'fixture.md is published; "Fixture" slugs to it');
+  assert.equal(again.body.code, 'exists');
+});
+
+// ── Fix round 1 (6b) ─────────────────────────────────────────────────────────
+
+import { assignIds, LP_ID_ELSEWHERE, LP_ID_TR, LP_LEVEL_IDS, LP_STRUCTURE, newResourceId } from '../functions/_lib/cms-lp';
+import { lpLevelSchema } from '../src/data/learning-paths';
+
+const stageData = (title: string) => {
+  const side = (lang: 'en' | 'tr') => ({ number: 1, emoji: '🧪', title: lang === 'en' ? title : `${title} tr`, subtitle: 'S.', color: 'red', resources: [] });
+  return lpData(side('en'), side('tr'));
+};
+
+test('roadmap: approval refuses a number another stage took on main meanwhile; a taken name is refused, not -2', async () => {
+  const { env, row } = setup();
+  const made = await create(env, 'learning', { type: 'lp-roadmap', action: 'create', data: stageData('Late Stage') });
+  assert.equal(made.res.status, 201);
+  const n = made.body.draft.data.en.frontmatter.number;
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  // Another stage with that number merges first (the index is a deploy behind).
+  gh.main.set(`src/content/lp-roadmap/en/${n}-other.md`, gh.main.get(LP_STAGE.en)!);
+  const res = await on(env, approve.onRequestPost, 'POST', made.body.draft.id, 'admin', {}, '/approve');
+  assert.equal(res.status, 409);
+  assert.equal(((await res.json()) as any).code, 'stage_taken');
+  assert.equal(row(made.body.draft.id).status, 'submitted');
+  assert.equal(gh.prs.length, 0);
+  // The same title again: its name is taken by the first draft's file once it is on main.
+  gh.main.set(`src/content/lp-roadmap/en/${n}-late-stage.md`, 'x');
+  gh.main.set(`src/content/lp-roadmap/tr/${n}-late-stage.md`, 'x');
+  const again = await create(env, 'learning', { type: 'lp-roadmap', action: 'create', data: stageData('Late Stage') });
+  assert.equal(again.res.status, 409, 'refused, never renamed to -2');
+});
+
+test('a level\'s domain is checked on main, not the deployed index: no false reject, no false accept', async () => {
+  const { env } = setup();
+  // A domain merged but not yet deployed: its first level is accepted.
+  for (const l of ['en', 'tr']) gh.main.set(`src/content/lp-domains/${l}/fresh.md`, gh.main.get(`src/content/lp-domains/${l}/fixture.md`)!);
+  const level = (domain: string) => ({ type: 'lp-levels', action: 'create', data: levelWith((fm) => { fm.domain = domain; fm.sections = []; }) });
+  const fresh = await create(env, 'learning', level('fresh'));
+  assert.equal(fresh.res.status, 201);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', fresh.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  // A domain deleted on main but still deployed: refused.
+  for (const l of ['en', 'tr']) gh.main.delete(`src/content/lp-domains/${l}/fixture.md`);
+  const gone = await create(env, 'learning', { type: 'lp-levels', action: 'create', data: levelWith((fm) => { fm.level = 'researcher'; fm.sections = []; }) });
+  assert.equal(gone.res.status, 201);
+  const res = await on(env, submit.onRequestPost, 'POST', gone.body.draft.id, 'learning', {}, '/submit');
+  assert.equal(res.status, 422);
+  assert.equal(((await res.json()) as any).errors['en.frontmatter.domain'], LP_DOMAIN);
+});
+
+test('a domain that still has levels on main is not deleted, at the start and at approval', async () => {
+  const { env } = setup();
+  const dom = loaded('src/content/lp-domains/en/fixture.md', 'src/content/lp-domains/tr/fixture.md');
+  const res = await create(env, 'learning', { type: 'lp-domains', action: 'delete', entry_id: 'fixture', base_shas: dom });
+  assert.equal(res.res.status, 409);
+  assert.equal(res.body.code, 'has_levels');
+  assert.equal(res.body.count, 1);
+  // Without levels the delete starts; a level that lands before approval stops it.
+  for (const l of ['en', 'tr'] as const) gh.main.delete(LP_LEVEL[l]);
+  const ok = await create(env, 'learning', { type: 'lp-domains', action: 'delete', entry_id: 'fixture', base_shas: dom });
+  assert.equal(ok.res.status, 201);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', ok.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  gh.main.set('src/content/lp-levels/en/fixture-researcher.md', 'x');
+  const appr = await on(env, approve.onRequestPost, 'POST', ok.body.draft.id, 'admin', {}, '/approve');
+  assert.equal(appr.status, 409);
+  assert.equal(gh.prs.length, 0);
+  assert.deepEqual([...LP_LEVEL_IDS], [...lpLevelSchema.shape.level.options]);
+});
+
+test('en/tr structure and untranslated fields must match; every divergence is named', async () => {
+  const { env } = setup();
+  // A card moved to another section in Turkish only.
+  const moved = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[1].resources.unshift(fm.sections[0].resources.pop()); }));
+  assert.equal(moved.errors['tr.frontmatter.sections.0.resources'], LP_STRUCTURE);
+  assert.equal(moved.errors['tr.frontmatter.sections.1.resources'], LP_STRUCTURE);
+  const kind = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') fm.sections[1].type = 'papers'; }));
+  assert.deepEqual(kind.errors, { 'tr.frontmatter.sections.1.type': LP_SHARED });
+  // Two cards swapped in Turkish, and two links changed: all named at once.
+  const many = await saveAndSubmit(env, levelWith((fm, lang) => { if (lang === 'tr') { fm.sections[0].resources.reverse(); fm.sections[1].resources[0].webinarSlug = 'other'; } }));
+  assert.ok(many.errors['tr.frontmatter.sections.0.resources.0.id'] && many.errors['tr.frontmatter.sections.0.resources.1.id'], JSON.stringify(many.errors));
+  assert.equal(many.errors['tr.frontmatter.sections.1.resources.0.webinarSlug'], LP_SHARED);
+  // A domain's emoji and its links' addresses are the same in both languages.
+  const dom = (lang: 'en' | 'tr', o = {}) => ({ name: lang, emoji: '🧪', tagline: 'T.', order: 90, goDeeper: [{ title: lang, description: 'D.', url: 'https://example.org/a' }], ...o });
+  const made = await create(env, 'learning', { type: 'lp-domains', action: 'update', entry_id: 'fixture', base_shas: loaded('src/content/lp-domains/en/fixture.md', 'src/content/lp-domains/tr/fixture.md'),
+    data: lpData(dom('en'), dom('tr', { emoji: '🧬', goDeeper: [{ title: 'tr', description: 'D.', url: 'https://example.org/b' }] })) });
+  assert.equal(made.res.status, 201);
+  const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit');
+  assert.deepEqual(((await res.json()) as any).errors, { 'tr.frontmatter.emoji': LP_SHARED, 'tr.frontmatter.goDeeper.0.url': LP_SHARED });
+});
+
+test('ids: a minted id skips ids already taken and never starts with tr-; a new id another file has, or one starting tr-, is refused', async () => {
+  const { env, db, row } = setup();
+  assert.doesNotMatch(newResourceId('TR courses'), /^tr-/);
+  assert.match(newResourceId('tr'), /^resource-[0-9a-f]{6}$/);
+  assert.match(newResourceId('Tree of life'), /^tree-of-life-/);
+  // The first random id is taken: the next one is used.
+  const real = crypto.getRandomValues.bind(crypto);
+  let calls = 0;
+  (crypto as any).getRandomValues = (a: Uint8Array) => { calls++; a.set(calls === 1 ? [0, 0, 1] : [0, 0, 2]); return a; };
+  try {
+    const data = lpData({ resources: [{ id: '', title: 'X' }] }, { resources: [{ id: '', title: 'X' }] });
+    assert.deepEqual(assignIds(data, ['x-000001']), ['x-000002']);
+  } finally {
+    (crypto as any).getRandomValues = real;
+  }
+  // A draft whose given id is another file's, or starts tr-: refused.
+  for (const [id, message] of [['fx-stage-1', LP_ID_ELSEWHERE], ['tr-sneaky', LP_ID_TR]] as const) {
+    const made = await create(env, 'learning', levelUpdate(levelWith((fm, lang) => fm.sections[0].resources.push(lpRes('', lang)))));
+    const d = JSON.parse(row(made.body.draft.id).data);
+    d.en.frontmatter.sections[0].resources[2].id = id;
+    d.tr.frontmatter.sections[0].resources[2].id = id;
+    d._assigned = [id];
+    db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(d), made.body.draft.id);
+    const res = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit');
+    assert.equal(res.status, 422);
+    assert.equal(((await res.json()) as any).errors['en.frontmatter.sections.0.resources.2.id'], message);
+  }
+});
+
+test('submit drops given ids whose cards are gone; approval re-checks locked keys against main', async () => {
+  const { env, db, row } = setup();
+  const made = await create(env, 'learning', levelUpdate(levelWith((fm, lang) => fm.sections[0].resources.push(lpRes('', lang)))));
+  const given = made.body.draft.data._assigned;
+  assert.equal(given.length, 1);
+  const back = await on(env, draft.onRequestPatch, 'PATCH', made.body.draft.id, 'learning', { data: levelWith(() => {}) });
+  assert.equal(back.status, 200);
+  assert.deepEqual(JSON.parse(row(made.body.draft.id).data)._assigned, given, 'kept while saving');
+  assert.equal((await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'learning', {}, '/submit')).status, 200);
+  assert.deepEqual(JSON.parse(row(made.body.draft.id).data)._assigned, [], 'pruned at submit');
+  // The level is moved to another level by a row changed after submit: approval refuses it.
+  const d = JSON.parse(row(made.body.draft.id).data);
+  d.en.frontmatter.level = 'researcher';
+  d.tr.frontmatter.level = 'researcher';
+  db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(JSON.stringify(d), made.body.draft.id);
+  const res = await on(env, approve.onRequestPost, 'POST', made.body.draft.id, 'admin', {}, '/approve');
+  assert.equal(res.status, 422);
+  assert.match(((await res.json()) as any).errors['en.frontmatter.level'], /gives the file its name/);
+  assert.equal(gh.prs.length, 0);
+});
+
+// ── Task 7: Sayfalar (page texts and the privacy notice) ─────────────────────
+
+const PAGES = cmsType('pages')!;
+const PRIVACY = cmsType('privacy')!;
+const pageData = () => JSON.parse(PAGE_TEXT);
+const startPage = (env: Env, as: string, data: unknown) => create(env, as, { type: 'pages', action: 'update', entry_id: 'fixture-page', data, base_shas: loaded(PAGE_PATH) });
+const startPrivacy = (env: Env, as: string, data: unknown = aPrivacy()) => create(env, as, { type: 'privacy', action: 'update', entry_id: 'privacy', data, base_shas: loaded(PRIVACY_PATH) });
+const count = (db: DatabaseSync) => (db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n;
+
+test('the Sayfalar types: page texts values only, the privacy notice approved by an admin; neither created nor deleted', () => {
+  assert.deepEqual([PAGES.group, PAGES.format, PAGES.fixedKeys, PAGES.noCreate, PAGES.noDelete, PAGES.approve], ['sayfalar', 'json', true, true, true, 'group']);
+  assert.deepEqual([PRIVACY.group, PRIVACY.format, PRIVACY.fixedId, PRIVACY.noCreate, PRIVACY.noDelete, PRIVACY.approve, PRIVACY.approvedOnKey], ['sayfalar', 'json', 'privacy', true, true, 'admin', 'updated']);
+  // Every file of each lists under its own name; the notice is one entry.
+  assert.ok(INDEX.pages.some((e) => e.id === 'fixture-page'));
+  assert.deepEqual(INDEX.privacy.map((e) => [e.id, e.title, e.date]), [['privacy', 'Privacy', '2020-01-02']]);
+});
+
+test('Review Focus 4: a page-text draft that adds or drops a key, sent to the API, is refused at the start and on every save; nothing is stored', async () => {
+  try {
+    const { env, db, row } = setupGroups();
+    const added = await startPage(env, 'seditor', { ...pageData(), new_key: { en: 'New', tr: 'Yeni' } });
+    assert.equal(added.res.status, 422);
+    assert.ok(added.body.errors.new_key);
+    const dropped = pageData();
+    delete dropped.mid_cta;
+    const missing = await startPage(env, 'seditor', dropped);
+    assert.equal(missing.res.status, 422);
+    assert.ok(missing.body.errors.mid_cta);
+    // A third language inside a text is not a value either.
+    const inner = await startPage(env, 'seditor', { ...pageData(), mid_cta: { en: 'Join', tr: 'Katıl', de: 'Mach mit' } });
+    assert.equal(inner.res.status, 422);
+    assert.equal(count(db), 0);
+
+    const ok = await startPage(env, 'seditor', { ...pageData(), mid_cta: { en: 'Join us', tr: 'Katılın' } });
+    assert.equal(ok.res.status, 201);
+    const id = ok.body.draft.id;
+    const before = row(id).data;
+    const save = (data: unknown) => on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data });
+    for (const bad of [{ ...pageData(), extra: { en: 'x', tr: 'y' } }, { zeta_title: pageData().zeta_title, alpha_intro: pageData().alpha_intro }]) {
+      const r = await save(bad);
+      assert.equal(r.status, 422);
+    }
+    assert.equal(row(id).data, before, 'nothing stored');
+    // An empty text is work in progress while saving, refused at submit (the page would show nothing).
+    assert.equal((await save({ ...pageData(), mid_cta: { en: '', tr: 'Katılın' } })).status, 200);
+    const sent = await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    assert.ok(((await sent.json()) as any).errors['mid_cta.en']);
+  } finally {
+    done();
+  }
+});
+
+test('a page-text save never reorders the file\'s keys, whatever order the editor sends; the pull request changes one line', async () => {
+  try {
+    const { env, row } = setupGroups();
+    // Sent alphabetically, inner keys swapped: stored in main's order.
+    const sorted = { alpha_intro: { tr: 'Merhaba', en: 'Hello' }, mid_cta: { en: 'Join us', tr: 'Katılın' }, zeta_title: { en: 'Last first', tr: 'Sonuncu önce' } };
+    const made = await startPage(env, 'seditor', sorted);
+    assert.equal(made.res.status, 201);
+    const id = made.body.draft.id;
+    const order = (d: string) => { const o = JSON.parse(d); return [Object.keys(o), Object.keys(o.alpha_intro)]; };
+    assert.deepEqual(order(row(id).data), [['zeta_title', 'alpha_intro', 'mid_cta'], ['en', 'tr']]);
+    const saved = await on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data: { mid_cta: { en: 'Join now', tr: 'Hemen katılın' }, alpha_intro: pageData().alpha_intro, zeta_title: pageData().zeta_title } });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(order(row(id).data), [['zeta_title', 'alpha_intro', 'mid_cta'], ['en', 'tr']]);
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 200, 'a page text is approved by the group');
+    const written = gh.branches.get(`cms/${id}`)!.get(PAGE_PATH)!;
+    assert.equal(written, PAGE_TEXT.replace('"en": "Join"', '"en": "Join now"').replace('"tr": "Katıl"', '"tr": "Hemen katılın"'));
+  } finally {
+    done();
+  }
+});
+
+test('page texts and the privacy notice cannot be created or deleted, and only the Sayfalar group edits them', async () => {
+  try {
+    const { env, db } = setupGroups();
+    for (const body of [
+      { type: 'pages', action: 'create', data: { a: { en: 'x', tr: 'y' } } },
+      { type: 'pages', action: 'delete', entry_id: 'fixture-page', base_shas: loaded(PAGE_PATH) },
+      { type: 'privacy', action: 'create', data: aPrivacy() },
+      { type: 'privacy', action: 'delete', entry_id: 'privacy', base_shas: loaded(PRIVACY_PATH) },
+    ]) {
+      const r = await create(env, 'admin', body);
+      assert.equal(r.res.status, 400, `${body.type} ${body.action}`);
+      assert.equal(r.body.code, 'bad_action');
+    }
+    for (const as of ['editor', 'community', 'learning', 'yeditor']) {
+      assert.equal((await startPage(env, as, pageData())).res.status, 403, as);
+      assert.equal((await startPrivacy(env, as)).res.status, 403, as);
+    }
+    // No other file is a privacy entry.
+    const other = await create(env, 'admin', { type: 'privacy', action: 'update', entry_id: 'terms', data: aPrivacy(), base_shas: {} });
+    assert.equal(other.res.status, 404);
+    assert.equal(count(db), 0);
+  } finally {
+    done();
+  }
+});
+
+test('privacy: en/tr parity and the {contact} rule are work in progress while saving, refused at submit', async () => {
+  try {
+    const { env } = setupGroups();
+    const short = aPrivacy();
+    short.tr.sections[0].items.pop();
+    short.tr.intro.push('Bir paragraf daha.');
+    const made = await startPrivacy(env, 'seditor', short);
+    assert.equal(made.res.status, 201, 'saved: a translation in progress');
+    const id = made.body.draft.id;
+    const sent = await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    const errors = ((await sent.json()) as any).errors;
+    assert.ok(errors['tr.intro'], JSON.stringify(errors));
+    assert.ok(errors['tr.sections.0.items'], JSON.stringify(errors));
+    // An address typed into the text instead of {contact}.
+    const withAt = aPrivacy();
+    withAt.en.intro[0] = 'Write to someone@example.org.';
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data: withAt })).status, 200);
+    const again = await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit');
+    assert.equal(again.status, 422);
+    assert.ok(((await again.json()) as any).errors['en.intro.0']);
+  } finally {
+    done();
+  }
+});
+
+test('privacy: only an admin approves; the date written is the day of approval in Istanbul, stored with the draft', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const edited = aPrivacy();
+    edited.en.sections[0].items[1] = 'Your profile photo.';
+    edited.updated = '1999-12-31';
+    const made = await startPrivacy(env, 'seditor', edited);
+    const id = made.body.draft.id;
+    assert.equal(JSON.parse(row(id).data).updated, '2020-01-02', 'a client date is not stored: main\'s stays until approval');
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'seditor', { data: { ...edited, updated: '2031-01-01' } })).status, 200);
+    assert.equal(JSON.parse(row(id).data).updated, '2020-01-02', 'nor on a save');
+    assert.deepEqual(Object.keys(JSON.parse(row(id).data)), ['updated', 'en', 'tr']);
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    for (const as of ['sapprover', 'seditor', 'yapprover', 'approver']) {
+      assert.equal((await on(env, approve.onRequestPost, 'POST', id, as, {}, '/approve')).status, 403, as);
+    }
+    assert.equal(row(id).status, 'submitted');
+    const res = await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve');
+    assert.equal(res.status, 200);
+    const today = istanbulDay(Math.floor(Date.now() / 1000));
+    const file = JSON.parse(gh.branches.get(`cms/${id}`)!.get(PRIVACY_PATH)!);
+    assert.equal(file.updated, today);
+    assert.equal(file.en.sections[0].items[1], 'Your profile photo.');
+    assert.equal(JSON.parse(row(id).data).updated, today, 'the stored draft writes what the branch has (the shepherd compares them)');
+    assert.deepEqual(filesFor(row(id) as never), [{ path: PRIVACY_PATH, content: gh.branches.get(`cms/${id}`)!.get(PRIVACY_PATH)! }]);
+    // Istanbul is UTC+3: 22:30 UTC is already the next day there.
+    assert.equal(istanbulDay(Date.UTC(2026, 9, 24, 22, 30) / 1000), '2026-10-25');
+    assert.equal(istanbulDay(Date.UTC(2026, 9, 24, 20, 30) / 1000), '2026-10-24');
+  } finally {
+    done();
+  }
+});
+
+test('privacy (approve: admin): the group\'s approver cannot open, save, send, discard or cancel someone else\'s draft; an admin can', async () => {
+  try {
+    const { env, db, row } = setupGroups();
+    const made = await startPrivacy(env, 'seditor');
+    const id = made.body.draft.id;
+    const as = (who: string) => ({
+      get: async () => (await on(env, draft.onRequestGet, 'GET', id, who)).status,
+      patch: async () => (await on(env, draft.onRequestPatch, 'PATCH', id, who, { data: aPrivacy() })).status,
+      submit: async () => (await on(env, submit.onRequestPost, 'POST', id, who, {}, '/submit')).status,
+      discard: async () => (await on(env, draft.onRequestDelete, 'DELETE', id, who)).status,
+      cancel: async () => (await on(env, cancel.onRequestPost, 'POST', id, who, {}, '/cancel')).status,
+    });
+    const set = (status: string) => db.prepare('UPDATE content_drafts SET status = ?, updated_at = updated_at - 400 WHERE id = ?').run(status, id);
+    const sap = as('sapprover');
+    assert.deepEqual([await sap.get(), await sap.patch(), await sap.submit(), await sap.discard()], [403, 403, 403, 403], 'draft');
+    for (const status of ['pr_failed', 'merged', 'rejected', 'submitted', 'approved']) {
+      set(status);
+      assert.equal(await sap.discard(), 403, status);
+    }
+    set('pr_open');
+    assert.equal(await sap.cancel(), 403, 'pr_open');
+    assert.equal(row(id).status, 'pr_open', 'nothing changed');
+    // The author keeps their own draft; an admin acts on it.
+    set('draft');
+    const author = as('seditor');
+    assert.deepEqual([await author.get(), await author.patch()], [200, 200]);
+    const admin = as('admin');
+    assert.equal(await admin.get(), 200);
+    set('pr_failed');
+    assert.equal(await admin.discard(), 200);
+    assert.equal(row(id).status, 'discarded');
+    // The group's approver starts, edits and discards a privacy draft of their own.
+    const own = await startPrivacy(env, 'sapprover');
+    assert.equal(own.res.status, 201);
+    const ownId = own.body.draft.id;
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', ownId, 'sapprover', { data: aPrivacy() })).status, 200);
+    assert.equal((await on(env, draft.onRequestDelete, 'DELETE', ownId, 'sapprover')).status, 200);
+    // Page texts are the group's: its approver acts on others' drafts as before.
+    const page = await startPage(env, 'seditor', pageData());
+    assert.equal((await on(env, draft.onRequestGet, 'GET', page.body.draft.id, 'sapprover')).status, 200);
+    assert.equal((await on(env, draft.onRequestDelete, 'DELETE', page.body.draft.id, 'sapprover')).status, 200);
+  } finally {
+    done();
+  }
+});
+
+// ── Task 7 fix round 1 ───────────────────────────────────────────────────────
+
+test('privacy: a draft that changes nothing is refused at approval (no date-only pull request); a missing date is not added', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const noop = await startPrivacy(env, 'seditor', { ...aPrivacy(), updated: '2031-01-01' });
+    const id = noop.body.draft.id;
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    const res = await on(env, approve.onRequestPost, 'POST', id, 'admin', {}, '/approve');
+    assert.equal(res.status, 409);
+    assert.equal(((await res.json()) as any).code, 'unchanged');
+    assert.equal(row(id).status, 'submitted');
+    assert.equal(gh.prs.length, 0);
+    const { updated: _u, ...noDate } = aPrivacy();
+    void _u;
+    const other = await startPrivacy(env, 'sapprover', noDate);
+    assert.equal(JSON.parse(row(other.body.draft.id).data).updated, '2020-01-02', 'the date comes from main, whatever was sent');
+  } finally {
+    done();
+  }
+});
+
+test('privacy: a section with neither paragraphs nor items is saved as work in progress and refused at submit', async () => {
+  try {
+    const { env } = setupGroups();
+    const empty = aPrivacy();
+    for (const l of ['en', 'tr'] as const) empty[l].sections.push({ heading: l === 'en' ? 'Empty' : 'Boş', paragraphs: [], items: [] });
+    const made = await startPrivacy(env, 'seditor', empty);
+    assert.equal(made.res.status, 201);
+    const sent = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    const errors = ((await sent.json()) as any).errors;
+    assert.match(errors['en.sections.2.paragraphs'] ?? '', /paragraph or a list item/, JSON.stringify(errors));
+  } finally {
+    done();
+  }
+});
+
+test('house rules on the Sayfalar types: whitespace only, an em dash, a spaced -- and an @ are each refused at submit on their field', async () => {
+  try {
+    const { env } = setupGroups();
+    const page = await startPage(env, 'seditor', { ...pageData(), zeta_title: { en: '   ', tr: 'Sonuncu önce' }, alpha_intro: { en: 'Hello — there', tr: 'Merhaba -- dünya' }, mid_cta: { en: 'Join', tr: 'Katıl' } });
+    assert.equal(page.res.status, 201, 'saved: work in progress');
+    const pageSent = await on(env, submit.onRequestPost, 'POST', page.body.draft.id, 'seditor', {}, '/submit');
+    assert.equal(pageSent.status, 422);
+    const pe = ((await pageSent.json()) as any).errors;
+    assert.ok(pe['zeta_title.en'], JSON.stringify(pe));
+    assert.match(pe['alpha_intro.en'], /^Em dash/);
+    assert.match(pe['alpha_intro.tr'], /^Em dash/);
+
+    const priv = aPrivacy();
+    priv.en.title = ' ';
+    priv.en.sections[0].items[0] = 'Your name — as typed.';
+    priv.tr.sections[1].paragraphs[0] = 'Tarih -- değişir.';
+    priv.en.intro[0] = 'Write to team@example.org.';
+    const made = await startPrivacy(env, 'seditor', priv);
+    assert.equal(made.res.status, 201);
+    const sent = await on(env, submit.onRequestPost, 'POST', made.body.draft.id, 'seditor', {}, '/submit');
+    assert.equal(sent.status, 422);
+    const e = ((await sent.json()) as any).errors;
+    assert.ok(e['en.title'], JSON.stringify(e));
+    assert.match(e['en.sections.0.items.0'], /^Em dash/);
+    assert.match(e['tr.sections.1.paragraphs.0'], /^Em dash/);
+    assert.match(e['en.intro.0'], /^No e-mail addresses/);
+  } finally {
+    done();
+  }
+});
+
+test('approval writes a draft of a type without approvedOnKey exactly as stored: its row is not rewritten', async () => {
+  try {
+    const { env, db, row } = setupGroups();
+    const made = await startPage(env, 'seditor', { ...pageData(), mid_cta: { en: 'Join us', tr: 'Katılın' } });
+    const id = made.body.draft.id;
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'seditor', {}, '/submit')).status, 200);
+    const spaced = JSON.stringify(JSON.parse(row(id).data), null, 1);
+    db.prepare('UPDATE content_drafts SET data = ? WHERE id = ?').run(spaced, id);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'sapprover', {}, '/approve')).status, 200);
+    assert.equal(row(id).data, spaced);
+  } finally {
+    done();
+  }
+});
+
+// ── Yazılar: blog posts, in one language or both (Task 8a, Review Focus 2) ────
+
+/** A post's side as the form sends it. */
+const postSide = (title: string, lang: 'en' | 'tr', o: Record<string, unknown> = {}) => ({
+  frontmatter: { title, pubDate: '2026-10-25', description: `${lang} description`, author: 'An Author', category: 'general', tags: [], image: '', draft: false, type: 'post', ...o },
+  body: `\n${lang} body\n`,
+});
+const BLOG_EN = (id: string) => `src/content/blog/en/${id}.md`;
+const BLOG_TR = (id: string) => `src/content/blog/tr/${id}.md`;
+
+test('blog: the registry entry (group, folder, either side, title extractors)', () => {
+  const t = cmsType('blog')!;
+  assert.equal(t.group, 'yazilar');
+  assert.equal(t.dir, 'src/content/blog');
+  assert.equal(t.format, 'markdown-pair');
+  assert.equal(t.sides, 'either');
+  assert.equal(t.idField, 'en.frontmatter.title');
+  assert.equal(t.indexTitle({ title: 'A title' }, 'en'), 'A title');
+  assert.equal(t.indexDate!({ pubDate: new Date('2026-01-05T00:00:00Z') }), '2026-01-05');
+  // The index lists the one-sided posts under their own names, the missing side null.
+  // Each is listed under the title of the language it has.
+  const en = INDEX.blog.find((e) => e.id === 'fixture-english-post')!;
+  assert.deepEqual(en.paths, { en: POST_EN, tr: null });
+  assert.equal(en.title, 'Fixture English post');
+  assert.equal(en.date, '2026-01-05');
+  const tr = INDEX.blog.find((e) => e.id === 'fixture-turkce-yazi')!;
+  assert.deepEqual(tr.paths, { en: null, tr: POST_TR });
+  assert.equal(tr.title, 'Fixture Türkçe yazı');
+});
+
+test('Review Focus 2: a post in English only creates, saves, submits and is approved with no empty-twin error; one file is written', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide('A New Post', 'en'), tr: null } });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    const id = body.draft.id;
+    assert.equal(body.draft.entry_id, 'a-new-post');
+    // A later save, still one language.
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'yeditor', { data: { en: postSide('A New Post', 'en', { tags: ['genomics'] }), tr: null } })).status, 200);
+    const files = filesFor(row(id) as never);
+    assert.deepEqual(files.map((f) => f.path), [BLOG_EN('a-new-post')], 'no phantom Turkish file');
+    const sent = await on(env, submit.onRequestPost, 'POST', id, 'yeditor', {}, '/submit');
+    assert.equal(sent.status, 200, await sent.clone().text());
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'yapprover', {}, '/approve')).status, 200);
+    assert.deepEqual(gh.writes(), [{ method: 'PUT', path: BLOG_EN('a-new-post') }]);
+    // A new file in the repository's format, no legacy lang key.
+    assert.equal(gh.branches.get(`cms/${id}`)!.get(BLOG_EN('a-new-post')),
+      '---\ntitle: "A New Post"\npubDate: 2026-10-25\ndescription: "en description"\nauthor: "An Author"\ncategory: "general"\ntags:\n  - "genomics"\nimage: ""\ndraft: false\ntype: post\n---\n\nen body\n');
+  } finally {
+    done();
+  }
+});
+
+test('Review Focus 2: a post in Turkish only is named after its Turkish title and writes only the Turkish file', async () => {
+  try {
+    const { env } = setupGroups();
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { tr: postSide('Yeni Bir Yazı', 'tr') } });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    assert.equal(body.draft.entry_id, 'yeni-bir-yazi');
+    assert.equal((await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'yapprover', {}, '/approve')).status, 200);
+    assert.deepEqual(gh.writes(), [{ method: 'PUT', path: BLOG_TR('yeni-bir-yazi') }]);
+    // A Turkish-only post with no title: the error is on the Turkish title.
+    const untitled = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: null, tr: postSide('', 'tr') } });
+    assert.equal(untitled.res.status, 422);
+    assert.ok(untitled.body.errors['tr.frontmatter.title'], JSON.stringify(untitled.body.errors));
+  } finally {
+    done();
+  }
+});
+
+test('Review Focus 2: the twin added later writes the second file under the same name, the first untouched', async () => {
+  try {
+    const { env, row } = setupGroups();
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-english-post', 'yeditor')).json() as any;
+    assert.equal(current.data.tr, null);
+    assert.deepEqual(current.base_shas, { [POST_EN]: blobSha(FILES[POST_EN]), [BLOG_TR('fixture-english-post')]: null });
+    const en = { frontmatter: current.data.en.frontmatter, body: current.data.en.body };
+    // Started in English only (no change yet), then the Turkish side is added on a save.
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-english-post', data: { en, tr: null }, base_shas: current.base_shas });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    const id = body.draft.id;
+    assert.deepEqual(filesFor(row(id) as never).map((f) => f.path), [POST_EN]);
+    assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, 'yeditor', { data: { en, tr: postSide('Örnek İngilizce yazı', 'tr') } })).status, 200);
+    assert.deepEqual(filesFor(row(id) as never).map((f) => f.path), [POST_EN, BLOG_TR('fixture-english-post')]);
+    assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'yeditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'yapprover', {}, '/approve')).status, 200);
+    const branch = gh.branches.get(`cms/${id}`)!;
+    assert.equal(branch.get(POST_EN), FILES[POST_EN], 'the English file is byte for byte as it was');
+    assert.match(branch.get(BLOG_TR('fixture-english-post'))!, /^---\ntitle: "Örnek İngilizce yazı"/);
+  } finally {
+    done();
+  }
+});
+
+test('blog: a twin file that appears on main after the draft started is changed_since at approval', async () => {
+  try {
+    const { env } = setupGroups();
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-english-post', 'yeditor')).json() as any;
+    const en = { frontmatter: current.data.en.frontmatter, body: current.data.en.body };
+    const { body } = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-english-post', data: { en, tr: postSide('Başka', 'tr') }, base_shas: current.base_shas });
+    await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit');
+    gh.main.set(BLOG_TR('fixture-english-post'), postFile('Someone else', 'x'));
+    const refused = await on(env, approve.onRequestPost, 'POST', body.draft.id, 'yapprover', {}, '/approve');
+    assert.equal(refused.status, 409);
+    assert.deepEqual((await refused.json() as any).paths, [BLOG_TR('fixture-english-post')]);
+  } finally {
+    done();
+  }
+});
+
+test('blog: a post needs one language; a language already published cannot be dropped by an update', async () => {
+  try {
+    const { env, row } = setupGroups();
+    for (const data of [{ en: null, tr: null }, {}]) {
+      const r = await create(env, 'yeditor', { type: 'blog', action: 'create', data });
+      assert.equal(r.res.status, 422, JSON.stringify(data));
+    }
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-turkce-yazi', 'yeditor')).json() as any;
+    const tr = { frontmatter: current.data.tr.frontmatter, body: current.data.tr.body };
+    // Dropping the published Turkish side: refused at the start, nothing stored.
+    const dropped = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-turkce-yazi', data: { en: postSide('Now English', 'en'), tr: null }, base_shas: current.base_shas });
+    assert.equal(dropped.res.status, 422);
+    assert.ok(dropped.body.errors.tr, JSON.stringify(dropped.body.errors));
+    // And on a save.
+    const { body } = await create(env, 'yeditor', { type: 'blog', action: 'update', entry_id: 'fixture-turkce-yazi', data: { tr }, base_shas: current.base_shas });
+    const before = row(body.draft.id).data;
+    const patch = await on(env, draft.onRequestPatch, 'PATCH', body.draft.id, 'yeditor', { data: { en: postSide('Now English', 'en') } });
+    assert.equal(patch.status, 422);
+    assert.equal(row(body.draft.id).data, before);
+    // A webinar still needs both sides.
+    const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: postSide('Only English', 'en'), tr: null } });
+    assert.equal(w.res.status, 422);
+    assert.equal(w.body.errors.tr, 'Missing');
+  } finally {
+    done();
+  }
+});
+
+test('blog: a new post named like a published one-sided post gets -2, so the two are never paired by name', async () => {
+  try {
+    const { env } = setupGroups();
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide('Fixture Türkçe yazı', 'en') } });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    assert.equal(body.draft.entry_id, 'fixture-turkce-yazi-2');
+  } finally {
+    done();
+  }
+});
+
+test('blog: the house rules apply at submit, on the side that breaks them', async () => {
+  try {
+    const { env } = setupGroups();
+    const { body } = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { tr: { ...postSide('Bir yazı', 'tr'), body: 'Komut --help ile çalışır.' } } });
+    const r = await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit');
+    assert.equal(r.status, 422);
+    assert.ok((await r.json() as any).errors['tr.body']);
+  } finally {
+    done();
+  }
+});
+
+test('blog: only the Yazılar group edits posts', async () => {
+  try {
+    const { env } = setupGroups();
+    assert.equal((await create(env, 'editor', { type: 'blog', action: 'create', data: { en: postSide('Nope', 'en') } })).res.status, 403);
+    assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-english-post', 'editor')).status, 403);
+  } finally {
+    done();
+  }
+});
+
+test('blog: deleting a post in one language deletes its one file, and approval checks the other is still absent', async () => {
+  try {
+    const { env } = setupGroups();
+    const current = await (await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=fixture-turkce-yazi', 'yeditor')).json() as any;
+    const { res, body } = await create(env, 'yeditor', { type: 'blog', action: 'delete', entry_id: 'fixture-turkce-yazi', base_shas: current.base_shas });
+    assert.equal(res.status, 201, JSON.stringify(body));
+    assert.deepEqual(body.draft.base_shas, { [BLOG_EN('fixture-turkce-yazi')]: null, [POST_TR]: blobSha(FILES[POST_TR]) });
+    assert.equal((await on(env, submit.onRequestPost, 'POST', body.draft.id, 'yeditor', {}, '/submit')).status, 200);
+    assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'yapprover', {}, '/approve')).status, 200);
+    assert.deepEqual(gh.writes(), [{ method: 'DELETE', path: POST_TR }]);
+  } finally {
+    done();
+  }
+});
+
+test('blog and webinars: an image on a host blocked in Türkiye is refused, on its field; "" and /api/images pass', async () => {
+  try {
+    const { env } = setupGroups();
+    const bad = await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide('A post', 'en', { image: 'https://x.r2.dev/a.webp' }) } });
+    assert.equal(bad.res.status, 422);
+    assert.ok(bad.body.errors['en.frontmatter.image'], JSON.stringify(bad.body.errors));
+    for (const image of ['', '/api/images/a.webp', 'https://res.cloudinary.com/demo/a.jpg']) {
+      assert.equal((await create(env, 'yeditor', { type: 'blog', action: 'create', data: { en: postSide(`Post ${image.length}`, 'en', { image }) } })).res.status, 201, image);
+    }
+    const side = (lang: string, o: object = {}) => ({ frontmatter: { title: `Talk ${lang}`, date: '2027-01-15', speaker: 'S', description: 'D', year: 2027, type: 'bioinfonet', ...o }, body: '' });
+    const w = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: side('en', { speakerPhoto: 'https://a.pages.dev/p.jpg' }), tr: side('tr', { image: 'https://b.workers.dev/i.png' }) } });
+    assert.equal(w.res.status, 422);
+    assert.ok(w.body.errors['en.frontmatter.speakerPhoto'] && w.body.errors['tr.frontmatter.image'], JSON.stringify(w.body.errors));
+  } finally {
+    done();
+  }
+});
+
+// ── File-name length cap ─────────────────────────────────────────────────────
+
+import { idCandidates } from '../functions/_lib/cms-api';
+import { ID_MAX } from '../src/lib/cms/slug';
+
+test('a new entry\'s file name is cut to 80 characters, with no trailing hyphen, suffixes included', () => {
+  assert.equal(ID_MAX, 80);
+  const BLOG = cmsType('blog')!;
+  const RESOURCES = cmsType('resources')!;
+  const long = `${'word '.repeat(60)}end`; // 303 characters
+  assert.ok(long.length >= 300);
+  const id = BLOG.idFrom({ frontmatter: { title: long } });
+  assert.ok(id.length <= ID_MAX, `${id.length}`);
+  assert.match(id, /^[a-z0-9][a-z0-9-]*[a-z0-9]$/, 'no trailing hyphen after the cut');
+  assert.ok(`${long.toLowerCase().replace(/ /g, '-')}`.startsWith(id));
+  // A cut that lands on a hyphen: 79 letters, a space, then more.
+  const edge = `${'a'.repeat(ID_MAX - 1)} ${'b'.repeat(20)}`;
+  assert.equal(BLOG.idFrom({ frontmatter: { title: edge } }), 'a'.repeat(ID_MAX - 1));
+  // A Turkish title: transliterated, then cut.
+  const tr = 'Çok Güzel Bir Başlık: Ağaçlar, Işık ve Şöyle Böyle Üzüm Bağları Üzerine Uzun Bir İnceleme Yazısı';
+  const trId = BLOG.idFrom({ frontmatter: { title: tr } });
+  assert.ok(trId.length <= ID_MAX, `${trId.length}`);
+  assert.match(trId, /^cok-guzel-bir-baslik-agaclar-isik-ve-soyle-boyle-uzum-baglari-uzerine-uzun-bir/);
+  assert.match(trId, /^[a-z0-9-]+[a-z0-9]$/);
+  // Every free name the server may try stays within the cap.
+  const resource = { title: { en: long }, section: 'learning' };
+  const rid = RESOURCES.idFrom(resource);
+  const names = idCandidates(RESOURCES, rid, resource);
+  assert.ok(names.some((n) => n.endsWith('-learning')), 'the section form is offered');
+  assert.ok(names.some((n) => n.endsWith('-20')), 'up to -20');
+  for (const n of names) {
+    assert.ok(n.length <= ID_MAX, `${n} is ${n.length}`);
+    assert.match(n, /^[a-z0-9][a-z0-9-]*[a-z0-9]$/);
+    assert.doesNotMatch(n, /--/);
+  }
+  assert.equal(new Set(names).size, names.length, 'no name offered twice');
+  // A short title is unchanged.
+  assert.equal(BLOG.idFrom({ frontmatter: { title: 'A short post' } }), 'a-short-post');
 });

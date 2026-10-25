@@ -1,14 +1,19 @@
 /**
- * The Etkinlikler section: published events, workshops and webinars, the
- * drafts that change them, and the approval queue. Every change is a draft
+ * The İçerik section: the published entries of every content type the
+ * person edits, the drafts that change them, and the approval queue. Every change is a draft
  * (functions/api/cms); an approved draft becomes a pull request that the PR
  * shepherd merges, and the site shows it a few minutes later. Nothing here
  * writes to the site directly.
  *
- * Addresses: `#icerik-etkinlikler/<type>` lists a type, `/<type>/<id>` opens
+ * Addresses: `#icerik/<type tab>` lists a type, `/<type tab>/<id>` opens
  * a published entry (`_new` for a new one), `/taslaklar/<draft>` a draft
  * (the link a pull request's body carries), `/onay/<draft>` the approver's
- * view of one.
+ * view of one. The old `#icerik-etkinlikler/...` addresses are an alias
+ * (router.ts).
+ *
+ * Everything about a type comes from its model (cms-form.ts), which mirrors
+ * the registry, and who approves it from /api/cms/types (`canApprove`, per
+ * type: an `approve: 'admin'` type is not approved by a group approver).
  *
  * Not losing work: one form, filled per entry, with guardUnsaved for leaving
  * it; an autosave 20 s after the last edit, one save at a time; and a copy in
@@ -23,25 +28,29 @@ import { AutosaveQueue } from '../../social/autosave';
 import { BTN, armConfirm, chip, emptyState, guardUnsaved, row, revealInPanel } from '../ui-kit';
 import { dateLocale, lang, t, tf } from '../context';
 import { refreshCounts, noteAddress } from '../shell';
+import type { GroupRights } from '../../../../functions/_lib/roles';
 import {
-  MODELS, TYPE_KEYS, applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKey, modelFor, modelForSub,
-  placeOf, previewHtml, same, statusView, suggestedId, visibleFields, withId,
+  applyValues, emptyData, errorKey, formValues, halfTranslated, livePath, messageKeys, modelFor, modelForSub,
+  pairForm, placeOf, placePhrases, previewHtml, same, statusView, suggestedId, visibleFields, withFieldFrom, withFields, withId, withOptions, rebased, removedResourceIds, sameSave, MODELS,
+  sidesOf, withSide, withSides, withoutSide,
   backupChoice, backupStorageKey, offeredKey, othersBackupKeys, parseBackup, sameData, uploadErrorKey,
-  type Backup, type DraftSummary, type FieldDef, type ImageObject, type StatusView, type TypeKey, type TypeModel, type Values,
+  type Backup, type DraftSummary, type ErrorPlace, type FieldDef, type ImageObject, type StatusView, type TypeModel, type Values,
 } from '../cms-form';
-import { diffEntry } from '../cms-diff';
-import { readField, readValues, renderAll, renderDiff, renderField, show } from '../cms-render';
+import { diffEntry, fileDiffs, hiddenFileChanges } from '../cms-diff';
+import { nextStageNumber } from '../../../lib/cms/slug';
+import { controlInRows, listEdit, readField, readValues, refreshRows, renderAll, renderDiff, renderField, renderFileDiff, rowsClick, setRowImage, show, showIn } from '../cms-render';
 
-const SECTION = '#icerik-etkinlikler';
+const SECTION = '#icerik';
 const PAGE = 20;
 const AUTOSAVE_MS = 20_000;
-const tk = (k: string, vars?: Record<string, string | number>) => (vars ? tf(k as never, vars) : t(k as never)) as string;
+// A label that is not an i18n key is shown as it is: a page text's key (cms-form's pages model).
+const tk = (k: string, vars?: Record<string, string | number>) => ((vars ? tf(k as never, vars) : t(k as never)) as string | undefined) ?? k;
 const esc = (v: unknown) => escapeHtml(String(v ?? ''));
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T | null;
 
 // ── The API ──────────────────────────────────────────────────────────────────
 
-interface Entry { id: string; title: string; date?: string; paths?: { en: string | null; tr: string | null }; shas?: Record<string, string> }
+interface Entry { id: string; title: string; date?: string; section?: string; paths?: { en: string | null; tr: string | null }; shas?: Record<string, string> }
 interface Draft extends DraftSummary {
   pr_url: string | null; created_at: number; write_nonce?: string | null;
   data?: unknown; base_shas?: Record<string, string | null>;
@@ -62,14 +71,20 @@ async function api<T = Record<string, any>>(method: string, path: string, body?:
 
 // ── State ────────────────────────────────────────────────────────────────────
 
-let approver = false;
+/** Per type key, from /api/cms/types: whether this person approves it. */
+let canApprove: Record<string, boolean> = {};
+/** Per type key, from /api/cms/types: its name, for a type the panel has no form for. */
+let typeLabels: Record<string, string> = {};
+/** The /api/cms/types answer, asked once; every view waits for it. A failed one is asked again. */
+let typesReady: Promise<boolean> | null = null;
+let rights: GroupRights = {} as GroupRights;
 /** The signed-in person: backups in this browser are theirs only. */
 let userId = '';
 /** Why the last list load failed (an API code), for the message in its place. */
 let loadError: string | null = null;
 let queueMore = false;
-const entries: Partial<Record<TypeKey, Entry[]>> = {};
-const shown: Partial<Record<TypeKey, number>> = {};
+const entries: Record<string, Entry[]> = {};
+const shown: Record<string, number> = {};
 let lists: { mine: Draft[]; queue: Draft[]; inflight: Draft[]; live: { type: string; entry_id: string; status: string }[] } | null = null;
 
 interface Editor {
@@ -80,8 +95,17 @@ interface Editor {
   /** The published entry an update starts from, and the shas it was read at. */
   entryId: string | null;
   baseShas: Record<string, string | null> | null;
-  /** What the form writes onto: the data it was opened with, then each save's. */
+  /** The server's latest: the data the form was opened with, then each save's answer. Not written onto. */
   base: unknown;
+  /**
+   * What every save writes the form's values onto: the data the form's rows
+   * were stamped from (cms-form ROW_FROM). One rule: it changes only together
+   * with a redraw of what was stamped from it. Opening sets it (base),
+   * restoring a copy (the copy's data), "take" (it with that field from the
+   * other version, the field redrawn from it), and a rebase before the first
+   * save (the rebased data, the form redrawn). A save never changes it.
+   */
+  origin: unknown;
   readOnly: boolean;
   backupKey: string;
   edits: number;
@@ -103,7 +127,36 @@ let guard: { reset(): void } | null = null;
 let pendingNotice: { html: string; tone: 'info' | 'warn' | 'error' } | null = null;
 
 const now = () => Math.floor(Date.now() / 1000);
-const sv = (d: DraftSummary): StatusView => statusView(d, { approver, now: now() });
+/** Today in Istanbul, YYYY-MM-DD: a new post's date. */
+const istanbulToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const approves = (type: string): boolean => canApprove[type] === true;
+const sv = (d: DraftSummary): StatusView => statusView(d, { approver: approves(d.type), now: now() });
+const labelOf = (type: string): string => { const m = modelFor(type); return m ? tk(m.label) : typeLabels[type] ?? type; };
+
+/**
+ * Stands in while a draft is fetched, before its type is known: it renders
+ * nothing and saves nothing (read-only, no fields).
+ */
+const LOADING_MODEL = { key: '', format: 'json', sub: '', group: '', idField: '', label: '', fields: [], hidden: {} } as unknown as TypeModel;
+
+async function loadTypes(): Promise<boolean> {
+  const r = await api<{ types?: { key?: unknown; canApprove?: unknown; label?: { en?: unknown; tr?: unknown } }[] }>('GET', '/api/cms/types');
+  if (!r.ok) { loadError = r.code; return false; }
+  canApprove = {};
+  typeLabels = {};
+  for (const ty of Array.isArray(r.body.types) ? r.body.types : []) {
+    if (typeof ty?.key !== 'string') continue;
+    canApprove[ty.key] = ty.canApprove === true;
+    const name = ty.label?.[lang];
+    if (typeof name === 'string') typeLabels[ty.key] = name;
+  }
+  return true;
+}
+
+function typesLoaded(): Promise<boolean> {
+  if (!typesReady) typesReady = loadTypes().then((ok) => { if (!ok) typesReady = null; return ok; });
+  return typesReady;
+}
 
 // ── Setup and routing ────────────────────────────────────────────────────────
 
@@ -120,9 +173,14 @@ function liftBars(): void {
   document.querySelectorAll<HTMLElement>('[data-cms-sticky]').forEach((b) => { b.style.bottom = h ? `${h}px` : ''; });
 }
 
-export function setupCms(opts: { approver: boolean; userId: string }): void {
-  approver = opts.approver;
+/**
+ * `rights`: edit and approve per group, from the live grants. Tabs follow
+ * them (sections.ts); approving follows /api/cms/types, per type.
+ */
+export function setupCms(opts: { rights: GroupRights; userId: string }): void {
+  rights = opts.rights;
   userId = opts.userId;
+  void typesLoaded();
   pruneBackups();
   PHONE?.addEventListener('change', liftBars);
   const strip = document.getElementById('podcastStrip');
@@ -145,12 +203,34 @@ export function setupCms(opts: { approver: boolean; userId: string }): void {
   form.addEventListener('click', onFormClick);
 }
 
+/** Bumped on every address: a view that waited for /api/cms/types and is no longer wanted does nothing. */
+let routeSeq = 0;
+
 /** The shell calls this for every address in the section. Idempotent for the editor already open. */
 export function showCms(sub: string, item: string | null): void {
   const hash = `${SECTION}/${sub}${item ? `/${item}` : ''}`;
   if (editor && editor.route === hash) return;
   closeEditor();
+  const seq = ++routeSeq;
+  // Opening an item puts a stand-in editor in place at once, so the shell's
+  // second call for the same address (it calls on every move) is a no-op.
+  if (item) editor = newEditor(LOADING_MODEL, hash, {}, { readOnly: true });
+  void typesLoaded().then((ok) => {
+    if (seq !== routeSeq) return;
+    if (!ok) {
+      // Without it nobody's approve rights are known: say so, never guess.
+      if (editor?.model === LOADING_MODEL) editor = null;
+      const host = listHost(sub);
+      if (host) loadFailed(host);
+      return;
+    }
+    route(sub, item, hash);
+  });
+}
+
+function route(sub: string, item: string | null, hash: string): void {
   const model = modelForSub(sub);
+  if (model && !rights[model.group]?.edit) return;
   if (model && !item) void showList(model);
   else if (model && item) void openEntry(model, item === '_new' ? null : item, hash);
   else if (sub === 'taslaklar' && !item) void showDrafts();
@@ -160,7 +240,7 @@ export function showCms(sub: string, item: string | null): void {
 }
 
 function subHost(sub: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`[data-section="icerik-etkinlikler"] [data-sub="${sub}"]`);
+  return document.querySelector<HTMLElement>(`[data-section="icerik"] [data-sub="${sub}"]`);
 }
 
 /** Shows the list part of a sub-page and hides the editor. */
@@ -178,7 +258,7 @@ function listHost(sub: string): HTMLElement | null {
  * draft's without the shell showing another sub-page.
  */
 function editorHost(sub: string): void {
-  const host = document.querySelector<HTMLElement>('[data-section="icerik-etkinlikler"] [data-sub]:not(.hidden)') ?? subHost(sub);
+  const host = document.querySelector<HTMLElement>('[data-section="icerik"] [data-sub]:not(.hidden)') ?? subHost(sub);
   const ed = $('cmsEditor');
   if (!host || !ed) return;
   host.querySelector('[data-cms-body]')?.classList.add('hidden');
@@ -230,14 +310,30 @@ function loadFailed(host: HTMLElement): void {
     : `<p class="text-sm text-[#8a1c1c]" data-cms-load-failed>${esc(tk(loadError === 'index_unavailable' ? 'admin.cms.error.index_unavailable' : 'admin.cms.listFailed'))}</p>`;
 }
 
-/** The files of a published entry, for its live page (a webinar's Turkish name may differ). */
-function entryPaths(type: string, entryId: string, fallback: Record<string, unknown> | undefined): string[] {
-  const e = entries[type as TypeKey]?.find((x) => x.id === entryId);
-  return e?.paths ? [e.paths.en, e.paths.tr].filter((p): p is string => !!p) : Object.keys(fallback ?? {});
+/**
+ * The files of a published entry, for its live page (a webinar's Turkish
+ * name may differ). Without the index, the draft's own files: for a post in
+ * one language only, the languages its data has (its base_shas name both).
+ */
+function entryPaths(type: string, entryId: string, fallback: Record<string, unknown> | undefined, data?: unknown): string[] {
+  const e = entries[type]?.find((x) => x.id === entryId);
+  if (e?.paths) return [e.paths.en, e.paths.tr].filter((p): p is string => !!p);
+  const model = modelFor(type);
+  const has = model && data ? sidesOf(model, data) : ['en', 'tr'];
+  return Object.keys(fallback ?? {}).filter((p) => !/\/(en|tr)\/[^/]+\.md$/.test(p) || has.some((l) => p.includes(`/${l}/`)));
+}
+
+/** Where on its page an entry sits (a resource's section): the draft's own, else the index's. */
+function sectionOf(type: string, entryId: string, data?: unknown): string | undefined {
+  // The draft's own first: a published draft may have moved the link, and
+  // the index is a deploy behind.
+  const own = (data as { section?: unknown } | null | undefined)?.section;
+  if (typeof own === 'string' && own) return own;
+  return entries[type]?.find((x) => x.id === entryId)?.section;
 }
 
 const titleOf = (type: string, entryId: string, action?: string): string => {
-  const e = entries[type as TypeKey]?.find((x) => x.id === entryId);
+  const e = entries[type]?.find((x) => x.id === entryId);
   return e?.title ?? (action === 'create' ? tk('admin.cms.newTitle', { id: entryId }) : entryId);
 };
 
@@ -279,6 +375,7 @@ async function showList(model: TypeModel): Promise<void> {
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
   loadError = null;
+  if (model.generated) { await showGenerated(model, host); return; }
   const [list, got] = await Promise.all([loadEntries(model, true), loadLists()]);
   if (!list || !got) { loadFailed(host); return; }
   const n = shown[model.key] ?? PAGE;
@@ -297,29 +394,109 @@ async function showList(model: TypeModel): Promise<void> {
       chips = statusChip(mine);
       trailing = `<a href="${SECTION}/taslaklar/${mine.id}" class="${BTN.secondary}">${esc(tk('admin.cms.continue'))}</a>`;
     }
-    return row({ title: e.title, subtitle: dateText(model, e.date), chips, trailing, attrs: `data-cms-entry="${esc(e.id)}"`, stack: true });
+    // A resource has no date: its section tells two links of one title apart.
+    // A post in one language only says which.
+    const only = model.sides === 'either' && e.paths && (!e.paths.en || !e.paths.tr) ? tk(`admin.cms.sides.lang.${e.paths.en ? 'en' : 'tr'}`) : '';
+    const subtitle = e.section ? tk(`admin.cms.opt.${e.section}`) : [dateText(model, e.date), only].filter(Boolean).join(' · ');
+    return row({ title: e.title, subtitle, chips, trailing, attrs: `data-cms-entry="${esc(e.id)}"`, stack: true });
   }).join('');
   const more = list.length > n ? `<button type="button" data-cms-more class="${BTN.secondary} mt-3">${esc(tk('admin.cms.more'))}</button>` : '';
   host.innerHTML = `${myDraftsRow()}
     <div class="flex items-center justify-between gap-3 mb-3 lg:mb-2">
       <h2 class="text-sm font-semibold text-navy">${esc(tk('admin.cms.published', { type: tk(model.label) }))}</h2>
-      <a href="${SECTION}/${model.sub}/_new" data-cms-new class="${BTN.primary}">${esc(tk('admin.cms.new'))}</a>
+      ${model.noCreate || model.generated ? '' : `<a href="${SECTION}/${model.sub}/_new" data-cms-new class="${BTN.primary}">${esc(tk('admin.cms.new'))}</a>`}
     </div>
     <div class="flex flex-col gap-2">${rows || emptyState(tk('admin.cms.noEntries'))}</div>${more}`;
   host.querySelector('[data-cms-more]')?.addEventListener('click', () => { shown[model.key] = n + PAGE; void showList(model); });
 }
 
+interface Episode { guid?: unknown; title?: unknown; pubDate?: unknown; durationSeconds?: unknown }
+
+/**
+ * A type the server builds from a feed (the podcast): what the repository's
+ * main branch has (the site follows it a few minutes after a merge) and one
+ * button, "Yeni bölümleri çek". The episodes are read from main (one
+ * light read); everything in them is the feed's text, so it is only ever
+ * escaped, never rendered as HTML. A new pull opens its draft.
+ */
+async function showGenerated(model: TypeModel, host: HTMLElement): Promise<void> {
+  const seq = routeSeq;
+  const [list, got] = await Promise.all([loadEntries(model, true), loadLists()]);
+  if (seq !== routeSeq) return;
+  if (!list || !got) { loadFailed(host); return; }
+  const id = list[0]?.id ?? model.key;
+  const r = await api<{ data?: { episodes?: Episode[] } }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(id)}`);
+  if (seq !== routeSeq) return;
+  const episodes = r.ok && Array.isArray(r.body.data?.episodes) ? r.body.data!.episodes! : null;
+  const live = (lists?.live ?? []).find((d) => d.type === model.key);
+  const mine = (lists?.mine ?? []).find((d) => d.type === model.key && sv(d).editable);
+  let action = `<button type="button" data-cms-pull class="${BTN.primary}">${esc(tk('admin.cms.podcast.pull'))}</button>`;
+  if (live) action = chip(tk(live.status === 'submitted' ? 'admin.cms.chip.submitted' : 'admin.cms.chip.goingLive'), live.status === 'submitted' ? 'amber' : 'navy');
+  else if (mine) action = `<a href="${SECTION}/taslaklar/${esc(mine.id)}" data-cms-continue class="${BTN.primary}">${esc(tk('admin.cms.continue'))}</a>`;
+  const minutes = (v: unknown) => (typeof v === 'number' && v > 0 ? tk('admin.cms.podcast.minutes', { n: Math.max(1, Math.round(v / 60)) }) : '');
+  const rows = (episodes ?? []).map((e) => row({
+    title: String(e.title ?? ''),
+    subtitle: [dateText(model, typeof e.pubDate === 'string' ? e.pubDate.slice(0, 10) : ''), minutes(e.durationSeconds)].filter(Boolean).join(' · '),
+    attrs: `data-cms-episode="${esc(e.guid)}"`, stack: true,
+  })).join('');
+  host.innerHTML = `${myDraftsRow()}
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+      <h2 class="text-sm font-semibold text-navy">${esc(episodes ? tk('admin.cms.podcast.onMain', { n: episodes.length }) : tk(model.label))}</h2>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="${livePath(model.key, id, [], lang)}" target="_blank" rel="noopener" class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>
+        ${action}
+      </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-3">${esc(tk('admin.cms.podcast.intro'))}</p>
+    <div data-cms-pull-result role="status" class="hidden mb-3 rounded-xl border px-3 py-2 text-sm"></div>
+    <div class="flex flex-col gap-2">${episodes ? rows || emptyState(tk('admin.cms.noEntries')) : `<p class="text-sm text-[#8a1c1c]">${esc(tk('admin.cms.podcast.readFailed'))}</p>`}</div>`;
+  host.querySelector<HTMLButtonElement>('[data-cms-pull]')?.addEventListener('click', (e) => void pullFeed(model, host, e.currentTarget as HTMLButtonElement, seq));
+}
+
+/** "Yeni bölümleri çek": a new draft opens; anything else is said in place. */
+async function pullFeed(model: TypeModel, host: HTMLElement, button: HTMLButtonElement, seq: number): Promise<void> {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = tk('admin.cms.podcast.pulling');
+  const r = await api<{ code?: string; added?: number; draft?: Draft }>('POST', `/api/cms/${model.key}/pull`, {});
+  if (seq !== routeSeq) return;
+  if (r.ok && r.body.draft) {
+    lists = null;
+    void refreshCounts();
+    const n = r.body.added ?? 0;
+    pendingNotice = { html: esc(n > 0 ? tk('admin.cms.podcast.pulled', { n }) : tk('admin.cms.podcast.pulledOther')), tone: 'info' };
+    location.hash = `${SECTION}/taslaklar/${r.body.draft.id}`;
+    return;
+  }
+  button.disabled = false;
+  button.textContent = label;
+  const box = host.querySelector<HTMLElement>('[data-cms-pull-result]');
+  if (!box) return;
+  const fine = r.ok && r.body.code === 'no_new_episodes';
+  box.className = `mb-3 rounded-xl border px-3 py-2 text-sm ${fine ? 'border-border bg-navy-light text-navy' : 'border-red-200 bg-red-tint text-[#8a1c1c]'}`;
+  box.textContent = fine ? tk('admin.cms.podcast.noNew') : r.ok ? tk('admin.cms.error.unknown') : errorText(r);
+}
+
+/**
+ * The published titles of the types these drafts are about, and only those:
+ * a list of drafts never loads every type's index. A list that cannot be
+ * had leaves the file name as the title.
+ */
+async function titlesFor(drafts: Draft[]): Promise<void> {
+  const types = [...new Set(drafts.map((d) => d.type))].map(modelFor).filter((m): m is TypeModel => m !== null);
+  await Promise.all(types.map((m) => loadEntries(m)));
+}
+
 function draftRow(d: Draft, href: string): string {
-  const model = modelFor(d.type);
   const v = sv(d);
   const next: Record<string, string> = { continue: 'admin.cms.continue', fix: 'admin.cms.fix', retry: 'admin.cms.retry', openSite: 'admin.cms.openSite', discard: 'admin.cms.open' };
   const trailing = v.next === 'openSite'
-    ? `<a href="${livePath(d.type, d.entry_id, entryPaths(d.type, d.entry_id, d.base_shas), lang)}" target="_blank" rel="noopener" data-cms-open-site class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
+    ? `<a href="${livePath(d.type, d.entry_id, entryPaths(d.type, d.entry_id, d.base_shas, d.data), lang, sectionOf(d.type, d.entry_id, d.data))}" target="_blank" rel="noopener" data-cms-open-site class="${BTN.secondary}">${esc(tk('admin.cms.openSite'))}</a>`
     : `<a href="${href}" class="${BTN.secondary}">${esc(tk(v.next ? next[v.next] : 'admin.cms.open'))}</a>`;
   const action = d.action === 'delete' ? ` · ${tk('admin.cms.action.delete')}` : '';
   return row({
     title: titleOf(d.type, d.entry_id, d.action),
-    subtitle: `${model ? tk(model.label) : d.type}${action} · ${statusLine(d)}`,
+    subtitle: `${labelOf(d.type)}${action} · ${statusLine(d)}`,
     chips: statusChip(d), trailing, attrs: `data-cms-draft="${esc(d.id)}"`, stack: true,
   });
 }
@@ -329,8 +506,9 @@ async function showDrafts(): Promise<void> {
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
   loadError = null;
-  const [got] = await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  const got = await loadLists();
   if (!got) { loadFailed(host); return; }
+  await titlesFor(got.mine);
   const mine = (lists?.mine ?? []);
   const forMe = mine.filter((d) => sv(d).needsMe);
   const rest = mine.filter((d) => !sv(d).needsMe);
@@ -346,8 +524,9 @@ async function showQueue(): Promise<void> {
   if (!host) return;
   if (!host.innerHTML.trim()) host.innerHTML = `<p class="text-sm text-gray-500">${esc(tk('admin.cms.loading'))}</p>`;
   loadError = null;
-  const [got] = await Promise.all([loadLists(), ...TYPE_KEYS.map((k) => loadEntries(MODELS[k]))]);
+  const got = await loadLists();
   if (!got) { loadFailed(host); return; }
+  await titlesFor([...got.queue, ...got.inflight]);
   const queue = lists?.queue ?? [];
   // More than the list holds: how many more, from the menu's own count.
   let more = '';
@@ -359,14 +538,14 @@ async function showQueue(): Promise<void> {
   host.innerHTML = `${myDraftsRow()}<h2 class="text-sm font-semibold text-navy mb-2">${esc(tk('admin.cms.queueHeading'))}</h2>
     <div class="flex flex-col gap-2">${queue.map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
-      subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
+      subtitle: `${labelOf(d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
       chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.primary}">${esc(tk('admin.cms.review'))}</a>`,
       attrs: `data-cms-queue="${esc(d.id)}"`, stack: true,
     })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>${more}
     <h2 class="text-sm font-semibold text-navy mt-6 lg:mt-4 mb-2">${esc(tk('admin.cms.inflightHeading'))}</h2>
     <div class="flex flex-col gap-2">${(lists?.inflight ?? []).map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
-      subtitle: `${tk(modelFor(d.type)?.label ?? d.type)} · ${statusLine(d)}`,
+      subtitle: `${labelOf(d.type)} · ${statusLine(d)}`,
       chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.secondary}">${esc(tk('admin.cms.open'))}</a>`,
       attrs: `data-cms-inflight="${esc(d.id)}"`, stack: true,
     })).join('') || emptyState(tk('admin.cms.inflightEmpty'))}</div>`;
@@ -438,7 +617,8 @@ function notice(html: string | null, tone: 'info' | 'warn' | 'error' = 'error'):
 
 function errorText(r: { code: string; body: Record<string, any> }): string {
   if (r.code === 'invalid') return tk('admin.cms.error.invalid');
-  return tk(errorKey(r.code));
+  // A refusal with a count says it (a domain's levels).
+  return tk(errorKey(r.code), { n: String(r.body?.count ?? '') });
 }
 
 function setSaveState(text: string): void {
@@ -447,14 +627,16 @@ function setSaveState(text: string): void {
 }
 
 function fieldsFor(model: TypeModel): FieldDef[] {
-  return visibleFields(model, approver);
+  return visibleFields(model, approves(model.key));
 }
 
 function renderForm(ed: Editor, values: Values): void {
+  // The languages the form shows and writes follow what it writes onto (a post may have one).
+  ed.model = withSides(ed.model, ed.origin);
   const fields = fieldsFor(ed.model);
   const main = fields.filter((f) => f.group === 'main');
   const more = fields.filter((f) => f.group === 'more');
-  const draw = (f: FieldDef) => renderField(ed.model, f, values[f.key] ?? formValues(ed.model, ed.base)[f.key], { readOnly: ed.readOnly });
+  const draw = (f: FieldDef) => renderField(ed.model, f, values[f.key] ?? formValues(ed.model, ed.origin)[f.key], { readOnly: ed.readOnly || lockedHere(ed, f) });
   const box = $('cmsFields')!;
   box.innerHTML = `
     <div id="cmsErrors" class="hidden mb-3 rounded-xl border border-red-200 bg-red-tint px-3 py-2 text-sm text-[#8a1c1c]" role="alert"></div>
@@ -462,6 +644,7 @@ function renderForm(ed: Editor, values: Values): void {
     <div id="cmsChanged" class="hidden mb-3"></div>
     <div class="bg-white rounded-2xl border border-border p-4 lg:p-3 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-3">
       <h3 class="lg:col-span-3 text-sm font-semibold text-navy">${esc(tk('admin.cms.group.main'))}</h3>
+      ${sidesBar(ed)}
       ${main.map(draw).join('')}
       <p class="lg:col-span-3 text-xs text-gray-500">${esc(tk('admin.cms.fileName'))}: <span id="cmsFileName" class="font-mono text-gray-600 [overflow-wrap:anywhere]"></span></p>
     </div>
@@ -470,13 +653,56 @@ function renderForm(ed: Editor, values: Values): void {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-3 mt-3">${more.map(draw).join('')}</div></details>` : ''}`;
   renderBar(ed);
   updateFileName(ed, values);
+  refreshRows(ed.model, box);
+}
+
+/** Whether `lang` of the entry is on the site: its file is on main (a non-null sha the draft started from). */
+function onMain(ed: Editor, l: 'en' | 'tr'): boolean {
+  const shas = ed.draft?.base_shas ?? ed.baseShas ?? {};
+  return Object.entries(shas).some(([p, sha]) => sha !== null && p.includes(`/${l}/`));
+}
+
+/**
+ * A sides: 'either' type (a blog post): which languages the entry has, with
+ * "Türkçesini ekle" / "İngilizcesini ekle" for the missing one, and a way to
+ * take out again a language this draft added (one on the site stays).
+ */
+function sidesBar(ed: Editor): string {
+  if (ed.model.sides !== 'either') return '';
+  const has = ed.model.present ?? sidesOf(ed.model, ed.origin);
+  const text = has.length === 1 ? tk('admin.cms.sides.only', { lang: tk(`admin.cms.sides.lang.${has[0]}`) }) : tk('admin.cms.sides.both');
+  const buttons = ed.readOnly ? [] : [
+    ...(['en', 'tr'] as const).filter((l) => !has.includes(l)).map((l) => `<button type="button" data-side-add="${l}" class="${BTN.secondary}">${esc(tk(`admin.cms.sides.add.${l}`))}</button>`),
+    ...(has.length === 2 ? has.filter((l) => !onMain(ed, l)) : []).map((l) => `<button type="button" data-side-remove="${l}" class="${BTN.ghost}">${esc(tk(`admin.cms.sides.remove.${l}`))}</button>`),
+  ];
+  return `<div data-cms-sides class="lg:col-span-3 flex flex-wrap items-center gap-2 text-sm text-gray-600"><span class="min-w-0">${esc(text)}</span>${buttons.join('')}</div>`;
+}
+
+/** Adds or takes out a language: the form is redrawn with what it holds, on the new set of languages. */
+function changeSides(ed: Editor, l: 'en' | 'tr', add: boolean): void {
+  const values = currentValues(ed);
+  ed.origin = add ? withSide(ed.origin, l) : withoutSide(ed.origin, l);
+  // An added language's texts start empty; values both languages share come with it.
+  const shown = formValues(withSides(ed.model, ed.origin), applyValues(withSides(ed.model, ed.origin), ed.origin, values));
+  renderForm(ed, shown);
+  $<HTMLFormElement>('cmsForm')!.dispatchEvent(new Event('input'));
+  $('cmsFields')?.querySelector<HTMLElement>(add ? `[data-lang="${l}"]` : '[data-side-add]')?.focus();
+}
+
+/**
+ * A new entry's file name as the server will give it. Read-only fields are
+ * not read back from the form (a roadmap stage's number), so they come from
+ * the data the form was drawn from.
+ */
+function fileNameOf(ed: Editor, values: Values): string {
+  return suggestedId(ed.model, { ...formValues(ed.model, ed.origin), ...values });
 }
 
 function updateFileName(ed: Editor, values: Values): void {
   const el = $('cmsFileName');
   if (!el) return;
   const isNew = !ed.draft ? ed.entryId === null : ed.draft.action === 'create';
-  const id = isNew ? suggestedId(ed.model, values) : (ed.draft?.entry_id ?? ed.entryId ?? '');
+  const id = isNew ? fileNameOf(ed, values) : (ed.draft?.entry_id ?? ed.entryId ?? '');
   el.textContent = id || tk('admin.cms.fileNameFromTitle');
   el.classList.toggle('font-mono', !!id);
 }
@@ -486,16 +712,17 @@ function renderBar(ed: Editor): void {
   if (!bar) return;
   const status = ed.draft ? sv(ed.draft) : null;
   const menu: string[] = [];
+  const approver = approves(ed.model.key);
   // The author can always let go of a failed draft, whatever the reason.
   const ownDiscard = ed.draft && (status?.editable || ed.draft.status === 'submitted' || ed.draft.status === 'pr_failed') && ed.draft.status !== 'merged';
   if (ownDiscard) menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discard'))}</button>`);
   if (approver && ed.draft?.status === 'pr_open') menu.push(`<button type="button" data-cms-cancel class="${BTN.danger}">${esc(tk('admin.cms.cancelPr'))}</button>`);
   if (approver && ed.draft && status?.next === 'discard' && !ownDiscard) menu.push(`<button type="button" data-cms-discard class="${BTN.danger}">${esc(tk('admin.cms.discardMerged'))}</button>`);
   // Not while the entry is busy, or the form read-only for any other reason.
-  if (approver && !ed.draft && ed.entryId && !ed.readOnly) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
+  if (approver && !ed.model.noDelete && !ed.draft && ed.entryId && !ed.readOnly) menu.push(`<button type="button" data-cms-delete-entry class="${BTN.danger}">${esc(tk('admin.cms.deleteEntry'))}</button>`);
   const editable = !ed.readOnly;
   const live = ed.draft?.status === 'published'
-    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined), lang)}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
+    ? `<a href="${livePath(ed.model.key, ed.draft.entry_id, entryPaths(ed.model.key, ed.draft.entry_id, ed.draft.base_shas ?? undefined, ed.draft.data), lang, sectionOf(ed.model.key, ed.draft.entry_id, ed.draft.data))}" target="_blank" rel="noopener" data-cms-live class="${BTN.primary}">${esc(tk('admin.cms.openSite'))}</a>` : '';
   bar.innerHTML = `<div class="flex flex-wrap items-center gap-2">
       ${editable ? `<button type="button" id="cmsSave" class="${BTN.secondary}">${esc(tk('admin.cms.save'))}</button>
       <button type="button" id="cmsSubmit" class="${BTN.primary}">${esc(tk(ed.draft?.status === 'rejected' ? 'admin.cms.resubmit' : ed.draft?.status === 'pr_failed' ? 'admin.cms.retry' : 'admin.cms.submit'))}</button>` : ''}
@@ -519,9 +746,28 @@ function wireBar(ed: Editor): void {
   if (del) armConfirm(del, tk('admin.cms.confirmDelete'), () => deleteEntry(ed));
 }
 
+/** What names the file (a level's domain and level, a stage's number): chosen when an entry is made, shown read-only after. */
+function lockedHere(ed: Editor, f: FieldDef): boolean {
+  const isNew = ed.draft ? ed.draft.action === 'create' : ed.entryId === null;
+  return !isNew && !!ed.model.lockedOnUpdate?.includes(f.key);
+}
+
+/** A select whose options are another type's entries (a level's domain): those entries, loaded. */
+async function loadOptionSources(model: TypeModel): Promise<void> {
+  const keys = [...new Set(model.fields.map((f) => f.optionsFrom).filter((k): k is NonNullable<typeof k> => !!k))];
+  await Promise.all(keys.map((k) => loadEntries(MODELS[k])));
+}
+
+/** The form's model for this data: its fields (page texts) and its options (a level's domains), once. */
+function modelOf(model: TypeModel, base: unknown): TypeModel {
+  const sources = Object.fromEntries(Object.entries(entries).map(([k, list]) => [k, (list ?? []).map((e) => ({ id: e.id, title: e.title }))]));
+  return withSides(withOptions(withFields(model, base), sources, base), base);
+}
+
 function newEditor(model: TypeModel, route: string, base: unknown, extra: Partial<Editor>): Editor {
   return {
-    model, route, draft: null, entryId: null, baseShas: null, base, readOnly: false, backupKey: `new:${model.key}`,
+    // A form built from the entry (page texts) gets its fields here, once.
+    model: modelOf(model, base), route, draft: null, entryId: null, baseShas: null, base, origin: base, readOnly: false, backupKey: `new:${model.key}`,
     edits: 0, uploads: new Set(), autosave: null, fresh: null, halfOk: false, conflict: false, signedOutShown: false, lostSave: null, ...extra,
   };
 }
@@ -548,7 +794,7 @@ function start(ed: Editor): void {
   // Restored on its own only when it cannot be older than what was saved;
   // otherwise the person compares the two and chooses.
   const restored = choice === 'restore';
-  if (restored) values = formValues(ed.model, backup!.data);
+  if (restored) { ed.origin = backup!.data; values = formValues(ed.model, ed.origin); }
   renderForm(ed, values);
   guard?.reset();
   if (!ed.readOnly) ed.autosave = autosaveFor(ed);
@@ -572,13 +818,14 @@ function autosaveFor(ed: Editor): AutosaveQueue {
  * version's value into the form. Never a merge on its own.
  */
 function drawCompare(ed: Editor, box: HTMLElement, o: {
-  other: () => Values; title: string; sub?: string; otherLabel: string; formLabel: string; take: string; none: string; footer: string; footerId: string; onFooter: () => void;
+  other: () => unknown; title: string; sub?: string; otherLabel: string; formLabel: string; take: string; none: string; footer: string; footerId: string; onFooter: () => void;
 }): void {
   const draw = () => {
     const form = currentValues(ed);
-    const other = o.other();
+    const otherData = o.other();
+    const other = formValues(ed.model, otherData);
     const fields = fieldsFor(ed.model).filter((f) => !f.readOnly && !f.approverOnly && !same(other[f.key], form[f.key]));
-    const text = (f: FieldDef, v: unknown) => esc(show(f, ed.model.format === 'markdown-pair' ? pairText(v) : v));
+    const text = (f: FieldDef, v: unknown) => esc(f.kind === 'objects' ? showIn('json', f, v) : show(f, pairForm(ed.model) ? pairText(v) : v));
     box.innerHTML = `<div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 lg:p-3">
       <p class="text-sm font-semibold text-amber-900">${esc(o.title)}</p>
       ${o.sub ? `<p class="text-xs text-amber-800 mt-0.5 break-all">${esc(o.sub)}</p>` : ''}
@@ -592,7 +839,10 @@ function drawCompare(ed: Editor, box: HTMLElement, o: {
       <div class="mt-3"><button type="button" id="${o.footerId}" data-compare-footer class="${BTN.primary}">${esc(o.footer)}</button></div></div>`;
     box.querySelectorAll<HTMLButtonElement>('[data-take]').forEach((b) => b.addEventListener('click', () => {
       const f = ed.model.fields.find((x) => x.key === b.dataset.take)!;
-      redraw(ed, f, other[f.key]);
+      // The field's data comes from the other version, and the field is
+      // redrawn from it: its rows are then stamped from what saves write onto.
+      ed.origin = withFieldFrom(ed.model, ed.origin, otherData, f.key);
+      redraw(ed, f, formValues(ed.model, ed.origin)[f.key]);
       draw();
     }));
     box.querySelector('[data-compare-footer]')?.addEventListener('click', o.onFooter);
@@ -613,7 +863,7 @@ function offerBackup(ed: Editor, backup: Backup): void {
     <button type="button" data-backup-drop class="${BTN.danger}">${esc(tk('admin.cms.backup.drop'))}</button></div>`;
   box.querySelector('[data-backup-drop]')!.addEventListener('click', drop);
   box.querySelector('[data-backup-compare]')!.addEventListener('click', () => drawCompare(ed, box, {
-    other: () => formValues(ed.model, backup.data), title: tk('admin.cms.backup.ask'),
+    other: () => backup.data, title: tk('admin.cms.backup.ask'),
     otherLabel: tk('admin.cms.backup.device'), formLabel: tk('admin.cms.backup.saved'), take: tk('admin.cms.backup.take'),
     none: tk('admin.cms.backup.none'), footer: tk('admin.cms.backup.drop'), footerId: 'cmsBackupDrop', onFooter: drop,
   }));
@@ -626,9 +876,9 @@ function currentValues(ed: Editor): Values {
 /** The data the form holds now, as the server will store it. */
 function currentData(ed: Editor): unknown {
   const values = currentValues(ed);
-  const data = applyValues(ed.model, ed.base, values);
+  const data = applyValues(ed.model, ed.origin, values);
   const isNew = ed.draft ? ed.draft.action === 'create' : ed.entryId === null;
-  return isNew ? withId(ed.model, data, suggestedId(ed.model, values)) : data;
+  return isNew ? withId(ed.model, data, fileNameOf(ed, values)) : data;
 }
 
 function onInput(e: Event): void {
@@ -636,7 +886,8 @@ function onInput(e: Event): void {
   if (!ed || ed.readOnly) return;
   ed.edits++;
   const values = currentValues(ed);
-  if ((e.target as HTMLElement | null)?.closest?.('[data-field-wrap="title"]')) {
+  refreshRows(ed.model, $('cmsFields')!);
+  if ((e.target as HTMLElement | null)?.closest?.(`[data-field-wrap="${ed.model.titleField ?? 'title'}"]`)) {
     const title = $('cmsTitle');
     if (title) title.textContent = titleFrom(ed.model, values) || tk('admin.cms.untitled');
   }
@@ -662,27 +913,26 @@ function onFormClick(e: Event): void {
   const preview = target.closest<HTMLButtonElement>('[data-preview]');
   if (preview) { togglePreview(ed, preview); return; }
   if (ed.readOnly) return;
+  const side = target.closest<HTMLButtonElement>('[data-side-add], [data-side-remove]');
+  if (side) {
+    const l = (side.dataset.sideAdd ?? side.dataset.sideRemove) as 'en' | 'tr';
+    changeSides(ed, l, side.dataset.sideAdd !== undefined);
+    return;
+  }
+  // Rows of an objects field, and lists inside them: changed on the page, in place.
+  if (rowsClick(ed.model, target)) {
+    // A button in a row's summary line must not also open or close the row.
+    e.preventDefault();
+    $<HTMLFormElement>('cmsForm')!.dispatchEvent(new Event('input'));
+    return;
+  }
   const wrap = target.closest<HTMLElement>('[data-field-wrap]');
   const f = wrap ? ed.model.fields.find((x) => x.key === wrap.dataset.fieldWrap) : undefined;
-  if (!wrap || !f) return;
-  const listLang = target.closest<HTMLElement>('[data-list-lang]')?.dataset.listLang as 'en' | 'tr' | 'both' | undefined;
-  const value = readField(ed.model, f, wrap);
-  const edit = (fn: (list: unknown[]) => unknown[]) => {
-    if (ed.model.format === 'markdown-pair') {
-      const v = value as { en: unknown[]; tr: unknown[] };
-      if (listLang === 'both') { const l = fn([...v.en]); redraw(ed, f, { en: l, tr: [...l] }); } else if (listLang) redraw(ed, f, { ...v, [listLang]: fn([...v[listLang]]) });
-      return;
-    }
-    redraw(ed, f, fn([...(value as unknown[])]));
-  };
-  const i = Number(target.closest<HTMLElement>('[data-row-i]')?.dataset.rowI ?? -1);
-  if (target.closest('[data-add]')) edit((l) => [...l, f.kind === 'links' ? { label: { en: '', tr: '' }, url: '' } : '']);
-  else if (target.closest('[data-remove]')) edit((l) => l.filter((_, j) => j !== i));
-  else if (target.closest('[data-move]')) {
-    const d = Number(target.closest<HTMLElement>('[data-move]')!.dataset.move);
-    edit((l) => { const j = i + d; if (j < 0 || j >= l.length) return l; [l[i], l[j]] = [l[j], l[i]]; return l; });
-  } else if (target.closest('[data-image-remove]')) {
-    redraw(ed, f, ed.model.format === 'markdown-pair' ? { en: '', tr: '' } : f.image === 'url' ? '' : null);
+  if (!wrap || !f || f.kind === 'objects') return;
+  const next = listEdit(pairForm(ed.model) ? 'pair' : 'json', f, readField(ed.model, f, wrap), target);
+  if (next !== undefined) redraw(ed, f, next);
+  else if (target.closest('[data-image-remove]')) {
+    redraw(ed, f, pairForm(ed.model) ? { en: '', tr: '' } : f.image === 'url' ? '' : null);
   }
 }
 
@@ -696,7 +946,7 @@ function togglePreview(ed: Editor, button: HTMLButtonElement): void {
   if (!open) return;
   const f = ed.model.fields.find((x) => x.key === key)!;
   const v = readField(ed.model, f, button.closest('[data-field-wrap]')!) as { en: string; tr: string };
-  box.innerHTML = (['en', 'tr'] as const).map((l) => `<div class="min-w-0 rounded-lg border border-border p-3 text-sm text-navy [&_p]:mb-2 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5">
+  box.innerHTML = (ed.model.present ?? (['en', 'tr'] as const)).map((l) => `<div class="min-w-0 rounded-lg border border-border p-3 text-sm text-navy [&_p]:mb-2 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5">
     <p class="text-[11px] font-semibold uppercase text-gray-500">${l}</p>${previewHtml(renderBody(v[l]).html)}</div>`).join('');
 }
 
@@ -705,6 +955,9 @@ async function onImageFile(input: HTMLInputElement): Promise<void> {
   const ed = editor;
   const file = input.files?.[0];
   if (!ed || !file) return;
+  // A photo inside a row (a committee member's): that row's field, redrawn in place.
+  const leaf = input.closest<HTMLElement>('[data-sub-wrap]');
+  if (leaf) { await onRowImageFile(ed, leaf, input, file); return; }
   const f = ed.model.fields.find((x) => x.key === input.dataset.imageFile)!;
   const status = $('cmsFields')?.querySelector<HTMLElement>(`[data-image-status="${f.key}"]`);
   if (status) status.textContent = tk('admin.cms.image.uploading');
@@ -715,7 +968,7 @@ async function onImageFile(input: HTMLInputElement): Promise<void> {
       if (editor !== ed) return;
       const wrap = $('cmsFields')!.querySelector(`[data-field-wrap="${f.key}"]`)!;
       const before = readField(ed.model, f, wrap);
-      if (ed.model.format === 'markdown-pair') redraw(ed, f, { en: url, tr: url });
+      if (pairForm(ed.model)) redraw(ed, f, { en: url, tr: url });
       else if (f.image === 'url') redraw(ed, f, url);
       // One upload for both sizes in this release: the card and the click show the same file.
       else redraw(ed, f, { ...(before as ImageObject | null ?? { alt: { en: '', tr: '' } }), thumb: url, full: url, alt: (before as ImageObject | null)?.alt ?? { en: '', tr: '' } });
@@ -723,6 +976,30 @@ async function onImageFile(input: HTMLInputElement): Promise<void> {
       if (st) st.textContent = tk('admin.cms.image.uploaded');
     } catch (err) {
       if (status) status.textContent = tk(uploadErrorKey(err instanceof Error ? err.message : ''));
+    } finally {
+      input.disabled = false;
+      input.value = '';
+    }
+  })();
+  ed.uploads.add(job);
+  await job;
+  ed.uploads.delete(job);
+}
+
+/** onImageFile for a photo inside a row: its status line and its value are that row's. */
+async function onRowImageFile(ed: Editor, leaf: HTMLElement, input: HTMLInputElement, file: File): Promise<void> {
+  const status = (el: HTMLElement | null, key: string) => { const p = el?.querySelector<HTMLElement>(':scope [data-image-status]'); if (p) p.textContent = tk(key); };
+  status(leaf, 'admin.cms.image.uploading');
+  input.disabled = true;
+  const job = (async () => {
+    try {
+      const url = await uploadImage(file);
+      if (editor !== ed || !leaf.isConnected) return;
+      const fresh = setRowImage(ed.model, leaf, url);
+      $<HTMLFormElement>('cmsForm')!.dispatchEvent(new Event('input'));
+      status(fresh, 'admin.cms.image.uploaded');
+    } catch (err) {
+      if (leaf.isConnected) status(leaf, uploadErrorKey(err instanceof Error ? err.message : ''));
     } finally {
       input.disabled = false;
       input.value = '';
@@ -749,9 +1026,26 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
   loadingEditor(model.sub, back);
   const placeholder = newEditor(model, route, emptyData(model), {});
   editor = placeholder;
+  if (model.generated) { noForm(model, back); return; }
+  if (!entryId && model.noCreate) {
+    head({ title: tk('admin.cms.newOf', { type: tk(model.label) }), back });
+    notice(esc(tk(errorKey('forbidden'))));
+    return;
+  }
+  await loadOptionSources(model);
+  if (editor !== placeholder) return;
   if (!entryId) {
+    // A post starts in the panel's language, dated today (Istanbul).
+    const base = emptyData(model, { lang, today: istanbulToday() });
+    if (model.appendKey) {
+      // A new roadmap stage: the number the server will give it, shown read-only (A11).
+      const list = await loadEntries(model);
+      if (editor !== placeholder) return;
+      const n = nextStageNumber((list ?? []).map((e) => e.id));
+      for (const l of ['en', 'tr'] as const) (base as Record<'en' | 'tr', { frontmatter: Record<string, unknown> }>)[l].frontmatter[model.appendKey] = n;
+    }
     head({ title: tk('admin.cms.newOf', { type: tk(model.label) }), back, chipHtml: chip(tk('admin.cms.chip.draft'), 'neutral'), line: tk('admin.cms.status.draft'), banner: true });
-    start(newEditor(model, route, emptyData(model), { backupKey: `new:${model.key}` }));
+    start(newEditor(model, route, base, { backupKey: `new:${model.key}` }));
     return;
   }
   const [r] = await Promise.all([api<{ data: unknown; base_shas: Record<string, string | null> }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(entryId)}`), loadLists()]);
@@ -765,15 +1059,23 @@ async function openEntry(model: TypeModel, entryId: string | null, route: string
   const mine = (lists?.mine ?? []).find((d) => d.type === model.key && d.entry_id === entryId && sv(d).editable);
   if (mine) { location.replace(`${SECTION}/taslaklar/${mine.id}`); return; }
   const live = (lists?.live ?? []).find((d) => d.type === model.key && d.entry_id === entryId);
-  const values = formValues(model, r.body.data);
+  const values = formValues(withFields(model, r.body.data), r.body.data);
   const title = titleFrom(model, values) || entryId;
   const ed = newEditor(model, route, r.body.data, { entryId, baseShas: r.body.base_shas, backupKey: `edit:${model.key}:${entryId}`, readOnly: !!live });
   head({ title, back, line: live ? tk(live.status === 'submitted' ? 'admin.cms.busySubmitted' : 'admin.cms.busyGoingLive') : tk('admin.cms.editingLive') });
   start(ed);
 }
 
+/** A type whose data the server builds, or one this panel has no form for: no form, a sentence instead. */
+function noForm(model: TypeModel | null, back: string, title?: string): void {
+  head({ title: title ?? (model ? tk(model.label) : ''), back });
+  $('cmsForm')!.classList.add('hidden');
+  $('cmsReview')!.innerHTML = `<p data-cms-no-form class="bg-white rounded-2xl border border-border p-4 lg:p-3 text-sm text-gray-600">${esc(tk('admin.cms.noForm'))}</p>`;
+}
+
 function titleFrom(model: TypeModel, values: Values): string {
-  const v = values.title as { en?: unknown; tr?: unknown } | string | undefined;
+  if (model.heading) return model.heading(values);
+  const v = values[model.titleField ?? 'title'] as { en?: unknown; tr?: unknown } | string | undefined;
   if (typeof v === 'string') return v;
   const pick = (x: unknown) => (typeof x === 'string' ? x : '');
   return (lang === 'tr' ? pick(v?.tr) || pick(v?.en) : pick(v?.en) || pick(v?.tr));
@@ -782,7 +1084,7 @@ function titleFrom(model: TypeModel, values: Values): string {
 async function openDraft(id: string, route: string): Promise<void> {
   const back = `${SECTION}/taslaklar`;
   loadingEditor('taslaklar', back);
-  const placeholder = newEditor(MODELS.events, route, {}, { readOnly: true });
+  const placeholder = newEditor(LOADING_MODEL, route, {}, { readOnly: true });
   editor = placeholder;
   const r = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
   if (editor !== placeholder) return;
@@ -794,14 +1096,17 @@ async function openDraft(id: string, route: string): Promise<void> {
   }
   const draft = r.body.draft;
   const model = modelFor(draft.type);
-  if (!model) return;
+  if (!model || (model.generated && draft.action !== 'update')) { noForm(model, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
   await loadEntries(model);
+  if (editor !== placeholder) return;
+  if (model.generated) { await openGeneratedDraft(model, draft, route, back, placeholder); return; }
+  await loadOptionSources(model);
   if (editor !== placeholder) return;
   const v = sv(draft);
   const ed = newEditor(model, route, draft.data ?? emptyData(model), {
     draft, entryId: draft.action === 'create' ? null : draft.entry_id, backupKey: draft.id, readOnly: !v.editable || draft.action === 'delete',
   });
-  const values = formValues(model, ed.base);
+  const values = formValues(ed.model, ed.base);
   head({
     title: titleFrom(model, values) || titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: statusChip(draft), line: statusLine(draft),
     banner: draft.status !== 'published' && draft.status !== 'discarded',
@@ -819,6 +1124,62 @@ async function openDraft(id: string, route: string): Promise<void> {
   }
   if (pendingNotice) { notice(pendingNotice.html, pendingNotice.tone); pendingNotice = null; }
   if (!ed.readOnly && draft.action === 'update') await checkChanged(ed);
+}
+
+/**
+ * A draft the server built (a podcast pull): nothing to type, so no form.
+ * What it changes, against the site's version, and the way to send it.
+ */
+async function openGeneratedDraft(model: TypeModel, draft: Draft, route: string, back: string, placeholder: Editor): Promise<void> {
+  const e = await api<{ data: unknown }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(draft.entry_id)}`);
+  if (editor !== placeholder) return;
+  const v = sv(draft);
+  const ed = newEditor(model, route, draft.data ?? {}, { draft, entryId: draft.entry_id, backupKey: draft.id, readOnly: true });
+  editor = ed;
+  head({
+    title: titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: statusChip(draft), line: statusLine(draft),
+    banner: draft.status !== 'published' && draft.status !== 'discarded',
+  });
+  let body: string;
+  if (!e.ok) body = `<p data-cms-unreadable class="text-sm text-[#8a1c1c]">${esc(tk('admin.cms.review.unreadable'))}</p>`;
+  else {
+    const diff = diffEntry(model, e.body.data, draft.data, model.fields);
+    body = diff.changed.length === 0 ? `<p class="text-sm text-gray-600">${esc(tk('admin.cms.review.nothing'))}</p>`
+      : `<p class="text-sm font-semibold text-navy">${esc(tk('admin.cms.review.changed', { n: diff.changed.length }))}</p>${renderDiff(diff)}`;
+  }
+  $('cmsFields')!.innerHTML = `${v.editable ? `<p class="text-sm text-gray-600 mb-3">${esc(tk('admin.cms.podcast.draftIntro'))}</p>` : ''}
+    <div data-cms-generated class="bg-white rounded-2xl border border-border p-4 lg:p-3">${body}</div>`;
+  renderBar(ed);
+  if (v.editable && e.ok) {
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.id = 'cmsSubmit';
+    send.className = BTN.primary;
+    send.textContent = tk(draft.status === 'rejected' ? 'admin.cms.resubmit' : draft.status === 'pr_failed' ? 'admin.cms.retry' : 'admin.cms.submit');
+    const line = $('cmsBar')!.querySelector('div');
+    line?.insertBefore(send, line.firstChild);
+    send.addEventListener('click', () => void submitGenerated(ed, send));
+  }
+  if (pendingNotice) { notice(pendingNotice.html, pendingNotice.tone); pendingNotice = null; }
+}
+
+/** Sends a generated draft: no form to save first. */
+async function submitGenerated(ed: Editor, button: HTMLButtonElement): Promise<void> {
+  button.disabled = true;
+  const r = await api<{ draft: Draft }>('POST', `/api/cms/drafts/${ed.draft!.id}/submit`, {});
+  if (editor !== ed) return;
+  if (!r.ok) {
+    button.disabled = false;
+    if (r.code === 'invalid') {
+      const items = Object.entries(r.body.errors ?? {}).map(([p, m]) => `${placeLabel(ed.model, p).label}: ${messageKeys(String(m)).map((k) => tk(k)).join(' ')}`);
+      notice(`${esc(tk('admin.cms.error.invalid'))}<ul class="mt-1">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`);
+    } else notice(esc(errorText(r)));
+    return;
+  }
+  ed.draft = { ...ed.draft!, ...r.body.draft };
+  lists = null;
+  void refreshCounts();
+  await reopenAs(ed, approves(ed.model.key) ? 'admin.cms.sentApprover' : 'admin.cms.sent');
 }
 
 /**
@@ -849,7 +1210,7 @@ function showChanged(ed: Editor, fresh: { data: unknown; base_shas: Record<strin
   if (!box) return;
   const files = Object.keys(fresh.base_shas).filter((p) => (ed.draft?.base_shas?.[p] ?? ed.baseShas?.[p] ?? null) !== fresh.base_shas[p]);
   drawCompare(ed, box, {
-    other: () => formValues(ed.model, fresh.data), title: tk('admin.cms.changed.title'), sub: tk('admin.cms.changed.files', { files: files.join(', ') }),
+    other: () => fresh.data, title: tk('admin.cms.changed.title'), sub: tk('admin.cms.changed.files', { files: files.join(', ') }),
     otherLabel: tk('admin.cms.changed.site'), formLabel: tk('admin.cms.changed.draft'), take: tk('admin.cms.changed.take'),
     none: tk('admin.cms.changed.none'), footer: tk('admin.cms.changed.continue'), footerId: 'cmsRebase', onFooter: () => void rebase(ed),
   });
@@ -866,12 +1227,16 @@ const pairText = (v: unknown) => {
 async function rebase(ed: Editor): Promise<void> {
   if (!ed.fresh) return;
   const values = currentValues(ed);
-  const data = applyValues(ed.model, ed.fresh.data, values);
+  // Ids the site's version lacks are emptied (A4): the next save gives those cards new ones.
+  const data = rebased(ed.model, ed.fresh.data, values);
   if (!ed.draft) {
-    // Not saved yet: carry on from the site's version.
+    // Not saved yet: carry on from the site's version, the form redrawn
+    // from the rebased data, which later saves write onto.
     ed.base = ed.fresh.data;
+    ed.origin = data;
     ed.baseShas = ed.fresh.base_shas;
     ed.fresh = null;
+    renderForm(ed, formValues(ed.model, data));
     $('cmsChanged')?.classList.add('hidden');
     const s = $<HTMLButtonElement>('cmsSubmit');
     if (s) s.disabled = false;
@@ -927,15 +1292,15 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   const editsAtStart = ed.edits;
   setSaveState(tk('admin.cms.saving'));
   clearErrors();
-  let r: Answer<{ draft: Draft }>;
+  let r: Answer<{ draft: Draft; duplicate_of?: string }>;
   if (!ed.draft) {
-    if (!ed.entryId && !suggestedId(ed.model, values)) {
+    if (!ed.entryId && !fileNameOf(ed, values)) {
       // A new entry is named after its title (or repo): nothing to store it under yet.
       setSaveState(tk('admin.cms.needTitle'));
-      if (!auto) showErrors({ [ed.model.key === 'workshops' ? 'repo' : ed.model.key === 'events' ? 'id' : 'en.frontmatter.title']: 'Missing' }, true);
+      if (!auto) showErrors({ [ed.model.idField]: 'Missing' }, true);
       return false;
     }
-    r = await api<{ draft: Draft }>('POST', '/api/cms/drafts', ed.entryId
+    r = await api<{ draft: Draft; duplicate_of?: string }>('POST', '/api/cms/drafts', ed.entryId
       ? { type: ed.model.key, action: 'update', entry_id: ed.entryId, data, base_shas: ed.baseShas }
       : { type: ed.model.key, action: 'create', data });
   } else {
@@ -950,7 +1315,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
       ed.lostSave = null;
       const now2 = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${ed.draft.id}`);
       if (editor !== ed) return false;
-      if (now2.ok && sameData(now2.body.draft.data, lost.data)) {
+      if (now2.ok && sameSave(now2.body.draft.data, lost.data)) {
         ed.draft = { ...ed.draft, ...now2.body.draft };
         r = await api<{ draft: Draft }>('PATCH', `/api/cms/drafts/${ed.draft.id}`, { data, write_nonce: ed.draft.write_nonce });
       }
@@ -970,7 +1335,18 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
     lists = null;
     head({ title: titleFrom(ed.model, values) || ed.draft.entry_id, back: `${SECTION}/taslaklar`, chipHtml: statusChip(ed.draft), line: statusLine(ed.draft), banner: true });
     renderBar(ed);
+    // The same title in the same place is on the site already (a resource
+    // link): said, with the way to it, never refused.
+    const dup = r.body.duplicate_of;
+    if (typeof dup === 'string' && dup) {
+      notice(`${esc(tk('admin.cms.duplicateOf'))} <a href="${SECTION}/${ed.model.sub}/${esc(encodeURIComponent(dup))}" data-cms-duplicate class="underline font-medium">${esc(tk('admin.cms.duplicateOpen'))}</a>`, 'warn');
+    }
   }
+  // What the server added (a new learning-path resource's id, a stage's
+  // number) is drawn into the form, which saves write onto from now on.
+  // While the person typed, only the new cards' ids are filled in.
+  if (ed.edits === editsAtStart) restamp(ed, data, r.body.draft.data);
+  else if (ed.model.resourceIds) fillGivenIds(ed, data, r.body.draft.data);
   if (ed.edits === editsAtStart) {
     dropBackup(ed.backupKey);
     guard?.reset();
@@ -980,6 +1356,75 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
   ed.signedOutShown = false;
   setSaveState(tk('admin.cms.saved', { time: clock(now()) }));
   return true;
+}
+
+/**
+ * After a save, the fields whose data the server changed (A4: it gives a
+ * new resource its id) are taken from its answer: `ed.origin` gets that
+ * field's data, and the field is drawn again from it, so its rows are
+ * stamped from what later saves write onto, and they send the ids back
+ * rather than empty ones. Not when the person typed during the save: the
+ * next save gets the ids then. Drawn quietly: nothing new to save, and the
+ * rows that were open stay open.
+ */
+function restamp(ed: Editor, sent: unknown, answer: unknown): void {
+  if (answer === undefined || editor !== ed) return;
+  const before = formValues(ed.model, sent);
+  const after = formValues(ed.model, answer);
+  const box = $('cmsFields');
+  let changed = false;
+  for (const f of fieldsFor(ed.model)) {
+    if (sameData(before[f.key], after[f.key])) continue;
+    ed.origin = withFieldFrom(ed.model, ed.origin, answer, f.key);
+    const wrap = box?.querySelector(`[data-field-wrap="${f.key}"]`);
+    if (!wrap) continue;
+    const open = [...wrap.querySelectorAll('details')].map((d) => d.open);
+    wrap.outerHTML = renderField(ed.model, f, formValues(ed.model, ed.origin)[f.key], { readOnly: ed.readOnly || lockedHere(ed, f) });
+    const again = [...(box!.querySelector(`[data-field-wrap="${f.key}"]`)?.querySelectorAll('details') ?? [])];
+    if (again.length === open.length) again.forEach((d, i) => { d.open = open[i]; });
+    changed = true;
+  }
+  if (changed && box) {
+    refreshRows(ed.model, box);
+    updateFileName(ed, currentValues(ed));
+  }
+}
+
+/**
+ * The ids the server gave new cards, written into those cards' id inputs
+ * while the person typed during the save (restamp would redraw over their
+ * typing). A card is filled only where its list has as many cards as were
+ * sent and its id is still empty; ids are read-only, so typing never
+ * touched them. ed.origin is left alone: a new card is not in it (it has no
+ * origin row), and its id travels with the row on the next save.
+ */
+function fillGivenIds(ed: Editor, sent: unknown, answer: unknown): void {
+  const box = $('cmsFields');
+  if (!box || editor !== ed) return;
+  const fm = (d: unknown) => (d as { en?: { frontmatter?: Record<string, unknown> } } | null)?.en?.frontmatter;
+  const listAt = (path: string[]): Element | null => {
+    let scope: Element | null = box.querySelector(`[data-field-wrap="${path[0]}"]`);
+    for (let i = 0; i + 1 < path.length && scope; i += 2) {
+      const rows = scope.querySelector(`[data-objects="${path[i]}"] > [data-rows]`);
+      scope = rows?.children[Number(path[i + 1])]?.querySelector(':scope > [data-row-body]') ?? null;
+    }
+    return scope?.querySelector(`[data-objects="${path.at(-1)}"] > [data-rows]`) ?? null;
+  };
+  const lists = (d: unknown) => {
+    const f = fm(d);
+    return Array.isArray(f?.sections) ? (f.sections as { resources?: unknown[] }[]).map((s, i) => ({ path: ['sections', String(i), 'resources'], list: s?.resources ?? [] }))
+      : [{ path: ['resources'], list: (f?.resources as unknown[]) ?? [] }];
+  };
+  const got = lists(answer);
+  lists(sent).forEach(({ path, list }, i) => {
+    const rows = listAt(path);
+    if (!rows || rows.children.length !== list.length) return;
+    list.forEach((r, j) => {
+      const given = (got[i]?.list[j] as { id?: unknown } | undefined)?.id;
+      const input = rows.children[j]?.querySelector<HTMLInputElement>(':scope > [data-row-body] > [data-sub-wrap="id"] input');
+      if ((r as { id?: unknown })?.id === '' && typeof given === 'string' && given && input && input.value === '') input.value = given;
+    });
+  });
 }
 
 function saveFailed(ed: Editor, r: { status: number; code: string; body: Record<string, any> }, auto: boolean, data: unknown): boolean {
@@ -1036,22 +1481,17 @@ function clearErrors(): void {
   $('cmsFields')?.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
 }
 
-/** A label for an error path: "Bağlantılar › Bağlantı 2 › Adres (EN)". */
-function placeLabel(model: TypeModel, path: string): { key: string | null; label: string; lang?: string } {
+/** A label for an error path: "Bağlantılar › Bağlantı 2 › Adres (EN)", "Bölüm 2 › Kaynak 3 › Başlık (TR)". */
+function placeLabel(model: TypeModel, path: string): { key: string | null; label: string; lang?: string; place: ErrorPlace } {
   const p = placeOf(model, path);
-  const f = model.fields.find((x) => x.key === p.key);
-  const parts = [f ? tk(f.approverOnly ? 'admin.cms.f.note' : f.label) : tk('admin.cms.wholeEntry')];
-  if (p.row !== undefined) parts.push(tk('admin.cms.list.link', { n: p.row + 1 }));
-  if (p.part === 'url') parts.push(tk('admin.cms.f.url'));
-  if (p.part === 'label') parts.push(tk('admin.cms.f.linkLabel'));
-  if (p.part === 'alt') parts.push(tk('admin.cms.f.alt'));
-  return { key: p.key, label: `${parts.join(' › ')}${p.lang ? ` (${p.lang.toUpperCase()})` : ''}`, lang: p.lang };
+  const parts = placePhrases(model, p).map((w) => tk(w.key, w.vars));
+  return { key: p.key, label: `${parts.join(' › ')}${p.lang ? ` (${p.lang.toUpperCase()})` : ''}`, lang: p.lang, place: p };
 }
 
 function showErrors(errors: Record<string, string>, focus: boolean): void {
   const ed = editor;
   if (!ed) return;
-  const items = Object.entries(errors).map(([path, msg]) => ({ ...placeLabel(ed.model, path), msg: tk(messageKey(msg)) }));
+  const items = Object.entries(errors).map(([path, msg]) => ({ ...placeLabel(ed.model, path), msg: messageKeys(msg).map((k) => tk(k)).join(' ') }));
   if (!items.length) return;
   const box = $('cmsErrors');
   if (!box) return;
@@ -1061,6 +1501,8 @@ function showErrors(errors: Record<string, string>, focus: boolean): void {
   const controlFor = (it: typeof items[number]) => {
     const wrap = it.key ? $('cmsFields')!.querySelector<HTMLElement>(`[data-field-wrap="${it.key}"]`) : null;
     if (!wrap) return null;
+    // Inside rows: the row's own control, every row on the way opened.
+    if (it.place.trail) return controlInRows(wrap, it.place.trail, it.place.leaf, it.lang) ?? wrap.querySelector<HTMLElement>('[data-row-add]');
     return wrap.querySelector<HTMLElement>(`${it.lang ? `[data-lang="${it.lang}"], [data-lang="both"]` : '[data-field]:not([type=hidden])'}`) ?? wrap.querySelector<HTMLElement>('[data-field]:not([type=hidden]), input[type=file]');
   };
   for (const it of items) {
@@ -1093,7 +1535,7 @@ async function submit(): Promise<void> {
     const half = halfTranslated(ed.model, currentValues(ed));
     if (half.length && !ed.halfOk) {
       notice(`<p class="font-semibold">${esc(tk('admin.cms.half.title'))}</p>
-        <p class="mt-0.5">${half.map((h) => esc(`${tk(h.label)}${h.sub ? ` ${h.sub}` : ''}`)).join(', ')}</p>
+        <p class="mt-0.5">${half.map((h) => esc(h.trail ? placePhrases(ed.model, { key: h.key, trail: h.trail, leaf: h.leaf }).map((w) => tk(w.key, w.vars)).join(' › ') : `${tk(h.label)}${h.sub ? ` ${h.sub}` : ''}`)).join(', ')}</p>
         <div class="flex flex-wrap gap-2 mt-2"><button type="button" id="cmsHalfSend" class="${BTN.secondary}">${esc(tk('admin.cms.half.send'))}</button></div>`, 'warn');
       $('cmsHalfSend')?.addEventListener('click', () => { ed.halfOk = true; notice(null); void submit(); });
       return;
@@ -1111,7 +1553,7 @@ async function submit(): Promise<void> {
     lists = null;
     void refreshCounts();
     // Mine and an approver's: approve it here, in the same chain.
-    await reopenAs(ed, approver ? 'admin.cms.sentApprover' : 'admin.cms.sent');
+    await reopenAs(ed, approves(ed.model.key) ? 'admin.cms.sentApprover' : 'admin.cms.sent');
   } finally {
     if (btn && editor === ed && !ed.readOnly && !ed.fresh) btn.disabled = false;
   }
@@ -1123,7 +1565,7 @@ async function reopenAs(ed: Editor, message: string): Promise<void> {
   const id = ed.draft!.id;
   const route = `${SECTION}/taslaklar/${id}`;
   pendingNotice = {
-    html: `${esc(tk(message))}${approver && message === 'admin.cms.sentApprover' ? ` <a href="${SECTION}/onay/${id}" class="underline">${esc(tk('admin.cms.review'))}</a>` : ''}`,
+    html: `${esc(tk(message))}${approves(ed.model.key) && message === 'admin.cms.sentApprover' ? ` <a href="${SECTION}/onay/${id}" class="underline">${esc(tk('admin.cms.review'))}</a>` : ''}`,
     tone: 'info',
   };
   closeEditor();
@@ -1175,9 +1617,9 @@ async function openReview(id: string, route: string): Promise<void> {
   const back = `${SECTION}/onay`;
   loadingEditor('onay', back);
   $('cmsForm')!.classList.add('hidden');
-  const placeholder = newEditor(MODELS.events, route, {}, { readOnly: true });
+  const placeholder = newEditor(LOADING_MODEL, route, {}, { readOnly: true });
   editor = placeholder;
-  const r = await api<{ draft: Draft }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
+  const r = await api<{ draft: Draft; files?: { path: string; content: string | null }[] | null }>('GET', `/api/cms/drafts/${encodeURIComponent(id)}`);
   if (editor !== placeholder) return;
   if (!r.ok) {
     head({ title: tk('admin.cms.goneTitle'), back });
@@ -1186,16 +1628,23 @@ async function openReview(id: string, route: string): Promise<void> {
     return;
   }
   const draft = r.body.draft;
-  const model = modelFor(draft.type)!;
-  await loadEntries(model);
+  const found = modelFor(draft.type);
+  // A generated type (the podcast) has fields for its diff, though no form.
+  if (!found) { noForm(found, back, titleOf(draft.type, draft.entry_id, draft.action)); return; }
+  // Per type: an `approve: 'admin'` type is not approved by a group approver.
+  const approver = approves(found.key);
+  await Promise.all([loadEntries(found), loadOptionSources(found)]);
+  if (editor !== placeholder) return;
+  const model = modelOf(found, draft.data ?? emptyData(found));
   let published: unknown = null;
+  let mainFiles: Record<string, string | null> | null = null;
   // Without the published version there is nothing to compare with (or, for
   // a delete, nothing to show): no approval on a guess.
   let unreadable = false;
   if (draft.action !== 'create') {
-    const e = await api<{ data: unknown }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(draft.entry_id)}`);
+    const e = await api<{ data: unknown; files?: Record<string, string | null> }>('GET', `/api/cms/entry?type=${model.key}&id=${encodeURIComponent(draft.entry_id)}`);
     if (editor !== placeholder) return;
-    if (e.ok) published = e.body.data;
+    if (e.ok) { published = e.body.data; mainFiles = e.body.files ?? null; }
     else unreadable = true;
   }
   const ed = newEditor(model, route, draft.data ?? {}, { draft, readOnly: true });
@@ -1205,6 +1654,7 @@ async function openReview(id: string, route: string): Promise<void> {
   const title = titleFrom(model, values) || titleOf(draft.type, draft.entry_id, draft.action);
   head({ title, back, chipHtml: statusChip(draft), line: `${tk(model.label)} · ${tk('admin.cms.sentBy', { name: draft.author_name || tk('admin.cms.anEditor'), time: when(draft.updated_at) })}` });
   let bodyHtml: string;
+  let fileHtml = '';
   let nothing = false;
   // The note is an approver's field; a change to it alone is a change.
   let noteChanged = false;
@@ -1219,11 +1669,23 @@ async function openReview(id: string, route: string): Promise<void> {
     const diff = diffEntry(model, published ?? emptyData(model), draft.data, fields);
     noteChanged = diff.changed.some((c) => c.field.approverOnly);
     nothing = diff.changed.length === 0;
+    // Each published progress key the draft drops, said one by one.
+    const removed = model.resourceIds ? removedResourceIds(published, draft.data) : [];
     bodyHtml = nothing ? `<p class="text-sm text-gray-600">${esc(tk('admin.cms.review.nothing'))}</p>`
       : `<p class="text-sm font-semibold text-navy">${esc(tk('admin.cms.review.changed', { n: diff.changed.length }))}</p>
-        <div class="flex flex-wrap gap-1 mt-1 mb-2">${diff.changed.map((c) => chip(tk(c.field.label), 'navy')).join('')}</div>${renderDiff(diff)}`;
+        <div class="flex flex-wrap gap-1 mt-1 mb-2">${diff.changed.map((c) => chip(tk(c.field.label), 'navy')).join('')}</div>
+        ${removed.length ? `<ul data-cms-removed-ids class="mb-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 [overflow-wrap:anywhere]">${removed.map((id) => `<li>${esc(tk('admin.cms.review.removedId', { id }))}</li>`).join('')}</ul>` : ''}${renderDiff(diff)}`;
+    // Under the fields, the files themselves: bytes the form does not show
+    // are never approved unseen. Changed bytes with no changed field are
+    // shown open, with a warning, and can be approved after reading them.
+    const files = fileDiffs(mainFiles, r.body.files);
+    const hidden = hiddenFileChanges(files, diff);
+    if (hidden) nothing = false;
+    fileHtml = renderFileDiff(files, hidden);
   }
-  const note = model.key === 'events' && approver && !noteChanged ? String((draft.data as Record<string, unknown> | undefined)?.note ?? '') : '';
+  // The approvers' own field (events' internal note), shown beside the changes.
+  const noteField = model.fields.find((f) => f.approverOnly);
+  const note = noteField && approver && !noteChanged ? String((draft.data as Record<string, unknown> | undefined)?.[noteField.key] ?? '') : '';
   // Someone who cannot approve sees the changes, not the buttons.
   const stale = sv(draft).line === 'admin.cms.status.approvedStale';
   const waiting = approver && (draft.status === 'submitted' || stale);
@@ -1233,7 +1695,7 @@ async function openReview(id: string, route: string): Promise<void> {
   if (stale) nothing = unreadable;
   $('cmsReview')!.innerHTML = `<div class="bg-white rounded-2xl border border-border p-4 lg:p-3">${bodyHtml}
       ${note ? `<div class="mt-3 rounded-lg bg-[#F7F7F6] px-3 py-2"><p class="text-[11px] font-semibold uppercase text-gray-500">${esc(tk('admin.cms.f.note'))}</p><p class="text-sm text-navy whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(note)}</p></div>` : ''}
-    </div>
+    </div>${fileHtml}
     ${waiting ? `<div data-cms-sticky class="sticky bottom-0 lg:-bottom-1 z-10 mt-3 -mx-1 px-1 py-2 bg-[#F7F7F6] border-t border-border">
       <div id="cmsRejectBox" class="hidden mb-2 bg-white rounded-xl border border-border p-3 lg:p-2">
         <label for="cmsRejectNote" class="text-xs font-medium text-gray-600">${esc(tk('admin.cms.reject.note'))}</label>
@@ -1272,7 +1734,7 @@ function wireReview(ed: Editor): void {
     if (!r.ok) {
       b.disabled = false;
       if (r.code === 'invalid') {
-        const items = Object.entries(r.body.errors ?? {}).map(([p, m]) => `${placeLabel(ed.model, p).label}: ${tk(messageKey(String(m)))}`);
+        const items = Object.entries(r.body.errors ?? {}).map(([p, m]) => `${placeLabel(ed.model, p).label}: ${messageKeys(String(m)).map((k) => tk(k)).join(' ')}`);
         notice(`${esc(tk('admin.cms.error.invalid'))}<ul class="mt-1">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`);
       } else if (r.code === 'changed_since') {
         notice(`${esc(tk('admin.cms.error.changed_since'))} ${esc(tk('admin.cms.reject.changedHint'))}`);

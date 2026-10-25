@@ -3,30 +3,30 @@ number: 6
 emoji: "🎬"
 title: "RSG Turkiye, Watch the Experts"
 subtitle: "These sessions from our archive are accessible to anyone starting out. Real researchers, real problems, explained well."
-color: red
+color: "red"
 resources:
   - id: "roadmap-6-0"
     title: "Big Data in Life Sciences"
     description: "How modern biology generates data at scales that require computational thinking. A great orientation to the field's scope."
-    tag: Webinar
+    tag: "Webinar"
+    webinarSlug: "big-data-in-life-sciences-nikolay-oskolkov"
     speaker: "Nikolay Oskolkov"
     year: 2022
-    webinarSlug: big-data-in-life-sciences-nikolay-oskolkov
   - id: "roadmap-6-1"
     title: "Aspects of High-Throughput Molecular Data Analysis"
     description: "A broad overview of HT data types, preprocessing strategies, and common analytical pitfalls: an excellent first look at how data flows through a real lab."
-    tag: Webinar
-    webinarSlug: aspects-of-high-throughput-molecular-data-analysis
+    tag: "Webinar"
+    webinarSlug: "aspects-of-high-throughput-molecular-data-analysis"
   - id: "roadmap-6-2"
     title: "Mapping Human Tissue Architecture, Spatial Transcriptomics"
     description: "A window into cutting-edge research. Don't worry about understanding every detail, focus on the biological questions being asked."
-    tag: Webinar
+    tag: "Webinar"
+    webinarSlug: "mapping-human-tissue-architecture-and-pathology-using-spatial-transcriptomics"
     speaker: "Dr. Ömer Ali Bayraktar"
     year: 2023
-    webinarSlug: mapping-human-tissue-architecture-and-pathology-using-spatial-transcriptomics
   - id: "roadmap-6-3"
     title: "Early Detection of Skin Cancer with Deep Learning"
     description: "Machine learning applied to a real clinical problem. A clear example of how computational tools change medicine."
-    tag: Webinar
-    webinarSlug: early-detection-skin-cancer-deep-learning-vidit-go
+    tag: "Webinar"
+    webinarSlug: "early-detection-skin-cancer-deep-learning-vidit-go"
 ---

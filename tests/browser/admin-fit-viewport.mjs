@@ -77,7 +77,49 @@ const CMS_EVENT = {
   location: { en: 'Ankara', tr: 'Ankara' }, description: { en: 'Description', tr: 'Açıklama' },
   links: N(6, (i) => ({ label: { en: `Link ${i}`, tr: `Bağlantı ${i}` }, url: `https://example.org/${i}` })),
 };
+const CMS_COMMITTEE = {
+  order: 10, name: { en: 'Committee', tr: 'Komite' }, description: { en: 'Description', tr: 'Açıklama' },
+  members: N(8, (i) => ({ name: `Member ${i}`, role: { en: 'Role', tr: 'Görev' }, image: '/api/images/a.webp', consent: true })),
+};
+/** The podcast (generated, no form): its list, a pulled draft and its review. */
+const POD_EP = (i) => ({ guid: `g${i}`, title: `Episode ${i}`, pubDate: `2025-01-${String(i + 1).padStart(2, '0')}T10:00:00.000Z`, durationSeconds: 3065,
+  audioUrl: `https://example.org/${i}.m4a`, audioBytes: 1, image: '', description: 'Description' });
+const CMS_PODCAST = { syncedAt: '2025-06-01T00:00:00.000Z', title: 'Podcast', description: 'Description', image: 'https://example.org/i.jpg',
+  platforms: { spotify: 'https://example.org/s', apple: 'https://example.org/a', castbox: 'https://example.org/c', rss: 'https://example.org/r' },
+  episodes: Array.from({ length: 14 }, (_, i) => POD_EP(14 - 1 - i)) };
+const CMS_PODCAST_NEW = { ...CMS_PODCAST, episodes: [POD_EP(14), ...CMS_PODCAST.episodes] };
+const POD_DRAFT = '00000000-0000-4000-8000-000000000399';
+const CMS_RESOURCE = {
+  section: 'tools', order: 10, title: { en: 'Resource', tr: 'Kaynak' }, description: { en: 'Description', tr: 'Açıklama' }, url: 'https://example.org/',
+  tags: { en: N(6, (i) => `tag-${i}`), tr: N(6, (i) => `etiket-${i}`) }, opensource: true,
+};
+/** A learning-path level with many cards, closed: the form must still fit. */
+const LP_CARD = (i, lang) => ({ id: `card-${i}`, title: `Card ${i} ${lang}`, description: 'Why.', tag: 'Reading', url: `https://example.org/${i}` });
+const LP_LEVEL_SIDE = (lang) => ({ domain: 'example', level: 'explorer', orientation: 'Start here.', prerequisites: ['Biology'],
+  sections: ['foundations', 'toolkit', 'webinars', 'papers'].map((type, s) => ({ type, resources: N(8, (i) => LP_CARD(s * 8 + i, lang)) })) });
+const LP_LEVEL = JSON.parse(JSON.stringify({ en: { frontmatter: LP_LEVEL_SIDE('en'), body: '', source: '' }, tr: { frontmatter: LP_LEVEL_SIDE('tr'), body: '', source: '' } }));
+const LP_STAGE_SIDE = (lang) => ({ number: 7, emoji: '🧭', title: 'Stage', subtitle: 'Subtitle', color: 'navy', resources: N(6, (i) => LP_CARD(i, lang)) });
+const LP_STAGE = JSON.parse(JSON.stringify({ en: { frontmatter: LP_STAGE_SIDE('en'), body: '', source: '' }, tr: { frontmatter: LP_STAGE_SIDE('tr'), body: '', source: '' } }));
+const LP_DOMAIN_SIDE = () => ({ name: 'Domain', emoji: '🧬', tagline: 'Tagline', order: 1, goDeeper: N(4, (i) => ({ title: `Link ${i}`, description: 'D', url: `https://example.org/${i}` })) });
+const LP_DOMAIN = { en: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' }, tr: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' } };
+const lpPaths = (dir, id) => ({ en: `src/content/${dir}/en/${id}.md`, tr: `src/content/${dir}/tr/${id}.md` });
+/** Page texts with many keys; a privacy notice with many sections, closed: the form must still fit. */
+const CMS_PAGE = Object.fromEntries(N(24, (i) => [`text_${i}`, { en: `Text ${i}`, tr: `Metin ${i}` }]));
+const PRIV_SIDE = () => ({ title: 'Privacy', description: 'What we keep.', intro: N(3, (i) => `Intro ${i}`), sections: N(8, (i) => ({ heading: `Section ${i}`, paragraphs: [`Paragraph ${i}`], items: N(6, (j) => `Item ${j}`) })) });
+const CMS_PRIVACY = { updated: '2026-10-23', en: PRIV_SIDE(), tr: PRIV_SIDE() };
+/** A blog post in both languages with a long body: the form must still fit. */
+const POST_SIDE = (lang) => ({ frontmatter: { title: `Post ${lang}`, pubDate: '2020-01-01', description: 'D', author: 'A', category: 'general', tags: N(6, (i) => `t${i}`), image: '' }, body: N(80, (i) => `Line ${i}`).join('\n'), source: '' });
+const CMS_POST = { en: POST_SIDE('en'), tr: POST_SIDE('tr') };
 const CMS_ENTRIES = {
+  blog: N(70, (i) => ({ id: `p${i}`, title: `Post ${i}`, date: '2020-01-01', paths: { en: i % 2 ? `src/content/blog/en/p${i}.md` : null, tr: `src/content/blog/tr/p${i}.md` }, shas: {} })),
+  pages: ['about', 'home', 'join', 'resources'].map((id) => ({ id, title: id, shas: {} })),
+  privacy: [{ id: 'privacy', title: 'Privacy', date: '2026-10-23', shas: {} }],
+  resources: N(36, (i) => ({ id: `r${i}`, title: `Resource ${i}`, section: 'tools', shas: {} })),
+  'lp-domains': N(4, (i) => ({ id: `d${i}`, title: `Domain ${i}`, paths: lpPaths('lp-domains', `d${i}`), shas: {} })),
+  'lp-levels': N(13, (i) => ({ id: `d${i % 4}-explorer${i}`, title: `d${i % 4} · explorer`, paths: lpPaths('lp-levels', `d${i % 4}-explorer${i}`), shas: {} })),
+  'lp-roadmap': N(8, (i) => ({ id: `0${i + 1}-stage`, title: `${i + 1}. Stage`, paths: lpPaths('lp-roadmap', `0${i + 1}-stage`), shas: {} })),
+  podcast: [{ id: 'podcast', title: CMS_PODCAST.title, date: '2025-01-01', shas: {} }],
+  committees: N(8, (i) => ({ id: `c${i}`, title: `Committee ${i}`, shas: {} })),
   events: [{ id: 'symposium-2026', title: 'Symposium 2026', date: '2026-10-10', shas: {} }, ...N(59, (i) => ({ id: `e${i}`, title: `Event ${i}`, date: '2025-01-01', shas: {} }))],
   workshops: N(20, (i) => ({ id: `w${i}`, title: `Workshop ${i}`, date: '2024', shas: {} })),
   webinars: N(60, (i) => ({ id: `wb${i}`, title: `Webinar ${i}`, date: '2024-04-16', paths: { en: `src/content/webinars/en/wb${i}.md`, tr: `src/content/webinars/tr/wb${i}.md` }, shas: {} })),
@@ -114,7 +156,19 @@ async function open(path, viewport, user = ADMIN, { podcast = true, posts = POST
     if (url.pathname === '/api/mail/conversations') return json({ threads: MAIL_THREADS, unreadCount: 1, scope: 'own', isAdmin: user.is_admin === true });
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
+    // An admin approves every type (approve per type: functions/api/cms/types.ts).
+    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['blog', 'yazilar'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme'], ['lp-domains', 'ogrenme'], ['lp-levels', 'ogrenme'], ['lp-roadmap', 'ogrenme'], ['pages', 'sayfalar'], ['privacy', 'sayfalar']].map(([key, group]) => ({ key, group, canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'podcast') return json({ data: CMS_PODCAST, base_shas: { 'src/data/podcast.json': 'sha' }, files: { 'src/data/podcast.json': JSON.stringify(CMS_PODCAST, null, 2) } });
+    if (url.pathname === `/api/cms/drafts/${POD_DRAFT}`) return json({ draft: { ...CMS_DRAFTS[1], id: POD_DRAFT, type: 'podcast', entry_id: 'podcast', status: 'draft', write_nonce: 'n', data: CMS_PODCAST_NEW, base_shas: { 'src/data/podcast.json': 'sha' } }, files: null });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'resources') return json({ data: CMS_RESOURCE, base_shas: { 'src/content/resources/r0.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-levels') return json({ data: LP_LEVEL, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-roadmap') return json({ data: LP_STAGE, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-domains') return json({ data: LP_DOMAIN, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'blog') return json({ data: CMS_POST, base_shas: { 'src/content/blog/en/p1.md': 'sha', 'src/content/blog/tr/p1.md': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'pages') return json({ data: CMS_PAGE, base_shas: { 'src/content/pages/about.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'privacy') return json({ data: CMS_PRIVACY, base_shas: { 'src/content/privacy/privacy.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/c0.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
     if (/^\/api\/cms\/drafts\/[^/]+$/.test(url.pathname)) return json({ draft: { ...CMS_DRAFTS.find((d) => d.id === url.pathname.split('/').pop()) ?? CMS_DRAFTS[1], data: CMS_EVENT, base_shas: {} } });
@@ -180,7 +234,13 @@ async function routes(lang, user) {
   }
   await page.close();
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t60');
-  if (out.includes('#icerik-etkinlikler/etkinlikler')) out.push('#icerik-etkinlikler/etkinlikler/symposium-2026', '#icerik-etkinlikler/webinarlar/_new', '#icerik-etkinlikler/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000001');
+  if (out.includes('#icerik/etkinlikler')) out.push('#icerik/etkinlikler/symposium-2026', '#icerik/webinarlar/_new', '#icerik/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik/onay/00000000-0000-4000-8000-000000000001');
+  if (out.includes('#icerik/komiteler')) out.push('#icerik/komiteler/c0');
+  if (out.includes('#icerik/kaynaklar')) out.push('#icerik/kaynaklar/r0');
+  if (out.includes('#icerik/ogrenme-seviyeleri')) out.push('#icerik/ogrenme-seviyeleri/d0-explorer0', '#icerik/yol-haritasi/01-stage', '#icerik/ogrenme-alanlari/d0');
+  if (out.includes('#icerik/podcast')) out.push(`#icerik/taslaklar/${POD_DRAFT}`, `#icerik/onay/${POD_DRAFT}`);
+  if (out.includes('#icerik/blog')) out.push('#icerik/blog/p1', '#icerik/blog/_new');
+  if (out.includes('#icerik/sayfa-metinleri')) out.push('#icerik/sayfa-metinleri/about', '#icerik/gizlilik/privacy');
   return [...new Set(out)];
 }
 

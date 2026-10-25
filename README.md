@@ -26,8 +26,8 @@ Two Astro sites in one repository:
 - **Main site** (repo root): public pages in Turkish and English (blog,
   webinars, learning paths, events, podcast), member accounts with Google
   sign-in, and an admin panel at `/admin`. The panel runs the organisation's
-  e-mail, social media publishing, symposium content, certificates, blog
-  submissions and announcements.
+  e-mail, social media publishing, symposium content, certificates, site
+  content through a CMS (blog posts included) and announcements.
 - **Symposium site** (`symposium_website/`): a separate static Astro project
   with its own Cloudflare Pages project. It reads its editable content from
   the main site's API at build time.
@@ -53,9 +53,9 @@ Everything runs on the free plans, under the organisation's shared account
 /
 ├── src/
 │   ├── pages/            Routes. English at the root, Turkish under tr/
-│   ├── content/          Markdown (blog, webinars, learning paths) and JSON (events, workshops, resources, committees, pages)
+│   ├── content/          Markdown (blog, webinars, learning paths) and JSON (events, workshops, resources, committees, pages, privacy)
 │   ├── content.config.ts Content schemas
-│   ├── data/             Schemas and helpers for the JSON collections, privacy text, podcast
+│   ├── data/             Schemas and helpers for the JSON collections and the privacy notice, podcast
 │   ├── i18n/ui.ts        UI strings in both languages
 │   ├── components/, layouts/, styles/
 │   ├── lib/              Build-time helpers
@@ -131,16 +131,23 @@ sites. Two things are **not** part of a deploy and are done by hand:
 > ```
 > Without this, Google login will fail with a `redirect_uri_mismatch` error. Remove any stale dev preview URLs (e.g. `website-dev-vi6.pages.dev`) from the same list.
 
-#### Member blog submissions — required setup
+#### Content pull requests and images — required setup
 
-The member blog submission feature (members write a post on `/account`, an admin approves it, and the site auto-opens a GitHub PR) needs three things configured that aren't part of a normal deploy:
+The panel CMS (İçerik, including blog posts) and the symposium archive open
+pull requests against this repository, and panel uploads store images. They
+need three things configured that aren't part of a normal deploy:
 
 1. **A GitHub secret**, `GITHUB_PAT` — a fine-grained Personal Access Token from a dedicated GitHub account, scoped to *only* this repo, with **Contents: Read and write**, **Pull requests: Read and write**, and **Issues: Read and write** permissions. Set via:
    ```
    wrangler pages secret put GITHUB_PAT --project-name website
    ```
-2. **An R2 bucket**, `rsg-blog-images` (`wrangler r2 bucket create rsg-blog-images`). It does not need public access: images are served through the site's own `/api/images/<key>`, and `PUBLIC_BLOG_IMAGES_URL` in `wrangler.toml` points there. Do not use the bucket's `r2.dev` address; it is blocked in Türkiye.
-3. **`GITHUB_NOTIFY_USERNAME`** in `wrangler.toml`'s `[vars]` — the GitHub username of whoever should be notified the moment a member submits a post (before any admin approves it, so nothing sits unnoticed). This **must be a different account than whoever `GITHUB_PAT` belongs to** — GitHub never sends a notification to an account for actions that account itself performed, so the PAT's own account can never be notified this way. **Update this whenever the person responsible for reviewing submissions changes** (e.g. a new committee president) — it's a plain config value, no code change needed.
+2. **An R2 bucket**, `rsg-blog-images` (`wrangler r2 bucket create rsg-blog-images`). It does not need public access: images are served through the site's own `/api/images/<key>`, and `PUBLIC_BLOG_IMAGES_URL` in `wrangler.toml` points there. Do not use the bucket's `r2.dev` address; it is blocked in Türkiye. Every panel upload (blog, symposium, social) goes through `/api/blog-submissions/upload-image`, a path kept from the old member blog form so that posts already published keep their image links.
+3. **`GITHUB_NOTIFY_USERNAME`** in `wrangler.toml`'s `[vars]` — the GitHub username to notify when a finished symposium's archive pull request needs merging. This **must be a different account than whoever `GITHUB_PAT` belongs to** — GitHub never sends a notification to an account for actions that account itself performed, so the PAT's own account can never be notified this way. It's a plain config value, no code change needed.
+
+Members no longer submit posts from `/account`. Someone who holds the
+Yazılar edit right writes them in the panel (see [Blog posts](#blog-posts));
+`/account` shows them a card that opens it. The `blog_submissions` table
+stays, read only, for the statistics of the old form's history.
 
 #### Sending mail as RSG — required setup
 
@@ -387,7 +394,7 @@ to decide an edition is no longer upcoming: midnight after `endDate`, or
 `startDate` if there's no `endDate`), and for any that have finished and
 whose CMS overlay has not yet been folded in, renders its D1 rows to the
 content collection's JSON shape and opens a pull request against this repo —
-the same `GITHUB_PAT` used for blog submissions, so no separate GitHub
+the same `GITHUB_PAT` the panel CMS uses, so no separate GitHub
 credential is needed. A human still reviews and merges that PR; nothing here
 writes to `main` directly. Once the PR's URL is recorded (`archived_pr_url`),
 that edition is reported as already archived rather than re-submitted — the
@@ -492,7 +499,7 @@ The address records where you are, so a link such as `/admin#sempozyum/komite`
 opens that sub-page directly and reload and back keep working. A section with
 sub-pages opens its first one on a laptop; on a phone it opens a list of them,
 and a ‹ button returns from a sub-page to the list. Counts of waiting work
-(e-mail, social approvals, blog posts) show next to the menu entries and on
+(e-mail, social approvals, content drafts waiting for approval) show next to the menu entries and on
 Overview.
 
 - **Overview** (`#genel`): what is waiting, plus the status banner. Shown when
@@ -507,13 +514,14 @@ Overview.
   Senders without admin rights see only the E-posta section. The old
   `/account/mail` and `/account/conversations` pages (and `/tr` twins) forward
   to `#eposta/yaz` and `#eposta/gelen`.
-- **Content**: Blog (admins), Symposium (symposium editors, admins).
+- **Content**: İçerik (the CMS, for people who edit a content group) and
+  Symposium (symposium editors, admins).
 - **Community**: Users and roles (admins). Membership has an entry but stays
   hidden until it is built.
 - **System**: Connections and Activity log (admins).
 
 The section ids in the address are Turkish (`eposta`, `sosyal`, `duyurular`,
-`blog`, `sempozyum`, `kullanicilar`, `baglantilar`, `kayit`). The routing table
+`icerik`, `sempozyum`, `kullanicilar`, `baglantilar`, `kayit`). The routing table
 is `src/scripts/admin/sections.ts`. `tests/browser/admin-overflow.mjs` opens
 every section at 390 and 1280 px and checks for horizontal scroll and 44 px
 touch targets.
@@ -898,8 +906,8 @@ account and, if it did not go out, create the post again.
 ## Statistics
 
 Admin panel → **Statistics** (`#istatistik`, admins only) shows counts, never
-who: visits, accounts, learning-path progress, published content and blog
-submissions, e-mail, social posts and symposium certificates. Columns compare
+who: visits, accounts, learning-path progress, published content, the old
+blog form's history, e-mail, social posts and symposium certificates. Columns compare
 this month, last month, this year and last year in Türkiye time; an earlier
 year (the selector) compares itself with the year before. Every view is
 written to the Log as `read.stats`. Code: `functions/api/admin/stats.ts`,
@@ -933,33 +941,51 @@ preview, `CF_GRAPHQL_URL` can point the reader at a stand-in endpoint.
 
 ## Content (CMS)
 
-The admin panel can edit the site's events, workshops and webinars. It does
+The admin panel can edit most of the site's content: events, workshops,
+webinars, blog posts, committees, the podcast, learning paths, resource
+links, page texts and the privacy notice. It does
 not write to the live site directly. Every change is a draft, and a draft
 reaches the site only as a pull request that an approver has approved and
 that passes the same checks as any other change. Published content lives only
 in git; the panel keeps just the drafts, in the `content_drafts` table.
 
-The panel section is Content → Etkinlikler (`#icerik-etkinlikler`). The code
+The panel section is Content → İçerik (`#icerik`). Its tabs are the content
+types of the groups a person edits (Etkinlikler, Yazılar, Öğrenme, Topluluk,
+Sayfalar), then Taslaklarım and, for those who approve a type, Onay. Old
+links to `#icerik-etkinlikler/...` open the same page under `#icerik/...`. The code
 is in `src/lib/cms/` (types, serializing, the deployed index), the server
 side is `functions/_lib/cms-*.ts` and `functions/api/cms/`.
 
 ### Who can do what
 
-There are two roles, both for the Etkinlikler group:
+Content is split into five groups. Each has two roles, named
+`content.<group>.edit` and `content.<group>.approve`, and a person sees
+only the tabs of the groups they edit.
 
-- **Editor** (`content.etkinlikler.edit`) starts drafts, edits them and sends
+| Group | Tabs (types) | Editor role | Approver role |
+| --- | --- | --- | --- |
+| Etkinlikler | Etkinlikler (events), Atölyeler (workshops), Webinarlar | Events editor | Events approver |
+| Yazılar | Blog | Posts editor | Posts approver |
+| Öğrenme | Kaynaklar (resource links), Öğrenme alanları, Öğrenme seviyeleri, Yol haritası | Learning editor | Learning approver |
+| Topluluk | Komiteler (committees), Podcast | Community editor | Community approver |
+| Sayfalar | Sayfa metinleri, Gizlilik bildirimi | Pages editor | Pages approver |
+
+- **Editor** (`content.<group>.edit`) starts drafts, edits them and sends
   them for approval. An editor role lasts at most one month, then is renewed.
-- **Approver** (`content.etkinlikler.approve`) does everything an editor can,
+- **Approver** (`content.<group>.approve`) does everything an editor can,
   and also approves or sends back drafts, stops a pull request that is
   running, and discards drafts. It is a leader role: up to 12 months, or
-  permanent when an admin grants it. An approver may approve their own
-  draft.
+  permanent, and only an admin grants it. An approver may approve their own
+  draft. The one exception is the privacy notice: only an admin approves
+  it.
 
-An admin has both without holding either. Admins grant either role. An
-approver can also grant the editor role, for one month at most, so they can
-cover for an editor but not widen access on their own. Grants are made in
-Users and roles → Roles, like every other role. The rules are in
-`functions/_lib/roles.ts`.
+An admin has every role without holding any. Admins grant any of them. An
+approver can also grant their own group's editor role, for one month at
+most, so they can cover for an editor but not widen access on their own.
+Grants are made in Users and roles → Roles, like every other role. The
+catalog and these rules are in `functions/_lib/roles.ts` (`ROLES`,
+`CMS_GROUPS`). The old `writer` ("Blog writer") role is retired: it is still
+shown where it was held, but cannot be granted any more.
 
 ### From draft to live
 
@@ -992,6 +1018,77 @@ merges a `cms/*` pull request by hand. No agent or script approves.
 A webinar that exists only in English is edited as a pair: the form shows an
 empty Turkish side, and the draft cannot be sent until it is filled in. The
 approved draft adds the Turkish file.
+
+### Blog posts
+
+İçerik › Yazılar › **Blog yazıları** (`#icerik/blog`) edits
+`src/content/blog/<lang>/<name>.md`. Unlike a webinar, a post may be in
+English only, Turkish only, or both. A new post starts in the panel's
+language, dated today, and its file name is the slug of its title (with
+`-2`, `-3` when the name is taken in either language, so a new post is never
+paired with an old one by accident). **Türkçesini ekle** / **İngilizcesini
+ekle** adds the other language; the approved draft then writes the second
+file under the same name. A language added in the draft can be taken out
+again before it is sent; one that is on the site cannot (delete the post to
+remove it). Images upload through the same endpoint as everywhere else in the
+panel and are served from `/api/images/`. In the data, a language a post
+does not have is `null` (the registry's `sides: 'either'`). This replaced
+the old member submission form on `/account` and its admin "Blog" section;
+the retired `writer` role moved to `content.yazilar.edit` (migration note 8k).
+
+### Podcast episodes
+
+The podcast's episodes come from its RSS feed into `src/data/podcast.json`.
+The normal way to add a new episode is the panel: İçerik › Podcast
+(`#icerik/podcast`) › **Yeni bölümleri çek**. The server reads the feed once
+(10 s timeout, 2 MB at most), and if the episodes differ from the file on
+main it makes a draft, which goes through the usual send, approve and pull
+request steps; the approver sees which episodes were added. The feed's text
+is shown as plain text, and an em dash or a spaced `--` in it is written as
+` - `, so a pulled draft always passes the house rules. A person may pull
+five times in ten minutes.
+
+`npm run podcast:sync` does the same by hand and writes the file directly. It
+is the fallback for when the panel cannot reach the feed. Both use
+`src/lib/podcast-feed.ts` and the schema in `src/data/podcast.ts`.
+
+### Page texts and the privacy notice
+
+İçerik › Sayfalar holds two types:
+
+- **Sayfa metinleri** (`#icerik/sayfa-metinleri`): the wording of the home,
+  about, join and resources pages, `src/content/pages/<page>.json`. The form
+  shows one English and Turkish text per key of the file, labelled with the
+  key, in the file's order. Only the values change: a draft that adds or
+  drops a key is refused, because the page looks each key up and the build
+  fails on one it lacks. A new key comes with the page change that uses it,
+  in a pull request. Pages are not created or deleted in the panel.
+- **Gizlilik bildirimi** (`#icerik/gizlilik`): the privacy notice,
+  `src/content/privacy/privacy.json` (schema: `src/data/privacy-schema.ts`).
+  The two languages are edited side by side and must match in shape (as
+  many intro paragraphs, sections, paragraphs and items); a draft that does
+  not is saved but cannot be sent. The contact address is written
+  `{contact}` and filled in from `PRIVACY_CONTACT` in `src/data/privacy.ts`;
+  an `@` in the file is refused. Only an admin approves a change (a Sayfalar
+  approver cannot act on someone else's privacy draft), and the approval
+  sets `updated`, the date the page shows, to that day in Istanbul.
+
+### Resource links
+
+The links on `/resources` are edited in İçerik › Kaynaklar
+(`#icerik/kaynaklar`), by the Öğrenme group. Each link is one file in
+`src/content/resources/`. A new link is named after its English title; an
+existing file keeps its name when the title changes. A link listed in two
+sections is two files (the two TeachOpenCADD ones). When the name is taken,
+the server picks the next free one: `<title>-<section>`, then `-2`, `-3`.
+If the same title is already in the same section, the panel says so ("Bu
+bağlantı zaten listede: aç") but does not refuse. Webinars and committees
+take the next free name the same way (`-2`, ...); events and workshops,
+whose file name is their data, are refused instead. Orders go in
+tens within a section; equal orders sort by title. Submit asks for the
+title, description and address in both languages, at least one tag, and as
+many Turkish tags as English ones, the same as
+`tests/content-resources.test.ts`.
 
 ### What the statuses mean
 
@@ -1071,6 +1168,40 @@ and the panel lets the author compare and continue from the site's version.
 
 No Worker redeploy is needed.
 
+#### Going live with the other four groups (Yazılar, Öğrenme, Topluluk, Sayfalar)
+
+The steps above are already done. This pull request retires the old member
+blog form, so the order matters:
+
+1. **Before merging**, a read-only check on the remote D1 that no old
+   submission is still waiting (the form's endpoints and the admin "Blog"
+   section are removed, so a pending one could no longer be approved or
+   rejected). It changes nothing and needs no migration:
+
+   ```bash
+   wrangler d1 execute rsg-members --remote --command="SELECT COUNT(*) AS pending FROM blog_submissions WHERE status = 'pending'"
+   ```
+
+   It must be 0. If it is not, approve or reject those submissions in the
+   panel that is still live, then check again. There is no table change in
+   this pull request.
+2. Merge and let the deploy finish.
+3. **Move the retired `writer` role (note 8k)**, in the panel, after the
+   deploy: Users and roles → Roles, grant "Posts editor" (Yazılar
+   düzenleyici) to whoever holds "Blog writer" (Blog yazarı), ending at the
+   earlier of their writer grant's end and one month, then take away "Blog
+   writer". Both steps are in the activity log. The SQL in note 8k at the
+   top of `db/schema.sql` is a fallback only: it writes no log row, so use
+   it just if the panel cannot be used.
+4. **Run a trial draft in a second group**, yourself, before any grant:
+   for example edit a page text or a committee description in İçerik, send
+   it, approve it, and watch it reach Yayında. Do the same once for a blog
+   post if you can; delete it afterwards or let it stand if it is real.
+5. **Then the grants**: in the Roles view, give the first
+   `content.yazilar.*`, `content.ogrenme.*`, `content.topluluk.*` and
+   `content.sayfalar.*` roles. Approver roles are admin-only; editors are
+   one month.
+
 ## Yearly handover
 
 When the committee changes:
@@ -1083,7 +1214,7 @@ When the committee changes:
   date in the same view; a renewed role starts a new grant.
 - Make sure at least two people are admins.
 - Change `GITHUB_NOTIFY_USERNAME` in `wrangler.toml` to the GitHub username of
-  whoever now reviews blog submissions.
+  whoever now merges the symposium archive pull request.
 - Go through [Yearly upkeep](#yearly-upkeep) for the social accounts.
 - Export the Log (JSON) from the Log pane and keep it with the year's records.
   The panel only keeps a year of history.
@@ -1095,9 +1226,9 @@ When the committee changes:
 
 Every role is a grant in the `role_grants` table: who holds it, until when
 (or permanently), and who granted or ended it. Leader roles (admin,
-announcer, symposium, social publisher, content approver) can last up to 12
-months, or be made permanent by an admin. Edit roles (writer, sender, social,
-content editor) last up to one month, then are renewed. The end date a person picks is inclusive: the role
+announcer, symposium, social publisher, a content group's approver) can last up to 12
+months, or be made permanent by an admin. Edit roles (sender, social,
+a content group's editor) last up to one month, then are renewed. The end date a person picks is inclusive: the role
 works through that whole day. The `users.is_*` columns are only a cache that
 permission checks read; they are rewritten from the live grants in the same
 batch as every change, and the hourly sweep in `/api/mail/dispatch` ends
@@ -1155,15 +1286,16 @@ draft: false
 
 ### Events, workshops, resources, committees and page texts (`src/content/*/*.json`)
 
-These are JSON collections, one file per entry (page texts: one file per page). No code change is needed to edit them. The admin panel edits events, workshops and webinars as pull requests (see [Content (CMS)](#content-cms)); the other collections are edited by hand.
+These are JSON collections, one file per entry (page texts: one file per page). No code change is needed to edit them. Every collection below can be edited in the admin panel as pull requests (see [Content (CMS)](#content-cms)); editing by hand in a PR still works.
 
 | Collection | Where | Notes |
 | --- | --- | --- |
 | Events | `src/content/events/<id>.json` | The home page, the events page and the calendar. The file name is the event `id`. |
 | Workshops | `src/content/workshops/` | The workshops page. `repo` is the GitHub repository name with its real case; the file name is the same name in lower case. |
-| Resources | `src/content/resources/` | The `/resources` page, in both languages. Not the learning paths; those are Markdown (below). |
+| Resources | `src/content/resources/` | The `/resources` page, in both languages; edited in the panel (İçerik › Kaynaklar). Not the learning paths; those are Markdown (below). |
 | Committees | `src/content/committees/` | `/about`. Published profiles, with the member's consent (`consent: true`). E-mail addresses are not allowed; the schema refuses them. |
-| Page texts | `src/content/pages/{home,about,join,resources}.json` | The visible wording of those pages, as `{ en, tr }` pairs. |
+| Page texts | `src/content/pages/{home,about,join,resources}.json` | The visible wording of those pages, as `{ en, tr }` pairs; the values are edited in the panel (İçerik › Sayfa metinleri). |
+| Privacy notice | `src/content/privacy/privacy.json` | `/privacy`, both languages in one file; edited in the panel (İçerik › Gizlilik bildirimi), approved by an admin. |
 
 The schemas and helpers are in `src/data/*.ts`; the loaders are in `src/lib/get-*.ts` and `src/lib/page-text.ts`. A file that does not match its schema fails the build; the schemas are strict, so a misspelt key fails too. File names are lowercase slugs (`[a-z0-9-]+.json`); `tests/content-file-names.test.ts` checks it. `tests/content-not-in-code.test.ts` fails if a data array comes back into `src/data/events.ts`, `src/data/workshops.ts` or `src/data/committees.ts`, or a literal resource list into `src/pages/resources.astro` or `src/pages/tr/resources.astro`.
 
@@ -1174,6 +1306,8 @@ Curated resource paths organised by domain and experience level. All content is 
 **Domains:** genomics, ml, structural, metagenomics (more can be added by creating a new `lp-domains/` file)
 
 **Resource ids:** every resource has an `id`. It is the key under which members' progress is saved, so never change or reuse one; reorder, add and delete freely. `tests/lp-resource-ids.test.ts` checks this.
+
+**In the panel:** domains, levels and roadmap stages are edited in İçerik › Öğrenme (tabs Öğrenme alanları, Öğrenme seviyeleri, Yol haritası). A new resource card gets its id from the server when it is saved (the slug of its English title and 6 random hex digits); nobody types one. At submit and approval the server refuses an id that is not the entry's own or newly given, a resource missing or moved in one language only, and a shared field (kind, link, webinar fields) that differs between the languages; a Turkish link to this site may add `/tr`. A level's domain and level, and a stage's number, are fixed once it exists; a new stage is numbered after the last one. Hand edits in a PR still work: run `npm run cms:normalize` after one. A new domain's first level can be sent only once the domain is on the site's main branch, so a new domain and its levels take two approvals. Anything that writes these files through the API (plan 5's agent access included) must keep every id as it is: an id left out or emptied is a removed resource, and the approver is shown each one.
 
 **Levels:** explorer → practitioner → researcher → specialist
 

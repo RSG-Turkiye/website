@@ -12,7 +12,7 @@ biology and bioinformatics in Türkiye. It is two sites in one repository:
 - **Main site** (repo root) at `rsg-turkiye.iscbsc.org`. It has public pages
   in Turkish and English, member accounts (Google sign-in) and an admin panel
   at `/admin` that runs the organisation's mail, social media, symposium,
-  certificates, blog submissions and announcements.
+  certificates, site content (a CMS, blog posts included) and announcements.
 - **Symposium site** (`symposium_website/`) at
   `symposium.rsg-turkiye.iscbsc.org`. It is a separate Astro project and a
   separate Cloudflare Pages project.
@@ -54,7 +54,9 @@ anyone.
    value.
 8. **Learning-path resource `id`s never change and are never reused.** They
    are the keys under which members' progress is saved. Reorder, add and
-   delete freely. `tests/lp-resource-ids.test.ts` enforces this.
+   delete freely. The panel generates new ids; never type one by hand.
+   `tests/lp-resource-ids.test.ts` enforces this, and the CMS server refuses
+   a draft that changes or invents one.
 9. **Everything done in the admin panel goes in the activity log.** Write
    the change and its audit row together with `runWithAudit`
    (`functions/_lib/audit.ts`). `tests/audit-coverage.test.ts` fails on a
@@ -71,8 +73,8 @@ anyone.
 | Path                              | What                                                                                                                                                  |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/pages/`                      | Routes. English at the root, Turkish under `src/pages/tr/`, mirroring each other.                                                                     |
-| `src/content/`                    | Content. Markdown: blog, webinars, learning paths. JSON, one file per entry: workshops, events, resources, committees, pages (page texts). Schemas in `src/content.config.ts`. |
-| `src/data/`                       | Zod schemas and helpers for the JSON collections (no data arrays; `tests/content-not-in-code.test.ts`), plus privacy text and podcast.                 |
+| `src/content/`                    | Content. Markdown: blog, webinars, learning paths. JSON, one file per entry: workshops, events, resources, committees, pages (page texts), privacy (the notice). Schemas in `src/data/`, wired up in `src/content.config.ts`. |
+| `src/data/`                       | Zod schemas and helpers for every collection (no data arrays; `tests/content-not-in-code.test.ts`), plus the privacy contact and loader, and podcast. |
 | `src/i18n/ui.ts`                  | UI strings in both languages.                                                                                                                         |
 | `src/lib/`                        | Build-time helpers (feeds, tags, hreflang, learning paths), the `get-*.ts` collection loaders and `page-text.ts`.                                     |
 | `scripts/compare-builds.ts`       | `npx tsx scripts/compare-builds.ts <before> <after>`: diffs two builds' .html/.xml/.txt (exit 1 on a difference). Normalises hashed asset names, entity spelling and whitespace runs. Use it for any change that should not alter pages. |
@@ -81,7 +83,7 @@ anyone.
 | `functions/_lib/`                 | Shared server code: `auth.ts` (session and permission checks), `mail*.ts`, `social-*.ts`, `github.ts` (opens PRs), `symposium.ts`, `certificates.ts`. |
 | `functions/_lib/roles.ts`         | The role catalog and the duration rules: who may grant which role, and for how long. Pure, no database.                                               |
 | `functions/_lib/role-grants.ts`   | `grantRole`, `revokeRole`, `activeGrants`, `expireGrants`: the only code that changes who holds a role.                                               |
-| `src/lib/cms/`, `functions/_lib/cms-*.ts`, `functions/api/cms/` | The panel CMS: types and serializing, draft rules, the PR shepherd (runs on the mail tick), and the `/api/cms/*` endpoints. |
+| `src/lib/cms/`, `functions/_lib/cms-*.ts`, `functions/api/cms/` | The panel CMS: types and serializing, draft rules, the PR shepherd (runs on the mail tick), and the `/api/cms/*` endpoints. Content types are grouped (Etkinlikler, Yazılar, Öğrenme, Topluluk, Sayfalar); a group's rights are the roles `content.<group>.edit` and `.approve` in `roles.ts`. |
 | `db/schema.sql`                   | The D1 schema plus the numbered migration notes at its top.                                                                                           |
 | `workers/mail-cron/`              | Worker whose cron (every minute) drives mail dispatch, inbox sync and social publishing.                                                              |
 | `workers/symposium-cron/`         | Nightly Worker: archives a finished symposium edition (via a PR), rebuilds the symposium site, purges expired certificates and prunes the audit log.  |

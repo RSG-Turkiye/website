@@ -59,33 +59,19 @@ test('slugifying a slug returns it unchanged', () => {
   }
 });
 
-// --- the cap, and the bug in how it used to be applied -----------------------
+// --- no cap (the blog form that capped at 80 is retired) --------------------
 
-test('without a maxLength nothing is cut', () => {
+test('nothing is cut', () => {
   const long = 'a'.repeat(120);
   assert.equal(slugify(long).length, 120);
 });
 
-test('a cut that lands on a hyphen does not leave one behind', () => {
-  // This is the bug the merge fixes. The old blog slugify stripped trailing
-  // hyphens and *then* sliced, so the slice could put one back.
-  const title = `${'a'.repeat(79)} tail`;
-  const slug = slugify(title, { maxLength: 80 });
-  assert.equal(slug.endsWith('-'), false, slug);
-  assert.equal(slug, 'a'.repeat(79));
-});
-
-test('the shipped example is what the old rule produced', () => {
+test('the shipped example is what the old blog rule produced', () => {
   // src/content/blog/en/ has a file whose name ends in a hyphen. Its URL is
   // live so the file is not renamed; this records where it came from.
   const title = 'Computational analysis and integration of large scale biological data with deep learning';
   const oldRule = slugify(title).slice(0, 80); // strip-then-slice, as it was
   assert.equal(oldRule.endsWith('-'), true, 'the old rule could end on a hyphen');
-  assert.equal(slugify(title, { maxLength: 80 }).endsWith('-'), false, 'the new one cannot');
-});
-
-test('a slug shorter than the cap is untouched by it', () => {
-  assert.equal(slugify('rna-seq', { maxLength: 80 }), 'rna-seq');
 });
 
 // --- nothing that already exists moves ---------------------------------------
@@ -108,11 +94,9 @@ test('every blog filename in the repository survives the character rules', () =>
   // One exception, and it is the bug: a file whose name ends in a hyphen,
   // left there by the old strip-then-slice cap. Its URL is live so the file
   // is not renamed, and the merged rule can no longer mint that shape.
-  assert.deepEqual(
-    moved,
-    ['computational-analysis-and-integration-of-large-scale-biological-data-with-deep-'],
-    'a published slug changed shape, which would change its URL',
-  );
+  // A subset, not an exact list: deleting that post must not fail this (A2).
+  const known = ['computational-analysis-and-integration-of-large-scale-biological-data-with-deep-'];
+  for (const s of moved) assert.ok(known.includes(s), `${s}: a published slug changed shape, which would change its URL`);
 });
 
 test('the two posts longer than the cap predate it, and are left alone', () => {
@@ -122,9 +106,9 @@ test('the two posts longer than the cap predate it, and are left alone', () => {
   const dirs = ['en', 'tr'].map((lang) => new URL(`../src/content/blog/${lang}/`, import.meta.url).pathname);
   const slugs = dirs.flatMap((d) => readdirSync(d).filter((f) => f.endsWith('.md')).map((f) => f.replace(/\.md$/, '')));
   const overLong = [...new Set(slugs.filter((s) => s.length > 80))];
-  assert.deepEqual(overLong, [
-    'from-biological-big-data-to-meaningful-information-bioinformatics-and-its-applications',
-  ]);
+  // A subset of the known two: a new long one fails, a deleted one does not (A2).
+  const known = ['from-biological-big-data-to-meaningful-information-bioinformatics-and-its-applications'];
+  for (const s of overLong) assert.ok(known.includes(s), `${s} is longer than the cap`);
 });
 
 test('every symposium speaker slug survives too', () => {

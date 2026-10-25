@@ -1,0 +1,145 @@
+{
+  "updated": "2026-10-25",
+  "en": {
+    "title": "Privacy Policy",
+    "description": "What personal data the RSG-Turkiye website collects, why, how long it is kept, who else receives it, and how to ask for it to be deleted.",
+    "intro": [
+      "RSG-Turkiye is the Türkiye Regional Student Group of the ISCB Student Council, a volunteer community in computational biology and bioinformatics. This page explains what this website does with personal data.",
+      "Questions and requests go to {contact}."
+    ],
+    "sections": [
+      {
+        "heading": "What we collect",
+        "paragraphs": [],
+        "items": [
+          "Signing in: the site uses Google sign-in only. We keep your email address and your Google account ID, plus the date you joined and last signed in. We never see or store your Google password.",
+          "Your profile: the name, username, photo, institution, bio and interests you choose to enter, and your learning progress and badges. Profiles are listed on the public members page; ask us and we hide yours.",
+          "Session cookie: one cookie, rsg_session, keeps you signed in for 30 days. It is not used for tracking or advertising, and the site sets no other cookies.",
+          "Email with members: messages we send to members through our Gmail account, and the replies we receive, are kept so the team can follow a conversation.",
+          "Content drafts: site content is written in the admin panel by people who have been given the right to edit it. Each draft, such as a blog post (its title, text, author name and images) or a committee profile (members' names, roles and photos, given with their consent), is kept in our database until it is published or discarded. We also keep the blog submissions sent through the earlier member form (title, text, author name and images).",
+          "Certificates: for symposium certificates we hold the participant's name and email address. When you look up a certificate we store a one-way hash of your IP address, not the address itself, to limit repeated lookups. We count how many times each certificate is viewed and downloaded; the team sees only totals, never who.",
+          "Visit counts: this site and the symposium site use Cloudflare Web Analytics, which counts page views without cookies and without identifying you. We see totals only: which pages are read, from which country, on what kind of device, and which site linked here. It is not loaded on your account pages or the admin panel.",
+          "Admin activity: actions taken in the admin panel are logged with the team member who took them.",
+          "Your browser also stores a few small settings locally (for example, a dismissed notice). These never leave your device."
+        ]
+      },
+      {
+        "heading": "What we do not collect",
+        "paragraphs": [],
+        "items": [
+          "No advertising trackers, and no cookies for measuring visits.",
+          "The membership form on the Join page is a Google Form. What you enter there goes to Google and to our team through Google, not to this website."
+        ]
+      },
+      {
+        "heading": "How long we keep it",
+        "paragraphs": [],
+        "items": [
+          "Certificates and the names and emails on them: 30 days after upload.",
+          "Certificate lookup records: 1 day.",
+          "Sessions: 30 days, or until you sign out.",
+          "Admin activity log: 1 year.",
+          "Drafts of site content written in the admin panel, such as blog posts and committee profiles: until they are published or discarded. Published and discarded drafts are deleted from our database 90 days later.",
+          "Your account, profile, member emails and the blog submissions sent through the earlier form: until you ask us to delete them."
+        ]
+      },
+      {
+        "heading": "Who else receives data",
+        "paragraphs": [],
+        "items": [
+          "Cloudflare hosts the site, its database and its file storage, and counts visits (see above).",
+          "Google: sign-in, the Gmail account we use to write to members, the Join page form, the events calendar on the home page, and the Inter font. The font and calendar are loaded by your browser, so Google sees your IP address when you open those pages.",
+          "YouTube: webinar recordings are embedded from YouTube.",
+          "GitHub: an approved blog post's text and author name are published on this site and in its public source repository on GitHub, which links to the post's images (stored with Cloudflare). Like every change there, it stays in the repository's history.",
+          "Instagram and LinkedIn: the team publishes posts to RSG-Turkiye's own accounts from the admin panel. Access to those accounts is granted with OAuth and stored encrypted; we never store their passwords. Direct messages sent to our Instagram account are read and answered by the social media team in the admin panel: they are fetched from Instagram when opened. The site stores the sender's Instagram username and account ID, the times of the latest messages and which team member last opened the conversation, not the messages themselves."
+        ]
+      },
+      {
+        "heading": "Your rights",
+        "paragraphs": [
+          "Under Türkiye's KVKK and the EU GDPR you can ask what we hold about you, ask us to correct it, or ask us to delete your account and everything linked to it. Write to {contact} from the address you signed in with. We answer within 30 days.",
+          "You can edit your profile yourself at any time. To take it off the public members page, write to us."
+        ],
+        "items": []
+      },
+      {
+        "heading": "Changes",
+        "paragraphs": [
+          "When this page changes, the date at the top changes with it."
+        ],
+        "items": []
+      }
+    ]
+  },
+  "tr": {
+    "title": "Gizlilik Politikası",
+    "description": "RSG-Türkiye web sitesi hangi kişisel verileri, neden topluyor, ne kadar saklıyor, kimlerle paylaşıyor ve silinmesini nasıl isteyebilirsiniz.",
+    "intro": [
+      "RSG-Türkiye, ISCB Student Council'ın Türkiye Bölgesel Öğrenci Grubu; hesaplamalı biyoloji ve biyoinformatik alanında gönüllü bir topluluktur. Bu sayfa, bu web sitesinin kişisel verilerle ne yaptığını açıklar.",
+      "Soru ve talepleriniz için: {contact}."
+    ],
+    "sections": [
+      {
+        "heading": "Topladıklarımız",
+        "paragraphs": [],
+        "items": [
+          "Giriş: Site yalnızca Google ile girişi kullanır. E-posta adresinizi ve Google hesap kimliğinizi, katılma ve son giriş tarihinizle birlikte saklarız. Google şifrenizi hiçbir zaman görmez ve saklamayız.",
+          "Profiliniz: Girmeyi seçtiğiniz ad, kullanıcı adı, fotoğraf, kurum, kısa tanıtım ve ilgi alanları ile öğrenme ilerlemeniz ve rozetleriniz. Profiller herkese açık üyeler sayfasında listelenir; isterseniz sizinkini gizleriz.",
+          "Oturum çerezi: Tek bir çerez, rsg_session, sizi 30 gün boyunca oturumda tutar. İzleme ya da reklam için kullanılmaz; site başka çerez koymaz.",
+          "Üyelerle yazışmalar: Gmail hesabımızdan üyelere gönderdiğimiz mesajlar ve gelen yanıtlar, ekip bir yazışmayı takip edebilsin diye saklanır.",
+          "İçerik taslakları: Site içeriği, düzenleme yetkisi verilmiş kişiler tarafından yönetim panelinde yazılır. Bir blog yazısı (başlığı, metni, yazar adı ve görselleri) ya da bir komite profili (üyelerin onayıyla verdikleri adları, görevleri ve fotoğrafları) gibi her taslak, yayımlanana ya da silinene kadar veritabanımızda saklanır. Önceki üye formuyla gönderilmiş blog başvurularını (başlık, metin, yazar adı ve görseller) da saklarız.",
+          "Sertifikalar: Sempozyum sertifikaları için katılımcının adını ve e-posta adresini tutarız. Sertifika sorguladığınızda, tekrarlanan sorguları sınırlamak için IP adresinizin kendisini değil, tek yönlü bir özetini (hash) saklarız. Her sertifikanın kaç kez görüntülendiğini ve indirildiğini sayarız; ekip sadece toplamları görür, kimin olduğunu görmez.",
+          "Ziyaret sayıları: Bu site ve sempozyum sitesi Cloudflare Web Analytics kullanır; sayfa görüntülemelerini çerez kullanmadan ve sizi tanımlamadan sayar. Biz sadece toplamları görürüz: hangi sayfaların okunduğu, hangi ülkeden, ne tür cihazdan girildiği ve hangi sitenin buraya bağlantı verdiği. Hesap sayfalarınızda ve yönetim panelinde yüklenmez.",
+          "Yönetici işlemleri: Yönetim panelinde yapılan işlemler, yapan ekip üyesiyle birlikte kaydedilir.",
+          "Tarayıcınız ayrıca birkaç küçük ayarı (örneğin kapattığınız bir duyuruyu) yerel olarak saklar. Bunlar cihazınızdan çıkmaz."
+        ]
+      },
+      {
+        "heading": "Toplamadıklarımız",
+        "paragraphs": [],
+        "items": [
+          "Reklam izleyicisi yoktur; ziyaretleri saymak için çerez kullanılmaz.",
+          "Bize Katıl sayfasındaki üyelik formu bir Google Formu'dur. Oraya girdikleriniz bu siteye değil, Google'a ve Google üzerinden ekibimize gider."
+        ]
+      },
+      {
+        "heading": "Ne kadar saklıyoruz",
+        "paragraphs": [],
+        "items": [
+          "Sertifikalar ve üzerlerindeki ad ve e-postalar: yüklendikten 30 gün sonra silinir.",
+          "Sertifika sorgu kayıtları: 1 gün.",
+          "Oturumlar: 30 gün ya da çıkış yapana kadar.",
+          "Yönetici işlem kaydı: 1 yıl.",
+          "Yönetim panelinde yazılan site içeriği taslakları (blog yazıları ve komite profilleri gibi): yayımlanana ya da silinene kadar. Yayımlanan ve silinen taslaklar 90 gün sonra veritabanımızdan da silinir.",
+          "Hesabınız, profiliniz, üye yazışmaları ve önceki formla gönderilmiş blog başvuruları: silinmesini isteyene kadar."
+        ]
+      },
+      {
+        "heading": "Veriler kimlere gider",
+        "paragraphs": [],
+        "items": [
+          "Cloudflare siteyi, veritabanını ve dosya depolamayı barındırır ve ziyaretleri sayar (yukarıya bakın).",
+          "Google: giriş, üyelere yazdığımız Gmail hesabı, Bize Katıl sayfasındaki form, ana sayfadaki etkinlik takvimi ve Inter yazı tipi. Yazı tipi ve takvim tarayıcınız tarafından yüklenir; bu sayfaları açtığınızda Google IP adresinizi görür.",
+          "YouTube: Webinar kayıtları YouTube'dan gömülür.",
+          "GitHub: Onaylanan bir blog yazısının metni ve yazar adı bu sitede ve sitenin GitHub'daki herkese açık kaynak deposunda yayımlanır; depo, yazının görsellerine (Cloudflare'de saklanır) bağlantı verir. Oradaki her değişiklik gibi deponun geçmişinde kalır.",
+          "Instagram ve LinkedIn: Ekip, yönetim panelinden RSG-Türkiye'nin kendi hesaplarına paylaşım yapar. Bu hesaplara erişim OAuth ile verilir ve şifreli saklanır; şifrelerini hiçbir zaman saklamayız. Instagram hesabımıza gönderilen doğrudan mesajları sosyal medya ekibi yönetim panelinden okur ve cevaplar: mesajlar açıldığında Instagram'dan çekilir. Site, gönderenin Instagram kullanıcı adını ve hesap kimliğini, son mesajların zamanını ve konuşmayı en son hangi ekip üyesinin açtığını saklar; mesajların kendisini saklamaz."
+        ]
+      },
+      {
+        "heading": "Haklarınız",
+        "paragraphs": [
+          "KVKK ve AB GDPR kapsamında hakkınızda ne tuttuğumuzu öğrenebilir, düzeltilmesini ya da hesabınızın ve ona bağlı her şeyin silinmesini isteyebilirsiniz. Giriş yaptığınız adresten {contact} adresine yazın. 30 gün içinde yanıt veririz.",
+          "Profilinizi istediğiniz zaman kendiniz düzenleyebilirsiniz. Herkese açık üyeler sayfasından kaldırılması için bize yazın."
+        ],
+        "items": []
+      },
+      {
+        "heading": "Değişiklikler",
+        "paragraphs": [
+          "Bu sayfa değiştiğinde en üstteki tarih de değişir."
+        ],
+        "items": []
+      }
+    ]
+  }
+}

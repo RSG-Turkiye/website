@@ -2,12 +2,17 @@ import type { Env } from '../../_lib/auth';
 import { generateId, jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import {
-  cmsGate, draftJson, entryPaths, fail, forbidden, githubFailed, indexUnavailable, invalid, loadCmsIndex, newNonce, readJson, refusePairClash, rightsIn,
+  actionRefused, approvesType, cmsGate, lpIdsElsewhere, refuseDomainDelete, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
-import { checkSameId, DRAFT_ACTIONS, langOf, LIVE_STATUSES, newEntryId, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData } from '../../_lib/cms-drafts';
-import { fileShasOnBase, filesOnBase } from '../../_lib/github';
-import { CMS_TYPES, checkId, cmsType } from '../../../src/lib/cms/types';
-import { parseMarkdown } from '../../../src/lib/cms/serialize';
+import {
+  actionAllowed, checkSameId, DRAFT_ACTIONS, droppedSides, fixedKeysErrors, inOrderOf, langOf, withServerKey, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
+} from '../../_lib/cms-drafts';
+import { filesOnBase } from '../../_lib/github';
+import { assignIds, lockedKeysErrors, type LpDraftData } from '../../_lib/cms-lp';
+import { nextStageNumber } from '../../../src/lib/cms/slug';
+import { checkId, cmsType, cmsTypes } from '../../../src/lib/cms/types';
+import { parseJson, parseMarkdown } from '../../../src/lib/cms/serialize';
+import type { CmsIndex } from '../../../src/lib/cms/cms-index';
 
 const COLUMNS = ['id', 'type', 'entry_id', 'action', 'status', 'author_id', 'reviewer_id', 'review_note', 'pr_url', 'pr_number', 'failure', 'created_at', 'updated_at']
   .map((c) => `d.${c}`).join(', ');
@@ -24,8 +29,8 @@ const QUEUE_CAP = 200;
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
-  const editable = new Set(CMS_TYPES.filter((t) => rightsIn(gate.rights, t.group).edit).map((t) => t.key as string));
-  const approvable = CMS_TYPES.filter((t) => rightsIn(gate.rights, t.group).approve).map((t) => t.key as string);
+  const editable = new Set(cmsTypes().filter((t) => rightsIn(gate.rights, t.group).edit).map((t) => t.key as string));
+  const approvable = cmsTypes().filter((t) => approvesType(gate, t)).map((t) => t.key as string);
 
   const mine = await env.DB.prepare(
     `SELECT ${COLUMNS}, p.display_name AS author_name, '' AS data, '{}' AS base_shas FROM content_drafts d ${AUTHOR}
@@ -82,6 +87,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!rightsIn(gate.rights, type.group).edit) return forbidden();
   const action = body.action as DraftAction;
   if (!DRAFT_ACTIONS.includes(action)) return fail(400, 'bad_action', 'action is create, update or delete');
+  if (!actionAllowed(type, action)) return actionRefused(action);
 
   // Validated before anything reads an id out of it (idFrom, jsonPath).
   // Leniently: a draft may start incomplete; submit checks it in full.
@@ -94,20 +100,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   let entryId: string;
   let baseShas: Record<string, string | null>;
+  let duplicate: string | undefined;
+  let index: CmsIndex | null = null;
   if (action === 'create') {
-    const id = newEntryId(type, data);
-    if (!id.ok) return invalid(id.errors);
-    entryId = id.data;
-    const paths = newPaths(type, entryId);
-    let onMain: Record<string, string | null>;
-    try {
-      onMain = await fileShasOnBase(paths, env);
-    } catch (e) {
-      return githubFailed(e);
+    if (type.appendKey) {
+      // A new roadmap stage comes last: its number (and so its file name)
+      // is the server's, from the published stages' file names (A11).
+      index = await loadCmsIndex(request, env);
+      if (!index) return indexUnavailable();
+      const n = nextStageNumber((index[type.key] ?? []).map((e) => e.id));
+      for (const lang of ['en', 'tr'] as const) (data as PairData)[lang].frontmatter[type.appendKey] = n;
     }
-    const taken = paths.filter((p) => onMain[p] !== null);
-    if (taken.length) return fail(409, 'exists', 'An entry with this id is already published; open it instead', { paths: taken });
-    baseShas = Object.fromEntries(paths.map((p) => [p, null]));
+    const picked = await pickEntryId(request, env, type, data, null);
+    if (!picked.ok) return picked.response;
+    entryId = picked.id;
+    index = picked.index;
+    duplicate = duplicateOf(type, index, data);
+    baseShas = Object.fromEntries(newPaths(type, entryId).map((p) => [p, null]));
   } else {
     try {
       entryId = checkId(body.entry_id as string);
@@ -138,6 +147,51 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     baseShas = Object.fromEntries(paths.map((p) => [p, files[p]?.sha ?? null]));
     const stale = paths.filter((p) => (sent[p] ?? null) !== baseShas[p]);
     if (stale.length) return fail(409, 'changed_since', 'The entry changed on the site since you opened it', { paths: stale });
+    // A language the entry has on main stays (sides: 'either').
+    const dropped = action === 'update' ? droppedSides(type, baseShas, data) : null;
+    if (dropped) return invalid(dropped);
+
+    if (action === 'update' && type.fixedKeys) {
+      // The keys of the file on main are the ones the draft keeps; saves
+      // then compare with the stored draft, without reading GitHub again.
+      let before: unknown;
+      try {
+        before = type.format === 'json'
+          ? parseJson(type, files[paths[0]]!.content)
+          : Object.fromEntries(paths.map((p) => [langOf(type, p), files[p] ? parseMarkdown(type, files[p]!.content) : null]));
+      } catch (e) {
+        console.error('cms: an entry on main could not be parsed', entryId, e);
+        return fail(500, 'unreadable', 'The file on main could not be read');
+      }
+      const keys = fixedKeysErrors(type, before, data);
+      if (keys) return invalid(keys);
+      // The draft keeps main's key order, whatever order the editor sent.
+      if (type.format === 'json') data = inOrderOf(before, data);
+    }
+
+    if (action === 'update' && type.approvedOnKey) {
+      // The date the approval sets stays main's until then (A8).
+      try {
+        data = withServerKey(type, parseJson(type, files[paths[0]]!.content), data);
+      } catch (e) {
+        console.error('cms: an entry on main could not be parsed', entryId, e);
+        return fail(500, 'unreadable', 'The file on main could not be read');
+      }
+    }
+
+    if (action === 'update' && type.lockedKeys.length) {
+      // What the file name comes from stays as main has it (a level's
+      // domain and level, a stage's number).
+      let before: Record<string, unknown>;
+      try {
+        before = Object.fromEntries(paths.map((p) => [langOf(type, p), files[p] ? parseMarkdown(type, files[p]!.content) : null]));
+      } catch (e) {
+        console.error('cms: an entry on main could not be parsed', entryId, e);
+        return fail(500, 'unreadable', 'The file on main could not be read');
+      }
+      const locked = lockedKeysErrors(type, entryId, before, data);
+      if (locked) return invalid(locked);
+    }
 
     if (action === 'update' && type.format === 'markdown-pair') {
       // Keep each file's frontmatter text, so keys the draft does not change
@@ -147,7 +201,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         for (const p of paths) {
           const side = pair[langOf(type, p)];
           const file = files[p];
-          if (file) side.source = parseMarkdown(type, file.content).source;
+          // A side the entry does not have yet (sides: 'either') has no file to keep.
+          if (file && side) side.source = parseMarkdown(type, file.content).source;
         }
       } catch (e) {
         console.error('cms: an entry on main could not be parsed', entryId, e);
@@ -156,8 +211,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  const clash = await refusePairClash(request, env, type, entryId, action, data);
+  const clash = await refusePairClash(request, env, type, entryId, action, data, index);
   if (clash) return clash;
+  if (action === 'delete') {
+    const levels = await refuseDomainDelete(env, type, entryId);
+    if (levels) return levels;
+  }
+  // A new learning-path resource gets its id here, never from the client (A4),
+  // and never one another file has.
+  if (type.resourceIds && action !== 'delete') {
+    const listed = index ?? await loadCmsIndex(request, env);
+    (data as LpDraftData)._assigned = assignIds(data as PairData, lpIdsElsewhere(listed, type, '').keys());
+  }
 
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: entryId, action, data: JSON.stringify(data), base_shas: JSON.stringify(baseShas),
@@ -170,5 +235,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.write_nonce, row.created_at, row.updated_at)],
   { userId: gate.user.id, action: 'cms.draft.create', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action } },
   gate.now);
-  return jsonResponse({ draft: draftJson(row, true) }, 201);
+  return jsonResponse({ draft: draftJson(row, true), ...(duplicate ? { duplicate_of: duplicate } : {}) }, 201);
 };

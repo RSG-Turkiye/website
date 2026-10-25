@@ -45,6 +45,10 @@ test('the events page has not fallen behind the symposium site', () => {
   // status the only way left for it to go stale is downward: the symposium
   // site gains an edition and nobody adds it here. So compare against the
   // editions themselves, which live in the same repository.
+  //
+  // An accepted exception to "no test depends on real content" (A2): a new
+  // symposium edition must be listed here too, and that is the point. The
+  // panel's Etkinlikler editor is how the event is added.
   const EDITIONS = new URL('../symposium_website/src/content/editions/', import.meta.url).pathname;
   const years = globSync('*.md', { cwd: EDITIONS })
     .map((f) => Number(f.replace('.md', '')))

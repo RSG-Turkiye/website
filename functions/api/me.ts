@@ -47,7 +47,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       is_member: user.is_member === 1,
       is_admin: user.is_admin === 1,
       is_announcer: user.is_announcer === 1,
-      is_writer: user.is_writer === 1,
       is_sender: user.is_sender === 1,
       is_symposium: user.is_symposium === 1,
       is_social: user.is_social === 1,

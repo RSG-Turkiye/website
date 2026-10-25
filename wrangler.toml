@@ -39,8 +39,8 @@ WEB_ANALYTICS_SINCE = "2026-10-23"
 # rsg-turkey@iscbsc.org once that alias works is a change to this line only --
 # no code change. See README, "Sending mail as RSG".
 RSG_MAIL_FROM = "turkey.rsg@gmail.com"
-# GitHub username to notify (via a GitHub issue assigned to them) the
-# moment a member submits a blog post -- must be a real person's account,
+# GitHub username to notify (via a GitHub issue assigned to them) when a
+# finished symposium's archive pull request needs merging -- must be a real person's account,
 # never the same account GITHUB_PAT belongs to (GitHub never notifies an
 # account about its own actions). Update this when leadership changes --
 # see the README's Deployment section for the full explanation.

@@ -1,6 +1,6 @@
 {
   "section": "tools",
-  "order": 5,
+  "order": 50,
   "title": {
     "en": "Snakemake",
     "tr": "Snakemake"

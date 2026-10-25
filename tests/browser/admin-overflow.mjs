@@ -121,7 +121,55 @@ const CMS_EVENT = {
   title: { en: 'Symposium ' + long, tr: 'Sempozyum ' + long }, when: { en: '10 October 2026', tr: '10 Ekim 2026' },
   location: { en: 'Ankara', tr: 'Ankara' }, description: { en: long + long, tr: long }, links: [{ label: { en: long, tr: long }, url: 'https://example.org/' + long }],
 };
+/** A committee whose texts are long, with members open: rows must wrap, not overflow. */
+const CMS_COMMITTEE = {
+  order: 10, name: { en: long, tr: long }, description: { en: long, tr: long },
+  members: [0, 1].map((i) => ({
+    name: `${long} ${i}`, role: { en: long, tr: long }, image: 'https://res.cloudinary.com/demo/image/upload/v1/a.jpg',
+    education: [{ degree: { en: long, tr: long }, field: { en: long, tr: long }, institution: { en: long, tr: long }, year: '2027' }],
+    socialMedia: [{ platform: 'linkedin', url: `https://www.linkedin.com/in/${long}/` }],
+    consent: true,
+  })),
+};
+/** The podcast (generated, no form): its list, a pulled draft and its review. */
+const POD_EP = (i) => ({ guid: `g${i}`, title: `${long} ${i}`, pubDate: `2025-01-${String(i + 1).padStart(2, '0')}T10:00:00.000Z`, durationSeconds: 3065,
+  audioUrl: `https://example.org/${i}.m4a`, audioBytes: 1, image: '', description: long });
+const CMS_PODCAST = { syncedAt: '2025-06-01T00:00:00.000Z', title: long, description: long, image: 'https://example.org/i.jpg',
+  platforms: { spotify: 'https://example.org/s', apple: 'https://example.org/a', castbox: 'https://example.org/c', rss: 'https://example.org/r' },
+  episodes: Array.from({ length: 3 }, (_, i) => POD_EP(3 - 1 - i)) };
+const CMS_PODCAST_NEW = { ...CMS_PODCAST, episodes: [POD_EP(3), ...CMS_PODCAST.episodes] };
+const POD_DRAFT = '00000000-0000-4000-8000-000000000399';
+/** A resource whose texts and tags are long: the two tag lists must wrap, not overflow. */
+const CMS_RESOURCE = {
+  section: 'md-drug', order: 10, title: { en: long, tr: long }, description: { en: long + long, tr: long }, url: 'https://example.org/' + long,
+  tags: { en: [long, 'python', 'drug-design'], tr: [long, 'python', 'ilaç-tasarımı'] }, opensource: true,
+};
+/** A learning-path level whose texts are long, two sections of cards, one a webinar: rows must wrap, not overflow. */
+const LP_CARD = (i, lang, o = {}) => ({ id: `${long.slice(0, 40).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${i}`, title: long, description: long + long, tag: 'Reading', url: (lang === 'tr' ? '/tr' : '') + '/learning-paths/' + long, ...o });
+const LP_LEVEL_SIDE = (lang) => ({ domain: 'example', level: 'explorer', orientation: long + long, prerequisites: [long, long],
+  sections: [{ type: 'foundations', resources: [LP_CARD(0, lang), LP_CARD(1, lang)] }, { type: 'webinars', resources: [LP_CARD(2, lang, { tag: 'Webinar', url: undefined, webinarSlug: long, speaker: long, year: 2024 })] }] });
+const LP_LEVEL = JSON.parse(JSON.stringify({ en: { frontmatter: LP_LEVEL_SIDE('en'), body: '', source: '' }, tr: { frontmatter: LP_LEVEL_SIDE('tr'), body: '', source: '' } }));
+const LP_STAGE_SIDE = (lang) => ({ number: 7, emoji: '🧭', title: long, subtitle: long, color: 'navy', resources: [LP_CARD(3, lang, { tag: 'Action' })] });
+const LP_STAGE = JSON.parse(JSON.stringify({ en: { frontmatter: LP_STAGE_SIDE('en'), body: '', source: '' }, tr: { frontmatter: LP_STAGE_SIDE('tr'), body: '', source: '' } }));
+const LP_DOMAIN_SIDE = () => ({ name: long, emoji: '🧬', tagline: long, order: 1, goDeeper: [{ title: long, description: long, url: 'https://example.org/' + long }] });
+const LP_DOMAIN = { en: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' }, tr: { frontmatter: LP_DOMAIN_SIDE(), body: '', source: '' } };
+const lpPaths = (dir, id) => ({ en: `src/content/${dir}/en/${id}.md`, tr: `src/content/${dir}/tr/${id}.md` });
+/** Page texts with a long key and long values; a privacy notice whose texts are long: they must wrap. */
+const CMS_PAGE = { [long.slice(0, 60).toLowerCase().replace(/[^a-z0-9]+/g, '_')]: { en: long + long, tr: long }, short: { en: long, tr: long } };
+const PRIV_SIDE = () => ({ title: long, description: long, intro: [long + long, long], sections: [{ heading: long, paragraphs: [long + long], items: [long, long + long] }, { heading: long, paragraphs: [], items: [long] }] });
+const CMS_PRIVACY = { updated: '2026-10-23', en: PRIV_SIDE(), tr: PRIV_SIDE() };
+/** A blog post in Turkish only, with long texts: they must wrap. */
+const CMS_POST = { en: null, tr: { frontmatter: { title: long, pubDate: '2026-01-05', description: long + long, author: long, category: long, tags: [long, long], image: '/api/images/' + long + '.webp' }, body: (long + ' ').repeat(20), source: '' } };
 const CMS_ENTRIES = {
+  blog: [{ id: 'example-post', title: long, date: '2026-01-05', paths: { en: null, tr: 'src/content/blog/tr/example-post.md' }, shas: {} }],
+  pages: [{ id: 'about', title: 'about', shas: {} }],
+  privacy: [{ id: 'privacy', title: long, date: '2026-10-23', shas: {} }],
+  resources: [{ id: 'example', title: long, section: 'md-drug', shas: {} }],
+  'lp-domains': [{ id: 'example', title: long, paths: lpPaths('lp-domains', 'example'), shas: {} }],
+  'lp-levels': [{ id: 'example-explorer', title: long, paths: lpPaths('lp-levels', 'example-explorer'), shas: {} }],
+  'lp-roadmap': [{ id: '07-example', title: long, paths: lpPaths('lp-roadmap', '07-example'), shas: {} }],
+  podcast: [{ id: 'podcast', title: CMS_PODCAST.title, date: '2025-01-01', shas: {} }],
+  committees: [{ id: 'example', title: long, shas: {} }],
   events: [{ id: 'symposium-2026', title: CMS_EVENT.title.en, date: '2026-10-10', shas: {} }, { id: 'meetup-x', title: 'Meetup', date: '2025-01-01', shas: {} }],
   workshops: [{ id: 'w', title: long, date: '2024', shas: {} }],
   webinars: [{ id: 'webinar', title: long, date: '2024-04-16', paths: { en: 'src/content/webinars/en/webinar.md', tr: 'src/content/webinars/tr/webinar.md' }, shas: {} }],
@@ -152,7 +200,19 @@ async function open(path, viewport, user = ADMIN) {
     if (url.pathname === '/api/mail/conversations') return json({ threads: MAIL_THREADS, unreadCount: 1, scope: url.searchParams.get('scope') === 'all' ? 'all' : 'own', isAdmin: user.is_admin === true });
     if (/^\/api\/mail\/conversations\/[^/]+$/.test(url.pathname)) return json(MAIL_THREAD);
     if (url.pathname === '/api/admin/health') return json({ issues: [], canFix: true });
+    // An admin approves every type (approve per type: functions/api/cms/types.ts).
+    if (url.pathname === '/api/cms/types') return json({ types: [['events', 'etkinlikler'], ['workshops', 'etkinlikler'], ['webinars', 'etkinlikler'], ['blog', 'yazilar'], ['committees', 'topluluk'], ['podcast', 'topluluk'], ['resources', 'ogrenme'], ['lp-domains', 'ogrenme'], ['lp-levels', 'ogrenme'], ['lp-roadmap', 'ogrenme'], ['pages', 'sayfalar'], ['privacy', 'sayfalar']].map(([key, group]) => ({ key, group, canApprove: true })) });
     if (url.pathname === '/api/cms/entries') return json({ entries: CMS_ENTRIES[url.searchParams.get('type')] ?? [] });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'podcast') return json({ data: CMS_PODCAST, base_shas: { 'src/data/podcast.json': 'sha' }, files: { 'src/data/podcast.json': JSON.stringify(CMS_PODCAST, null, 2) } });
+    if (url.pathname === `/api/cms/drafts/${POD_DRAFT}`) return json({ draft: { ...CMS_DRAFTS[1], id: POD_DRAFT, type: 'podcast', entry_id: 'podcast', status: 'draft', write_nonce: 'n', data: CMS_PODCAST_NEW, base_shas: { 'src/data/podcast.json': 'sha' } }, files: null });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'resources') return json({ data: CMS_RESOURCE, base_shas: { 'src/content/resources/example.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-levels') return json({ data: LP_LEVEL, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-roadmap') return json({ data: LP_STAGE, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'lp-domains') return json({ data: LP_DOMAIN, base_shas: {} });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'blog') return json({ data: CMS_POST, base_shas: { 'src/content/blog/en/example-post.md': null, 'src/content/blog/tr/example-post.md': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'pages') return json({ data: CMS_PAGE, base_shas: { 'src/content/pages/about.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'privacy') return json({ data: CMS_PRIVACY, base_shas: { 'src/content/privacy/privacy.json': 'sha' } });
+    if (url.pathname === '/api/cms/entry' && url.searchParams.get('type') === 'committees') return json({ data: CMS_COMMITTEE, base_shas: { 'src/content/committees/example.json': 'sha' } });
     if (url.pathname === '/api/cms/entry') return json({ data: CMS_EVENT, base_shas: { 'src/content/events/symposium-2026.json': 'sha' } });
     if (url.pathname === '/api/cms/drafts') return json({ mine: CMS_DRAFTS, queue: CMS_DRAFTS.filter((d) => d.status === 'submitted'), more: false, live: [] });
     if (/^\/api\/cms\/drafts\/[^/]+$/.test(url.pathname)) return json({ draft: { ...CMS_DRAFTS.find((d) => d.id === url.pathname.split('/').pop()) ?? CMS_DRAFTS[1], data: CMS_EVENT, base_shas: {} } });
@@ -221,7 +281,13 @@ async function routes(lang, user) {
   // A thread in the address, as the notification mail links to it.
   if (out.includes('#eposta/gelen')) out.push('#eposta/gelen/t2');
   // An entry's form, a draft (the link a pull request carries) and an approver's review.
-  if (out.includes('#icerik-etkinlikler/etkinlikler')) out.push('#icerik-etkinlikler/etkinlikler/symposium-2026', '#icerik-etkinlikler/etkinlikler/_new', '#icerik-etkinlikler/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik-etkinlikler/onay/00000000-0000-4000-8000-000000000001');
+  if (out.includes('#icerik/etkinlikler')) out.push('#icerik/etkinlikler/symposium-2026', '#icerik/etkinlikler/_new', '#icerik/taslaklar/00000000-0000-4000-8000-000000000002', '#icerik/onay/00000000-0000-4000-8000-000000000001');
+  if (out.includes('#icerik/komiteler')) out.push('#icerik/komiteler/example', '#icerik/komiteler/_new');
+  if (out.includes('#icerik/kaynaklar')) out.push('#icerik/kaynaklar/example', '#icerik/kaynaklar/_new');
+  if (out.includes('#icerik/ogrenme-seviyeleri')) out.push('#icerik/ogrenme-seviyeleri/example-explorer', '#icerik/ogrenme-seviyeleri/_new', '#icerik/yol-haritasi/07-example', '#icerik/yol-haritasi/_new', '#icerik/ogrenme-alanlari/example', '#icerik/ogrenme-alanlari/_new');
+  if (out.includes('#icerik/podcast')) out.push(`#icerik/taslaklar/${POD_DRAFT}`, `#icerik/onay/${POD_DRAFT}`);
+  if (out.includes('#icerik/blog')) out.push('#icerik/blog/example-post', '#icerik/blog/_new');
+  if (out.includes('#icerik/sayfa-metinleri')) out.push('#icerik/sayfa-metinleri/about', '#icerik/gizlilik/privacy');
   return [...new Set(out)];
 }
 

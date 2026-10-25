@@ -42,25 +42,25 @@ const audits = (db: DatabaseSync) =>
 
 test('grantRole writes the grant, sets the column and logs role.grant', async () => {
   const { db, DB } = setup();
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + MONTH, by: 'admin' }, NOW);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + MONTH, by: 'admin' }, NOW);
   const rows = grants(db);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].role, 'writer');
+  assert.equal(rows[0].role, 'announcer');
   assert.equal(rows[0].expires_at, NOW + MONTH);
   assert.equal(rows[0].granted_by, 'admin');
-  assert.equal(flag(db, 'is_writer'), 1);
+  assert.equal(flag(db, 'is_announcer'), 1);
   assert.deepEqual(audits(db), [{
     user_id: 'admin', action: 'role.grant', target_type: 'user', target_id: 'u1',
-    details: { role: 'writer', expiresAt: NOW + MONTH },
+    details: { role: 'announcer', expiresAt: NOW + MONTH },
   }]);
 });
 
 test('when the audit insert fails, neither the grant nor the column changes', async () => {
   const { db, DB } = setup();
   db.exec("CREATE TRIGGER no_audit BEFORE INSERT ON audit_log BEGIN SELECT RAISE(ABORT, 'audit down'); END");
-  await assert.rejects(grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: null, by: 'admin' }, NOW), /audit down/);
+  await assert.rejects(grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: null, by: 'admin' }, NOW), /audit down/);
   assert.equal(grants(db).length, 0);
-  assert.equal(flag(db, 'is_writer'), 0);
+  assert.equal(flag(db, 'is_announcer'), 0);
 });
 
 test('extra statements land in the same batch, and roll back with it', async () => {
@@ -91,27 +91,27 @@ test('granting social_publisher for a month also makes social active until the s
 test('granting a role the user already holds keeps one live row, the one with the later end', async () => {
   const { db, DB } = setup();
   // Later end: the old row is revoked by the granter and the new one replaces it.
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + DAY, by: 'admin' }, NOW);
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + MONTH, by: 'admin' }, NOW + 10);
-  assert.deepEqual(live(db, 'writer').map((g) => g.expires_at), [NOW + MONTH]);
-  const old = grants(db, 'writer').find((g) => g.expires_at === NOW + DAY)!;
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + DAY, by: 'admin' }, NOW);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + MONTH, by: 'admin' }, NOW + 10);
+  assert.deepEqual(live(db, 'announcer').map((g) => g.expires_at), [NOW + MONTH]);
+  const old = grants(db, 'announcer').find((g) => g.expires_at === NOW + DAY)!;
   assert.equal(old.revoked_at, NOW + 10);
   assert.equal(old.revoked_by, 'admin');
 
   // Earlier end: nothing is inserted, the later row stays, the attempt is still logged.
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + 2 * DAY, by: 'admin' }, NOW + 20);
-  assert.equal(grants(db, 'writer').length, 2);
-  assert.deepEqual(live(db, 'writer').map((g) => g.expires_at), [NOW + MONTH]);
-  assert.deepEqual(audits(db).at(-1)!.details, { role: 'writer', expiresAt: NOW + 2 * DAY, kept: true });
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + 2 * DAY, by: 'admin' }, NOW + 20);
+  assert.equal(grants(db, 'announcer').length, 2);
+  assert.deepEqual(live(db, 'announcer').map((g) => g.expires_at), [NOW + MONTH]);
+  assert.deepEqual(audits(db).at(-1)!.details, { role: 'announcer', expiresAt: NOW + 2 * DAY, kept: true });
 
   // null beats any date, and nothing beats null.
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: null, by: 'admin' }, NOW + 30);
-  assert.deepEqual(live(db, 'writer').map((g) => g.expires_at), [null]);
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + 12 * MONTH, by: 'admin' }, NOW + 40);
-  assert.deepEqual(live(db, 'writer').map((g) => g.expires_at), [null]);
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: null, by: 'admin' }, NOW + 50);
-  assert.equal(live(db, 'writer').length, 1);
-  assert.equal(flag(db, 'is_writer'), 1);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: null, by: 'admin' }, NOW + 30);
+  assert.deepEqual(live(db, 'announcer').map((g) => g.expires_at), [null]);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + 12 * MONTH, by: 'admin' }, NOW + 40);
+  assert.deepEqual(live(db, 'announcer').map((g) => g.expires_at), [null]);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: null, by: 'admin' }, NOW + 50);
+  assert.equal(live(db, 'announcer').length, 1);
+  assert.equal(flag(db, 'is_announcer'), 1);
 });
 
 test('the implied social grant follows the same rule', async () => {
@@ -127,27 +127,27 @@ test('the implied social grant follows the same rule', async () => {
 
 test('an expired grant is not held, so granting again inserts a new live row', async () => {
   const { db, DB } = setup();
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + DAY, by: 'admin' }, NOW);
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + 2 * DAY + 10, by: 'admin' }, NOW + 2 * DAY);
-  assert.equal(grants(db, 'writer').length, 2);
-  assert.equal(live(db, 'writer', NOW + 2 * DAY).length, 1);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + DAY, by: 'admin' }, NOW);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + 2 * DAY + 10, by: 'admin' }, NOW + 2 * DAY);
+  assert.equal(grants(db, 'announcer').length, 2);
+  assert.equal(live(db, 'announcer', NOW + 2 * DAY).length, 1);
 });
 
 test('revokeRole ends every live grant of the role and clears the column', async () => {
   const { db, DB } = setup();
-  await grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + MONTH, by: 'admin' }, NOW);
+  await grantRole(DB, { userId: 'u1', role: 'announcer', expiresAt: NOW + MONTH, by: 'admin' }, NOW);
   // A second live row cannot come from grantRole any more; seed it as an older bug or race would.
-  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('dup', 'u1', 'writer', NULL, NULL, ?)`).run(NOW);
-  assert.equal(live(db, 'writer').length, 2);
-  await revokeRole(DB, { userId: 'u1', role: 'writer', by: 'admin' }, NOW + 5);
-  assert.equal(live(db, 'writer', NOW + 5).length, 0);
-  assert.ok(grants(db, 'writer').every((g) => g.revoked_at === NOW + 5 && g.revoked_by === 'admin'));
-  assert.equal(flag(db, 'is_writer'), 0);
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('dup', 'u1', 'announcer', NULL, NULL, ?)`).run(NOW);
+  assert.equal(live(db, 'announcer').length, 2);
+  await revokeRole(DB, { userId: 'u1', role: 'announcer', by: 'admin' }, NOW + 5);
+  assert.equal(live(db, 'announcer', NOW + 5).length, 0);
+  assert.ok(grants(db, 'announcer').every((g) => g.revoked_at === NOW + 5 && g.revoked_by === 'admin'));
+  assert.equal(flag(db, 'is_announcer'), 0);
   const last = audits(db).at(-1)!;
   assert.equal(last.action, 'role.revoke');
   assert.equal(last.user_id, 'admin');
   assert.equal(last.target_id, 'u1');
-  assert.equal(last.details.role, 'writer');
+  assert.equal(last.details.role, 'announcer');
 });
 
 test('revoking social also revokes social_publisher; revoking social_publisher leaves social', async () => {
@@ -352,4 +352,16 @@ test('one user failing does not stop the sweep for the others', async () => {
   assert.equal(flag(db, 'is_writer'), 1, "u1's batch rolled back");
   assert.equal((db.prepare("SELECT is_writer AS v FROM users WHERE id = 'admin'").get() as { v: number }).v, 0);
   assert.deepEqual(audits(db).map((r) => r.target_id), ['admin']);
+});
+
+test('a retired role (writer) cannot be granted, but a live grant of it can still be revoked', async () => {
+  const { db, DB } = setup();
+  await assert.rejects(grantRole(DB, { userId: 'u1', role: 'writer', expiresAt: NOW + MONTH, by: 'admin' }, NOW), /retired/);
+  assert.equal(grants(db, 'writer').length, 0);
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('old', 'u1', 'writer', NULL, NULL, 1)`).run();
+  db.exec(`UPDATE users SET is_writer = 1 WHERE id = 'u1'`);
+  await revokeRole(DB, { userId: 'u1', role: 'writer', by: 'admin' }, NOW);
+  assert.equal(live(db, 'writer').length, 0);
+  assert.equal(flag(db, 'is_writer'), 0);
+  assert.equal(audits(db).at(-1)!.action, 'role.revoke');
 });

@@ -1,6 +1,6 @@
 ---
-name: Metagenomik & Mikrobiyom
-emoji: 🦠
+name: "Metagenomik & Mikrobiyom"
+emoji: "🦠"
 tagline: "Bireyleri değil toplulukları dizileme: montaj, gruplama, taksonomik profilleme ve mikrobiyel ekoloji."
 order: 4
 goDeeper:

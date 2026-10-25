@@ -31,9 +31,14 @@ test('both languages render the nf-core section first, with the local-site pages
     const nf = html.indexOf('id="nf-core"');
     assert.ok(nf !== -1, `${page}: no nf-core section`);
     assert.ok(nf < html.indexOf('id="workshops"'), `${page}: nf-core is not first`);
-    assert.match(html, /nf-co\.re\/events\/2025\/hackathon-march-2025\/rsg-turkiye/);
-    assert.match(html, /nf-co\.re\/events\/2026\/hackathon-march-2026\/istanbul/);
-    assert.match(html, /github\.com\/nf-core\/scdownstream\/pull\/261/);
+    // Every link of every nf-core hackathon, read from the data, not named
+    // here: the panel edits those links (A2).
+    for (const e of events.filter((x) => x.nfcore && x.type === 'hackathon')) {
+      for (const l of e.links ?? []) {
+        const href = l.url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        assert.ok(html.includes(`href="${href}"`), `${page}: ${e.id} link ${l.url}`);
+      }
+    }
   }
 });
 
