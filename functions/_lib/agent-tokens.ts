@@ -11,6 +11,7 @@ import { activeGrants } from './role-grants';
 import { CMS_GROUPS, rightsFromRoles, type CmsGroup, type GroupRights } from './roles';
 import { safeEqual } from './secret';
 import { routeFor, type AgentLevel, type AgentRoute } from './agent-routes';
+import { checkToken } from './agent-limits';
 
 export type { AgentLevel, AgentRoute };
 
@@ -124,8 +125,10 @@ export async function authenticateAgent(request: Request, env: Env, now: number)
   const liveRoles = [...new Set((await activeGrants(env.DB, user.id, now)).map((g) => g.role))];
   const agent: AgentPrincipal = { tokenId: row.id, userId: user.id, scopes, route, liveRoles, value };
 
-  // AGENT LIMITS: the rate, quota, size and leak checks (agent-limits.ts) go
-  // here, after the lookup and before the return, and return refused(...).
+  // Rate, quota, size and leak checks. A refused request is not a use, so
+  // last_used_at below moves only for requests that go on to the handler.
+  const limited = await checkToken(env.DB, env, request, agent, now);
+  if (limited) return refused(limited);
 
   if (row.last_used_at === null || now - row.last_used_at > LAST_USED_EVERY) {
     await env.DB.prepare('UPDATE agent_tokens SET last_used_at = ? WHERE id = ?').bind(now, row.id).run();
