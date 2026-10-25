@@ -133,8 +133,8 @@ test('without an Authorization header, or on a table route, the middleware hands
 });
 
 test('every route in the table is served by a file under functions/api that exports its method', () => {
-  // functions/api/mcp.ts is added by the MCP task; it removes this entry then.
-  const AWAITING_FILE = new Set(['/api/mcp']);
+  // A route whose file a later task adds; empty now that functions/api/mcp.ts exists.
+  const AWAITING_FILE = new Set<string>();
   for (const [method, path] of SAMPLES) {
     const route = routeFor(method, path)!;
     // Pages' own resolution: a literal name first, then a [param] file or directory.

@@ -235,7 +235,17 @@ export async function checkToken(
   }
   if (perMinute > LIMITS.TOKEN_PER_MINUTE) return rateLimited(secondsLeft(MINUTE, now));
   if (await bump(db, `${t}:d`, DAY, now) > LIMITS.TOKEN_PER_DAY) return rateLimited(secondsLeft(DAY, now));
+  return checkQuota(db, principal, now);
+}
+
+/**
+ * The route's daily quota (writes, submits, uploads) alone. checkToken ends
+ * with it; an MCP tool call runs only this for its inner REST request, since
+ * the outer /api/mcp request already passed every other check and counted
+ * once against the minute and day limits.
+ */
+export async function checkQuota(db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'route'>, now: number): Promise<Response | null> {
   const quota = principal.route.quota ? QUOTA[principal.route.quota] : null;
-  if (quota && await bump(db, `${t}:${quota.key}`, DAY, now) > quota.limit) return rateLimited(secondsLeft(DAY, now));
+  if (quota && await bump(db, `t:${principal.tokenId}:${quota.key}`, DAY, now) > quota.limit) return rateLimited(secondsLeft(DAY, now));
   return null;
 }
