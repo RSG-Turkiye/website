@@ -1606,10 +1606,10 @@ test('every published entry of every type round-trips through the panel: strict 
   const types = CMS_TYPES;
   for (const dir of new Set(types.map((t) => t.dir))) walk(dir);
   const index = buildCmsIndex(disk, undefined, types);
+  // No count per type: the panel may delete a type's last entry (A2).
+  assert.ok(Object.keys(disk).length > 0, 'the content folders were read');
   for (const type of types) {
-    const listed = index[type.key];
-    assert.ok(listed.length > 0, `${type.key}: no published entry found`);
-    for (const e of listed) {
+    for (const e of index[type.key]) {
       let data: unknown;
       if (type.format === 'json') data = parseJson(type, disk[`${type.dir}/${e.id}.json`]);
       else {
