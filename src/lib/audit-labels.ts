@@ -25,6 +25,10 @@ const FIXED: Record<string, Label> = {
   'role.revoke': { en: 'Took back a role', tr: 'Yetkiyi geri aldı' },
   'role.expire': { en: 'A role ended', tr: 'Yetkinin süresi doldu' },
 
+  'agent_token.create': { en: 'Created an agent token', tr: 'Ajan anahtarı oluşturdu' },
+  'agent_token.revoke': { en: 'Revoked an agent token', tr: 'Ajan anahtarını iptal etti' },
+  'agent_token.auto_revoke': { en: 'An agent token was revoked automatically', tr: 'Bir ajan anahtarı otomatik olarak iptal edildi' },
+
   'announcement.create': { en: 'Created an announcement', tr: 'Duyuru oluşturdu' },
   'announcement.update': { en: 'Edited an announcement', tr: 'Duyuruyu düzenledi' },
   'announcement.delete': { en: 'Deleted an announcement', tr: 'Duyuruyu sildi' },

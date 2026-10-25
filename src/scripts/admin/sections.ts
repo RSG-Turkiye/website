@@ -16,7 +16,7 @@ export type RoleFlags = {
   cms: GroupRights; canGrant: RoleKey[];
 };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'anahtarlar' | 'kayit';
 export type CountKey = 'email' | 'social' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it).
@@ -106,6 +106,11 @@ export const SECTIONS: Section[] = [
     ],
   },
   { id: 'baglantilar', group: 'sistem', label: 'admin.connections.heading', subs: [], visible: adminOnly },
+  // A member's own agent tokens: for anyone who has an area a token can reach.
+  {
+    id: 'anahtarlar', group: 'sistem', label: 'admin.tokens.heading', subs: [],
+    visible: (r) => r.admin || r.social || CMS_GROUPS.some((g) => r.cms[g]?.edit),
+  },
   { id: 'kayit', group: 'sistem', label: 'admin.nav.audit', subs: [], visible: adminOnly },
 ];
 

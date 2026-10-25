@@ -37,6 +37,7 @@ import SocialPane from './panes/SocialPane.astro';
 import MailPane from './panes/MailPane.astro';
 import StatsPane from './panes/StatsPane.astro';
 import CmsPane from './panes/CmsPane.astro';
+import TokensPane from './panes/TokensPane.astro';
 import { useTranslations } from '../../i18n/ui';
 
 interface Props {
@@ -203,6 +204,8 @@ const t = useTranslations(lang);
           <p class="text-sm text-gray-500 mb-4 lg:mb-3">{t('admin.connections.intro')}</p>
           <div id="connectionsBody" class="flex flex-col gap-2"></div>
         </section>
+
+        <TokensPane lang={lang} />
 
         <section data-section="kayit">
           <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.audit.heading')}</h2>
