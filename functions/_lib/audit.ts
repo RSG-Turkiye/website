@@ -119,6 +119,11 @@ export function appendAudit(db: D1Database, entry: AuditEntry, now?: number): Pr
  * so the condition would hold for it too, and its audit row and `after`
  * statements would land while the function returns false.
  *
+ * `changes() = 1` is also exact, and needs no nonce, when the guard's own
+ * WHERE can match only once (for example `revoked_at IS NULL`): the audit
+ * insert runs right after the guard in the same batch, and a losing writer's
+ * guard changes 0 rows. Never pair it with a state that a loser also sees.
+ *
  * Use plain positional `?` placeholders only. The binds are appended after the
  * eight audit-row binds, so named or numbered placeholders would bind wrongly.
  */
