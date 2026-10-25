@@ -129,3 +129,44 @@ export function renderPlainWithLinks(text: string): string {
 
   return s.replace(PLACEHOLDER, (_m, i: string) => anchors[Number(i)]);
 }
+
+// A slot in a template for a value someone else wrote (a plan title, a post's
+// caption, a reviewer's note). Private-use characters: not controls, so
+// stripControls keeps them, and no Markdown pattern above matches them.
+const SLOT = /(\d+)/g;
+
+/** Where `values[i]` goes in a template for renderTemplate. */
+export const slot = (i: number): string => `${i}`;
+
+/**
+ * One line of someone else's text, made inert for mail: control and
+ * private-use characters removed, whitespace runs folded to one space, and a
+ * zero-width space put inside every `://`, `www.` and dot between two
+ * letters or digits, so neither this module nor the reader's mail client
+ * turns a URL or a bare domain into a link. The text still reads the same.
+ */
+export function inertText(value: string): string {
+  return stripControls(value)
+    .replace(/[-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/:\/\//g, ':​//')
+    .replace(/www\./gi, (m) => `${m.slice(0, 3)}​.`)
+    .replace(/([\p{L}\p{N}])\.(?=[\p{L}\p{N}])/gu, '$1.​');
+}
+
+/**
+ * renderBody for a template the site wrote, with others' values in slots.
+ * The template's own Markdown (bold, the panel link) is rendered; each value
+ * is put in afterwards as escaped, inert text (inertText), so a value of
+ * "[x](https://evil.example)" or a bare URL never becomes a link or markup.
+ */
+export function renderTemplate(template: string, values: readonly string[]): RenderedBody {
+  const src = stripControls(template);
+  const fill = (s: string, escape: boolean) =>
+    s.replace(SLOT, (_m, i: string) => {
+      const text = inertText(values[Number(i)] ?? '');
+      return escape ? escapeHtml(text) : text;
+    });
+  return { text: fill(toPlainText(src), false), html: fill(toHtml(src), true) };
+}

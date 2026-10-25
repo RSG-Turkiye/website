@@ -38,6 +38,9 @@ export interface DraftRow {
   /** When the PR shepherd last looked at it (cms-shepherd.ts). Bookkeeping
    * only: it changes neither updated_at nor write_nonce. */
   last_checked_at: number | null;
+  /** The agent token that created or last saved it (migration 8l). Set by a
+   * token's create or save, never cleared by a person's later save. */
+  agent_token_id: string | null;
   created_at: number;
   updated_at: number;
   /** Not a column: the author's profile display name, where a query joined it. */
@@ -585,7 +588,11 @@ export function prTitle(d: Pick<DraftRow, 'action' | 'type' | 'entry_id'>): stri
   return `CMS: ${d.action} ${d.type} ${d.entry_id}`;
 }
 
-export function prBody(d: Pick<DraftRow, 'id' | 'action' | 'type' | 'entry_id'>): string {
+/** A draft an agent token wrote (agent_token_id is sticky) says so, without
+ * the token id or anyone's name. */
+export const AGENT_PR_LINE = 'Drafted by an agent through a member\'s API token; approved by a person in the panel.';
+
+export function prBody(d: Pick<DraftRow, 'id' | 'action' | 'type' | 'entry_id' | 'agent_token_id'>): string {
   return [
     'A content change made and approved in the admin panel.',
     '',
@@ -593,6 +600,7 @@ export function prBody(d: Pick<DraftRow, 'id' | 'action' | 'type' | 'entry_id'>)
     `- Entry: ${d.entry_id}`,
     `- Action: ${d.action}`,
     `- Draft: ${d.id}`,
+    ...(d.agent_token_id != null ? ['', AGENT_PR_LINE] : []),
     '',
     `Review it in the panel: ${PANEL}/${d.id}`,
     '',

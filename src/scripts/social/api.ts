@@ -17,6 +17,8 @@ export interface Post {
   media: MediaItem[]; platforms: Platform[]; scheduledAt: number | null; status: PostStatus; revision: number;
   createdBy: string; authorEmail: string | null; approvedBy: string | null; approvedAt: number | null; reviewNote: string | null;
   planId: string | null; planTitle: string | null; eventModeId: string | null; createdAt: number; updatedAt: number;
+  /** An agent token wrote it at some point (the server keeps the token's id). */
+  byAgent?: boolean;
   targets: { platform: Platform; status: string; permalink: string | null; lastError: string | null }[];
 }
 export interface Plan {

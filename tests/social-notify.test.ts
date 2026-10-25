@@ -60,3 +60,54 @@ test('postLabel prefers the plan title, then the caption start', () => {
   assert.equal(postLabel('a'.repeat(80), null), `${'a'.repeat(60)}…`);
   assert.equal(postLabel('  ', null), '(başlıksız / untitled)');
 });
+
+// Labels are written by people and by agent tokens; mail goes out from the
+// organisation's own address, so nothing in a label may become a link.
+test('a label, note or actor is inert text in the mail: no Markdown link, no bare URL, no markup', () => {
+  const panelUrl = 'https://rsg-turkiye.iscbsc.org/admin';
+  for (const label of ['[Reset your password](https://evil.example/rsg)', 'see https://evil.example/x now', 'evil.example', 'www.evil.example', '<b>x</b> **bold**']) {
+    for (const kind of ['submitted', 'approved', 'rejected', 'plan_due', 'publish_failed'] as const) {
+      const m = notificationText(kind, { label, when: null, actor: 'https://evil.example/a', note: '[n](https://evil.example/n)', panelUrl });
+      const anchors = [...m.body.html.matchAll(/<a href="([^"]*)"/g)].map((x) => x[1]);
+      assert.deepEqual([...new Set(anchors)], [panelUrl], `${kind}: only the panel link is a link (${label})`);
+      for (const part of [m.body.html, m.text]) {
+        assert.doesNotMatch(part, /https:\/\/evil|evil\.example|www\.evil/, `${kind}: no URL or domain survives as written`);
+      }
+      assert.doesNotMatch(m.body.html, /<b>|<strong>x|<strong>bold/, 'markup in a label is escaped, Markdown is not applied');
+      assert.match(m.body.html, /&lt;b&gt;|Reset your password|see https|evil/, 'the label is still there to read');
+    }
+  }
+});
+
+test('the subject carries the label on one line, without control characters, at most 80 characters', () => {
+  const m = notificationText('plan_due', { label: `Plan\r\nBcc: x@example.org\u0007 ${'ğ'.repeat(200)}`, when: null, panelUrl: 'u' });
+  const label = m.subject.split(': ').slice(1).join(': ');
+  assert.doesNotMatch(m.subject, /[\r\n\u0007]/);
+  assert.ok([...label].length <= 80, `label part has ${[...label].length} characters`);
+  assert.ok(label.endsWith('…'));
+});
+
+test('an Instagram username in the DM mail is inert too: a dotted name is not a domain', async () => {
+  const { dmLastCallText } = await import('../functions/_lib/social-dm-notify');
+  const now = 1_800_000_000;
+  const m = dmLastCallText({ id: 'd1', peer_username: 'evil.example', last_inbound_at: now - 20 * 3600 } as never, now, 'https://rsg-turkiye.iscbsc.org');
+  assert.doesNotMatch(m.text + m.subject, /evil\.example/);
+  assert.match(m.text, /@evil\.​example/);
+});
+
+test('the expiry notices put their note in a slot too: a note is never a link', () => {
+  for (const kind of ['connection_expiring', 'buffer_key_expiring'] as const) {
+    const m = notificationText(kind, { label: 'x', when: null, note: '[x](https://evil.example)', panelUrl: 'https://rsg-turkiye.iscbsc.org/admin', platform: 'Instagram' });
+    assert.deepEqual([...new Set([...m.body.html.matchAll(/<a href="([^"]*)"/g)].map((x) => x[1]))], ['https://rsg-turkiye.iscbsc.org/admin'], kind);
+    assert.doesNotMatch(m.text, /evil\.example/);
+  }
+  // The day count still reads as written.
+  assert.match(notificationText('buffer_key_expiring', { label: 'Buffer', when: null, note: '14', panelUrl: 'u' }).text, /14 gün/);
+});
+
+test('the subject keeps a label inert: no scheme, and a host shows as evil[.]example', () => {
+  const s = notificationText('submitted', { label: 'Reset at https://evil.example/x or www.evil.example', when: null, panelUrl: 'u' }).subject;
+  assert.doesNotMatch(s, /https?:|evil\.example|www\./);
+  assert.match(s, /evil\[\.\]example\/x/);
+  assert.match(notificationText('submitted', { label: 'Konuşmacı 3', when: null, panelUrl: 'u' }).subject, /Konuşmacı 3$/);
+});

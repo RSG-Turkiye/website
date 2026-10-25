@@ -12,7 +12,11 @@ import { d1 } from './lib/d1-sqlite';
  * tested is exactly what the owner runs against production.
  */
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
-const NOTE = SCHEMA.slice(SCHEMA.indexOf('-- 8k.'), SCHEMA.indexOf('CREATE TABLE IF NOT EXISTS users'));
+// From 8k to the next note (or the first table, if 8k is the last note).
+const NOTE_START = SCHEMA.indexOf('-- 8k.');
+const NEXT = /\n-- \d+[a-z]?\.|\nCREATE TABLE IF NOT EXISTS users/g;
+NEXT.lastIndex = NOTE_START + 1;
+const NOTE = SCHEMA.slice(NOTE_START, NEXT.exec(SCHEMA)!.index);
 const COMMANDS = [...NOTE.matchAll(/--remote --command="([^"]+)"/g)].map((m) => m[1]);
 const MOVE = COMMANDS.find((c) => c.startsWith('INSERT INTO role_grants'))!;
 const CHECK = COMMANDS.find((c) => c.startsWith('SELECT'))!;

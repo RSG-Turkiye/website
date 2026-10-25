@@ -23,6 +23,7 @@ import { setupDm, showDm } from './sections/social-dm';
 import { setupSymposium, loadSymposium } from './sections/symposium';
 import { loadStats } from './sections/stats';
 import { setupCms, showCms } from './sections/cms';
+import { loadTokens } from './sections/tokens';
 
 // Init
 
@@ -101,6 +102,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     baglantilar: onFirstShow(loadConnections, 'admin.connections.loadFailed'),
     kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
     sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),
+    anahtarlar: onFirstShow(loadTokens, 'admin.tokens.loadFailed'),
   };
   // Senders and admins both list sent mail: the first time that sub-page
   // shows, and again after a send or a failed load.

@@ -1549,6 +1549,36 @@ await section('46) Yazılar: the approver sees a Turkish-only post\'s added Engl
   await page.close();
 });
 
+await section('47) a draft an agent wrote says "Bir ajan yazdı" in Taslaklarım, in Onay and in the review; a person\'s draft does not', async () => {
+  const agent = '00000000-0000-4000-8000-000000000901';
+  const person = '00000000-0000-4000-8000-000000000902';
+  const seed = (s) => {
+    s.drafts.set(agent, draftRow({ id: agent, status: 'submitted', entry_id: 'symposium-2026', by_agent: true, data: { ...SYM, when: { ...SYM.when, tr: '10-11 Ekim' } }, base_shas: { [PATH]: 'sha-1' } }));
+    s.drafts.set(person, draftRow({ id: person, status: 'submitted', entry_id: 'symposium-2026', by_agent: false, data: { ...SYM, when: { ...SYM.when, tr: '12 Ekim' } }, base_shas: { [PATH]: 'sha-1' } }));
+  };
+  const text = async (page, sel) => ((await page.textContent(sel)) ?? '').replace(/\s+/g, ' ');
+  const mine = await open(browser, 'editor', '#icerik/taslaklar', { width: 1440, height: 900 }, seed);
+  ok(await waitFor(mine.page, () => document.querySelectorAll('[data-cms-draft]').length === 2), 'Taslaklarım lists both drafts');
+  ok((await text(mine.page, `[data-cms-draft="${agent}"]`)).includes('Bir ajan yazdı'), 'Taslaklarım: the agent\'s draft says "Bir ajan yazdı"');
+  ok(!(await text(mine.page, `[data-cms-draft="${person}"]`)).includes('ajan'), 'Taslaklarım: a person\'s draft does not');
+  await mine.page.close();
+
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    const { page } = await open(browser, 'approver', '#icerik/onay', { width: w, height: h }, seed);
+    ok(await waitFor(page, () => document.querySelectorAll('[data-cms-queue]').length === 2), `${w}px: Onay lists both drafts`);
+    ok((await text(page, `[data-cms-queue="${agent}"]`)).includes('Bir ajan yazdı'), `${w}px: Onay: the agent's draft says "Bir ajan yazdı"`);
+    ok(!(await text(page, `[data-cms-queue="${person}"]`)).includes('ajan'), `${w}px: Onay: a person's draft does not`);
+    ok(await noSideScroll(page), `${w}px: Onay is no wider than the window`);
+    await page.click(`[data-cms-queue="${agent}"] a`);
+    ok(await waitFor(page, () => /Bir ajan yazdı/.test(document.getElementById('cmsHead')?.textContent ?? '')), `${w}px: the review's head line says "Bir ajan yazdı"`);
+    ok(await noSideScroll(page), `${w}px: the review is no wider than the window`);
+    await page.evaluate((x) => { location.hash = x; }, `#icerik/onay/${person}`);
+    ok(await waitFor(page, () => /12 Ekim/.test(document.getElementById('cmsReview')?.textContent ?? '')), `${w}px: a person's draft opens in review`);
+    ok(!/ajan/.test(await text(page, '#cmsHead')), `${w}px: and its head line has no agent chip`);
+    await page.close();
+  }
+});
+
 console.log('11) phone: no sideways scroll on the list, the form and the review');
 for (const [who, hash] of [['editor', '#icerik/etkinlikler'], ['editor', '#icerik/etkinlikler/symposium-2026'], ['editor', '#icerik/webinarlar/_new'], ['approver', '#icerik/onay/00000000-0000-4000-8000-000000000005'], ['topluluk', '#icerik/komiteler/example'], ['both', '#icerik/komiteler'], ['topluluk', '#icerik/podcast'], ['ogrenme', '#icerik/kaynaklar'], ['ogrenme', '#icerik/kaynaklar/example-tool-md-drug'], ['ogrenme', '#icerik/kaynaklar/_new'], ['ogrenme', '#icerik/ogrenme-seviyeleri/fixture-explorer'], ['ogrenme', '#icerik/ogrenme-seviyeleri/_new'], ['ogrenme', '#icerik/yol-haritasi/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/_new'], ['ogrenme', '#icerik/ogrenme-alanlari/fixture'], ['ogrenme', '#icerik/yol-haritasi/07-direction'], ['sayfalar', '#icerik/sayfa-metinleri'], ['sayfalar', '#icerik/sayfa-metinleri/about'], ['sayfalar', '#icerik/gizlilik/privacy'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000006'], ['sayfalarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000007'], ['yazilar', '#icerik/blog'], ['yazilar', '#icerik/blog/ornek-yazi'], ['yazilar', '#icerik/blog/_new'], ['yazilarOnay', '#icerik/onay/00000000-0000-4000-8000-000000000802']]) {
   const { page } = await open(browser, who, hash, { width: 390, height: 844 }, (s) => {

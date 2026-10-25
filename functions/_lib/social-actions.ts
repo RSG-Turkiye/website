@@ -1,7 +1,7 @@
 import type { Env } from './auth';
 import { jsonResponse } from './auth';
 import { socialGate, readBody, malformed, nowSeconds, type Gate } from './social-api';
-import { loadPost } from './social-post-read';
+import { loadPost, agentMaySee } from './social-post-read';
 import { rowToDraft, type PostRow } from './social-posts';
 import { notificationText, notifyEach, publisherEmails, postLabel, type NotifyKind } from './social-notify';
 
@@ -14,7 +14,9 @@ export async function prepareAction(
   const gate = await socialGate(request, env, need, true);
   if (!gate.ok) return gate;
   const found = await loadPost(env.DB, env, id);
-  if (!found) return { ok: false, response: jsonResponse({ error: 'Not found', code: 'not_found' }, 404) };
+  // What a token cannot see (a colleague's unpublished post) does not exist for it, as in GET;
+  // decided before the revision is compared, so a 409 cannot tell either.
+  if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return { ok: false, response: jsonResponse({ error: 'Not found', code: 'not_found' }, 404) };
   const body = await readBody(request);
   if (!body) return { ok: false, response: malformed() };
   const revision = body.revision;

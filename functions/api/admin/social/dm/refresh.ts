@@ -4,7 +4,7 @@ import { getSessionUser, jsonResponse, canSocialPublish, checkCsrf } from '../..
 import { pollDms } from '../../../../_lib/social-dm-poll';
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   if (!canSocialPublish(user)) return jsonResponse({ error: 'Forbidden' }, 403);

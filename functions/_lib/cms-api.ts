@@ -5,6 +5,7 @@
  */
 
 import { checkCsrf, getSessionUser, jsonResponse, type Env, type User } from './auth';
+import { agentGroupRights, authenticateAgent, humanOnly, type AgentPrincipal } from './agent-tokens';
 import { groupRights, type CmsGroup, type GroupRights } from './cms-access';
 import { mergedTooLong, newEntryId, newPaths, type DraftRow, type PairData } from './cms-drafts';
 import { fileShasOnBase } from './github';
@@ -20,23 +21,47 @@ export const fail = (status: number, code: string, error: string, extra: Record<
 
 export const forbidden = () => fail(403, 'forbidden', 'Forbidden');
 
+/**
+ * The refusal when mayEdit is false. A colleague's draft does not exist for a
+ * token (404, as a missing id), so a token cannot learn that another
+ * member's draft id exists; a person in the panel gets 403 as before.
+ */
+export const refuseDraft = (gate: { user: Pick<User, 'id'>; agent: AgentPrincipal | null }, row: Pick<DraftRow, 'author_id'>) =>
+  gate.agent && row.author_id !== gate.user.id ? fail(404, 'not_found', 'Not found') : forbidden();
+
 export type Gate =
-  | { ok: true; user: User; rights: GroupRights; now: number }
+  /** `agent`: the token this request came with, or null for a person in the panel. */
+  | { ok: true; user: User; rights: GroupRights; now: number; agent: AgentPrincipal | null }
   | { ok: false; response: Response };
 
 /**
  * Signed in, with edit rights in at least one content group. Anyone else is
  * turned away here, before any draft is read, so a refusal can never carry
  * one. `mutating` adds the CSRF check.
+ *
+ * With an Authorization header the token alone decides (authenticateAgent):
+ * the cookie is ignored, a bad token is 401, and a route not in the agent
+ * table (approve, reject, cancel) is 403 human_only, even when a handler is
+ * called without the middleware. A token's rights are its scope at the
+ * route's level intersected with the member's live grants, approve never.
+ * No CSRF check: a bearer header is no ambient credential.
  */
 export async function cmsGate(request: Request, env: Env, mutating: boolean): Promise<Gate> {
-  if (mutating && !checkCsrf(request)) return { ok: false, response: fail(403, 'csrf', 'Forbidden') };
+  const now = Math.floor(Date.now() / 1000);
+  const auth = await authenticateAgent(request, env, now);
+  if (auth.kind === 'refused') return { ok: false, response: auth.response };
+  if (auth.kind === 'agent') {
+    if (auth.agent.route.area !== 'cms') return { ok: false, response: humanOnly() };
+    const rights = agentGroupRights(auth.agent, auth.agent.route.level);
+    if (!Object.values(rights).some((r) => r.edit)) return { ok: false, response: forbidden() };
+    return { ok: true, user: auth.user, rights, now, agent: auth.agent };
+  }
+  if (mutating && !checkCsrf(request, env)) return { ok: false, response: fail(403, 'csrf', 'Forbidden') };
   const user = await getSessionUser(request, env);
   if (!user) return { ok: false, response: fail(401, 'unauthenticated', 'Not signed in') };
-  const now = Math.floor(Date.now() / 1000);
   const rights = await groupRights(env.DB, user, now);
   if (!Object.values(rights).some((r) => r.edit)) return { ok: false, response: forbidden() };
-  return { ok: true, user, rights, now };
+  return { ok: true, user, rights, now, agent: null };
 }
 
 export const rightsIn = (rights: GroupRights, group: CmsGroup) => rights[group] ?? { edit: false, approve: false };
@@ -102,6 +127,8 @@ export function draftJson(row: DraftRow, withData: boolean) {
     /** The version this answer describes: a save sends it back, and a save
      * made on an older version is refused (draft_changed). */
     write_nonce: row.write_nonce,
+    /** Written by an agent token at some point (sticky). The token's id stays on the server. */
+    by_agent: row.agent_token_id != null,
     ...(withData ? { data: JSON.parse(row.data) as unknown, base_shas: JSON.parse(row.base_shas) as Record<string, string | null> } : {}),
   };
 }

@@ -12,7 +12,7 @@ import { runWithAudit } from '../../_lib/audit';
 const bad = (code: string, error: string) => jsonResponse({ error, code }, 400);
 
 export async function organiser(request: Request, env: Env, mutating: boolean): Promise<User | Response> {
-  if (mutating && !checkCsrf(request)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
+  if (mutating && !checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated', code: 'not_authenticated' }, 401);
   if (!canManageSymposium(user)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);

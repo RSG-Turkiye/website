@@ -16,7 +16,7 @@ export type RoleFlags = {
   cms: GroupRights; canGrant: RoleKey[];
 };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'anahtarlar' | 'kayit';
 export type CountKey = 'email' | 'social' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it).
@@ -106,13 +106,33 @@ export const SECTIONS: Section[] = [
     ],
   },
   { id: 'baglantilar', group: 'sistem', label: 'admin.connections.heading', subs: [], visible: adminOnly },
+  // A member's own agent tokens: for anyone who has an area a token can reach.
+  {
+    id: 'anahtarlar', group: 'sistem', label: 'admin.tokens.heading', subs: [],
+    visible: (r) => r.admin || r.social || CMS_GROUPS.some((g) => r.cms[g]?.edit),
+  },
   { id: 'kayit', group: 'sistem', label: 'admin.nav.audit', subs: [], visible: adminOnly },
 ];
 
+/**
+ * Sections reached by their own link in the shell (shell.ts), which do not
+ * count toward "two sections": a one-section editor keeps landing in their
+ * section, with no menu, as before Agent tokens existed.
+ */
+export const LINKED_SECTIONS: readonly SectionId[] = ['anahtarlar'];
+const linked = (s: Section) => LINKED_SECTIONS.includes(s.id);
+
+/** Every section these roles may open. */
 export function visibleSections(r: RoleFlags): Section[] {
   const work = SECTIONS.filter((s) => s.id !== 'genel' && s.visible(r));
-  if (work.length === 0) return [];
-  return work.length >= 2 ? [SECTIONS[0], ...work] : work;
+  if (!work.some((s) => !linked(s))) return [];
+  return work.filter((s) => !linked(s)).length >= 2 ? [SECTIONS[0], ...work] : work;
+}
+
+/** The sections the menu lists: all of them with two or more, else the one (its linked sections have their link). */
+export function menuSections(r: RoleFlags): Section[] {
+  const all = visibleSections(r);
+  return all.some((s) => s.id === 'genel') ? all : all.filter((s) => !linked(s));
 }
 
 export function subsFor(s: Section, r: RoleFlags): SubPage[] {

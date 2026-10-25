@@ -143,7 +143,7 @@ function roleAction(action: string): { op: 'make' | 'remove'; def: RoleDef } | n
 }
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
-  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   const isAdmin = user.is_admin === 1;

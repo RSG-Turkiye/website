@@ -18,8 +18,13 @@ export function d1(db: DatabaseSync, onBind?: (sql: string, count: number) => vo
       return { results: db.prepare(sql).all(...(args as never[])).map((r) => ({ ...r })) as T[] };
     },
     async run() {
+      // A statement with RETURNING gives its rows, as D1's run() does (batch uses run()).
+      if (/\bRETURNING\b/i.test(sql)) {
+        const results = db.prepare(sql).all(...(args as never[])).map((r) => ({ ...r }));
+        return { results, meta: { changes: results.length } };
+      }
       const r = db.prepare(sql).run(...(args as never[]));
-      return { meta: { changes: Number(r.changes) } };
+      return { results: [], meta: { changes: Number(r.changes) } };
     },
   });
   return {

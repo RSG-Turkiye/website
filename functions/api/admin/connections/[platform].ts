@@ -6,7 +6,7 @@ import { resetAccessToken } from '../../../_lib/gmail';
 
 /** For Gmail this drops the stored token; mail falls back to the GMAIL_REFRESH_TOKEN secret if it is still set. */
 export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params }) => {
-  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   if (user.is_admin !== 1) return jsonResponse({ error: 'Forbidden' }, 403);

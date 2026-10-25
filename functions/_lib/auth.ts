@@ -1,5 +1,7 @@
 export interface Env {
   DB: D1Database;
+  /** "1" only in local development (.dev.vars): checkCsrf then also accepts localhost and *.pages.dev pages. */
+  ALLOW_DEV_ORIGINS?: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
@@ -213,11 +215,18 @@ const ALLOWED_ORIGINS = new Set([
   'https://rsg-turkiye.iscbsc.org',
 ]);
 
-export function checkCsrf(request: Request): boolean {
-  // Allow same-origin requests (no Origin header means same-origin in most browsers)
+/**
+ * Whether a state-changing request may come from where its Origin says.
+ * Allowed: no Origin (same-origin in most browsers), the request's own
+ * origin (the page and the API on one host, as in a local preview), and the
+ * site. A localhost or *.pages.dev page calling another host is allowed only
+ * where ALLOW_DEV_ORIGINS is "1": set it in .dev.vars for local work, never
+ * in production, where any *.pages.dev site (anyone's) would otherwise pass.
+ */
+export function checkCsrf(request: Request, env: Pick<Env, 'ALLOW_DEV_ORIGINS'>): boolean {
   const origin = request.headers.get('Origin');
   if (!origin) return true;
-  // Allow localhost/preview URLs during development
-  if (origin.startsWith('http://localhost') || origin.endsWith('.pages.dev')) return true;
+  if (origin === new URL(request.url).origin) return true;
+  if (env.ALLOW_DEV_ORIGINS === '1' && (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.pages\.dev$/.test(origin))) return true;
   return ALLOWED_ORIGINS.has(origin);
 }

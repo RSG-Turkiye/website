@@ -19,11 +19,15 @@ const FIXED: Record<string, Label> = {
   'audit.export': { en: 'Exported the log', tr: 'Kayıtları dışa aktardı' },
   'audit.verify': { en: 'Verified the log', tr: 'Kayıtların bütünlüğünü doğruladı' },
   'audit.prune': { en: 'Removed log entries older than a year', tr: 'Bir yıldan eski kayıtlar silindi' },
+  'agent_token.auto_revoke': { en: 'Agent token revoked automatically', tr: 'Ajan anahtarı otomatik olarak iptal edildi' },
 
   'role.change': { en: 'Changed a role', tr: 'Bir yetkiyi değiştirdi' },
   'role.grant': { en: 'Granted a role', tr: 'Yetki verdi' },
   'role.revoke': { en: 'Took back a role', tr: 'Yetkiyi geri aldı' },
   'role.expire': { en: 'A role ended', tr: 'Yetkinin süresi doldu' },
+
+  'agent_token.create': { en: 'Created an agent token', tr: 'Ajan anahtarı oluşturdu' },
+  'agent_token.revoke': { en: 'Revoked an agent token', tr: 'Ajan anahtarını iptal etti' },
 
   'announcement.create': { en: 'Created an announcement', tr: 'Duyuru oluşturdu' },
   'announcement.update': { en: 'Edited an announcement', tr: 'Duyuruyu düzenledi' },

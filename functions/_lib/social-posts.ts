@@ -272,12 +272,12 @@ export function rowToDraft(row: PostRow): DraftInput {
 
 export type PostColumn =
   | 'type' | 'caption' | 'caption_overrides' | 'link' | 'media' | 'platforms' | 'scheduled_at'
-  | 'status' | 'approved_by' | 'approved_at' | 'review_note' | 'event_mode_id';
+  | 'status' | 'approved_by' | 'approved_at' | 'review_note' | 'event_mode_id' | 'agent_token_id';
 
 /** Every column a guarded update may write. A key outside this list is a bug, never a request. */
 export const POST_COLUMNS: PostColumn[] = [
   'type', 'caption', 'caption_overrides', 'link', 'media', 'platforms', 'scheduled_at',
-  'status', 'approved_by', 'approved_at', 'review_note', 'event_mode_id',
+  'status', 'approved_by', 'approved_at', 'review_note', 'event_mode_id', 'agent_token_id',
 ];
 
 export function draftColumns(d: DraftInput): Partial<Record<PostColumn, unknown>> {

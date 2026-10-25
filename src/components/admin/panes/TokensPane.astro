@@ -1,0 +1,67 @@
+---
+/**
+ * The Agent tokens section: what a token can do, the create form, the value
+ * shown once, one's own tokens and (admins) everyone's. The area rows and
+ * the lists are drawn by src/scripts/admin/sections/tokens.ts from
+ * /api/agent-tokens.
+ */
+import { useTranslations } from '../../../i18n/ui';
+
+interface Props { lang: 'en' | 'tr' }
+const t = useTranslations(Astro.props.lang);
+const FOCUS = 'focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const field = `block mt-1 w-full px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border bg-white text-sm text-navy focus:border-navy-mid ${FOCUS}`;
+const btn = 'inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const primary = `${btn} bg-navy text-white hover:bg-navy-mid`;
+const secondary = `${btn} border border-navy text-navy hover:bg-navy-light`;
+---
+<section data-section="anahtarlar">
+  <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.tokens.heading')}</h2>
+  <div class="text-sm text-gray-500 mb-4 lg:mb-3 max-w-prose flex flex-col gap-1">
+    <p>{t('admin.tokens.intro.what')}</p>
+    <p>{t('admin.tokens.intro.shrinks')}</p>
+    <p>{t('admin.tokens.intro.secret')}</p>
+    <p class="break-all">{t('admin.tokens.intro.mcp')}</p>
+  </div>
+
+  <!-- Says only that a token was made: the value below is not a live region, so a screen reader never reads it out unasked. -->
+  <p id="tokensCreatedNote" role="status" class="sr-only"></p>
+  <div id="tokensShown" class="hidden bg-white rounded-2xl border border-navy-mid p-4 lg:p-3 mb-4 lg:mb-3">
+    <h3 class="text-sm font-semibold text-navy mb-1">{t('admin.tokens.shown.heading')}</h3>
+    <p class="text-sm text-gray-600 mb-2">{t('admin.tokens.shown.note')}</p>
+    <code id="tokensShownValue" class="block px-3 py-2 rounded-xl bg-gray-100 text-sm text-navy break-all select-all"></code>
+    <div class="flex flex-wrap gap-2 mt-3 lg:mt-2">
+      <button type="button" id="tokensCopy" class={primary}>{t('admin.tokens.shown.copy')}</button>
+      <button type="button" id="tokensShownDone" class={secondary}>{t('admin.tokens.shown.done')}</button>
+    </div>
+  </div>
+
+  <form id="tokensCreate" class="bg-white rounded-2xl border border-border p-4 lg:p-3 mb-6 lg:mb-4 flex flex-col gap-3 lg:gap-2" novalidate>
+    <h3 class="text-sm font-semibold text-navy">{t('admin.tokens.create.heading')}</h3>
+    <label class="text-sm text-gray-600 max-w-md">{t('admin.tokens.create.label')}
+      <input id="tokensLabel" type="text" maxlength="60" required autocomplete="off" class={field} />
+      <span class="block mt-1 text-xs text-gray-500">{t('admin.tokens.create.labelHint')}</span>
+    </label>
+    <fieldset class="min-w-0">
+      <legend class="text-sm text-gray-600 mb-1">{t('admin.tokens.create.areas')}</legend>
+      <div id="tokensAreas" class="flex flex-col"></div>
+      <p id="tokensAreasNone" class="hidden text-sm text-gray-500">{t('admin.tokens.create.areasNone')}</p>
+    </fieldset>
+    <label class="text-sm text-gray-600 max-w-48">{t('admin.tokens.create.days')}
+      <select id="tokensDays" class={field}>
+        <option value="7">{t('admin.tokens.create.days.7')}</option>
+        <option value="30" selected>{t('admin.tokens.create.days.30')}</option>
+        <option value="90">{t('admin.tokens.create.days.90')}</option>
+      </select>
+    </label>
+    <div><button type="submit" id="tokensSubmit" class={primary}>{t('admin.tokens.create.submit')}</button></div>
+  </form>
+
+  <h3 class="text-sm font-semibold text-navy mb-2">{t('admin.tokens.mine.heading')}</h3>
+  <div id="tokensMine" class="flex flex-col gap-2 mb-6 lg:mb-4"></div>
+
+  <div id="tokensAllWrap" class="hidden">
+    <h3 class="text-sm font-semibold text-navy mb-2">{t('admin.tokens.all.heading')}</h3>
+    <div id="tokensAll" class="flex flex-col gap-2"></div>
+  </div>
+</section>

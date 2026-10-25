@@ -1,7 +1,7 @@
 import type { Env } from './auth';
 import { rowToDraft, type PostRow } from './social-posts';
 
-type Joined = PostRow & { author_email: string | null; plan_id: string | null; plan_title: string | null };
+type Joined = PostRow & { author_email: string | null; plan_id: string | null; plan_title: string | null; agent_token_id: string | null };
 type TargetRow = { post_id: string; platform: string; status: string; permalink: string | null; last_error: string | null };
 
 const SELECT = `SELECT p.*, u.email AS author_email, pl.id AS plan_id, pl.title AS plan_title
@@ -9,8 +9,23 @@ const SELECT = `SELECT p.*, u.email AS author_email, pl.id AS plan_id, pl.title 
                   LEFT JOIN users u ON u.id = p.created_by
                   LEFT JOIN social_plans pl ON pl.post_id = p.id`;
 
-function respond(env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, row: Joined, targets: TargetRow[]) {
+/**
+ * What a token may see beyond its member's own posts: what already went out.
+ * Colleagues' drafts, pending and scheduled posts never reach an agent, whose
+ * model provider is a third party. `p` is the social_posts alias.
+ */
+export const AGENT_VISIBLE = `(p.created_by = ? OR p.status IN ('published', 'partially_published'))`;
+export const agentMaySee = (row: Pick<PostRow, 'created_by' | 'status'>, userId: string) =>
+  row.created_by === userId || row.status === 'published' || row.status === 'partially_published';
+
+/**
+ * `forAgent` is the member a token acts for, or null for the panel. An
+ * agent's answers carry no e-mail address, no platform error text, and a
+ * review note only on the member's own posts.
+ */
+function respond(env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, row: Joined, targets: TargetRow[], forAgent: string | null) {
   const d = rowToDraft(row);
+  const agent = forAgent !== null;
   return {
     id: row.id, type: d.type, caption: d.caption, captionOverrides: d.captionOverrides, link: d.link,
     media: d.media.map((m) => ({
@@ -20,16 +35,18 @@ function respond(env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, row: Joined, targets:
       ...(m.base ? { baseUrl: `${env.PUBLIC_BLOG_IMAGES_URL}/${m.base}` } : {}),
     })),
     platforms: d.platforms, scheduledAt: d.scheduledAt, status: row.status, revision: row.revision,
-    createdBy: row.created_by, authorEmail: row.author_email, approvedBy: row.approved_by, approvedAt: row.approved_at,
-    reviewNote: row.review_note, planId: row.plan_id, planTitle: row.plan_title, eventModeId: row.event_mode_id,
-    createdAt: row.created_at, updatedAt: row.updated_at,
-    targets: targets.filter((t) => t.post_id === row.id).map((t) => ({ platform: t.platform, status: t.status, permalink: t.permalink, lastError: t.last_error })),
+    createdBy: row.created_by, authorEmail: agent ? null : row.author_email, approvedBy: row.approved_by, approvedAt: row.approved_at,
+    reviewNote: agent && row.created_by !== forAgent ? null : row.review_note, planId: row.plan_id, planTitle: row.plan_title, eventModeId: row.event_mode_id,
+    createdAt: row.created_at, updatedAt: row.updated_at, byAgent: row.agent_token_id != null,
+    targets: targets.filter((t) => t.post_id === row.id).map((t) => ({ platform: t.platform, status: t.status, permalink: t.permalink, lastError: agent ? null : t.last_error })),
   };
 }
 export type PostResponse = ReturnType<typeof respond>;
 
 /** `where` is written in code; values go through binds. */
-export async function loadPosts(db: D1Database, env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, where: string, binds: unknown[]): Promise<PostResponse[]> {
+export async function loadPosts(
+  db: D1Database, env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, where: string, binds: unknown[], forAgent: string | null = null,
+): Promise<PostResponse[]> {
   const rows = (await db.prepare(`${SELECT} WHERE ${where} ORDER BY p.scheduled_at, p.created_at`).bind(...binds).all<Joined>()).results;
   if (rows.length === 0) return [];
   // One join with the same filter: binding every post id would hit D1's 100-parameter cap.
@@ -37,12 +54,14 @@ export async function loadPosts(db: D1Database, env: Pick<Env, 'PUBLIC_BLOG_IMAG
     `SELECT t.post_id, t.platform, t.status, t.permalink, t.last_error
        FROM social_post_targets t JOIN social_posts p ON p.id = t.post_id WHERE ${where}`,
   ).bind(...binds).all<TargetRow>()).results;
-  return rows.map((r) => respond(env, r, targets));
+  return rows.map((r) => respond(env, r, targets, forAgent));
 }
 
-export async function loadPost(db: D1Database, env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, id: string): Promise<{ row: PostRow; response: PostResponse } | null> {
+export async function loadPost(
+  db: D1Database, env: Pick<Env, 'PUBLIC_BLOG_IMAGES_URL'>, id: string, forAgent: string | null = null,
+): Promise<{ row: PostRow; response: PostResponse } | null> {
   const row = await db.prepare(`${SELECT} WHERE p.id = ?`).bind(id).first<Joined>();
   if (!row) return null;
   const targets = (await db.prepare('SELECT post_id, platform, status, permalink, last_error FROM social_post_targets WHERE post_id = ?').bind(id).all<TargetRow>()).results;
-  return { row, response: respond(env, row, targets) };
+  return { row, response: respond(env, row, targets, forAgent) };
 }

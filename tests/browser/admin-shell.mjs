@@ -414,6 +414,40 @@ for (const [path, text] of [['/admin#eposta/gelen/abc', 'Sign In'], ['/tr/admin#
   ok(await fits(page, 390), `${path}: no horizontal scroll`);
   await page.close();
 }
+console.log('6) what an agent wrote or did: "Bir ajan yazdı" on a social draft, "ajan üzerinden" in the log (/tr/admin)');
+{
+  const post = (id, byAgent) => ({
+    id, type: 'image', caption: `Örnek gönderi ${id}`, captionOverrides: {}, link: null, media: [], platforms: ['instagram'], scheduledAt: null,
+    status: 'draft', revision: 1, createdBy: 'u1', authorEmail: null, approvedBy: null, approvedAt: null, reviewNote: null,
+    planId: null, planTitle: null, eventModeId: null, createdAt: 1760000000, updatedAt: 1760000000, byAgent, targets: [],
+  });
+  const AGENT = {
+    ...EMPTY,
+    posts: [post('p-agent', true), post('p-person', false)],
+    rows: [
+      { seq: 2, at: 1760000100, user_email: 'a@example.org', action: 'cms.draft.create', target_type: 'content_draft', target_id: 'd1', details: JSON.stringify({ type: 'events', via: 'agent', agent_token: 'tok-1' }) },
+      { seq: 1, at: 1760000000, user_email: 'a@example.org', action: 'cms.draft.update', target_type: 'content_draft', target_id: 'd1', details: JSON.stringify({ type: 'events' }) },
+    ],
+  };
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+    const w = viewport.width;
+    const { page } = await open(ADMIN, viewport, '/tr/admin#sosyal/taslaklar', AGENT);
+    await page.waitForSelector('#socialDraftList [data-post="p-agent"]', { timeout: 5000 }).catch(() => {});
+    const card = async (id) => ((await page.locator(`#socialDraftList [data-post="${id}"]`).textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ');
+    ok((await card('p-agent')).includes('Bir ajan yazdı'), `${w}px: Taslaklar: the agent's post says "Bir ajan yazdı"`);
+    ok(!(await card('p-person')).includes('ajan'), `${w}px: Taslaklar: a person's post does not`);
+    ok(await fits(page, w), `${w}px: Taslaklar is no wider than the window`);
+    await page.evaluate(() => { location.hash = '#kayit'; });
+    await waitHash(page, '#kayit');
+    await page.waitForFunction(() => document.querySelectorAll('#auditBody [data-row-title]').length === 2, null, { timeout: 5000 }).catch(() => {});
+    const rows = await page.locator('#auditBody [data-row-title]').evaluateAll((els) => els.map((e) => e.closest('div').textContent.replace(/\s+/g, ' ')));
+    ok(rows.length === 2 && rows[0].includes('ajan üzerinden'), `${w}px: the log row an agent caused says "ajan üzerinden" (got ${rows[0]?.slice(0, 120)})`);
+    ok(rows.length === 2 && !rows[1].includes('ajan'), `${w}px: a person's row does not`);
+    ok(await fits(page, w), `${w}px: the log is no wider than the window`);
+    await page.close();
+  }
+}
+
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   await page.route('**/api/**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ user: { id: 'u9', email: 'member@example.org' }, profile: {} }) }));

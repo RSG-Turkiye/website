@@ -66,7 +66,9 @@ anyone.
 10. **Content is changed through the CMS or a PR. Only a person approves,
     in the panel**; the shepherd merges only what a person approved, and
     nobody merges a `cms/*` pull request by hand. No agent or script
-    approves.
+    approves. Agent tokens draft and submit only; the route table in
+    `functions/_lib/agent-routes.ts` is the complete list, and a new panel
+    feature adds its draft-level routes there or nothing.
 
 ## Where things live
 
@@ -84,6 +86,7 @@ anyone.
 | `functions/_lib/roles.ts`         | The role catalog and the duration rules: who may grant which role, and for how long. Pure, no database.                                               |
 | `functions/_lib/role-grants.ts`   | `grantRole`, `revokeRole`, `activeGrants`, `expireGrants`: the only code that changes who holds a role.                                               |
 | `src/lib/cms/`, `functions/_lib/cms-*.ts`, `functions/api/cms/` | The panel CMS: types and serializing, draft rules, the PR shepherd (runs on the mail tick), and the `/api/cms/*` endpoints. Content types are grouped (Etkinlikler, Yazılar, Öğrenme, Topluluk, Sayfalar); a group's rights are the roles `content.<group>.edit` and `.approve` in `roles.ts`. |
+| `functions/_lib/agent-*.ts`, `functions/api/_middleware.ts`, `functions/api/mcp.ts`, `functions/_lib/mcp-tools.ts`, `functions/api/agent-tokens/` | Agent access (README, "Agent access"): `agent-tokens.ts` checks a personal token and works out its rights (scope intersected with live grants, never approve); `agent-routes.ts` is the complete list of routes a token may call; `agent-limits.ts` holds the rate limits, quotas, the agents' daily budget and auto-revoke; `agent-instructions.ts` is what an agent is told; `_middleware.ts` refuses every other `/api/*` route to a bearer request before a handler runs; `mcp.ts` and `mcp-tools.ts` are the MCP server, which calls the same REST handlers; `agent-tokens/` makes, lists and revokes tokens, for a signed-in person only. |
 | `db/schema.sql`                   | The D1 schema plus the numbered migration notes at its top.                                                                                           |
 | `workers/mail-cron/`              | Worker whose cron (every minute) drives mail dispatch, inbox sync and social publishing.                                                              |
 | `workers/symposium-cron/`         | Nightly Worker: archives a finished symposium edition (via a PR), rebuilds the symposium site, purges expired certificates and prunes the audit log.  |
@@ -116,6 +119,25 @@ for both sites on every PR. Keep it green.
   the per-minute cron. **Any query that runs on the tick needs an index that
   covers its `WHERE`.** Diagnose with
   `wrangler d1 insights rsg-members --sort-type=sum --sort-by=reads --timePeriod=7d`.
+- **D1 also allows only 100,000 rows written per day**, and every index
+  entry a write changes counts as one more. Going over blocks every D1
+  write (sessions, the mail queue, the panel, the audit log) until 00:00
+  UTC. Keep the writes per request small, give a hot counter table no
+  extra index, and check before bumping a counter so a refusal writes
+  nothing. Diagnose with `wrangler d1 insights rsg-members --sort-type=sum
+  --sort-by=writes --timePeriod=7d`.
+- **Workers (Pages Functions) allow 100,000 requests per day** for the
+  whole site; over it, every API call fails until 00:00 UTC.
+- **Agents get a fixed share of both** (README, "Agent access", Limits):
+  all agent tokens together at most 15,000 requests a day (12,000 for any
+  route, then 3,000 kept for social work) and 2,000 writes, submits and
+  uploads (1,600, then 400 for social work), and 300 requests per member.
+  An allowed agent request writes 1 counter row and reads one counter row
+  per token used that day plus two. Failed authentications write 2 rows
+  each, at most 5,000 a day for all addresses together; past that they
+  write nothing. A refusal for the day, a budget or a quota, or from a
+  cut-off IP, writes nothing. People in the panel are never counted. The
+  numbers are `LIMITS` in `functions/_lib/agent-limits.ts`.
 - **Schema changes are applied by hand.** Add the table or column to
   `db/schema.sql` and add a numbered note at its top with the exact `wrangler
   d1 execute rsg-members --remote ...` command. `ALTER TABLE` is not

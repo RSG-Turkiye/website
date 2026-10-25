@@ -8,7 +8,7 @@ import { join, relative } from 'node:path';
 // audit row fails here until it does, or is listed below with the reason.
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const PANEL = ['functions/api/admin', 'functions/api/mail', 'functions/api/social', 'functions/api/audit', 'functions/api/cms'];
+const PANEL = ['functions/api/admin', 'functions/api/mail', 'functions/api/social', 'functions/api/audit', 'functions/api/cms', 'functions/api/agent-tokens'];
 // grantRole and revokeRole (functions/_lib/role-grants.ts) write their
 // role.grant / role.revoke row in the same batch as the grant.
 const WRITES_AUDIT = /appendAudit|runWithAudit|runGuardedWithAudit|grantRole|revokeRole/;
