@@ -1382,9 +1382,8 @@ your own shell (not typed into a chat with the agent):
 claude mcp add --transport http rsg https://rsg-turkiye.iscbsc.org/api/mcp --header "Authorization: Bearer $RSG_TOKEN"
 ```
 
-The shell puts the value into Claude Code's own configuration
-(`~/.claude.json` for the default local scope), so treat that file as a
-secret too. Remove the server with `claude mcp remove rsg` when the token
+The shell puts the value into Claude Code's own configuration file, so
+treat that file as a secret too. Remove the server with `claude mcp remove rsg` when the token
 is revoked or expires, and add it again with the new one.
 
 Any other client: send `Authorization: Bearer <value>` on every POST to the
@@ -1422,7 +1421,7 @@ House rules:
 Limits for each token: 30 requests a minute and 1000 a day (every MCP message counts as one); 200 writes, 20 submits and 20 image uploads a day. A write or submit is counted even when it is refused, so check your input first. A 429 or a rate_limited result means wait: retry_after (or the Retry-After header) gives the seconds, and a daily limit resets at 00:00 UTC. Do not retry in a loop, since 50 requests in one minute revokes the token.
 ```
 
-### Owner steps (once, by the owner, never by an agent), in this order
+### Owner steps for agent access (once, by the owner, never by an agent), in this order
 
 1. **Before merging the pull request that adds agent access**, run note 8l
    at the top of `db/schema.sql` on the remote D1, both commands, in this
