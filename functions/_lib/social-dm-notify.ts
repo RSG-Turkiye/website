@@ -7,11 +7,14 @@
  */
 import type { DmEnv } from './social-dm-poll';
 import { notifyEach, publisherEmails } from './social-notify';
+import { inertText } from './markdown';
 import { dmView, digestFresh, digestList, mayDigest, lastCallDue, WINDOW_SECONDS, type DmThreadRow } from './social-dm';
 
 export const dmPanelUrl = (origin: string, id: string) => `${origin}/tr/admin#sosyal/dm/${id}`;
 
-const who = (r: DmThreadRow, lang: 'tr' | 'en') => r.peer_username ? `@${r.peer_username}` : lang === 'tr' ? 'Instagram kullanıcısı' : 'Instagram user';
+// An Instagram username is someone else's text: inert, so a name such as
+// "evil.example" never becomes a link in mail sent from the organisation.
+const who = (r: DmThreadRow, lang: 'tr' | 'en') => r.peer_username ? `@${inertText(r.peer_username)}` : lang === 'tr' ? 'Instagram kullanıcısı' : 'Instagram user';
 const hoursLeft = (r: DmThreadRow, now: number) => Math.max(1, Math.floor(dmView(r, now).secondsLeft / 3600));
 const at = (epoch: number, locale: 'tr-TR' | 'en-GB') => new Date(epoch * 1000).toLocaleString(locale, {
   day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul',
@@ -28,7 +31,7 @@ export function dmDigestText(rows: DmThreadRow[], now: number, origin: string): 
 }
 
 /** Turkish "from" phrase that reads right with and without a username. */
-const fromTr = (r: DmThreadRow) => r.peer_username ? `@${r.peer_username} hesabından gelen mesaj` : 'Bir Instagram kullanıcısından gelen mesaj';
+const fromTr = (r: DmThreadRow) => r.peer_username ? `@${inertText(r.peer_username)} hesabından gelen mesaj` : 'Bir Instagram kullanıcısından gelen mesaj';
 
 export function dmLastCallText(r: DmThreadRow, now: number, origin: string): { subject: string; text: string } {
   const h = hoursLeft(r, now);

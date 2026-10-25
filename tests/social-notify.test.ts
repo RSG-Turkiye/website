@@ -86,3 +86,11 @@ test('the subject carries the label on one line, without control characters, at 
   assert.ok([...label].length <= 80, `label part has ${[...label].length} characters`);
   assert.ok(label.endsWith('…'));
 });
+
+test('an Instagram username in the DM mail is inert too: a dotted name is not a domain', async () => {
+  const { dmLastCallText } = await import('../functions/_lib/social-dm-notify');
+  const now = 1_800_000_000;
+  const m = dmLastCallText({ id: 'd1', peer_username: 'evil.example', last_inbound_at: now - 20 * 3600 } as never, now, 'https://rsg-turkiye.iscbsc.org');
+  assert.doesNotMatch(m.text + m.subject, /evil\.example/);
+  assert.match(m.text, /@evil\.​example/);
+});
