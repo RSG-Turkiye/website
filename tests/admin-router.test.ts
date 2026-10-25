@@ -73,6 +73,9 @@ test('the old Etkinlikler address is the İçerik one with its prefix swapped (P
 test('the old Blog section (member submissions) opens İçerik\'s Blog tab', () => {
   const admin = { ...none, admin: true, cms: { etkinlikler: { edit: true, approve: true }, yazilar: { edit: true, approve: true } } } as RoleFlags;
   assert.deepEqual(parseHash('#blog'), { section: 'icerik', sub: 'blog', item: null });
+  // An old submission id after it is not a content entry: dropped.
+  assert.deepEqual(parseHash('#blog/00000000-0000-4000-8000-000000000009'), { section: 'icerik', sub: 'blog', item: null });
+  assert.deepEqual(parseHash('#blog/x/y'), { section: 'icerik', sub: 'blog', item: null });
   assert.equal(toHash(resolveRoute(parseHash('#blog'), admin, false, false)), '#icerik/blog');
   // Someone who no longer edits posts lands where they always would.
   assert.equal(resolveRoute(parseHash('#blog'), { ...none, sender: true }, false, false).section, 'eposta');

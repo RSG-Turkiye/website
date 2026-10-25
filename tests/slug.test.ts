@@ -59,33 +59,19 @@ test('slugifying a slug returns it unchanged', () => {
   }
 });
 
-// --- the cap, and the bug in how it used to be applied -----------------------
+// --- no cap (the blog form that capped at 80 is retired) --------------------
 
-test('without a maxLength nothing is cut', () => {
+test('nothing is cut', () => {
   const long = 'a'.repeat(120);
   assert.equal(slugify(long).length, 120);
 });
 
-test('a cut that lands on a hyphen does not leave one behind', () => {
-  // This is the bug the merge fixes. The old blog slugify stripped trailing
-  // hyphens and *then* sliced, so the slice could put one back.
-  const title = `${'a'.repeat(79)} tail`;
-  const slug = slugify(title, { maxLength: 80 });
-  assert.equal(slug.endsWith('-'), false, slug);
-  assert.equal(slug, 'a'.repeat(79));
-});
-
-test('the shipped example is what the old rule produced', () => {
+test('the shipped example is what the old blog rule produced', () => {
   // src/content/blog/en/ has a file whose name ends in a hyphen. Its URL is
   // live so the file is not renamed; this records where it came from.
   const title = 'Computational analysis and integration of large scale biological data with deep learning';
   const oldRule = slugify(title).slice(0, 80); // strip-then-slice, as it was
   assert.equal(oldRule.endsWith('-'), true, 'the old rule could end on a hyphen');
-  assert.equal(slugify(title, { maxLength: 80 }).endsWith('-'), false, 'the new one cannot');
-});
-
-test('a slug shorter than the cap is untouched by it', () => {
-  assert.equal(slugify('rna-seq', { maxLength: 80 }), 'rna-seq');
 });
 
 // --- nothing that already exists moves ---------------------------------------

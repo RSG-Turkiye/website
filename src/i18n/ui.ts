@@ -507,7 +507,6 @@ export const ui = {
     'admin.badge.pendingStatus': 'Pending',
     'admin.badge.admin': 'Admin',
     'admin.badge.announcer': 'Announcer',
-    'admin.badge.writer': 'Writer',
     // The role that opens the symposium pane -- the programme, speakers
     // and committee -- without granting anything else. It could only be
     // set by hand before, so in practice only full admins had it.
@@ -520,8 +519,6 @@ export const ui = {
     'admin.action.makeAdmin': 'Make admin',
     'admin.action.removeAnnouncer': 'Remove announcer',
     'admin.action.makeAnnouncer': 'Make announcer',
-    'admin.action.removeWriter': 'Remove writer',
-    'admin.action.makeWriter': 'Make writer',
     'admin.action.removeSymposium': 'Remove symposium editor',
     'admin.action.makeSymposium': 'Make symposium editor',
     'admin.action.removeSender': 'Remove RSG sender',
@@ -530,7 +527,6 @@ export const ui = {
     'admin.action.clearBio': 'Clear bio',
     'admin.stats.shown': 'Shown',
     'admin.stats.members': 'Members',
-    'admin.stats.pending': 'Pending',
 
     // Admin Panel - Symposium
     'admin.symposium.heading': 'Symposium',
@@ -584,7 +580,7 @@ export const ui = {
     'admin.stats.content.blog': "Blog posts published",
     'admin.stats.content.webinars': "Webinars published",
     'admin.stats.submissions.submitted': "Blog submissions received (old form)",
-    'admin.stats.submissions.approved': "Blog posts approved in the panel",
+    'admin.stats.submissions.approved': "Blog submissions approved (old form)",
     'admin.stats.submissions.rejected': "Blog submissions declined (old form)",
     'admin.stats.mail.heading': "E-mail",
     'admin.stats.mail.sent': "E-mails sent",
@@ -2136,7 +2132,6 @@ export const ui = {
     'admin.badge.pendingStatus': 'Bekleyen',
     'admin.badge.admin': 'Admin',
     'admin.badge.announcer': 'Announcer',
-    'admin.badge.writer': 'Writer',
     'admin.badge.symposium': 'Sempozyum',
     'admin.badge.mail': 'mail',
     'admin.badge.private': 'Gizli',
@@ -2146,8 +2141,6 @@ export const ui = {
     'admin.action.makeAdmin': 'Admin yap',
     'admin.action.removeAnnouncer': 'Announcer yetkisini kaldır',
     'admin.action.makeAnnouncer': 'Announcer yap',
-    'admin.action.removeWriter': 'Writer yetkisini kaldır',
-    'admin.action.makeWriter': 'Writer yap',
     'admin.action.removeSymposium': 'Sempozyum yetkisini kaldır',
     'admin.action.makeSymposium': 'Sempozyum editörü yap',
     'admin.action.removeSender': 'RSG gönderici yetkisini al',
@@ -2156,7 +2149,6 @@ export const ui = {
     'admin.action.clearBio': 'Biyografiyi temizle',
     'admin.stats.shown': 'Gösterilen',
     'admin.stats.members': 'Üye',
-    'admin.stats.pending': 'Bekleyen',
 
     // Admin Panel - Symposium
     'admin.symposium.heading': 'Sempozyum',
@@ -2210,7 +2202,7 @@ export const ui = {
     'admin.stats.content.blog': "Yayımlanan blog yazısı",
     'admin.stats.content.webinars': "Yayımlanan webinar",
     'admin.stats.submissions.submitted': "Gelen blog başvurusu (eski form)",
-    'admin.stats.submissions.approved': "Panelde onaylanan blog yazısı",
+    'admin.stats.submissions.approved': "Onaylanan blog başvurusu (eski form)",
     'admin.stats.submissions.rejected': "Geri çevrilen blog başvurusu (eski form)",
     'admin.stats.mail.heading': "E-posta",
     'admin.stats.mail.sent': "Gönderilen e-posta",
