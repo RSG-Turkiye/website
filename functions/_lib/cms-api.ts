@@ -13,7 +13,7 @@ import type { CmsIndex, CmsIndexEntry } from '../../src/lib/cms/cms-index';
 import { jsonPath } from '../../src/lib/cms/serialize';
 import { levelsOfDomain, lockedKeysErrors, LP_DOMAIN as LP_DOMAIN_MESSAGE, lpErrors, mainSides, prunedAssigned, type LpDraftData } from './cms-lp';
 import { fileShasOnBase as shasAt, listDirOnBase } from './github';
-import { stageNumber } from '../../src/lib/cms/slug';
+import { capId, ID_MAX, stageNumber } from '../../src/lib/cms/slug';
 
 export const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
   jsonResponse({ error, code, ...extra }, status);
@@ -212,8 +212,10 @@ export function idCandidates(type: CmsType, id: string, data: unknown): string[]
   if (type.whenTaken === 'refuse') return [id];
   const out = [id];
   const suffix = String(type.idSuffix?.(data) ?? '');
-  if (/^[a-z0-9][a-z0-9-]*$/.test(suffix) && !id.endsWith(`-${suffix}`)) out.push(`${id}-${suffix}`);
-  for (let n = 2; n <= NAME_TRIES; n++) out.push(`${id}-${n}`);
+  // The base is shortened so that the name with its suffix stays within ID_MAX.
+  const withSuffix = (s: string) => `${capId(id, ID_MAX - s.length - 1)}-${s}`;
+  if (/^[a-z0-9][a-z0-9-]*$/.test(suffix) && !id.endsWith(`-${suffix}`)) out.push(withSuffix(suffix));
+  for (let n = 2; n <= NAME_TRIES; n++) out.push(withSuffix(String(n)));
   return out;
 }
 

@@ -11,10 +11,11 @@ import { call } from './lib/social';
 import { buildCmsIndex, type CmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
 import { z } from 'astro/zod';
-import { cmsType, defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
+import { CMS_TYPES, cmsType, defineType, setTestCmsTypes, type CmsTypeKey } from '../src/lib/cms/types';
 import { parseJson, parseMarkdown, serializeJson, serializeMarkdown } from '../src/lib/cms/serialize';
 import { filesFor, istanbulDay, validateDraft, prTitle, prBody } from '../functions/_lib/cms-drafts';
 import { setCmsIndexLoader } from '../functions/_lib/cms-api';
+import { lpErrors } from '../functions/_lib/cms-lp';
 import * as types from '../functions/api/cms/types';
 import * as entries from '../functions/api/cms/entries';
 import * as entry from '../functions/api/cms/entry';
@@ -668,7 +669,8 @@ test('a schema-invalid save answers with an error per field and keeps the last g
   assert.equal(out.code, 'invalid');
   assert.ok(out.errors.start, 'start');
   assert.ok(out.errors['title.tr'], 'title.tr');
-  assert.ok(out.errors.colour, 'unknown key');
+  // An unknown key is not in the form: named on the whole entry.
+  assert.ok(out.errors[''].includes('colour (Unknown field)'), 'unknown key');
   assert.deepEqual(JSON.parse(row(id).data), newEvent());
 
   const created = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), id: undefined } });
@@ -737,7 +739,7 @@ test('committees: an e-mail address (any @) is refused at submit, on its field',
   // A key the schema does not know, such as `email`, is refused at once.
   const withKey = await create(env, 'community', { type: 'committees', action: 'create', data: { ...aCommittee(), members: [{ ...aCommittee().members[0], email: 'x' }] } });
   assert.equal(withKey.res.status, 422);
-  assert.ok(withKey.body.errors['members.0.email']);
+  assert.ok(withKey.body.errors[''].includes('members.0.email (Unknown field)'));
 });
 
 test('committees: a member without consent is saved as work in progress and refused at submit', async () => {
@@ -1251,14 +1253,16 @@ test('constructor, toString and __proto__ are unknown fields, at the top and nes
   for (const k of ['constructor', 'toString', '__proto__']) {
     const top = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), [k]: 'x' } });
     assert.equal(top.res.status, 422, k);
-    assert.ok(Object.hasOwn(top.body.errors, k), `${k}: ${JSON.stringify(top.body.errors)}`);
+    // Named on the whole entry (not in the form), and never an own key of the errors.
+    const named = (errors: Record<string, string>, path: string) => !Object.hasOwn(errors, path) && errors[''].replace(/^[^:]*: /, '').split('; ').includes(`${path} (Unknown field)`);
+    assert.ok(named(top.body.errors, k), `${k}: ${JSON.stringify(top.body.errors)}`);
     const nested = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), title: { en: 'A', tr: 'B', [k]: 'x' } } });
     assert.equal(nested.res.status, 422, k);
-    assert.ok(Object.hasOwn(nested.body.errors, `title.${k}`), `${k}: ${JSON.stringify(nested.body.errors)}`);
+    assert.ok(named(nested.body.errors, `title.${k}`), `${k}: ${JSON.stringify(nested.body.errors)}`);
     const fm = { title: 'T', date: '2027-01-15', speaker: 'S', description: 'd', year: 2027, type: 'bioinfonet', [k]: 'x' };
     const pair = await create(env, 'editor', { type: 'webinars', action: 'create', data: { en: { frontmatter: fm, body: '' }, tr: { frontmatter: fm, body: '' } } });
     assert.equal(pair.res.status, 422, k);
-    assert.ok(Object.hasOwn(pair.body.errors, `en.frontmatter.${k}`), `${k}: ${JSON.stringify(pair.body.errors)}`);
+    assert.ok(named(pair.body.errors, `en.frontmatter.${k}`), `${k}: ${JSON.stringify(pair.body.errors)}`);
   }
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0, 'nothing stored');
 });
@@ -1387,7 +1391,7 @@ test('an unknown key inside an array element is refused and nothing is stored', 
     const link = { label: { en: 'Materials', tr: 'Materyaller' }, url: 'https://github.com/RSG-Turkiye/x', [k]: 'x' };
     const { res, body } = await create(env, 'editor', { type: 'events', action: 'create', data: { ...newEvent(), links: [link] } });
     assert.equal(res.status, 422, k);
-    assert.ok(Object.hasOwn(body.errors, `links.0.${k}`), `${k}: ${JSON.stringify(body.errors)}`);
+    assert.ok(!Object.hasOwn(body.errors, `links.0.${k}`) && body.errors[''].includes(`links.0.${k} (Unknown field)`), `${k}: ${JSON.stringify(body.errors)}`);
   }
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
 });
@@ -1589,18 +1593,63 @@ test('the approval queue holds drafts stuck in approved past the stale time, not
 
 // ── Task 7: the panel's server side ───────────────────────────────────────────
 
-test('every published entry still validates under the stricter schemas', () => {
-  const WORKSHOPS = cmsType('workshops')!;
-  for (const [path, text] of Object.entries(FILES)) {
-    if (path.startsWith('src/content/events/')) assert.deepEqual(validateDraft(EVENTS, JSON.parse(text)), { ok: true, data: JSON.parse(text) }, path);
-    if (path.startsWith('src/content/workshops/')) assert.equal(validateDraft(WORKSHOPS, JSON.parse(text)).ok, true, path);
+test('every published entry of every type round-trips through the panel: strict validation, house rules and rule 8', () => {
+  // Read from disk, not FILES: FILES holds only some folders, plus synthetic
+  // entries. Structural (A2): whatever main holds must open, save and send.
+  const disk: Record<string, string> = {};
+  const walk = (dir: string) => {
+    for (const f of readdirSync(`${ROOT}${dir}`, { withFileTypes: true })) {
+      if (f.isDirectory()) walk(`${dir}/${f.name}`);
+      else if (/\.(json|md)$/.test(f.name)) disk[`${dir}/${f.name}`] = readFileSync(`${ROOT}${dir}/${f.name}`, 'utf8');
+    }
+  };
+  const types = CMS_TYPES;
+  for (const dir of new Set(types.map((t) => t.dir))) walk(dir);
+  const index = buildCmsIndex(disk, undefined, types);
+  for (const type of types) {
+    const listed = index[type.key];
+    assert.ok(listed.length > 0, `${type.key}: no published entry found`);
+    for (const e of listed) {
+      let data: unknown;
+      if (type.format === 'json') data = parseJson(type, disk[`${type.dir}/${e.id}.json`]);
+      else {
+        const side = (p: string | null | undefined) => p ? parseMarkdown(type, disk[p]) : null;
+        data = { en: side(e.paths?.en), tr: side(e.paths?.tr) };
+      }
+      const v = validateDraft(type, data);
+      assert.equal(v.ok, true, `${type.key} ${e.id}: ${JSON.stringify(v.ok ? null : v.errors)}`);
+      if (v.ok && type.format === 'json') assert.deepEqual(v.data, data, `${type.key} ${e.id}: the data is kept as written`);
+      if (v.ok && type.resourceIds) {
+        // The parsed sides carry `source`, the file on main, as a draft opened from it does.
+        const lp = lpErrors(type, data as any, { assigned: [] });
+        assert.deepEqual(lp, {}, `${type.key} ${e.id}: rule 8`);
+      }
+    }
   }
-  for (const w of INDEX.webinars) {
-    const side = (p: string | null | undefined) => p ? parseMarkdown(WEBINARS, FILES[p]) : null;
-    const pair = { en: side(w.paths?.en), tr: side(w.paths?.tr) };
-    const v = validateDraft(WEBINARS, pair);
-    assert.equal(v.ok, true, `${w.id}: ${JSON.stringify(v.ok ? null : v.errors)}`);
+});
+
+test('an error on a key the form hides goes on the whole entry, never on the hidden field', () => {
+  const BLOG = cmsType('blog')!;
+  const side = (fm: object) => ({ frontmatter: { title: 'A post', pubDate: '2026-01-01', description: 'About it.', category: 'news', ...fm }, body: 'Text.' });
+  for (const mode of ['strict', 'lenient'] as const) {
+    // A legacy lang that contradicts the folder: refused, on the entry.
+    const v = validateDraft(BLOG, { en: side({ lang: 'tr' }), tr: null }, mode) as any;
+    assert.equal(v.ok, false, mode);
+    assert.deepEqual(Object.keys(v.errors), [''], mode);
+    assert.match(v.errors[''], /^Not in the form, so it is fixed in the repository: en\.frontmatter\.lang \(Must be "en" or left out\)$/);
   }
+  // Blog hides translationKey; webinars show it, so there it stays on the field.
+  const split = validateDraft(BLOG, { en: side({ translationKey: 'a' }), tr: side({ translationKey: 'b' }) }) as any;
+  assert.deepEqual(Object.keys(split.errors), ['']);
+  // A visible field keeps its own error, next to the moved one.
+  const both = validateDraft(BLOG, { en: side({ lang: 'tr', pubDate: 'soon' }), tr: null }, 'lenient') as any;
+  assert.deepEqual(Object.keys(both.errors).sort(), ['', 'en.frontmatter.pubDate']);
+  // A JSON type's hidden key (the privacy notice's server-set date).
+  const PRIVACY = cmsType('privacy')!;
+  const notice = JSON.parse(FILES['src/content/privacy/privacy.json']);
+  const p = validateDraft(PRIVACY, { ...notice, updated: 5 }, 'lenient') as any;
+  assert.deepEqual(Object.keys(p.errors), ['']);
+  assert.match(p.errors[''], /^Not in the form, so it is fixed in the repository: updated \(/);
 });
 
 test('the required display texts may not be empty at submit', () => {
@@ -1617,7 +1666,9 @@ test('lenient: missing or empty is allowed, unknown keys, wrong types and bad fo
   assert.equal(validateDraft(EVENTS, partial).ok, false, 'strict still refuses it');
   const wrong = validateDraft(EVENTS, { id: 'meetup-x', start: '6 March', title: { en: 5 }, colour: 'red', type: 'party' }, 'lenient') as any;
   assert.equal(wrong.ok, false);
-  assert.deepEqual(Object.keys(wrong.errors).sort(), ['colour', 'start', 'title.en', 'type']);
+  // An unknown key is not in the form: its error is on the whole entry.
+  assert.deepEqual(Object.keys(wrong.errors).sort(), ['', 'start', 'title.en', 'type']);
+  assert.match(wrong.errors[''], /^Not in the form, so it is fixed in the repository: colour \(Unknown field\)$/);
   // Nested unknown keys too, and the webinar pair's shape.
   assert.equal(validateDraft(EVENTS, { links: [{ label: { en: '', de: 'x' } }] }, 'lenient').ok, false);
   assert.equal(validateDraft(WEBINARS, { en: { frontmatter: {}, body: '' }, tr: { frontmatter: {}, body: '' } }, 'lenient').ok, true);
@@ -2821,4 +2872,44 @@ test('blog and webinars: an image on a host blocked in Türkiye is refused, on i
   } finally {
     done();
   }
+});
+
+// ── File-name length cap ─────────────────────────────────────────────────────
+
+import { idCandidates } from '../functions/_lib/cms-api';
+import { ID_MAX } from '../src/lib/cms/slug';
+
+test('a new entry\'s file name is cut to 80 characters, with no trailing hyphen, suffixes included', () => {
+  assert.equal(ID_MAX, 80);
+  const BLOG = cmsType('blog')!;
+  const RESOURCES = cmsType('resources')!;
+  const long = `${'word '.repeat(60)}end`; // 303 characters
+  assert.ok(long.length >= 300);
+  const id = BLOG.idFrom({ frontmatter: { title: long } });
+  assert.ok(id.length <= ID_MAX, `${id.length}`);
+  assert.match(id, /^[a-z0-9][a-z0-9-]*[a-z0-9]$/, 'no trailing hyphen after the cut');
+  assert.ok(`${long.toLowerCase().replace(/ /g, '-')}`.startsWith(id));
+  // A cut that lands on a hyphen: 79 letters, a space, then more.
+  const edge = `${'a'.repeat(ID_MAX - 1)} ${'b'.repeat(20)}`;
+  assert.equal(BLOG.idFrom({ frontmatter: { title: edge } }), 'a'.repeat(ID_MAX - 1));
+  // A Turkish title: transliterated, then cut.
+  const tr = 'Çok Güzel Bir Başlık: Ağaçlar, Işık ve Şöyle Böyle Üzüm Bağları Üzerine Uzun Bir İnceleme Yazısı';
+  const trId = BLOG.idFrom({ frontmatter: { title: tr } });
+  assert.ok(trId.length <= ID_MAX, `${trId.length}`);
+  assert.match(trId, /^cok-guzel-bir-baslik-agaclar-isik-ve-soyle-boyle-uzum-baglari-uzerine-uzun-bir/);
+  assert.match(trId, /^[a-z0-9-]+[a-z0-9]$/);
+  // Every free name the server may try stays within the cap.
+  const resource = { title: { en: long }, section: 'learning' };
+  const rid = RESOURCES.idFrom(resource);
+  const names = idCandidates(RESOURCES, rid, resource);
+  assert.ok(names.some((n) => n.endsWith('-learning')), 'the section form is offered');
+  assert.ok(names.some((n) => n.endsWith('-20')), 'up to -20');
+  for (const n of names) {
+    assert.ok(n.length <= ID_MAX, `${n} is ${n.length}`);
+    assert.match(n, /^[a-z0-9][a-z0-9-]*[a-z0-9]$/);
+    assert.doesNotMatch(n, /--/);
+  }
+  assert.equal(new Set(names).size, names.length, 'no name offered twice');
+  // A short title is unchanged.
+  assert.equal(BLOG.idFrom({ frontmatter: { title: 'A short post' } }), 'a-short-post');
 });

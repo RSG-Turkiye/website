@@ -14,7 +14,7 @@
  * legacy `lang`, a pair's `source`) passes through untouched, and a value
  * nobody edited is written back exactly as it was.
  */
-import { checkId, slugify } from '../../lib/cms/slug';
+import { capId, checkId, ID_MAX, slugify } from '../../lib/cms/slug';
 import { resourceId, resourceIdsOf, resourcesOf, sideFrontmatter } from '../../lib/cms/lp-resources';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
@@ -1010,12 +1010,13 @@ export function rowSummary(f: FieldDef, row: Row, lang: 'en' | 'tr'): string {
  * does not say it ("Ankara meetup", 2027 → ankara-meetup-2027).
  */
 export function suggestedId(model: TypeModel, values: Values): string {
-  const tryId = (text: string) => { try { return checkId(slugify(text)); } catch { return ''; } };
+  const tryId = (text: string) => { try { return checkId(capId(slugify(text))); } catch { return ''; } };
   if (model.key === 'events') {
     const slug = tryId(str((values.title as Bi | undefined)?.en));
     if (!slug) return '';
     const year = str(values.start).slice(0, 4);
-    return /^\d{4}$/.test(year) && !slug.includes(year) ? `${slug}-${year}` : slug;
+    // The year fits within the cap too: the title is cut shorter for it.
+    return /^\d{4}$/.test(year) && !slug.includes(year) ? `${capId(slug, ID_MAX - 5)}-${year}` : slug;
   }
   if (model.key === 'workshops') return tryId(str(values.repo));
   const en = (k: string) => str((values[k] as Bi<unknown> | undefined)?.en).trim();
@@ -1243,6 +1244,7 @@ export function messageKey(message: string): string {
   if (/received undefined|expected string to have >=1|^Missing$/.test(m)) return 'admin.cms.v.required';
   if (/end is before start/.test(m)) return 'admin.cms.v.endBeforeStart';
   if (/^Unknown field$/.test(m)) return 'admin.cms.v.unknown';
+  if (/^Not in the form, so it is fixed in the repository/.test(m)) return 'admin.cms.v.notInForm';
   if (/ISO date|expected date|Invalid date/.test(m)) return 'admin.cms.v.date';
   if (/^Invalid option/.test(m)) return 'admin.cms.v.option';
   if (/expected number/.test(m)) return 'admin.cms.v.number';

@@ -10,7 +10,7 @@ import { jsonSchemaFor } from '../src/lib/cms/json-schema';
 import { parseMarkdown, serializeJson } from '../src/lib/cms/serialize';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
-import { DOUBLE_HYPHEN_MESSAGE, EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE } from '../functions/_lib/cms-drafts';
+import { DOUBLE_HYPHEN_MESSAGE, EM_DASH_MESSAGE, FAILURE, houseRuleErrors, NO_AT_MESSAGE, NOT_IN_FORM } from '../functions/_lib/cms-drafts';
 import { ui } from '../src/i18n/ui';
 import { resourceSections } from '../src/data/resources';
 import {
@@ -118,6 +118,15 @@ function typeCoverage(type: CmsType, model: TypeModel): string[] {
   }
   return coverage(type.key, model.fields, schema, model.hidden);
 }
+
+test('the server knows which keys the form hides, so it never puts an error on one', () => {
+  for (const type of CMS_TYPES) {
+    const hidden = Object.keys(MODELS[type.key as TypeKey].hidden)
+      // An event's id is shown read-only and its errors land on the title (placeOf).
+      .filter((k) => !(type.idInData && k === 'id'));
+    assert.deepEqual([...type.hiddenKeys].sort(), hidden.sort(), type.key);
+  }
+});
 
 test('every schema key of every type is in its field model (nested rows too), or hidden with a reason', () => {
   for (const type of CMS_TYPES) assert.deepEqual(typeCoverage(type, MODELS[type.key as TypeKey]), [], type.key);
@@ -285,7 +294,8 @@ test('every label, help and error sentence exists in both languages', () => {
     walk(m.fields);
   }
   for (const code of ['changed_since', 'entry_busy', 'superseded', 'exists', 'github_failed', 'unauthenticated', 'invalid', 'nonsense']) keys.add(errorKey(code));
-  for (const m of ['received undefined', 'end is before start', 'Unknown field', 'Invalid ISO date', 'Invalid option', 'expected number', 'blocked in Türkiye', 'gives the file its name', 'Invalid id', 'same as the English side', EM_DASH_MESSAGE, NO_AT_MESSAGE, 'Invalid input: expected true', 'x']) keys.add(messageKey(m));
+  for (const m of ['received undefined', 'end is before start', 'Unknown field', 'Invalid ISO date', 'Invalid option', 'expected number', 'blocked in Türkiye', 'gives the file its name', 'Invalid id', 'same as the English side', EM_DASH_MESSAGE, NO_AT_MESSAGE, `${NOT_IN_FORM}: en.frontmatter.lang (x)`, 'Invalid input: expected true', 'x']) keys.add(messageKey(m));
+  assert.equal(messageKey(`${NOT_IN_FORM}: colour (Unknown field)`), 'admin.cms.v.notInForm');
   for (const k of keys) {
     assert.ok(k in ui.en, `en missing ${k}`);
     assert.ok(k in ui.tr, `tr missing ${k}`);
@@ -1623,4 +1633,13 @@ test('blog: an error on a Turkish-only post\'s title lands on the Turkish title'
   assert.equal(messageKey('Write the entry in English, Turkish or both'), 'admin.cms.v.oneSide');
   assert.equal(messageKey('Published in this language: it cannot be removed in a draft. Delete the entry to remove it'), 'admin.cms.v.sideKept');
   assert.equal(BLOG_TYPE.sides, 'either');
+});
+
+test('the form previews the capped file name the server will give', () => {
+  const long = `${'Word '.repeat(60)}end`;
+  assert.equal(suggestedId(MODELS.blog, { title: { en: long, tr: '' } }), cmsType('blog')!.idFrom({ frontmatter: { title: long } }));
+  const event = suggestedId(MODELS.events, { title: { en: long, tr: '' }, start: '2027-03-06' });
+  assert.ok(event.length <= 80, `${event.length}`);
+  assert.match(event, /^[a-z0-9-]+-2027$/);
+  assert.doesNotMatch(event, /--/);
 });

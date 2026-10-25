@@ -6,7 +6,6 @@ author: Yasin Kaya
 category: general
 tags: []
 image: "https://secure.gravatar.com/avatar/69328dc9e686f7ab0d5aff53c37ed39296fc5247c84a03dc4c94e60a647d805e?s=30&d=mm&r=g"
-lang: "tr"
 draft: false
 ---
 

@@ -332,6 +332,35 @@ export function houseRuleErrors(type: CmsType, data: unknown): FieldErrors {
   return errors;
 }
 
+/** The start of the whole-entry message for errors the form cannot show (client: messageKey). */
+export const NOT_IN_FORM = 'Not in the form, so it is fixed in the repository';
+
+/**
+ * Errors on a key the form never shows (the type's hiddenKeys, or a key the
+ * schema does not know) moved onto the whole entry (''), in one line naming
+ * each path: the editor sees them and knows the form cannot fix them.
+ */
+function toVisible(type: CmsType, errors: FieldErrors): FieldErrors {
+  const pair = type.format === 'markdown-pair';
+  const fieldOf = (path: string) => {
+    const parts = path.split('.');
+    return pair ? (parts[1] === 'body' ? 'body' : parts[1] === 'frontmatter' ? parts[2] : undefined) : parts[0];
+  };
+  const out: FieldErrors = {};
+  const moved: string[] = [];
+  for (const [path, message] of Object.entries(errors)) {
+    const field = fieldOf(path);
+    if (message === 'Unknown field' || (field !== undefined && type.hiddenKeys.includes(field))) moved.push(`${path} (${message})`);
+    else setOnce(out, path, message);
+  }
+  if (moved.length) {
+    const line = `${NOT_IN_FORM}: ${moved.join('; ')}`;
+    if (Object.hasOwn(out, '')) out[''] = `${out['']}\n${line}`;
+    else setOnce(out, '', line);
+  }
+  return out;
+}
+
 /**
  * The entry checked against its type's zod schema. On success `data` is the
  * input as written to the file (not zod's output, which would turn dates into
@@ -346,7 +375,7 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
     const r = type.schema.safeParse(data);
     if (!r.success) issuesToErrors(r.error.issues as Issue[], '', errors, mode, data);
     if (mode === 'strict') for (const [k, m] of Object.entries(houseRuleErrors(type, data))) setOnce(errors, k, m);
-    return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data };
+    return Object.keys(errors).length ? { ok: false, errors: toVisible(type, errors) } : { ok: true, data };
   }
 
   const either = type.sides === 'either';
@@ -373,7 +402,7 @@ export function validateDraft(type: CmsType, data: unknown, mode: CheckMode = 's
   }
   if (either && out.en === null && out.tr === null) setOnce(errors, '', 'Write the entry in English, Turkish or both');
   if (mode === 'strict') for (const [k, m] of Object.entries(houseRuleErrors(type, out))) setOnce(errors, k, m);
-  return Object.keys(errors).length ? { ok: false, errors } : { ok: true, data: out as PairData };
+  return Object.keys(errors).length ? { ok: false, errors: toVisible(type, errors) } : { ok: true, data: out as PairData };
 }
 
 /** The file id a new entry gets, from validated data. Only for a create:

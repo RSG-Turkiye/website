@@ -18,7 +18,7 @@ import { resourceSchema } from "../../data/resources";
 import { lpDomainSchema, lpLevelSchema, lpRoadmapSchema } from "../../data/learning-paths";
 import { pageTextSchema } from "../../data/page-text";
 import { privacySchema } from "../../data/privacy-schema";
-import { checkId, slugify, stageId } from "./slug";
+import { capId, checkId, slugify, stageId } from "./slug";
 
 export type CmsTypeKey = "events" | "workshops" | "webinars" | "blog" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap" | "pages" | "privacy";
 
@@ -104,6 +104,11 @@ export interface CmsTypeSpec {
    * (YYYY-MM-DD, Istanbul time) before the file is written, whatever the
    * draft holds (the privacy notice's `updated`, A8). Default "". */
   approvedOnKey?: string;
+  /** Schema keys the panel's form never shows (cms-form.ts `hidden`; for a
+   * pair, frontmatter keys and `body`). The server reports an error on one
+   * on the whole entry, never on a field the editor cannot reach. Events'
+   * `id` is not listed: the form shows its errors on the title. Default []. */
+  hiddenKeys?: readonly string[];
 }
 
 /** A type with every option resolved. */
@@ -125,6 +130,7 @@ export function defineType(spec: CmsTypeSpec): CmsType {
     lockedKeys: [],
     appendKey: "",
     resourceIds: false,
+    hiddenKeys: [],
     whenTaken: spec.idInData ? "refuse" : "next",
     ...spec,
   };
@@ -135,7 +141,8 @@ export { checkId, slugify };
 /** An id from free text, for a new entry. */
 function idFromText(text: unknown, what: string): string {
   // A draft is saved incomplete, so the field may still be missing.
-  const id = slugify(typeof text === "string" ? text : "");
+  // Cut after slugifying, then the trailing hyphens stripped, in that order.
+  const id = capId(slugify(typeof text === "string" ? text : ""));
   if (id === "") throw new Error(`The ${what} has no letters or digits to make an id from`);
   return checkId(id);
 }
@@ -176,6 +183,7 @@ export const CMS_TYPES: readonly CmsType[] = [
   }),
   defineType({
     key: "webinars",
+    hiddenKeys: ["lang"],
     group: "etkinlikler",
     dir: "src/content/webinars",
     format: "markdown-pair",
@@ -190,6 +198,7 @@ export const CMS_TYPES: readonly CmsType[] = [
   }),
   defineType({
     key: "blog",
+    hiddenKeys: ["lang", "translationKey"],
     group: "yazilar",
     dir: "src/content/blog",
     format: "markdown-pair",
@@ -221,6 +230,7 @@ export const CMS_TYPES: readonly CmsType[] = [
   }),
   defineType({
     key: "podcast",
+    hiddenKeys: ["syncedAt", "platforms"],
     group: "topluluk",
     dir: "src/data",
     format: "json",
@@ -257,6 +267,7 @@ export const CMS_TYPES: readonly CmsType[] = [
   }),
   defineType({
     key: "lp-domains",
+    hiddenKeys: ["body"],
     group: "ogrenme",
     dir: "src/content/lp-domains",
     format: "markdown-pair",
@@ -271,6 +282,7 @@ export const CMS_TYPES: readonly CmsType[] = [
   }),
   defineType({
     key: "lp-levels",
+    hiddenKeys: ["body"],
     group: "ogrenme",
     dir: "src/content/lp-levels",
     format: "markdown-pair",
@@ -291,6 +303,7 @@ export const CMS_TYPES: readonly CmsType[] = [
   }),
   defineType({
     key: "lp-roadmap",
+    hiddenKeys: ["body"],
     group: "ogrenme",
     dir: "src/content/lp-roadmap",
     format: "markdown-pair",
@@ -335,6 +348,7 @@ export const CMS_TYPES: readonly CmsType[] = [
   }),
   defineType({
     key: "privacy",
+    hiddenKeys: ["updated"],
     group: "sayfalar",
     dir: "src/content/privacy",
     format: "json",
