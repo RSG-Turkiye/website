@@ -31,7 +31,9 @@ function setup() {
   user.run('soon', 'g2', 'two@example.org', 0, 1, 1); // writer ending in 10 days, and a sender
   user.run('gone', 'g3', 'three@example.org', 0, 0, 0); // writer taken away earlier
   user.run('lapsed', 'g4', 'four@example.org', 0, 0, 0); // writer past its end, not yet swept
-  user.run('both', 'g5', 'five@example.org', 0, 1, 0); // writer and an existing Yazılar grant
+  user.run('both', 'g5', 'five@example.org', 0, 1, 0); // writer and a Yazılar grant ending sooner: extended
+  user.run('held', 'g7', 'seven@example.org', 0, 1, 0); // writer and a permanent Yazılar grant: kept
+  user.run('longer', 'g8', 'eight@example.org', 0, 1, 0); // writer ending before the Yazılar grant it holds: kept
   user.run('long', 'g6', 'six@example.org', 0, 1, 0); // writer ending in 60 days: capped at 30
   const grant = db.prepare('INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, revoked_at) VALUES (?, ?, ?, ?, ?, 1, ?)');
   grant.run('a', 'admin', 'admin', null, null, null);
@@ -44,6 +46,12 @@ function setup() {
   grant.run('w-both', 'both', 'writer', null, null, null);
   grant.run('y-both', 'both', 'content.yazilar.edit', t + 5 * DAY, 'admin', null);
   grant.run('w-long', 'long', 'writer', t + 60 * DAY, 'admin', null);
+  grant.run('w-held', 'held', 'writer', t + 20 * DAY, 'admin', null);
+  grant.run('y-held', 'held', 'content.yazilar.edit', null, 'admin', null);
+  grant.run('w-longer', 'longer', 'writer', t + 10 * DAY, 'admin', null);
+  grant.run('y-longer', 'longer', 'content.yazilar.edit', t + 25 * DAY, 'admin', null);
+  // A grant made in the panel may carry a note; 8k adds to it, never replaces it.
+  db.exec("UPDATE role_grants SET note = 'earlier note' WHERE id IN ('w-held', 'y-both')");
   return db;
 }
 
@@ -87,11 +95,21 @@ test('8k moves each live writer to Yazılar for at most 30 days and leaves every
   const [long] = moved(db, 'long');
   assert.ok(long.expires_at! >= t0 + 30 * DAY && long.expires_at! <= t1 + 30 * DAY, `ends ${long.expires_at}`);
 
-  // Someone who already edits Yazılar keeps their own grant; the writer still ends.
+  // A Yazılar grant ending sooner than the writer's (capped) end is extended to it, not duplicated.
   assert.deepEqual(moved(db, 'both'), []);
-  assert.equal(byId(db, 'y-both').expires_at, before.find((g) => g.id === 'y-both')!.expires_at);
+  const yBoth = byId(db, 'y-both');
+  assert.ok(yBoth.expires_at! >= t0 + 30 * DAY && yBoth.expires_at! <= t1 + 30 * DAY, `extended to ${yBoth.expires_at}`);
+  assert.equal(yBoth.note, 'earlier note; migration 8k: extended for writer');
+  assert.equal(byId(db, 'w-both').note, 'migration 8k: moved to content.yazilar.edit');
   assert.notEqual(byId(db, 'w-both').revoked_at, null);
   assert.equal(flag(db, 'both', 'is_writer'), 0);
+
+  // A Yazılar grant that already lasts long enough is left alone; the writer ends,
+  // its note says nothing moved, and an earlier note is kept.
+  assert.notEqual(byId(db, 'w-held').revoked_at, null);
+  assert.equal(byId(db, 'w-held').note, 'earlier note; migration 8k: ended, content.yazilar.edit already held');
+  assert.notEqual(byId(db, 'w-longer').revoked_at, null);
+  assert.equal(byId(db, 'w-longer').note, 'migration 8k: ended, content.yazilar.edit already held');
 
   // A writer grant that was already ended, or has run out, gives nothing.
   assert.deepEqual(moved(db, 'gone'), []);
@@ -100,7 +118,7 @@ test('8k moves each live writer to Yazılar for at most 30 days and leaves every
   assert.deepEqual(byId(db, 'w-lapsed'), before.find((g) => g.id === 'w-lapsed'));
 
   // Every other grant and column is untouched.
-  for (const id of ['a', 'e-perm', 's-soon', 'y-both']) assert.deepEqual(byId(db, id), before.find((g) => g.id === id), id);
+  for (const id of ['a', 'e-perm', 's-soon', 'y-held', 'y-longer']) assert.deepEqual(byId(db, id), before.find((g) => g.id === id), id);
   assert.equal(flag(db, 'admin', 'is_admin'), 1);
   assert.equal(flag(db, 'soon', 'is_sender'), 1);
   assert.equal(all(db).length, before.length + 3);
@@ -110,7 +128,7 @@ test('8k moves each live writer to Yazılar for at most 30 days and leaves every
   assert.ok(rightsFromRoles(roles, false).yazilar.edit);
   assert.ok(!roles.includes('writer'));
   const check = db.prepare(CHECK).all() as { role: string; live: number }[];
-  assert.deepEqual(check.map((r) => [r.role, r.live]), [['content.yazilar.edit', 4]]);
+  assert.deepEqual(check.map((r) => [r.role, r.live]), [['content.yazilar.edit', 6]]);
 });
 
 test('8k run twice changes nothing the second time', () => {
@@ -122,8 +140,8 @@ test('8k run twice changes nothing the second time', () => {
 });
 
 test('a run cut off after the insert is finished by running it again; the ending alone ends nothing', () => {
-  const [insert, end, sync] = MOVE.split('; ');
-  assert.ok(insert.startsWith('INSERT') && end.startsWith('UPDATE role_grants') && sync.startsWith('UPDATE users'));
+  const [insert, extend, end, sync] = MOVE.split(/; (?=INSERT |UPDATE )/);
+  assert.ok(insert.startsWith('INSERT') && extend.includes('extended') && end.startsWith('UPDATE role_grants SET revoked_at') && sync.startsWith('UPDATE users'));
 
   // The end and the cache rewrite without the insert: nobody loses writer without getting Yazılar.
   const lost = setup();

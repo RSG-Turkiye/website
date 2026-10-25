@@ -26,8 +26,8 @@ Two Astro sites in one repository:
 - **Main site** (repo root): public pages in Turkish and English (blog,
   webinars, learning paths, events, podcast), member accounts with Google
   sign-in, and an admin panel at `/admin`. The panel runs the organisation's
-  e-mail, social media publishing, symposium content, certificates, blog
-  submissions and announcements.
+  e-mail, social media publishing, symposium content, certificates, site
+  content through a CMS (blog posts included) and announcements.
 - **Symposium site** (`symposium_website/`): a separate static Astro project
   with its own Cloudflare Pages project. It reads its editable content from
   the main site's API at build time.
@@ -1151,6 +1151,26 @@ and the panel lets the author compare and continue from the site's version.
 6. Then, in the Roles view, grant the first `content.etkinlikler.*` roles.
 
 No Worker redeploy is needed.
+
+When the pull request that retires the old member blog form (Yazılar) is
+merged, two more steps:
+
+1. **Before the deploy**, a read-only check that no old submission is still
+   waiting (the form's endpoints and admin section are removed, so a pending
+   one could no longer be approved or rejected):
+
+   ```bash
+   wrangler d1 execute rsg-members --remote --command="SELECT COUNT(*) AS pending FROM blog_submissions WHERE status = 'pending'"
+   ```
+
+   It must be 0. If it is not, approve or reject those submissions in the
+   panel that is still live before merging.
+2. **After the deploy**, move the retired `writer` role (note 8k at the top of
+   `db/schema.sql`): in Users and roles → Roles, grant "Posts editor"
+   (Yazılar düzenleyici) to whoever holds "Blog writer" (Blog yazarı), ending
+   at the earlier of their writer grant's end and one month, then take away
+   "Blog writer". Both steps are in the activity log. The note's SQL is a
+   fallback only and writes no log row.
 
 ## Yearly handover
 
