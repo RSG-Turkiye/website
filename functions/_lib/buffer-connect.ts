@@ -35,7 +35,7 @@ export function chooseChannel(platform: BufferPlatform, channels: BufferChannel[
 
 export function bufferConnect(platform: BufferPlatform): PagesFunction<Env> {
   return async ({ request, env }) => {
-    if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+    if (!checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden' }, 403);
     const user = await getSessionUser(request, env);
     if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
     if (user.is_admin !== 1) return jsonResponse({ error: 'Forbidden' }, 403);

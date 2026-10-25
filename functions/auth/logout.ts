@@ -3,7 +3,7 @@ import { getSessionUser, clearSessionCookie, clearSignedInMarker, redirectRespon
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const base = getBaseUrl(request);
-  if (!checkCsrf(request)) return redirectResponse(`${base}/`);
+  if (!checkCsrf(request, env)) return redirectResponse(`${base}/`);
   const user = await getSessionUser(request, env);
 
   if (user) {

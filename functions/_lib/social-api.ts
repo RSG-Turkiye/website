@@ -19,7 +19,7 @@ export async function socialGate(request: Request, env: Env, need: 'edit' | 'pub
     // Never a publisher: whatever a token submits waits for a person's approval.
     return { ok: true, user, actor: { id: user.id, isPublisher: false }, agent };
   }
-  if (mutating && !checkCsrf(request)) return { ok: false, response: jsonResponse({ error: 'Forbidden' }, 403) };
+  if (mutating && !checkCsrf(request, env)) return { ok: false, response: jsonResponse({ error: 'Forbidden' }, 403) };
   const user = await getSessionUser(request, env);
   if (!user) return { ok: false, response: jsonResponse({ error: 'Not authenticated' }, 401) };
   const allowed = need === 'publish' ? canSocialPublish(user) : canSocialEdit(user);

@@ -11,7 +11,7 @@ const PANE = /^[a-z][a-z-]{0,39}$/;
  * (read.connections, read.audit) cannot be.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
   if (!(await canOpenAdminPanel(env.DB, user, Math.floor(Date.now() / 1000)))) return jsonResponse({ error: 'Forbidden' }, 403);

@@ -56,7 +56,7 @@ export async function cmsGate(request: Request, env: Env, mutating: boolean): Pr
     if (!Object.values(rights).some((r) => r.edit)) return { ok: false, response: forbidden() };
     return { ok: true, user: auth.user, rights, now, agent: auth.agent };
   }
-  if (mutating && !checkCsrf(request)) return { ok: false, response: fail(403, 'csrf', 'Forbidden') };
+  if (mutating && !checkCsrf(request, env)) return { ok: false, response: fail(403, 'csrf', 'Forbidden') };
   const user = await getSessionUser(request, env);
   if (!user) return { ok: false, response: fail(401, 'unauthenticated', 'Not signed in') };
   const rights = await groupRights(env.DB, user, now);

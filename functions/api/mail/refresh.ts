@@ -12,7 +12,7 @@ import { runSync } from './sync';
 const MIN_REFRESH_SECONDS = 60;
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
+  if (!checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
 
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated', code: 'not_authenticated' }, 401);

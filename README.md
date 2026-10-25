@@ -89,6 +89,12 @@ npm run preview      # serve the production build
 Pages that call the API need a local D1 and secrets; most static pages work
 without them.
 
+A page and the API on the same local address (one `wrangler pages dev`)
+pass the cross-site check as they are. If a page on one local port calls the
+API on another, or a `*.pages.dev` preview calls it, add `ALLOW_DEV_ORIGINS=1`
+to your `.dev.vars`. Never set it in production: there it would let any
+`*.pages.dev` site, anyone's, act with a signed-in member's session.
+
 ---
 
 ## How the site works

@@ -77,7 +77,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!checkCsrf(request)) return fail(403, 'csrf', 'Forbidden');
+  if (!checkCsrf(request, env)) return fail(403, 'csrf', 'Forbidden');
   const caller = await tokenCaller(request, env);
   if (!caller) return unauthenticated();
   const { user, roles, now } = caller;

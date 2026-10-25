@@ -9,7 +9,7 @@ import { fail } from '../../_lib/cms-api';
 import { COLUMNS, tokenCaller, tokenJson, unauthenticated, type TokenRow } from './index';
 
 export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params }) => {
-  if (!checkCsrf(request)) return fail(403, 'csrf', 'Forbidden');
+  if (!checkCsrf(request, env)) return fail(403, 'csrf', 'Forbidden');
   const caller = await tokenCaller(request, env);
   if (!caller) return unauthenticated();
   const { user, admin, now } = caller;
