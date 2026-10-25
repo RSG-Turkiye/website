@@ -20,7 +20,9 @@ test('an admin gets every count', async () => {
   seed(db);
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { email: 1, social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1, cmsMine: 0, cmsQueue: 0, cmsTotal: 0 });
+  // No `blog` key: the old submissions are history (a pending row is seeded
+  // above); blog posts are content drafts now, counted in cmsMine/cmsQueue.
+  assert.deepEqual(await res.json(), { email: 1, social: 1, dm: 0, socialTotal: 1, scheduledThisWeek: 1, cmsMine: 0, cmsQueue: 0, cmsTotal: 0 });
 });
 
 function addSender(db: import('node:sqlite').DatabaseSync) {
@@ -61,7 +63,7 @@ test('a count whose query fails is left out; the others are still returned', asy
   t.mock.method(console, 'error', (...a: unknown[]) => { logged.push(a); });
   const res = await call(onRequestGet, 'GET', '/api/admin/counts', { env, as: 'admin' });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { social: 1, dm: 0, socialTotal: 1, blog: 1, scheduledThisWeek: 1, cmsMine: 0, cmsQueue: 0, cmsTotal: 0 });
+  assert.deepEqual(await res.json(), { social: 1, dm: 0, socialTotal: 1, scheduledThisWeek: 1, cmsMine: 0, cmsQueue: 0, cmsTotal: 0 });
   assert.equal(logged.length, 1);
 });
 

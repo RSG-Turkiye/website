@@ -72,7 +72,7 @@ async function times(db: Db, sql: string, from: number, ...binds: unknown[]): Pr
 export async function d1Stats(db: Db, periods: Period[]) {
   const from = Math.min(...periods.map((p) => p.from));
 
-  const [accounts, members, progress, submitted, reviewed, sent, replies, social, certs, purged] = await Promise.all([
+  const [accounts, members, progress, submitted, reviewed, cmsPosts, sent, replies, social, certs, purged] = await Promise.all([
     times(db, 'SELECT created_at AS at FROM users WHERE created_at >= ?', from),
     db.prepare('SELECT COUNT(*) AS accounts, COALESCE(SUM(is_member), 0) AS members FROM users')
       .first<{ accounts: number; members: number }>(),
@@ -81,6 +81,10 @@ export async function d1Stats(db: Db, periods: Period[]) {
     times(db, 'SELECT created_at AS at FROM blog_submissions WHERE created_at >= ?', from),
     db.prepare("SELECT status, reviewed_at AS at FROM blog_submissions WHERE reviewed_at >= ? AND status IN ('approved', 'rejected')")
       .bind(from).all<{ status: string; at: number }>(),
+    // Blog posts are panel CMS drafts now; a published one is live on the
+    // site (the PR shepherd's last step). Published drafts are pruned after
+    // DRAFT_RETENTION_SECONDS, so this only sees the last 90 days of them.
+    times(db, "SELECT updated_at AS at FROM content_drafts WHERE status = 'published' AND updated_at >= ? AND type = 'blog'", from),
     times(db, "SELECT sent_at AS at FROM sent_emails WHERE sent_at >= ? AND status = 'sent'", from),
     times(db, "SELECT sent_at AS at FROM mail_messages WHERE sent_at >= ? AND direction = 'in'", from),
     db.prepare("SELECT platform, published_at AS at FROM social_post_targets WHERE status = 'published' AND published_at >= ?")
@@ -110,9 +114,12 @@ export async function d1Stats(db: Db, periods: Period[]) {
         values: bucket(done.filter((r) => areaOf(r.resource_id) === area).map((r) => r.at), periods),
       })),
     ],
+    // submitted and rejected are the old member form's history (the
+    // blog_submissions table, read only since the form was retired);
+    // approved adds the posts published through the panel.
     submissions: [
       { key: 'submitted', values: bucket(submitted, periods) },
-      { key: 'approved', values: bucket(reviewed.results.filter((r) => r.status === 'approved').map((r) => r.at), periods) },
+      { key: 'approved', values: bucket([...reviewed.results.filter((r) => r.status === 'approved').map((r) => r.at), ...cmsPosts], periods) },
       { key: 'rejected', values: bucket(reviewed.results.filter((r) => r.status === 'rejected').map((r) => r.at), periods) },
     ],
     mail: [

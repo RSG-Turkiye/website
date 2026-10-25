@@ -16,8 +16,8 @@ export type RoleFlags = {
   cms: GroupRights; canGrant: RoleKey[];
 };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'blog' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
-export type CountKey = 'email' | 'social' | 'blog' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'kayit';
+export type CountKey = 'email' | 'social' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it).
  * `editGroup`: a content type's tab, for those who edit that group; `heading`
@@ -75,7 +75,6 @@ export const SECTIONS: Section[] = [
     ],
   },
   { id: 'duyurular', group: 'iletisim', label: 'admin.announcements.heading', subs: [], visible: (r) => r.admin || r.announcer },
-  { id: 'blog', group: 'icerik', label: 'admin.blog.heading', count: 'blog', subs: [], visible: adminOnly },
   {
     id: 'sempozyum', group: 'icerik', label: 'admin.symposium.heading', visible: (r) => r.admin || r.symposium,
     subs: [

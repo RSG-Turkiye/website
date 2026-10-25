@@ -15,7 +15,6 @@ import { startShell, refreshCounts } from './shell';
 import { loadOverview } from './overview';
 import { loadUsers, setupUsersFilters, setCurrentUserId, setGranter, loadRolesView } from './sections/users';
 import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } from './sections/announcements';
-import { loadBlogSubmissions } from './sections/blog';
 import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload } from './sections/mail';
 import { showSent, setSentAdmin } from './sections/mail-sent';
 import { setupCompose, loadQueued } from './sections/mail-compose';
@@ -148,7 +147,6 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     setupAnnouncementForm();
   }
   if (isFullAdmin) await loadUsers();
-  if (isFullAdmin) await loadBlogSubmissions();
   if (isFullAdmin) {
     setupBulkGrant();
     setupAttachmentUpload();

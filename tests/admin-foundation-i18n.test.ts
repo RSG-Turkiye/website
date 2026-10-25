@@ -16,7 +16,7 @@ test('every key the new scripts look up exists', () => {
   const files = [
     'admin-health', 'admin-connections', 'admin-audit',
     'admin/context', 'admin/main',
-    'admin/sections/users', 'admin/sections/announcements', 'admin/sections/blog',
+    'admin/sections/users', 'admin/sections/announcements',
     'admin/sections/mail', 'admin/sections/symposium',
   ];
   for (const f of files) {

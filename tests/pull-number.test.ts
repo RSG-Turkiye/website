@@ -11,7 +11,7 @@ test('a trailing slash is not a different pull request', () => {
 });
 
 test('an issue is not a pull request', () => {
-  // notifyNewSubmission opens issues against the same repository, so an
+  // notifyMaintainer opens issues against the same repository, so an
   // issue URL landing in this column is a mistake worth refusing rather
   // than reading a number out of.
   assert.equal(pullNumberFromUrl('https://github.com/RSG-Turkiye/website/issues/226'), null);

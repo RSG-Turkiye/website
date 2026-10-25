@@ -2,7 +2,7 @@
  * One URL-safe slug, for both things that make them.
  *
  * There were two: one in _lib/symposium.ts for speaker and session slugs, one
- * in api/blog-submissions.ts for post filenames. Run against the same inputs
+ * in the member blog form's endpoint (since retired) for post filenames. Run against the same inputs
  * they agree on every realistic string -- Turkish letters, accents, casing,
  * punctuation -- and differ in exactly one thing: the blog one caps the result
  * at 80 characters and the symposium one does not.

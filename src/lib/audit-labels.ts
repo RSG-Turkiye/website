@@ -29,6 +29,8 @@ const FIXED: Record<string, Label> = {
   'announcement.update': { en: 'Edited an announcement', tr: 'Duyuruyu düzenledi' },
   'announcement.delete': { en: 'Deleted an announcement', tr: 'Duyuruyu sildi' },
 
+  // The member blog form is retired (posts are content drafts now); its rows
+  // stay in the log for a year and keep their names.
   'blog.approve': { en: 'Approved a blog submission', tr: 'Blog başvurusunu onayladı' },
   'blog.reject': { en: 'Declined a blog submission', tr: 'Blog başvurusunu geri çevirdi' },
 

@@ -7,7 +7,7 @@ const GITHUB_API_BASE = 'https://api.github.com';
 const GITHUB_TIMEOUT_MS = 10_000;
 
 type OpenPrParams = {
-  /** The `<branchPrefix>/` this branch lives under -- e.g. `blog-submission`
+  /** The `<branchPrefix>/` this branch lives under -- e.g. `cms`
    * or `symposium-archive`. Keeps unrelated automated branches from
    * colliding on name alone, and lets a human tell at a glance which flow
    * opened a given branch. */
@@ -416,7 +416,7 @@ export async function getFileOnBaseBranch(filePath: string, env: Env): Promise<s
 /**
  * Creates a branch, commits one or more files to it, and opens a PR against
  * main. Returns { success: false, error } on any failure without throwing
- * -- callers (the blog-submission approve endpoint, the symposium archive
+ * -- callers (the panel CMS approve endpoint, the symposium archive
  * endpoint) must not update their own row's status unless this returns
  * { success: true }, and must never surface `error` to an untrusted caller
  * -- it can echo back the GitHub API response body, which is not secret
@@ -430,11 +430,11 @@ export async function getFileOnBaseBranch(filePath: string, env: Env): Promise<s
  * outcome; it means the requested content already exists at the base
  * branch.
  *
- * Generalised from the blog approval flow's own `openBlogPostPR`:
+ * Generalised from the retired member blog flow's own `openBlogPostPR`:
  * `branchPrefix` is what used to be the hardcoded `blog-submission/`, now
- * supplied by each caller so a second flow (the symposium archive) can open
- * PRs under its own `symposium-archive/` branch namespace without a second
- * copy of this function.
+ * supplied by each caller so each flow (the symposium archive, the panel
+ * CMS) opens PRs under its own branch namespace without a second copy of
+ * this function.
  *
  * Safely retryable end to end: `createBranch` reuses a branch that already
  * exists, `commitFile` looks up each file's current sha on that branch and
@@ -568,20 +568,21 @@ export async function prState(prUrl: string, env: Env): Promise<PrState> {
 
 /**
  * Opens a GitHub issue assigned to env.GITHUB_NOTIFY_USERNAME so that
- * account gets a real "you were assigned" notification. Used to alert a
- * human the moment a member submits a post, since no PR exists yet at
- * that point (a PR only exists after an admin approves).
+ * account gets a real "you were assigned" notification. The symposium
+ * archive uses it to tell a human that its pull request needs merging.
+ * (Member blog submissions used it too until they moved to the panel CMS,
+ * whose menu badge replaces the issue.)
  *
  * Note: since GITHUB_PAT authors the issue, GitHub will never notify
  * that same token's own account about it (GitHub never notifies an
  * account about its own actions) -- GITHUB_NOTIFY_USERNAME must be a
  * different, real person's GitHub username for this to have any effect.
+ * The issue is public: never put personal data in the title or body.
  *
  * Best-effort: never throws. A failure here must not block or fail the
- * member's actual submission, so callers should not await this in a way
- * that surfaces its errors to the submitter.
+ * caller's actual work.
  */
-export async function notifyNewSubmission(title: string, body: string, env: Env): Promise<void> {
+export async function notifyMaintainer(title: string, body: string, env: Env): Promise<void> {
   if (!env.GITHUB_NOTIFY_USERNAME) return;
   try {
     const res = await githubRequest(
@@ -599,11 +600,11 @@ export async function notifyNewSubmission(title: string, body: string, env: Env)
     if (!res.ok) {
       // Swallow -- a missing "Issues: Read and write" permission on the
       // fine-grained PAT is the most likely cause, and a notification
-      // failure must never block the submission itself.
-      console.error('notifyNewSubmission failed', res.status, await res.text());
+      // failure must never block the caller's work.
+      console.error('notifyMaintainer failed', res.status, await res.text());
     }
   } catch (e) {
-    console.error('notifyNewSubmission threw', e);
+    console.error('notifyMaintainer threw', e);
   }
 }
 

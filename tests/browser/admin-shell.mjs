@@ -19,10 +19,10 @@ const ok = (c, m) => { console.log(`   ${c ? '✓' : '✗'} ${m}`); if (!c) bad.
 const ADMIN = { id: 'u1', email: 'admin@example.org', is_admin: true };
 const SOCIAL = { id: 'u2', email: 'social@example.org', is_social: true };
 const SENDER = { id: 'u3', email: 'sender@example.org', is_sender: true };
-const COUNTS = { email: 3, social: 2, blog: 1, scheduledThisWeek: 4 };
+const COUNTS = { email: 3, social: 2, scheduledThisWeek: 4 };
 // One body that satisfies every list the panel reads on load.
 const EMPTY = {
-  users: [], badge_catalog: [], announcements: [], submissions: [], senders: [], attachments: [], sends: [],
+  users: [], badge_catalog: [], announcements: [], senders: [], attachments: [], sends: [],
   connections: [], rows: [], hasMore: false, year: 2026, edition: {}, items: [], certificates: [], totalBytes: 0,
   posts: [], plans: [], modes: [], editors: [],
 };
@@ -170,7 +170,6 @@ console.log('5) lists redrawn, 390 px');
   const FULL = {
     ...EMPTY,
     announcements: [{ id: 'a1', title: 'Registration closes ' + long, description: 'd', button_text: 'Go', button_url: 'https://example.org', expires_at: 1893456000, site: 'main', show_as_popup: true }],
-    submissions: [{ id: 'b1', lang: 'en', title: 'A post', description: 'd', category: 'news', tags: ['x'], author: 'a', image_url: '', body: long, slug: 's', status: 'pending', rejection_reason: null, pr_url: null, paired_submission_id: null, submitter_email: 'someone@example.org' }],
     senders: [{ user_id: 'u9', email: 'sender@example.org', display_name: 'Sender', team: 'Comms', granted_at: 1760000000, granted_by_email: 'admin@example.org' }],
     attachments: [{ id: 'f1', filename: long + '.pdf', size_bytes: 2048, uploaded_at: 1760000000, is_active: 1 }],
     sends: [{ subject: 'Hello ' + long, sender_email: 's@example.org', sender_name: null, recipient_email: 'r@example.org', sent_at: 1760000000, status: 'failed', error_message: long }],
@@ -179,7 +178,7 @@ console.log('5) lists redrawn, 390 px');
     hasMore: true,
   };
   const { page, deletes, views } = await open(ADMIN, { width: 390, height: 844 }, '/admin', FULL);
-  for (const h of ['#duyurular', '#blog', '#eposta/yetki', '#eposta/gondericiler', '#eposta/ekler', '#eposta/gonderilenler', '#baglantilar', '#kayit']) {
+  for (const h of ['#duyurular', '#eposta/yetki', '#eposta/gondericiler', '#eposta/ekler', '#eposta/gonderilenler', '#baglantilar', '#kayit']) {
     await page.evaluate((x) => { location.hash = x; }, h);
     await waitHash(page, h);
     await page.waitForTimeout(250);
@@ -207,16 +206,16 @@ console.log('5) lists redrawn, 390 px');
   const noticeUp = () => page.locator('#announcementForm').evaluate((f) => !f.previousElementSibling.classList.contains('hidden'));
   await page.fill('#annTitle', 'unsaved');
   const before = views.length;
-  await go('#blog');
+  await go('#baglantilar');
   ok(await hash(page) === '#duyurular', 'leaving a dirty form stays on the section');
   ok(await noticeUp(), 'the unsaved-changes notice shows');
-  ok(!(await visible(page, '[data-section="blog"]')), 'the target section was never shown');
+  ok(!(await visible(page, '[data-section="baglantilar"]')), 'the target section was never shown');
   ok(views.length === before, 'a vetoed navigation posts no audit view');
   await go('#kayit');
   ok(await hash(page) === '#duyurular' && views.length === before, 'a second navigation while the notice is up is still blocked');
   await page.click('[data-keep]');
   ok(!(await noticeUp()) && await page.inputValue('#annTitle') === 'unsaved', 'Keep editing hides the notice and keeps the data');
-  await go('#blog');
+  await go('#baglantilar');
   await go('#kayit');
   await page.click('[data-discard]');
   await waitHash(page, '#kayit');
@@ -231,8 +230,8 @@ console.log('5) lists redrawn, 390 px');
   await page.fill('#annExpiresAt', '2030-01-01');
   await page.click('#announcementForm button[type="submit"]');
   await page.waitForTimeout(400);
-  await go('#blog');
-  ok(await hash(page) === '#blog', 'after a successful save, leaving is free');
+  await go('#baglantilar');
+  ok(await hash(page) === '#baglantilar', 'after a successful save, leaving is free');
   await page.close();
 }
 
@@ -290,13 +289,13 @@ console.log('6) Sempozyum sub-pages and the unsaved-changes guard');
     ok(await notice.isVisible(), 'the unsaved-changes notice is on screen above the speaker form');
     ok(!(await visible(page, '[data-sub="oturumlar"]')), 'the sessions sub-page was never shown');
     await notice.locator('[data-keep]').click();
-    await page.evaluate(() => { location.hash = '#blog'; });
+    await page.evaluate(() => { location.hash = '#baglantilar'; });
     await page.waitForTimeout(300);
     ok(await hash(page) === '#sempozyum/konusmacilar', 'a dirty speaker form blocks leaving the section');
     ok(await notice.isVisible(), 'the notice shows again');
     await notice.locator('[data-discard]').click();
-    await waitHash(page, '#blog');
-    ok(await hash(page) === '#blog', 'Discard continues to the wanted section');
+    await waitHash(page, '#baglantilar');
+    ok(await hash(page) === '#baglantilar', 'Discard continues to the wanted section');
     await page.evaluate(() => { location.hash = '#sempozyum/konusmacilar'; });
     await waitHash(page, '#sempozyum/konusmacilar');
     ok(await page.inputValue('#symSpeakerName') === '', 'Discard cleared the speaker form');

@@ -79,7 +79,6 @@ const holders = [
     grants: [{ role: 'symposium', expires_at: Math.floor((NOW + 3 * 3600) / DAY) * DAY - 3 * 3600 + 10 * DAY }] },
 ];
 const json = (value) => (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(value) });
-await page.route('**/api/admin/blog-submissions**', json({ submissions: [] }));
 await page.route('**/api/admin/mail-senders**', json({ senders: [] }));
 await page.route('**/api/admin/mail-attachments**', json({ attachments: [] }));
 await page.route('**/api/admin/sends**', json({ sends: [] }));

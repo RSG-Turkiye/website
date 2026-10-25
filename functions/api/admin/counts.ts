@@ -39,7 +39,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     WHERE last_inbound_at > COALESCE(last_outbound_at, 0) AND last_inbound_at > ? AND COALESCE(read_at, 0) < last_inbound_at`, now - 86400);
   // The Sosyal menu badge: approvals plus unread messages. A missing dm count (migration not applied) adds nothing.
   if (typeof out.social === 'number') out.socialTotal = out.social + (out.dm ?? 0);
-  if (admin) await count('blog', `SELECT COUNT(*) AS n FROM blog_submissions WHERE status = 'pending'`);
   // Content drafts: my own that need me (sent back, or failed), and for
   // approvers the queue (/api/cms/drafts' rule: submitted, or an approval
   // that never finished). cmsTotal is the menu badge.

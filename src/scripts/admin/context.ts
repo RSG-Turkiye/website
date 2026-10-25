@@ -24,7 +24,7 @@ export function formatDate(ts: number) {
   // Pinned to Istanbul, like the rest of the site's admin- and
   // member-facing dates -- two timezones on one screen is worse than
   // either. Date-only, so this only matters right around midnight, but
-  // it also governs the announcement and blog-submission dates rendered
+  // it also governs the announcement dates rendered
   // further down this page, not just anything from the scheduled-send
   // feature.
   return new Date(ts * 1000).toLocaleDateString(dateLocale, {

@@ -69,3 +69,12 @@ test('the old Etkinlikler address is the İçerik one with its prefix swapped (P
   // Only that one prefix: a look-alike is not rewritten.
   assert.equal(parseHash('#icerik-etkinliklerx/taslaklar')!.section, 'icerik-etkinliklerx');
 });
+
+test('the old Blog section (member submissions) opens İçerik\'s Blog tab', () => {
+  const admin = { ...none, admin: true, cms: { etkinlikler: { edit: true, approve: true }, yazilar: { edit: true, approve: true } } } as RoleFlags;
+  assert.deepEqual(parseHash('#blog'), { section: 'icerik', sub: 'blog', item: null });
+  assert.equal(toHash(resolveRoute(parseHash('#blog'), admin, false, false)), '#icerik/blog');
+  // Someone who no longer edits posts lands where they always would.
+  assert.equal(resolveRoute(parseHash('#blog'), { ...none, sender: true }, false, false).section, 'eposta');
+  assert.equal(parseHash('#blogx')!.section, 'blogx');
+});

@@ -14,7 +14,7 @@ const none: RoleFlags = { admin: false, announcer: false, symposium: false, soci
 const ids = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
-  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'blog', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'kayit']);
+  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'kayit']);
 });
 
 test('one section: no Overview, and the panel lands in it', () => {
@@ -36,9 +36,9 @@ test('no role, no panel', () => {
   assert.equal(landing(none), null);
 });
 
-test('blog stays admin-only; e-mail is for admins and senders, not for other roles', () => {
+test('e-mail is for admins and senders, not for other roles; the old Blog section is gone', () => {
   const r = { ...none, announcer: true, symposium: true, social: true, socialPublisher: true };
-  assert.ok(!ids(r).includes('blog'));
+  assert.ok(!SECTIONS.some((s) => (s.id as string) === 'blog'), 'blog posts are İçerik › Blog now');
   assert.ok(!ids(r).includes('eposta'));
   assert.ok(ids({ ...none, sender: true }).includes('eposta'));
 });

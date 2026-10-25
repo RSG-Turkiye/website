@@ -323,6 +323,37 @@
 --      wrangler d1 execute rsg-members --local --command="DROP TABLE content_drafts"
 --      wrangler d1 execute rsg-members --local --file=db/schema.sql
 --
+-- 8k. The retired writer role moves to the Yazılar group. Blog posts are
+--    written in the panel CMS now (content drafts), and the old member
+--    submission form and its admin section are gone, so a live `writer` grant
+--    no longer lets anyone do anything. Each live writer grant becomes a
+--    `content.yazilar.edit` grant ending at the earlier of the writer grant's
+--    end and 30 days from now (an edit role runs at most a month; renew it in
+--    the panel, Users and roles > Roles), and the writer grant is ended. At the
+--    time of writing there is one such grant. Run it immediately before the
+--    merge, so the person is never without a way to write posts for long.
+--    First look at what is live (counts and dates only):
+--      wrangler d1 execute rsg-members --remote --command="SELECT role, COUNT(*) AS live, MIN(expires_at) AS ends_first, SUM(expires_at IS NULL) AS permanent FROM role_grants WHERE role IN ('writer', 'content.yazilar.edit') AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > unixepoch()) GROUP BY role"
+--    Then move it. One command, three statements: insert the Yazılar grant,
+--    end the writer grant (only for someone who now holds Yazılar), and
+--    rewrite the users.is_writer cache from the live grants, as
+--    syncColumnsStatement does (CLAUDE.md: the is_* columns are a cache of
+--    role_grants). Every statement is guarded, so running it twice changes
+--    nothing, and a run cut off half way is finished by running it again:
+--      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, note) SELECT lower(hex(randomblob(16))), w.user_id, 'content.yazilar.edit', MIN(CASE WHEN COUNT(*) > COUNT(w.expires_at) THEN unixepoch() + 2592000 ELSE MAX(w.expires_at) END, unixepoch() + 2592000), NULL, unixepoch(), 'migration 8k: moved from writer' FROM role_grants w WHERE w.role = 'writer' AND w.revoked_at IS NULL AND (w.expires_at IS NULL OR w.expires_at > unixepoch()) AND NOT EXISTS (SELECT 1 FROM role_grants y WHERE y.user_id = w.user_id AND y.role = 'content.yazilar.edit' AND y.revoked_at IS NULL AND (y.expires_at IS NULL OR y.expires_at > unixepoch())) GROUP BY w.user_id; UPDATE role_grants SET revoked_at = unixepoch(), note = 'migration 8k: moved to content.yazilar.edit' WHERE role = 'writer' AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > unixepoch()) AND EXISTS (SELECT 1 FROM role_grants y WHERE y.user_id = role_grants.user_id AND y.role = 'content.yazilar.edit' AND y.revoked_at IS NULL AND (y.expires_at IS NULL OR y.expires_at > unixepoch())); UPDATE users SET is_writer = EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'writer' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch())) WHERE is_writer = 1"
+--    Run the first command again: `writer` should be gone and
+--    `content.yazilar.edit` should show the moved grant.
+--    Not in the activity log: an audit row carries a SHA-256 hash of the row
+--    before it (functions/_lib/audit.ts), which SQL cannot compute, and a
+--    hand-written row would break the chain for a year. The move is recorded
+--    in role_grants itself (granted_by and revoked_by NULL, with a note), the
+--    way the 8i backfill and the hourly expiry record theirs. To have both
+--    halves in the log instead, skip the command above and do it in the panel:
+--    grant "Posts editor" (Yazılar düzenleyici) to the person in Users and
+--    roles > Roles (pick the writer grant's end date if it is sooner than a
+--    month), then take away their retired "Blog writer" (Blog yazarı) role on
+--    the same page.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -461,11 +492,11 @@ CREATE TABLE IF NOT EXISTS announcements (
   site          TEXT NOT NULL DEFAULT 'main'
 );
 
--- Member blog submissions: a member with is_writer submits through the
--- website; an admin approves or rejects. Approval opens a real GitHub PR
--- (see functions/_lib/github.ts) -- git remains the single source of
--- truth for published posts, this table only holds the pending/rejected
--- work-in-progress state before that PR exists.
+-- Member blog submissions, from the retired /account form: a member with
+-- is_writer submitted, an admin approved (opening a GitHub PR) or rejected.
+-- Blog posts are panel CMS drafts now (content_drafts, type 'blog'); nothing
+-- writes this table any more. It is kept, read only, for the statistics of
+-- that history (functions/_lib/stats.ts).
 CREATE TABLE IF NOT EXISTS blog_submissions (
   id                   TEXT PRIMARY KEY,
   submitted_by         TEXT NOT NULL REFERENCES users(id),

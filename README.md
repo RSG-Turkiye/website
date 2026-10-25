@@ -131,16 +131,23 @@ sites. Two things are **not** part of a deploy and are done by hand:
 > ```
 > Without this, Google login will fail with a `redirect_uri_mismatch` error. Remove any stale dev preview URLs (e.g. `website-dev-vi6.pages.dev`) from the same list.
 
-#### Member blog submissions — required setup
+#### Content pull requests and images — required setup
 
-The member blog submission feature (members write a post on `/account`, an admin approves it, and the site auto-opens a GitHub PR) needs three things configured that aren't part of a normal deploy:
+The panel CMS (İçerik, including blog posts) and the symposium archive open
+pull requests against this repository, and panel uploads store images. They
+need three things configured that aren't part of a normal deploy:
 
 1. **A GitHub secret**, `GITHUB_PAT` — a fine-grained Personal Access Token from a dedicated GitHub account, scoped to *only* this repo, with **Contents: Read and write**, **Pull requests: Read and write**, and **Issues: Read and write** permissions. Set via:
    ```
    wrangler pages secret put GITHUB_PAT --project-name website
    ```
-2. **An R2 bucket**, `rsg-blog-images` (`wrangler r2 bucket create rsg-blog-images`). It does not need public access: images are served through the site's own `/api/images/<key>`, and `PUBLIC_BLOG_IMAGES_URL` in `wrangler.toml` points there. Do not use the bucket's `r2.dev` address; it is blocked in Türkiye.
-3. **`GITHUB_NOTIFY_USERNAME`** in `wrangler.toml`'s `[vars]` — the GitHub username of whoever should be notified the moment a member submits a post (before any admin approves it, so nothing sits unnoticed). This **must be a different account than whoever `GITHUB_PAT` belongs to** — GitHub never sends a notification to an account for actions that account itself performed, so the PAT's own account can never be notified this way. **Update this whenever the person responsible for reviewing submissions changes** (e.g. a new committee president) — it's a plain config value, no code change needed.
+2. **An R2 bucket**, `rsg-blog-images` (`wrangler r2 bucket create rsg-blog-images`). It does not need public access: images are served through the site's own `/api/images/<key>`, and `PUBLIC_BLOG_IMAGES_URL` in `wrangler.toml` points there. Do not use the bucket's `r2.dev` address; it is blocked in Türkiye. Every panel upload (blog, symposium, social) goes through `/api/blog-submissions/upload-image`, a path kept from the old member blog form so that posts already published keep their image links.
+3. **`GITHUB_NOTIFY_USERNAME`** in `wrangler.toml`'s `[vars]` — the GitHub username to notify when a finished symposium's archive pull request needs merging. This **must be a different account than whoever `GITHUB_PAT` belongs to** — GitHub never sends a notification to an account for actions that account itself performed, so the PAT's own account can never be notified this way. It's a plain config value, no code change needed.
+
+Members no longer submit posts from `/account`. Someone who holds the
+Yazılar edit right writes them in the panel (see [Blog posts](#blog-posts));
+`/account` shows them a card that opens it. The `blog_submissions` table
+stays, read only, for the statistics of the old form's history.
 
 #### Sending mail as RSG — required setup
 
@@ -387,7 +394,7 @@ to decide an edition is no longer upcoming: midnight after `endDate`, or
 `startDate` if there's no `endDate`), and for any that have finished and
 whose CMS overlay has not yet been folded in, renders its D1 rows to the
 content collection's JSON shape and opens a pull request against this repo —
-the same `GITHUB_PAT` used for blog submissions, so no separate GitHub
+the same `GITHUB_PAT` the panel CMS uses, so no separate GitHub
 credential is needed. A human still reviews and merges that PR; nothing here
 writes to `main` directly. Once the PR's URL is recorded (`archived_pr_url`),
 that edition is reported as already archived rather than re-submitted — the
@@ -1009,7 +1016,9 @@ file under the same name. A language added in the draft can be taken out
 again before it is sent; one that is on the site cannot (delete the post to
 remove it). Images upload through the same endpoint as everywhere else in the
 panel and are served from `/api/images/`. In the data, a language a post
-does not have is `null` (the registry's `sides: 'either'`).
+does not have is `null` (the registry's `sides: 'either'`). This replaced
+the old member submission form on `/account` and its admin "Blog" section;
+the retired `writer` role moved to `content.yazilar.edit` (migration note 8k).
 
 ### Podcast episodes
 
@@ -1155,7 +1164,7 @@ When the committee changes:
   date in the same view; a renewed role starts a new grant.
 - Make sure at least two people are admins.
 - Change `GITHUB_NOTIFY_USERNAME` in `wrangler.toml` to the GitHub username of
-  whoever now reviews blog submissions.
+  whoever now merges the symposium archive pull request.
 - Go through [Yearly upkeep](#yearly-upkeep) for the social accounts.
 - Export the Log (JSON) from the Log pane and keep it with the year's records.
   The panel only keeps a year of history.
@@ -1168,7 +1177,7 @@ When the committee changes:
 Every role is a grant in the `role_grants` table: who holds it, until when
 (or permanently), and who granted or ended it. Leader roles (admin,
 announcer, symposium, social publisher, content approver) can last up to 12
-months, or be made permanent by an admin. Edit roles (writer, sender, social,
+months, or be made permanent by an admin. Edit roles (sender, social,
 content editor) last up to one month, then are renewed. The end date a person picks is inclusive: the role
 works through that whole day. The `users.is_*` columns are only a cache that
 permission checks read; they are rewritten from the live grants in the same

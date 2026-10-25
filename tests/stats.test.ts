@@ -103,6 +103,30 @@ test('D1 figures are counts per period, and nothing in them names anyone', async
   assert.doesNotMatch(JSON.stringify(s), /@example\.org|"u1"|"u2"/);
 });
 
+test('blog: posts published through the panel CMS add to the old submission form\'s approvals', async () => {
+  const db = seeded();
+  // The old form's history (the table is kept, read only).
+  const sub = db.prepare(`INSERT INTO blog_submissions (id, submitted_by, lang, title, description, category, author, body, slug, status, created_at, reviewed_at)
+    VALUES (?, 'u1', 'en', 't', 'd', 'c', 'a', 'x', ?, ?, ?, ?)`);
+  sub.run('b1', 's1', 'approved', tr(2025, 4, 1), tr(2025, 4, 2));
+  sub.run('b2', 's2', 'rejected', tr(2026, 9, 3), tr(2026, 9, 4));
+  sub.run('b3', 's3', 'pending', tr(2026, 10, 1), null);
+  // Panel drafts: only a published blog draft counts, at the time it went live.
+  const draft = db.prepare(`INSERT INTO content_drafts (id, type, entry_id, action, data, status, author_id, created_at, updated_at)
+    VALUES (?, ?, ?, 'create', '{}', ?, 'u1', ?, ?)`);
+  draft.run('d1', 'blog', 'a-post', 'published', tr(2026, 9, 1), tr(2026, 10, 5));
+  draft.run('d2', 'blog', 'b-post', 'published', tr(2026, 9, 1), tr(2026, 9, 20));
+  draft.run('d3', 'blog', 'c-post', 'merged', tr(2026, 10, 1), tr(2026, 10, 6));
+  draft.run('d4', 'blog', 'd-post', 'submitted', tr(2026, 10, 1), tr(2026, 10, 6));
+  draft.run('d5', 'events', 'an-event', 'published', tr(2026, 10, 1), tr(2026, 10, 6));
+  const s = await d1Stats(d1(db) as never, periodsFor(2026, NOW));
+  assert.deepEqual(s.submissions, [
+    { key: 'submitted', values: [1, 1, 2, 1] },
+    { key: 'approved', values: [1, 1, 2, 1] },
+    { key: 'rejected', values: [0, 1, 1, 0] },
+  ]);
+});
+
 const get = (env: unknown, query = '', cookie = 'rsg_session=sa') =>
   (endpoint.onRequestGet as (c: unknown) => Promise<Response>)({
     request: new Request(`https://rsg-turkiye.iscbsc.org/api/admin/stats${query}`, { headers: cookie ? { Cookie: cookie } : {} }),

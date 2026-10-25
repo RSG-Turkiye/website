@@ -11,16 +11,17 @@ type Raw = { section: string; sub: string | null; item: string | null };
 /**
  * Sections that moved, by their old id: the rest of the address is the same.
  * The Etkinlikler section became İçerik; pull requests opened before that
- * (PR #325's body, say) link to the old address.
+ * (PR #325's body, say) link to the old address. The admin "Blog" section
+ * (member submissions) became İçerik's Blog tab.
  */
-const ALIASES: Record<string, string> = { 'icerik-etkinlikler': 'icerik' };
+const ALIASES: Record<string, string> = { 'icerik-etkinlikler': 'icerik', blog: 'icerik/blog' };
 
 // The item is a mail thread id: the shape the server accepts (gmail-read.ts).
 export function parseHash(hash: string): Raw | null {
   const raw = hash.replace(/^#/, '').trim();
   if (!raw) return null;
-  const [first, sub, item] = raw.split('/');
-  const section = Object.hasOwn(ALIASES, first) ? ALIASES[first] : first;
+  const [head, ...rest] = raw.split('/');
+  const [section, sub, item] = [...(Object.hasOwn(ALIASES, head) ? ALIASES[head].split('/') : [head]), ...rest];
   return section ? { section, sub: sub || null, item: sub && item && /^[A-Za-z0-9_-]{1,128}$/.test(item) ? item : null } : null;
 }
 

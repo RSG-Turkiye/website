@@ -192,13 +192,6 @@ const t = useTranslations(lang);
           <p id="announcementsEmptyState" class="hidden text-center py-12 lg:py-6 text-sm text-gray-500">{t('admin.announcements.table.noneYet')}</p>
         </section>
 
-        <!-- Blog submissions section -->
-        <section id="blogSubmissionsSection" data-section="blog">
-          <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.blog.heading')}</h2>
-          <div id="blogSubmissionsList" class="flex flex-col gap-4"></div>
-          <p id="blogSubmissionsEmpty" class="hidden text-sm text-gray-500">{t('admin.blog.empty')}</p>
-        </section>
-
         <SymposiumPane lang={lang} />
         <CmsPane lang={lang} />
         <SocialPane lang={lang} />
