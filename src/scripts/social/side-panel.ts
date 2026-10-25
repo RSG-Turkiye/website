@@ -2,7 +2,7 @@
 import { api, ApiError, type Plan, type Post } from './api';
 import { deps, changed } from './context';
 import { errorText, problemText, publishErrorText, splitPublishError, requeueLabelKey } from './messages';
-import { esc, button, armConfirm } from './ui';
+import { esc, button, armConfirm, agentChip } from './ui';
 import { dayKey, timeOf, planDue } from '../../lib/social-calendar';
 import { findPlan, findPost, dayItems } from './calendar-view';
 import { openPlanDialog } from './plan-dialog';
@@ -126,7 +126,7 @@ function renderPost(p: Post): void {
   const requeueKey = requeueLabelKey(p);
   if (me.isPublisher && requeueKey) actions.push(button(t(requeueKey), 'data-act="requeue"', 'ok'));
   frame(p.planTitle || t(`admin.social.type.${p.type}`), `
-    <p class="mt-1 text-xs font-semibold">${esc(t(`admin.social.status.${p.status}`))}</p>
+    <div class="mt-1 flex flex-wrap items-center gap-2"><p class="text-xs font-semibold">${esc(t(`admin.social.status.${p.status}`))}</p>${agentChip(p)}</div>
     ${!canEdit && !LOCKED.includes(p.status) ? `<p class="mt-2 text-xs text-gray-500">${esc(t('admin.social.side.readOnly'))}</p>` : ''}
     ${row(t('admin.social.side.when'), esc(when(p.scheduledAt)))}
     ${row(t('admin.social.side.platforms'), esc(p.platforms.map((x) => t(`admin.connections.platform.${x}`)).join(', ')))}

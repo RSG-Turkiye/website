@@ -35,13 +35,24 @@ function filters(): URLSearchParams {
   return q;
 }
 
+/** An action an agent token took (audit.ts writes `via: 'agent'` into details). */
+function viaAgent(details: string): boolean {
+  try {
+    const d = JSON.parse(details) as unknown;
+    return typeof d === 'object' && d !== null && (d as Record<string, unknown>).via === 'agent';
+  } catch {
+    return false;
+  }
+}
+
 function row(r: Row): string {
   const target = [r.target_type, r.target_id].filter(Boolean).join(': ');
   const who = r.user_email ?? deps.t('admin.audit.system');
   // The readable name leads; the code stays in the subtitle, since it is what
   // the Action filter matches. An unknown code is shown as it is.
   const label = auditLabel(r.action, deps.lang);
-  const subtitle = [formatDateTime(r.at, deps.lang), who, target, label ? r.action : ''].filter(Boolean).join(' · ');
+  const via = viaAgent(r.details) ? deps.t('admin.audit.viaAgent') : '';
+  const subtitle = [formatDateTime(r.at, deps.lang), who, via, target, label ? r.action : ''].filter(Boolean).join(' · ');
   const card = uiRow({ title: label ?? r.action, subtitle });
   if (r.details === '{}') return card;
   // Details sit in a disclosure beneath the row, so a long payload never widens the page.

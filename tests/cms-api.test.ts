@@ -8,6 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { call } from './lib/social';
+import { bearer, mintToken } from './lib/agent';
 import { buildCmsIndex, type CmsIndex } from '../src/lib/cms/cms-index';
 import { realFixtures } from './lib/cms-fixtures';
 import { z } from 'astro/zod';
@@ -470,6 +471,63 @@ test('the pull request title and body carry no @ and no name, whoever wrote and 
   // The pure builders too, for any inputs.
   const fake = { id: 'd1', type: 'events', entry_id: 'x', action: 'update' } as never;
   assert.doesNotMatch(prTitle(fake) + prBody(fake), /@/);
+});
+
+const AGENT_LINE = 'Drafted by an agent through a member\'s API token; approved by a person in the panel.';
+
+test('the pull request body says an agent drafted it, with no token id and no name; a person\'s draft keeps today\'s body byte for byte', () => {
+  const person = { id: 'd1', type: 'events', entry_id: 'x', action: 'update', agent_token_id: null } as const;
+  assert.equal(prBody(person), [
+    'A content change made and approved in the admin panel.',
+    '',
+    '- Type: events',
+    '- Entry: x',
+    '- Action: update',
+    '- Draft: d1',
+    '',
+    'Review it in the panel: https://rsg-turkiye.iscbsc.org/admin#icerik/taslaklar/d1',
+    '',
+    'It merges itself once the required checks pass.',
+  ].join('\n'));
+  const agent = prBody({ ...person, agent_token_id: 'tok-7f3a9c' });
+  assert.ok(agent.includes(AGENT_LINE));
+  assert.ok(agent.indexOf(AGENT_LINE) > agent.indexOf('- Draft: d1'), 'after the Draft line');
+  assert.ok(agent.indexOf(AGENT_LINE) < agent.indexOf('Review it in the panel'));
+  assert.doesNotMatch(agent, /tok-7f3a9c|@/);
+});
+
+test('Review Focus 5: a draft a token created, then saved by its member in the panel, keeps by_agent, and its pull request says an agent drafted it', async () => {
+  const { db, env, row } = setup();
+  const token = await mintToken(db, 'editor', ['cms.etkinlikler:draft'], { id: 'tok-ed' });
+  const made = await call(drafts.onRequestPost, 'POST', '/api/cms/drafts', { env, body: { type: 'events', action: 'create', data: newEvent() }, headers: bearer(token) });
+  assert.equal(made.status, 201);
+  const id = (await made.json() as any).draft.id;
+
+  // The member takes it over in the panel: a session save, then a send.
+  const edited = { ...newEvent(), description: { en: 'Edited by hand.', tr: 'Elle düzeltildi.' } };
+  const saved = await on(env, draft.onRequestPatch, 'PATCH', id, 'editor', { data: edited });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json() as any).draft.by_agent, true);
+  assert.equal(row(id).agent_token_id, 'tok-ed');
+  assert.equal((await on(env, submit.onRequestPost, 'POST', id, 'editor', {}, '/submit')).status, 200);
+  const queue = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', 'approver')).json() as any;
+  assert.deepEqual(queue.queue.map((d: any) => [d.id, d.by_agent]), [[id, true]]);
+  assert.ok(!('agent_token_id' in queue.queue[0]), 'the id stays on the server');
+
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, 'approver', {}, '/approve')).status, 200);
+  const pr = gh.prs[0];
+  assert.ok(pr.body.includes(AGENT_LINE), pr.body);
+  assert.doesNotMatch(pr.body, /tok-ed|@|editor|example\.org/);
+  assert.doesNotMatch(pr.title, /agent/i);
+});
+
+test('a draft no token touched opens a pull request without the agent line', async () => {
+  const { env } = setup();
+  const { body } = await create(env, 'editor', { type: 'events', action: 'create', data: newEvent() });
+  assert.equal(body.draft.by_agent, false);
+  await on(env, submit.onRequestPost, 'POST', body.draft.id, 'editor', {}, '/submit');
+  assert.equal((await on(env, approve.onRequestPost, 'POST', body.draft.id, 'approver', {}, '/approve')).status, 200);
+  assert.doesNotMatch(gh.prs[0].body, /agent/i);
 });
 
 // ── rights ────────────────────────────────────────────────────────────────────
