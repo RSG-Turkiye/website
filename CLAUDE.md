@@ -74,7 +74,7 @@ anyone.
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/pages/`                      | Routes. English at the root, Turkish under `src/pages/tr/`, mirroring each other.                                                                     |
 | `src/content/`                    | Content. Markdown: blog, webinars, learning paths. JSON, one file per entry: workshops, events, resources, committees, pages (page texts), privacy (the notice). Schemas in `src/data/`, wired up in `src/content.config.ts`. |
-| `src/data/`                       | Zod schemas and helpers for every collection (no data arrays; `tests/content-not-in-code.test.ts`), plus privacy text and podcast.                 |
+| `src/data/`                       | Zod schemas and helpers for every collection (no data arrays; `tests/content-not-in-code.test.ts`), plus the privacy contact and loader, and podcast. |
 | `src/i18n/ui.ts`                  | UI strings in both languages.                                                                                                                         |
 | `src/lib/`                        | Build-time helpers (feeds, tags, hreflang, learning paths), the `get-*.ts` collection loaders and `page-text.ts`.                                     |
 | `scripts/compare-builds.ts`       | `npx tsx scripts/compare-builds.ts <before> <after>`: diffs two builds' .html/.xml/.txt (exit 1 on a difference). Normalises hashed asset names, entity spelling and whitespace runs. Use it for any change that should not alter pages. |
