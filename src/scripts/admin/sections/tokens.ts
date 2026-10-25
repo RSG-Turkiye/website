@@ -125,6 +125,7 @@ async function create(form: HTMLFormElement): Promise<void> {
     form.reset();
     form.querySelectorAll<HTMLInputElement>('[data-area]').forEach((box) => { box.checked = false; });
     showValue(body.value);
+    document.getElementById('tokensCreatedNote')!.textContent = tt('admin.tokens.created');
     await refresh().catch(() => showToast(tt('admin.tokens.loadFailed'), true));
   } catch {
     showToast(tt('admin.tokens.create.failed'), true);
@@ -144,7 +145,10 @@ function wire(): void {
     try { await navigator.clipboard.writeText(value); showToast(tt('admin.tokens.shown.copied')); }
     catch { showToast(tt('admin.tokens.shown.copyFailed'), true); }
   });
-  document.getElementById('tokensShownDone')!.addEventListener('click', () => showValue(null));
+  document.getElementById('tokensShownDone')!.addEventListener('click', () => {
+    showValue(null);
+    document.getElementById('tokensCreatedNote')!.textContent = '';
+  });
 }
 
 /** Runs the first time the section shows (main.ts). */

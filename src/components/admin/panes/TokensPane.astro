@@ -24,7 +24,9 @@ const secondary = `${btn} border border-navy text-navy hover:bg-navy-light`;
     <p class="break-all">{t('admin.tokens.intro.mcp')}</p>
   </div>
 
-  <div id="tokensShown" class="hidden bg-white rounded-2xl border border-navy-mid p-4 lg:p-3 mb-4 lg:mb-3" role="status">
+  <!-- Says only that a token was made: the value below is not a live region, so a screen reader never reads it out unasked. -->
+  <p id="tokensCreatedNote" role="status" class="sr-only"></p>
+  <div id="tokensShown" class="hidden bg-white rounded-2xl border border-navy-mid p-4 lg:p-3 mb-4 lg:mb-3">
     <h3 class="text-sm font-semibold text-navy mb-1">{t('admin.tokens.shown.heading')}</h3>
     <p class="text-sm text-gray-600 mb-2">{t('admin.tokens.shown.note')}</p>
     <code id="tokensShownValue" class="block px-3 py-2 rounded-xl bg-gray-100 text-sm text-navy break-all select-all"></code>

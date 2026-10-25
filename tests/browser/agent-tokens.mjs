@@ -92,8 +92,12 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     await page.waitForSelector('[data-section="anahtarlar"]:not(.hidden) #tokensAreas [data-area]', { timeout: 8000 }).catch(() => {});
     ok(await page.evaluate(() => location.hash) === '#anahtarlar', `${at}: the link opens #anahtarlar`);
     ok(await page.locator('#tokensAreas [data-area]').count() === 1, `${at}: the section loads`);
+    ok(await page.locator('[data-tokens-link]:visible').count() === 0, `${at}: the link hides while Agent tokens is open`);
     const w = await page.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth }));
     ok(w.sw <= w.iw, `${at}: no horizontal scroll (scrollWidth ${w.sw})`);
+    await page.goBack();
+    await page.waitForFunction(() => location.hash.startsWith('#icerik'), null, { timeout: 8000 }).catch(() => {});
+    ok(await page.locator('[data-tokens-link]:visible').count() === 1, `${at}: back in İçerik, the link shows again`);
   }
   await page.close();
 }
@@ -120,6 +124,11 @@ console.log('1) an editor creates a token: the value shows once, and a reload dr
   await page.click('#tokensSubmit');
   await page.waitForSelector('#tokensShown:not(.hidden)');
   ok(await page.locator('#tokensShownValue').innerText() === VALUE, 'the value is shown');
+  // A screen reader hears that a token was made, never the value itself.
+  const live = await page.evaluate((v) => [...document.querySelectorAll('[role="status"], [role="alert"], [aria-live]')]
+    .filter((el) => el.getAttribute('aria-live') !== 'off').map((el) => el.textContent ?? ''), VALUE);
+  ok(!live.some((text) => text.includes(VALUE)), 'the value is in no live region');
+  ok(live.some((text) => text.includes('Token created.')), 'a live region says Token created.');
   const sent = state.posts[0] ?? {};
   ok(JSON.stringify(sent) === JSON.stringify({ label: LONG, scopes: ['cms.etkinlikler:draft'], days: 90 }), `the create sends label, scopes and days (${JSON.stringify(sent)})`);
   await page.waitForSelector('#tokensMine [data-token="t1"]');
@@ -171,6 +180,7 @@ console.log('3) an admin sees everyone\'s tokens, named without e-mail');
   ok(JSON.stringify(state.deletes) === '["o1"]', 'an admin revokes another member\'s token');
   ok((await page.locator('h2', { hasText: 'Ajan anahtarları' }).count()) > 0, 'Turkish heading');
   ok(await page.locator('#sectionNav [data-nav="anahtarlar"]').count() === 1, 'an admin\'s menu lists Ajan anahtarları');
+  ok(await page.locator('[data-tokens-link]').count() === 0, 'with the menu entry, no separate link');
   await page.close();
 }
 
