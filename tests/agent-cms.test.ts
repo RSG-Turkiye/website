@@ -277,3 +277,27 @@ test('a Topluluk draft token\'s podcast pull logs both of its rows as the agent'
     assert.equal(JSON.parse(r.details).via, 'agent');
   }
 });
+
+test('an admin\'s token (users.is_admin set, live admin grant) has no approve reach and no one else\'s drafts', async () => {
+  const { db, env, row } = setup();
+  const id = (await createAs(env, { session: 'editor' })).body.draft.id;
+  assert.equal((await on(env, submit.onRequestPost, 'POST', id, { session: 'editor' }, undefined, '/submit')).status, 200);
+  const other = (await createAs(env, { session: 'editor2' }, { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-izmir-2027' } })).body.draft;
+  // The admin's session sees the queue and opens both drafts.
+  const panel = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { session: 'admin' })).json() as any;
+  assert.equal(panel.queue.length, 1);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', other.id, { session: 'admin' })).status, 200);
+
+  const token = await mintToken(db, 'admin', ['cms.etkinlikler:draft']);
+  const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token })).json() as any;
+  assert.deepEqual([list.mine, list.queue, list.inflight], [[], [], []]);
+  const typesBody = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', { token })).json() as any;
+  for (const t of typesBody.types) assert.equal(t.canApprove, false);
+  const before = [row(id), row(other.id)];
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 403);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', other.id, { token })).status, 403);
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', other.id, { token }, { data: newEvent('Taken over'), write_nonce: other.write_nonce })).status, 403);
+  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', other.id, { token })).status, 403);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, { token }, undefined, '/approve')).status, 403);
+  assert.deepEqual([row(id), row(other.id)], before);
+});
