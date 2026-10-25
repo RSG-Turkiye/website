@@ -354,6 +354,18 @@
 --    finished by running it again:
 --      wrangler d1 execute rsg-members --remote --command="INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at, note) SELECT lower(hex(randomblob(16))), w.user_id, 'content.yazilar.edit', MIN(CASE WHEN COUNT(*) > COUNT(w.expires_at) THEN unixepoch() + 2592000 ELSE MAX(w.expires_at) END, unixepoch() + 2592000), NULL, unixepoch(), 'migration 8k: moved from writer' FROM role_grants w WHERE w.role = 'writer' AND w.revoked_at IS NULL AND (w.expires_at IS NULL OR w.expires_at > unixepoch()) AND NOT EXISTS (SELECT 1 FROM role_grants y WHERE y.user_id = w.user_id AND y.role = 'content.yazilar.edit' AND y.revoked_at IS NULL AND (y.expires_at IS NULL OR y.expires_at > unixepoch())) GROUP BY w.user_id; UPDATE role_grants SET expires_at = (SELECT MIN(CASE WHEN COUNT(*) > COUNT(w.expires_at) THEN unixepoch() + 2592000 ELSE MAX(w.expires_at) END, unixepoch() + 2592000) FROM role_grants w WHERE w.user_id = role_grants.user_id AND w.role = 'writer' AND w.revoked_at IS NULL AND (w.expires_at IS NULL OR w.expires_at > unixepoch())), note = COALESCE(note || '; ', '') || 'migration 8k: extended for writer' WHERE role = 'content.yazilar.edit' AND revoked_at IS NULL AND expires_at > unixepoch() AND (SELECT MIN(CASE WHEN COUNT(*) > COUNT(w.expires_at) THEN unixepoch() + 2592000 ELSE MAX(w.expires_at) END, unixepoch() + 2592000) FROM role_grants w WHERE w.user_id = role_grants.user_id AND w.role = 'writer' AND w.revoked_at IS NULL AND (w.expires_at IS NULL OR w.expires_at > unixepoch())) > expires_at; UPDATE role_grants SET revoked_at = unixepoch(), note = COALESCE(note || '; ', '') || CASE WHEN EXISTS (SELECT 1 FROM role_grants y WHERE y.user_id = role_grants.user_id AND y.role = 'content.yazilar.edit' AND y.revoked_at IS NULL AND (y.expires_at IS NULL OR y.expires_at > unixepoch()) AND y.note LIKE '%migration 8k:%') THEN 'migration 8k: moved to content.yazilar.edit' ELSE 'migration 8k: ended, content.yazilar.edit already held' END WHERE role = 'writer' AND role_grants.revoked_at IS NULL AND (role_grants.expires_at IS NULL OR role_grants.expires_at > unixepoch()) AND EXISTS (SELECT 1 FROM role_grants y WHERE y.user_id = role_grants.user_id AND y.role = 'content.yazilar.edit' AND y.revoked_at IS NULL AND (y.expires_at IS NULL OR y.expires_at > unixepoch())); UPDATE users SET is_writer = EXISTS (SELECT 1 FROM role_grants g WHERE g.user_id = users.id AND g.role = 'writer' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > unixepoch())) WHERE is_writer = 1"
 --
+-- 8l. Personal agent tokens (functions/_lib/agent-tokens.ts). Two columns
+--    on existing tables, then two new tables and their indexes. Run both
+--    commands, in this order, BEFORE deploying: the CMS and social endpoints
+--    write agent_token_id on every draft save, so without the columns every
+--    save fails with "no such column: agent_token_id", and every request with
+--    an agent token fails on "no such table: agent_tokens". ALTER TABLE ADD
+--    COLUMN is NOT idempotent, so it stays a note here and errors rather than
+--    no-ops on a rerun -- do not re-run the first command; the second is all
+--    IF NOT EXISTS and safe to repeat:
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE content_drafts ADD COLUMN agent_token_id TEXT; ALTER TABLE social_posts ADD COLUMN agent_token_id TEXT"
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -976,6 +988,7 @@ CREATE TABLE IF NOT EXISTS social_posts (
   approved_at        INTEGER,
   review_note        TEXT,
   event_mode_id      TEXT,
+  agent_token_id     TEXT,             -- set when an agent token wrote it (migration 8l); never cleared
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL
 );
@@ -1065,9 +1078,41 @@ CREATE TABLE IF NOT EXISTS content_drafts (
   failure     TEXT,                   -- short reason shown in the panel
   write_nonce TEXT,                   -- random per write: a guarded write proves it landed (audit.ts AuditProof)
   last_checked_at INTEGER,            -- when the PR shepherd last looked (cms-shepherd.ts); oldest first, NULL first
+  agent_token_id TEXT,                -- set when an agent token wrote it (migration 8l); never cleared
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_content_drafts_status ON content_drafts(status, updated_at);
 CREATE INDEX IF NOT EXISTS idx_content_drafts_author ON content_drafts(author_id, status);
 CREATE INDEX IF NOT EXISTS idx_content_drafts_entry ON content_drafts(type, entry_id);
+
+-- Personal agent tokens (functions/_lib/agent-tokens.ts). The value is shown
+-- once and never stored: token_hash is its SHA-256 hex, looked up through the
+-- UNIQUE index. scopes is a JSON array such as ["cms.etkinlikler:draft"]; what
+-- a token may do is that scope intersected with its member's live grants, read
+-- on every request. hint is the value's last 4 characters, for the lists.
+CREATE TABLE IF NOT EXISTS agent_tokens (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL REFERENCES users(id),
+  token_hash    TEXT NOT NULL UNIQUE,
+  hint          TEXT NOT NULL,
+  label         TEXT NOT NULL,
+  scopes        TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  expires_at    INTEGER NOT NULL,
+  last_used_at  INTEGER,
+  revoked_at    INTEGER,
+  revoked_by    TEXT,
+  revoke_reason TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_tokens_user ON agent_tokens(user_id, revoked_at);
+
+-- Fixed-window counters for agent rate limits and quotas: one row per bucket
+-- (its key carries the window start), bumped by one upsert. Expired buckets
+-- are deleted by the nightly audit prune.
+CREATE TABLE IF NOT EXISTS agent_rate (
+  bucket     TEXT PRIMARY KEY,
+  n          INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_agent_rate_expires ON agent_rate(expires_at);

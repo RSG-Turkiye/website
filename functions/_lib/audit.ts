@@ -22,6 +22,10 @@ export interface AuditEntry {
   targetType?: string | null;
   targetId?: string | null;
   details?: unknown;
+  /** The agent token that made the change, if one did (functions/_lib/agent-tokens.ts).
+   * Written into details as `via: 'agent', agent_token: <id>`, after the
+   * caller's own keys, so a details object cannot pose as or hide it. */
+  agent?: string | null;
 }
 
 export interface AuditRow {
@@ -73,7 +77,9 @@ async function appendWithRetry<R>(
       action: entry.action,
       target_type: entry.targetType ?? null,
       target_id: entry.targetId ?? null,
-      details: JSON.stringify(entry.details ?? {}),
+      details: JSON.stringify(entry.agent
+        ? { ...(entry.details ?? {}) as object, via: 'agent', agent_token: entry.agent }
+        : entry.details ?? {}),
       prev_hash: last?.hash ?? GENESIS,
     };
     const hash = await hashRow(base);

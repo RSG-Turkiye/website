@@ -70,3 +70,16 @@ test('CSV quotes what needs quoting and defuses spreadsheet formulas', () => {
   assert.equal(header, 'seq,at,user_email,action,target_type,target_id,details,prev_hash,hash');
   assert.equal(line, `1,1970-01-01T00:00:00.000Z,'=cmd@example.org,x,,"a,b","{""q"":""x,y""}",p,h`);
 });
+
+test('a row a token caused says so in details, and the chain still verifies', async () => {
+  const { db, DB } = setup();
+  await appendAudit(DB, { userId: 'u1', action: 'cms.draft.create', targetType: 'content_draft', targetId: 'd1', details: { type: 'event' }, agent: 't1' }, 100);
+  // A details key cannot pose as the agent marker: the marker is written last.
+  await appendAudit(DB, { userId: 'u1', action: 'x', details: { via: 'panel', agent_token: 'forged' }, agent: 't2' }, 101);
+  await appendAudit(DB, { userId: 'u1', action: 'y', details: { via: 'panel' }, agent: null }, 102);
+  const [a, b, c] = rows(db);
+  assert.equal(a.details, '{"type":"event","via":"agent","agent_token":"t1"}');
+  assert.deepEqual(JSON.parse(b.details), { via: 'agent', agent_token: 't2' });
+  assert.equal(c.details, '{"via":"panel"}');
+  assert.equal((await verifyChain(rows(db))).ok, true);
+});
