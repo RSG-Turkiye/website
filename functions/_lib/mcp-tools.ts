@@ -8,6 +8,7 @@
 import type { Env, User } from './auth';
 import { agentGroupRights, agentMaySocial, markInternal, type AgentPrincipal } from './agent-tokens';
 import { routeFor, type AgentRoute } from './agent-routes';
+import { holdsValue, refuseLeak } from './agent-limits';
 import type { CmsGroup } from './roles';
 import * as cmsTypesApi from '../api/cms/types';
 import * as cmsEntries from '../api/cms/entries';
@@ -294,6 +295,13 @@ export async function callTool(
 ): Promise<{ status: number; body: unknown }> {
   const query = t.route.query ? `?${new URLSearchParams(t.route.query(args))}` : '';
   const payload = t.route.body ? JSON.stringify(t.route.body(args)) : undefined;
+  // The outer message was checked for the value already; this is the text
+  // the handler will store, so it is checked as written, once more.
+  const sent = `${t.route.path(args)}${query}${payload ?? ''}`;
+  if (holdsValue(sent, auth.agent.value)) {
+    const res = await refuseLeak(ctx.env.DB, auth.agent, Math.floor(Date.now() / 1000));
+    return { status: res.status, body: await res.json() };
+  }
   const headers: Record<string, string> = { Authorization: ctx.authorization };
   if (payload !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -307,5 +315,10 @@ export async function callTool(
   const text = await res.text();
   let body: unknown = text;
   try { body = JSON.parse(text); } catch { /* not JSON: the text as it is */ }
+  // A tool result has no headers: the wait a 429 asks for goes into the body.
+  const retryAfter = Number(res.headers.get('Retry-After'));
+  if (res.status === 429 && retryAfter > 0 && typeof body === 'object' && body !== null && !Array.isArray(body)) {
+    body = { ...body, retry_after: retryAfter };
+  }
   return { status: res.status, body };
 }

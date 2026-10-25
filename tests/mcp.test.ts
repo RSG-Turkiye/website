@@ -5,12 +5,16 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import { setupSocial, settle, KEYS, BASE } from './lib/social';
 import { mintToken, bearer } from './lib/agent';
 import { grantRole } from '../functions/_lib/role-grants';
 import { authenticateAgent, markInternal } from '../functions/_lib/agent-tokens';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
+import { FEED } from '../src/lib/podcast-feed';
+import { callTool as runTool, MCP_TOOLS as TOOLS } from '../functions/_lib/mcp-tools';
+import * as cmsDrafts from '../functions/api/cms/drafts';
 import { AGENT_INSTRUCTIONS } from '../functions/_lib/agent-instructions';
 import { MCP_TOOLS } from '../functions/_lib/mcp-tools';
 import * as mcp from '../functions/api/mcp';
@@ -21,13 +25,20 @@ const NOW = Math.floor(Date.now() / 1000);
 // the publisher notice a social submit sends. Anything else fails the test.
 const EVENT_ID = 'fixture-meetup-2026';
 const FILES: Record<string, string> = {
+  // An empty show: any feed with an episode differs from it.
+  'src/data/podcast.json': '{"episodes":[]}\n',
   [`src/content/events/${EVENT_ID}.json`]: `${JSON.stringify({ id: EVENT_ID, type: 'meetup', start: '2026-03-06', title: { en: 'Fixture meetup', tr: 'Örnek buluşma' }, when: { en: '6 March 2026', tr: '6 Mart 2026' }, location: { en: 'Ankara', tr: 'Ankara' }, description: { en: 'A meetup.', tr: 'Bir buluşma.' } }, null, 2)}\n`,
 };
 const INDEX = buildCmsIndex(FILES);
+let feed: string | null = null;
 const blobSha = (content: string) => createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0${content}`).digest('hex');
 globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
+  if (url.href === FEED) {
+    if (feed === null) throw new Error('no network in tests');
+    return new Response(feed);
+  }
   if (url.hostname.endsWith('googleapis.com')) return new Response(JSON.stringify({ access_token: 't', expires_in: 3600, id: 'm', threadId: 't' }));
   if (method === 'GET' && url.pathname.includes('/contents/')) {
     const content = FILES[decodeURIComponent(url.pathname.split('/contents/')[1])];
@@ -285,7 +296,12 @@ test('the write quota holds through MCP: past it, the tool answers 429 rate_limi
   db.prepare('INSERT INTO agent_rate (bucket, n, expires_at) VALUES (?, 200, ?)').run(`t:tok-full:w:${Math.floor(NOW / 86400)}`, NOW + 86400);
   const body = await callTool(env, token, 'cms_create_draft', { type: 'events', action: 'create', data: newEvent() });
   assert.equal(body.result.isError, true);
-  assert.equal(JSON.parse(body.result.content[0].text).code, 'rate_limited');
+  const answer = JSON.parse(body.result.content[0].text);
+  assert.equal(answer.code, 'rate_limited');
+  // The wait the REST Retry-After header gives, which a tool result cannot carry as a header.
+  const left = 86400 - (Math.floor(Date.now() / 1000) % 86400);
+  assert.ok(Math.abs(answer.retry_after - left) <= 1, `retry_after ${answer.retry_after}, ${left} left in the UTC day`);
+  assert.equal(answer.resets, '00:00 UTC');
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
 });
 
@@ -348,4 +364,111 @@ test('a marked inner request: the inner route, no token lookup, and human_only o
   }
   // An unmarked request with the same token is looked up, and refused now.
   assert.equal((await authenticateAgent(new Request(`${BASE}/api/cms/drafts`, { headers: bearer(token) }), env, NOW)).kind, 'refused');
+});
+
+// --- follow-up: leaks, more tools through MCP -------------------------------
+
+/** The value with its first letter written as a JSON escape: the same string once parsed. */
+const escaped = (value: string) => `\\u0072${value.slice(1)}`;
+const tokenRevoked = (db: DatabaseSync, id: string) =>
+  (db.prepare('SELECT revoke_reason FROM agent_tokens WHERE id = ?').get(id) as { revoke_reason: string | null }).revoke_reason;
+const count = (db: DatabaseSync, table: string) => (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+
+test('REST: a token value written with a JSON escape is a leak: 400, revoked, nothing stored', async () => {
+  const { db, env } = await setup();
+  const token = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id: 'tok-esc' });
+  const event = newEvent();
+  const raw = JSON.stringify({ type: 'events', action: 'create', data: { ...event, description: { en: 'TOKEN', tr: 'x' } } }).replace('TOKEN', escaped(token));
+  assert.ok(!raw.includes(token));
+  const request = new Request(`${BASE}/api/cms/drafts`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...bearer(token) }, body: raw });
+  const res = await (cmsDrafts.onRequestPost as (c: unknown) => Promise<Response>)({ request, env, params: {}, waitUntil: () => {}, data: {} });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json() as { code: string }).code, 'leaked');
+  assert.equal(tokenRevoked(db, 'tok-esc'), 'leaked');
+  assert.equal(count(db, 'content_drafts'), 0);
+});
+
+test('MCP: an escaped token value in a tool argument revokes the token and stores nothing', async () => {
+  const { db, env } = await setup();
+  const token = await mintToken(db, 'ed', ['social:draft'], { id: 'tok-esc2' });
+  const raw = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'social_create_post', arguments: { ...draftPost, caption: 'TOKEN' } } })
+    .replace('TOKEN', escaped(token));
+  const res = await post(env, null, { token, raw });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json() as { code: string }).code, 'leaked');
+  assert.equal(tokenRevoked(db, 'tok-esc2'), 'leaked');
+  assert.equal(count(db, 'social_posts'), 0);
+});
+
+test('callTool checks the payload it sends: the token value in an argument is refused and revokes', async () => {
+  const { db, env } = await setup();
+  const token = await mintToken(db, 'ed', ['social:draft'], { id: 'tok-esc3' });
+  const outer = await authenticateAgent(new Request(`${BASE}/api/mcp`, { method: 'POST', headers: bearer(token) }), env, NOW);
+  assert.equal(outer.kind, 'agent');
+  if (outer.kind !== 'agent') return;
+  const tool = TOOLS.find((t) => t.name === 'social_create_post')!;
+  const answer = await runTool(tool, { ...draftPost, caption: `see ${token}` }, { user: outer.user, agent: outer.agent }, {
+    env: env as never, origin: BASE, authorization: `Bearer ${token}`, waitUntil: () => {},
+  });
+  assert.equal(answer.status, 400);
+  assert.equal((answer.body as { code: string }).code, 'leaked');
+  assert.equal(tokenRevoked(db, 'tok-esc3'), 'leaked');
+  assert.equal(count(db, 'social_posts'), 0);
+});
+
+test('cms_discard_draft through MCP discards the member\'s draft, audited as the agent', async () => {
+  const { db, env } = await setup();
+  const token = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id: 'tok-d' });
+  const made = await toolResult(env, token, 'cms_create_draft', { type: 'events', action: 'create', data: newEvent() });
+  await toolResult(env, token, 'cms_discard_draft', { id: made.draft.id });
+  assert.equal((db.prepare('SELECT status FROM content_drafts WHERE id = ?').get(made.draft.id) as { status: string }).status, 'discarded');
+  const rows = db.prepare(`SELECT action, details FROM audit_log WHERE action LIKE 'cms.draft.%' ORDER BY seq`).all() as { action: string; details: string }[];
+  assert.equal(rows.length, 2);
+  for (const r of rows) assert.equal(JSON.parse(r.details).agent_token, 'tok-d', r.action);
+});
+
+test('social through MCP: list my drafts, list posts, save, discard; every write audited as the agent', async () => {
+  const { db, env } = await setup();
+  const token = await mintToken(db, 'ed', ['social:draft'], { id: 'tok-s' });
+  const undated = await toolResult(env, token, 'social_create_post', { ...draftPost, scheduledAt: null });
+  const dated = await toolResult(env, token, 'social_create_post', draftPost);
+
+  const drafts = await toolResult(env, token, 'social_list_my_drafts');
+  assert.deepEqual(drafts.posts.map((p: { id: string }) => p.id), [undated.id]);
+  const windowed = await toolResult(env, token, 'social_list_posts', { from: NOW, to: NOW + 86400 });
+  assert.deepEqual(windowed.posts.map((p: { id: string }) => p.id), [dated.id]);
+  for (const p of windowed.posts) assert.equal(p.authorEmail ?? null, null);
+
+  const saved = await toolResult(env, token, 'social_save_post', { id: dated.id, revision: 0, ...draftPost, caption: 'Yeni metin' });
+  assert.deepEqual(saved, { ok: true, revision: 1, status: 'draft' });
+  assert.equal((db.prepare('SELECT caption FROM social_posts WHERE id = ?').get(dated.id) as { caption: string }).caption, 'Yeni metin');
+  // DELETE with a body: the revision travels in it.
+  assert.deepEqual(await toolResult(env, token, 'social_discard_post', { id: dated.id, revision: 1 }), { ok: true });
+  assert.equal(db.prepare('SELECT 1 FROM social_posts WHERE id = ?').get(dated.id), undefined);
+
+  const rows = db.prepare(`SELECT action, user_id, details FROM audit_log WHERE action LIKE 'social.post.%' ORDER BY seq`).all() as { action: string; user_id: string; details: string }[];
+  assert.deepEqual(rows.map((r) => r.action), ['social.post.create', 'social.post.create', 'social.post.update', 'social.post.delete']);
+  for (const r of rows) {
+    assert.equal(r.user_id, 'ed');
+    assert.equal(JSON.parse(r.details).via, 'agent', r.action);
+    assert.equal(JSON.parse(r.details).agent_token, 'tok-s', r.action);
+  }
+});
+
+test('cms_pull_podcast through MCP makes a draft by the agent', async () => {
+  const { db, env } = await setup();
+  await grantRole((env as { DB: D1Database }).DB, { userId: 'ed', role: 'content.topluluk.edit', expiresAt: null, by: null }, NOW - 100);
+  const token = await mintToken(db, 'ed', ['cms.topluluk:draft'], { id: 'tok-pod' });
+  feed = readFileSync(new URL('./fixtures/podcast-feed.xml', import.meta.url).pathname, 'utf8');
+  try {
+    const pulled = await toolResult(env, token, 'cms_pull_podcast');
+    assert.equal(pulled.draft.by_agent, true);
+    assert.equal(pulled.draft.author_id, 'ed');
+    const rows = db.prepare(`SELECT action, details FROM audit_log WHERE action LIKE 'cms.%' ORDER BY seq`).all() as { action: string; details: string }[];
+    assert.deepEqual(rows.map((r) => r.action), ['cms.podcast.pull', 'cms.draft.create']);
+    for (const r of rows) assert.equal(JSON.parse(r.details).agent_token, 'tok-pod');
+    assert.equal(bucketSum(db, 'tok-pod', 'w'), 1);
+  } finally {
+    feed = null;
+  }
 });
