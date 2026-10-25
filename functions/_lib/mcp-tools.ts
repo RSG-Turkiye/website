@@ -8,7 +8,7 @@
 import type { Env, User } from './auth';
 import { agentGroupRights, agentMaySocial, markInternal, type AgentPrincipal } from './agent-tokens';
 import { routeFor, type AgentRoute } from './agent-routes';
-import { holdsValue, refuseLeak } from './agent-limits';
+import { holdsValue, refuseLeak, type Charge } from './agent-limits';
 import type { CmsGroup } from './roles';
 import * as cmsTypesApi from '../api/cms/types';
 import * as cmsEntries from '../api/cms/entries';
@@ -261,6 +261,30 @@ export function toolsFor(a: AgentPrincipal): McpTool[] {
     if (route.area === 'social') return agentMaySocial(a, route.level);
     return false;
   });
+}
+
+/**
+ * What an MCP message spends (agent-limits.ts), so a tool call costs what its
+ * REST route costs:
+ * - the quota of the tool it calls (write, submit), spent with the message
+ *   itself, so the tool's inner request writes nothing more;
+ * - the agents' social reserve, for a social tool call and, from a token that
+ *   may do social work, for everything a client needs to reach one
+ *   (initialize, tools/list, ping, notifications, the GET). A cms tool call
+ *   never uses it.
+ */
+export function mcpCharge(agent: AgentPrincipal, body: string): Charge {
+  let msg: unknown = null;
+  try { msg = JSON.parse(body); } catch { /* no body (GET) or not JSON */ }
+  const m = msg as { method?: unknown; params?: { name?: unknown } } | null;
+  const social = agentMaySocial(agent, 'read');
+  if (m && typeof m === 'object' && m.method === 'tools/call') {
+    // Only a tool this token may use now: anything else is refused before it runs.
+    const t = toolsFor(agent).find((x) => x.name === m.params?.name);
+    const route = t ? routeOf(t) : null;
+    return { reserve: social && route?.area === 'social', quota: route?.quota };
+  }
+  return { reserve: social };
 }
 
 const typeOf = (v: unknown): JsonType =>

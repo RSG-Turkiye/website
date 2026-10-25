@@ -11,7 +11,7 @@ import { activeGrants } from './role-grants';
 import { CMS_GROUPS, ROLES, rightsFromRoles, type CmsGroup, type GroupRights } from './roles';
 import { safeEqual } from './secret';
 import { routeFor, type AgentLevel, type AgentRoute } from './agent-routes';
-import { checkQuota, checkToken } from './agent-limits';
+import { checkQuota, checkToken, countFailedAuth, ipKey, ipRefusal, readSnapshot, type Charge, type QuotaColumn } from './agent-limits';
 
 export type { AgentLevel, AgentRoute };
 
@@ -62,6 +62,27 @@ export interface AgentPrincipal {
   liveRoles: string[];
   /** In memory only, for the leak check; never logged, stored or returned. */
   value: string;
+  /** What this request spends: whether it is social work that may use the agents' reserve, and its quota (agent-limits.ts). */
+  charge: (body: string) => Charge;
+  /** Set on an MCP message whose tool has a quota: spent with the message, or 'full' (agent-limits.ts). */
+  quotaPaid?: QuotaColumn | 'full';
+}
+
+/** How the MCP endpoint says what each of its messages spends (mcp-tools.ts, mcpCharge). */
+export type ChargeRule = (agent: AgentPrincipal, body: string) => Charge;
+
+/**
+ * Social work may use the agents' reserve once the general pool is spent:
+ * social routes, and an image upload by a token that may draft social
+ * posts. The MCP endpoint decides per message (its ChargeRule), and names
+ * the quota of the tool a message calls.
+ */
+function chargeFor(route: AgentRoute, agent: () => AgentPrincipal, mcp: ChargeRule | undefined): (body: string) => Charge {
+  const quota = route.quota;
+  if (route.area === 'social') return () => ({ reserve: true, quota });
+  if (route.area === 'media') return () => ({ reserve: agentMaySocial(agent(), 'draft'), quota });
+  if (route.area === 'mcp' && mcp) return (body) => mcp(agent(), body);
+  return () => ({ reserve: false, quota });
 }
 
 export type AgentAuth =
@@ -103,19 +124,39 @@ function storedScopes(raw: string): AgentScope[] | null {
  * header present it alone decides: the cookie is ignored, and a bad token is
  * 401 even beside a valid session. Callers skip CSRF on the agent path, since
  * a bearer header is no ambient credential a page could forge.
+ *
+ * The first statement reads the IP's counters and today's token counters
+ * (agent-limits.ts): a cut-off IP is answered 429 before anything else, with
+ * no write. A header that is no token value, or a value that matches no
+ * token, counts as a failed authentication of the IP. A revoked or expired
+ * token's value is 401 without a count: it is a stale client, not a guess,
+ * and must not lock out everyone else behind the same address.
  */
-export async function authenticateAgent(request: Request, env: Env, now: number): Promise<AgentAuth> {
+export async function authenticateAgent(request: Request, env: Env, now: number, opts: { charge?: ChargeRule } = {}): Promise<AgentAuth> {
   const internal = INTERNAL.get(request);
   if (internal) return authenticateInternal(request, env, internal, now);
   const header = request.headers.get('Authorization');
   if (header === null) return { kind: 'none' };
+
+  const ip = await ipKey(request);
+  const snapshot = await readSnapshot(env.DB, ip, now);
+  const cutOff = ipRefusal(snapshot.ip, now);
+  if (cutOff) return refused(cutOff);
+
   const match = VALUE.exec(header);
-  if (!match) return refused(unauthorized());
+  if (!match) {
+    await countFailedAuth(env.DB, ip, now);
+    return refused(unauthorized());
+  }
   const value = match[1];
   const hash = await hashToken(value);
 
   const row = await env.DB.prepare('SELECT * FROM agent_tokens WHERE token_hash = ?').bind(hash).first<TokenRow>();
-  if (!row || !safeEqual(row.token_hash, hash) || row.revoked_at !== null || row.expires_at <= now) return refused(unauthorized());
+  if (!row || !safeEqual(row.token_hash, hash)) {
+    await countFailedAuth(env.DB, ip, now);
+    return refused(unauthorized());
+  }
+  if (row.revoked_at !== null || row.expires_at <= now) return refused(unauthorized());
   const scopes = storedScopes(row.scopes);
   if (!scopes) return refused(unauthorized());
   const stored = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(row.user_id).first<User>();
@@ -126,11 +167,14 @@ export async function authenticateAgent(request: Request, env: Env, now: number)
   if (!route) return refused(humanOnly());
 
   const liveRoles = [...new Set((await activeGrants(env.DB, user.id, now)).map((g) => g.role))];
-  const agent: AgentPrincipal = { tokenId: row.id, userId: user.id, scopes, route, liveRoles, value };
+  const agent: AgentPrincipal = {
+    tokenId: row.id, userId: user.id, scopes, route, liveRoles, value,
+    charge: chargeFor(route, () => agent, opts.charge),
+  };
 
-  // Rate, quota, size and leak checks. A refused request is not a use, so
-  // last_used_at below moves only for requests that go on to the handler.
-  const limited = await checkToken(env.DB, env, request, agent, now);
+  // Rate, quota, budget, size and leak checks. A refused request is not a
+  // use, so last_used_at below moves only for requests that go on to the handler.
+  const limited = await checkToken(env.DB, request, agent, { ip, snapshot }, now);
   if (limited) return refused(limited);
 
   if (row.last_used_at === null || now - row.last_used_at > LAST_USED_EVERY) {
@@ -171,8 +215,11 @@ async function authenticateInternal(request: Request, env: Env, outer: { user: U
   // The table again, on the inner request's own method and path.
   const route = routeFor(request.method, new URL(request.url).pathname);
   if (!route) return refused(humanOnly());
-  const agent: AgentPrincipal = { ...outer.agent, route };
-  const limited = await checkQuota(env.DB, agent, now);
+  const agent: AgentPrincipal = { ...outer.agent, route, quotaPaid: undefined };
+  // The outer message spent (or found full) this tool's quota: used once.
+  const paid = outer.agent.quotaPaid;
+  outer.agent.quotaPaid = undefined;
+  const limited = await checkQuota(env.DB, agent, now, paid);
   if (limited) return refused(limited);
   return { kind: 'agent', user: outer.user, agent };
 }

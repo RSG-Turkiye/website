@@ -1,9 +1,31 @@
-// Rate limits, daily quotas, size limits and auto-revoke for agent tokens,
-// enforced in the Function (there is no free WAF rate limiting on this
-// account). Every counter is a fixed-window bucket in `agent_rate`, bumped
-// by one upsert that returns the new count, so a check never counts rows.
-// The bucket key carries its window index, so a new window is a new row and
-// nothing has to reset; the nightly audit prune deletes expired buckets.
+// Rate limits, daily quotas, the agents' daily budget, size limits and
+// auto-revoke for agent tokens, enforced in the Function (there is no free
+// WAF rate limiting on this account).
+//
+// The free plan's ceilings are the reason for the shape: Workers 100,000
+// requests a day and D1 100,000 rows written a day for the whole site, and
+// running out of either stops everything (sessions, mail, the panel) until
+// 00:00 UTC. So agents together get at most AGENT_BUDGET requests a day, and
+// a request costs as few D1 writes as possible:
+//
+// - All counters live in `agent_counters`, one row per UTC day and subject
+//   (a token, or an IP). A row holds every counter of its subject (the
+//   current minute, the day, the quotas), so a request bumps at most two rows
+//   (its token's and its IP's) in one batch. The table is WITHOUT ROWID with
+//   no other index, so a bump is one row written.
+// - The key starts with the day, zero-padded: today's token rows are one
+//   primary-key range, read in the same statement as the IP row, and the
+//   member's day and the agents' pools are sums over that range. The nightly
+//   prune deletes the days before today by the same range.
+// - Check, then bump: a request refused by a daily limit, the budget, a
+//   quota or a blocked IP writes nothing. Only the minute limit counts its
+//   refusals (the flood signal needs them), until the flood revokes the token.
+// - A value that matches no token writes nothing per value: it counts as a
+//   failed authentication of its IP (an IPv6 address counts by its /64), and
+//   an IP past IP_FAILED_AUTH is refused without a write.
+//
+// Counts read before the bump can race: two requests at once may both pass
+// the last free slot. The overshoot is a few requests, never a budget risk.
 //
 // The dependency runs one way, agent-tokens -> agent-limits: this file must
 // not import agent-tokens (tests/agent-tokens.test.ts allows only a listed
@@ -16,10 +38,19 @@ import type { AgentRoute } from './agent-routes';
 const MINUTE = 60;
 const DAY = 86400;
 
-/** Call 4 and Call 5 of the agent-access plan. */
+/** Call 4 and Call 5 of the agent-access plan, and the owner's budget of 2026-10-26. */
 export const LIMITS = Object.freeze({
+  /**
+   * All agent requests together, per UTC day: the general pool, which any
+   * route may use, then the reserve, which only social work may use once the
+   * general pool is spent. 15,000 in all, 15% of the Workers free plan's
+   * 100,000 requests a day; people in the panel are never counted.
+   */
+  AGENT_GENERAL_PER_DAY: 12_000,
+  AGENT_RESERVE_PER_DAY: 3_000,
+  /** One member's requests per UTC day, across all their tokens. */
+  MEMBER_PER_DAY: 300,
   TOKEN_PER_MINUTE: 30,
-  TOKEN_PER_DAY: 1000,
   WRITES_PER_DAY: 200,
   SUBMITS_PER_DAY: 20,
   UPLOADS_PER_DAY: 20,
@@ -39,35 +70,39 @@ export const LIMITS = Object.freeze({
   UPLOAD_BODY_BYTES: 5 * 1024 * 1024,
 });
 
-const QUOTA: Record<NonNullable<AgentRoute['quota']>, { key: string; limit: number }> = {
-  write: { key: 'w', limit: LIMITS.WRITES_PER_DAY },
-  submit: { key: 's', limit: LIMITS.SUBMITS_PER_DAY },
-  upload: { key: 'u', limit: LIMITS.UPLOADS_PER_DAY },
+/** The whole agent ceiling, both pools. */
+export const AGENT_BUDGET = LIMITS.AGENT_GENERAL_PER_DAY + LIMITS.AGENT_RESERVE_PER_DAY;
+
+export type QuotaColumn = 'writes' | 'submits' | 'uploads';
+const QUOTA: Record<NonNullable<AgentRoute['quota']>, { column: QuotaColumn; limit: number }> = {
+  write: { column: 'writes', limit: LIMITS.WRITES_PER_DAY },
+  submit: { column: 'submits', limit: LIMITS.SUBMITS_PER_DAY },
+  upload: { column: 'uploads', limit: LIMITS.UPLOADS_PER_DAY },
 };
 
 /** What the checks need of an AgentPrincipal (agent-tokens.ts). */
 export interface LimitedPrincipal {
   tokenId: string;
+  userId: string;
   route: AgentRoute;
   /** The token value, for the leak check only; never logged or stored. */
   value: string;
+  /** What this request, with this body, spends: whether it is social work (the reserve), and which quota. */
+  charge: (body: string) => Charge;
+  /**
+   * Set by checkToken on an MCP message whose tool has a quota: the quota
+   * spent in the message's own upsert, or 'full'. The tool's inner request
+   * then spends nothing more (authenticateInternal in agent-tokens.ts).
+   */
+  quotaPaid?: QuotaColumn | 'full';
 }
+
+/** What a request spends besides one request: the reserve may serve it (social work), and its quota. */
+export interface Charge { reserve: boolean; quota?: AgentRoute['quota'] }
 
 export type RevokeReason = 'refusals' | 'flood' | 'leaked';
 
 const windowEnd = (windowSeconds: number, now: number) => (Math.floor(now / windowSeconds) + 1) * windowSeconds;
-
-/**
- * Adds one to the counter `<bucket>:<window index>` and returns the new count.
- * One statement: an upsert with RETURNING, keyed on the primary key.
- */
-export async function bump(db: D1Database, bucket: string, windowSeconds: number, now: number): Promise<number> {
-  const key = `${bucket}:${Math.floor(now / windowSeconds)}`;
-  const row = await db.prepare(
-    'INSERT INTO agent_rate (bucket, n, expires_at) VALUES (?, 1, ?) ON CONFLICT(bucket) DO UPDATE SET n = n + 1 RETURNING n',
-  ).bind(key, windowEnd(windowSeconds, now)).first<{ n: number }>();
-  return row?.n ?? 1;
-}
 
 /** Seconds left in the window, at least 1: what Retry-After says. */
 const secondsLeft = (windowSeconds: number, now: number) => Math.max(1, windowEnd(windowSeconds, now) - now);
@@ -81,30 +116,168 @@ export function rateLimited(retryAfter: number, extra: Record<string, unknown> =
 /** A daily limit or quota: its window ends at 00:00 UTC, which the answer says too. */
 const dailyLimited = (now: number) => rateLimited(secondsLeft(DAY, now), { resets: '00:00 UTC' });
 
+/** The agents' budget for the day is spent: every token waits for 00:00 UTC. */
+export function agentBudgetSpent(now: number): Response {
+  const retryAfter = secondsLeft(DAY, now);
+  const res = jsonResponse({
+    error: 'Too many requests',
+    code: 'agent_budget',
+    retry_after: retryAfter,
+    message: 'Ajan kotası bugün doldu, yarın tekrar deneyin / Agent quota is used up for today, try again tomorrow',
+  }, 429);
+  res.headers.set('Retry-After', String(retryAfter));
+  return res;
+}
+
 const tooLarge = () => jsonResponse({ error: 'The request body is too large', code: 'too_large' }, 413);
 const leaked = () => jsonResponse({
   error: "The request contains this token's own value, so the token has been revoked. Make a new one in the panel and keep it in your tool's secret settings.",
   code: 'leaked',
 }, 400);
 
-/** SHA-256 of the caller's IP, as `ipHash` in certificates.ts; the IP itself is never stored. */
+// --- the counter rows ------------------------------------------------------
+
+/** The UTC day, zero-padded so keys sort by day. */
+const dayKey = (now: number) => String(Math.floor(now / DAY)).padStart(6, '0');
+const tokenBucket = (tokenId: string, now: number) => `${dayKey(now)}:t:${tokenId}`;
+const ipBucket = (ip: string, now: number) => `${dayKey(now)}:i:${ip}`;
+
+/** Every bucket key before this one belongs to an earlier day: what the prune deletes. */
+export const firstBucketOfDay = (now: number) => dayKey(now);
+
+interface TokenCounts {
+  bucket: string; user_id: string | null; general: number; reserve: number;
+  writes: number; submits: number; uploads: number; refusals: number; minute: number; minute_n: number;
+}
+interface IpCounts { requests: number; minute: number; minute_n: number; fail_window: number; fail_n: number }
+
+/** Today's counters for this request: its IP's row and every token row of the day (the pools are their sums). */
+export interface Snapshot { ip: IpCounts | null; tokens: TokenCounts[] }
+
+/**
+ * One statement: the IP's row and today's token rows, by primary key and a
+ * primary-key range. Rows read: one per token used today, plus one.
+ */
+export async function readSnapshot(db: D1Database, ip: string, now: number): Promise<Snapshot> {
+  const day = dayKey(now);
+  const rows = (await db.prepare(
+    'SELECT * FROM agent_counters WHERE bucket = ?1 OR (bucket >= ?2 AND bucket < ?3)',
+  ).bind(ipBucket(ip, now), `${day}:t:`, `${day}:t;`).all<TokenCounts & IpCounts>()).results;
+  const ipRow = rows.find((r) => r.bucket === ipBucket(ip, now));
+  return { ip: ipRow ?? null, tokens: rows.filter((r) => r !== ipRow) };
+}
+
+/** The IP's own row only, where nothing else is needed (the middleware). */
+async function readIp(db: D1Database, ip: string, now: number): Promise<IpCounts | null> {
+  return db.prepare('SELECT * FROM agent_counters WHERE bucket = ?').bind(ipBucket(ip, now)).first<IpCounts>();
+}
+
+/**
+ * The IP's refusal, if it is cut off: too many failed authentications in
+ * the window, or its minute or day used up. Decided from the row as read,
+ * so a cut-off IP costs no write.
+ */
+export function ipRefusal(row: IpCounts | null, now: number): Response | null {
+  if (!row) return null;
+  const failWindow = LIMITS.IP_FAILED_AUTH_WINDOW;
+  if (row.fail_window === Math.floor(now / failWindow) && row.fail_n >= LIMITS.IP_FAILED_AUTH) return rateLimited(secondsLeft(failWindow, now));
+  if (row.minute === Math.floor(now / MINUTE) && row.minute_n >= LIMITS.IP_PER_MINUTE) return rateLimited(secondsLeft(MINUTE, now));
+  if (row.requests >= LIMITS.IP_PER_DAY) return rateLimited(secondsLeft(DAY, now));
+  return null;
+}
+
+/** One more bearer request from this IP, and a failed authentication when `failed`. One upsert. */
+function bumpIp(db: D1Database, ip: string, now: number, failed: boolean): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO agent_counters (bucket, requests, minute, minute_n, fail_window, fail_n) VALUES (?1, 1, ?2, 1, ?3, ?4)
+     ON CONFLICT(bucket) DO UPDATE SET
+       requests = requests + 1,
+       minute_n = CASE WHEN minute = excluded.minute THEN minute_n + 1 ELSE 1 END,
+       minute = excluded.minute,
+       fail_n = CASE WHEN excluded.fail_n = 0 THEN fail_n WHEN fail_window = excluded.fail_window THEN fail_n + 1 ELSE 1 END,
+       fail_window = CASE WHEN excluded.fail_n = 0 THEN fail_window ELSE excluded.fail_window END`,
+  ).bind(ipBucket(ip, now), Math.floor(now / MINUTE), failed ? Math.floor(now / LIMITS.IP_FAILED_AUTH_WINDOW) : 0, failed ? 1 : 0);
+}
+
+interface TokenDelta { minute: boolean; general?: number; reserve?: number; quota?: QuotaColumn; refusals?: number }
+
+/** Adds `delta` to the token's row for today. One upsert; returns the row's minute_n and refusals. */
+function bumpToken(db: D1Database, p: Pick<LimitedPrincipal, 'tokenId' | 'userId'>, now: number, d: TokenDelta): D1PreparedStatement {
+  const q = (c: QuotaColumn) => (d.quota === c ? 1 : 0);
+  return db.prepare(
+    `INSERT INTO agent_counters (bucket, user_id, minute, minute_n, general, reserve, writes, submits, uploads, refusals)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+     ON CONFLICT(bucket) DO UPDATE SET
+       minute_n = CASE WHEN excluded.minute_n = 0 THEN minute_n WHEN minute = excluded.minute THEN minute_n + 1 ELSE 1 END,
+       minute = CASE WHEN excluded.minute_n = 0 THEN minute ELSE excluded.minute END,
+       general = general + excluded.general, reserve = reserve + excluded.reserve,
+       writes = writes + excluded.writes, submits = submits + excluded.submits, uploads = uploads + excluded.uploads,
+       refusals = refusals + excluded.refusals
+     RETURNING minute_n, refusals`,
+  ).bind(
+    tokenBucket(p.tokenId, now), p.userId, Math.floor(now / MINUTE), d.minute ? 1 : 0,
+    d.general ?? 0, d.reserve ?? 0, q('writes'), q('submits'), q('uploads'), d.refusals ?? 0,
+  );
+}
+
+/** Runs the token's upsert and, when given, the IP's in one batch; the token row's counts after it. */
+async function bump(db: D1Database, token: D1PreparedStatement, ip: D1PreparedStatement | null): Promise<{ minute_n: number; refusals: number }> {
+  const out = await db.batch<{ minute_n: number; refusals: number }>(ip ? [token, ip] : [token]);
+  return out[0].results?.[0] ?? { minute_n: 0, refusals: 0 };
+}
+
+/**
+ * Who an IP limit counts: an IPv4 address as it is, an IPv6 address by its
+ * /64, since one machine usually holds a whole /64 and could otherwise step
+ * through addresses.
+ */
+export function ipSubject(ip: string): string {
+  if (!ip.includes(':')) return ip;
+  if (ip.includes('.')) return ip.slice(ip.lastIndexOf(':') + 1); // ::ffff:192.0.2.1
+  const [head, tail] = ip.toLowerCase().split('::');
+  const h = head ? head.split(':') : [];
+  const t = tail === undefined ? [] : tail ? tail.split(':') : [];
+  const groups = tail === undefined ? h : [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t];
+  return `${groups.slice(0, 4).map((g) => (parseInt(g || '0', 16) || 0).toString(16)).join(':')}::/64`;
+}
+
+/** SHA-256 of the caller's IP (its /64 for IPv6), as `ipHash` in certificates.ts; the IP itself is never stored. */
 export async function ipKey(request: Request): Promise<string> {
-  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const ip = ipSubject(request.headers.get('CF-Connecting-IP') ?? 'unknown');
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`rsg-agent:${ip}`));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Every token value starts with this; an upload that holds it is refused (leaked). */
+const VALUE_PREFIX = new TextEncoder().encode('rsg_pat_');
+
+/** Whether `bytes` holds `needle`, from `from` on. */
+function holdsBytes(bytes: Uint8Array, needle: Uint8Array): boolean {
+  const first = needle[0];
+  for (let i = bytes.indexOf(first); i !== -1 && i <= bytes.length - needle.length; i = bytes.indexOf(first, i + 1)) {
+    let j = 1;
+    while (j < needle.length && bytes[i + j] === needle[j]) j++;
+    if (j === needle.length) return true;
+  }
+  return false;
 }
 
 /**
  * Reads the body with a running byte count, as readFeed in podcast/pull.ts
  * does, so a body without Content-Length (chunked) is never read past `cap`.
- * Returns the bytes (or, with `keep: false`, an empty array: counted only,
- * nothing kept), or null once the body passes the cap.
+ * Returns the bytes, or 'too_large' once the body passes the cap. With
+ * `keep: false` nothing is kept (an empty array comes back), and the bytes
+ * are searched for a token value as they stream, with the end of each chunk
+ * carried over so a value split across two chunks is still found: then
+ * 'leaked'.
  */
-async function readCounted(request: Pick<Request, 'body'>, cap: number, keep: boolean): Promise<Uint8Array | null> {
+async function readCounted(request: Pick<Request, 'body'>, cap: number, keep: boolean): Promise<Uint8Array | 'too_large' | 'leaked'> {
   if (!request.body) return new Uint8Array(0);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
+  let carry = new Uint8Array(0);
+  let found = false;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -113,10 +286,18 @@ async function readCounted(request: Pick<Request, 'body'>, cap: number, keep: bo
       // Not awaited: on a clone (a tee branch) the cancel settles only once
       // the other branch is cancelled too, which the caller does next.
       reader.cancel().catch(() => {});
-      return null;
+      return 'too_large';
     }
     if (keep) chunks.push(value);
+    else if (!found) {
+      const window = new Uint8Array(carry.length + value.byteLength);
+      window.set(carry);
+      window.set(value, carry.length);
+      found = holdsBytes(window, VALUE_PREFIX);
+      carry = window.slice(Math.max(0, window.length - (VALUE_PREFIX.length - 1)));
+    }
   }
+  if (found) return 'leaked';
   if (!keep) return new Uint8Array(0);
   const all = new Uint8Array(size);
   let at = 0;
@@ -127,12 +308,17 @@ async function readCounted(request: Pick<Request, 'body'>, cap: number, keep: bo
 /** The body as text, or null once it passes `cap` bytes. No body: ''. */
 export async function readCapped(request: Pick<Request, 'body'>, cap: number): Promise<string | null> {
   const bytes = await readCounted(request, cap, true);
-  return bytes === null ? null : new TextDecoder().decode(bytes);
+  return typeof bytes === 'string' ? null : new TextDecoder().decode(bytes);
 }
 
-/** Whether the body stays within `cap` bytes, counted as it streams; nothing is kept or decoded. */
-export async function withinCap(request: Pick<Request, 'body'>, cap: number): Promise<boolean> {
-  return (await readCounted(request, cap, false)) !== null;
+/**
+ * An upload body, counted as it streams and searched for a token value
+ * (any `rsg_pat_`, this token's or another's) without decoding: 'ok',
+ * 'too_large' or 'leaked'. Nothing is kept.
+ */
+export async function scanUpload(request: Pick<Request, 'body'>, cap: number): Promise<'ok' | 'too_large' | 'leaked'> {
+  const out = await readCounted(request, cap, false);
+  return typeof out === 'string' ? out : 'ok';
 }
 
 const revokeEntry = (tokenId: string, reason: RevokeReason): AuditEntry => ({
@@ -154,57 +340,80 @@ export function autoRevoke(db: D1Database, tokenId: string, reason: RevokeReason
 }
 
 /**
- * Counts one human_only refusal for the token with this hash (the middleware
- * refuses before any lookup, so it has only the hash). From the limit on it
- * looks for a live token with that hash and revokes it; a made-up token has
- * none, so it writes no audit row.
+ * A bearer request on a route outside the table (the middleware answers 403
+ * human_only). A cut-off IP gets 429 with no write. Otherwise, a value of a
+ * live token counts one refusal on that token (and one request on its IP),
+ * and at REFUSALS_PER_DAY the token is revoked; a value that matches no
+ * token counts as a failed authentication of the IP; a revoked or expired
+ * token's value, or a header that is no token value at all, writes nothing.
  */
-export async function countRefusal(db: D1Database, tokenHash: string, now: number): Promise<void> {
-  const n = await bump(db, `r:${tokenHash}:d`, DAY, now);
-  if (n < LIMITS.REFUSALS_PER_DAY) return;
-  const row = await db.prepare('SELECT id FROM agent_tokens WHERE token_hash = ? AND revoked_at IS NULL').bind(tokenHash).first<{ id: string }>();
-  if (row) await autoRevoke(db, row.id, 'refusals', now);
-}
+export type RefusedToken = { id: string; user_id: string } | 'unknown' | 'dead' | 'none';
 
-/** The failed-authentication counter of this IP for the current window. */
-const failBucket = (ip: string) => `f:${ip}`;
-
-/** One more failed authentication from this IP (the middleware saw a 401). */
-export async function countFailedAuth(db: D1Database, request: Request, now: number): Promise<void> {
-  await bump(db, failBucket(await ipKey(request)), LIMITS.IP_FAILED_AUTH_WINDOW, now);
-}
-
-/**
- * Per-IP limits on every request that carries an Authorization header, valid
- * or not. An IP with too many failed authentications in the window gets 429
- * for the rest of it, whatever token it sends next.
- */
-export async function checkIp(db: D1Database, request: Request, now: number): Promise<Response | null> {
+export async function countRefusal(
+  db: D1Database, request: Request, lookup: () => Promise<RefusedToken>, now: number,
+): Promise<Response | null> {
   const ip = await ipKey(request);
-  const failWindow = LIMITS.IP_FAILED_AUTH_WINDOW;
-  const failKey = `${failBucket(ip)}:${Math.floor(now / failWindow)}`;
-  const failed = await db.prepare('SELECT n FROM agent_rate WHERE bucket = ?').bind(failKey).first<{ n: number }>();
-  if ((failed?.n ?? 0) >= LIMITS.IP_FAILED_AUTH) return rateLimited(secondsLeft(failWindow, now));
-  if (await bump(db, `i:${ip}:m`, MINUTE, now) > LIMITS.IP_PER_MINUTE) return rateLimited(secondsLeft(MINUTE, now));
-  if (await bump(db, `i:${ip}:d`, DAY, now) > LIMITS.IP_PER_DAY) return rateLimited(secondsLeft(DAY, now));
+  const refused = ipRefusal(await readIp(db, ip, now), now);
+  if (refused) return refused;
+  const token = await lookup();
+  if (token === 'none' || token === 'dead') return null;
+  if (token === 'unknown') {
+    await bumpIp(db, ip, now, true).run();
+    return null;
+  }
+  const { refusals } = await bump(db, bumpToken(db, { tokenId: token.id, userId: token.user_id }, now, { minute: false, refusals: 1 }), bumpIp(db, ip, now, false));
+  if (refusals >= LIMITS.REFUSALS_PER_DAY) await autoRevoke(db, token.id, 'refusals', now);
   return null;
 }
 
+/** A value on a table route that matches no token (or is no token value): one failed authentication of the IP. */
+export async function countFailedAuth(db: D1Database, ip: string, now: number): Promise<void> {
+  await bumpIp(db, ip, now, true).run();
+}
+
+// --- the leak check --------------------------------------------------------
+
+/** %XX sequences undone one by one, so one bad sequence does not stop the rest. */
+const percentDecoded = (s: string) => s.replace(/%([0-9a-fA-F]{2})/g, (_m, h: string) => String.fromCharCode(parseInt(h, 16)));
+
+/** Numeric character references and the named ones for _ undone. */
+const entityDecoded = (s: string) => s
+  .replace(/&#x([0-9a-fA-F]{1,6});?/g, (_m, h: string) => String.fromCodePoint(Math.min(parseInt(h, 16), 0x10ffff)))
+  .replace(/&#([0-9]{1,7});?/g, (_m, d: string) => String.fromCodePoint(Math.min(Number(d), 0x10ffff)))
+  .replace(/&(lowbar|UnderBar);/g, '_');
+
+/** The string values of a parsed JSON value, in order, and its keys apart. */
+function stringLeaves(v: unknown, out = { values: [] as string[], keys: [] as string[] }) {
+  if (typeof v === 'string') out.values.push(v);
+  else if (Array.isArray(v)) for (const x of v) stringLeaves(x, out);
+  else if (v !== null && typeof v === 'object') for (const [k, x] of Object.entries(v)) { out.keys.push(k); stringLeaves(x, out); }
+  return out;
+}
+
 /**
- * Whether this text holds the token value: as written, or, when the text is
- * JSON, after its escapes are undone (`\u0072sg_pat_...` is the same value
- * to whatever stores the parsed string). JSON.stringify writes the letters,
- * digits, - and _ of a token value plainly, so re-serialising the parsed
- * text spells every escaped copy out.
+ * Whether this text holds the token value, written in any way that
+ * whatever stores or shows it would turn back into the value:
+ * - as written;
+ * - when the text is JSON, in any string after its escapes are undone
+ *   (`\u0072sg_pat_...`), or split across strings (all string leaves
+ *   joined);
+ * - percent-encoded (`%72sg_pat_...`) or as HTML character references
+ *   (`&#x72;sg_pat_...`), or both, in any of the above.
  */
 export function holdsValue(text: string, value: string): boolean {
-  if (text.includes(value)) return true;
-  if (!text.includes('\\')) return false;
+  const texts = [text];
   try {
-    return JSON.stringify(JSON.parse(text)).includes(value);
-  } catch {
-    return false;
+    const { values, keys } = stringLeaves(JSON.parse(text));
+    texts.push(values.join(''), ...values, ...keys);
+  } catch { /* not JSON: the text alone */ }
+  for (const t of texts) {
+    if (t.includes(value)) return true;
+    if (!/[%&]/.test(t)) continue;
+    const p = percentDecoded(t);
+    const e = entityDecoded(t);
+    if ([p, e, entityDecoded(p), percentDecoded(e)].some((x) => x.includes(value))) return true;
   }
+  return false;
 }
 
 /** Revokes the token (`leaked`) and gives the answer for the request that carried its value. */
@@ -213,62 +422,108 @@ export async function refuseLeak(db: D1Database, principal: Pick<LimitedPrincipa
   return leaked();
 }
 
+// --- the token's checks ----------------------------------------------------
+
 /**
  * The token's own checks, run by authenticateAgent once the token, its
- * member and route are known. In order: body size; the leak signal (before
- * the counters, so a leaked value is revoked even in a request that is over
- * a limit); the flood signal and the minute limit, both on one count that
- * includes refused attempts; the day limit and the route's quota. null: go on.
+ * member and route are known, with the snapshot it read for this request.
+ * In order:
+ * 1. Body size, and the leak signal (before any counter, so a leaked value
+ *    is revoked even in a request that is over a limit). An upload is
+ *    searched for `rsg_pat_` as bytes; any other body as text.
+ * 2. Daily limits, refused with no write: the member's day, the route's
+ *    quota, the agents' pools (general, then the reserve for social work).
+ * 3. The minute: the flood signal and the minute limit, on one count that
+ *    includes refused attempts (these write the minute count only).
+ * 4. One batch: the token's row (minute, pool, quota) and the IP's row.
+ * A body over the cap is answered 413 only after step 4: it counts as a
+ * request, and as a write or submit where the route has that quota.
+ * null: go on.
  */
 export async function checkToken(
-  db: D1Database, _env: unknown, request: Request, principal: LimitedPrincipal, now: number,
+  db: D1Database, request: Request, principal: LimitedPrincipal, at: { ip: string; snapshot: Snapshot }, now: number,
 ): Promise<Response | null> {
-  // The upload route's body is an image: counted only, never kept or
-  // decoded, and not checked for the value (binary is not content).
   const upload = principal.route.quota === 'upload';
   const cap = upload ? LIMITS.UPLOAD_BODY_BYTES : LIMITS.BODY_BYTES;
   let text = '';
+  let fits = true;
   if (request.body) {
     // A declared length over the cap is refused before anything is read.
     const declared = Number(request.headers.get('Content-Length') ?? 0);
-    let fits: boolean;
     if (declared > cap) fits = false;
-    else if (upload) fits = await withinCap(request.clone(), cap);
-    else {
+    else if (upload) {
+      const scan = await scanUpload(request.clone(), cap);
+      if (scan === 'leaked') {
+        await request.body.cancel().catch(() => {});
+        return refuseLeak(db, principal, now);
+      }
+      fits = scan === 'ok';
+    } else {
       const body = await readCapped(request.clone(), cap);
       fits = body !== null;
       text = body ?? '';
     }
-    if (!fits) {
-      // The handler never runs, so the original can go too: the stream's
-      // source is then cancelled as well, not left waiting.
-      await request.body.cancel().catch(() => {});
-      return tooLarge();
-    }
+    // The handler never runs, so the original can go too: the stream's
+    // source is then cancelled as well, not left waiting.
+    if (!fits) await request.body.cancel().catch(() => {});
   }
 
   // Any text body, whatever its Content-Type says (curl -d sends JSON as a form).
-  if (holdsValue(text, principal.value)) return refuseLeak(db, principal, now);
+  if (fits && holdsValue(text, principal.value)) return refuseLeak(db, principal, now);
 
-  const t = `t:${principal.tokenId}`;
-  const perMinute = await bump(db, `${t}:m`, MINUTE, now);
-  if (perMinute >= LIMITS.FLOOD_PER_MINUTE) {
-    await autoRevoke(db, principal.tokenId, 'flood', now);
+  const { snapshot } = at;
+  const mine = snapshot.tokens.find((t) => t.bucket === tokenBucket(principal.tokenId, now));
+  let general = 0, reserve = 0, member = 0;
+  for (const t of snapshot.tokens) {
+    general += t.general;
+    reserve += t.reserve;
+    if (t.user_id === principal.userId) member += t.general + t.reserve;
+  }
+  if (member >= LIMITS.MEMBER_PER_DAY) return dailyLimited(now);
+  const charge = principal.charge(text);
+  const quota = charge.quota ? QUOTA[charge.quota] : null;
+  const quotaFull = quota !== null && (mine?.[quota.column] ?? 0) >= quota.limit;
+  // A REST route's quota refuses here. An MCP message goes on, and its tool
+  // answers 429 as a tool result (authenticateInternal), so the agent sees why.
+  if (quotaFull && principal.route.quota) return dailyLimited(now);
+  let pool: 'general' | 'reserve';
+  if (general < LIMITS.AGENT_GENERAL_PER_DAY) pool = 'general';
+  else if (reserve < LIMITS.AGENT_RESERVE_PER_DAY && charge.reserve) pool = 'reserve';
+  else return agentBudgetSpent(now);
+
+  const thisMinute = Math.floor(now / MINUTE);
+  const perMinute = (mine?.minute === thisMinute ? mine.minute_n : 0) + 1;
+  if (perMinute > LIMITS.TOKEN_PER_MINUTE) {
+    const counted = await bump(db, bumpToken(db, principal, now, { minute: true }), bumpIp(db, at.ip, now, false));
+    if (Math.max(perMinute, counted.minute_n) >= LIMITS.FLOOD_PER_MINUTE) await autoRevoke(db, principal.tokenId, 'flood', now);
     return rateLimited(secondsLeft(MINUTE, now));
   }
-  if (perMinute > LIMITS.TOKEN_PER_MINUTE) return rateLimited(secondsLeft(MINUTE, now));
-  if (await bump(db, `${t}:d`, DAY, now) > LIMITS.TOKEN_PER_DAY) return dailyLimited(now);
-  return checkQuota(db, principal, now);
+  const spend = quota && !quotaFull ? quota.column : undefined;
+  await bump(db, bumpToken(db, principal, now, { minute: true, [pool]: 1, quota: spend }), bumpIp(db, at.ip, now, false));
+  if (quota && !principal.route.quota) principal.quotaPaid = spend ?? 'full';
+  return fits ? null : tooLarge();
 }
 
 /**
- * The route's daily quota (writes, submits, uploads) alone. checkToken ends
- * with it; an MCP tool call runs only this for its inner REST request, since
- * the outer /api/mcp request already passed every other check and counted
- * once against the minute and day limits.
+ * The route's daily quota (writes, submits, uploads) alone, for an MCP
+ * tool's inner REST request: the outer /api/mcp request already passed every
+ * other check and counted once against the minute, the member's day and the
+ * pools. Usually the outer message has spent this quota already, in its own
+ * upsert (`paid`): then nothing is written, or, if the quota was full, the
+ * answer is 429. Otherwise one conditional upsert: past the quota it changes
+ * nothing and returns no row.
  */
-export async function checkQuota(db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'route'>, now: number): Promise<Response | null> {
+export async function checkQuota(
+  db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'userId' | 'route'>, now: number, paid?: QuotaColumn | 'full',
+): Promise<Response | null> {
   const quota = principal.route.quota ? QUOTA[principal.route.quota] : null;
-  if (quota && await bump(db, `t:${principal.tokenId}:${quota.key}`, DAY, now) > quota.limit) return dailyLimited(now);
-  return null;
+  if (!quota) return null;
+  if (paid === 'full') return dailyLimited(now);
+  if (paid === quota.column) return null;
+  const c = quota.column;
+  const row = await db.prepare(
+    `INSERT INTO agent_counters (bucket, user_id, ${c}) VALUES (?1, ?2, 1)
+     ON CONFLICT(bucket) DO UPDATE SET ${c} = ${c} + 1 WHERE ${c} < ?3 RETURNING ${c}`,
+  ).bind(tokenBucket(principal.tokenId, now), principal.userId, quota.limit).first();
+  return row ? null : dailyLimited(now);
 }

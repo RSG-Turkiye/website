@@ -5,8 +5,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { bearer, mintToken } from './lib/agent';
 import { authenticateAgent, newTokenValue, type AgentAuth } from '../functions/_lib/agent-tokens';
-import { LIMITS, autoRevoke, bump } from '../functions/_lib/agent-limits';
+import { LIMITS, AGENT_BUDGET, autoRevoke, holdsValue, ipSubject } from '../functions/_lib/agent-limits';
 import { onRequest as middleware } from '../functions/api/_middleware';
+import { grantRole } from '../functions/_lib/role-grants';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
 const BASE = 'https://rsg-turkiye.iscbsc.org';
@@ -22,6 +23,16 @@ function setup() {
   const binds: string[] = [];
   const DB = d1(db, (sql) => binds.push(sql)) as never;
   return { db, DB, env: { DB } as never, binds };
+}
+
+/** The zero-padded UTC day that starts every counter key. */
+const dayKey = (now: number) => String(Math.floor(now / 86_400)).padStart(6, '0');
+/** Rows changed on this connection so far: a request that writes nothing leaves it unchanged. */
+const changes = (db: DatabaseSync) => (db.prepare('SELECT total_changes() AS n').get() as { n: number }).n;
+const counters = (db: DatabaseSync) => db.prepare('SELECT * FROM agent_counters ORDER BY bucket').all() as Record<string, unknown>[];
+/** Another member's token row for today, holding `general` and `reserve` requests: the agents' pools, spent. */
+function spend(db: DatabaseSync, now: number, general: number, reserve = 0) {
+  db.prepare('INSERT INTO agent_counters (bucket, user_id, general, reserve) VALUES (?, ?, ?, ?)').run(`${dayKey(now)}:t:someone-else`, 'other', general, reserve);
 }
 
 const req = (method: string, path: string, init: { headers?: Record<string, string>; body?: BodyInit } = {}) =>
@@ -48,16 +59,20 @@ function slowBody(chunks: number) {
   return { stream, seen };
 }
 
-test('bump: one counter per window, counted up by one upsert, expiring at the window end', async () => {
-  const { DB, db } = setup();
-  assert.equal(await bump(DB, 'x', 60, NOW), 1);
-  assert.equal(await bump(DB, 'x', 60, NOW + 59), 2);
-  assert.equal(await bump(DB, 'x', 60, NOW + 60), 1);
-  const rows = db.prepare('SELECT * FROM agent_rate ORDER BY bucket').all() as { bucket: string; n: number; expires_at: number }[];
-  assert.deepEqual(rows.map((r) => ({ ...r })), [
-    { bucket: `x:${NOW / 60}`, n: 2, expires_at: NOW + 60 },
-    { bucket: `x:${NOW / 60 + 1}`, n: 1, expires_at: NOW + 120 },
+test('an allowed request writes two counter rows, its token\'s and its IP\'s, keyed by the UTC day; the next one in the minute writes no new row', async () => {
+  const { db, env } = setup();
+  const value = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 't1' });
+  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, NOW)), 200);
+  const rows = counters(db);
+  assert.deepEqual(rows.map((r) => [String(r.bucket).split(':').slice(0, 2).join(':'), r.user_id, r.general, r.requests, r.minute_n]), [
+    [`${dayKey(NOW)}:i`, null, 0, 1, 1],
+    [`${dayKey(NOW)}:t`, 'ed', 1, 0, 1],
   ]);
+  assert.equal(rows[1].bucket, `${dayKey(NOW)}:t:t1`);
+  const before = changes(db);
+  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, NOW + 1)), 200);
+  assert.equal(changes(db) - before, 2, 'two upserts, one per row');
+  assert.equal(counters(db).length, 2);
 });
 
 test('Review Focus 4: 30 requests a minute pass, the 31st is 429 with Retry-After, the next minute passes again', async () => {
@@ -76,20 +91,70 @@ test('Review Focus 4: 30 requests a minute pass, the 31st is 429 with Retry-Afte
   assert.equal(tokenRow(db, 't1').revoked_at, null);
 });
 
-test('the 1001st request of a UTC day is 429 until 00:00 UTC', async () => {
+test('the 301st request of a member\'s UTC day, across all their tokens, is 429 until 00:00 UTC, and writes nothing', async () => {
   const { db, env } = setup();
-  const value = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 't1' });
-  // Two seconds apart: 30 a minute, never over the minute limit.
-  for (let i = 0; i < 1000; i++) {
-    assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, DAY0 + 2 * i)), 200, `request ${i + 1}`);
+  const a = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 't1' });
+  const b = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 't2' });
+  // Two seconds apart per token: never over a minute limit.
+  for (let i = 0; i < 300; i++) {
+    assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(i % 2 ? b : a) }), env, DAY0 + i)), 200, `request ${i + 1}`);
   }
-  const at = DAY0 + 2000 + 60; // a fresh minute
-  const over = await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, at);
+  const at = DAY0 + 600;
+  const before = changes(db);
+  const over = await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(a) }), env, at);
   const res = (over as Extract<AgentAuth, { kind: 'refused' }>).response;
   assert.equal(res.status, 429);
+  assert.deepEqual(await res.json(), { error: 'Too many requests', code: 'rate_limited', resets: '00:00 UTC' });
   assert.equal(Number(res.headers.get('Retry-After')), DAY0 + 86_400 - at);
-  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, DAY0 + 86_399)), 429);
-  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, DAY0 + 86_400)), 200);
+  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(b) }), env, DAY0 + 86_399)), 429);
+  assert.equal(changes(db), before, 'a refusal for the day writes nothing');
+  // Another member is not affected; the next day the member starts again.
+  db.prepare(`INSERT INTO users (id, google_id, email, created_at, last_login) VALUES ('ed2', 'g-ed2', 'ed2@example.org', 1, 1)`).run();
+  const c = await mintToken(db, 'ed2', ['cms.etkinlikler:read'], { id: 't3' });
+  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(c) }), env, DAY0 + 700)), 200);
+  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(a) }), env, DAY0 + 86_400)), 200);
+  assert.equal(LIMITS.MEMBER_PER_DAY, 300);
+});
+
+test('the agents\' budget: 12,000 general a day, then 3,000 for social work only; 429 agent_budget until 00:00 UTC, with no write', async () => {
+  const { db, env } = setup();
+  assert.deepEqual([LIMITS.AGENT_GENERAL_PER_DAY, LIMITS.AGENT_RESERVE_PER_DAY, AGENT_BUDGET], [12_000, 3_000, 15_000]);
+  const cms = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id: 't1' });
+  const social = await mintToken(db, 'ed', ['social:draft'], { id: 't2' });
+  spend(db, NOW, LIMITS.AGENT_GENERAL_PER_DAY - 1);
+  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(cms) }), env, NOW)), 200, 'the last general request');
+
+  const before = changes(db);
+  const over = await authenticateAgent(req('POST', '/api/cms/drafts', { headers: bearer(cms), body: '{}' }), env, NOW + 1);
+  const res = (over as Extract<AgentAuth, { kind: 'refused' }>).response;
+  assert.equal(res.status, 429);
+  const left = 86_400 - ((NOW + 1) % 86_400);
+  assert.deepEqual(await res.json(), {
+    error: 'Too many requests', code: 'agent_budget', retry_after: left,
+    message: 'Ajan kotası bugün doldu, yarın tekrar deneyin / Agent quota is used up for today, try again tomorrow',
+  });
+  assert.equal(Number(res.headers.get('Retry-After')), left);
+  assert.equal(changes(db), before);
+
+  // Social routes go on, from the reserve; a cms route does not.
+  for (const [method, path] of [['GET', '/api/social/posts'], ['POST', '/api/social/posts'], ['POST', `/api/social/posts/${UUID}/submit`], ['PATCH', `/api/social/plans/${UUID}`]]) {
+    assert.equal(status(await authenticateAgent(req(method, path, { headers: bearer(social), body: method === 'GET' ? undefined : '{}' }), env, NOW + 2)), 200, `${method} ${path}`);
+  }
+  const mine = counters(db).find((r) => r.bucket === `${dayKey(NOW)}:t:t2`)!;
+  assert.deepEqual([mine.general, mine.reserve], [0, 4]);
+  // An upload is social work for a token that may draft social posts now (scope and a live grant).
+  const upload = () => authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(social), body: new Uint8Array(10) }), env, NOW + 3);
+  assert.equal(status(await upload()), 429, 'no live social grant: not social work');
+  await grantRole(env.DB as never, { userId: 'ed', role: 'social', expiresAt: null, by: null }, NOW - 100);
+  assert.equal(status(await upload()), 200);
+  assert.equal(status(await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(cms), body: new Uint8Array(10) }), env, NOW + 3)), 429, 'a cms token\'s upload is not');
+
+  // With the reserve spent too, social waits as well.
+  db.prepare('UPDATE agent_counters SET reserve = ? WHERE bucket = ?').run(LIMITS.AGENT_RESERVE_PER_DAY, `${dayKey(NOW)}:t:someone-else`);
+  const spent = await authenticateAgent(req('GET', '/api/social/posts', { headers: bearer(social) }), env, NOW + 4);
+  assert.equal(((await (spent as Extract<AgentAuth, { kind: 'refused' }>).response.json()) as { code: string }).code, 'agent_budget');
+  // The next UTC day, everyone starts again.
+  assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(cms) }), env, NOW + 86_400)), 200);
 });
 
 test('the 21st submit of a day is 429 while reads still pass', async () => {
@@ -175,10 +240,45 @@ test('body size: 256 KB on JSON routes, by Content-Length or by a capped stream 
   assert.equal(status(await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(value), body: slowBody(5 * 1024 + 1).stream }), env, NOW + 4)), 413);
   assert.equal(LIMITS.UPLOAD_BODY_BYTES, 5 * 1024 * 1024);
 
-  // An upload is binary: it is only counted, and the leak check skips it.
-  const withValue = new TextEncoder().encode(`GIF89a ${value}`);
-  assert.equal(status(await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(value), body: withValue }), env, NOW + 5)), 200);
+  // A body over the cap still counts: one request, and a write on a write route.
+  const before = counters(db).find((r) => r.bucket === `${dayKey(NOW)}:t:t1`)!;
+  assert.equal(status(await authenticateAgent(req('PATCH', `/api/cms/drafts/${UUID}`, { headers: { ...bearer(value), 'Content-Length': String(300 * 1024) }, body: slowBody(300).stream }), env, NOW + 5)), 413);
+  const after = counters(db).find((r) => r.bucket === `${dayKey(NOW)}:t:t1`)!;
+  assert.deepEqual([Number(after.general) - Number(before.general), Number(after.writes) - Number(before.writes)], [1, 1]);
   assert.equal(tokenRow(db, 't1').revoked_at, null);
+});
+
+test('an upload is searched as bytes for rsg_pat_ (any token value), across chunk ends: 400 leaked and the token revoked', async () => {
+  const { db, env } = setup();
+  const value = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id: 't1' });
+  assert.equal(status(await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(value), body: new TextEncoder().encode('GIF89a rsg_pa t_') }), env, NOW)), 200);
+  // The prefix split over two chunks of a stream.
+  const parts = ['GIF89a ....... rsg_p', `at_${'A'.repeat(43)} more`].map((t) => new TextEncoder().encode(t));
+  const stream = new ReadableStream<Uint8Array>({ pull(c) { const next = parts.shift(); if (next) c.enqueue(next); else c.close(); } });
+  const auth = await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(value), body: stream }), env, NOW + 1);
+  const res = (auth as Extract<AgentAuth, { kind: 'refused' }>).response;
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, 'leaked');
+  assert.deepEqual(tokenRow(db, 't1'), { revoked_at: NOW + 1, revoke_reason: 'leaked' });
+  // Its own value in one piece too.
+  const v2 = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id: 't2' });
+  assert.equal(status(await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(v2), body: new TextEncoder().encode(`GIF89a ${v2}`) }), env, NOW + 2)), 400);
+});
+
+test('the leak check sees the value percent-encoded, as HTML character references, JSON-escaped, or split across strings', async () => {
+  const value = newTokenValue();
+  const pct = [...value].map((c, i) => (i % 3 ? c : `%${c.charCodeAt(0).toString(16)}`)).join('');
+  const ent = `&#x72;${value.slice(1, 7)}&lowbar;${value.slice(8)}`;
+  const dec = `&#114;${value.slice(1)}`;
+  for (const text of [
+    value, `{"a":"${pct}"}`, pct, `{"a":"${ent}"}`, dec, `{"a":"\\u0072${value.slice(1)}"}`,
+    JSON.stringify({ a: value.slice(0, 20), b: { c: [value.slice(20)] } }), JSON.stringify({ a: encodeURIComponent(ent) }),
+  ]) {
+    assert.equal(holdsValue(text, value), true, text);
+  }
+  for (const text of ['', JSON.stringify({ a: newTokenValue() }), `{"a":"${value.slice(0, 20)}"}`, '%zz&#xzz;']) {
+    assert.equal(holdsValue(text, value), false, text);
+  }
 });
 
 /** The middleware with a clock and a handler that runs the token gate, as cmsGate will. */
@@ -243,19 +343,22 @@ test('per IP: the 61st bearer request in a minute is 429, valid or not', async (
   assert.equal(res.status, 429);
   assert.equal(res.headers.get('Retry-After'), '1');
   // The IP stays hashed: no row holds the address.
-  assert.ok(!JSON.stringify(db.prepare('SELECT bucket FROM agent_rate').all()).includes('203.0.113.9'));
+  assert.ok(!JSON.stringify(counters(db)).includes('203.0.113.9'));
 });
 
-test('one allowed GET through authenticateAgent and checkToken runs at most 8 statements', async () => {
+test('one allowed request through authenticateAgent runs at most 7 statements, two of them counter upserts', async () => {
   const { db, env, binds } = setup();
   const value = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 't1' });
   assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, NOW)), 200);
-  assert.ok(binds.length <= 8, `${binds.length} statements:\n${binds.join('\n')}`);
-  // A submit adds its quota bucket and stays within the bound too.
+  // The counters read, the token, the member, the grants, two upserts, and last_used_at at most every 5 minutes.
+  assert.ok(binds.length <= 7, `${binds.length} statements:\n${binds.join('\n')}`);
+  assert.equal(binds.filter((b) => /INSERT INTO agent_counters/.test(b)).length, 2);
+  // A submit spends its quota in the same token upsert: no more statements.
   binds.length = 0;
   const writer = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id: 't2' });
   assert.equal(status(await authenticateAgent(req('POST', `/api/cms/drafts/${UUID}/submit`, { headers: bearer(writer) }), env, NOW)), 200);
-  assert.ok(binds.length <= 8, `${binds.length} statements:\n${binds.join('\n')}`);
+  assert.ok(binds.length <= 7, `${binds.length} statements:\n${binds.join('\n')}`);
+  assert.equal(binds.filter((b) => /INSERT INTO agent_counters/.test(b)).length, 2);
 });
 
 // --- fix round 1 ---------------------------------------------------------
@@ -290,7 +393,7 @@ test('a revoke that failed at the threshold is made by the next attempt past it,
   const { db, DB, env } = setup();
   const value = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 't1' });
   // Push the minute count past the threshold without a revoke, as a failed write would leave it.
-  for (let i = 0; i < LIMITS.FLOOD_PER_MINUTE; i++) await bump(DB, 't:t1:m', 60, NOW);
+  db.prepare('INSERT INTO agent_counters (bucket, user_id, minute, minute_n) VALUES (?, ?, ?, ?)').run(`${dayKey(NOW)}:t:t1`, 'ed', NOW / 60, LIMITS.FLOOD_PER_MINUTE);
   assert.equal(tokenRow(db, 't1').revoked_at, null);
   assert.equal(status(await authenticateAgent(req('GET', '/api/cms/drafts', { headers: bearer(value) }), env, NOW + 1)), 429);
   assert.equal(tokenRow(db, 't1').revoke_reason, 'flood');
@@ -302,30 +405,82 @@ test('a revoke that failed at the threshold is made by the next attempt past it,
   assert.equal(revokeAudits(db).length, 1);
 });
 
-test('an IP over its limit spraying made-up tokens at refused routes adds no counter rows', async () => {
+test('made-up values write no row per value: they count as failed authentications of the IP, which is then refused with no write at all', async () => {
   const { db, env } = setup();
   const ip = { 'CF-Connecting-IP': '203.0.113.20' };
-  for (let i = 0; i < 60; i++) await throughMiddleware(env, req('GET', '/api/me', { headers: { ...bearer(newTokenValue()), ...ip } }), NOW + 10);
-  const rows = () => (db.prepare('SELECT COUNT(*) AS n FROM agent_rate').get() as { n: number }).n;
-  const before = rows();
+  // Outside the table (403) and inside it (401) alike.
+  for (let i = 0; i < 5; i++) assert.equal((await throughMiddleware(env, req('GET', '/api/me', { headers: { ...bearer(newTokenValue()), ...ip } }), NOW + i)).status, 403);
+  for (let i = 0; i < 5; i++) assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(newTokenValue()), ...ip } }), NOW + 5 + i)).status, 401);
+  const rows = counters(db);
+  assert.equal(rows.length, 1, 'one row: the IP');
+  assert.deepEqual([rows[0].fail_n, rows[0].requests], [10, 10]);
+  const before = changes(db);
   for (let i = 0; i < 25; i++) {
-    const res = await throughMiddleware(env, req('GET', '/api/me', { headers: { ...bearer(newTokenValue()), ...ip } }), NOW + 11);
+    const res = await throughMiddleware(env, req(i % 2 ? 'GET' : 'POST', i % 2 ? '/api/me' : '/api/cms/drafts', { headers: { ...bearer(newTokenValue()), ...ip } }), NOW + 11);
     assert.equal(res.status, 429);
   }
-  assert.equal(rows(), before);
+  assert.equal(changes(db), before, 'a cut-off IP costs no write');
+  // A header that is no token value, on a route outside the table, writes nothing either.
+  for (let i = 0; i < 5; i++) assert.equal((await throughMiddleware(env, req('GET', '/api/me', { headers: { Authorization: 'Basic eDp5', 'CF-Connecting-IP': '203.0.113.21' } }), NOW)).status, 403);
+  assert.equal(changes(db), before);
 });
 
-test('per IP: the 3001st bearer request of a UTC day is 429 until 00:00 UTC', async () => {
+test('a revoked or expired token\'s retries are 401 without counting against its IP, so they lock no one else out', async () => {
+  const { db, env } = setup();
+  const dead = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 'dead', revokedAt: NOW - 10 });
+  const old = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 'old', expiresAt: NOW - 10 });
+  const live = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 'live' });
+  const ip = { 'CF-Connecting-IP': '192.0.2.50' };
+  const before = changes(db);
+  for (let i = 0; i < 15; i++) {
+    assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(i % 2 ? dead : old), ...ip } }), NOW + i)).status, 401);
+    assert.equal((await throughMiddleware(env, req('GET', '/api/me', { headers: { ...bearer(dead), ...ip } }), NOW + i)).status, 403);
+  }
+  assert.equal(changes(db), before, 'nothing written');
+  assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(live), ...ip } }), NOW + 20)).status, 200);
+});
+
+test('an IPv6 address counts by its /64', async () => {
+  assert.equal(ipSubject('2001:db8:1:2:aaaa::1'), '2001:db8:1:2::/64');
+  assert.equal(ipSubject('2001:0db8:0001:0002:ffff:ffff:ffff:ffff'), '2001:db8:1:2::/64');
+  assert.equal(ipSubject('2001:db8::1'), '2001:db8:0:0::/64');
+  assert.equal(ipSubject('::1'), '0:0:0:0::/64');
+  assert.equal(ipSubject('192.0.2.1'), '192.0.2.1');
+  assert.equal(ipSubject('::ffff:192.0.2.1'), '192.0.2.1');
+  const { env } = setup();
+  for (let i = 0; i < 10; i++) {
+    await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(newTokenValue()), 'CF-Connecting-IP': `2001:db8:1:2::${i.toString(16)}` } }), NOW + i);
+  }
+  assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(newTokenValue()), 'CF-Connecting-IP': '2001:db8:1:2:ffff::9' } }), NOW + 11)).status, 429);
+  assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(newTokenValue()), 'CF-Connecting-IP': '2001:db8:1:3::1' } }), NOW + 12)).status, 401);
+});
+
+test('a request without an Authorization header (a person in the panel) is never counted', async () => {
+  const { db, env } = setup();
+  spend(db, NOW, AGENT_BUDGET);
+  const before = changes(db);
+  let reached = false;
+  const res = await (middleware as unknown as (c: unknown) => Promise<Response>)({
+    request: req('POST', '/api/cms/drafts', { headers: { Cookie: 'rsg_session=s-ed' } }), env, params: {}, waitUntil() {},
+    next: async () => { reached = true; return new Response('handler'); },
+  });
+  assert.equal(await res.text(), 'handler');
+  assert.ok(reached);
+  assert.equal(changes(db), before);
+});
+
+test('per IP: past 3000 bearer requests in a UTC day, 429 until 00:00 UTC, with no write', async () => {
   const { db, env } = setup();
   const value = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 't1' });
   const ip = { 'CF-Connecting-IP': '203.0.113.30' };
-  // Any Authorization header counts; a Basic one is refused without a token lookup.
-  for (let i = 0; i < 3000; i++) {
-    assert.equal((await throughMiddleware(env, req('GET', '/api/me', { headers: { Authorization: 'Basic eDp5', ...ip } }), DAY0 + i)).status, 403, `request ${i + 1}`);
-  }
+  assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(value), ...ip } }), DAY0 + 10)).status, 200);
+  db.prepare('UPDATE agent_counters SET requests = ? WHERE bucket LIKE ?').run(LIMITS.IP_PER_DAY, `${dayKey(DAY0)}:i:%`);
+  const before = changes(db);
   const res = await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(value), ...ip } }), DAY0 + 3060);
   assert.equal(res.status, 429);
   assert.equal(Number(res.headers.get('Retry-After')), 86_400 - 3060);
-  assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(value), 'CF-Connecting-IP': '203.0.113.31' } }), DAY0 + 3061)).status, 200);
+  assert.equal((await throughMiddleware(env, req('GET', '/api/me', { headers: { ...bearer(value), ...ip } }), DAY0 + 3061)).status, 429, 'a route outside the table too');
+  assert.equal(changes(db), before);
+  assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(value), 'CF-Connecting-IP': '203.0.113.31' } }), DAY0 + 3062)).status, 200);
   assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(value), ...ip } }), DAY0 + 86_400)).status, 200);
 });

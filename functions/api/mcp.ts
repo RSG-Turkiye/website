@@ -7,7 +7,7 @@
 import { jsonResponse, type Env } from '../_lib/auth';
 import { authenticateAgent, unauthorized } from '../_lib/agent-tokens';
 import { AGENT_INSTRUCTIONS } from '../_lib/agent-instructions';
-import { argsProblem, callTool, toolsFor } from '../_lib/mcp-tools';
+import { argsProblem, callTool, mcpCharge, toolsFor } from '../_lib/mcp-tools';
 
 /** The only Origin a browser may send: a page elsewhere must not reach a local agent's server (DNS rebinding). */
 const SITE_ORIGIN = 'https://rsg-turkiye.iscbsc.org';
@@ -19,7 +19,12 @@ const result = (id: Id, value: unknown) => jsonResponse({ jsonrpc: '2.0', id, re
 const rpcError = (id: Id | null, code: number, message: string, status = 200) =>
   jsonResponse({ jsonrpc: '2.0', id, error: { code, message } }, status);
 
-export const onRequestGet: PagesFunction<Env> = async () => {
+// GET is in the agent route table (an MCP client may open a stream with it),
+// so it authenticates and counts like any other token request before the 405.
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+  const auth = await authenticateAgent(request, env, Math.floor(Date.now() / 1000), { charge: mcpCharge });
+  if (auth.kind === 'refused') return auth.response;
+  if (auth.kind === 'none') return unauthorized();
   const res = jsonResponse({ error: 'This MCP endpoint answers POST only', code: 'method_not_allowed' }, 405);
   res.headers.set('Allow', 'POST');
   return res;
@@ -29,10 +34,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, waitUnti
   const origin = request.headers.get('Origin');
   if (origin !== null && origin !== SITE_ORIGIN) return jsonResponse({ error: 'Forbidden', code: 'bad_origin' }, 403);
 
-  // The token's own checks (rate, size, leak) run here once for the whole
-  // message; the tool's inner request spends only its route's quota.
+  // The token's own checks (rate, budget, size, leak) run here once for the
+  // whole message; the tool's inner request spends only its route's quota.
+  // A tool's quota is spent with the message; a social tool call, and the
+  // handshake of a token that may do social work, may use the agents'
+  // social reserve (mcpCharge).
   const now = Math.floor(Date.now() / 1000);
-  const auth = await authenticateAgent(request, env, now);
+  const auth = await authenticateAgent(request, env, now, { charge: mcpCharge });
   if (auth.kind === 'refused') return auth.response;
   if (auth.kind === 'none') return unauthorized();
 

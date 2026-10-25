@@ -43,9 +43,9 @@ function agentOf(auth: AgentAuth): AgentPrincipal {
 }
 
 /** Every row of every table, to prove a request wrote nothing. The agent
- * rate counters (agent-limits.ts) are left out: every request bumps them. */
+ * counters (agent-limits.ts) are left out: every request bumps them. */
 function snapshot(db: DatabaseSync): string {
-  const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name != 'agent_rate' ORDER BY name").all() as { name: string }[]).map((r) => r.name);
+  const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name != 'agent_counters' ORDER BY name").all() as { name: string }[]).map((r) => r.name);
   return JSON.stringify(tables.map((t) => [t, db.prepare(`SELECT * FROM "${t}"`).all()]));
 }
 

@@ -2,16 +2,17 @@
 // carries an Authorization header and is not in the agent route table is
 // refused here, before any handler runs, so an endpoint that only knows
 // cookies can never be reached with a token. Routes in the table go on to
-// their handler, whose gate (authenticateAgent) checks the token and the
-// table again. No header: nothing changes.
+// their handler, whose gate (authenticateAgent) checks the IP, the token and
+// the table again, and counts the request. No header: nothing changes, so
+// people in the panel are never counted or limited here.
 //
-// The per-IP limits and the refusal count also live here. Their D1 writes are
-// bookkeeping: if D1 fails, a refusal is still a refusal and a table route
-// still reaches its gate, whose own lookup and per-token limits fail closed.
+// A refusal here costs at most one row written (agent-limits.ts,
+// countRefusal), and none from an IP that is already cut off. The counter
+// writes are bookkeeping: if D1 fails, a refusal is still a refusal.
 
 import { routeFor } from '../_lib/agent-routes';
 import { hashToken, humanOnly } from '../_lib/agent-tokens';
-import { checkIp, countFailedAuth, countRefusal } from '../_lib/agent-limits';
+import { countRefusal, type RefusedToken } from '../_lib/agent-limits';
 import type { Env } from '../_lib/auth';
 
 const TOKEN = /^Bearer (rsg_pat_[A-Za-z0-9_-]{43})$/;
@@ -24,41 +25,24 @@ function logFailure(e: unknown) {
 export const onRequest: PagesFunction<Env> = async ({ request, env, next }) => {
   const header = request.headers.get('Authorization');
   if (header === null) return next();
-  const now = Math.floor(Date.now() / 1000);
+  if (routeFor(request.method, new URL(request.url).pathname)) return next();
 
-  let limited: Response | null = null;
+  const now = Math.floor(Date.now() / 1000);
+  // Which token the header names, looked up only once the IP is known not to be cut off.
+  const lookup = async (): Promise<RefusedToken> => {
+    const value = TOKEN.exec(header)?.[1];
+    if (!value) return 'none';
+    const row = await env.DB.prepare('SELECT id, user_id, revoked_at, expires_at FROM agent_tokens WHERE token_hash = ?')
+      .bind(await hashToken(value)).first<{ id: string; user_id: string; revoked_at: number | null; expires_at: number }>();
+    if (!row) return 'unknown';
+    return row.revoked_at === null && row.expires_at > now ? { id: row.id, user_id: row.user_id } : 'dead';
+  };
   try {
-    limited = await checkIp(env.DB, request, now);
+    // Over an IP limit this answers 429 rather than 403: both refuse, and 429 tells a loop to back off.
+    const limited = await countRefusal(env.DB, request, lookup, now);
+    if (limited) return limited;
   } catch (e) {
     logFailure(e);
   }
-
-  // Over an IP limit, nothing more is counted or looked up: a client spraying
-  // made-up tokens at a cut-off IP adds no rows. On a route outside the
-  // table this answers 429 rather than 403: both refuse, and 429 tells a
-  // loop to back off.
-  if (limited) return limited;
-
-  if (!routeFor(request.method, new URL(request.url).pathname)) {
-    // Counted only for a well-formed token; any other header (Basic, malformed) adds no row.
-    const value = TOKEN.exec(header)?.[1];
-    if (value) {
-      try {
-        await countRefusal(env.DB, await hashToken(value), now);
-      } catch (e) {
-        logFailure(e);
-      }
-    }
-    return humanOnly();
-  }
-
-  const res = await next();
-  if (res.status === 401) {
-    try {
-      await countFailedAuth(env.DB, request, now);
-    } catch (e) {
-      logFailure(e);
-    }
-  }
-  return res;
+  return humanOnly();
 };

@@ -147,10 +147,12 @@ test('queries on tables that are never pruned look rows up by index', () => {
 });
 
 test('agent limit queries look rows up by index', () => {
-  // The bucket prune runs nightly over every bucket; the token lookup runs on every agent request.
+  // The counter prune runs nightly; the counter read and the token lookup run on every agent request.
+  // agent_counters is WITHOUT ROWID: its primary key is the table, so a key lookup is a SEARCH of the table itself.
   const db = freshDatabase();
   const queries: [string, RegExp][] = [
-    ['DELETE FROM agent_rate WHERE expires_at < ?', /idx_agent_rate_expires/],
+    ['DELETE FROM agent_counters WHERE bucket < ?', /SEARCH agent_counters USING PRIMARY KEY/],
+    ['SELECT * FROM agent_counters WHERE bucket = ?1 OR (bucket >= ?2 AND bucket < ?3)', /agent_counters USING PRIMARY KEY/],
     ['SELECT * FROM agent_tokens WHERE token_hash = ?', /sqlite_autoindex_agent_tokens_\d/],
   ];
   for (const [q, index] of queries) {

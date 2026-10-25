@@ -10,7 +10,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { setupSocial, settle, KEYS, BASE } from './lib/social';
 import { mintToken, bearer } from './lib/agent';
 import { grantRole } from '../functions/_lib/role-grants';
-import { authenticateAgent, markInternal } from '../functions/_lib/agent-tokens';
+import { authenticateAgent, markInternal, newTokenValue } from '../functions/_lib/agent-tokens';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { FEED } from '../src/lib/podcast-feed';
 import { callTool as runTool, MCP_TOOLS as TOOLS } from '../functions/_lib/mcp-tools';
@@ -88,8 +88,10 @@ async function toolResult(env: unknown, token: string, name: string, args: Recor
 const toolNames = async (env: unknown, token: string) =>
   ((await rpc(env, token, 'tools/list')).body.result.tools as { name: string }[]).map((t) => t.name).sort();
 
+/** The token's counters today (agent_counters): m and d are requests counted, w writes, s submits. */
+const COUNTER: Record<string, string> = { m: 'general + reserve', d: 'general + reserve', w: 'writes', s: 'submits' };
 const bucketSum = (db: DatabaseSync, tokenId: string, kind: string) =>
-  (db.prepare('SELECT COALESCE(SUM(n), 0) AS n FROM agent_rate WHERE bucket LIKE ?').get(`t:${tokenId}:${kind}:%`) as { n: number }).n;
+  (db.prepare(`SELECT COALESCE(SUM(${COUNTER[kind]}), 0) AS n FROM agent_counters WHERE bucket LIKE ?`).get(`%:t:${tokenId}`) as { n: number }).n;
 
 const newEvent = () => ({
   id: 'meetup-ankara-2027', type: 'meetup', start: '2027-03-06',
@@ -140,8 +142,13 @@ test('transport: notification 202 with no body, GET 405, foreign Origin 403, bad
   assert.equal(await note.text(), '');
   assert.equal(note.headers.get('Mcp-Session-Id'), null);
 
-  const get = await (mcp.onRequestGet as (c: unknown) => Promise<Response>)({ request: new Request(`${BASE}/api/mcp`, { headers: bearer(token) }), env, params: {}, waitUntil: () => {}, data: {} });
+  const getWith = (headers: Record<string, string>) =>
+    (mcp.onRequestGet as (c: unknown) => Promise<Response>)({ request: new Request(`${BASE}/api/mcp`, { headers }), env, params: {}, waitUntil: () => {}, data: {} });
+  const get = await getWith(bearer(token));
   assert.equal(get.status, 405);
+  // GET authenticates first: a bad token is 401, as on every other table route.
+  assert.equal((await getWith(bearer(newTokenValue()))).status, 401);
+  assert.equal((await getWith({})).status, 401);
 
   const evil = await post(env, { jsonrpc: '2.0', id: 1, method: 'tools/list' }, { token, headers: { Origin: 'https://evil.example' } });
   assert.equal(evil.status, 403);
@@ -301,7 +308,7 @@ test('one MCP POST is one request against the token limits; a write or submit sp
 test('the write quota holds through MCP: past it, the tool answers 429 rate_limited and nothing is written', async () => {
   const { db, env } = await setup();
   const token = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id: 'tok-full' });
-  db.prepare('INSERT INTO agent_rate (bucket, n, expires_at) VALUES (?, 200, ?)').run(`t:tok-full:w:${Math.floor(NOW / 86400)}`, NOW + 86400);
+  db.prepare('INSERT INTO agent_counters (bucket, user_id, writes) VALUES (?, ?, 200)').run(`${String(Math.floor(NOW / 86400)).padStart(6, '0')}:t:tok-full`, 'ed');
   const body = await callTool(env, token, 'cms_create_draft', { type: 'events', action: 'create', data: newEvent() });
   assert.equal(body.result.isError, true);
   const answer = JSON.parse(body.result.content[0].text);
@@ -479,4 +486,26 @@ test('cms_pull_podcast through MCP makes a draft by the agent', async () => {
   } finally {
     feed = null;
   }
+});
+
+test('the agents\' budget through MCP: once the general pool is spent, social tool calls and a social token\'s handshake use the reserve; cms tool calls wait', async () => {
+  const { db, env } = await setup();
+  const both = await mintToken(db, 'ed', ['social:draft', 'cms.etkinlikler:draft'], { id: 'tok-both' });
+  const cmsOnly = await mintToken(db, 'ed', ['cms.etkinlikler:read'], { id: 'tok-cms' });
+  db.prepare('INSERT INTO agent_counters (bucket, user_id, general) VALUES (?, ?, ?)')
+    .run(`${String(Math.floor(NOW / 86400)).padStart(6, '0')}:t:someone-else`, 'other', 12_000);
+
+  assert.equal((await rpc(env, both, 'initialize', { protocolVersion: '2025-06-18' })).status, 200);
+  assert.equal((await rpc(env, both, 'tools/list')).status, 200);
+  const made = await toolResult(env, both, 'social_create_post', draftPost);
+  assert.ok(made.id);
+  // A cms tool from the same token, and anything from a token with no social reach, waits for 00:00 UTC.
+  for (const [token, method, params] of [[both, 'tools/call', { name: 'cms_list_my_drafts', arguments: {} }], [cmsOnly, 'tools/list', undefined]] as const) {
+    const res = await rpc(env, token, method, params);
+    assert.equal(res.status, 429);
+    assert.equal(res.body.code, 'agent_budget');
+  }
+  const row = db.prepare('SELECT general, reserve, writes FROM agent_counters WHERE bucket LIKE ?').get('%:t:tok-both') as Record<string, number>;
+  // initialize, tools/list and the tool call, each one request; the inner create spent the write quota.
+  assert.deepEqual({ ...row }, { general: 0, reserve: 3, writes: 1 });
 });
