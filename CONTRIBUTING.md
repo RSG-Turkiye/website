@@ -101,6 +101,8 @@ work without a `.env`.
 
 Blog posts live in `src/content/blog/en/` (English) or `src/content/blog/tr/` (Turkish).
 
+People with the Yazılar edit right can also write a post in the admin panel (İçerik › Blog), which opens the pull request for them after an approver approves; see the README's Content (CMS) section. The steps below are the by-hand way and always work.
+
 ### Step 1 — Create the file
 
 Pick a short, descriptive filename in lowercase with hyphens. This becomes the URL slug.

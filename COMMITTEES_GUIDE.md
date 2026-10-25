@@ -33,7 +33,7 @@ birleştirmez.
   bir daha değişmez; mevcut dosyalar (örneğin `website.json`) adları ne
   olursa olsun kendi adlarını korur.
 - **Gönderirken panel şunları reddeder:** dosyada herhangi bir `@` (e-posta
-  adresi olmasın diye), uzun tire (—) ya da kelimeler arasında ` -- ` (kod içinde de), boş
+  adresi olmasın diye), uzun tire ya da kelimeler arasında çift tire (kod içinde de), boş
   bir ad, açıklama ya da görev, onayı olmayan üye.
 
 Aşağıdaki elle düzenleme adımları yedek yoldur: panel çalışmıyorsa ya da

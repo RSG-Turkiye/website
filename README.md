@@ -499,7 +499,7 @@ The address records where you are, so a link such as `/admin#sempozyum/komite`
 opens that sub-page directly and reload and back keep working. A section with
 sub-pages opens its first one on a laptop; on a phone it opens a list of them,
 and a ‹ button returns from a sub-page to the list. Counts of waiting work
-(e-mail, social approvals, blog posts) show next to the menu entries and on
+(e-mail, social approvals, content drafts waiting for approval) show next to the menu entries and on
 Overview.
 
 - **Overview** (`#genel`): what is waiting, plus the status banner. Shown when
@@ -514,13 +514,14 @@ Overview.
   Senders without admin rights see only the E-posta section. The old
   `/account/mail` and `/account/conversations` pages (and `/tr` twins) forward
   to `#eposta/yaz` and `#eposta/gelen`.
-- **Content**: Blog (admins), Symposium (symposium editors, admins).
+- **Content**: İçerik (the CMS, for people who edit a content group) and
+  Symposium (symposium editors, admins).
 - **Community**: Users and roles (admins). Membership has an entry but stays
   hidden until it is built.
 - **System**: Connections and Activity log (admins).
 
 The section ids in the address are Turkish (`eposta`, `sosyal`, `duyurular`,
-`blog`, `sempozyum`, `kullanicilar`, `baglantilar`, `kayit`). The routing table
+`icerik`, `sempozyum`, `kullanicilar`, `baglantilar`, `kayit`). The routing table
 is `src/scripts/admin/sections.ts`. `tests/browser/admin-overflow.mjs` opens
 every section at 390 and 1280 px and checks for horizontal scroll and 44 px
 touch targets.
@@ -905,8 +906,8 @@ account and, if it did not go out, create the post again.
 ## Statistics
 
 Admin panel → **Statistics** (`#istatistik`, admins only) shows counts, never
-who: visits, accounts, learning-path progress, published content and blog
-submissions, e-mail, social posts and symposium certificates. Columns compare
+who: visits, accounts, learning-path progress, published content, the old
+blog form's history, e-mail, social posts and symposium certificates. Columns compare
 this month, last month, this year and last year in Türkiye time; an earlier
 year (the selector) compares itself with the year before. Every view is
 written to the Log as `read.stats`. Code: `functions/api/admin/stats.ts`,
@@ -940,7 +941,9 @@ preview, `CF_GRAPHQL_URL` can point the reader at a stand-in endpoint.
 
 ## Content (CMS)
 
-The admin panel can edit the site's events, workshops and webinars. It does
+The admin panel can edit most of the site's content: events, workshops,
+webinars, blog posts, committees, the podcast, learning paths, resource
+links, page texts and the privacy notice. It does
 not write to the live site directly. Every change is a draft, and a draft
 reaches the site only as a pull request that an approver has approved and
 that passes the same checks as any other change. Published content lives only
@@ -955,21 +958,34 @@ side is `functions/_lib/cms-*.ts` and `functions/api/cms/`.
 
 ### Who can do what
 
-There are two roles, both for the Etkinlikler group:
+Content is split into five groups. Each has two roles, named
+`content.<group>.edit` and `content.<group>.approve`, and a person sees
+only the tabs of the groups they edit.
 
-- **Editor** (`content.etkinlikler.edit`) starts drafts, edits them and sends
+| Group | Tabs (types) | Editor role | Approver role |
+| --- | --- | --- | --- |
+| Etkinlikler | Etkinlikler (events), Atölyeler (workshops), Webinarlar | Events editor | Events approver |
+| Yazılar | Blog | Posts editor | Posts approver |
+| Öğrenme | Kaynaklar (resource links), Öğrenme alanları, Öğrenme seviyeleri, Yol haritası | Learning editor | Learning approver |
+| Topluluk | Komiteler (committees), Podcast | Community editor | Community approver |
+| Sayfalar | Sayfa metinleri, Gizlilik bildirimi | Pages editor | Pages approver |
+
+- **Editor** (`content.<group>.edit`) starts drafts, edits them and sends
   them for approval. An editor role lasts at most one month, then is renewed.
-- **Approver** (`content.etkinlikler.approve`) does everything an editor can,
+- **Approver** (`content.<group>.approve`) does everything an editor can,
   and also approves or sends back drafts, stops a pull request that is
   running, and discards drafts. It is a leader role: up to 12 months, or
-  permanent when an admin grants it. An approver may approve their own
-  draft.
+  permanent, and only an admin grants it. An approver may approve their own
+  draft. The one exception is the privacy notice: only an admin approves
+  it.
 
-An admin has both without holding either. Admins grant either role. An
-approver can also grant the editor role, for one month at most, so they can
-cover for an editor but not widen access on their own. Grants are made in
-Users and roles → Roles, like every other role. The rules are in
-`functions/_lib/roles.ts`.
+An admin has every role without holding any. Admins grant any of them. An
+approver can also grant their own group's editor role, for one month at
+most, so they can cover for an editor but not widen access on their own.
+Grants are made in Users and roles → Roles, like every other role. The
+catalog and these rules are in `functions/_lib/roles.ts` (`ROLES`,
+`CMS_GROUPS`). The old `writer` ("Blog writer") role is retired: it is still
+shown where it was held, but cannot be granted any more.
 
 ### From draft to live
 
@@ -1152,25 +1168,39 @@ and the panel lets the author compare and continue from the site's version.
 
 No Worker redeploy is needed.
 
-When the pull request that retires the old member blog form (Yazılar) is
-merged, two more steps:
+#### Going live with the other four groups (Yazılar, Öğrenme, Topluluk, Sayfalar)
 
-1. **Before the deploy**, a read-only check that no old submission is still
-   waiting (the form's endpoints and admin section are removed, so a pending
-   one could no longer be approved or rejected):
+The steps above are already done. This pull request retires the old member
+blog form, so the order matters:
+
+1. **Before merging**, a read-only check on the remote D1 that no old
+   submission is still waiting (the form's endpoints and the admin "Blog"
+   section are removed, so a pending one could no longer be approved or
+   rejected). It changes nothing and needs no migration:
 
    ```bash
    wrangler d1 execute rsg-members --remote --command="SELECT COUNT(*) AS pending FROM blog_submissions WHERE status = 'pending'"
    ```
 
    It must be 0. If it is not, approve or reject those submissions in the
-   panel that is still live before merging.
-2. **After the deploy**, move the retired `writer` role (note 8k at the top of
-   `db/schema.sql`): in Users and roles → Roles, grant "Posts editor"
-   (Yazılar düzenleyici) to whoever holds "Blog writer" (Blog yazarı), ending
-   at the earlier of their writer grant's end and one month, then take away
-   "Blog writer". Both steps are in the activity log. The note's SQL is a
-   fallback only and writes no log row.
+   panel that is still live, then check again. There is no table change in
+   this pull request.
+2. Merge and let the deploy finish.
+3. **Move the retired `writer` role (note 8k)**, in the panel, after the
+   deploy: Users and roles → Roles, grant "Posts editor" (Yazılar
+   düzenleyici) to whoever holds "Blog writer" (Blog yazarı), ending at the
+   earlier of their writer grant's end and one month, then take away "Blog
+   writer". Both steps are in the activity log. The SQL in note 8k at the
+   top of `db/schema.sql` is a fallback only: it writes no log row, so use
+   it just if the panel cannot be used.
+4. **Run a trial draft in a second group**, yourself, before any grant:
+   for example edit a page text or a committee description in İçerik, send
+   it, approve it, and watch it reach Yayında. Do the same once for a blog
+   post if you can; delete it afterwards or let it stand if it is real.
+5. **Then the grants**: in the Roles view, give the first
+   `content.yazilar.*`, `content.ogrenme.*`, `content.topluluk.*` and
+   `content.sayfalar.*` roles. Approver roles are admin-only; editors are
+   one month.
 
 ## Yearly handover
 
@@ -1196,9 +1226,9 @@ When the committee changes:
 
 Every role is a grant in the `role_grants` table: who holds it, until when
 (or permanently), and who granted or ended it. Leader roles (admin,
-announcer, symposium, social publisher, content approver) can last up to 12
+announcer, symposium, social publisher, a content group's approver) can last up to 12
 months, or be made permanent by an admin. Edit roles (sender, social,
-content editor) last up to one month, then are renewed. The end date a person picks is inclusive: the role
+a content group's editor) last up to one month, then are renewed. The end date a person picks is inclusive: the role
 works through that whole day. The `users.is_*` columns are only a cache that
 permission checks read; they are rewritten from the live grants in the same
 batch as every change, and the hourly sweep in `/api/mail/dispatch` ends
@@ -1256,7 +1286,7 @@ draft: false
 
 ### Events, workshops, resources, committees and page texts (`src/content/*/*.json`)
 
-These are JSON collections, one file per entry (page texts: one file per page). No code change is needed to edit them. The admin panel edits events, workshops and webinars as pull requests (see [Content (CMS)](#content-cms)); the other collections are edited by hand.
+These are JSON collections, one file per entry (page texts: one file per page). No code change is needed to edit them. Every collection below can be edited in the admin panel as pull requests (see [Content (CMS)](#content-cms)); editing by hand in a PR still works.
 
 | Collection | Where | Notes |
 | --- | --- | --- |
