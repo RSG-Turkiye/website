@@ -14,7 +14,7 @@ import { checkId, cmsType, cmsTypes } from '../../../src/lib/cms/types';
 import { parseJson, parseMarkdown } from '../../../src/lib/cms/serialize';
 import type { CmsIndex } from '../../../src/lib/cms/cms-index';
 
-const COLUMNS = ['id', 'type', 'entry_id', 'action', 'status', 'author_id', 'reviewer_id', 'review_note', 'pr_url', 'pr_number', 'failure', 'created_at', 'updated_at']
+const COLUMNS = ['id', 'type', 'entry_id', 'action', 'status', 'author_id', 'reviewer_id', 'review_note', 'pr_url', 'pr_number', 'failure', 'agent_token_id', 'created_at', 'updated_at']
   .map((c) => `d.${c}`).join(', ');
 /** The author's display name, for the approver's "sent by". */
 const AUTHOR = 'LEFT JOIN profiles p ON p.user_id = d.author_id';
@@ -227,13 +227,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const row: DraftRow = {
     id: generateId(), type: type.key, entry_id: entryId, action, data: JSON.stringify(data), base_shas: JSON.stringify(baseShas),
     status: 'draft', author_id: gate.user.id, reviewer_id: null, review_note: null, pr_url: null, pr_number: null, failure: null,
-    write_nonce: newNonce(), last_checked_at: null, created_at: gate.now, updated_at: gate.now,
+    write_nonce: newNonce(), last_checked_at: null, agent_token_id: gate.agent?.tokenId ?? null, created_at: gate.now, updated_at: gate.now,
   };
   await runWithAudit(env.DB, [env.DB.prepare(
-    `INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, write_nonce, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)`,
-  ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.write_nonce, row.created_at, row.updated_at)],
-  { userId: gate.user.id, action: 'cms.draft.create', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action } },
+    `INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, write_nonce, agent_token_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
+  ).bind(row.id, row.type, row.entry_id, row.action, row.data, row.base_shas, row.author_id, row.write_nonce, row.agent_token_id, row.created_at, row.updated_at)],
+  { userId: gate.user.id, action: 'cms.draft.create', targetType: 'content_draft', targetId: row.id, details: { type: row.type, entry_id: row.entry_id, draft_action: row.action }, agent: gate.agent?.tokenId ?? null },
   gate.now);
   return jsonResponse({ draft: draftJson(row, true), ...(duplicate ? { duplicate_of: duplicate } : {}) }, 201);
 };
