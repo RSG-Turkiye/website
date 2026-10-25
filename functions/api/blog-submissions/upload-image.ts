@@ -3,6 +3,7 @@ import { getSessionUser, jsonResponse, checkCsrf, canManageSymposium, canSocialE
 import { imageSize } from '../../_lib/images';
 import { groupRights } from '../../_lib/cms-access';
 import { appendAudit } from '../../_lib/audit';
+import { authenticateAgent, agentMaySocial, agentGroupRights } from '../../_lib/agent-tokens';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 /**
@@ -26,6 +27,19 @@ const ALLOWED_TYPES: Record<string, string> = {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const now = Math.floor(Date.now() / 1000);
+  // With an Authorization header the token alone decides, as in cmsGate: the
+  // cookie is ignored and there is no CSRF check (no ambient credential).
+  // A token uploads with a draft-level reach in any area it still holds.
+  const auth = await authenticateAgent(request, env, now);
+  if (auth.kind === 'refused') return auth.response;
+  if (auth.kind === 'agent') {
+    const a = auth.agent;
+    if (!agentMaySocial(a, 'draft') && !Object.values(agentGroupRights(a, 'draft')).some((r) => r.edit)) {
+      return jsonResponse({ error: 'Forbidden' }, 403);
+    }
+    return store(request, env, auth.user.id, a.tokenId, now);
+  }
   if (!checkCsrf(request)) return jsonResponse({ error: 'Forbidden' }, 403);
   const user = await getSessionUser(request, env);
   if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
@@ -40,10 +54,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Content editors of any group (approve implies edit) are read from their
   // grants, only when the fixed roles say no.
   const fixed = canManageSymposium(user) || canSocialEdit(user);
-  if (!fixed && !Object.values(await groupRights(env.DB, user, Math.floor(Date.now() / 1000))).some((r) => r.edit)) {
+  if (!fixed && !Object.values(await groupRights(env.DB, user, now)).some((r) => r.edit)) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
+  return store(request, env, user.id, null, now);
+};
 
+/** The checks, the put and its records, once the caller may upload. */
+async function store(request: Request, env: Env, userId: string, agent: string | null, now: number): Promise<Response> {
   const contentType = request.headers.get('Content-Type') ?? '';
   const extension = ALLOWED_TYPES[contentType];
   if (!extension) {
@@ -83,13 +101,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     await env.DB.prepare(
       'INSERT INTO social_media (key, width, height, content_type, size_bytes, uploaded_by, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).bind(key, size.width, size.height, contentType, bytes.byteLength, user.id, Math.floor(Date.now() / 1000)).run();
+    ).bind(key, size.width, size.height, contentType, bytes.byteLength, userId, now).run();
   } catch (err) {
     console.error('social_media insert failed', err);
   }
 
   // An R2 put is not a D1 write, so the row follows the put.
-  await appendAudit(env.DB, { userId: user.id, action: 'media.upload', targetType: 'image', targetId: key, details: { bytes: bytes.byteLength } });
+  await appendAudit(env.DB, { userId, action: 'media.upload', targetType: 'image', targetId: key, details: { bytes: bytes.byteLength }, agent });
 
   return jsonResponse({ url: `${env.PUBLIC_BLOG_IMAGES_URL}/${key}`, key, width: size.width, height: size.height });
-};
+}

@@ -4,7 +4,7 @@ import { socialGate, readBody, malformed, nowSeconds } from '../../../_lib/socia
 import { parsePlanInput, isSocialEditor, type PlanInput } from '../../../_lib/social-plans';
 import { runWithAudit, runGuardedWithAudit } from '../../../_lib/audit';
 
-type Row = { id: string; title: string; scheduled_at: number; platforms: string; post_type: string; assignee_id: string | null; note: string; post_id: string | null };
+type Row = { id: string; title: string; scheduled_at: number; platforms: string; post_type: string; assignee_id: string | null; note: string; post_id: string | null; created_by: string };
 
 const COLUMN: Record<keyof PlanInput, string> = {
   title: 'title', scheduledAt: 'scheduled_at', platforms: 'platforms', postType: 'post_type', assigneeId: 'assignee_id', note: 'note',
@@ -48,7 +48,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
 
   await runWithAudit(env.DB, [
     env.DB.prepare(`UPDATE social_plans SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`).bind(...binds, now, id),
-  ], { userId: gate.user.id, action: 'social.plan.update', targetType: 'social_plan', targetId: id, details: { changed } }, now);
+  ], { userId: gate.user.id, action: 'social.plan.update', targetType: 'social_plan', targetId: id, details: { changed }, agent: gate.agent?.tokenId ?? null }, now);
   return jsonResponse({ ok: true });
 };
 
@@ -58,13 +58,15 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   const id = String(params.id);
   const row = await env.DB.prepare('SELECT * FROM social_plans WHERE id = ?').bind(id).first<Row>();
   if (!row) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  // A token deletes only a plan its own member made.
+  if (gate.agent && row.created_by !== gate.user.id) return jsonResponse({ error: 'You cannot delete this plan', code: 'not_allowed' }, 403);
   if (row.post_id) return jsonResponse({ error: 'This plan already has a post', code: 'plan_has_post' }, 409);
   const done = await runGuardedWithAudit(
     env.DB,
     env.DB.prepare('DELETE FROM social_plans WHERE id = ? AND post_id IS NULL').bind(id),
     { condition: 'NOT EXISTS (SELECT 1 FROM social_plans WHERE id = ?)', binds: [id] },
     [],
-    { userId: gate.user.id, action: 'social.plan.delete', targetType: 'social_plan', targetId: id, details: { title: row.title, scheduledAt: row.scheduled_at } },
+    { userId: gate.user.id, action: 'social.plan.delete', targetType: 'social_plan', targetId: id, details: { title: row.title, scheduledAt: row.scheduled_at }, agent: gate.agent?.tokenId ?? null },
   );
   if (!done) return jsonResponse({ error: 'This plan already has a post', code: 'plan_has_post' }, 409);
   return jsonResponse({ ok: true });

@@ -9,12 +9,13 @@ type PlanRow = {
   assignee_email: string | null; note: string; post_id: string | null; post_status: string | null; created_by: string; created_at: number;
 };
 
-function planResponse(r: PlanRow) {
+// An agent's answers carry no e-mail address: its model provider is a third party.
+function planResponse(r: PlanRow, forAgent: boolean) {
   let platforms: string[] = [];
   try { platforms = JSON.parse(r.platforms); } catch { platforms = []; }
   return {
     id: r.id, title: r.title, scheduledAt: r.scheduled_at, platforms, postType: r.post_type,
-    assigneeId: r.assignee_id, assigneeEmail: r.assignee_email, note: r.note, postId: r.post_id, postStatus: r.post_status,
+    assigneeId: r.assignee_id, assigneeEmail: forAgent ? null : r.assignee_email, note: r.note, postId: r.post_id, postStatus: r.post_status,
     createdBy: r.created_by, createdAt: r.created_at,
   };
 }
@@ -32,7 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       WHERE pl.scheduled_at BETWEEN ? AND ?
       ORDER BY pl.scheduled_at`,
   ).bind(range.from, range.to).all<PlanRow>()).results;
-  return jsonResponse({ plans: rows.map(planResponse) });
+  return jsonResponse({ plans: rows.map((r) => planResponse(r, gate.agent !== null)) });
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -50,6 +51,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       `INSERT INTO social_plans (id, title, scheduled_at, platforms, post_type, assignee_id, note, created_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(id, p.title, p.scheduledAt, JSON.stringify(p.platforms), p.postType, p.assigneeId ?? null, p.note ?? '', gate.user.id, now, now),
-  ], { userId: gate.user.id, action: 'social.plan.create', targetType: 'social_plan', targetId: id, details: p }, now);
+  ], { userId: gate.user.id, action: 'social.plan.create', targetType: 'social_plan', targetId: id, details: p, agent: gate.agent?.tokenId ?? null }, now);
   return jsonResponse({ id }, 201);
 };
