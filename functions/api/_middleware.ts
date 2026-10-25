@@ -33,8 +33,14 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, next }) => {
     logFailure(e);
   }
 
+  // Over an IP limit, nothing more is counted or looked up: a client spraying
+  // made-up tokens at a cut-off IP adds no rows. On a route outside the
+  // table this answers 429 rather than 403: both refuse, and 429 tells a
+  // loop to back off.
+  if (limited) return limited;
+
   if (!routeFor(request.method, new URL(request.url).pathname)) {
-    // Counted only for a well-formed token, so made-up headers cost one hash and no row.
+    // Counted only for a well-formed token; any other header (Basic, malformed) adds no row.
     const value = TOKEN.exec(header)?.[1];
     if (value) {
       try {
@@ -43,10 +49,9 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, next }) => {
         logFailure(e);
       }
     }
-    return limited ?? humanOnly();
+    return humanOnly();
   }
 
-  if (limited) return limited;
   const res = await next();
   if (res.status === 401) {
     try {

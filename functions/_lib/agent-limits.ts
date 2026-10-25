@@ -10,7 +10,7 @@
 // few files to), so the principal is typed here by the fields it needs.
 
 import { jsonResponse } from './auth';
-import { appendAudit, runWithAudit, type AuditEntry } from './audit';
+import { runGuardedWithAudit, type AuditEntry } from './audit';
 import type { AgentRoute } from './agent-routes';
 
 const MINUTE = 60;
@@ -27,8 +27,12 @@ export const LIMITS = Object.freeze({
   IP_PER_DAY: 3000,
   IP_FAILED_AUTH: 10,
   IP_FAILED_AUTH_WINDOW: 600,
-  /** Three times the minute limit in one minute: a loop. Revokes (`flood`). */
-  FLOOD_PER_MINUTE: 90,
+  /**
+   * Attempts in one minute, refused ones included, that revoke the token
+   * (`flood`): a loop. Above the token's minute limit and below the IP's, so
+   * one machine reaches it before its IP is cut off.
+   */
+  FLOOD_PER_MINUTE: 50,
   /** human_only refusals from one token in a UTC day. Revokes (`refusals`). */
   REFUSALS_PER_DAY: 20,
   BODY_BYTES: 256 * 1024,
@@ -88,12 +92,13 @@ export async function ipKey(request: Request): Promise<string> {
 }
 
 /**
- * The body as text, or null once it passes `cap` bytes. Read as a stream with
- * a running count, as readFeed in podcast/pull.ts does, so a body without
- * Content-Length (chunked) is never read past the cap. No body: ''.
+ * Reads the body with a running byte count, as readFeed in podcast/pull.ts
+ * does, so a body without Content-Length (chunked) is never read past `cap`.
+ * Returns the bytes (or, with `keep: false`, an empty array: counted only,
+ * nothing kept), or null once the body passes the cap.
  */
-export async function readCapped(request: Pick<Request, 'body'>, cap: number): Promise<string | null> {
-  if (!request.body) return '';
+async function readCounted(request: Pick<Request, 'body'>, cap: number, keep: boolean): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array(0);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -107,40 +112,55 @@ export async function readCapped(request: Pick<Request, 'body'>, cap: number): P
       reader.cancel().catch(() => {});
       return null;
     }
-    chunks.push(value);
+    if (keep) chunks.push(value);
   }
+  if (!keep) return new Uint8Array(0);
   const all = new Uint8Array(size);
   let at = 0;
   for (const c of chunks) { all.set(c, at); at += c.byteLength; }
-  return new TextDecoder().decode(all);
+  return all;
+}
+
+/** The body as text, or null once it passes `cap` bytes. No body: ''. */
+export async function readCapped(request: Pick<Request, 'body'>, cap: number): Promise<string | null> {
+  const bytes = await readCounted(request, cap, true);
+  return bytes === null ? null : new TextDecoder().decode(bytes);
+}
+
+/** Whether the body stays within `cap` bytes, counted as it streams; nothing is kept or decoded. */
+export async function withinCap(request: Pick<Request, 'body'>, cap: number): Promise<boolean> {
+  return (await readCounted(request, cap, false)) !== null;
 }
 
 const revokeEntry = (tokenId: string, reason: RevokeReason): AuditEntry => ({
   userId: null, action: 'agent_token.auto_revoke', targetType: 'agent_token', targetId: tokenId, details: { reason },
 });
 
-/** Revokes the token and writes its audit row in one batch. */
-export function autoRevoke(db: D1Database, tokenId: string, reason: RevokeReason, now: number): Promise<void> {
+/**
+ * Revokes the token and writes its audit row in one batch. The audit row is
+ * written only when this UPDATE revoked the token: `changes()` in the audit
+ * insert is the row count of the UPDATE just before it in the same batch.
+ * So callers may call it on every request past a limit; a token already
+ * revoked (by an earlier request, or by a person) gets no second row.
+ * Returns whether this call revoked it.
+ */
+export function autoRevoke(db: D1Database, tokenId: string, reason: RevokeReason, now: number): Promise<boolean> {
   const update = db.prepare('UPDATE agent_tokens SET revoked_at = ?, revoke_reason = ? WHERE id = ? AND revoked_at IS NULL')
     .bind(now, reason, tokenId);
-  return runWithAudit(db, [update], revokeEntry(tokenId, reason), now);
+  return runGuardedWithAudit(db, update, { condition: 'changes() = 1', binds: [] }, [], revokeEntry(tokenId, reason), now);
 }
 
 /**
  * Counts one human_only refusal for the token with this hash (the middleware
- * refuses before any lookup, so it has only the hash). At the limit it
- * revokes by hash, and only when a live token was revoked does it read the
- * id and write the audit row, so a sprayed made-up token writes no log.
+ * refuses before any lookup, so it has only the hash). From the limit on it
+ * looks for a live token with that hash and revokes it; a made-up token has
+ * none, so it writes no audit row.
  */
 export async function countRefusal(db: D1Database, tokenHash: string, now: number): Promise<void> {
   const n = await bump(db, `r:${tokenHash}:d`, DAY, now);
-  if (n !== LIMITS.REFUSALS_PER_DAY) return;
-  const result = await db.prepare(
-    "UPDATE agent_tokens SET revoked_at = ?, revoke_reason = 'refusals' WHERE token_hash = ? AND revoked_at IS NULL",
-  ).bind(now, tokenHash).run();
-  if (!Number(result.meta.changes ?? 0)) return;
-  const row = await db.prepare('SELECT id FROM agent_tokens WHERE token_hash = ?').bind(tokenHash).first<{ id: string }>();
-  if (row) await appendAudit(db, revokeEntry(row.id, 'refusals'), now);
+  if (n < LIMITS.REFUSALS_PER_DAY) return;
+  const row = await db.prepare('SELECT id FROM agent_tokens WHERE token_hash = ? AND revoked_at IS NULL').bind(tokenHash).first<{ id: string }>();
+  if (row) await autoRevoke(db, row.id, 'refusals', now);
 }
 
 /** The failed-authentication counter of this IP for the current window. */
@@ -169,32 +189,47 @@ export async function checkIp(db: D1Database, request: Request, now: number): Pr
 
 /**
  * The token's own checks, run by authenticateAgent once the token, its
- * member and route are known. In order: body size, the minute and day
- * buckets and the route's quota (the flood signal is read off the minute
- * count first), then the leak signal. null: go on.
+ * member and route are known. In order: body size; the leak signal (before
+ * the counters, so a leaked value is revoked even in a request that is over
+ * a limit); the flood signal and the minute limit, both on one count that
+ * includes refused attempts; the day limit and the route's quota. null: go on.
  */
 export async function checkToken(
   db: D1Database, _env: unknown, request: Request, principal: LimitedPrincipal, now: number,
 ): Promise<Response | null> {
+  // The upload route's body is an image: counted only, never kept or
+  // decoded, and not checked for the value (binary is not content).
   const upload = principal.route.quota === 'upload';
   const cap = upload ? LIMITS.UPLOAD_BODY_BYTES : LIMITS.BODY_BYTES;
   let text = '';
   if (request.body) {
     // A declared length over the cap is refused before anything is read.
     const declared = Number(request.headers.get('Content-Length') ?? 0);
-    const body = declared > cap ? null : await readCapped(request.clone(), cap);
-    if (body === null) {
+    let fits: boolean;
+    if (declared > cap) fits = false;
+    else if (upload) fits = await withinCap(request.clone(), cap);
+    else {
+      const body = await readCapped(request.clone(), cap);
+      fits = body !== null;
+      text = body ?? '';
+    }
+    if (!fits) {
       // The handler never runs, so the original can go too: the stream's
       // source is then cancelled as well, not left waiting.
       await request.body.cancel().catch(() => {});
       return tooLarge();
     }
-    text = body;
+  }
+
+  // Any text body, whatever its Content-Type says (curl -d sends JSON as a form).
+  if (text.includes(principal.value)) {
+    await autoRevoke(db, principal.tokenId, 'leaked', now);
+    return leaked();
   }
 
   const t = `t:${principal.tokenId}`;
   const perMinute = await bump(db, `${t}:m`, MINUTE, now);
-  if (perMinute === LIMITS.FLOOD_PER_MINUTE) {
+  if (perMinute >= LIMITS.FLOOD_PER_MINUTE) {
     await autoRevoke(db, principal.tokenId, 'flood', now);
     return rateLimited(secondsLeft(MINUTE, now));
   }
@@ -202,12 +237,5 @@ export async function checkToken(
   if (await bump(db, `${t}:d`, DAY, now) > LIMITS.TOKEN_PER_DAY) return rateLimited(secondsLeft(DAY, now));
   const quota = principal.route.quota ? QUOTA[principal.route.quota] : null;
   if (quota && await bump(db, `${t}:${quota.key}`, DAY, now) > quota.limit) return rateLimited(secondsLeft(DAY, now));
-
-  // Any text body, whatever its Content-Type says (curl -d sends JSON as a
-  // form); the upload route's body is an image, not content.
-  if (!upload && text.includes(principal.value)) {
-    await autoRevoke(db, principal.tokenId, 'leaked', now);
-    return leaked();
-  }
   return null;
 }

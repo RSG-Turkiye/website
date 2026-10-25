@@ -1,6 +1,6 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
-import { appendAudit, AUDIT_RETENTION_SECONDS } from '../../../_lib/audit';
+import { runWithAudit, AUDIT_RETENTION_SECONDS } from '../../../_lib/audit';
 import { safeEqual } from '../../../_lib/secret';
 
 /**
@@ -16,16 +16,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
   const now = Math.floor(Date.now() / 1000);
   const cutoff = now - AUDIT_RETENTION_SECONDS;
-  const result = await env.DB.prepare('DELETE FROM audit_log WHERE at < ?').bind(cutoff).run();
-  const deleted = Number(result.meta.changes ?? 0);
   // Agent rate buckets whose window has ended, and agent tokens revoked or
   // expired over a year ago (their audit rows have gone with them by now).
-  const rate = await env.DB.prepare('DELETE FROM agent_rate WHERE expires_at < ?').bind(now).run();
-  const tokens = await env.DB.prepare(
-    'DELETE FROM agent_tokens WHERE revoked_at < ? OR expires_at < ?',
-  ).bind(cutoff, cutoff).run();
-  const agentRate = Number(rate.meta.changes ?? 0);
-  const agentTokens = Number(tokens.meta.changes ?? 0);
-  await appendAudit(env.DB, { userId: null, action: 'audit.prune', details: { deleted, cutoff, agentRate, agentTokens } }, now);
+  // Counted first, then deleted in the same batch as the audit.prune row, so
+  // nothing is deleted without its record. The counts are exact: no row
+  // newly matches these conditions in between.
+  const counts = await env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM audit_log WHERE at < ?1) AS deleted,
+            (SELECT COUNT(*) FROM agent_rate WHERE expires_at < ?2) AS agentRate,
+            (SELECT COUNT(*) FROM agent_tokens WHERE revoked_at < ?1 OR expires_at < ?1) AS agentTokens`,
+  ).bind(cutoff, now).first<{ deleted: number; agentRate: number; agentTokens: number }>();
+  const deleted = Number(counts?.deleted ?? 0);
+  const agentRate = Number(counts?.agentRate ?? 0);
+  const agentTokens = Number(counts?.agentTokens ?? 0);
+  await runWithAudit(env.DB, [
+    env.DB.prepare('DELETE FROM audit_log WHERE at < ?').bind(cutoff),
+    env.DB.prepare('DELETE FROM agent_rate WHERE expires_at < ?').bind(now),
+    env.DB.prepare('DELETE FROM agent_tokens WHERE revoked_at < ? OR expires_at < ?').bind(cutoff, cutoff),
+  ], { userId: null, action: 'audit.prune', details: { deleted, cutoff, agentRate, agentTokens } }, now);
   return jsonResponse({ ok: true, deleted });
 };
