@@ -12,7 +12,7 @@ biology and bioinformatics in Türkiye. It is two sites in one repository:
 - **Main site** (repo root) at `rsg-turkiye.iscbsc.org`. It has public pages
   in Turkish and English, member accounts (Google sign-in) and an admin panel
   at `/admin` that runs the organisation's mail, social media, symposium,
-  certificates, blog submissions and announcements.
+  certificates, site content (a CMS, blog posts included) and announcements.
 - **Symposium site** (`symposium_website/`) at
   `symposium.rsg-turkiye.iscbsc.org`. It is a separate Astro project and a
   separate Cloudflare Pages project.

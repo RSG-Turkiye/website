@@ -16,7 +16,7 @@
           "Your profile: the name, username, photo, institution, bio and interests you choose to enter, and your learning progress and badges. Profiles are listed on the public members page; ask us and we hide yours.",
           "Session cookie: one cookie, rsg_session, keeps you signed in for 30 days. It is not used for tracking or advertising, and the site sets no other cookies.",
           "Email with members: messages we send to members through our Gmail account, and the replies we receive, are kept so the team can follow a conversation.",
-          "Blog submissions: the title, text, author name and images you send.",
+          "Blog posts: posts are written in the admin panel by people who have been given the right to edit them. Each draft (its title, text, author name and images) is kept in our database until it is published or discarded. We also keep the blog submissions sent through the earlier member form (title, text, author name and images).",
           "Certificates: for symposium certificates we hold the participant's name and email address. When you look up a certificate we store a one-way hash of your IP address, not the address itself, to limit repeated lookups. We count how many times each certificate is viewed and downloaded; the team sees only totals, never who.",
           "Visit counts: this site and the symposium site use Cloudflare Web Analytics, which counts page views without cookies and without identifying you. We see totals only: which pages are read, from which country, on what kind of device, and which site linked here. It is not loaded on your account pages or the admin panel.",
           "Admin activity: actions taken in the admin panel are logged with the team member who took them.",
@@ -39,7 +39,8 @@
           "Certificate lookup records: 1 day.",
           "Sessions: 30 days, or until you sign out.",
           "Admin activity log: 1 year.",
-          "Your account, profile, member emails and blog submissions: until you ask us to delete them."
+          "Blog post drafts: until they are published or discarded. Published and discarded drafts are deleted from our database 90 days later.",
+          "Your account, profile, member emails and the blog submissions sent through the earlier form: until you ask us to delete them."
         ]
       },
       {
@@ -49,7 +50,7 @@
           "Cloudflare hosts the site, its database and its file storage, and counts visits (see above).",
           "Google: sign-in, the Gmail account we use to write to members, the Join page form, the events calendar on the home page, and the Inter font. The font and calendar are loaded by your browser, so Google sees your IP address when you open those pages.",
           "YouTube: webinar recordings are embedded from YouTube.",
-          "GitHub: approved blog posts are published through our public GitHub repository.",
+          "GitHub: an approved blog post's text and author name are published on this site and in its public source repository on GitHub, which links to the post's images (stored with Cloudflare). Like every change there, it stays in the repository's history.",
           "Instagram and LinkedIn: the team publishes posts to RSG-Turkiye's own accounts from the admin panel. Access to those accounts is granted with OAuth and stored encrypted; we never store their passwords. Direct messages sent to our Instagram account are read and answered by the social media team in the admin panel: they are fetched from Instagram when opened. The site stores the sender's Instagram username and account ID, the times of the latest messages and which team member last opened the conversation, not the messages themselves."
         ]
       },
@@ -86,7 +87,7 @@
           "Profiliniz: Girmeyi seçtiğiniz ad, kullanıcı adı, fotoğraf, kurum, kısa tanıtım ve ilgi alanları ile öğrenme ilerlemeniz ve rozetleriniz. Profiller herkese açık üyeler sayfasında listelenir; isterseniz sizinkini gizleriz.",
           "Oturum çerezi: Tek bir çerez, rsg_session, sizi 30 gün boyunca oturumda tutar. İzleme ya da reklam için kullanılmaz; site başka çerez koymaz.",
           "Üyelerle yazışmalar: Gmail hesabımızdan üyelere gönderdiğimiz mesajlar ve gelen yanıtlar, ekip bir yazışmayı takip edebilsin diye saklanır.",
-          "Blog gönderileri: Gönderdiğiniz başlık, metin, yazar adı ve görseller.",
+          "Blog yazıları: Yazılar, düzenleme yetkisi verilmiş kişiler tarafından yönetim panelinde yazılır. Her taslak (başlığı, metni, yazar adı ve görselleri) yayımlanana ya da silinene kadar veritabanımızda saklanır. Önceki üye formuyla gönderilmiş blog başvurularını (başlık, metin, yazar adı ve görseller) da saklarız.",
           "Sertifikalar: Sempozyum sertifikaları için katılımcının adını ve e-posta adresini tutarız. Sertifika sorguladığınızda, tekrarlanan sorguları sınırlamak için IP adresinizin kendisini değil, tek yönlü bir özetini (hash) saklarız. Her sertifikanın kaç kez görüntülendiğini ve indirildiğini sayarız; ekip sadece toplamları görür, kimin olduğunu görmez.",
           "Ziyaret sayıları: Bu site ve sempozyum sitesi Cloudflare Web Analytics kullanır; sayfa görüntülemelerini çerez kullanmadan ve sizi tanımlamadan sayar. Biz sadece toplamları görürüz: hangi sayfaların okunduğu, hangi ülkeden, ne tür cihazdan girildiği ve hangi sitenin buraya bağlantı verdiği. Hesap sayfalarınızda ve yönetim panelinde yüklenmez.",
           "Yönetici işlemleri: Yönetim panelinde yapılan işlemler, yapan ekip üyesiyle birlikte kaydedilir.",
@@ -109,7 +110,8 @@
           "Sertifika sorgu kayıtları: 1 gün.",
           "Oturumlar: 30 gün ya da çıkış yapana kadar.",
           "Yönetici işlem kaydı: 1 yıl.",
-          "Hesabınız, profiliniz, üye yazışmaları ve blog gönderileri: silinmesini isteyene kadar."
+          "Blog yazısı taslakları: yayımlanana ya da silinene kadar. Yayımlanan ve silinen taslaklar 90 gün sonra veritabanımızdan da silinir.",
+          "Hesabınız, profiliniz, üye yazışmaları ve önceki formla gönderilmiş blog başvuruları: silinmesini isteyene kadar."
         ]
       },
       {
@@ -119,7 +121,7 @@
           "Cloudflare siteyi, veritabanını ve dosya depolamayı barındırır ve ziyaretleri sayar (yukarıya bakın).",
           "Google: giriş, üyelere yazdığımız Gmail hesabı, Bize Katıl sayfasındaki form, ana sayfadaki etkinlik takvimi ve Inter yazı tipi. Yazı tipi ve takvim tarayıcınız tarafından yüklenir; bu sayfaları açtığınızda Google IP adresinizi görür.",
           "YouTube: Webinar kayıtları YouTube'dan gömülür.",
-          "GitHub: Onaylanan blog yazıları herkese açık GitHub depomuz üzerinden yayınlanır.",
+          "GitHub: Onaylanan bir blog yazısının metni ve yazar adı bu sitede ve sitenin GitHub'daki herkese açık kaynak deposunda yayımlanır; depo, yazının görsellerine (Cloudflare'de saklanır) bağlantı verir. Oradaki her değişiklik gibi deponun geçmişinde kalır.",
           "Instagram ve LinkedIn: Ekip, yönetim panelinden RSG-Türkiye'nin kendi hesaplarına paylaşım yapar. Bu hesaplara erişim OAuth ile verilir ve şifreli saklanır; şifrelerini hiçbir zaman saklamayız. Instagram hesabımıza gönderilen doğrudan mesajları sosyal medya ekibi yönetim panelinden okur ve cevaplar: mesajlar açıldığında Instagram'dan çekilir. Site, gönderenin Instagram kullanıcı adını ve hesap kimliğini, son mesajların zamanını ve konuşmayı en son hangi ekip üyesinin açtığını saklar; mesajların kendisini saklamaz."
         ]
       },
