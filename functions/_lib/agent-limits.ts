@@ -72,11 +72,14 @@ export async function bump(db: D1Database, bucket: string, windowSeconds: number
 /** Seconds left in the window, at least 1: what Retry-After says. */
 const secondsLeft = (windowSeconds: number, now: number) => Math.max(1, windowEnd(windowSeconds, now) - now);
 
-export function rateLimited(retryAfter: number): Response {
-  const res = jsonResponse({ error: 'Too many requests', code: 'rate_limited' }, 429);
+export function rateLimited(retryAfter: number, extra: Record<string, unknown> = {}): Response {
+  const res = jsonResponse({ error: 'Too many requests', code: 'rate_limited', ...extra }, 429);
   res.headers.set('Retry-After', String(retryAfter));
   return res;
 }
+
+/** A daily limit or quota: its window ends at 00:00 UTC, which the answer says too. */
+const dailyLimited = (now: number) => rateLimited(secondsLeft(DAY, now), { resets: '00:00 UTC' });
 
 const tooLarge = () => jsonResponse({ error: 'The request body is too large', code: 'too_large' }, 413);
 const leaked = () => jsonResponse({
@@ -188,6 +191,29 @@ export async function checkIp(db: D1Database, request: Request, now: number): Pr
 }
 
 /**
+ * Whether this text holds the token value: as written, or, when the text is
+ * JSON, after its escapes are undone (`\u0072sg_pat_...` is the same value
+ * to whatever stores the parsed string). JSON.stringify writes the letters,
+ * digits, - and _ of a token value plainly, so re-serialising the parsed
+ * text spells every escaped copy out.
+ */
+export function holdsValue(text: string, value: string): boolean {
+  if (text.includes(value)) return true;
+  if (!text.includes('\\')) return false;
+  try {
+    return JSON.stringify(JSON.parse(text)).includes(value);
+  } catch {
+    return false;
+  }
+}
+
+/** Revokes the token (`leaked`) and gives the answer for the request that carried its value. */
+export async function refuseLeak(db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId'>, now: number): Promise<Response> {
+  await autoRevoke(db, principal.tokenId, 'leaked', now);
+  return leaked();
+}
+
+/**
  * The token's own checks, run by authenticateAgent once the token, its
  * member and route are known. In order: body size; the leak signal (before
  * the counters, so a leaked value is revoked even in a request that is over
@@ -222,10 +248,7 @@ export async function checkToken(
   }
 
   // Any text body, whatever its Content-Type says (curl -d sends JSON as a form).
-  if (text.includes(principal.value)) {
-    await autoRevoke(db, principal.tokenId, 'leaked', now);
-    return leaked();
-  }
+  if (holdsValue(text, principal.value)) return refuseLeak(db, principal, now);
 
   const t = `t:${principal.tokenId}`;
   const perMinute = await bump(db, `${t}:m`, MINUTE, now);
@@ -234,8 +257,18 @@ export async function checkToken(
     return rateLimited(secondsLeft(MINUTE, now));
   }
   if (perMinute > LIMITS.TOKEN_PER_MINUTE) return rateLimited(secondsLeft(MINUTE, now));
-  if (await bump(db, `${t}:d`, DAY, now) > LIMITS.TOKEN_PER_DAY) return rateLimited(secondsLeft(DAY, now));
+  if (await bump(db, `${t}:d`, DAY, now) > LIMITS.TOKEN_PER_DAY) return dailyLimited(now);
+  return checkQuota(db, principal, now);
+}
+
+/**
+ * The route's daily quota (writes, submits, uploads) alone. checkToken ends
+ * with it; an MCP tool call runs only this for its inner REST request, since
+ * the outer /api/mcp request already passed every other check and counted
+ * once against the minute and day limits.
+ */
+export async function checkQuota(db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'route'>, now: number): Promise<Response | null> {
   const quota = principal.route.quota ? QUOTA[principal.route.quota] : null;
-  if (quota && await bump(db, `${t}:${quota.key}`, DAY, now) > quota.limit) return rateLimited(secondsLeft(DAY, now));
+  if (quota && await bump(db, `t:${principal.tokenId}:${quota.key}`, DAY, now) > quota.limit) return dailyLimited(now);
   return null;
 }

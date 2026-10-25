@@ -11,7 +11,7 @@ import { activeGrants } from './role-grants';
 import { CMS_GROUPS, rightsFromRoles, type CmsGroup, type GroupRights } from './roles';
 import { safeEqual } from './secret';
 import { routeFor, type AgentLevel, type AgentRoute } from './agent-routes';
-import { checkToken } from './agent-limits';
+import { checkQuota, checkToken } from './agent-limits';
 
 export type { AgentLevel, AgentRoute };
 
@@ -105,6 +105,8 @@ function storedScopes(raw: string): AgentScope[] | null {
  * a bearer header is no ambient credential a page could forge.
  */
 export async function authenticateAgent(request: Request, env: Env, now: number): Promise<AgentAuth> {
+  const internal = INTERNAL.get(request);
+  if (internal) return authenticateInternal(request, env, internal, now);
   const header = request.headers.get('Authorization');
   if (header === null) return { kind: 'none' };
   const match = VALUE.exec(header);
@@ -134,6 +136,32 @@ export async function authenticateAgent(request: Request, env: Env, now: number)
     await env.DB.prepare('UPDATE agent_tokens SET last_used_at = ? WHERE id = ?').bind(now, row.id).run();
   }
   return { kind: 'agent', user, agent };
+}
+
+// Requests the MCP endpoint builds for a tool call, each with the member and
+// principal its own (outer) request authenticated. A WeakMap keyed by the
+// Request object: nothing a client sends can put a request in it.
+const INTERNAL = new WeakMap<Request, { user: User; agent: AgentPrincipal }>();
+
+/**
+ * Marks an in-process request the MCP endpoint is about to hand to a REST
+ * handler. authenticateAgent then answers for it without a token lookup and
+ * without the rate, size and leak checks, which the outer /api/mcp request
+ * already passed and counted once; only the inner route's own quota (write,
+ * submit) is spent here, so a tool call that writes counts exactly once.
+ */
+export function markInternal(request: Request, auth: { user: User; agent: AgentPrincipal }): void {
+  INTERNAL.set(request, auth);
+}
+
+async function authenticateInternal(request: Request, env: Env, outer: { user: User; agent: AgentPrincipal }, now: number): Promise<AgentAuth> {
+  // The table again, on the inner request's own method and path.
+  const route = routeFor(request.method, new URL(request.url).pathname);
+  if (!route) return refused(humanOnly());
+  const agent: AgentPrincipal = { ...outer.agent, route };
+  const limited = await checkQuota(env.DB, agent, now);
+  if (limited) return refused(limited);
+  return { kind: 'agent', user: outer.user, agent };
 }
 
 const reaches = (held: AgentLevel, wanted: AgentLevel) => LEVELS.indexOf(held) >= LEVELS.indexOf(wanted);
