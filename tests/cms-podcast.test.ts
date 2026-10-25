@@ -385,7 +385,8 @@ test('the attempt is logged before the feed is read, so a request killed mid-fet
   }) as never;
   try {
     void doPull(env, 'community');
-    for (let i = 0; i < 100 && !reading; i++) await new Promise((r) => setImmediate(r));
+    // Wait by time, not by ticks: the gate's async steps vary with the machine.
+    for (const end = Date.now() + 5000; !reading && Date.now() < end;) await new Promise((r) => setTimeout(r, 5));
     assert.ok(reading, 'the feed is being read');
     assert.deepEqual(audit().map((a) => a.action), ['cms.podcast.pull']);
   } finally {
