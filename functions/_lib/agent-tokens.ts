@@ -64,8 +64,8 @@ export interface AgentPrincipal {
   value: string;
   /** What this request spends: whether it is social work that may use the agents' reserve, and its quota (agent-limits.ts). */
   charge: (body: string) => Charge;
-  /** Set on an MCP message whose tool has a quota: spent with the message, or 'full' (agent-limits.ts). */
-  quotaPaid?: QuotaColumn | 'full';
+  /** Set on an MCP message whose tool has a quota: spent with the message, 'full', or 'budget' when the agents' write budget is spent (agent-limits.ts). */
+  quotaPaid?: QuotaColumn | 'full' | 'budget';
 }
 
 /** How the MCP endpoint says what each of its messages spends (mcp-tools.ts, mcpCharge). */
@@ -129,7 +129,9 @@ function storedScopes(raw: string): AgentScope[] | null {
  * The first statement reads the IP's counters and today's token counters
  * (agent-limits.ts): a cut-off IP is answered 429 before anything else, with
  * no write. A header that is no token value, or a value that matches no
- * token, counts as a failed authentication of the IP. A revoked or expired
+ * token, counts as a failed authentication of the IP and of the day (past
+ * the day's FAILURES_PER_DAY, nothing is written). A valid token's request
+ * writes nothing for its IP: only its own token row. A revoked or expired
  * token's value is 401 without a count: it is a stale client, not a guess,
  * and must not lock out everyone else behind the same address.
  */
@@ -146,7 +148,7 @@ export async function authenticateAgent(request: Request, env: Env, now: number,
 
   const match = VALUE.exec(header);
   if (!match) {
-    await countFailedAuth(env.DB, ip, now);
+    await countFailedAuth(env.DB, ip, snapshot, now);
     return refused(unauthorized());
   }
   const value = match[1];
@@ -154,7 +156,7 @@ export async function authenticateAgent(request: Request, env: Env, now: number,
 
   const row = await env.DB.prepare('SELECT * FROM agent_tokens WHERE token_hash = ?').bind(hash).first<TokenRow>();
   if (!row || !safeEqual(row.token_hash, hash)) {
-    await countFailedAuth(env.DB, ip, now);
+    await countFailedAuth(env.DB, ip, snapshot, now);
     return refused(unauthorized());
   }
   if (row.revoked_at !== null || row.expires_at <= now) return refused(unauthorized());

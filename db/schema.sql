@@ -1113,22 +1113,24 @@ CREATE TABLE IF NOT EXISTS agent_tokens (
 CREATE INDEX IF NOT EXISTS idx_agent_tokens_user ON agent_tokens(user_id, revoked_at);
 
 -- Agent request counters (functions/_lib/agent-limits.ts): one row per UTC
--- day and subject, a token or an IP, holding every counter of that subject.
+-- day and subject (a token, an IP, or the day's failures), holding every
+-- counter of that subject.
 -- The key starts with the day, zero-padded, so a day's token rows are one
 -- primary-key range (the per-request sums read only today's rows) and the
 -- nightly audit prune deletes earlier days by the same range. WITHOUT ROWID
 -- and no other index: a bump is one row written (D1's free plan allows
 -- 100,000 rows written a day for the whole site).
 CREATE TABLE IF NOT EXISTS agent_counters (
-  bucket      TEXT PRIMARY KEY,           -- '<day>:t:<token id>' or '<day>:i:<sha-256 of the IP or /64>'
+  bucket      TEXT PRIMARY KEY,           -- '<day>:t:<token id>', '<day>:i:<sha-256 of the IP or /64>' or '<day>:g:failures'
   user_id     TEXT,                       -- token rows: the token's member, for the member's daily cap
   general     INTEGER NOT NULL DEFAULT 0, -- token rows: requests from the agents' general pool
   reserve     INTEGER NOT NULL DEFAULT 0, -- token rows: requests from the social reserve
   writes      INTEGER NOT NULL DEFAULT 0, -- token rows: daily quotas
   submits     INTEGER NOT NULL DEFAULT 0,
   uploads     INTEGER NOT NULL DEFAULT 0,
+  quota_reserve INTEGER NOT NULL DEFAULT 0, -- token rows: of those, spent from the agents' social write reserve
   refusals    INTEGER NOT NULL DEFAULT 0, -- token rows: human_only refusals
-  requests    INTEGER NOT NULL DEFAULT 0, -- IP rows: bearer requests today
+  requests    INTEGER NOT NULL DEFAULT 0, -- IP rows: failed bearer requests today; the failures row: all of them
   minute      INTEGER NOT NULL DEFAULT 0, -- the minute (Unix seconds / 60) that minute_n counts
   minute_n    INTEGER NOT NULL DEFAULT 0,
   fail_window INTEGER NOT NULL DEFAULT 0, -- IP rows: the 10-minute window that fail_n counts

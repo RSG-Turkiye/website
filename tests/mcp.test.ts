@@ -509,3 +509,19 @@ test('the agents\' budget through MCP: once the general pool is spent, social to
   // initialize, tools/list and the tool call, each one request; the inner create spent the write quota.
   assert.deepEqual({ ...row }, { general: 0, reserve: 3, writes: 1 });
 });
+
+test('the agents\' write budget through MCP: once it is spent, a cms write tool answers agent_budget as a tool result and writes nothing; a social one uses the reserve', async () => {
+  const { db, env } = await setup();
+  const token = await mintToken(db, 'ed', ['social:draft', 'cms.etkinlikler:draft'], { id: 'tok-wb' });
+  db.prepare('INSERT INTO agent_counters (bucket, user_id, writes) VALUES (?, ?, ?)')
+    .run(`${String(Math.floor(NOW / 86400)).padStart(6, '0')}:t:someone-else`, 'other', 1_600);
+  const body = await callTool(env, token, 'cms_create_draft', { type: 'events', action: 'create', data: newEvent() });
+  assert.equal(body.result.isError, true);
+  const answer = JSON.parse(body.result.content[0].text);
+  assert.equal(answer.code, 'agent_budget');
+  assert.ok(answer.retry_after > 0);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM content_drafts').get() as { n: number }).n, 0);
+  assert.ok((await toolResult(env, token, 'social_create_post', draftPost)).id);
+  const row = db.prepare('SELECT writes, quota_reserve FROM agent_counters WHERE bucket LIKE ?').get('%:t:tok-wb') as Record<string, number>;
+  assert.deepEqual({ ...row }, { writes: 1, quota_reserve: 1 });
+});

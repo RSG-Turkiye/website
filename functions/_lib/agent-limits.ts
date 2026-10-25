@@ -10,19 +10,22 @@
 //
 // - All counters live in `agent_counters`, one row per UTC day and subject
 //   (a token, or an IP). A row holds every counter of its subject (the
-//   current minute, the day, the quotas), so a request bumps at most two rows
-//   (its token's and its IP's) in one batch. The table is WITHOUT ROWID with
-//   no other index, so a bump is one row written.
+//   current minute, the day, the quotas), so an allowed request bumps one
+//   row, its token's. The table is WITHOUT ROWID with no other index, so a
+//   bump is one row written.
 // - The key starts with the day, zero-padded: today's token rows are one
-//   primary-key range, read in the same statement as the IP row, and the
-//   member's day and the agents' pools are sums over that range. The nightly
-//   prune deletes the days before today by the same range.
+//   primary-key range, read in the same statement as the IP's row and the
+//   day's failures row, and the member's day, the agents' request pools and
+//   their write pools are sums over that range. The nightly prune deletes
+//   the days before today by the same range.
 // - Check, then bump: a request refused by a daily limit, the budget, a
 //   quota or a blocked IP writes nothing. Only the minute limit counts its
 //   refusals (the flood signal needs them), until the flood revokes the token.
-// - A value that matches no token writes nothing per value: it counts as a
-//   failed authentication of its IP (an IPv6 address counts by its /64), and
-//   an IP past IP_FAILED_AUTH is refused without a write.
+// - IP rows count only failures: a value that matches no token, or a
+//   header that is no token value. Nothing is written per value. An IP past
+//   IP_FAILED_AUTH is refused without a write (an IPv6 address counts by its
+//   /64), and past FAILURES_PER_DAY for all addresses together a failure is
+//   refused without any write.
 //
 // Counts read before the bump can race: two requests at once may both pass
 // the last free slot. The overshoot is a few requests, never a budget risk.
@@ -48,6 +51,20 @@ export const LIMITS = Object.freeze({
    */
   AGENT_GENERAL_PER_DAY: 12_000,
   AGENT_RESERVE_PER_DAY: 3_000,
+  /**
+   * All agents' writes, submits and uploads together (what the handlers
+   * write to D1), per UTC day: a general pool, then a reserve only social
+   * work may use. Each is about 10 rows with its audit row, so 2,000 keep
+   * agents' handler writes near 20,000 of D1's 100,000 rows a day.
+   */
+  AGENT_WRITES_GENERAL_PER_DAY: 1_600,
+  AGENT_WRITES_RESERVE_PER_DAY: 400,
+  /**
+   * Failed authentications counted from every address together, per UTC day.
+   * Past it, a value that matches no token (or a header that is no token
+   * value) is refused with no D1 write at all.
+   */
+  FAILURES_PER_DAY: 5_000,
   /** One member's requests per UTC day, across all their tokens. */
   MEMBER_PER_DAY: 300,
   TOKEN_PER_MINUTE: 30,
@@ -72,6 +89,8 @@ export const LIMITS = Object.freeze({
 
 /** The whole agent ceiling, both pools. */
 export const AGENT_BUDGET = LIMITS.AGENT_GENERAL_PER_DAY + LIMITS.AGENT_RESERVE_PER_DAY;
+/** The whole ceiling on agents' handler writes, both pools. */
+export const AGENT_WRITE_BUDGET = LIMITS.AGENT_WRITES_GENERAL_PER_DAY + LIMITS.AGENT_WRITES_RESERVE_PER_DAY;
 
 export type QuotaColumn = 'writes' | 'submits' | 'uploads';
 const QUOTA: Record<NonNullable<AgentRoute['quota']>, { column: QuotaColumn; limit: number }> = {
@@ -94,7 +113,7 @@ export interface LimitedPrincipal {
    * spent in the message's own upsert, or 'full'. The tool's inner request
    * then spends nothing more (authenticateInternal in agent-tokens.ts).
    */
-  quotaPaid?: QuotaColumn | 'full';
+  quotaPaid?: QuotaColumn | 'full' | 'budget';
 }
 
 /** What a request spends besides one request: the reserve may serve it (social work), and its quota. */
@@ -141,35 +160,37 @@ const leaked = () => jsonResponse({
 const dayKey = (now: number) => String(Math.floor(now / DAY)).padStart(6, '0');
 const tokenBucket = (tokenId: string, now: number) => `${dayKey(now)}:t:${tokenId}`;
 const ipBucket = (ip: string, now: number) => `${dayKey(now)}:i:${ip}`;
+/** The one row that counts every address's failed authentications today. */
+const failuresBucket = (now: number) => `${dayKey(now)}:g:failures`;
 
 /** Every bucket key before this one belongs to an earlier day: what the prune deletes. */
 export const firstBucketOfDay = (now: number) => dayKey(now);
 
 interface TokenCounts {
   bucket: string; user_id: string | null; general: number; reserve: number;
-  writes: number; submits: number; uploads: number; refusals: number; minute: number; minute_n: number;
+  writes: number; submits: number; uploads: number; quota_reserve: number; refusals: number; minute: number; minute_n: number;
 }
 interface IpCounts { requests: number; minute: number; minute_n: number; fail_window: number; fail_n: number }
 
-/** Today's counters for this request: its IP's row and every token row of the day (the pools are their sums). */
-export interface Snapshot { ip: IpCounts | null; tokens: TokenCounts[] }
+/**
+ * Today's counters for this request: its IP's row, the day's failure count,
+ * and every token row of the day (the pools are their sums).
+ */
+export interface Snapshot { ip: IpCounts | null; failures: number; tokens: TokenCounts[] }
 
 /**
- * One statement: the IP's row and today's token rows, by primary key and a
- * primary-key range. Rows read: one per token used today, plus one.
+ * One statement: the IP's row and the failures row by primary key, and
+ * today's token rows by a primary-key range. Rows read: one per token used
+ * today, plus two.
  */
-export async function readSnapshot(db: D1Database, ip: string, now: number): Promise<Snapshot> {
+export async function readSnapshot(db: D1Database, ip: string, now: number, tokens = true): Promise<Snapshot> {
   const day = dayKey(now);
   const rows = (await db.prepare(
-    'SELECT * FROM agent_counters WHERE bucket = ?1 OR (bucket >= ?2 AND bucket < ?3)',
-  ).bind(ipBucket(ip, now), `${day}:t:`, `${day}:t;`).all<TokenCounts & IpCounts>()).results;
+    'SELECT * FROM agent_counters WHERE bucket IN (?1, ?2) OR (bucket >= ?3 AND bucket < ?4)',
+  ).bind(ipBucket(ip, now), failuresBucket(now), tokens ? `${day}:t:` : '', tokens ? `${day}:t;` : '').all<TokenCounts & IpCounts>()).results;
   const ipRow = rows.find((r) => r.bucket === ipBucket(ip, now));
-  return { ip: ipRow ?? null, tokens: rows.filter((r) => r !== ipRow) };
-}
-
-/** The IP's own row only, where nothing else is needed (the middleware). */
-async function readIp(db: D1Database, ip: string, now: number): Promise<IpCounts | null> {
-  return db.prepare('SELECT * FROM agent_counters WHERE bucket = ?').bind(ipBucket(ip, now)).first<IpCounts>();
+  const failures = rows.find((r) => r.bucket === failuresBucket(now));
+  return { ip: ipRow ?? null, failures: failures?.requests ?? 0, tokens: rows.filter((r) => r !== ipRow && r !== failures) };
 }
 
 /**
@@ -186,7 +207,20 @@ export function ipRefusal(row: IpCounts | null, now: number): Response | null {
   return null;
 }
 
-/** One more bearer request from this IP, and a failed authentication when `failed`. One upsert. */
+/**
+ * One failed authentication from this IP: its row and the day's failures
+ * row, in one batch (two rows). Past FAILURES_PER_DAY nothing is written:
+ * the request is refused as it is.
+ */
+async function countFailure(db: D1Database, ip: string, snapshot: Snapshot, now: number): Promise<void> {
+  if (snapshot.failures >= LIMITS.FAILURES_PER_DAY) return;
+  await db.batch([
+    bumpIp(db, ip, now, true),
+    db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1').bind(failuresBucket(now)),
+  ]);
+}
+
+/** One more failed request from this IP (and a failed authentication when `failed`). One upsert. */
 function bumpIp(db: D1Database, ip: string, now: number, failed: boolean): D1PreparedStatement {
   return db.prepare(
     `INSERT INTO agent_counters (bucket, requests, minute, minute_n, fail_window, fail_n) VALUES (?1, 1, ?2, 1, ?3, ?4)
@@ -199,31 +233,30 @@ function bumpIp(db: D1Database, ip: string, now: number, failed: boolean): D1Pre
   ).bind(ipBucket(ip, now), Math.floor(now / MINUTE), failed ? Math.floor(now / LIMITS.IP_FAILED_AUTH_WINDOW) : 0, failed ? 1 : 0);
 }
 
-interface TokenDelta { minute: boolean; general?: number; reserve?: number; quota?: QuotaColumn; refusals?: number }
+interface TokenDelta { minute: boolean; general?: number; reserve?: number; quota?: QuotaColumn; quotaReserve?: boolean; refusals?: number }
 
 /** Adds `delta` to the token's row for today. One upsert; returns the row's minute_n and refusals. */
 function bumpToken(db: D1Database, p: Pick<LimitedPrincipal, 'tokenId' | 'userId'>, now: number, d: TokenDelta): D1PreparedStatement {
   const q = (c: QuotaColumn) => (d.quota === c ? 1 : 0);
   return db.prepare(
-    `INSERT INTO agent_counters (bucket, user_id, minute, minute_n, general, reserve, writes, submits, uploads, refusals)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+    `INSERT INTO agent_counters (bucket, user_id, minute, minute_n, general, reserve, writes, submits, uploads, refusals, quota_reserve)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
      ON CONFLICT(bucket) DO UPDATE SET
        minute_n = CASE WHEN excluded.minute_n = 0 THEN minute_n WHEN minute = excluded.minute THEN minute_n + 1 ELSE 1 END,
        minute = CASE WHEN excluded.minute_n = 0 THEN minute ELSE excluded.minute END,
        general = general + excluded.general, reserve = reserve + excluded.reserve,
        writes = writes + excluded.writes, submits = submits + excluded.submits, uploads = uploads + excluded.uploads,
-       refusals = refusals + excluded.refusals
+       refusals = refusals + excluded.refusals, quota_reserve = quota_reserve + excluded.quota_reserve
      RETURNING minute_n, refusals`,
   ).bind(
     tokenBucket(p.tokenId, now), p.userId, Math.floor(now / MINUTE), d.minute ? 1 : 0,
-    d.general ?? 0, d.reserve ?? 0, q('writes'), q('submits'), q('uploads'), d.refusals ?? 0,
+    d.general ?? 0, d.reserve ?? 0, q('writes'), q('submits'), q('uploads'), d.refusals ?? 0, d.quota && d.quotaReserve ? 1 : 0,
   );
 }
 
-/** Runs the token's upsert and, when given, the IP's in one batch; the token row's counts after it. */
-async function bump(db: D1Database, token: D1PreparedStatement, ip: D1PreparedStatement | null): Promise<{ minute_n: number; refusals: number }> {
-  const out = await db.batch<{ minute_n: number; refusals: number }>(ip ? [token, ip] : [token]);
-  return out[0].results?.[0] ?? { minute_n: 0, refusals: 0 };
+/** Runs the token's upsert; the token row's counts after it. */
+async function bump(db: D1Database, token: D1PreparedStatement): Promise<{ minute_n: number; refusals: number }> {
+  return (await token.first<{ minute_n: number; refusals: number }>()) ?? { minute_n: 0, refusals: 0 };
 }
 
 /**
@@ -342,9 +375,9 @@ export function autoRevoke(db: D1Database, tokenId: string, reason: RevokeReason
 /**
  * A bearer request on a route outside the table (the middleware answers 403
  * human_only). A cut-off IP gets 429 with no write. Otherwise, a value of a
- * live token counts one refusal on that token (and one request on its IP),
+ * live token counts one refusal on that token,
  * and at REFUSALS_PER_DAY the token is revoked; a value that matches no
- * token counts as a failed authentication of the IP; a revoked or expired
+ * token counts as a failed authentication (countFailure); a revoked or expired
  * token's value, or a header that is no token value at all, writes nothing.
  */
 export type RefusedToken = { id: string; user_id: string } | 'unknown' | 'dead' | 'none';
@@ -353,22 +386,27 @@ export async function countRefusal(
   db: D1Database, request: Request, lookup: () => Promise<RefusedToken>, now: number,
 ): Promise<Response | null> {
   const ip = await ipKey(request);
-  const refused = ipRefusal(await readIp(db, ip, now), now);
+  const snapshot = await readSnapshot(db, ip, now, false);
+  const refused = ipRefusal(snapshot.ip, now);
   if (refused) return refused;
   const token = await lookup();
   if (token === 'none' || token === 'dead') return null;
   if (token === 'unknown') {
-    await bumpIp(db, ip, now, true).run();
+    await countFailure(db, ip, snapshot, now);
     return null;
   }
-  const { refusals } = await bump(db, bumpToken(db, { tokenId: token.id, userId: token.user_id }, now, { minute: false, refusals: 1 }), bumpIp(db, ip, now, false));
+  const { refusals } = await bump(db, bumpToken(db, { tokenId: token.id, userId: token.user_id }, now, { minute: false, refusals: 1 }));
   if (refusals >= LIMITS.REFUSALS_PER_DAY) await autoRevoke(db, token.id, 'refusals', now);
   return null;
 }
 
-/** A value on a table route that matches no token (or is no token value): one failed authentication of the IP. */
-export async function countFailedAuth(db: D1Database, ip: string, now: number): Promise<void> {
-  await bumpIp(db, ip, now, true).run();
+/**
+ * A value on a table route that matches no token (or is no token value): one
+ * failed authentication of the IP and of the day, unless the day's failures
+ * are already at FAILURES_PER_DAY (then nothing is written).
+ */
+export async function countFailedAuth(db: D1Database, ip: string, snapshot: Snapshot, now: number): Promise<void> {
+  await countFailure(db, ip, snapshot, now);
 }
 
 // --- the leak check --------------------------------------------------------
@@ -432,10 +470,11 @@ export async function refuseLeak(db: D1Database, principal: Pick<LimitedPrincipa
  *    is revoked even in a request that is over a limit). An upload is
  *    searched for `rsg_pat_` as bytes; any other body as text.
  * 2. Daily limits, refused with no write: the member's day, the route's
- *    quota, the agents' pools (general, then the reserve for social work).
+ *    quota, the agents' request pools and, for a request with a quota, the
+ *    agents' write pools (each general, then the reserve for social work).
  * 3. The minute: the flood signal and the minute limit, on one count that
  *    includes refused attempts (these write the minute count only).
- * 4. One batch: the token's row (minute, pool, quota) and the IP's row.
+ * 4. One upsert of the token's row (minute, pool, quota, write pool).
  * A body over the cap is answered 413 only after step 4: it counts as a
  * request, and as a write or submit where the route has that quota.
  * null: go on.
@@ -473,10 +512,12 @@ export async function checkToken(
 
   const { snapshot } = at;
   const mine = snapshot.tokens.find((t) => t.bucket === tokenBucket(principal.tokenId, now));
-  let general = 0, reserve = 0, member = 0;
+  let general = 0, reserve = 0, member = 0, quotaSpent = 0, quotaReserve = 0;
   for (const t of snapshot.tokens) {
     general += t.general;
     reserve += t.reserve;
+    quotaSpent += t.writes + t.submits + t.uploads;
+    quotaReserve += t.quota_reserve;
     if (t.user_id === principal.userId) member += t.general + t.reserve;
   }
   if (member >= LIMITS.MEMBER_PER_DAY) return dailyLimited(now);
@@ -490,17 +531,27 @@ export async function checkToken(
   if (general < LIMITS.AGENT_GENERAL_PER_DAY) pool = 'general';
   else if (reserve < LIMITS.AGENT_RESERVE_PER_DAY && charge.reserve) pool = 'reserve';
   else return agentBudgetSpent(now);
+  // The agents' write budget, for a request with a quota, in the same way:
+  // general first, then the reserve for social work. Spent: refused with no
+  // write on REST; an MCP message goes on and its tool answers agent_budget.
+  let writePool: 'general' | 'reserve' | 'spent' | null = null;
+  if (quota && !quotaFull) {
+    if (quotaSpent - quotaReserve < LIMITS.AGENT_WRITES_GENERAL_PER_DAY) writePool = 'general';
+    else if (quotaReserve < LIMITS.AGENT_WRITES_RESERVE_PER_DAY && charge.reserve) writePool = 'reserve';
+    else writePool = 'spent';
+  }
+  if (writePool === 'spent' && principal.route.quota) return agentBudgetSpent(now);
 
   const thisMinute = Math.floor(now / MINUTE);
   const perMinute = (mine?.minute === thisMinute ? mine.minute_n : 0) + 1;
   if (perMinute > LIMITS.TOKEN_PER_MINUTE) {
-    const counted = await bump(db, bumpToken(db, principal, now, { minute: true }), bumpIp(db, at.ip, now, false));
+    const counted = await bump(db, bumpToken(db, principal, now, { minute: true }));
     if (Math.max(perMinute, counted.minute_n) >= LIMITS.FLOOD_PER_MINUTE) await autoRevoke(db, principal.tokenId, 'flood', now);
     return rateLimited(secondsLeft(MINUTE, now));
   }
-  const spend = quota && !quotaFull ? quota.column : undefined;
-  await bump(db, bumpToken(db, principal, now, { minute: true, [pool]: 1, quota: spend }), bumpIp(db, at.ip, now, false));
-  if (quota && !principal.route.quota) principal.quotaPaid = spend ?? 'full';
+  const spend = quota && writePool !== null && writePool !== 'spent' ? quota.column : undefined;
+  await bump(db, bumpToken(db, principal, now, { minute: true, [pool]: 1, quota: spend, quotaReserve: writePool === 'reserve' }));
+  if (quota && !principal.route.quota) principal.quotaPaid = spend ?? (quotaFull ? 'full' : 'budget');
   return fits ? null : tooLarge();
 }
 
@@ -514,11 +565,12 @@ export async function checkToken(
  * nothing and returns no row.
  */
 export async function checkQuota(
-  db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'userId' | 'route'>, now: number, paid?: QuotaColumn | 'full',
+  db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'userId' | 'route'>, now: number, paid?: QuotaColumn | 'full' | 'budget',
 ): Promise<Response | null> {
   const quota = principal.route.quota ? QUOTA[principal.route.quota] : null;
   if (!quota) return null;
   if (paid === 'full') return dailyLimited(now);
+  if (paid === 'budget') return agentBudgetSpent(now);
   if (paid === quota.column) return null;
   const c = quota.column;
   const row = await db.prepare(

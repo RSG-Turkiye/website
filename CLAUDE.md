@@ -130,12 +130,14 @@ for both sites on every PR. Keep it green.
   whole site; over it, every API call fails until 00:00 UTC.
 - **Agents get a fixed share of both** (README, "Agent access", Limits):
   all agent tokens together at most 15,000 requests a day (12,000 for any
-  route, then 3,000 kept for social work), and 300 per member. An allowed
-  agent request writes 2 counter rows and reads one counter row per token
-  used that day plus its own. A refusal for the day, the budget or a quota,
-  or from a cut-off IP, writes nothing. People in the panel
-  are never counted. The numbers are `LIMITS` in
-  `functions/_lib/agent-limits.ts`.
+  route, then 3,000 kept for social work) and 2,000 writes, submits and
+  uploads (1,600, then 400 for social work), and 300 requests per member.
+  An allowed agent request writes 1 counter row and reads one counter row
+  per token used that day plus two. Failed authentications write 2 rows
+  each, at most 5,000 a day for all addresses together; past that they
+  write nothing. A refusal for the day, a budget or a quota, or from a
+  cut-off IP, writes nothing. People in the panel are never counted. The
+  numbers are `LIMITS` in `functions/_lib/agent-limits.ts`.
 - **Schema changes are applied by hand.** Add the table or column to
   `db/schema.sql` and add a numbered note at its top with the exact `wrangler
   d1 execute rsg-members --remote ...` command. `ALTER TABLE` is not
