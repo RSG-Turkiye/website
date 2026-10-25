@@ -114,6 +114,14 @@ test('initialize echoes a supported version, answers 2025-06-18 to any other, an
   }
 });
 
+test("README's Agent access section reproduces the instructions word for word", () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const section = readme.slice(readme.indexOf('## Agent access'));
+  const block = /### What the agent is told[\s\S]*?```text\n([\s\S]*?)\n```/.exec(section);
+  assert.ok(block, 'the README section has the instructions block');
+  assert.equal(block![1], AGENT_INSTRUCTIONS);
+});
+
 test('the instructions: short, no em dash or spaced double hyphen, and the rules that matter', () => {
   assert.ok(AGENT_INSTRUCTIONS.length <= 2500, `${AGENT_INSTRUCTIONS.length} characters`);
   assert.ok(!AGENT_INSTRUCTIONS.includes('—'));

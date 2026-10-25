@@ -66,7 +66,9 @@ anyone.
 10. **Content is changed through the CMS or a PR. Only a person approves,
     in the panel**; the shepherd merges only what a person approved, and
     nobody merges a `cms/*` pull request by hand. No agent or script
-    approves.
+    approves. Agent tokens draft and submit only; the route table in
+    `functions/_lib/agent-routes.ts` is the complete list, and a new panel
+    feature adds its draft-level routes there or nothing.
 
 ## Where things live
 
@@ -84,6 +86,7 @@ anyone.
 | `functions/_lib/roles.ts`         | The role catalog and the duration rules: who may grant which role, and for how long. Pure, no database.                                               |
 | `functions/_lib/role-grants.ts`   | `grantRole`, `revokeRole`, `activeGrants`, `expireGrants`: the only code that changes who holds a role.                                               |
 | `src/lib/cms/`, `functions/_lib/cms-*.ts`, `functions/api/cms/` | The panel CMS: types and serializing, draft rules, the PR shepherd (runs on the mail tick), and the `/api/cms/*` endpoints. Content types are grouped (Etkinlikler, Yazılar, Öğrenme, Topluluk, Sayfalar); a group's rights are the roles `content.<group>.edit` and `.approve` in `roles.ts`. |
+| `functions/_lib/agent-*.ts`, `functions/api/_middleware.ts`, `functions/api/mcp.ts`, `functions/_lib/mcp-tools.ts`, `functions/api/agent-tokens/` | Agent access (README, "Agent access"): `agent-tokens.ts` checks a personal token and works out its rights (scope intersected with live grants, never approve); `agent-routes.ts` is the complete list of routes a token may call; `agent-limits.ts` holds the rate limits, quotas and auto-revoke; `agent-instructions.ts` is what an agent is told; `_middleware.ts` refuses every other `/api/*` route to a bearer request before a handler runs; `mcp.ts` and `mcp-tools.ts` are the MCP server, which calls the same REST handlers; `agent-tokens/` makes, lists and revokes tokens, for a signed-in person only. |
 | `db/schema.sql`                   | The D1 schema plus the numbered migration notes at its top.                                                                                           |
 | `workers/mail-cron/`              | Worker whose cron (every minute) drives mail dispatch, inbox sync and social publishing.                                                              |
 | `workers/symposium-cron/`         | Nightly Worker: archives a finished symposium edition (via a PR), rebuilds the symposium site, purges expired certificates and prunes the audit log.  |
