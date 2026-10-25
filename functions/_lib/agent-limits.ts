@@ -281,8 +281,19 @@ export async function ipKey(request: Request): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Every token value starts with this; an upload that holds it is refused (leaked). */
-const VALUE_PREFIX = new TextEncoder().encode('rsg_pat_');
+/**
+ * Every token value starts with "rsg_pat_"; an upload that holds it is
+ * refused (leaked). As ASCII (UTF-8) and as UTF-16 in both byte orders,
+ * which is how EXIF UserComment and the Windows XP* tags store text.
+ */
+const PREFIX_TEXT = 'rsg_pat_';
+const VALUE_NEEDLES = [
+  new TextEncoder().encode(PREFIX_TEXT),
+  new Uint8Array([...PREFIX_TEXT].flatMap((c) => [c.charCodeAt(0), 0])),
+  new Uint8Array([...PREFIX_TEXT].flatMap((c) => [0, c.charCodeAt(0)])),
+];
+/** Bytes carried over from one chunk to the next, so a needle split across them is found. */
+const CARRY = Math.max(...VALUE_NEEDLES.map((n) => n.length)) - 1;
 
 /** Whether `bytes` holds `needle`, from `from` on. */
 function holdsBytes(bytes: Uint8Array, needle: Uint8Array): boolean {
@@ -326,8 +337,8 @@ async function readCounted(request: Pick<Request, 'body'>, cap: number, keep: bo
       const window = new Uint8Array(carry.length + value.byteLength);
       window.set(carry);
       window.set(value, carry.length);
-      found = holdsBytes(window, VALUE_PREFIX);
-      carry = window.slice(Math.max(0, window.length - (VALUE_PREFIX.length - 1)));
+      found = VALUE_NEEDLES.some((needle) => holdsBytes(window, needle));
+      carry = window.slice(Math.max(0, window.length - CARRY));
     }
   }
   if (found) return 'leaked';
@@ -346,7 +357,8 @@ export async function readCapped(request: Pick<Request, 'body'>, cap: number): P
 
 /**
  * An upload body, counted as it streams and searched for a token value
- * (any `rsg_pat_`, this token's or another's) without decoding: 'ok',
+ * (any `rsg_pat_`, this token's or another's, as ASCII or UTF-16) without
+ * decoding: 'ok',
  * 'too_large' or 'leaked'. Nothing is kept.
  */
 export async function scanUpload(request: Pick<Request, 'body'>, cap: number): Promise<'ok' | 'too_large' | 'leaked'> {
@@ -416,7 +428,7 @@ const percentDecoded = (s: string) => s.replace(/%([0-9a-fA-F]{2})/g, (_m, h: st
 
 /** Numeric character references and the named ones for _ undone. */
 const entityDecoded = (s: string) => s
-  .replace(/&#x([0-9a-fA-F]{1,6});?/g, (_m, h: string) => String.fromCodePoint(Math.min(parseInt(h, 16), 0x10ffff)))
+  .replace(/&#[xX]([0-9a-fA-F]{1,6});?/g, (_m, h: string) => String.fromCodePoint(Math.min(parseInt(h, 16), 0x10ffff)))
   .replace(/&#([0-9]{1,7});?/g, (_m, d: string) => String.fromCodePoint(Math.min(Number(d), 0x10ffff)))
   .replace(/&(lowbar|UnderBar);/g, '_');
 
@@ -558,24 +570,21 @@ export async function checkToken(
 /**
  * The route's daily quota (writes, submits, uploads) alone, for an MCP
  * tool's inner REST request: the outer /api/mcp request already passed every
- * other check and counted once against the minute, the member's day and the
- * pools. Usually the outer message has spent this quota already, in its own
- * upsert (`paid`): then nothing is written, or, if the quota was full, the
- * answer is 429. Otherwise one conditional upsert: past the quota it changes
- * nothing and returns no row.
+ * other check, counted once against the minute, the member's day and the
+ * pools, and spent this quota and the agents' write budget in its own upsert
+ * (`paid`). So nothing is written here: the answer is null when the message
+ * paid, 429 when the quota or the write budget was spent, and agent_budget
+ * when nothing paid for it (no tool does that today).
  */
 export async function checkQuota(
-  db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'userId' | 'route'>, now: number, paid?: QuotaColumn | 'full' | 'budget',
+  _db: D1Database, principal: Pick<LimitedPrincipal, 'tokenId' | 'userId' | 'route'>, now: number, paid?: QuotaColumn | 'full' | 'budget',
 ): Promise<Response | null> {
   const quota = principal.route.quota ? QUOTA[principal.route.quota] : null;
   if (!quota) return null;
   if (paid === 'full') return dailyLimited(now);
   if (paid === 'budget') return agentBudgetSpent(now);
   if (paid === quota.column) return null;
-  const c = quota.column;
-  const row = await db.prepare(
-    `INSERT INTO agent_counters (bucket, user_id, ${c}) VALUES (?1, ?2, 1)
-     ON CONFLICT(bucket) DO UPDATE SET ${c} = ${c} + 1 WHERE ${c} < ?3 RETURNING ${c}`,
-  ).bind(tokenBucket(principal.tokenId, now), principal.userId, quota.limit).first();
-  return row ? null : dailyLimited(now);
+  // Not paid by its message: refused, rather than spent outside the agents'
+  // write budget, which only checkToken can see. No tool reaches this today.
+  return agentBudgetSpent(now);
 }

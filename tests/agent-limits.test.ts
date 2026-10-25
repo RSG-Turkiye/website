@@ -526,3 +526,19 @@ test('the agents\' write budget: 1,600 writes, submits and uploads a day, then 4
   assert.equal(((await (spent as Extract<AgentAuth, { kind: 'refused' }>).response.json()) as { code: string }).code, 'agent_budget');
   assert.equal(status(await authenticateAgent(req('POST', '/api/social/posts', { headers: bearer(social), body: '{}' }), env, NOW + 86_400)), 200, 'the next UTC day');
 });
+
+test('an upload holding rsg_pat_ as UTF-16 (either byte order), split across chunks, is leaked; an upper-case &#X reference in text is too', async () => {
+  const { db, env } = setup();
+  for (const [order, id] of [['le', 't-le'], ['be', 't-be']] as const) {
+    const value = await mintToken(db, 'ed', ['cms.etkinlikler:draft'], { id });
+    const u16 = new Uint8Array([...`XPComment ${value}`].flatMap((c) => (order === 'le' ? [c.charCodeAt(0), 0] : [0, c.charCodeAt(0)])));
+    const cut = 2 * 'XPComment rsg_p'.length + 1; // inside the prefix, mid code unit
+    const parts = [u16.slice(0, cut), u16.slice(cut)];
+    const stream = new ReadableStream<Uint8Array>({ pull(c) { const next = parts.shift(); if (next) c.enqueue(next); else c.close(); } });
+    assert.equal(status(await authenticateAgent(req('POST', '/api/blog-submissions/upload-image', { headers: bearer(value), body: stream }), env, NOW)), 400, order);
+    assert.equal(tokenRow(db, id).revoke_reason, 'leaked', order);
+  }
+  const value = newTokenValue();
+  assert.equal(holdsValue(`&#X72;${value.slice(1)}`, value), true);
+  assert.equal(holdsValue(`&#x72;${value.slice(1, 7)}&#X5F;${value.slice(8)}`, value), true);
+});

@@ -94,3 +94,20 @@ test('an Instagram username in the DM mail is inert too: a dotted name is not a 
   assert.doesNotMatch(m.text + m.subject, /evil\.example/);
   assert.match(m.text, /@evil\.​example/);
 });
+
+test('the expiry notices put their note in a slot too: a note is never a link', () => {
+  for (const kind of ['connection_expiring', 'buffer_key_expiring'] as const) {
+    const m = notificationText(kind, { label: 'x', when: null, note: '[x](https://evil.example)', panelUrl: 'https://rsg-turkiye.iscbsc.org/admin', platform: 'Instagram' });
+    assert.deepEqual([...new Set([...m.body.html.matchAll(/<a href="([^"]*)"/g)].map((x) => x[1]))], ['https://rsg-turkiye.iscbsc.org/admin'], kind);
+    assert.doesNotMatch(m.text, /evil\.example/);
+  }
+  // The day count still reads as written.
+  assert.match(notificationText('buffer_key_expiring', { label: 'Buffer', when: null, note: '14', panelUrl: 'u' }).text, /14 gün/);
+});
+
+test('the subject keeps a label inert: no scheme, and a host shows as evil[.]example', () => {
+  const s = notificationText('submitted', { label: 'Reset at https://evil.example/x or www.evil.example', when: null, panelUrl: 'u' }).subject;
+  assert.doesNotMatch(s, /https?:|evil\.example|www\./);
+  assert.match(s, /evil\[\.\]example\/x/);
+  assert.match(notificationText('submitted', { label: 'Konuşmacı 3', when: null, panelUrl: 'u' }).subject, /Konuşmacı 3$/);
+});

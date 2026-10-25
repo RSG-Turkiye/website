@@ -537,7 +537,9 @@ test('socialGate lets a token through only on a social route, as cmsGate does fo
   const outer = await authenticateAgent(new Request(`${BASE}/api/blog-submissions/upload-image`, { method: 'POST', headers: bearer(token), body: 'x' }), env as never, NOW);
   assert.equal(outer.kind, 'agent');
   const inner = new Request(`${BASE}/api/blog-submissions/upload-image`, { method: 'POST', headers: bearer(token) });
-  markInternal(inner, outer as Extract<typeof outer, { kind: 'agent' }>);
+  const marked = outer as Extract<typeof outer, { kind: 'agent' }>;
+  marked.agent.quotaPaid = 'uploads'; // as if its message paid, so the gate itself decides
+  markInternal(inner, marked);
   const gate = await socialGate(inner, env as never, 'edit', true);
   assert.equal(gate.ok, false);
   const res = (gate as Extract<typeof gate, { ok: false }>).response;

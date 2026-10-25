@@ -366,9 +366,17 @@ test('a marked inner request: the inner route, no token lookup, and human_only o
   // Revoked after the outer check: the inner request is not looked up again.
   db.prepare('UPDATE agent_tokens SET revoked_at = ? WHERE id = ?').run(NOW, 'tok-in');
   const inner = new Request(`${BASE}/api/cms/drafts`, { method: 'POST' });
+  // Its message paid the write quota (as checkToken does for a write tool); unpaid, it is refused.
+  const unpaid = new Request(`${BASE}/api/cms/drafts`, { method: 'POST' });
+  markInternal(unpaid, { user: outer.user, agent: outer.agent });
+  const refusedUnpaid = await authenticateAgent(unpaid, env, NOW);
+  assert.equal(refusedUnpaid.kind, 'refused');
+  if (refusedUnpaid.kind === 'refused') assert.equal((await refusedUnpaid.response.json() as { code: string }).code, 'agent_budget');
+  outer.agent.quotaPaid = 'writes';
   markInternal(inner, { user: outer.user, agent: outer.agent });
   const got = await authenticateAgent(inner, env, NOW);
   assert.equal(got.kind, 'agent');
+  assert.equal(outer.agent.quotaPaid, undefined, 'used once');
   if (got.kind === 'agent') assert.deepEqual([got.agent.route.method, got.agent.route.quota], ['POST', 'write']);
   for (const [method, path] of [['GET', '/api/admin/users'], ['POST', '/api/cms/drafts/00000000-0000-4000-8000-000000000000/approve']]) {
     const off = new Request(`${BASE}${path}`, { method });

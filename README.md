@@ -1482,19 +1482,22 @@ Limits (every MCP message counts as one request; a minute and a day are fixed wi
 ### Owner steps for agent access (once, by the owner, never by an agent), in this order
 
 1. **Before merging the pull request that adds agent access**, run note 8l
-   at the top of `db/schema.sql` on the remote D1, both commands, in this
-   order. The first is not safe to repeat (ALTER TABLE ADD COLUMN errors on
-   a second run); the second is.
+   at the top of `db/schema.sql` on the remote D1, all three commands, in
+   this order. The first drops counter tables an earlier draft of the note
+   may have made (it does nothing on a database that never had them). The
+   second is not safe to repeat (ALTER TABLE ADD COLUMN errors on a second
+   run); the first and third are.
 
    ```bash
+   wrangler d1 execute rsg-members --remote --command="DROP TABLE IF EXISTS agent_rate; DROP TABLE IF EXISTS agent_counters"
    wrangler d1 execute rsg-members --remote --command="ALTER TABLE content_drafts ADD COLUMN agent_token_id TEXT; ALTER TABLE social_posts ADD COLUMN agent_token_id TEXT"
    wrangler d1 execute rsg-members --remote --file=db/schema.sql
    ```
 
    Until it has run, every draft save fails with "no such column:
-   agent_token_id". If an earlier draft of note 8l was ever run, also run
-   its last command, which drops the old `agent_rate` table (safe either
-   way).
+   agent_token_id". A local database made from an earlier commit of this
+   branch (agent requests fail with "no such column: quota_reserve") needs
+   the first and third commands with `--local` instead of `--remote`.
 2. Merge and let the deploy finish. No Worker redeploy is needed.
 3. Make a `read` token for one area in the panel, connect Claude Code with
    it as above, and check that `tools/list` (the `/mcp` view) shows only

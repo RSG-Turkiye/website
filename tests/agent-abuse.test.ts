@@ -5,10 +5,7 @@
 // the auto-revoke triggers; and hostile labels in notification mail.
 //
 // Everything runs in-process on the node:sqlite D1 shim, with fetch stubbed:
-// no request leaves the machine. A test marked FINDING fails against the code
-// it was written for; it is kept as a `todo` (it runs and reports, but does
-// not fail the suite) until the defect it describes is fixed; then drop the
-// `todo` so it guards the fix.
+// no request leaves the machine.
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -706,7 +703,10 @@ test('MCP: inner calls never exceed the token\'s level; a read principal handed 
     const inner = new Request(`${BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...bearer(token) }, body: JSON.stringify(body) });
     markInternal(inner, outer as Extract<AgentAuth, { kind: 'agent' }>);
     const res = await (handler as (c: unknown) => Promise<Response>)({ request: inner, env: w.env, params: {}, waitUntil: (p: Promise<unknown>) => { waits.push(p); } });
-    assert.equal(res.status, 403, `${scopes} -> ${path}`);
+    // Refused before the handler: a marked request its message did not pay a quota for is
+    // agent_budget (checkQuota), and the handler would refuse the level anyway.
+    assert.equal(res.status, 429, `${scopes} -> ${path}`);
+    assert.equal(((await res.json()) as { code: string }).code, 'agent_budget');
     assert.equal(contentState(w), before);
   }
   // A marked inner request off the table is human_only, whatever the outer principal.
@@ -1108,12 +1108,7 @@ test('auto-revoke: the token\'s value in a body, plain, JSON-escaped, percent-en
   assert.equal(rows(w.db, 'social_posts'), 0);
 });
 
-test('auto-revoke: the value as an upper-case HTML hex reference (&#X72;) is a leak too', { todo: 'FINDING 1: entityDecoded in agent-limits.ts matches only lower-case "&#x"; "&#X72;sg_pat_..." passes the leak check and is stored' }, async () => {
-  // FINDING: holdsValue/entityDecoded (functions/_lib/agent-limits.ts) decodes
-  // `&#x..;` but not `&#X..;`. HTML treats both as the same character
-  // reference, so a caption or plan title holding `&#X72;sg_pat_<rest>` is
-  // stored and shown, wherever the text is rendered as HTML, as the token's
-  // value; the token is not revoked. Fix: match `&#[xX]`.
+test('auto-revoke: the value as an upper-case HTML hex reference (&#X72;) is a leak too', async () => {
   const w = await world();
   const value = await mintToken(w.db, 'ed', ['social:draft'], { id: 'tok-X' });
   const res = await hit(w, socialPosts.onRequestPost, 'POST', '/api/social/posts', { token: value, body: postBody({ caption: `&#X72;${value.slice(1)}` }) });
@@ -1162,13 +1157,7 @@ test('auto-revoke: an upload holding a token value (at the start, the end, split
   assert.equal(count(w.db, `SELECT COUNT(*) AS n FROM audit_log WHERE action = 'media.upload'`), 0);
 });
 
-test('auto-revoke: an upload holding the value as UTF-16 text (as Windows XP* EXIF tags store it) is a leak too', { todo: 'FINDING 2: the upload scan looks only for the ASCII bytes "rsg_pat_"; a UTF-16LE copy of the value is stored in R2 and served publicly' }, async () => {
-  // FINDING: scanUpload (functions/_lib/agent-limits.ts) searches the upload
-  // for the bytes of "rsg_pat_" only. JPEG XPComment/XPTitle and EXIF
-  // UserComment (UNICODE) hold UTF-16 text, so a value written there by an
-  // agent is stored in R2 and served from /api/images to anyone, and the
-  // token stays live. Fix: also search for the UTF-16LE and UTF-16BE
-  // encodings of "rsg_pat_" (two more needles, same streaming carry).
+test('auto-revoke: an upload holding the value as UTF-16 text (as Windows XP* EXIF tags store it) is a leak too', async () => {
   const w = await world();
   const value = await mintToken(w.db, 'ed', ['social:draft'], { id: 'tok-u16' });
   const u16 = new Uint8Array([...value].flatMap((c) => [c.charCodeAt(0), 0]));
@@ -1236,14 +1225,7 @@ test('notification mail: every hostile label renders inert in HTML and text: the
   }
 });
 
-test('notification mail: a hostile label does not reach the subject as a whole URL either', { todo: 'FINDING 3 (judgement call): subjectLabel removes the zero-width breaks, so "https://evil.example" reaches the subject intact' }, () => {
-  // FINDING: notificationTemplate puts subjectLabel(label) in the subject, and
-  // subjectLabel strips the zero-width spaces inertText inserted. A plan title
-  // or caption written by a token, "Reset at https://evil.example", is sent
-  // from the organisation's own address with the whole URL in the subject,
-  // which some clients and notification previews linkify or which reads as
-  // an instruction. Body links are inert; the subject is not. Fix: keep the
-  // breaks in the subject, or drop scheme/www/dots there; or rule it accepted.
+test('notification mail: a hostile label does not reach the subject as a whole URL either', () => {
   for (const label of ['Reset at https://evil.example/x', 'see www.evil.example', 'go to evil.example']) {
     const m = notificationText('submitted', { label, when: WALL, panelUrl: `${BASE}/admin`, actor: 'ed' });
     assert.deepEqual(links(m.subject).filter((l) => /evil/i.test(l)), [], m.subject);

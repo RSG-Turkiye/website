@@ -356,20 +356,23 @@
 --
 -- 8l. Personal agent tokens (functions/_lib/agent-tokens.ts). Two columns
 --    on existing tables, then two new tables: agent_tokens with its index,
---    and agent_counters. Run both commands, in this order, BEFORE deploying:
---    the CMS and social endpoints write agent_token_id on every draft save,
---    so without the columns every save fails with "no such column:
---    agent_token_id", and every request with an agent token fails on "no
---    such table: agent_tokens". ALTER TABLE ADD COLUMN is NOT idempotent, so
---    it stays a note here and errors rather than no-ops on a rerun: do not
---    re-run the first command. The second is all IF NOT EXISTS and safe to
---    repeat:
+--    and agent_counters. Run the three commands, in this order, BEFORE
+--    deploying: the CMS and social endpoints write agent_token_id on every
+--    draft save, so without the columns every save fails with "no such
+--    column: agent_token_id", and every request with an agent token fails on
+--    "no such table: agent_tokens".
+--    1. Drops counter tables an earlier draft of this note may have made
+--       (agent_rate, or agent_counters without a column added since). They
+--       hold only today's rate counters; on a database that never had them
+--       this does nothing. Safe to repeat (it only resets the counters).
+--    2. ALTER TABLE ADD COLUMN is NOT idempotent, so it stays a note here and
+--       errors rather than no-ops on a rerun: do not re-run it.
+--    3. All IF NOT EXISTS, safe to repeat.
+--      wrangler d1 execute rsg-members --remote --command="DROP TABLE IF EXISTS agent_rate; DROP TABLE IF EXISTS agent_counters"
 --      wrangler d1 execute rsg-members --remote --command="ALTER TABLE content_drafts ADD COLUMN agent_token_id TEXT; ALTER TABLE social_posts ADD COLUMN agent_token_id TEXT"
 --      wrangler d1 execute rsg-members --remote --file=db/schema.sql
---    An earlier draft of this migration made a table agent_rate, now
---    replaced by agent_counters. If production has it, drop it (safe to
---    run either way):
---      wrangler d1 execute rsg-members --remote --command="DROP TABLE IF EXISTS agent_rate"
+--    A local database made from an earlier commit of this branch: run the
+--    first and third commands with --local instead of --remote.
 --
 
 CREATE TABLE IF NOT EXISTS users (

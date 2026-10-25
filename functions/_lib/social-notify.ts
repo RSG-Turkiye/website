@@ -81,8 +81,18 @@ export function notificationText(
   return { subject, text: body.text, body };
 }
 
+/**
+ * The label for the subject: one line, inert as in the body but readable
+ * where a zero-width space could not help (a subject is plain text, and some
+ * clients and previews linkify it): schemes dropped, and every dot inside a
+ * host-like word shown as [.] ("evil[.]example"). At most SUBJECT_LABEL_MAX
+ * characters.
+ */
 function subjectLabel(label: string): string {
-  const chars = [...inertText(label).replace(/\u200B/g, '')];
+  const flat = inertText(label).replace(/\u200B/g, '')
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\//gi, '')
+    .replace(/([\p{L}\p{N}])\.(?=[\p{L}\p{N}])/gu, '$1[.]');
+  const chars = [...flat];
   return chars.length > SUBJECT_LABEL_MAX ? `${chars.slice(0, SUBJECT_LABEL_MAX - 1).join('')}…` : chars.join('');
 }
 
@@ -141,12 +151,12 @@ function notificationTemplate(
     case 'buffer_key_expiring':
       return {
         subject: `Buffer API anahtarının süresi doluyor / Buffer API key expiring`,
-        template: `LinkedIn ve X gönderilerini taşıyan Buffer API anahtarının süresi ${ctx.note ?? ''} gün içinde doluyor. Dolunca LinkedIn ve X gönderileri bekler.\n\nYenilemek için:\n1. Buffer'da (turkey.rsg@gmail.com) Settings > API: yeni anahtar oluştur (izinler: account:read, posts:read, posts:write).\n2. Kendi terminalinde: npx wrangler pages secret put BUFFER_API_KEY --project-name website\n3. wrangler.toml içindeki BUFFER_KEY_EXPIRES'ı yeni bitiş tarihiyle değiştir ve deploy et.\n4. Eski anahtarı Buffer'da sil.\n\nPanel: ${ctx.panelUrl}\n\n---\n\nThe Buffer API key that carries LinkedIn and X posts expires in ${ctx.note ?? ''} days. After that, LinkedIn and X posts wait.\n\nTo renew it:\n1. In Buffer (turkey.rsg@gmail.com), Settings > API: create a new key (permissions: account:read, posts:read, posts:write).\n2. In your own terminal: npx wrangler pages secret put BUFFER_API_KEY --project-name website\n3. Change BUFFER_KEY_EXPIRES in wrangler.toml to the new end date and deploy.\n4. Delete the old key in Buffer.\n\nPanel: ${ctx.panelUrl}`,
+        template: `LinkedIn ve X gönderilerini taşıyan Buffer API anahtarının süresi ${slot(1)} gün içinde doluyor. Dolunca LinkedIn ve X gönderileri bekler.\n\nYenilemek için:\n1. Buffer'da (turkey.rsg@gmail.com) Settings > API: yeni anahtar oluştur (izinler: account:read, posts:read, posts:write).\n2. Kendi terminalinde: npx wrangler pages secret put BUFFER_API_KEY --project-name website\n3. wrangler.toml içindeki BUFFER_KEY_EXPIRES'ı yeni bitiş tarihiyle değiştir ve deploy et.\n4. Eski anahtarı Buffer'da sil.\n\nPanel: ${ctx.panelUrl}\n\n---\n\nThe Buffer API key that carries LinkedIn and X posts expires in ${slot(1)} days. After that, LinkedIn and X posts wait.\n\nTo renew it:\n1. In Buffer (turkey.rsg@gmail.com), Settings > API: create a new key (permissions: account:read, posts:read, posts:write).\n2. In your own terminal: npx wrangler pages secret put BUFFER_API_KEY --project-name website\n3. Change BUFFER_KEY_EXPIRES in wrangler.toml to the new end date and deploy.\n4. Delete the old key in Buffer.\n\nPanel: ${ctx.panelUrl}`,
       };
     case 'connection_expiring':
       return {
         subject: `${p} bağlantısının süresi doluyor / ${p} connection expiring`,
-        template: `${p} bağlantısının süresi ${ctx.note ?? ''} gün içinde doluyor ve kendiliğinden yenilenemiyor. Süre dolmadan Bağlantılar sekmesinden yeniden bağla: ${ctx.panelUrl}\n\n---\n\nThe ${p} connection expires in ${ctx.note ?? ''} days and cannot renew itself. Reconnect it in Connections before then: ${ctx.panelUrl}`,
+        template: `${p} bağlantısının süresi ${slot(1)} gün içinde doluyor ve kendiliğinden yenilenemiyor. Süre dolmadan Bağlantılar sekmesinden yeniden bağla: ${ctx.panelUrl}\n\n---\n\nThe ${p} connection expires in ${slot(1)} days and cannot renew itself. Reconnect it in Connections before then: ${ctx.panelUrl}`,
       };
   }
 }
