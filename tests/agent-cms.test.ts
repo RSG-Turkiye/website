@@ -4,12 +4,16 @@
 // that holds no files (every new name is free), as in tests/cms-api.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { call } from './lib/social';
 import { bearer, mintToken } from './lib/agent';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
+import { FEED } from '../src/lib/podcast-feed';
+import * as entries from '../functions/api/cms/entries';
+import * as entry from '../functions/api/cms/entry';
 import * as types from '../functions/api/cms/types';
 import * as drafts from '../functions/api/cms/drafts';
 import * as draft from '../functions/api/cms/drafts/[id]';
@@ -20,16 +24,36 @@ import * as cancel from '../functions/api/cms/drafts/[id]/cancel';
 import * as pull from '../functions/api/cms/podcast/pull';
 
 const SCHEMA = readFileSync(new URL('../db/schema.sql', import.meta.url).pathname, 'utf8');
-const INDEX = buildCmsIndex({});
 const ORIGIN = { Origin: 'https://rsg-turkiye.iscbsc.org' };
 
-// GitHub with an empty repository: a content read is a 404, anything else is a test failure.
+// GitHub holding only FILES (every other name is free), and the podcast
+// feed when a test sets `feed`; anything else is a test failure.
+const EVENT_ID = 'fixture-meetup-2026';
+const EVENT_PATH = `src/content/events/${EVENT_ID}.json`;
+const PODCAST_PATH = 'src/data/podcast.json';
+const FILES: Record<string, string> = {
+  [EVENT_PATH]: `${JSON.stringify({ id: EVENT_ID, type: 'meetup', start: '2026-03-06', title: { en: 'Fixture meetup', tr: 'Örnek buluşma' }, when: { en: '6 March 2026', tr: '6 Mart 2026' }, location: { en: 'Ankara', tr: 'Ankara' }, description: { en: 'A meetup.', tr: 'Bir buluşma.' } }, null, 2)}\n`,
+  // An empty show: any feed with an episode differs from it.
+  [PODCAST_PATH]: '{"episodes":[]}\n',
+};
+const INDEX = buildCmsIndex(FILES);
+const blobSha = (content: string) => createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0${content}`).digest('hex');
+let feed: string | null = null;
 const ghCalls: string[] = [];
 globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
+  if (url.href === FEED) {
+    if (feed === null) throw new Error('no network in tests');
+    return new Response(feed, { status: 200 });
+  }
   ghCalls.push(`${method} ${url.pathname}`);
-  if (method === 'GET' && url.pathname.includes('/contents/')) return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+  if (method === 'GET' && url.pathname.includes('/contents/')) {
+    const path = decodeURIComponent(url.pathname.split('/contents/')[1]);
+    const content = FILES[path];
+    if (content === undefined) return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+    return new Response(JSON.stringify({ sha: blobSha(content), content: Buffer.from(content).toString('base64'), encoding: 'base64' }));
+  }
   throw new Error(`unexpected fake GitHub call: ${method} ${url}`);
 }) as never;
 
@@ -300,4 +324,68 @@ test('an admin\'s token (users.is_admin set, live admin grant) has no approve re
   assert.equal((await on(env, draft.onRequestDelete, 'DELETE', other.id, { token })).status, 403);
   assert.equal((await on(env, approve.onRequestPost, 'POST', id, { token }, undefined, '/approve')).status, 403);
   assert.deepEqual([row(id), row(other.id)], before);
+});
+
+test('follow-up: a token cannot submit another person\'s draft; it discards its own rejected draft but not its own pr_failed one', async () => {
+  const { db, env, audit, row } = setup();
+  const token = await mintToken(db, 'editor', ['cms.etkinlikler:draft']);
+  const theirs = (await createAs(env, { session: 'editor2' })).body.draft.id;
+  const before = row(theirs);
+  const log = audit();
+  assert.equal((await on(env, submit.onRequestPost, 'POST', theirs, { token }, undefined, '/submit')).status, 403);
+  assert.deepEqual(row(theirs), before);
+  assert.deepEqual(audit(), log);
+
+  const rejected = (await createAs(env, { token }, { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-izmir-2027' } })).body.draft.id;
+  db.prepare(`UPDATE content_drafts SET status = 'rejected' WHERE id = ?`).run(rejected);
+  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', rejected, { token })).status, 200);
+  assert.equal(row(rejected).status, 'discarded');
+
+  const failed = (await createAs(env, { token }, { type: 'events', action: 'create', data: { ...newEvent(), id: 'meetup-bursa-2027' } })).body.draft.id;
+  db.prepare(`UPDATE content_drafts SET status = 'pr_failed', pr_number = 41 WHERE id = ?`).run(failed);
+  ghCalls.length = 0;
+  const res = await on(env, draft.onRequestDelete, 'DELETE', failed, { token });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json() as any).code, 'bad_state');
+  assert.equal(row(failed).status, 'pr_failed');
+  assert.deepEqual(ghCalls, [], 'no branch deleted, no pull request closed');
+});
+
+test('follow-up: a token reads entries and an entry in its scoped group only', async () => {
+  const { db, env } = setup();
+  // The member edits Yazılar too; the token was given Etkinlikler only.
+  const token = await mintToken(db, 'editor', ['cms.etkinlikler:read']);
+  const list = await req(env, entries.onRequestGet, 'GET', '/api/cms/entries?type=events', { token });
+  assert.equal(list.status, 200);
+  assert.deepEqual((await list.json() as any).entries.map((e: any) => e.id), [EVENT_ID]);
+  const one = await req(env, entry.onRequestGet, 'GET', `/api/cms/entry?type=events&id=${EVENT_ID}`, { token });
+  assert.equal(one.status, 200);
+  const body = await one.json() as any;
+  assert.equal(body.data.id, EVENT_ID);
+  assert.equal(body.base_shas[EVENT_PATH], blobSha(FILES[EVENT_PATH]));
+  assert.equal((await req(env, entries.onRequestGet, 'GET', '/api/cms/entries?type=blog', { token })).status, 403);
+  assert.equal((await req(env, entry.onRequestGet, 'GET', '/api/cms/entry?type=blog&id=anything', { token })).status, 403);
+  // With the session the member reads Yazılar.
+  assert.equal((await req(env, entries.onRequestGet, 'GET', '/api/cms/entries?type=blog', { session: 'editor' })).status, 200);
+});
+
+test('follow-up: a token\'s successful podcast pull makes a draft that carries agent_token_id and answers by_agent', async () => {
+  const { db, env, audit, row } = setup();
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('g9', 'editor', 'content.topluluk.edit', NULL, NULL, 1)`).run();
+  const token = await mintToken(db, 'editor', ['cms.topluluk:draft'], { id: 'tok-pod' });
+  feed = readFileSync(new URL('./fixtures/podcast-feed.xml', import.meta.url).pathname, 'utf8');
+  try {
+    const res = await req(env, pull.onRequestPost, 'POST', '/api/cms/podcast/pull', { token });
+    assert.equal(res.status, 201);
+    const body = await res.json() as any;
+    assert.equal(body.draft.by_agent, true);
+    assert.ok(!('agent_token_id' in body.draft));
+    assert.equal(row(body.draft.id).agent_token_id, 'tok-pod');
+    assert.equal(row(body.draft.id).author_id, 'editor');
+    const rows = audit();
+    assert.deepEqual(rows.map((r) => r.action), ['cms.podcast.pull', 'cms.draft.create']);
+    for (const r of rows) assert.equal(JSON.parse(r.details).agent_token, 'tok-pod');
+  } finally {
+    feed = null;
+  }
 });
