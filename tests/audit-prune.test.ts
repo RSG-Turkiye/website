@@ -42,3 +42,28 @@ test('rows older than a year go, the chain still verifies, and the prune is logg
   assert.deepEqual(rows.map((r) => r.action), ['recent', 'audit.prune']);
   assert.deepEqual(await verifyChain(rows), { ok: true, checked: 2, anchoredAfterPrune: true });
 });
+
+test('the prune also removes expired agent rate buckets and agent tokens dead for over a year', async () => {
+  const { env, db } = setup();
+  db.prepare(`INSERT INTO users (id, google_id, email, created_at, last_login) VALUES ('u', 'g-u', 'u@example.org', 1, 1)`).run();
+  const bucket = db.prepare('INSERT INTO agent_rate (bucket, n, expires_at) VALUES (?, 1, ?)');
+  bucket.run('t:a:m:1', NOW - 60);
+  bucket.run('t:a:d:1', NOW - 1);
+  bucket.run('t:a:d:2', NOW + 3600);
+  const year = AUDIT_RETENTION_SECONDS;
+  const token = db.prepare(
+    `INSERT INTO agent_tokens (id, user_id, token_hash, hint, label, scopes, created_at, expires_at, revoked_at) VALUES (?, 'u', ?, 'abcd', 'l', '["social:read"]', 1, ?, ?)`,
+  );
+  token.run('revoked-long-ago', 'h1', NOW + 86400, NOW - year - 10);
+  token.run('expired-long-ago', 'h2', NOW - year - 10, null);
+  token.run('revoked-lately', 'h3', NOW - year + 86400, NOW - 86400);
+  token.run('expired-lately', 'h4', NOW - 86400, null);
+  token.run('live', 'h5', NOW + 86400, null);
+
+  const res = await prune(env, 's3cret');
+  assert.equal(res.status, 200);
+  assert.deepEqual((db.prepare('SELECT bucket FROM agent_rate').all() as { bucket: string }[]).map((r) => r.bucket), ['t:a:d:2']);
+  assert.deepEqual((db.prepare('SELECT id FROM agent_tokens ORDER BY id').all() as { id: string }[]).map((r) => r.id), ['expired-lately', 'live', 'revoked-lately']);
+  const row = db.prepare(`SELECT details FROM audit_log WHERE action = 'audit.prune'`).get() as { details: string };
+  assert.deepEqual(JSON.parse(row.details), { deleted: 0, cutoff: JSON.parse(row.details).cutoff, agentRate: 2, agentTokens: 2 });
+});

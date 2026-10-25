@@ -145,3 +145,18 @@ test('queries on tables that are never pruned look rows up by index', () => {
   }
   db.close();
 });
+
+test('agent limit queries look rows up by index', () => {
+  // The bucket prune runs nightly over every bucket; the token lookup runs on every agent request.
+  const db = freshDatabase();
+  const queries: [string, RegExp][] = [
+    ['DELETE FROM agent_rate WHERE expires_at < ?', /idx_agent_rate_expires/],
+    ['SELECT * FROM agent_tokens WHERE token_hash = ?', /sqlite_autoindex_agent_tokens_\d/],
+  ];
+  for (const [q, index] of queries) {
+    const plan = (db.prepare(`EXPLAIN QUERY PLAN ${q}`).all(1) as { detail: string }[]).map((r) => r.detail);
+    assert.ok(plan.every((d) => !/^SCAN /.test(d)), `${q} scans: ${plan.join(' / ')}`);
+    assert.ok(plan.some((d) => index.test(d)), `${q} does not use ${index}: ${plan.join(' / ')}`);
+  }
+  db.close();
+});
