@@ -3,12 +3,14 @@ import { jsonResponse } from '../../../_lib/auth';
 import { socialGate, readBody, malformed, nowSeconds } from '../../../_lib/social-api';
 import {
   parseDraft, draftColumns, rowToDraft, canEditPost, canDeletePost, statusAfterEdit, readinessProblems, mediaDims,
-  updatePostGuarded, targetStatements, startedTargets, POST_PROOF, type PostColumn,
+  updatePostGuarded, targetStatements, startedTargets, POST_PROOF, type PostColumn, type PostStatus,
 } from '../../../_lib/social-posts';
 import { coveringEvent } from '../../../_lib/social-events';
 import { loadPost } from '../../../_lib/social-post-read';
 import { notifyLater } from '../../../_lib/social-actions';
 import { runGuardedWithAudit } from '../../../_lib/audit';
+
+const AGENT_EDITABLE: PostStatus[] = ['draft', 'rejected', 'pending_approval'];
 
 const revisionOf = (body: Record<string, unknown>) =>
   typeof body.revision === 'number' && Number.isInteger(body.revision) && body.revision >= 0 ? body.revision : null;
@@ -16,7 +18,7 @@ const revisionOf = (body: Record<string, unknown>) =>
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await socialGate(request, env, 'edit', false);
   if (!gate.ok) return gate.response;
-  const found = await loadPost(env.DB, env, String(params.id));
+  const found = await loadPost(env.DB, env, String(params.id), gate.agent !== null);
   return found ? jsonResponse(found.response) : jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
 };
 
@@ -29,6 +31,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   if (!found) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   const { row } = found;
   if (!canEditPost(gate.actor, row)) return jsonResponse({ error: 'You cannot edit this post', code: 'not_allowed' }, 403);
+  // A token never touches a post a person approved: editing it would pull the approval back.
+  if (gate.agent && !AGENT_EDITABLE.includes(row.status)) return jsonResponse({ error: 'This post can no longer be edited here', code: 'not_editable' }, 409);
   const now = nowSeconds();
   if (await startedTargets(env.DB, id, now)) return jsonResponse({ error: 'Publishing has started', code: 'publishing_started' }, 409);
   const body = await readBody(request);
@@ -41,7 +45,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   const next = parsed.value;
 
   // A story is covered only by a window that is still open at the time it is scheduled for.
-  const window = next.type === 'story' && !gate.actor.isPublisher ? await coveringEvent(env.DB, gate.user.id, now) : null;
+  // An event window never covers a token's post.
+  const window = next.type === 'story' && !gate.actor.isPublisher && !gate.agent ? await coveringEvent(env.DB, gate.user.id, now) : null;
   const event = window && next.scheduledAt !== null && next.scheduledAt < window.ends_at ? window : null;
   const covered = event !== null;
   const status = statusAfterEdit(gate.actor, row.status, covered);
@@ -63,6 +68,8 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   // Approval belongs to the version that was approved; a re-submission starts clean.
   if ((row.status === 'scheduled' || row.status === 'failed') && status === 'pending_approval') Object.assign(fields, { approved_by: null, approved_at: null, event_mode_id: null });
   if (row.status === 'rejected' && status === 'draft') fields.review_note = null;
+  // Sticky: set by a token's save, never cleared by a person's later one.
+  if (gate.agent) fields.agent_token_id = gate.agent.tokenId;
   const targets = status === 'scheduled'
     ? targetStatements(env.DB, id, nonce, next.platforms, now)
     : row.status === 'scheduled' ? targetStatements(env.DB, id, nonce, null, now) : [];
@@ -71,7 +78,7 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
     updatePostGuarded(env.DB, id, revision, nonce, fields, now),
     { condition: POST_PROOF, binds: [id, nonce] },
     targets,
-    { userId: gate.user.id, action: 'social.post.update', targetType: 'social_post', targetId: id, details: { changed, status: { from: row.status, to: status } } },
+    { userId: gate.user.id, action: 'social.post.update', targetType: 'social_post', targetId: id, details: { changed, status: { from: row.status, to: status } }, agent: gate.agent?.tokenId ?? null },
     now,
   );
   if (!done) return jsonResponse({ error: 'Someone changed this post in the meantime', code: 'post_changed' }, 409);
@@ -105,7 +112,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
     env.DB.prepare(`DELETE FROM social_posts WHERE id = ? AND revision = ? AND status IN ('draft', 'rejected')`).bind(id, revision),
     { condition: gone, binds: [id] },
     [env.DB.prepare(`UPDATE social_plans SET post_id = NULL WHERE post_id = ? AND ${gone}`).bind(id, id)],
-    { userId: gate.user.id, action: 'social.post.delete', targetType: 'social_post', targetId: id, details: { status: row.status } },
+    { userId: gate.user.id, action: 'social.post.delete', targetType: 'social_post', targetId: id, details: { status: row.status }, agent: gate.agent?.tokenId ?? null },
   );
   if (!done) return jsonResponse({ error: 'Someone changed this post in the meantime', code: 'post_changed' }, 409);
   return jsonResponse({ ok: true });

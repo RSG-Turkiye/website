@@ -18,7 +18,8 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const problems = readinessProblems(draft, await mediaDims(env.DB, draft.media.map((m) => m.key)), now);
   if (problems.length) return jsonResponse({ error: 'Not ready', code: 'not_ready', problems }, 422);
 
-  const window = draft.type === 'story' && !gate.actor.isPublisher ? await coveringEvent(env.DB, gate.user.id, now) : null;
+  // An event window never covers a token's post.
+  const window = draft.type === 'story' && !gate.actor.isPublisher && !gate.agent ? await coveringEvent(env.DB, gate.user.id, now) : null;
   // Covered only when the story goes out before the window closes.
   const event = window && draft.scheduledAt !== null && draft.scheduledAt < window.ends_at ? window : null;
   const status = statusOnSubmit(gate.actor, Boolean(event));
@@ -32,7 +33,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     updatePostGuarded(env.DB, id, revision, nonce, fields, now, ['draft', 'rejected']),
     { condition: POST_PROOF, binds: [id, nonce] },
     status === 'scheduled' ? targetStatements(env.DB, id, nonce, draft.platforms, now) : [],
-    { userId: gate.user.id, action: 'social.post.submit', targetType: 'social_post', targetId: id, details: { status, eventModeId: event?.id ?? null } },
+    { userId: gate.user.id, action: 'social.post.submit', targetType: 'social_post', targetId: id, details: { status, eventModeId: event?.id ?? null }, agent: gate.agent?.tokenId ?? null },
     now,
   );
   if (!done) return lostRace();
