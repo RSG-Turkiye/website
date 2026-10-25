@@ -1,9 +1,13 @@
 /** Small rendering helpers shared by the social views. */
 import { escapeHtml } from '../escape-html';
+import { chip } from '../admin/ui-kit';
 import type { PostStatus } from './api';
 import { deps } from './context';
 
 export const esc = escapeHtml;
+
+/** "Written by an agent", for a post an agent token wrote; nothing otherwise. */
+export const agentChip = (p: { byAgent?: boolean }) => (p.byAgent ? chip(deps().t('admin.agent.written'), 'navy') : '');
 
 const VARIANTS = {
   primary: 'bg-navy text-white hover:bg-navy-mid',

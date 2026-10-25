@@ -1235,6 +1235,9 @@ export const ui = {
     'admin.cms.queueHeading': 'Waiting for approval',
     'admin.cms.queueEmpty': 'Nothing is waiting for approval.',
     'admin.cms.sentBy': 'Sent by {name} · {time}',
+    // Agent access: what an agent token wrote (CMS drafts, social posts) and did (the log).
+    'admin.agent.written': 'Written by an agent',
+    'admin.audit.viaAgent': 'via agent',
     'admin.cms.anEditor': 'an editor',
     'admin.cms.action.create': 'New entry',
     'admin.cms.action.update': 'Change',
@@ -2848,6 +2851,9 @@ export const ui = {
     'admin.cms.queueHeading': 'Onay bekleyenler',
     'admin.cms.queueEmpty': 'Onay bekleyen bir şey yok.',
     'admin.cms.sentBy': 'Gönderen: {name} · {time}',
+    // Agent access: what an agent token wrote (CMS drafts, social posts) and did (the log).
+    'admin.agent.written': 'Bir ajan yazdı',
+    'admin.audit.viaAgent': 'ajan üzerinden',
     'admin.cms.anEditor': 'bir editör',
     'admin.cms.action.create': 'Yeni girdi',
     'admin.cms.action.update': 'Değişiklik',

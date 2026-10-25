@@ -54,6 +54,8 @@ interface Entry { id: string; title: string; date?: string; section?: string; pa
 interface Draft extends DraftSummary {
   pr_url: string | null; created_at: number; write_nonce?: string | null;
   data?: unknown; base_shas?: Record<string, string | null>;
+  /** An agent token wrote it at some point (the server keeps the token's id). */
+  by_agent?: boolean;
 }
 type Answer<T> = { ok: true; status: number; body: T } | { ok: false; status: number; code: string; body: Record<string, any> };
 
@@ -356,6 +358,8 @@ function statusLine(d: DraftSummary): string {
 }
 
 const statusChip = (d: DraftSummary) => { const v = sv(d); return chip(tk(v.chip), v.tone); };
+/** The status chip, and "written by an agent" beside it when a token wrote the draft. */
+const draftChips = (d: Draft) => statusChip(d) + (d.by_agent ? chip(tk('admin.agent.written'), 'navy') : '');
 
 // ── Lists ────────────────────────────────────────────────────────────────────
 
@@ -391,7 +395,7 @@ async function showList(model: TypeModel): Promise<void> {
       chips = chip(tk(live.status === 'submitted' ? 'admin.cms.chip.submitted' : 'admin.cms.chip.goingLive'), live.status === 'submitted' ? 'amber' : 'navy');
       trailing = '';
     } else if (mine) {
-      chips = statusChip(mine);
+      chips = draftChips(mine);
       trailing = `<a href="${SECTION}/taslaklar/${mine.id}" class="${BTN.secondary}">${esc(tk('admin.cms.continue'))}</a>`;
     }
     // A resource has no date: its section tells two links of one title apart.
@@ -497,7 +501,7 @@ function draftRow(d: Draft, href: string): string {
   return row({
     title: titleOf(d.type, d.entry_id, d.action),
     subtitle: `${labelOf(d.type)}${action} · ${statusLine(d)}`,
-    chips: statusChip(d), trailing, attrs: `data-cms-draft="${esc(d.id)}"`, stack: true,
+    chips: draftChips(d), trailing, attrs: `data-cms-draft="${esc(d.id)}"`, stack: true,
   });
 }
 
@@ -539,14 +543,14 @@ async function showQueue(): Promise<void> {
     <div class="flex flex-col gap-2">${queue.map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
       subtitle: `${labelOf(d.type)} · ${tk(`admin.cms.action.${d.action}`)} · ${d.status === 'approved' ? statusLine(d) : tk('admin.cms.sentBy', { name: d.author_name || tk('admin.cms.anEditor'), time: when(d.updated_at) })}`,
-      chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.primary}">${esc(tk('admin.cms.review'))}</a>`,
+      chips: draftChips(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.primary}">${esc(tk('admin.cms.review'))}</a>`,
       attrs: `data-cms-queue="${esc(d.id)}"`, stack: true,
     })).join('') || emptyState(tk('admin.cms.queueEmpty'))}</div>${more}
     <h2 class="text-sm font-semibold text-navy mt-6 lg:mt-4 mb-2">${esc(tk('admin.cms.inflightHeading'))}</h2>
     <div class="flex flex-col gap-2">${(lists?.inflight ?? []).map((d) => row({
       title: titleOf(d.type, d.entry_id, d.action),
       subtitle: `${labelOf(d.type)} · ${statusLine(d)}`,
-      chips: statusChip(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.secondary}">${esc(tk('admin.cms.open'))}</a>`,
+      chips: draftChips(d), trailing: `<a href="${SECTION}/onay/${d.id}" class="${BTN.secondary}">${esc(tk('admin.cms.open'))}</a>`,
       attrs: `data-cms-inflight="${esc(d.id)}"`, stack: true,
     })).join('') || emptyState(tk('admin.cms.inflightEmpty'))}</div>`;
 }
@@ -1108,7 +1112,7 @@ async function openDraft(id: string, route: string): Promise<void> {
   });
   const values = formValues(ed.model, ed.base);
   head({
-    title: titleFrom(model, values) || titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: statusChip(draft), line: statusLine(draft),
+    title: titleFrom(model, values) || titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: draftChips(draft), line: statusLine(draft),
     banner: draft.status !== 'published' && draft.status !== 'discarded',
   });
   if (draft.action === 'delete') {
@@ -1137,7 +1141,7 @@ async function openGeneratedDraft(model: TypeModel, draft: Draft, route: string,
   const ed = newEditor(model, route, draft.data ?? {}, { draft, entryId: draft.entry_id, backupKey: draft.id, readOnly: true });
   editor = ed;
   head({
-    title: titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: statusChip(draft), line: statusLine(draft),
+    title: titleOf(draft.type, draft.entry_id, draft.action), back, chipHtml: draftChips(draft), line: statusLine(draft),
     banner: draft.status !== 'published' && draft.status !== 'discarded',
   });
   let body: string;
@@ -1333,7 +1337,7 @@ async function doSave(ed: Editor, auto: boolean): Promise<boolean> {
     // The draft's own address from now on (the link a pull request carries).
     replaceAddress(`${SECTION}/taslaklar/${ed.draft.id}`);
     lists = null;
-    head({ title: titleFrom(ed.model, values) || ed.draft.entry_id, back: `${SECTION}/taslaklar`, chipHtml: statusChip(ed.draft), line: statusLine(ed.draft), banner: true });
+    head({ title: titleFrom(ed.model, values) || ed.draft.entry_id, back: `${SECTION}/taslaklar`, chipHtml: draftChips(ed.draft), line: statusLine(ed.draft), banner: true });
     renderBar(ed);
     // The same title in the same place is on the site already (a resource
     // link): said, with the way to it, never refused.
@@ -1652,7 +1656,7 @@ async function openReview(id: string, route: string): Promise<void> {
   const fields = fieldsFor(model);
   const values = formValues(model, draft.data ?? emptyData(model));
   const title = titleFrom(model, values) || titleOf(draft.type, draft.entry_id, draft.action);
-  head({ title, back, chipHtml: statusChip(draft), line: `${tk(model.label)} · ${tk('admin.cms.sentBy', { name: draft.author_name || tk('admin.cms.anEditor'), time: when(draft.updated_at) })}` });
+  head({ title, back, chipHtml: draftChips(draft), line: `${tk(model.label)} · ${tk('admin.cms.sentBy', { name: draft.author_name || tk('admin.cms.anEditor'), time: when(draft.updated_at) })}` });
   let bodyHtml: string;
   let fileHtml = '';
   let nothing = false;
@@ -1743,7 +1747,7 @@ function wireReview(ed: Editor): void {
       return;
     }
     ed.draft = { ...ed.draft!, ...r.body.draft };
-    head({ title: $('cmsTitle')?.textContent ?? '', back: `${SECTION}/onay`, chipHtml: statusChip(ed.draft), line: statusLine(ed.draft) });
+    head({ title: $('cmsTitle')?.textContent ?? '', back: `${SECTION}/onay`, chipHtml: draftChips(ed.draft), line: statusLine(ed.draft) });
     notice(esc(tk('admin.cms.approved')), 'info');
     $('cmsReview')!.querySelector('.sticky')?.remove();
   });
