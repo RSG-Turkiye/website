@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
-import { bearer, mintToken } from './lib/agent';
+import { bearer } from './lib/agent';
 import { authenticateAgent } from '../functions/_lib/agent-tokens';
 import { grantRole, revokeRole } from '../functions/_lib/role-grants';
 import { onRequestGet, onRequestPost } from '../functions/api/agent-tokens/index';
