@@ -13,7 +13,8 @@ export async function socialGate(request: Request, env: Env, need: 'edit' | 'pub
   if (auth.kind === 'refused') return { ok: false, response: auth.response };
   if (auth.kind === 'agent') {
     const { user, agent } = auth;
-    if (need === 'publish') return { ok: false, response: humanOnly() };
+    // A social route's own area only, as cmsGate checks 'cms': a token's route from elsewhere never passes here.
+    if (need === 'publish' || agent.route.area !== 'social') return { ok: false, response: humanOnly() };
     if (!agentMaySocial(agent, agent.route.level)) return { ok: false, response: jsonResponse({ error: 'Forbidden' }, 403) };
     // Never a publisher: whatever a token submits waits for a person's approval.
     return { ok: true, user, actor: { id: user.id, isPublisher: false }, agent };

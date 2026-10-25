@@ -10,6 +10,7 @@ import { mintToken, bearer } from './lib/agent';
 import { fakeR2 } from './lib/fake-r2';
 import { grantRole } from '../functions/_lib/role-grants';
 import { socialGate } from '../functions/_lib/social-api';
+import { authenticateAgent, markInternal } from '../functions/_lib/agent-tokens';
 import * as posts from '../functions/api/social/posts/index';
 import * as post from '../functions/api/social/posts/[id]';
 import * as submit from '../functions/api/social/posts/[id]/submit';
@@ -505,4 +506,19 @@ test('upload: the cookie path is unchanged (CSRF and session as before)', async 
   const res = await uploadAs({ ...env as object, BLOG_IMAGES: fakeR2() }, { cookie: 's-ed' });
   assert.equal(res.status, 200);
   assert.equal((await uploadAs({ ...env as object, BLOG_IMAGES: fakeR2() }, {})).status, 401);
+});
+
+test('socialGate lets a token through only on a social route, as cmsGate does for cms', async () => {
+  const { env, db } = await setup();
+  const token = await mintToken(db, 'ed', ['social:draft', 'cms.etkinlikler:draft'], { id: 'tok-area' });
+  // A token request authenticated on a route outside the social area (the upload route), handed to the social gate.
+  const outer = await authenticateAgent(new Request(`${BASE}/api/blog-submissions/upload-image`, { method: 'POST', headers: bearer(token), body: 'x' }), env as never, NOW);
+  assert.equal(outer.kind, 'agent');
+  const inner = new Request(`${BASE}/api/blog-submissions/upload-image`, { method: 'POST', headers: bearer(token) });
+  markInternal(inner, outer as Extract<typeof outer, { kind: 'agent' }>);
+  const gate = await socialGate(inner, env as never, 'edit', true);
+  assert.equal(gate.ok, false);
+  const res = (gate as Extract<typeof gate, { ok: false }>).response;
+  assert.equal(res.status, 403);
+  assert.equal(((await res.json()) as { code: string }).code, 'human_only');
 });
