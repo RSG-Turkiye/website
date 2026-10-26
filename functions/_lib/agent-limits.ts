@@ -215,11 +215,15 @@ export function ipRefusal(row: IpCounts | null, now: number): Response | null {
 /**
  * One failed authentication: the day's failures row, and this IP's row
  * unless `countIp` is false (two rows or one, in one batch). Past
- * FAILURES_PER_DAY nothing is written: the request is refused as it is.
+ * FAILURES_PER_DAY (or the IP's window limit) nothing is written: the
+ * upserts are conditional, so the cap holds under a burst too.
  */
 async function countFailure(db: D1Database, ip: string, snapshot: Snapshot, now: number, countIp: boolean): Promise<void> {
   if (snapshot.failures >= LIMITS.FAILURES_PER_DAY) return;
-  const day = db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1').bind(failuresBucket(now));
+  // The snapshot is only the fast path: the writer judges the cap, so a burst that all read the same count cannot pass it.
+  const day = db.prepare(
+    'INSERT INTO agent_counters (bucket, requests) VALUES (?1, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1 WHERE agent_counters.requests < ?2',
+  ).bind(failuresBucket(now), LIMITS.FAILURES_PER_DAY);
   await db.batch(countIp ? [bumpIp(db, ip, now, true), day] : [day]);
 }
 
@@ -232,8 +236,9 @@ function bumpIp(db: D1Database, ip: string, now: number, failed: boolean): D1Pre
        minute_n = CASE WHEN minute = excluded.minute THEN minute_n + 1 ELSE 1 END,
        minute = excluded.minute,
        fail_n = CASE WHEN excluded.fail_n = 0 THEN fail_n WHEN fail_window = excluded.fail_window THEN fail_n + 1 ELSE 1 END,
-       fail_window = CASE WHEN excluded.fail_n = 0 THEN fail_window ELSE excluded.fail_window END`,
-  ).bind(ipBucket(ip, now), Math.floor(now / MINUTE), failed ? Math.floor(now / LIMITS.IP_FAILED_AUTH_WINDOW) : 0, failed ? 1 : 0);
+       fail_window = CASE WHEN excluded.fail_n = 0 THEN fail_window ELSE excluded.fail_window END
+     WHERE excluded.fail_n = 0 OR fail_window != excluded.fail_window OR fail_n < ?5`,
+  ).bind(ipBucket(ip, now), Math.floor(now / MINUTE), failed ? Math.floor(now / LIMITS.IP_FAILED_AUTH_WINDOW) : 0, failed ? 1 : 0, LIMITS.IP_FAILED_AUTH);
 }
 
 interface TokenDelta { minute: boolean; general?: number; reserve?: number; quota?: QuotaColumn; quotaReserve?: boolean; refusals?: number }

@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { bearer, mintToken } from './lib/agent';
 import { authenticateAgent, newTokenValue, type AgentAuth } from '../functions/_lib/agent-tokens';
-import { LIMITS, AGENT_BUDGET, AGENT_WRITE_BUDGET, autoRevoke, holdsValue, ipSubject } from '../functions/_lib/agent-limits';
+import { LIMITS, countFailedAuth, AGENT_BUDGET, AGENT_WRITE_BUDGET, autoRevoke, holdsValue, ipSubject } from '../functions/_lib/agent-limits';
 import { onRequest as middleware } from '../functions/api/_middleware';
 import { grantRole } from '../functions/_lib/role-grants';
 
@@ -500,6 +500,28 @@ test('past 5,000 failures a day from all addresses, a made-up value is refused w
   // The next UTC day counts again.
   assert.equal((await throughMiddleware(env, req('GET', '/api/cms/drafts', { headers: { ...bearer(newTokenValue()), 'CF-Connecting-IP': '192.0.2.71' } }), NOW + 86_400)).status, 401);
   assert.ok(changes(db) > before);
+});
+
+test('a burst of failures judged by a stale snapshot still cannot pass 5,000 a day or an IP\'s window limit (the writer enforces the cap)', async () => {
+  const { db, DB } = setup();
+  const stale = { ip: null, failures: 0, tokens: [] };
+  db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, ?)').run(`${dayKey(NOW)}:g:failures`, LIMITS.FAILURES_PER_DAY);
+  const before = changes(db);
+  for (let i = 0; i < 5; i++) await countFailedAuth(DB, 'ip-a', stale, NOW, false);
+  assert.equal((db.prepare('SELECT requests FROM agent_counters WHERE bucket = ?').get(`${dayKey(NOW)}:g:failures`) as { requests: number }).requests, LIMITS.FAILURES_PER_DAY);
+  assert.equal(changes(db), before, 'no write at the cap');
+  // One short of the cap: exactly one of a concurrent pair gets in.
+  db.prepare('UPDATE agent_counters SET requests = ? WHERE bucket LIKE ?').run(LIMITS.FAILURES_PER_DAY - 1, `${dayKey(NOW)}:g:failures`);
+  for (let i = 0; i < 2; i++) await countFailedAuth(DB, 'ip-a', stale, NOW, false); // each read the same stale count
+  assert.equal((db.prepare('SELECT requests FROM agent_counters WHERE bucket = ?').get(`${dayKey(NOW)}:g:failures`) as { requests: number }).requests, LIMITS.FAILURES_PER_DAY);
+  // The IP's own failure count stops at its window limit too.
+  const ipKeyOf = () => (db.prepare(`SELECT bucket FROM agent_counters WHERE bucket LIKE ?`).get(`${dayKey(NOW)}:i:%`) as { bucket: string }).bucket;
+  db.prepare('UPDATE agent_counters SET requests = 0 WHERE bucket LIKE ?').run(`${dayKey(NOW)}:g:failures`);
+  await countFailedAuth(DB, 'ip-b', stale, NOW, true);
+  const bucket = ipKeyOf();
+  db.prepare('UPDATE agent_counters SET fail_n = ? WHERE bucket = ?').run(LIMITS.IP_FAILED_AUTH, bucket);
+  await countFailedAuth(DB, 'ip-b', stale, NOW, true);
+  assert.equal((db.prepare('SELECT fail_n FROM agent_counters WHERE bucket = ?').get(bucket) as { fail_n: number }).fail_n, LIMITS.IP_FAILED_AUTH);
 });
 
 test('the agents\' write budget: 1,600 writes, submits and uploads a day, then 400 for social work only; 429 agent_budget with no write', async () => {
