@@ -70,6 +70,13 @@ test('first tick: checkpoint, then share now with the image URL and alt text; th
   assert.deepEqual(decoded(result), { buf: 1, attempt: null, first: NOW, postId: 'bp1', next: NOW + POLL_BACKOFF[0], polls: 0 });
 });
 
+test('an image without alt text goes out with no metadata, not an empty altText', async () => {
+  const { calls } = await run((c) => op(c) === 'CreatePost' ? gql({ createPost: { __typename: 'PostActionSuccess', post: { id: 'bp1' } } }) : undefined,
+    input({ ...single, media: [{ ...single.media[0], alt: '  ' }] }, null));
+  const sent = (calls[0].body as { variables: { input: { assets: unknown } } }).variables.input.assets;
+  assert.deepEqual(sent, [{ image: { url: 'https://rsg-turkiye.iscbsc.org/api/images/k1.jpg' } }]);
+});
+
 test('before any call: stories, posts without images and more than four images on X are refused', async () => {
   const none = (c: HttpCall): Response | undefined => { throw new Error(`no call expected: ${op(c)}`); };
   assert.equal((await run(none, input({ ...single, type: 'story' }, null))).result.kind, 'fail');

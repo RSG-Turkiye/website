@@ -287,7 +287,8 @@ export async function bufferPublishStep(input: PublishInput): Promise<PublishSte
   const created = await bufferGraphql(token, CREATE, {
     input: {
       channelId: account.id, text: post.caption, schedulingType: 'automatic', mode: 'shareNow',
-      assets: media.map((m) => ({ image: { url: m.url, metadata: { altText: m.alt } } })),
+      // Alt text is optional: an empty one is left out rather than sent as "".
+      assets: media.map((m) => ({ image: { url: m.url, ...(m.alt.trim() ? { metadata: { altText: m.alt } } : {}) } })),
       // InstagramPostMetadataInput. (live) Whether Buffer publishes a story and a carousel by itself
       // through the API, rather than as a reminder to post from the phone, is checked in the first live test.
       ...(instagram ? { metadata: { instagram: { type: post.type === 'story' ? 'story' : 'post', shouldShareToFeed: true } } } : {}),
