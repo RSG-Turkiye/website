@@ -20,7 +20,7 @@ const FIXED: Record<string, Label> = {
   'audit.verify': { en: 'Verified the log', tr: 'Kayıtların bütünlüğünü doğruladı' },
   'audit.prune': { en: 'Removed log entries older than a year', tr: 'Bir yıldan eski kayıtlar silindi' },
   'agent_token.auto_revoke': { en: 'Agent token revoked automatically', tr: 'Ajan anahtarı otomatik olarak iptal edildi' },
-  'usage.alert': { en: 'Free-tier usage alert sent', tr: 'Ücretsiz kota uyarısı gönderildi' },
+  'usage.alert': { en: 'Free-tier usage alert', tr: 'Ücretsiz kota uyarısı' },
 
   'role.change': { en: 'Changed a role', tr: 'Bir yetkiyi değiştirdi' },
   'role.grant': { en: 'Granted a role', tr: 'Yetki verdi' },
