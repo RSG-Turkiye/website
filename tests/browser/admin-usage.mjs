@@ -2,7 +2,7 @@
  * The free-tier usage lines in Overview's System block, signed in as an
  * admin, in a real browser: today's numbers, "not set up", and a failed
  * check (with its reason for an admin), in English and Turkish, at
- * 1280x680, 1440x900 and 390x844. The lines must be there, the page must not
+ * 1280x680, 1366x768, 1440x800, 1536x864, 1440x900, 1920x1080 and 390x844. The lines must be there, the page must not
  * scroll sideways, and nothing around the block may become its own scroll box.
  *
  * Not part of `npm test`: it needs Playwright and a preview server.
@@ -25,13 +25,14 @@ const ADMIN = { id: 'u1', email: 'admin@example.org', is_admin: true, is_social_
 const now = Math.floor(Date.now() / 1000);
 const today = new Date().toISOString().slice(0, 10);
 const LIMITS = { requests: 100000, rowsRead: 5000000, rowsWritten: 100000, agentRequests: 15000, agentWrites: 2000 };
-const base = { configured: true, checkedAt: now - 600, measuredAt: now - 600, day: today, requests: 42000, rowsRead: 3600000, rowsWritten: 20000, failed: false, error: null, agentRequests: 12, agentWrites: 4, limits: LIMITS };
+const base = { configured: true, checkedAt: now - 600, measuredAt: now - 600, day: today, requests: 42000, rowsRead: 3600000, rowsWritten: 20000, failed: false, error: null, agentRequests: 12, agentWrites: 4, limits: LIMITS,
+  parts: { workers: [{ name: 'mail-dispatch', requests: 1200 }], pages: 40800 } };
 
 const STATES = {
   numbers: {
     usage: base,
-    en: [/Worker requests: 42,000 of 100,000 \(42%\)/, /D1 rows read: 3,600,000 of 5,000,000 \(72%\)/, /Agent writes: 4 of 2,000/, /Measured at/],
-    tr: [/Worker istekleri: 100\.000 içinde 42\.000 \(%42\)/, /itibarıyla/],
+    en: [/Worker requests: 42,000 of 100,000 \(42%\)/, /D1 rows read: 3,600,000 of 5,000,000 \(72%\)/, /Agent writes: 4 of 2,000/, /Measured at/, /by script: mail-dispatch 1,200\. Pages Functions: 40,800/],
+    tr: [/Worker istekleri: 42\.000 \/ 100\.000 \(%42\)/, /itibarıyla/, /Pages Functions: 40\.800/],
     bold: /D1 rows read|D1 okunan satır/,
   },
   notConfigured: {
@@ -40,6 +41,12 @@ const STATES = {
     tr: [/CF_ANALYTICS_TOKEN girilmemiş/],
     absent: /Worker requests|Worker istekleri/,
   },
+  partial: {
+    usage: { ...base, failed: true, error: 'pages: Cannot query field', requests: null, parts: { workers: [{ name: 'mail-dispatch', requests: 1200 }], pages: null } },
+    en: [/D1 rows read: 3,600,000 of 5,000,000/, /failed: pages: Cannot query field/],
+    tr: [/D1 okunan satır: 3\.600\.000 \/ 5\.000\.000/],
+    absent: /Worker requests:|Worker istekleri:|Everything is working|Her şey çalışıyor/,
+  },
   failed: {
     usage: { ...base, failed: true, error: 'Cannot query field "pagesFunctionsInvocationsAdaptiveGroups" on type "account".', day: null, measuredAt: null, requests: null, rowsRead: null, rowsWritten: null },
     en: [/failed: Cannot query field/, /Agent requests/],
@@ -47,7 +54,7 @@ const STATES = {
     absent: /Worker requests|Worker istekleri|Not measured yet today/,
   },
 };
-const VIEWPORTS = [{ width: 1280, height: 680 }, { width: 1440, height: 900 }, { width: 390, height: 844 }];
+const VIEWPORTS = [[1280, 680], [1366, 768], [1440, 800], [1536, 864], [1440, 900], [1920, 1080], [390, 844]].map(([width, height]) => ({ width, height }));
 
 const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 
