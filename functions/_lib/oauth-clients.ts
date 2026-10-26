@@ -41,10 +41,15 @@ const CIMD_MAX_BYTES = 16 * 1024;
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
 /** Schemes that run code, read files or are not a callback; refused even as private-use schemes. */
-const DENIED_SCHEMES = new Set(['http', 'https', 'javascript', 'data', 'file', 'vbscript', 'about', 'blob', 'ws', 'wss', 'ftp']);
+const DENIED_SCHEMES = new Set([
+  'http', 'https', 'javascript', 'data', 'file', 'vbscript', 'about', 'blob', 'ws', 'wss', 'ftp',
+  'intent', 'view-source', 'chrome', 'filesystem', 'jar', 'mailto', 'tel', 'sms',
+]);
 const PRIVATE_SCHEME = /^([a-z][a-z0-9+.-]*):/;
 /** Only printable ASCII: the URL parser silently drops tabs, newlines and edge spaces, which would make two different strings one URI. */
 const PRINTABLE = /^[\x21-\x7e]+$/;
+/** Printable, yet never part of a callback; they would reach an HTML page or a Location header as typed (a backslash is a slash to the parser). */
+const UNSAFE_URI = /["<>\\^`{|}]/;
 const OUR_HOST = new URL(ISSUER).hostname;
 
 function parse(uri: string): URL | null {
@@ -62,6 +67,7 @@ export function redirectUriProblem(uri: string): string | null {
   if (typeof uri !== 'string' || uri === '') return 'empty';
   if (uri.length > MAX_URI) return `longer than ${MAX_URI} characters`;
   if (!PRINTABLE.test(uri)) return 'contains spaces or control characters';
+  if (UNSAFE_URI.test(uri)) return 'contains a character that is not allowed in a redirect URI';
   if (uri.includes('#')) return 'has a fragment';
   const scheme = PRIVATE_SCHEME.exec(uri)?.[1];
   const u = parse(uri);
@@ -107,8 +113,8 @@ function targetHost(uri: string): string {
   return u.protocol === 'https:' || u.protocol === 'http:' ? u.hostname : u.protocol.slice(0, -1);
 }
 
-/** No control, format-direction or line characters: the name is shown as the client's on the consent screen. */
-const UNSHOWABLE = /[\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]/u;
+/** No control, format (direction marks, zero-width) or line characters: the name is shown as the client's on the consent screen. */
+const UNSHOWABLE = /[\p{Cc}\p{Cf}\u2028\u2029]/u;
 
 // --- CIMD ---------------------------------------------------------------------
 
@@ -116,9 +122,10 @@ const UNSHOWABLE = /[\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]/u;
 function cimdUrl(clientId: string): URL | null {
   if (clientId.length > MAX_URI || !PRINTABLE.test(clientId) || clientId.includes('#')) return null;
   const u = parse(clientId);
-  if (!u || u.protocol !== 'https:' || u.username || u.password) return null;
+  if (!u || u.protocol !== 'https:' || u.username || u.password || u.port !== '') return null;
   if (u.pathname.length <= 1) return null;
   const host = u.hostname;
+  if (host.endsWith('.')) return null; // a trailing dot names the same host and would slip past the checks below
   if (host.startsWith('[') || /^[0-9.]+$/.test(host)) return null; // IPv6 or IPv4 literal (the parser turns 3221225985 into dotted form)
   if (host === OUR_HOST || host === 'localhost' || host.endsWith('.localhost')) return null;
   return u;
@@ -158,8 +165,8 @@ const isJsonType = (type: string | null) => {
   return media === 'application/json' || /^application\/[a-z0-9.+-]+\+json$/.test(media);
 };
 
-async function fetchCimd(url: URL, fetcher: typeof fetch): Promise<Client | null> {
-  const signal = AbortSignal.timeout(CIMD_TIMEOUT_MS);
+async function fetchCimd(url: URL, fetcher: typeof fetch, timeoutMs: number): Promise<Client | null> {
+  const signal = AbortSignal.timeout(timeoutMs);
   let text: string | null;
   try {
     const res = await fetcher(url.href, { redirect: 'manual', signal, headers: { Accept: 'application/json' } });
@@ -193,17 +200,19 @@ async function fetchCimd(url: URL, fetcher: typeof fetch): Promise<Client | null
 /**
  * The client named by `clientId`: a CIMD document fetched now (an `https://`
  * id), an oauth_clients row (an `rsg_oc_` id), or an error. Writes nothing.
- * `fetcher` is for tests; it defaults to the global fetch at call time.
+ * `fetcher` and `options.timeoutMs` are for tests; the fetcher defaults to
+ * the global fetch at call time, the timeout to 5 s.
  */
 export async function resolveClient(
   db: D1Database, clientId: string, fetcher: typeof fetch = globalThis.fetch,
+  options: { timeoutMs?: number } = {},
 ): Promise<Client | { error: 'unknown_client' | 'bad_metadata' }> {
   if (typeof clientId !== 'string') return { error: 'unknown_client' };
   if (clientId.startsWith('https://')) {
     const url = cimdUrl(clientId);
     // The document must name itself with exactly the string the client sent.
     if (!url || url.href !== clientId) return { error: 'bad_metadata' };
-    return (await fetchCimd(url, fetcher)) ?? { error: 'bad_metadata' };
+    return (await fetchCimd(url, fetcher, options.timeoutMs ?? CIMD_TIMEOUT_MS)) ?? { error: 'bad_metadata' };
   }
   if (clientId.startsWith(PREFIX.client)) {
     const row = await db.prepare('SELECT id, secret_hash, auth_method, name, redirect_uris FROM oauth_clients WHERE id = ?')
@@ -250,6 +259,7 @@ export function parseRegistration(body: unknown): Registration {
   }
   const redirectUris = uris as string[];
   if (!subsetOf(b.grant_types, GRANT_TYPES)) return metadataError('grant_types may hold only authorization_code and refresh_token.');
+  if (Array.isArray(b.grant_types) && b.grant_types.length === 0) return metadataError('grant_types must not be empty.');
   if (!subsetOf(b.response_types, RESPONSE_TYPES)) return metadataError('response_types may hold only code.');
   const method = b.token_endpoint_auth_method ?? 'client_secret_basic';
   if (!AUTH_METHODS.includes(method as Client['authMethod'])) {

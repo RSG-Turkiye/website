@@ -49,6 +49,10 @@ test('redirectUriProblem refuses plain http, dangerous schemes, fragments, long 
     ' https://a.example/cb',
     'https://user@a.example/cb',
     'not a uri',
+    'intent://x/#Intent;end', 'intent://x/', 'view-source:https://a.example/', 'chrome://settings', 'mailto:a@a.example', 'tel:+900000',
+    'sms:+900000', 'filesystem:https://a.example/t', 'jar:https://a.example/x.jar!/', 'MAILTO:a@a.example',
+    'http://127.0.0.1:5\\callback', 'https://a.example/<x>', 'https://a.example/"x"', 'https://a.example/{x}', 'https://a.example/a|b',
+    'https://a.example/a^b', 'https://a.example/`x`',
   ]) assert.notEqual(redirectUriProblem(uri), null, JSON.stringify(uri));
   assert.equal(`https://a.example/${'x'.repeat(512 - 'https://a.example/'.length)}`.length, 512);
   assert.equal(redirectUriProblem(`https://a.example/${'x'.repeat(512 - 'https://a.example/'.length)}`), null, '512 is allowed');
@@ -167,8 +171,8 @@ test('a CIMD fetch that times out is bad_metadata', async () => {
 });
 
 test('a CIMD body that stalls is cut off at the timeout', async () => {
-  // Real time: AbortSignal.timeout cannot be driven by mock timers. The body
-  // sends one byte and then nothing, as a slow server would.
+  // Real time, but short: the timeout is injected. The body sends one byte
+  // and then nothing, as a slow server would.
   const { DB } = setup();
   let cancelled = false;
   const started = Date.now();
@@ -177,10 +181,10 @@ test('a CIMD body that stalls is cut off at the timeout', async () => {
     cancel() { cancelled = true; },
   }), { headers: { 'Content-Type': 'application/json' } }));
   try {
-    assert.deepEqual(await resolveClient(DB, CIMD_ID), { error: 'bad_metadata' });
+    assert.deepEqual(await resolveClient(DB, CIMD_ID, undefined, { timeoutMs: 50 }), { error: 'bad_metadata' });
   } finally { http.restore(); }
   const took = Date.now() - started;
-  assert.ok(took >= 4900 && took < 15_000, `took ${took} ms`);
+  assert.ok(took >= 40 && took < 2000, `took ${took} ms`);
   assert.equal(cancelled, true, 'the stream is cancelled');
 });
 
@@ -199,6 +203,13 @@ test('a CIMD client_id that is not https with a path, is an IP or is our own hos
     'https://rsg-turkiye.iscbsc.org/x',
     'https://RSG-Turkiye.iscbsc.org/x',
     'https://localhost/x',
+    'https://rsg-turkiye.iscbsc.org./x',
+    'https://RSG-Turkiye.iscbsc.org./x',
+    'https://localhost./x',
+    'https://a.localhost./x',
+    'https://claude.example./x',
+    'https://claude.example:6379/x',
+    'https://claude.example:443/x',
     'https://user@claude.example/x',
     'https://claude.example/x#frag',
     `https://claude.example/${'x'.repeat(500)}`,
@@ -211,7 +222,10 @@ test('a CIMD client_id that is not https with a path, is an IP or is our own hos
   // stubHttp too, as the brief has it: nothing reaches the stub.
   const http = stubHttp(['claude.example', '192.0.2.1', 'rsg-turkiye.iscbsc.org'], () => json(doc()));
   try {
-    for (const id of ['http://claude.example/x', 'https://claude.example', 'https://192.0.2.1/x', 'https://rsg-turkiye.iscbsc.org/x']) {
+    for (const id of [
+      'http://claude.example/x', 'https://claude.example', 'https://192.0.2.1/x', 'https://rsg-turkiye.iscbsc.org/x',
+      'https://rsg-turkiye.iscbsc.org./x', 'https://claude.example:6379/x',
+    ]) {
       assert.ok('error' in await resolveClient(DB, id), id);
     }
     assert.equal(http.calls.length, 0);
@@ -226,6 +240,10 @@ test('a CIMD client name is cut to something showable, or the host', async () =>
     ['', 'claude.example'],
     ['x'.repeat(101), 'claude.example'],
     ['Evil\u202eClaude', 'claude.example'],
+    ['Cl\u200eaude', 'claude.example'],
+    ['Claude\u200b', 'claude.example'],
+    ['Cl\ufeffaude', 'claude.example'],
+    ['Cl\u061caude', 'claude.example'],
     ['  Claude  ', 'Claude'],
   ] as const) {
     const http = stubHttp(['claude.example'], () => json(doc({ client_name: name })));
@@ -263,6 +281,9 @@ test('parseRegistration refuses what it cannot serve', () => {
     [{ redirect_uris: ['https://a.example/cb'], token_endpoint_auth_method: 'private_key_jwt' }, 'invalid_client_metadata'],
     [{ redirect_uris: ['https://a.example/cb'], client_name: 'x'.repeat(101) }, 'invalid_client_metadata'],
     [{ redirect_uris: ['https://a.example/cb'], client_name: 'a\u0000b' }, 'invalid_client_metadata'],
+    [{ redirect_uris: ['https://a.example/cb'], client_name: 'Cl\u200faude' }, 'invalid_client_metadata'],
+    [{ redirect_uris: ['https://a.example/cb'], client_name: 'Claude\u200b' }, 'invalid_client_metadata'],
+    [{ redirect_uris: ['https://a.example/cb'], grant_types: [] }, 'invalid_client_metadata'],
     [{ redirect_uris: ['https://a.example/cb'], client_name: 42 }, 'invalid_client_metadata'],
     [{ redirect_uris: six }, 'invalid_redirect_uri'],
     [{ redirect_uris: ['https://a.example/cb', 'http://example.org/cb'] }, 'invalid_redirect_uri'],
