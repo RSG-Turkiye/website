@@ -1,7 +1,8 @@
 ---
 /**
- * The Agent tokens section: what a token can do, the create form, the value
- * shown once, one's own tokens and (admins) everyone's. The area rows and
+ * The Agent tokens section: what a token can do, how to connect Claude or
+ * ChatGPT without a token, the create form, the value shown once, one's own
+ * tokens, one's connected apps and (admins) everyone's. The area rows and
  * the lists are drawn by src/scripts/admin/sections/tokens.ts from
  * /api/agent-tokens.
  */
@@ -14,6 +15,11 @@ const field = `block mt-1 w-full px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded
 const btn = 'inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 const primary = `${btn} bg-navy text-white hover:bg-navy-mid`;
 const secondary = `${btn} border border-navy text-navy hover:bg-navy-light`;
+// The help box: no screenshots, menus move; the address and the sign-in do not.
+const steps = {
+  claude: [1, 2, 3, 4, 5].map((n) => t(`admin.tokens.connect.claude.step${n}` as Parameters<typeof t>[0])),
+  chatgpt: [1, 2, 3, 4].map((n) => t(`admin.tokens.connect.chatgpt.step${n}` as Parameters<typeof t>[0])),
+};
 ---
 <section data-section="anahtarlar">
   <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.tokens.heading')}</h2>
@@ -22,6 +28,23 @@ const secondary = `${btn} border border-navy text-navy hover:bg-navy-light`;
     <p>{t('admin.tokens.intro.shrinks')}</p>
     <p>{t('admin.tokens.intro.secret')}</p>
     <p class="break-all">{t('admin.tokens.intro.mcp')}</p>
+  </div>
+
+  <div id="tokensConnect" class="bg-white rounded-2xl border border-border p-4 lg:p-3 mb-4 lg:mb-3 text-sm text-gray-600">
+    <h3 class="text-sm font-semibold text-navy mb-2">{t('admin.tokens.connect.heading')}</h3>
+    <div class="grid gap-4 lg:gap-6 lg:grid-cols-2">
+      <div class="min-w-0">
+        <h4 class="font-medium text-navy mb-1">{t('admin.tokens.connect.claude.heading')}</h4>
+        <ol class="list-decimal pl-5 flex flex-col gap-0.5 break-words">{steps.claude.map((s) => <li>{s}</li>)}</ol>
+        <p class="mt-1 text-xs text-gray-500">{t('admin.tokens.connect.claude.plans')}</p>
+      </div>
+      <div class="min-w-0">
+        <h4 class="font-medium text-navy mb-1">{t('admin.tokens.connect.chatgpt.heading')}</h4>
+        <ol class="list-decimal pl-5 flex flex-col gap-0.5 break-words">{steps.chatgpt.map((s) => <li>{s}</li>)}</ol>
+        <p class="mt-1 text-xs text-gray-500">{t('admin.tokens.connect.chatgpt.plans')}</p>
+      </div>
+    </div>
+    <p class="mt-3 lg:mt-2 text-xs text-gray-500">{t('admin.tokens.connect.menusChange')}</p>
   </div>
 
   <!-- Says only that a token was made: the value below is not a live region, so a screen reader never reads it out unasked. -->
@@ -59,6 +82,9 @@ const secondary = `${btn} border border-navy text-navy hover:bg-navy-light`;
 
   <h3 class="text-sm font-semibold text-navy mb-2">{t('admin.tokens.mine.heading')}</h3>
   <div id="tokensMine" class="flex flex-col gap-2 mb-6 lg:mb-4"></div>
+
+  <h3 class="text-sm font-semibold text-navy mb-2">{t('admin.tokens.apps.heading')}</h3>
+  <div id="tokensApps" class="flex flex-col gap-2 mb-6 lg:mb-4"></div>
 
   <div id="tokensAllWrap" class="hidden">
     <h3 class="text-sm font-semibold text-navy mb-2">{t('admin.tokens.all.heading')}</h3>
