@@ -1211,8 +1211,10 @@ blog form, so the order matters:
 ## Agent access
 
 A panel member can let their own AI agent (Claude Code or any other MCP or
-HTTP client) work in the panel in their name, through a personal API token.
-The agent can read what the member may read and write drafts. It cannot put
+HTTP client) work in the panel in their name, through a personal API token,
+or let an app such as Claude or ChatGPT connect with a sign-in (an app
+connection, "Connecting Claude, ChatGPT and other apps" below). The agent
+can read what the member may read and write drafts. It cannot put
 anything live: approving, publishing, scheduling and everything else stay
 with a person in the panel, and the server enforces that, not the agent.
 
@@ -1223,7 +1225,9 @@ budget, auto-revoke),
 `functions/api/_middleware.ts` (refuses every other route before a handler
 runs), `functions/api/mcp.ts` with `functions/_lib/mcp-tools.ts` (the MCP
 server) and `functions/api/agent-tokens/` (making and revoking tokens, for
-a signed-in person only).
+a signed-in person only). App connections add `functions/oauth/` (the
+authorize, token and register endpoints), `functions/.well-known/` (the
+discovery documents) and `functions/_lib/oauth-*.ts`.
 
 ### What a token can and cannot do
 
@@ -1274,7 +1278,10 @@ Every other `/api/*` route answers a request that carries an
 handler runs. When the header is present it alone decides: the cookie is
 ignored, and a bad token is 401 even beside a valid session. Every failure
 to authenticate (unknown, revoked, expired, member gone) gives the same 401
-`{ "code": "unauthorized" }` with `WWW-Authenticate: Bearer`.
+`{ "code": "unauthorized" }`. Its `WWW-Authenticate` header is
+`Bearer resource_metadata="https://rsg-turkiye.iscbsc.org/.well-known/oauth-protected-resource/api/mcp"`,
+which is how an app finds where to sign in; when a credential was sent,
+`, error="invalid_token"` follows it, and when none was, it does not.
 
 A CMS save from a token must send the draft's latest `write_nonce`; without
 it the answer is 400 `write_nonce_required`, and a stale one is 409
@@ -1321,6 +1328,10 @@ in it is refused.
 
 A new panel feature that wants agents adds its draft-level routes to this
 table, or nothing (CLAUDE.md rule 10).
+
+An app connection's access token (`rsg_oat_`) works on `/api/mcp` only, and
+on no other row of this table: it is bound to that address (RFC 8707), so
+on any other route it is 401. A personal token works on every row.
 
 ### Limits
 
@@ -1400,6 +1411,10 @@ row in the activity log, when:
   included (`flood`: a loop); a request refused for the day, the budget or
   a quota is not counted, and costs nothing;
 - it gets 20 `human_only` refusals in one UTC day (`refusals`);
+- an app connection's old refresh value is used again more than 60 seconds
+  after it was replaced (`refresh_reuse`: somebody kept a copy), which ends
+  the whole connection; inside the 60 seconds it is taken for a retry after
+  a lost answer;
 - its own value appears in a request body (`leaked`: it is being pasted into
   content), also percent-encoded, as HTML character references, with JSON
   escapes or split across fields; an image upload is refused the same way
@@ -1453,6 +1468,92 @@ Any other client: send `Authorization: Bearer <value>` on every POST to the
 URL above. A browser `Origin` other than `https://rsg-turkiye.iscbsc.org`
 is refused.
 
+### Connecting Claude, ChatGPT and other apps
+
+An app can connect with a sign-in instead of a pasted token. The member
+adds the MCP address in the app, the app opens a page on this site, the
+member signs in with Google (the same sign-in as the panel), chooses what
+the app may work on, and presses Allow. That is an **app connection**.
+
+What a connection is:
+
+- One row in `agent_tokens` with `kind = 'oauth'`, named after the app and
+  its host, for example "Claude (claude.ai)". It is listed in the panel
+  under Agent tokens, "Connected apps" (Bağlı uygulamalar), and
+  "Disconnect" ends it at once. An admin sees everyone's.
+- The same reach as a token: the areas the member ticked, each at Read or
+  at "Read and write drafts", intersected with the roles the member holds
+  now. It can never approve, publish, schedule or send, and it works on
+  `/api/mcp` only. Every action is in the activity log with `via: agent`
+  and the connection's id.
+- It spends the same budgets and quotas as a token (Limits above): 30
+  requests a minute for the connection, 300 a day for the member across all
+  their tokens and connections, and the agents' shared daily pools.
+- A member has at most 5 live connections, apart from the 5 personal
+  tokens, and at most 5 unspent sign-in codes at once.
+
+The addresses (all on `https://rsg-turkiye.iscbsc.org`):
+
+| Address | What |
+| --- | --- |
+| `/.well-known/oauth-protected-resource/api/mcp` | Which server signs members in (RFC 9728). The 401 from `/api/mcp` names it. `/.well-known/oauth-protected-resource` answers the same. |
+| `/.well-known/oauth-authorization-server` | This server's addresses and what it supports (RFC 8414) |
+| `/oauth/authorize` | The page where the member signs in and chooses (GET shows it, POST carries Allow or Deny) |
+| `/oauth/token` | Exchanges the code for a connection, and refreshes it |
+| `/oauth/register` | Dynamic client registration (RFC 7591), for apps that have no metadata document |
+
+Discovery answers allow cross-origin reads (GET); the token and register
+endpoints allow POST. `/oauth/authorize` allows neither: it uses the
+member's cookie.
+
+Which apps work:
+
+| App | How it identifies itself | Works |
+| --- | --- | --- |
+| Claude (claude.ai and its apps) | Client ID metadata document | Yes; the target |
+| ChatGPT (developer mode connector) | Client ID metadata document | Yes; the target |
+| Claude Code, Gemini CLI, Cursor, VS Code, Zed, Raycast, Perplexity, Copilot Studio | Dynamic registration | Should, by the same flow; only Claude and ChatGPT are checked live |
+| Gemini Enterprise, Microsoft 365 Copilot | A client registered in advance by hand | No, not supported |
+
+An app on the member's own device (a desktop app or an editor) asks to be
+sent back to an address on the device, such as `http://127.0.0.1:<port>/`
+or `cursor://`. Any program on a device can claim such an address, so the
+page shows the whole address with a warning. Choose Allow only for a
+connection you started yourself.
+
+Lifetimes:
+
+| What | How long |
+| --- | --- |
+| Sign-in code | 2 minutes, usable once |
+| Access token (`rsg_oat_`) | 1 hour |
+| Refresh value (`rsg_ort_`) | Replaced at every refresh; the old one is good for a 60-second retry, after that it ends the connection |
+| The connection | 7, 30 (default) or 90 days, chosen on the page; a refresh does not extend it |
+
+Rows written in D1 (about, indexes included; the free plan allows 100,000 a
+day for the whole site):
+
+| What | Rows |
+| --- | --- |
+| Allow on the page | 1 (the code) |
+| The exchange that makes the connection | about 10 (the code removed, the connection with its indexes, the audit entry, one counter) |
+| A refresh | about 4; it counts as one request |
+| An MCP request | 1 (the counter, as for a token) |
+| Disconnect | about 6 (the connection, its index, the audit entry) |
+| A registration | 3 (the client and two counters) |
+| A wrong guess at `/oauth/token` | 1 (the day's failure count; never an IP) |
+
+Only the member sees the consent page; it is plain HTML in
+`functions/_lib/oauth-consent.ts` with no script, in Turkish and English,
+and `tests/browser/oauth-consent.mjs` checks it at the usual laptop sizes
+and at 390 px. `tests/oauth-flow.test.ts` walks each kind of app from the
+401 to a draft, a refresh and a disconnect.
+
+To disconnect, a member opens Agent tokens in the panel and uses
+"Disconnect" on the app (or removes the connector in the app first). The
+app's next request is 401 and its refresh is refused. Personal tokens stay
+the way for terminals, scripts and anything that can hold a secret.
+
 ### What the agent is told
 
 The server sends this text as the MCP `instructions` when an agent
@@ -1461,7 +1562,7 @@ connects. It is `AGENT_INSTRUCTIONS` in
 this copy matches it.
 
 ```text
-You act for one RSG-Türkiye member, through their personal token, within the roles they hold now. You draft and submit; a person approves in the panel. Never ask anyone to approve, publish or schedule through you.
+You act for one RSG-Türkiye member, through their personal token or an app connection they approved, within the roles they hold now. You draft and submit; a person approves in the panel. Never ask anyone to approve, publish or schedule through you.
 
 Content (cms_ tools):
 - Read the type's schema with cms_list_types before you write.
@@ -1511,6 +1612,23 @@ Limits (every MCP message counts as one request; a minute and a day are fixed wi
    it, check that it shows "Written by an agent" and waits in Onay, and
    approve or send it back yourself.
 5. Revoke the trial tokens you no longer need.
+
+### Owner steps for app connections (once, by the owner, never by an agent), in this order
+
+1. **Before the deploy**, apply migration 8n (the note at the top of
+   `db/schema.sql`) on the remote D1: first the `ALTER TABLE` command, which
+   is not safe to repeat, then the `--file=db/schema.sql` one. Until the
+   columns exist, every agent request and the panel's token list fail on
+   "no such column: kind".
+2. Merge and let the deploy finish.
+3. In claude.ai, add a custom connector with the address
+   `https://rsg-turkiye.iscbsc.org/api/mcp`, connect, sign in, tick one
+   read area on the page and Allow, then ask Claude to list the drafts.
+4. In the panel, Disconnect the app and check that Claude asks to connect
+   again.
+5. Repeat 3 and 4 in ChatGPT (developer mode).
+6. The next day, check what the connections cost:
+   `wrangler d1 insights rsg-members --sort-type=sum --sort-by=writes --timePeriod=1d`.
 
 ## Yearly handover
 
