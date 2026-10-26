@@ -232,6 +232,8 @@ async function refreshGrant(c: Ctx): Promise<Response> {
 
   const scopes = storedScopes(row.scopes);
   if (!scopes) return invalidGrant();
+  // The charge comes before the rotation on purpose: a refused refresh (a limit) must leave the row as it was.
+  // A refresh that then loses the race is charged too: accounting only, bounded by the minute limit.
   const limited = await chargeConnection(db, { tokenId: row.id, userId: row.user_id, social: mayUseReserve(scopes) }, c.ip, now);
   if (limited) return limited;
 
@@ -278,7 +280,14 @@ async function handle(request: Request, env: Env, now: number): Promise<Response
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const res = await handle(request, env, Math.floor(Date.now() / 1000));
+  let res: Response;
+  try {
+    res = await handle(request, env, Math.floor(Date.now() / 1000));
+  } catch (err) {
+    // A D1 failure is still a JSON answer a client can read, with CORS (as at /oauth/register).
+    console.error('oauth token failed', err);
+    res = jsonResponse({ error: 'server_error' }, 500);
+  }
   res.headers.set('Cache-Control', 'no-store');
   res.headers.set('Pragma', 'no-cache');
   return cors(res, POST_ONLY);

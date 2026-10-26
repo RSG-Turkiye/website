@@ -1389,7 +1389,9 @@ twice a limit can pass around a window's edge.
   practice the 10-in-10-minutes rule cuts an address off long before its
   minute or day limit.
 - Two things are not counted per IP: a miss at `/oauth/token` and an
-  unknown `rsg_oat_` bearer value. Hosted connectors (claude.ai, ChatGPT)
+  unknown `rsg_oat_` bearer value on a route in the table (`/api/mcp`, the
+  only route a hosted connector calls; on a route outside the table such a
+  value counts like any other made-up one). Hosted connectors (claude.ai, ChatGPT)
   call from addresses their members share, so an IP cut-off would let an
   outsider lock a whole platform out. Both count toward the day's 5,000
   only, so D1 writes stay bounded; personal tokens keep the IP rule.
@@ -1617,9 +1619,10 @@ Limits (every MCP message counts as one request; a minute and a day are fixed wi
 
 1. **Before the deploy**, apply migration 8n (the note at the top of
    `db/schema.sql`) on the remote D1: first the `ALTER TABLE` command, which
-   is not safe to repeat, then the `--file=db/schema.sql` one. Until the
-   columns exist, every agent request and the panel's token list fail on
-   "no such column: kind".
+   is not safe to repeat, then the `--file=db/schema.sql` one. Until then
+   personal tokens keep working, but the panel's token list and token
+   creation, the nightly audit prune and every `/oauth/*` endpoint fail on
+   "no such column" or "no such table".
 2. Merge and let the deploy finish.
 3. In claude.ai, add a custom connector with the address
    `https://rsg-turkiye.iscbsc.org/api/mcp`, connect, sign in, tick one

@@ -634,3 +634,16 @@ test('an https client_id is never fetched at the token endpoint: the grant row n
     assert.equal(http.calls.length, 0);
   } finally { http.restore(); }
 });
+
+test('an unexpected failure is a JSON 500 server_error, no-store, with CORS', async (t) => {
+  const { db } = await setup(t);
+  const broken = { prepare: () => { throw new Error('D1 is down'); }, batch: async () => { throw new Error('D1 is down'); } } as never;
+  void db;
+  const logged = t.mock.method(console, 'error', () => {});
+  const res = await call({ DB: broken } as never, { grant_type: 'authorization_code', code: 'x', redirect_uri: REDIRECT, code_verifier: VERIFIER, client_id: 'rsg_oc_x' });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: 'server_error' });
+  assert.equal(res.headers.get('Cache-Control'), 'no-store');
+  assert.equal(res.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.equal(logged.mock.callCount(), 1);
+});

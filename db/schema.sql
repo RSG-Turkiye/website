@@ -377,10 +377,11 @@
 -- 8n. OAuth connections for web connectors (functions/_lib/oauth-config.ts).
 --    Six columns on agent_tokens (a connection is a row of kind 'oauth'),
 --    then two new tables, oauth_clients and oauth_codes. Run the two
---    commands, in this order, BEFORE deploying: the /api middleware and the
---    panel's token list select agent_tokens.kind, so without the columns
---    they fail on "no such column: kind", and authenticateAgent refuses
---    every personal token with 401 (a row without kind 'pat').
+--    commands, in this order, BEFORE deploying. Personal tokens keep working
+--    without the columns (authenticateAgent reads a missing kind as 'pat'),
+--    but the panel's token list and token creation, the nightly audit prune
+--    and every /oauth/* endpoint fail on "no such column" or "no such
+--    table" until 8n is applied.
 --    1. ALTER TABLE ADD COLUMN is NOT idempotent, so it stays a note here and
 --       errors rather than no-ops on a rerun: do not re-run it.
 --    2. All IF NOT EXISTS, safe to repeat.
