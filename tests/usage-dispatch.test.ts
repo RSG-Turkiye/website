@@ -55,7 +55,7 @@ test('the on-the-hour tick measures usage, even at night', async () => {
   const res = await dispatchAt('2026-10-26T00:00:30Z', db); // 03:00 Istanbul, mail held
   assert.equal(res.status, 200);
   assert.match((await res.json<{ held?: string }>()).held ?? '', /outside/);
-  assert.equal(cf.calls.length, 1);
+  assert.equal(cf.calls.length, 3); // one GraphQL request per dataset
   assert.equal(cf.calls[0].url.pathname, '/client/v4/graphql');
   assert.equal(stateRow(db).day, '2026-10-26');
   assert.equal(stateRow(db).requests, 1234);
@@ -64,7 +64,7 @@ test('the on-the-hour tick measures usage, even at night', async () => {
 test('the on-the-hour tick measures usage in the sending window', async () => {
   const res = await dispatchAt('2026-10-26T10:00:00Z', db);
   assert.equal(res.status, 200);
-  assert.equal(cf.calls.length, 1);
+  assert.equal(cf.calls.length, 3); // one GraphQL request per dataset
   assert.equal(stateRow(db).checked_at, Date.parse('2026-10-26T10:00:00Z') / 1000);
 });
 

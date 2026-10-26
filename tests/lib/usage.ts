@@ -19,6 +19,15 @@ export function numbers(u: Usage): typeof fetch {
   return fakeGql([], usageData(u));
 }
 
+/** Answers like fakeGql, except that a query matching `failing` gets a GraphQL error: one dataset's name wrong, the others right. */
+export function partialGql(seen: unknown[], accountData: unknown, failing: RegExp, message: string): typeof fetch {
+  const ok = fakeGql(seen, accountData);
+  return (async (url: RequestInfo | URL, init?: RequestInit) => {
+    if (failing.test(String(JSON.parse(String(init?.body)).query))) return new Response(JSON.stringify({ data: null, errors: [{ message }] }), { status: 200 });
+    return ok(url, init);
+  }) as typeof fetch;
+}
+
 /** A GraphQL error answer: HTTP 200, no data, the message in errors. */
 export function errorGql(message: string): typeof fetch {
   return (async () => new Response(JSON.stringify({ data: null, errors: [{ message }] }), { status: 200 })) as typeof fetch;

@@ -299,7 +299,7 @@ export const onRequestPost: PagesFunction<Env & AnalyticsEnv> = async (context) 
     // blocks mail.
     const usage = (async () => {
       try {
-        await checkUsage(env, now, new URL(request.url).origin);
+        await checkUsage(env, now);
       } catch (err) {
         console.error('usage check failed', err);
       }

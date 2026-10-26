@@ -1150,6 +1150,8 @@ CREATE TABLE IF NOT EXISTS agent_counters (
 
 -- Free-tier usage, measured hourly by the mail tick (functions/_lib/usage.ts).
 -- One row. day/requests/rows_*: the last successful measurement (UTC day).
+-- parts: JSON, the two halves of requests (Worker requests by script, Pages
+-- Functions) for the card's admin line.
 -- error: the last attempt's failure, NULL when it worked. alert_day/alerted:
 -- which '<metric>:<threshold>' alerts went out on that UTC day (JSON list).
 -- One row and no other index, as mail_sync_state: a write is one row written,
@@ -1162,6 +1164,7 @@ CREATE TABLE IF NOT EXISTS usage_state (
   requests      INTEGER,
   rows_read     INTEGER,
   rows_written  INTEGER,
+  parts         TEXT,
   error         TEXT,
   alert_day     TEXT,
   alerted       TEXT NOT NULL DEFAULT '[]'
