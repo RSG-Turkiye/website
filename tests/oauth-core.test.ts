@@ -171,9 +171,14 @@ test('PAT behaviour is unchanged', async () => {
 
 test('before migration 8n (no kind column) a personal token still authenticates', async () => {
   const { db, env } = await setup();
-  for (const c of ['kind', 'client_id', 'access_expires_at', 'refresh_hash', 'prev_refresh_hash', 'refreshed_at']) {
-    db.exec(`ALTER TABLE agent_tokens DROP COLUMN ${c}`);
-  }
+  // The table as it was before 8n. Rebuilt rather than DROP COLUMN: the
+  // SQLite in Node 22 (CI) fails to rewrite the schema's inline comments.
+  db.exec(`DROP TABLE agent_tokens;
+    CREATE TABLE agent_tokens (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), token_hash TEXT NOT NULL UNIQUE,
+      hint TEXT NOT NULL, label TEXT NOT NULL, scopes TEXT NOT NULL, created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL, last_used_at INTEGER, revoked_at INTEGER, revoked_by TEXT, revoke_reason TEXT
+    );`);
   const value = await mintToken(db, 'ed', ['cms.etkinlikler:draft']);
   assert.equal((await authenticateAgent(req('GET', '/api/cms/drafts', bearer(value)), env, now())).kind, 'agent');
   assert.equal((await authenticateAgent(req('POST', '/api/mcp', bearer(value)), env, now())).kind, 'agent');
