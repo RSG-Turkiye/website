@@ -2,18 +2,18 @@ import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runGuardedWithAudit } from '../../../_lib/audit';
 import { loadCmsIndex, lpIdsElsewhere } from '../../../_lib/cms-api';
-import { badState, changed, cmsGate, draftJson, fail, forbidden, refuseDraft, invalid, loadDraft, mayApprove, mayEdit, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
+import { badState, changed, cmsGate, draftJson, fail, forbidden, refuseDraft, invalid, loadDraft, mayApprove, mayEdit, mayReview, newNonce, nonceProof, pickEntryId, readJson, refusePairClash } from '../../../_lib/cms-api';
 import { closePr, deleteBranch, prForBranch, pullNumberFromUrl } from '../../../_lib/github';
 import { canTransition, checkSameId, droppedSides, filesFor, fixedKeysErrors, inOrderOf, newPaths, withServerKey, STALE_APPROVAL_SECONDS, validateDraft, type PairData } from '../../../_lib/cms-drafts';
 import { assignIds, lockedKeysErrors, type LpDraftData } from '../../../_lib/cms-lp';
 
-/** One draft, with its data: for its author while they can edit, and for the group's approvers. */
+/** One draft, with its data: for its author while they can edit, for the group's approvers, and, read only, for a token whose member approves the group (mayReview). */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
   const found = await loadDraft(env, params.id);
   if (!found.ok) return found.response;
-  if (!mayEdit(gate, found.row)) return refuseDraft(gate, found.row);
+  if (!mayEdit(gate, found.row) && !mayReview(gate, found.type)) return refuseDraft(gate, found.row);
   const author = await env.DB.prepare('SELECT display_name FROM profiles WHERE user_id = ?').bind(found.row.author_id).first<{ display_name: string }>();
   // The files this draft would write, as the approval writes them: the
   // approver's file diff compares them with main. Null while the data

@@ -5,7 +5,7 @@
  */
 
 import { checkCsrf, getSessionUser, jsonResponse, type Env, type User } from './auth';
-import { agentGroupRights, authenticateAgent, humanOnly, type AgentPrincipal } from './agent-tokens';
+import { agentGroupRights, agentReviewsType, authenticateAgent, humanOnly, type AgentPrincipal } from './agent-tokens';
 import { groupRights, type CmsGroup, type GroupRights } from './cms-access';
 import { mergedTooLong, newEntryId, newPaths, type DraftRow, type PairData } from './cms-drafts';
 import { fileShasOnBase } from './github';
@@ -85,6 +85,16 @@ export function mayEdit(gate: { user: Pick<User, 'id' | 'is_admin'>; rights: Gro
 export function approvesType(gate: { user: Pick<User, 'is_admin'>; rights: GroupRights }, type: CmsType): boolean {
   return rightsIn(gate.rights, type.group).approve && (type.approve !== 'admin' || gate.user.is_admin === 1);
 }
+
+/**
+ * Who may READ a colleague's draft of `type`, and the approval queue of its
+ * group: whoever approves it in the panel (approvesType), and, for a token,
+ * a member who could (agentReviewsType: scope at read, live approver or
+ * admin grant). Read only: it is never a reason to let a token save, send,
+ * discard or approve (mayEdit and mayApprove do not use it).
+ */
+export const mayReview = (gate: { user: Pick<User, 'is_admin'>; rights: GroupRights; agent: AgentPrincipal | null }, type: CmsType): boolean =>
+  gate.agent ? agentReviewsType(gate.agent, type) : approvesType(gate, type);
 
 export function mayApprove(gate: { user: Pick<User, 'is_admin'>; rights: GroupRights }, row: Pick<DraftRow, 'type'>): boolean {
   const type = cmsType(row.type);

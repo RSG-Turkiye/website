@@ -1,11 +1,14 @@
 /** The few things every /api/social handler does first. */
 import type { Env, User } from './auth';
 import { getSessionUser, jsonResponse, checkCsrf, canSocialEdit, canSocialPublish } from './auth';
-import { authenticateAgent, agentMaySocial, humanOnly, type AgentPrincipal } from './agent-tokens';
+import { authenticateAgent, agentMaySocial, agentReviewsSocial, humanOnly, type AgentPrincipal } from './agent-tokens';
 import type { Actor } from './social-posts';
 
 /** `agent` is set when a personal agent token is asking (in its member's name). */
 export type Gate = { ok: true; user: User; actor: Actor; agent: AgentPrincipal | null } | { ok: false; response: Response };
+
+/** Read only: a token whose member reviews social posts may read colleagues' (agentReviewsSocial). Never a reason to write. */
+export const isSocialReviewer = (gate: { agent: AgentPrincipal | null }): boolean => gate.agent !== null && agentReviewsSocial(gate.agent);
 
 export async function socialGate(request: Request, env: Env, need: 'edit' | 'publish', mutating: boolean): Promise<Gate> {
   // With an Authorization header the token alone decides; the cookie is ignored.

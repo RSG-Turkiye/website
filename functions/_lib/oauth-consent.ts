@@ -9,7 +9,8 @@
 export type Lang = 'tr' | 'en';
 export type ErrorKey = 'signin' | 'client' | 'long' | 'request' | 'area' | 'days' | 'codes' | 'full' | 'none';
 
-export interface ConsentArea { area: string; ticked: boolean; level: 'read' | 'draft' }
+/** `review`: the member also reviews this area in the panel, so the app may read the team's drafts there (read only). */
+export interface ConsentArea { area: string; ticked: boolean; level: 'read' | 'draft'; review?: boolean }
 
 export interface ConsentView {
   lang: Lang;
@@ -62,6 +63,7 @@ const T = {
   },
   areas: { en: 'What it may work on', tr: 'Hangi alanlarda çalışabilir' },
   areasHint: { en: 'Only areas your own roles allow are listed.', tr: 'Yalnızca kendi rollerinin izin verdiği alanlar listelenir.' },
+  review: { en: 'Can also read your team\'s drafts awaiting review.', tr: 'Ekibin onay bekleyen taslaklarını da okuyabilir.' },
   levelRead: { en: 'Read', tr: 'Okuma' },
   levelDraft: { en: 'Read and write drafts', tr: 'Okuma ve taslak yazma' },
   level: { en: 'Level for', tr: 'Düzey:' },
@@ -119,6 +121,7 @@ p{margin:.5rem 0}
 .uri{overflow-wrap:anywhere;font-family:ui-monospace,monospace;font-size:.875rem;background:#EEF1F8;border:1px solid #E5E4DF;border-radius:.5rem;padding:.5rem .625rem}
 .warn{background:#FDEAEA;border:1px solid #C0232A;border-radius:.5rem;padding:.625rem .75rem;margin:.75rem 0;color:#1a2744}
 .area{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .75rem;padding:.25rem 0;border-top:1px solid #E5E4DF}
+.area .note{flex:0 0 100%;margin:0 0 .25rem 1.875rem}
 .area label{display:flex;align-items:center;gap:.625rem;min-height:44px;flex:1 1 12rem}
 input[type=checkbox]{width:1.25rem;height:1.25rem;accent-color:#1a2744;flex:none}
 select{min-height:44px;font:inherit;color:#1a2744;background:#fff;border:1px solid #9ca3af;border-radius:.5rem;padding:0 .5rem;max-width:100%}
@@ -182,7 +185,7 @@ ${where}`;
 <option value="read"${sel('read')}>${esc(T.levelRead[l])}</option>
 <option value="draft"${sel('draft')}>${esc(T.levelDraft[l])}</option>
 </select>
-</div>`;
+${a.review ? `<p class="small note">${esc(T.review[l])}</p>\n` : ''}</div>`;
     }).join('\n');
     const days = v.days.map((d) => `<option value="${d}"${d === v.defaultDays ? ' selected' : ''}>${d} ${esc(T.days[l])}</option>`).join('\n');
     main = `${who}

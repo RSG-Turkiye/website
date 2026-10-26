@@ -7,7 +7,7 @@
 // this Function fetch a CIMD document. Nothing is written before Allow.
 
 import { checkCsrf, getSessionUser, type Env } from '../_lib/auth';
-import { areasHeld, parseScopes, formatScope, type AgentArea, type AgentLevel } from '../_lib/agent-tokens';
+import { areasHeld, reviewAreasHeld, parseScopes, formatScope, type AgentArea, type AgentLevel } from '../_lib/agent-tokens';
 import { readCapped } from '../_lib/agent-limits';
 import { activeGrants } from '../_lib/role-grants';
 import { safeNext } from '../_lib/next-path';
@@ -84,7 +84,9 @@ async function handle(request: Request, env: Env, p: URLSearchParams, posted: bo
   if (posted && p.get('action') === 'deny') return back(redirectUri, { error: 'access_denied', state: echo });
 
   const now = Math.floor(Date.now() / 1000);
-  const held = areasHeld((await activeGrants(env.DB, user.id, now)).map((g) => g.role));
+  const roles = (await activeGrants(env.DB, user.id, now)).map((g) => g.role);
+  const held = areasHeld(roles);
+  const reviewed = reviewAreasHeld(roles);
   const live = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM agent_tokens WHERE user_id = ? AND kind = 'oauth' AND revoked_at IS NULL AND expires_at > ?`,
   ).bind(user.id, now).first<{ n: number }>();
@@ -107,7 +109,7 @@ async function handle(request: Request, env: Env, p: URLSearchParams, posted: bo
   }
 
   const asked = requestedLevels(p.get('scope'));
-  const areas: ConsentArea[] = held.map((area: AgentArea) => ({ area, ticked: asked.has(area), level: asked.get(area) ?? 'draft' }));
+  const areas: ConsentArea[] = held.map((area: AgentArea) => ({ area, ticked: asked.has(area), level: asked.get(area) ?? 'draft', review: reviewed.includes(area) }));
   const warn = isLoopbackOrCustom(redirectUri);
   // The scope field is kept through the form only as far as the member holds it (it is never read on POST: the ticked boxes are).
   const kept = areas.filter((a) => a.ticked).map((a) => `${a.area}:${a.level}`).join(' ');

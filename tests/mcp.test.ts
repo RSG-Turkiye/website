@@ -201,11 +201,81 @@ test('tools/list: a social draft token sees the social tools and no cms tool; wh
   const { db, env } = await setup();
   const token = await mintToken(db, 'ed', ['social:draft']);
   const names = await toolNames(env, token);
-  assert.deepEqual(names, MCP_TOOLS.map((t) => t.name).filter((n) => n.startsWith('social_')).sort());
+  assert.deepEqual(names, MCP_TOOLS.filter((t) => !t.review).map((t) => t.name).filter((n) => n.startsWith('social_')).sort());
   assert.ok(names.includes('social_create_plan') && names.includes('social_submit_post'));
 
   db.prepare(`UPDATE role_grants SET expires_at = ? WHERE user_id = 'ed' AND role = 'social'`).run(NOW - 1);
   assert.deepEqual(await toolNames(env, token), []);
+});
+
+test('tools/list: the two review tools appear only where the member reviews that area now, and a call to one a token does not have is refused', async () => {
+  const { db, env } = await setup();
+  const DB = (env as { DB: D1Database }).DB;
+  await grantRole(DB, { userId: 'ed2', role: 'content.etkinlikler.approve', expiresAt: null, by: null }, NOW - 100);
+  const REVIEW = ['cms_list_review_queue', 'social_list_team_posts'];
+  const has = async (token: string) => (await toolNames(env, token)).filter((n) => REVIEW.includes(n));
+
+  // An editor, with every scope: neither tool.
+  const ed = await mintToken(db, 'ed', ['cms.etkinlikler:draft', 'social:draft']);
+  assert.deepEqual(await has(ed), []);
+  // A publisher's social scope: the social tool only. An approver's cms scope: the cms tool only.
+  const pub = await mintToken(db, 'pub', ['social:read']);
+  assert.deepEqual(await has(pub), ['social_list_team_posts']);
+  const apr = await mintToken(db, 'ed2', ['cms.etkinlikler:read']);
+  assert.deepEqual(await has(apr), ['cms_list_review_queue']);
+  // A scope on another group gives nothing, though the member reviews etkinlikler.
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('g30', 'ed2', 'content.yazilar.edit', NULL, NULL, 1)`).run();
+  const other = await mintToken(db, 'ed2', ['cms.yazilar:read']);
+  assert.deepEqual(await has(other), []);
+  // Calling a tool the token does not list is the same -32602 as an unknown name.
+  for (const [token, name, args] of [[ed, 'cms_list_review_queue', {}], [ed, 'social_list_team_posts', { from: NOW, to: NOW + 60 }]] as const) {
+    const body = await callTool(env, token, name, args);
+    assert.equal(body.error?.code, -32602, name);
+  }
+  // The grant ends: the tool goes with it.
+  db.prepare(`UPDATE role_grants SET expires_at = ? WHERE user_id = 'pub' AND role = 'social_publisher'`).run(NOW - 1);
+  db.prepare(`UPDATE role_grants SET expires_at = ? WHERE user_id = 'ed2' AND role = 'content.etkinlikler.approve'`).run(NOW - 1);
+  assert.deepEqual(await has(pub), []);
+  assert.deepEqual(await has(apr), []);
+});
+
+test('review tools through MCP read the team\'s work and nothing else: queue, a colleague\'s draft and post, never a write', async () => {
+  const { db, env } = await setup();
+  const DB = (env as { DB: D1Database }).DB;
+  await grantRole(DB, { userId: 'ed2', role: 'content.etkinlikler.approve', expiresAt: null, by: null }, NOW - 100);
+  // ed's draft in the queue and ed's social draft.
+  const edToken = await mintToken(db, 'ed', ['cms.etkinlikler:draft', 'social:draft']);
+  const made = await toolResult(env, edToken, 'cms_create_draft', { type: 'events', action: 'create', data: newEvent() });
+  await toolResult(env, edToken, 'cms_submit_draft', { id: made.draft.id });
+  const post = await toolResult(env, edToken, 'social_create_post', draftPost);
+
+  const apr = await mintToken(db, 'ed2', ['cms.etkinlikler:read']);
+  const queue = await toolResult(env, apr, 'cms_list_review_queue');
+  assert.deepEqual(Object.keys(queue).sort(), ['inflight', 'more', 'queue']);
+  assert.deepEqual(queue.queue.map((d: { id: string }) => d.id), [made.draft.id]);
+  const one = await toolResult(env, apr, 'cms_get_draft', { id: made.draft.id });
+  assert.equal(one.draft.id, made.draft.id);
+  // Not writable through the tools of a draft-level token either: 404.
+  const aprDraft = await mintToken(db, 'ed2', ['cms.etkinlikler:draft']);
+  const before = db.prepare('SELECT * FROM content_drafts WHERE id = ?').get(made.draft.id);
+  for (const name of ['cms_discard_draft', 'cms_submit_draft']) {
+    const body = await callTool(env, aprDraft, name, { id: made.draft.id });
+    assert.equal(body.result.isError, true, name);
+    assert.match(body.result.content[0].text, /not_found/, name);
+  }
+  assert.deepEqual(db.prepare('SELECT * FROM content_drafts WHERE id = ?').get(made.draft.id), before);
+
+  const pub = await mintToken(db, 'pub', ['social:draft']);
+  const team = await toolResult(env, pub, 'social_list_team_posts', { from: NOW, to: NOW + 86400 });
+  assert.deepEqual(team.posts.map((p: { id: string }) => p.id), [post.id]);
+  for (const p of team.posts) assert.equal(p.authorEmail ?? null, null);
+  // social_list_posts keeps its own meaning for the same token: own and published only.
+  assert.deepEqual((await toolResult(env, pub, 'social_list_posts', { from: NOW, to: NOW + 86400 })).posts, []);
+  assert.equal((await toolResult(env, pub, 'social_get_post', { id: post.id })).id, post.id);
+  const save = await callTool(env, pub, 'social_save_post', { id: post.id, revision: 0, ...draftPost, caption: 'hijack' });
+  assert.equal(save.result.isError, true);
+  assert.match(save.result.content[0].text, /not_found/);
+  assert.equal((db.prepare('SELECT caption FROM social_posts WHERE id = ?').get(post.id) as { caption: string }).caption, draftPost.caption);
 });
 
 test('tools/list: the podcast pull is listed only where the member edits its group', async () => {

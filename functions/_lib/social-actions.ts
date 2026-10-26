@@ -14,7 +14,7 @@ export async function prepareAction(
   const gate = await socialGate(request, env, need, true);
   if (!gate.ok) return gate;
   const found = await loadPost(env.DB, env, id);
-  // What a token cannot see (a colleague's unpublished post) does not exist for it, as in GET;
+  // Own-only, never the reviewer's wider read (agentMayRead): a colleague's unpublished post is not found for a token;
   // decided before the revision is compared, so a 409 cannot tell either.
   if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return { ok: false, response: jsonResponse({ error: 'Not found', code: 'not_found' }, 404) };
   const body = await readBody(request);

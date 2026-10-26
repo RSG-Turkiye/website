@@ -1269,8 +1269,8 @@ A token **can**:
   drafts; start, save, send for approval and discard the member's own
   drafts (discard only in `draft` or `rejected` status); pull a podcast
   episode into a draft (`cms.topluluk:draft`).
-- Social: read the member's own posts and published posts (never a
-  colleague's unpublished post); create, save, submit and discard the
+- Social: read the member's own posts and published posts (a colleague's
+  unpublished post only for a reviewer, below); create, save, submit and discard the
   member's own post drafts; edit a post only while it is `draft`,
   `rejected` or `pending_approval`, never a `scheduled` or `failed` one;
   read the team's plans (the note and the linked post's status only on
@@ -1286,12 +1286,33 @@ A token **cannot**, whatever roles the member holds (admin included):
 - approve, reject, publish, schedule, cancel, requeue or merge anything;
   even an approver's or a social publisher's token only submits, and the
   draft or post waits for a person;
-- see or edit anyone else's drafts or the approval queue: a colleague's
-  draft, unpublished post or plan, asked for by id, answers 404
-  `not_found`, the same as an id that does not exist;
+- edit anyone else's drafts, posts or plans: a colleague's draft,
+  unpublished post or plan, asked to be saved, sent or discarded, answers 404
+  `not_found`, the same as an id that does not exist. Without the reviewer
+  reach below, a colleague's draft or unpublished post asked for by id
+  answers 404 as well, and the approval queue is empty;
 - send mail or DMs, grant roles, touch Users, Connections, the symposium,
   announcements, certificates or statistics;
 - make, list or revoke tokens (`/api/agent-tokens` takes a session only).
+
+**Reviewers.** What a member could already read in the panel as a
+reviewer, their agent may read too, read only. A credential with a `social`
+scope (`read` or `draft`) whose member holds a live `social_publisher` or
+`admin` grant reads colleagues' posts of every status, with their review
+notes (`GET /api/social/posts/<id>`, and the list with `team=1`, the MCP
+tool `social_list_team_posts`) and the note and post status of colleagues'
+plans. A credential with a `cms.<group>` scope (`read` or `draft`) whose
+member holds a live `content.<group>.approve` grant (or `admin`) gets the
+group's `queue` and `inflight` from `GET /api/cms/drafts` and reads a
+colleague's draft of that group by id (`cms_list_review_queue`,
+`cms_get_draft`); an `approve: 'admin'` type (the privacy notice) only for
+an admin. The grants are the live ones, as everywhere on the token path,
+and the reach ends with the grant. E-mail addresses and platform error text
+stay removed. This is never a write: saving, sending, discarding and
+changing plans stay with the member's own items, a reviewer's agent that
+tries to change a colleague's post, draft or plan gets 404 `not_found`,
+and approving, rejecting and cancelling stay `human_only`. The consent
+screen says so under each area the member reviews.
 
 Every other `/api/*` route answers a request that carries an
 `Authorization` header with 403 `{ "code": "human_only" }`, before any
@@ -1569,7 +1590,9 @@ Only the member sees the consent page; it is plain HTML in
 `functions/_lib/oauth-consent.ts` with no script, in Turkish and English,
 and `tests/browser/oauth-consent.mjs` checks it at the usual laptop sizes
 and at 390 px. `tests/oauth-flow.test.ts` walks each kind of app from the
-401 to a draft, a refresh and a disconnect.
+401 to a draft, a refresh and a disconnect. Under an area the member also
+reviews, the page adds one line saying the app can read the team's drafts
+awaiting review.
 
 To disconnect, a member opens Agent tokens in the panel and uses
 "Disconnect" on the app (or removes the connector in the app first). The
@@ -1591,10 +1614,11 @@ Content (cms_ tools):
 - To change a published entry, start from cms_get_entry and pass its base_shas to cms_create_draft.
 - cms_save_draft needs the latest write_nonce (from cms_get_draft or your last save). A 409 draft_changed means a person saved after you read: read again, never overwrite. A draft whose write_nonce is null can be saved only after a person saves it once in the panel.
 - You may discard only your own drafts in draft or rejected status.
+- A reviewer's agent may read the team's drafts to help review, never approve or change them.
 
 Social (social_ tools):
 - Save, submit and discard send the post's latest revision. A 409 post_changed means read again.
-- Images: there is no upload tool here. An image is uploaded by the member, in the panel or with their own tooling that keeps the token as a secret (a REST endpoint), and you pass the returned key. Never ask for the token.
+- Images: there is no upload tool. An image is uploaded by the member, in the panel or with their own tooling that keeps the token as a secret (a REST endpoint), and you pass the returned key. Never ask for the token.
 
 House rules:
 - Turkish and English are written as a pair: both sides, the same facts.

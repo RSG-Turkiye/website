@@ -231,6 +231,35 @@ test('signed in, GET shows only the areas the member holds, pre-ticked from the 
   } finally { http.restore(); }
 });
 
+test('the consent page adds the review line only under an area the member reviews, in both languages', async () => {
+  const { db, env, DB } = await setup();
+  db.prepare(`INSERT INTO users (id, google_id, email, created_at, last_login) VALUES ('rv', 'g-rv', 'rv@example.org', 1, 1)`).run();
+  db.prepare(`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES ('s-rv', 'rv', 4000000000, 1)`).run();
+  // Approves Etkinlikler, only edits Yazılar, and holds a plain social grant: one reviewed area of three.
+  await grantRole(DB, { userId: 'rv', role: 'content.etkinlikler.approve', expiresAt: now() + 86400 * 30, by: null }, now());
+  await grantRole(DB, { userId: 'rv', role: 'content.yazilar.edit', expiresAt: now() + 86400 * 30, by: null }, now());
+  await grantRole(DB, { userId: 'rv', role: 'social', expiresAt: now() + 86400 * 30, by: null }, now());
+  const http = cimd();
+  try {
+    const areaBlock = (body: string, area: string) => new RegExp(`<div class="area">\\s*<label><input type="checkbox" name="area" value="${area.replace('.', '\\.')}"[\\s\\S]*?</div>`).exec(body)![0];
+    const en = await (await get(env, 'rv', params({ scope: 'cms.etkinlikler:read cms.yazilar:read social:read' }), { 'Accept-Language': 'en' })).text();
+    assert.match(areaBlock(en, 'cms.etkinlikler'), /Can also read your team(?:'|&#39;)s drafts awaiting review\./);
+    assert.doesNotMatch(areaBlock(en, 'cms.yazilar'), /awaiting review/);
+    assert.doesNotMatch(areaBlock(en, 'social'), /awaiting review/);
+    const tr = await (await get(env, 'rv', params({ scope: 'cms.etkinlikler:read' }), { 'Accept-Language': 'tr' })).text();
+    assert.match(areaBlock(tr, 'cms.etkinlikler'), /Ekibin onay bekleyen taslaklarını da okuyabilir\./);
+    // The same member as a social publisher: the line moves to Social.
+    await grantRole(DB, { userId: 'rv', role: 'social_publisher', expiresAt: now() + 86400 * 30, by: null }, now());
+    const pub = await (await get(env, 'rv', params(), { 'Accept-Language': 'en' })).text();
+    assert.match(areaBlock(pub, 'social'), /awaiting review/);
+    // A plain editor sees no such line anywhere; the page keeps its fixed promise and no em dash.
+    const ed = await (await get(env, 'ed', params(), { 'Accept-Language': 'en' })).text();
+    assert.doesNotMatch(ed, /awaiting review/);
+    for (const body of [en, tr, pub]) assert.ok(!body.includes('—'));
+    assert.ok(en.includes('It can never approve, publish, schedule or send.'));
+  } finally { http.restore(); }
+});
+
 test('nothing requested means nothing pre-ticked', async () => {
   const { env } = await setup();
   const http = cimd();

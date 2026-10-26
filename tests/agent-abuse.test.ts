@@ -594,15 +594,15 @@ test('a token never reads or changes a colleague\'s CMS draft: GET, PATCH, DELET
   assert.deepEqual([list.queue, list.inflight], [[], []]);
 });
 
-test('a token never reads or changes a colleague\'s unpublished post or plan (404, unchanged), and sees no one\'s e-mail or a colleague\'s note', async () => {
+test('a plain social editor\'s token never reads or changes a colleague\'s unpublished post or plan (404, unchanged), and sees no one\'s e-mail or a colleague\'s note', async () => {
   const w = await world();
-  const token = await mintToken(w.db, 'pub', ['social:draft']); // a publisher's token, the widest social reach
+  const token = await mintToken(w.db, 'ed', ['social:draft']); // no publisher or admin grant: no reviewer reach
   const theirs = ['draft', 'pending_approval', 'scheduled', 'rejected', 'failed', 'cancelled'].map((s) => postOf(w, 'ed2', s, { review_note: 'reviewer said: secret note' }));
   const plan = planOf(w, 'ed2');
   const before = contentState(w);
   for (const id of theirs) {
     // A fresh token per post keeps every request under the 30-a-minute limit (all run in one wall-clock minute).
-    const token = await mintToken(w.db, 'pub', ['social:draft']);
+    const token = await mintToken(w.db, 'ed', ['social:draft']);
     for (const [handler, method, suffix, body] of [
       [socialPost.onRequestGet, 'GET', '', undefined], [socialPost.onRequestPatch, 'PATCH', '', { revision: 0, ...postBody({ caption: 'hijack' }) }],
       [socialPost.onRequestDelete, 'DELETE', '', { revision: 0 }], [socialSubmit.onRequestPost, 'POST', '/submit', { revision: 0 }],
@@ -640,6 +640,47 @@ test('a token never reads or changes a colleague\'s unpublished post or plan (40
   const theirPlan = plans.plans.find((p: { id: string }) => p.id === plan);
   assert.equal(theirPlan.note, null);
   assert.equal(theirPlan.assigneeEmail, null);
+});
+
+test('a reviewer\'s token (live publisher or admin grant) reads colleagues\' posts and plans, but every write is 404 and nothing changes', async () => {
+  const w = await world();
+  const theirs = ['draft', 'pending_approval', 'scheduled', 'rejected', 'failed', 'cancelled'].map((s) => postOf(w, 'ed2', s, { review_note: 'reviewer said: visible note' }));
+  const plan = planOf(w, 'ed2');
+  const from = WALL - 86_400, to = WALL + 30 * 86_400;
+  for (const who of ['pub', 'admin']) {
+    const before = contentState(w);
+    for (const id of theirs) {
+      // A fresh token per post keeps every request under the 30-a-minute limit (all run in one wall-clock minute).
+      const token = await mintToken(w.db, who, ['social:draft']);
+      const read = await hit(w, socialPost.onRequestGet, 'GET', `/api/social/posts/${id}`, { token, params: { id } });
+      assert.equal(read.status, 200, `${who} reads ${id}`);
+      const got = await json(read) as { authorEmail: unknown; reviewNote: string | null; targets: { lastError: unknown }[] };
+      assert.equal(got.authorEmail, null);
+      assert.equal(got.reviewNote, 'reviewer said: visible note');
+      for (const [handler, method, suffix, body] of [
+        [socialPost.onRequestPatch, 'PATCH', '', { revision: 0, ...postBody({ caption: 'hijack' }) }],
+        [socialPost.onRequestDelete, 'DELETE', '', { revision: 0 }], [socialSubmit.onRequestPost, 'POST', '/submit', { revision: 0 }],
+        [socialPost.onRequestPatch, 'PATCH', '', { revision: 99, ...postBody() }], [socialSubmit.onRequestPost, 'POST', '/submit', { revision: 99 }],
+      ] as const) {
+        const res = await hit(w, handler, method, `/api/social/posts/${id}${suffix}`, { token, params: { id }, body });
+        assert.equal(res.status, 404, `${who}: ${method} ${suffix} rev ${(body as any)?.revision}`);
+      }
+      // Approve, reject, cancel and requeue are not in the route table at all.
+      for (const [handler, suffix] of [[socialApprove, '/approve'], [socialReject, '/reject'], [socialCancel, '/cancel'], [socialRequeue, '/requeue']] as const) {
+        const res = await hit(w, handler.onRequestPost, 'POST', `/api/social/posts/${id}${suffix}`, { token, params: { id }, body: { revision: 0 } });
+        assert.equal(res.status, 403, `${who}: ${suffix}`);
+      }
+    }
+    const token = await mintToken(w.db, who, ['social:draft']);
+    for (const [handler, method, body] of [[socialPlan.onRequestPatch, 'PATCH', { title: 'hijack', note: 'x' }], [socialPlan.onRequestDelete, 'DELETE', undefined]] as const) {
+      assert.equal((await hit(w, handler, method, `/api/social/plans/${plan}`, { token, params: { id: plan }, body })).status, 404);
+    }
+    assert.equal((await hit(w, socialPosts.onRequestPost, 'POST', '/api/social/posts', { token, body: postBody({ planId: plan }) })).status, 400);
+    assert.equal(contentState(w), before, `${who}: no read or refused write changed anything`);
+    const list = await json(await hit(w, socialPosts.onRequestGet, 'GET', `/api/social/posts?from=${from}&to=${to}&team=1`, { token }));
+    assert.deepEqual((list as { posts: { id: string }[] }).posts.map((p) => p.id).sort(), theirs.slice().sort());
+    assert.doesNotMatch(JSON.stringify(list), /@/);
+  }
 });
 
 test('a token\'s every successful answer, REST and MCP, carries no e-mail address', async () => {

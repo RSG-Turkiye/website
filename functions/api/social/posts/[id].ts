@@ -1,12 +1,12 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
-import { socialGate, readBody, malformed, nowSeconds } from '../../../_lib/social-api';
+import { socialGate, isSocialReviewer, readBody, malformed, nowSeconds } from '../../../_lib/social-api';
 import {
   parseDraft, draftColumns, rowToDraft, canEditPost, canDeletePost, statusAfterEdit, readinessProblems, mediaDims,
   updatePostGuarded, targetStatements, startedTargets, POST_PROOF, type PostColumn, type PostStatus,
 } from '../../../_lib/social-posts';
 import { coveringEvent } from '../../../_lib/social-events';
-import { loadPost, agentMaySee } from '../../../_lib/social-post-read';
+import { loadPost, agentMaySee, agentMayRead } from '../../../_lib/social-post-read';
 import { notifyLater } from '../../../_lib/social-actions';
 import { runGuardedWithAudit } from '../../../_lib/audit';
 
@@ -20,9 +20,10 @@ const revisionOf = (body: Record<string, unknown>) =>
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
   const gate = await socialGate(request, env, 'edit', false);
   if (!gate.ok) return gate.response;
-  const found = await loadPost(env.DB, env, String(params.id), gate.agent ? gate.user.id : null);
-  // A colleague's unpublished post does not exist for a token.
-  if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
+  // A reviewer's agent reads any post (read only); for any other token a colleague's unpublished post does not exist.
+  const reviewer = isSocialReviewer(gate);
+  const found = await loadPost(env.DB, env, String(params.id), gate.agent ? gate.user.id : null, reviewer);
+  if (!found || (gate.agent && !agentMayRead(found.row, gate.user.id, reviewer))) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);
   return jsonResponse(found.response);
 };
 
@@ -32,7 +33,7 @@ export const onRequestPatch: PagesFunction<Env> = async (ctx) => {
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const found = await loadPost(env.DB, env, id);
-  // What a token cannot see (a colleague's unpublished post) does not exist for it, as in GET.
+  // Writes keep the own-only rule, never the reviewer's wider read: a colleague's unpublished post is not found for a token.
   if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return notFound();
   const { row } = found;
   if (!canEditPost(gate.actor, row)) return jsonResponse({ error: 'You cannot edit this post', code: 'not_allowed' }, 403);
@@ -98,6 +99,7 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   if (!gate.ok) return gate.response;
   const id = String(params.id);
   const found = await loadPost(env.DB, env, id);
+  // Own-only, as in PATCH.
   if (!found || (gate.agent && !agentMaySee(found.row, gate.user.id))) return notFound();
   const { row } = found;
   if (!canDeletePost(gate.actor, row)) {

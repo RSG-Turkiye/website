@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
 import { bearer, mintToken } from './lib/agent';
 import {
-  agentGroupRights, agentMaySocial, areasHeld, authenticateAgent, formatScope, hashToken, newTokenValue, parseScopes,
+  agentGroupRights, agentMaySocial, areasHeld, reviewAreasHeld, authenticateAgent, formatScope, hashToken, newTokenValue, parseScopes,
   type AgentAuth, type AgentPrincipal,
 } from '../functions/_lib/agent-tokens';
 import { AGENT_ROUTES, routeFor } from '../functions/_lib/agent-routes';
@@ -346,6 +346,13 @@ test('on the token path the users.is_* rights columns are zeroed, so nothing can
   assert.equal(agentGroupRights(agent, 'draft').sayfalar.approve, false);
   // The row itself is unchanged.
   assert.equal((db.prepare(`SELECT is_admin FROM users WHERE id = 'admin'`).get() as { is_admin: number }).is_admin, 1);
+});
+
+test('reviewAreasHeld lists only what the member reviews: group approvals, and social for a publisher or admin', () => {
+  assert.deepEqual(reviewAreasHeld([]), []);
+  assert.deepEqual(reviewAreasHeld(['content.ogrenme.edit', 'social']), [], 'editors and plain social editors review nothing');
+  assert.deepEqual(reviewAreasHeld(['content.topluluk.approve', 'social_publisher']), ['cms.topluluk', 'social']);
+  assert.deepEqual(reviewAreasHeld(['admin']), [...CMS_GROUPS.map((g) => `cms.${g}`), 'social']);
 });
 
 test('areasHeld lists the areas the live roles allow', () => {

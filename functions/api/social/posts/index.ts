@@ -1,6 +1,6 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse, generateId } from '../../../_lib/auth';
-import { socialGate, readBody, malformed, nowSeconds, rangeParams } from '../../../_lib/social-api';
+import { socialGate, isSocialReviewer, readBody, malformed, nowSeconds, rangeParams } from '../../../_lib/social-api';
 import { parseDraft, draftColumns } from '../../../_lib/social-posts';
 import { loadPosts, AGENT_VISIBLE } from '../../../_lib/social-post-read';
 import { runWithAudit, runGuardedWithAudit } from '../../../_lib/audit';
@@ -11,11 +11,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await socialGate(request, env, 'edit', false);
   if (!gate.ok) return gate.response;
   const forAgent = gate.agent ? gate.user.id : null;
-  // A token lists only its member's own posts and what already went out.
+  const url = new URL(request.url);
+  // A token lists only its member's own posts and what already went out. A
+  // reviewer's agent (read only) lists the team's posts of every status when
+  // it asks for `team=1`; without it the answer is the narrow one.
+  const reviewer = isSocialReviewer(gate);
+  const team = reviewer && url.searchParams.get('team') === '1';
   const list = (where: string, binds: unknown[]) => forAgent === null
     ? loadPosts(env.DB, env, where, binds)
-    : loadPosts(env.DB, env, `(${where}) AND ${AGENT_VISIBLE}`, [...binds, forAgent], forAgent);
-  const url = new URL(request.url);
+    : team
+      ? loadPosts(env.DB, env, where, binds, forAgent, true)
+      : loadPosts(env.DB, env, `(${where}) AND ${AGENT_VISIBLE}`, [...binds, forAgent], forAgent, reviewer);
   const status = url.searchParams.get('status');
   if (status !== null) {
     if (!LISTABLE_STATUSES.includes(status)) return jsonResponse({ error: 'Unknown status', code: 'invalid_status' }, 400);
@@ -27,7 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ posts: posts.reverse() });
   }
   if (url.searchParams.get('drafts') === '1') {
-    return gate.actor.isPublisher
+    return gate.actor.isPublisher || team
       ? jsonResponse({ posts: await list(`p.status = 'draft' AND p.scheduled_at IS NULL`, []) })
       : jsonResponse({ posts: await list(`p.status = 'draft' AND p.scheduled_at IS NULL AND p.created_by = ?`, [gate.user.id]) });
   }
