@@ -95,7 +95,8 @@ function presentedClient(request: Request, form: URLSearchParams): Presented {
   const bodyId = form.get('client_id');
   const bodySecret = form.get('client_secret');
   if (header !== null) {
-    if (bodyId !== null || bodySecret !== null) return oauthError('invalid_request', 'Authenticate the client one way only.');
+    // A client_id repeated in the body is fine when it is the same id (checked below); a secret there is a second way.
+    if (bodySecret !== null) return oauthError('invalid_request', 'Authenticate the client one way only.');
     const m = /^Basic ([A-Za-z0-9+/=_-]+)$/i.exec(header.trim());
     if (!m) return basicChallenge();
     try {
@@ -103,7 +104,9 @@ function presentedClient(request: Request, form: URLSearchParams): Presented {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
       const colon = text.indexOf(':');
       if (colon < 0) return basicChallenge();
-      return { id: formDecoded(text.slice(0, colon)), secret: formDecoded(text.slice(colon + 1)), via: 'basic' };
+      const id = formDecoded(text.slice(0, colon));
+      if (bodyId !== null && bodyId !== id) return basicChallenge();
+      return { id, secret: formDecoded(text.slice(colon + 1)), via: 'basic' };
     } catch {
       return basicChallenge();
     }

@@ -277,12 +277,42 @@ test('confidential DCR client: Basic and post both work, a wrong secret is 401 i
   assert.equal(count(db, 'oauth_codes'), 4, 'a refused client does not spend any code');
 });
 
-test('both a Basic header and body credentials are invalid_request', async (t) => {
+test('a Basic header together with a body client_secret is invalid_request', async (t) => {
   const { db, DB, env } = await setup(t);
   const c = await dcr(DB);
-  const res = await call(env, { grant_type: 'authorization_code', code: await makeCode(db, c), redirect_uri: REDIRECT, code_verifier: VERIFIER, client_id: c.id }, basic(c));
+  const res = await call(env, { grant_type: 'authorization_code', code: await makeCode(db, c), redirect_uri: REDIRECT, code_verifier: VERIFIER, client_secret: c.secret }, basic(c));
   assert.equal(res.status, 400);
   assert.equal(((await res.json()) as Body).error, 'invalid_request');
+});
+
+test('a body client_id equal to the Basic id is accepted; a different one is invalid_client', async (t) => {
+  const { db, DB, env } = await setup(t);
+  const c = await dcr(DB);
+  const grant = { grant_type: 'authorization_code', redirect_uri: REDIRECT, code_verifier: VERIFIER };
+  const same = await call(env, { ...grant, code: await makeCode(db, c), client_id: c.id }, basic(c));
+  assert.equal(same.status, 200, 'some clients repeat the id in the body');
+  const other = await dcr(DB);
+  const code = await makeCode(db, c);
+  const different = await call(env, { ...grant, code, client_id: other.id }, basic(c));
+  assert.equal(different.status, 401);
+  assert.equal(((await different.json()) as Body).error, 'invalid_client');
+  assert.equal(count(db, 'oauth_codes'), 1, 'the refused call spent no code');
+  const withSecret = await call(env, { ...grant, code, client_id: c.id, client_secret: c.secret }, basic(c));
+  assert.equal(withSecret.status, 400, 'a secret in both places is still one way too many');
+  assert.equal(((await withSecret.json()) as Body).error, 'invalid_request');
+});
+
+test('Basic credentials are form-decoded: %2B is +, %XX is the byte, a bare + is a space', async (t) => {
+  const { db, DB, env } = await setup(t);
+  const c = await dcr(DB);
+  const odd = 'p+q%41 z:é';
+  db.prepare('UPDATE oauth_clients SET secret_hash = ? WHERE id = ?').run(await sha256Hex(odd), c.id);
+  const grant = async (header: string) => call(env, { grant_type: 'authorization_code', code: await makeCode(db, c), redirect_uri: REDIRECT, code_verifier: VERIFIER }, { Authorization: `Basic ${Buffer.from(header).toString('base64')}` });
+  assert.equal((await grant(`${c.id}:${encodeURIComponent(odd)}`)).status, 200, 'properly encoded: + as %2B, % as %25, space as %20, colon as %3A');
+  assert.equal((await grant(`${c.id}:p%2Bq%2541%20z%3A%C3%A9`)).status, 200, 'the same, written out');
+  assert.equal((await grant(`${c.id}:p+q%2541+z%3A%C3%A9`)).status, 401, 'a bare + is a space: p q is not p+q');
+  assert.equal((await grant(`${c.id}:p%2Bq%41%20z%3A%C3%A9`)).status, 401, '%41 is A: this is p+qA z, not p+q%41 z');
+  assert.equal((await grant(`${c.id}:p%2Bq%2541+z%3A%C3%A9`)).status, 200, 'a + for the space is the same as %20');
 });
 
 test('misses at the token endpoint never cut an IP off: 12 junk codes are all invalid_grant, then a valid exchange succeeds', async (t) => {
