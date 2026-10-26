@@ -8,7 +8,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { setupSocial, call, settle, stubMail, KEYS, BASE } from './lib/social';
 import { mintToken, bearer } from './lib/agent';
 import { fakeR2 } from './lib/fake-r2';
-import { grantRole } from '../functions/_lib/role-grants';
+import { grantRole, revokeRole } from '../functions/_lib/role-grants';
 import { socialGate } from '../functions/_lib/social-api';
 import { authenticateAgent, markInternal } from '../functions/_lib/agent-tokens';
 import * as posts from '../functions/api/social/posts/index';
@@ -392,13 +392,18 @@ test('a token deletes its member\'s own draft; the delete is audited as agent', 
   assert.equal(d.agent_token, 'tok-ed');
 });
 
-test('a publisher\'s token cannot see, edit, delete or submit another member\'s draft: 404, as a missing id, whatever the revision', async () => {
+test('a publisher\'s token reads another member\'s draft but cannot edit, delete or submit it: 404, as a missing id, whatever the revision', async () => {
   const { env, db } = await setup();
   const id = (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed', body: draft })).json() as { id: string }).id;
   const token = await mintToken(db, 'pub', ['social:draft']);
+  // Read: the reviewer reach (live publisher grant).
+  const read = await req(post.onRequestGet, 'GET', `/api/social/posts/${id}`, env, { token, params: { id } });
+  assert.equal(read.status, 200);
+  assert.equal((await read.json() as { id: string }).id, id);
+  const before = db.prepare('SELECT * FROM social_posts WHERE id = ?').get(id);
+  const log = auditCount(db);
   for (const revision of [0, 7]) {
     for (const [handler, method, path, body] of [
-      [post.onRequestGet, 'GET', `/api/social/posts/${id}`, undefined],
       [post.onRequestPatch, 'PATCH', `/api/social/posts/${id}`, { ...draft, revision }],
       [post.onRequestDelete, 'DELETE', `/api/social/posts/${id}`, { revision }],
       [submit.onRequestPost, 'POST', `/api/social/posts/${id}/submit`, { revision }],
@@ -407,9 +412,106 @@ test('a publisher\'s token cannot see, edit, delete or submit another member\'s 
       assert.deepEqual([res.status, ((await res.json()) as { code: string }).code], [404, 'not_found'], `${method} ${path} revision ${revision}`);
     }
   }
-  assert.deepEqual(postRow(db, id).status, 'draft');
+  assert.deepEqual(db.prepare('SELECT * FROM social_posts WHERE id = ?').get(id), before);
+  assert.equal(auditCount(db), log);
   // A publisher in the panel still reaches it.
   assert.equal((await req(post.onRequestGet, 'GET', `/api/social/posts/${id}`, env, { as: 'pub', params: { id } })).status, 200);
+});
+
+// Reviewers (read only) -------------------------------------------------------------------
+
+test('a publisher\'s social:read token lists and gets colleagues\' posts of every status: no e-mail, no platform error, the review note shown', async () => {
+  const { env, db } = await setup();
+  const make = async (as: string) => (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as, body: draft })).json() as { id: string }).id;
+  const theirDraft = await make('ed');
+  const theirPending = await make('ed2');
+  await req(submit.onRequestPost, 'POST', `/api/social/posts/${theirPending}/submit`, env, { as: 'ed2', params: { id: theirPending }, body: { revision: 0 } });
+  const theirRejected = await make('ed');
+  db.prepare(`UPDATE social_posts SET status = 'rejected', review_note = 'sent back: fix the image' WHERE id = ?`).run(theirRejected);
+  const theirFailed = await make('ed2');
+  db.prepare(`UPDATE social_posts SET status = 'failed' WHERE id = ?`).run(theirFailed);
+  db.prepare(`INSERT INTO social_post_targets (post_id, platform, status, last_error) VALUES (?, 'linkedin', 'failed', 'platform said no')`).run(theirFailed);
+  const undated = (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed', body: { ...draft, scheduledAt: null } })).json() as { id: string }).id;
+  const all = [theirDraft, theirPending, theirRejected, theirFailed];
+  const token = await mintToken(db, 'pub', ['social:read']);
+
+  type P = { id: string; status: string; authorEmail: unknown; reviewNote: string | null; targets: { lastError: string | null }[] };
+  const list = async (query: string) =>
+    (await (await req(posts.onRequestGet, 'GET', `/api/social/posts?${query}`, env, { token })).json() as { posts: P[] }).posts;
+  const team = await list(`from=${NOW}&to=${NOW + 86400}&team=1`);
+  assert.deepEqual(team.map((p) => p.id).sort(), all.slice().sort());
+  assert.deepEqual((await list('status=pending_approval&team=1')).map((p) => p.id), [theirPending]);
+  assert.deepEqual((await list('drafts=1&team=1')).map((p) => p.id), [undated]);
+  for (const p of team) {
+    assert.equal(p.authorEmail, null);
+    assert.deepEqual(p.targets.map((t) => t.lastError).filter((e) => e !== null), []);
+  }
+  assert.equal(team.find((p) => p.id === theirRejected)!.reviewNote, 'sent back: fix the image');
+  // Without team=1 the list is the narrow one, whatever the member holds.
+  assert.deepEqual(await list(`from=${NOW}&to=${NOW + 86400}`), []);
+
+  for (const id of [...all, undated]) {
+    const res = await req(post.onRequestGet, 'GET', `/api/social/posts/${id}`, env, { token, params: { id } });
+    assert.equal(res.status, 200, id);
+    const body = await res.json() as P;
+    assert.equal(body.authorEmail, null);
+    assert.ok(body.targets.every((t) => t.lastError === null));
+  }
+  assert.equal((await (await req(post.onRequestGet, 'GET', `/api/social/posts/${theirRejected}`, env, { token, params: { id: theirRejected } })).json() as P).reviewNote, 'sent back: fix the image');
+});
+
+test('a plain editor\'s token (no publisher or admin grant) asking for team=1 still gets only its own and published; an admin\'s token reads the team', async () => {
+  const { env, db } = await setup();
+  const theirs = (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed2', body: draft })).json() as { id: string }).id;
+  const ed = await mintToken(db, 'ed', ['social:read']);
+  const ids = async (token: string) =>
+    (await (await req(posts.onRequestGet, 'GET', `/api/social/posts?from=${NOW}&to=${NOW + 86400}&team=1`, env, { token })).json() as { posts: { id: string }[] }).posts.map((p) => p.id);
+  assert.deepEqual(await ids(ed), []);
+  assert.equal((await req(post.onRequestGet, 'GET', `/api/social/posts/${theirs}`, env, { token: ed, params: { id: theirs } })).status, 404);
+  const admin = await mintToken(db, 'admin', ['social:draft']);
+  assert.deepEqual(await ids(admin), [theirs]);
+});
+
+test('the reviewer reach ends with the publisher grant: the same token loses the colleague\'s draft at once', async () => {
+  const { env, db } = await setup();
+  const theirs = (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed', body: draft })).json() as { id: string }).id;
+  const token = await mintToken(db, 'pub', ['social:read']);
+  const get = () => req(post.onRequestGet, 'GET', `/api/social/posts/${theirs}`, env, { token, params: { id: theirs } });
+  const list = async () => (await (await req(posts.onRequestGet, 'GET', `/api/social/posts?from=${NOW}&to=${NOW + 86400}&team=1`, env, { token })).json() as { posts: unknown[] }).posts.length;
+  assert.equal((await get()).status, 200);
+  assert.equal(await list(), 1);
+  const DB = (env as { DB: D1Database }).DB;
+  await revokeRole(DB, { userId: 'pub', role: 'social_publisher', by: 'admin' }, NOW);
+  // Revoking the publisher role leaves the plain social grant it implies: the token still works, with the narrow answer.
+  const gone = await get();
+  assert.equal(gone.status, 404);
+  assert.doesNotMatch(await gone.text(), /Merhaba/);
+  assert.equal(await list(), 0);
+  // And with no social grant at all the gate refuses.
+  db.prepare(`UPDATE role_grants SET revoked_at = ? WHERE user_id = 'pub'`).run(NOW);
+  assert.equal((await get()).status, 403);
+});
+
+test('a reviewer\'s token reads colleagues\' plan notes and post status, and still cannot edit or delete a colleague\'s plan; a plain editor\'s sees them null', async () => {
+  const { env, db } = await setup();
+  const created = await req(plans.onRequestPost, 'POST', '/api/social/plans', env, { as: 'ed', body: { ...validPlan, note: 'team note' } });
+  const { id } = await created.json() as { id: string };
+  const pid = (await (await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { as: 'ed', body: { ...draft, planId: id } })).json() as { id: string }).id;
+  const query = `/api/social/plans?from=${NOW}&to=${NOW + 3 * 86400}`;
+  const pub = await mintToken(db, 'pub', ['social:read']);
+  const one = async (token: string) => ((await (await req(plans.onRequestGet, 'GET', query, env, { token })).json()) as { plans: { id: string; note: string | null; postStatus: string | null; assigneeEmail: unknown }[] }).plans.find((p) => p.id === id)!;
+  const seen = await one(pub);
+  assert.deepEqual([seen.note, seen.postStatus, seen.assigneeEmail], ['team note', 'draft', null]);
+  const ed2 = await mintToken(db, 'ed2', ['social:read']);
+  const hidden = await one(ed2);
+  assert.deepEqual([hidden.note, hidden.postStatus], [null, null]);
+  void pid;
+
+  const writer = await mintToken(db, 'pub', ['social:draft']);
+  const before = db.prepare('SELECT * FROM social_plans WHERE id = ?').get(id);
+  assert.equal((await req(plan.onRequestPatch, 'PATCH', `/api/social/plans/${id}`, env, { token: writer, params: { id }, body: { title: 'hijack' } })).status, 404);
+  assert.equal((await req(plan.onRequestDelete, 'DELETE', `/api/social/plans/${id}`, env, { token: writer, params: { id } })).status, 404);
+  assert.deepEqual(db.prepare('SELECT * FROM social_plans WHERE id = ?').get(id), before);
 });
 
 // Plans ------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import type { Env } from '../../../_lib/auth';
 import { jsonResponse, generateId } from '../../../_lib/auth';
-import { socialGate, readBody, malformed, nowSeconds, rangeParams } from '../../../_lib/social-api';
+import { socialGate, isSocialReviewer, readBody, malformed, nowSeconds, rangeParams } from '../../../_lib/social-api';
 import { parsePlanInput, isSocialEditor } from '../../../_lib/social-plans';
 import { runWithAudit } from '../../../_lib/audit';
 
@@ -13,12 +13,13 @@ type PlanRow = {
  * `forAgent` is the member a token acts for, or null for the panel. An
  * agent's answers carry no e-mail address (its model provider is a third
  * party), and the team's note and the linked post's status only on plans
- * its member made: on a colleague's plan they are null.
+ * its member made: on a colleague's plan they are null, unless the token
+ * reviews social posts (`reviewer`, read only).
  */
-function planResponse(r: PlanRow, forAgent: string | null) {
+function planResponse(r: PlanRow, forAgent: string | null, reviewer: boolean) {
   let platforms: string[] = [];
   try { platforms = JSON.parse(r.platforms); } catch { platforms = []; }
-  const own = forAgent === null || r.created_by === forAgent;
+  const own = forAgent === null || reviewer || r.created_by === forAgent;
   return {
     id: r.id, title: r.title, scheduledAt: r.scheduled_at, platforms, postType: r.post_type,
     assigneeId: r.assignee_id, assigneeEmail: forAgent !== null ? null : r.assignee_email,
@@ -40,7 +41,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       WHERE pl.scheduled_at BETWEEN ? AND ?
       ORDER BY pl.scheduled_at`,
   ).bind(range.from, range.to).all<PlanRow>()).results;
-  return jsonResponse({ plans: rows.map((r) => planResponse(r, gate.agent ? gate.user.id : null)) });
+  return jsonResponse({ plans: rows.map((r) => planResponse(r, gate.agent ? gate.user.id : null, isSocialReviewer(gate))) });
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {

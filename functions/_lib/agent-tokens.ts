@@ -1,7 +1,8 @@
 // Personal agent tokens: a member's own AI agent acts in the member's name
 // through `Authorization: Bearer rsg_pat_...`. What a token may do is worked
 // out on every request as its scope intersected with the member's live
-// grants, with approve off everywhere, so a role that ends takes the token's
+// grants, with approve off everywhere (reading the team's drafts is a separate
+// reach, agentReviewsGroup and agentReviewsSocial, never a write), so a role that ends takes the token's
 // reach with it and nothing has to sweep the tokens. Only the files listed
 // in tests/agent-tokens.test.ts may import this module; getSessionUser
 // knows nothing of tokens, so every other endpoint still sees cookies only.
@@ -269,6 +270,34 @@ const SOCIAL_ROLES = ['social', 'social_publisher', 'admin'];
 export function agentMaySocial(a: AgentPrincipal, level: AgentLevel): boolean {
   return scopeAt(a, 'social', level) && a.liveRoles.some((r) => SOCIAL_ROLES.includes(r));
 }
+
+// READ-ONLY reach, kept apart from agentGroupRights and agentMaySocial on
+// purpose: those decide what a token may write (own drafts only, approve
+// never) and must not widen. Nothing here is used by a write path. A
+// reviewer is a member who could review that area in the panel, and their
+// agent may read the team's drafts there to help (README, "Agent access").
+const SOCIAL_REVIEW_ROLES = ['social_publisher', 'admin'];
+
+/** The areas these live roles review in the panel (approve a content group; publish social posts), whatever a token's scopes say. */
+export function reviewAreasHeld(liveRoles: readonly string[]): AgentArea[] {
+  const live = rightsFromRoles(liveRoles, isAdmin(liveRoles));
+  return [
+    ...CMS_GROUPS.filter((g) => live[g].approve).map((g) => `cms.${g}` as const),
+    ...(liveRoles.some((r) => SOCIAL_REVIEW_ROLES.includes(r)) ? ['social' as const] : []),
+  ];
+}
+
+/** May this credential read colleagues' social posts of every status? Scope at read or draft, and a live publisher or admin grant. */
+export const agentReviewsSocial = (a: AgentPrincipal): boolean =>
+  scopeAt(a, 'social', 'read') && reviewAreasHeld(a.liveRoles).includes('social');
+
+/** May this credential read colleagues' drafts of this content group? Scope at read or draft, and a live approver (or admin) grant for the group. */
+export const agentReviewsGroup = (a: AgentPrincipal, group: CmsGroup): boolean =>
+  scopeAt(a, `cms.${group}`, 'read') && reviewAreasHeld(a.liveRoles).includes(`cms.${group}`);
+
+/** The same for one content type: an `approve: 'admin'` type (the privacy notice) only for a live admin, as approvesType does for people. */
+export const agentReviewsType = (a: AgentPrincipal, type: { group: CmsGroup; approve?: string }): boolean =>
+  agentReviewsGroup(a, type.group) && (type.approve !== 'admin' || isAdmin(a.liveRoles));
 
 /** The areas these live roles allow, for deciding which scopes a new token may have. */
 export function areasHeld(liveRoles: string[]): AgentArea[] {

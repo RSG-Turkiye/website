@@ -6,10 +6,10 @@
 // multiply the body limit, so images go up over REST (Call 10).
 
 import type { Env, User } from './auth';
-import { agentGroupRights, agentMaySocial, markInternal, type AgentPrincipal } from './agent-tokens';
+import { agentGroupRights, agentMaySocial, agentReviewsGroup, agentReviewsSocial, markInternal, type AgentPrincipal } from './agent-tokens';
 import { routeFor, type AgentRoute } from './agent-routes';
 import { holdsValue, refuseLeak, type Charge } from './agent-limits';
-import type { CmsGroup } from './roles';
+import { CMS_GROUPS, type CmsGroup } from './roles';
 import * as cmsTypesApi from '../api/cms/types';
 import * as cmsEntries from '../api/cms/entries';
 import * as cmsEntry from '../api/cms/entry';
@@ -42,6 +42,8 @@ export interface McpTool {
   };
   /** Listed only where the member edits this CMS group (a tool for one type). */
   group?: CmsGroup;
+  /** Listed only where the member reviews that area now (agentReviewsGroup, agentReviewsSocial): read-only tools. */
+  review?: 'cms' | 'social';
   handler: PagesFunction<Env>;
 }
 
@@ -108,17 +110,25 @@ export const MCP_TOOLS: readonly McpTool[] = Object.freeze([
   }),
   tool({
     name: 'cms_list_my_drafts',
-    description: 'Your member\'s drafts (mine), newest first, without their data; and which entries already have a draft in review (live).',
+    description: 'Your member\'s drafts (mine), newest first, without their data; and which entries already have a draft in review (live). Where your member approves a group it also answers that group\'s queue and inflight, read only.',
     inputSchema: schema({}),
     route: { method: 'GET', path: () => '/api/cms/drafts' },
     handler: cmsDrafts.onRequestGet,
   }),
   tool({
     name: 'cms_get_draft',
-    description: 'One of your member\'s drafts with its data and its current write_nonce.',
+    description: 'One of your member\'s drafts with its data and its current write_nonce. Where your member approves the draft\'s group it also reads a colleague\'s draft, read only: you cannot save, send or discard it.',
     inputSchema: schema({ id: DRAFT_ID }, ['id']),
     route: { method: 'GET', path: (a) => `/api/cms/drafts/${enc(a.id)}`, params: byId },
     handler: cmsDraft.onRequestGet,
+  }),
+  tool({
+    name: 'cms_list_review_queue',
+    description: 'Read only. The drafts of other members waiting for approval (queue) and on their way (inflight), in the groups your member approves, so you can help review them. Read one with cms_get_draft. You cannot approve, reject, change or send any of them: a person approves in the panel.',
+    inputSchema: schema({}),
+    route: { method: 'GET', path: () => '/api/cms/drafts', query: () => ({ view: 'review' }) },
+    review: 'cms',
+    handler: cmsDrafts.onRequestGet,
   }),
   tool({
     name: 'cms_create_draft',
@@ -181,8 +191,16 @@ export const MCP_TOOLS: readonly McpTool[] = Object.freeze([
     handler: socialPosts.onRequestGet,
   }),
   tool({
+    name: 'social_list_team_posts',
+    description: 'Read only. The team\'s posts of every status (draft, waiting for approval, scheduled, rejected and the rest) dated within a window, your member\'s and colleagues\', same shape and window as social_list_posts, so you can help review them. You cannot approve, change or send them: a person approves in the panel.',
+    inputSchema: schema(RANGE, ['from', 'to']),
+    route: { method: 'GET', path: () => '/api/social/posts', query: (a) => ({ from: String(a.from), to: String(a.to), team: '1' }) },
+    review: 'social',
+    handler: socialPosts.onRequestGet,
+  }),
+  tool({
     name: 'social_get_post',
-    description: 'One post with its revision.',
+    description: 'One post with its revision. Where your member reviews social posts it also reads a colleague\'s post of any status, read only: you cannot save, send or discard it.',
     inputSchema: schema({ id: POST_ID }, ['id']),
     route: { method: 'GET', path: (a) => `/api/social/posts/${enc(a.id)}`, params: byId },
     handler: socialPost.onRequestGet,
@@ -254,6 +272,9 @@ export function toolsFor(a: AgentPrincipal): McpTool[] {
   return MCP_TOOLS.filter((t) => {
     const route = routeOf(t);
     if (!route) return false;
+    // A read-only review tool needs the reviewer's reach as well as the route's.
+    if (t.review === 'cms' && !CMS_GROUPS.some((g) => agentReviewsGroup(a, g))) return false;
+    if (t.review === 'social' && !agentReviewsSocial(a)) return false;
     if (route.area === 'cms') {
       const rights = agentGroupRights(a, route.level);
       return t.group ? rights[t.group].edit : Object.values(rights).some((r) => r.edit);

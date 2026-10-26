@@ -2,7 +2,7 @@ import type { Env } from '../../_lib/auth';
 import { generateId, jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import {
-  actionRefused, approvesType, cmsGate, lpIdsElsewhere, refuseDomainDelete, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
+  actionRefused, cmsGate, lpIdsElsewhere, refuseDomainDelete, draftJson, entryPaths, fail, forbidden, githubFailed, duplicateOf, indexUnavailable, invalid, loadCmsIndex, mayReview, newNonce, pickEntryId, readJson, refusePairClash, rightsIn,
 } from '../../_lib/cms-api';
 import {
   actionAllowed, checkSameId, DRAFT_ACTIONS, droppedSides, fixedKeysErrors, inOrderOf, langOf, withServerKey, LIVE_STATUSES, newPaths, STALE_APPROVAL_SECONDS, validateDraft, type DraftAction, type DraftRow, type PairData,
@@ -22,7 +22,9 @@ const AUTHOR = 'LEFT JOIN profiles p ON p.user_id = d.author_id';
 const QUEUE_CAP = 200;
 
 /** My drafts and, for approvers, the drafts waiting for approval, both newest
- * first. `more`: the queue holds more than QUEUE_CAP. The queue also holds
+ * first. A token's member who approves a group (agentReviewsType) gets the
+ * same queue and inflight for it, read only; `?view=review` answers just
+ * those two (the MCP tool cms_list_review_queue). `more`: the queue holds more than QUEUE_CAP. The queue also holds
  * drafts left in `approved` longer than STALE_APPROVAL_SECONDS (an approval
  * that crashed), so an approver can approve them again; the approve
  * endpoint's retry adopts what the first attempt got done. */
@@ -30,9 +32,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const gate = await cmsGate(request, env, false);
   if (!gate.ok) return gate.response;
   const editable = new Set(cmsTypes().filter((t) => rightsIn(gate.rights, t.group).edit).map((t) => t.key as string));
-  const approvable = cmsTypes().filter((t) => approvesType(gate, t)).map((t) => t.key as string);
+  // What the caller may see in the queue: approvable for a person, reviewable (read only) for a token.
+  const approvable = cmsTypes().filter((t) => mayReview(gate, t)).map((t) => t.key as string);
+  const reviewOnly = new URL(request.url).searchParams.get('view') === 'review';
 
-  const mine = await env.DB.prepare(
+  const mine = reviewOnly ? { results: [] as DraftRow[] } : await env.DB.prepare(
     `SELECT ${COLUMNS}, p.display_name AS author_name, '' AS data, '{}' AS base_shas FROM content_drafts d ${AUTHOR}
      WHERE d.author_id = ? AND d.status != 'discarded' ORDER BY d.updated_at DESC LIMIT 200`,
   ).bind(gate.user.id).all<DraftRow>();
@@ -52,20 +56,24 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   // Which entries a live draft holds, so the panel offers no second draft
   // that submit would refuse (entry_busy). Not whose draft it is. Someone
   // else's new entry is not listed: it is not published, so it has no row.
-  // A token sees only its member's own: a colleague's draft does not exist for it.
+  // In `live`, a token sees only its member's own: a colleague's draft is not listed there.
   const types = [...editable];
-  const live = types.length === 0 ? { results: [] as { type: string; entry_id: string; status: string }[] } : await env.DB.prepare(
+  const live = types.length === 0 || reviewOnly ? { results: [] as { type: string; entry_id: string; status: string }[] } : await env.DB.prepare(
     `SELECT type, entry_id, status FROM content_drafts
      WHERE status IN (${LIVE_STATUSES.map(() => '?').join(', ')}) AND type IN (${types.map(() => '?').join(', ')})
        AND (action != 'create' OR author_id = ?)${gate.agent ? ' AND author_id = ?' : ''}
      ORDER BY type, entry_id LIMIT 500`,
   ).bind(...LIVE_STATUSES, ...types, gate.user.id, ...(gate.agent ? [gate.user.id] : [])).all<{ type: string; entry_id: string; status: string }>();
 
-  return jsonResponse({
-    mine: mine.results.filter((r) => editable.has(r.type)).map((r) => draftJson(r, false)),
+  const reviewed = {
     queue: queue.results.slice(0, QUEUE_CAP).map((r) => draftJson(r, false)),
     more: queue.results.length > QUEUE_CAP,
     inflight: inflight.results.map((r) => draftJson(r, false)),
+  };
+  if (reviewOnly) return jsonResponse(reviewed);
+  return jsonResponse({
+    mine: mine.results.filter((r) => editable.has(r.type)).map((r) => draftJson(r, false)),
+    ...reviewed,
     live: live.results.map((r) => ({ type: r.type, entry_id: r.entry_id, status: r.status })),
   });
 };

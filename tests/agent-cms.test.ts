@@ -208,8 +208,8 @@ test('Review Focus 1 (CMS): an approver\'s and an admin\'s token get human_only 
   assert.notEqual((await on(env, reject.onRequestPost, 'POST', id, { session: 'approver' }, { note: 'No.' }, '/reject')).status, 403);
 });
 
-test('an approver\'s token reaches only the member\'s own drafts: no queue, no in-flight list, no one else\'s draft', async () => {
-  const { db, env, row } = setup();
+test('an approver\'s token reads the group\'s queue and a colleague\'s draft, and writes none of it; an editor\'s token sees neither', async () => {
+  const { db, env, row, audit } = setup();
   const made = await createAs(env, { session: 'editor' });
   const id = made.body.draft.id;
   assert.equal((await on(env, submit.onRequestPost, 'POST', id, { session: 'editor' }, undefined, '/submit')).status, 200);
@@ -217,22 +217,105 @@ test('an approver\'s token reaches only the member\'s own drafts: no queue, no i
   const panel = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { session: 'approver' })).json() as any;
   assert.equal(panel.queue.length, 1);
 
-  const token = await mintToken(db, 'approver', ['cms.etkinlikler:draft']);
-  const list = await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token });
-  assert.equal(list.status, 200);
-  const body = await list.json() as any;
-  assert.deepEqual(body.queue, []);
-  assert.deepEqual(body.inflight, []);
-  assert.deepEqual(body.mine, []);
+  // Both levels of scope reach it, read only.
+  for (const level of ['read', 'draft']) {
+    const token = await mintToken(db, 'approver', [`cms.etkinlikler:${level}`]);
+    const list = await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token });
+    assert.equal(list.status, 200);
+    const body = await list.json() as any;
+    assert.deepEqual(body.queue.map((d: any) => d.id), [id], level);
+    assert.deepEqual(body.inflight, []);
+    assert.deepEqual(body.mine, [], 'the queue is not "mine"');
+    // ?view=review answers the review part only.
+    const only = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts?view=review', { token })).json() as any;
+    assert.deepEqual(Object.keys(only).sort(), ['inflight', 'more', 'queue']);
+    assert.deepEqual(only.queue.map((d: any) => d.id), [id]);
+    const one = await on(env, draft.onRequestGet, 'GET', id, { token });
+    assert.equal(one.status, 200, level);
+    assert.equal((await one.json() as any).draft.id, id);
+  }
 
-  // A draft still with its author, so only the approve-level reach could open it.
-  db.prepare(`UPDATE content_drafts SET status = 'draft' WHERE id = ?`).run(id);
+  // Still no write: save, submit, discard are 404 as a missing id, approve is human_only, and the row and the log do not move.
+  const token = await mintToken(db, 'approver', ['cms.etkinlikler:draft']);
   const before = row(id);
-  // Someone else's draft does not exist for a token: 404, as a missing id.
-  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 404);
-  const patch = await on(env, draft.onRequestPatch, 'PATCH', id, { token }, { data: newEvent('Taken over'), write_nonce: before.write_nonce });
-  assert.equal(patch.status, 404);
+  const log = audit();
+  for (const [handler, method, suffix, body] of [
+    [draft.onRequestPatch, 'PATCH', '', { data: newEvent('Taken over'), write_nonce: before.write_nonce }],
+    [draft.onRequestDelete, 'DELETE', '', undefined], [submit.onRequestPost, 'POST', '/submit', undefined],
+  ] as const) {
+    const res = await on(env, handler, method, id, { token }, body, suffix);
+    assert.equal(res.status, 404, `${method} ${suffix}`);
+  }
+  for (const action of [approve, reject, cancel] as const) {
+    const res = await on(env, action.onRequestPost, 'POST', id, { token }, { note: 'x' }, `/${action === approve ? 'approve' : action === reject ? 'reject' : 'cancel'}`);
+    assert.equal(res.status, 403);
+    assert.equal((await res.json() as any).code, 'human_only');
+  }
   assert.deepEqual(row(id), before);
+  assert.deepEqual(audit(), log);
+
+  // A draft still with its author is readable too (the panel's approver opens it), and still not writable.
+  db.prepare(`UPDATE content_drafts SET status = 'draft' WHERE id = ?`).run(id);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 200);
+  assert.equal((await on(env, draft.onRequestPatch, 'PATCH', id, { token }, { data: newEvent('Taken over'), write_nonce: before.write_nonce })).status, 404);
+  assert.equal(row(id).data, before.data);
+
+  // An editor's token (no approver grant) gets an empty queue and 404, as before.
+  db.prepare(`UPDATE content_drafts SET status = 'submitted' WHERE id = ?`).run(id);
+  const mine = await mintToken(db, 'editor2', ['cms.etkinlikler:draft']);
+  const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token: mine })).json() as any;
+  assert.deepEqual([list.queue, list.inflight], [[], []]);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token: mine })).status, 404);
+});
+
+test('reviewer reach is per group and ends with the grant: another area\'s scope, a lapsed grant and an admin-only type give nothing', async () => {
+  const { db, env } = setup();
+  // The approver also edits Yazılar (so a yazilar token passes the gate) but does not approve it.
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('g20', 'approver', 'content.yazilar.edit', NULL, NULL, 1)`).run();
+  const event = (await createAs(env, { session: 'editor' })).body.draft.id;
+  const post = (await createAs(env, { session: 'editor' }, { type: 'blog', action: 'create', data: newPost() })).body.draft.id;
+  for (const id of [event, post]) assert.equal((await on(env, submit.onRequestPost, 'POST', id, { session: 'editor' }, undefined, '/submit')).status, 200);
+
+  const yazilar = await mintToken(db, 'approver', ['cms.yazilar:read']);
+  const body = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token: yazilar })).json() as any;
+  assert.deepEqual(body.queue, [], 'an etkinlikler approver with a yazilar scope sees no yazilar draft');
+  assert.equal((await on(env, draft.onRequestGet, 'GET', post, { token: yazilar })).status, 404);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', event, { token: yazilar })).status, 404, 'and no etkinlikler draft: the scope is on yazilar');
+
+  const both = await mintToken(db, 'approver', ['cms.etkinlikler:read', 'cms.yazilar:read']);
+  const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token: both })).json() as any;
+  assert.deepEqual(list.queue.map((d: any) => d.id), [event]);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', post, { token: both })).status, 404);
+
+  // The grant ends: the same token loses it at once.
+  const token = await mintToken(db, 'approver', ['cms.etkinlikler:read']);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', event, { token })).status, 200);
+  db.prepare(`UPDATE role_grants SET expires_at = 1 WHERE user_id = 'approver' AND role = 'content.etkinlikler.approve'`).run();
+  // Its edit reach went with it, so the gate itself refuses.
+  assert.equal((await on(env, draft.onRequestGet, 'GET', event, { token })).status, 403);
+  assert.equal((await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token })).status, 403);
+});
+
+test('an approve: admin type (the privacy notice) is read only by an admin\'s token, not by its group\'s approver', async () => {
+  const { db, env } = setup();
+  db.prepare(`INSERT INTO users (id, google_id, email, is_member, created_at, last_login) VALUES ('sapprover', 'g-sapprover', 'sapprover@example.org', 1, 1, 1)`).run();
+  db.prepare(`INSERT INTO role_grants (id, user_id, role, expires_at, granted_by, granted_at) VALUES ('g21', 'sapprover', 'content.sayfalar.approve', NULL, NULL, 1)`).run();
+  const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  db.prepare(`INSERT INTO content_drafts (id, type, entry_id, action, data, base_shas, status, author_id, write_nonce, created_at, updated_at)
+    VALUES (?, 'privacy', 'privacy', 'update', '{}', '{}', 'submitted', 'editor2', 'n1', 1, 1)`).run(id);
+  const group = await mintToken(db, 'sapprover', ['cms.sayfalar:read']);
+  const gl = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token: group })).json() as any;
+  assert.deepEqual(gl.queue, []);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token: group })).status, 404);
+
+  const admin = await mintToken(db, 'admin', ['cms.sayfalar:read']);
+  const al = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token: admin })).json() as any;
+  assert.deepEqual(al.queue.map((d: any) => d.id), [id]);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token: admin })).status, 200);
+  // Read only for the admin too.
+  const writer = await mintToken(db, 'admin', ['cms.sayfalar:draft']);
+  assert.equal((await on(env, draft.onRequestDelete, 'DELETE', id, { token: writer })).status, 404);
+  assert.equal((await on(env, approve.onRequestPost, 'POST', id, { token: admin }, undefined, '/approve')).status, 403);
 });
 
 test('a read token reads but cannot draft; a draft token for one group cannot draft in another the member also edits', async () => {
@@ -303,7 +386,7 @@ test('a Topluluk draft token\'s podcast pull logs both of its rows as the agent'
   }
 });
 
-test('an admin\'s token (users.is_admin set, live admin grant) has no approve reach and no one else\'s drafts', async () => {
+test('an admin\'s token (users.is_admin set, live admin grant) reads the queue and every draft, and still has no approve reach and writes none of them', async () => {
   const { db, env, row } = setup();
   const id = (await createAs(env, { session: 'editor' })).body.draft.id;
   assert.equal((await on(env, submit.onRequestPost, 'POST', id, { session: 'editor' }, undefined, '/submit')).status, 200);
@@ -315,14 +398,17 @@ test('an admin\'s token (users.is_admin set, live admin grant) has no approve re
 
   const token = await mintToken(db, 'admin', ['cms.etkinlikler:draft']);
   const list = await (await req(env, drafts.onRequestGet, 'GET', '/api/cms/drafts', { token })).json() as any;
-  assert.deepEqual([list.mine, list.queue, list.inflight], [[], [], []]);
+  assert.deepEqual(list.mine, []);
+  assert.deepEqual(list.queue.map((d: any) => d.id), [id], 'the queue as the panel gets it (read only)');
+  assert.deepEqual(list.inflight, []);
   const typesBody = await (await req(env, types.onRequestGet, 'GET', '/api/cms/types', { token })).json() as any;
   for (const t of typesBody.types) assert.equal(t.canApprove, false);
   const before = [row(id), row(other.id)];
-  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 404);
-  assert.equal((await on(env, draft.onRequestGet, 'GET', other.id, { token })).status, 404);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', id, { token })).status, 200);
+  assert.equal((await on(env, draft.onRequestGet, 'GET', other.id, { token })).status, 200);
   assert.equal((await on(env, draft.onRequestPatch, 'PATCH', other.id, { token }, { data: newEvent('Taken over'), write_nonce: other.write_nonce })).status, 404);
   assert.equal((await on(env, draft.onRequestDelete, 'DELETE', other.id, { token })).status, 404);
+  assert.equal((await on(env, submit.onRequestPost, 'POST', other.id, { token }, undefined, '/submit')).status, 404);
   assert.equal((await on(env, approve.onRequestPost, 'POST', id, { token }, undefined, '/approve')).status, 403);
   assert.deepEqual([row(id), row(other.id)], before);
 });

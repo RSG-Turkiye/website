@@ -9,10 +9,11 @@ Content (cms_ tools):
 - To change a published entry, start from cms_get_entry and pass its base_shas to cms_create_draft.
 - cms_save_draft needs the latest write_nonce (from cms_get_draft or your last save). A 409 draft_changed means a person saved after you read: read again, never overwrite. A draft whose write_nonce is null can be saved only after a person saves it once in the panel.
 - You may discard only your own drafts in draft or rejected status.
+- A reviewer's agent may read the team's drafts to help review, never approve or change them.
 
 Social (social_ tools):
 - Save, submit and discard send the post's latest revision. A 409 post_changed means read again.
-- Images: there is no upload tool here. An image is uploaded by the member, in the panel or with their own tooling that keeps the token as a secret (a REST endpoint), and you pass the returned key. Never ask for the token.
+- Images: there is no upload tool. An image is uploaded by the member, in the panel or with their own tooling that keeps the token as a secret (a REST endpoint), and you pass the returned key. Never ask for the token.
 
 House rules:
 - Turkish and English are written as a pair: both sides, the same facts.
