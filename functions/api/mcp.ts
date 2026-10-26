@@ -12,7 +12,7 @@ import { argsProblem, callTool, mcpCharge, toolsFor } from '../_lib/mcp-tools';
 /** The only Origin a browser may send: a page elsewhere must not reach a local agent's server (DNS rebinding). */
 const SITE_ORIGIN = 'https://rsg-turkiye.iscbsc.org';
 /** Preferred first. Any other version asked for in initialize gets the first. */
-const VERSIONS = ['2025-06-18', '2025-03-26'];
+const VERSIONS = ['2025-06-18', '2025-11-25', '2025-03-26'];
 
 type Id = string | number;
 const result = (id: Id, value: unknown) => jsonResponse({ jsonrpc: '2.0', id, result: value });

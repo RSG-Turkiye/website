@@ -105,7 +105,7 @@ const draftPost = { type: 'image', caption: 'Merhaba', media: [{ key: KEYS.feed,
 test('initialize echoes a supported version, answers 2025-06-18 to any other, and sends the instructions', async () => {
   const { db, env } = await setup();
   const token = await mintToken(db, 'ed', ['cms.etkinlikler:read']);
-  for (const [asked, answered] of [['2025-06-18', '2025-06-18'], ['2025-03-26', '2025-03-26'], ['2099-01-01', '2025-06-18']]) {
+  for (const [asked, answered] of [['2025-06-18', '2025-06-18'], ['2025-11-25', '2025-11-25'], ['2025-03-26', '2025-03-26'], ['2099-01-01', '2025-06-18']]) {
     const { status, body } = await rpc(env, token, 'initialize', { protocolVersion: asked, capabilities: {}, clientInfo: { name: 't', version: '1' } });
     assert.equal(status, 200);
     assert.equal(body.jsonrpc, '2.0');
@@ -157,6 +157,7 @@ test('transport: notification 202 with no body, GET 405, foreign Origin 403, bad
 
   assert.equal((await rpc(env, token, 'tools/list', undefined, { 'MCP-Protocol-Version': '1999-01-01' })).status, 400);
   assert.equal((await rpc(env, token, 'tools/list', undefined, { 'MCP-Protocol-Version': '2025-06-18' })).status, 200);
+  assert.equal((await rpc(env, token, 'tools/list', undefined, { 'MCP-Protocol-Version': '2025-11-25' })).status, 200);
 
   const batch = await post(env, [{ jsonrpc: '2.0', id: 1, method: 'ping' }], { token });
   assert.equal((await batch.json() as any).error.code, -32600);
