@@ -3,9 +3,11 @@
   "include": [
     "/api/*",
     "/auth/*",
-    "/oauth/*",
+    "/oauth/authorize",
+    "/oauth/token",
+    "/oauth/register",
     "/.well-known/oauth-protected-resource",
-    "/.well-known/oauth-protected-resource/*",
+    "/.well-known/oauth-protected-resource/api/mcp",
     "/.well-known/oauth-authorization-server"
   ],
   "exclude": []

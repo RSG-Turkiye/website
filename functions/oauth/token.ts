@@ -30,6 +30,7 @@ import {
 import { cors, preflight } from '../_lib/oauth-metadata';
 import { safeEqual } from '../_lib/secret';
 
+const POST_ONLY = 'POST, OPTIONS';
 const BODY_CAP = 8 * 1024;
 const MAX_LABEL = 60;
 const FORM = 'application/x-www-form-urlencoded';
@@ -261,7 +262,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const res = await handle(request, env, Math.floor(Date.now() / 1000));
   res.headers.set('Cache-Control', 'no-store');
   res.headers.set('Pragma', 'no-cache');
-  return cors(res);
+  return cors(res, POST_ONLY);
 };
 
-export const onRequestOptions: PagesFunction = () => preflight();
+export const onRequestOptions: PagesFunction = () => preflight(POST_ONLY);

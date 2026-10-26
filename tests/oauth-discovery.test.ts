@@ -4,7 +4,7 @@
 // check before they pick a client identification method.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { parseScopes } from '../functions/_lib/agent-tokens';
 import * as prmRoot from '../functions/.well-known/oauth-protected-resource';
 import * as prmMcp from '../functions/.well-known/oauth-protected-resource/api/mcp';
@@ -74,16 +74,30 @@ test('OPTIONS on each answers 204 with CORS headers', async () => {
     assert.equal(res.status, 204, path);
     assert.equal(await res.text(), '');
     assert.equal(res.headers.get('Access-Control-Allow-Origin'), '*');
-    assert.equal(res.headers.get('Access-Control-Allow-Methods'), 'GET, POST, OPTIONS');
+    assert.equal(res.headers.get('Access-Control-Allow-Methods'), 'GET, OPTIONS', 'discovery is read only: no POST');
     assert.equal(res.headers.get('Access-Control-Allow-Headers'), 'Content-Type, Authorization, MCP-Protocol-Version');
   }
 });
 
-test('_routes.json includes the oauth and well-known paths and nothing broader', () => {
-  const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8')) as { include: string[] };
-  for (const rule of ['/oauth/*', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/*', '/.well-known/oauth-authorization-server']) {
-    assert.ok(routes.include.includes(rule), rule);
+test('the token and registration preflights allow POST', async () => {
+  const token = await import('../functions/oauth/token');
+  const register = await import('../functions/oauth/register');
+  for (const mod of [token, register]) {
+    const res = (mod.onRequestOptions as unknown as () => Response)();
+    assert.equal(res.headers.get('Access-Control-Allow-Methods'), 'POST, OPTIONS');
   }
-  assert.ok(!routes.include.includes('/.well-known/*'));
-  assert.ok(!routes.include.includes('/*'));
+});
+
+test('_routes.json lists every oauth and well-known path exactly, with no wildcard beyond /api and /auth', () => {
+  const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8')) as { include: string[] };
+  const exact = [
+    '/oauth/authorize', '/oauth/token', '/oauth/register',
+    '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/api/mcp', '/.well-known/oauth-authorization-server',
+  ];
+  for (const rule of exact) assert.ok(routes.include.includes(rule), rule);
+  assert.deepEqual(routes.include.filter((r) => r.includes('*')).sort(), ['/api/*', '/auth/*']);
+  // Every Function file under oauth/ and .well-known/ has a route entry, so a new one cannot be forgotten.
+  const listed = (dir: string): string[] => readdirSync(new URL(`../functions/${dir}`, import.meta.url), { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? listed(`${dir}/${e.name}`) : [`/${dir}/${e.name.replace(/\.ts$/, '')}`]));
+  for (const path of [...listed('oauth'), ...listed('.well-known')]) assert.ok(routes.include.includes(path), `${path} is routed`);
 });

@@ -43,17 +43,17 @@ export function authorizationServerMetadata(): object {
   };
 }
 
-/** CORS for the endpoints that use no cookies (discovery, /oauth/token, /oauth/register); never /oauth/authorize. */
-export function cors(res: Response): Response {
+/** CORS for the endpoints that use no cookies (discovery, /oauth/token, /oauth/register); never /oauth/authorize. Discovery is read only (GET); token and registration are POST. */
+export function cors(res: Response, methods = 'GET, OPTIONS'): Response {
   res.headers.set('Access-Control-Allow-Origin', '*');
-  res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.headers.set('Access-Control-Allow-Methods', methods);
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, MCP-Protocol-Version');
   return res;
 }
 
 /** The answer to a browser's OPTIONS preflight. */
-export function preflight(): Response {
-  return cors(new Response(null, { status: 204 }));
+export function preflight(methods?: string): Response {
+  return cors(new Response(null, { status: 204 }), methods);
 }
 
 /** A discovery document: JSON, CORS, cached an hour (it changes only with a deploy). */

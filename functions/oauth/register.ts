@@ -8,12 +8,13 @@ import { ipKey, readCapped, registrationBumps, registrationGuard, registrationRe
 import { parseRegistration, registerStatement } from '../_lib/oauth-clients';
 import { cors, preflight } from '../_lib/oauth-metadata';
 
+const POST_ONLY = 'POST, OPTIONS';
 const MAX_BODY = 8 * 1024;
 
 /** The answer, with CORS (no cookies here) and never cached: it can hold a secret. */
 function reply(res: Response): Response {
   res.headers.set('Cache-Control', 'no-store');
-  return cors(res);
+  return cors(res, POST_ONLY);
 }
 
 const invalid = (error: 'invalid_redirect_uri' | 'invalid_client_metadata', error_description: string) =>
@@ -61,4 +62,4 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }, 201));
 };
 
-export const onRequestOptions: PagesFunction = () => preflight();
+export const onRequestOptions: PagesFunction = () => preflight(POST_ONLY);
