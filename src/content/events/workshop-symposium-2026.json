@@ -1,0 +1,30 @@
+{
+  "id": "workshop-symposium-2026",
+  "type": "workshop",
+  "start": "2026-10-11",
+  "title": {
+    "en": "Hands-on Workshop: Tumour Immune Transcriptomics with TCGEx",
+    "tr": "Uygulamalı Atölye: TCGEx ile Tümör İmmün Transkriptomiği Analizi"
+  },
+  "when": {
+    "en": "11 October 2026, 13:00–15:45",
+    "tr": "11 Ekim 2026, 13:00–15:45"
+  },
+  "location": {
+    "en": "METU Biological Sciences Building, Room Z7, Ankara",
+    "tr": "ODTÜ Biyolojik Bilimler Binası, Z7 Sınıfı, Ankara"
+  },
+  "description": {
+    "en": "Workshop on the second day of the 13th RSG-Türkiye Student Symposium, led by Asst. Prof. Atakan Ekiz in two sessions (13:00–14:15 and 14:30–15:45): tumour immune transcriptomics analysis with TCGEx.",
+    "tr": "13. RSG-Türkiye Öğrenci Sempozyumu'nun ikinci gününde Dr. Öğr. Üyesi Atakan Ekiz'in iki oturum hâlinde (13:00–14:15 ve 14:30–15:45) yürüttüğü atölye: TCGEx ile tümör immün transkriptomiği analizi."
+  },
+  "links": [
+    {
+      "label": {
+        "en": "Symposium schedule",
+        "tr": "Sempozyum programı"
+      },
+      "url": "https://symposium.rsg-turkiye.iscbsc.org/schedule/"
+    }
+  ]
+}
