@@ -101,6 +101,17 @@ test('signed out, a CIMD client_id is never fetched', async () => {
   } finally { http.restore(); }
 });
 
+test('signed out, a POST is refused before its body is read', async () => {
+  const { env } = await setup();
+  const request = new Request(`${BASE}/oauth/authorize`, {
+    method: 'POST', body: 'not a form', headers: { 'Content-Type': 'text/plain' },
+  });
+  const res = await onRequestPost({ request, env } as never);
+  assert.equal(res.status, 400);
+  assert.equal(request.bodyUsed, false, 'an anonymous caller never makes the Function parse a body');
+  assert.equal(await res.text(), await (await post(env, null, allow())).text(), 'the same sign-in page as a well-formed anonymous POST');
+});
+
 test('a bad code_challenge_method redirects 303 with error, state and iss', async () => {
   const { env } = await setup();
   const http = cimd();

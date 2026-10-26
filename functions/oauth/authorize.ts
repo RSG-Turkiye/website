@@ -48,9 +48,10 @@ function requestedLevels(raw: string | null): Map<string, AgentLevel> {
   return out;
 }
 
-async function handle(request: Request, env: Env, p: URLSearchParams, posted: boolean): Promise<Response> {
+type User = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>;
+
+async function handle(request: Request, env: Env, p: URLSearchParams, posted: boolean, user: User | null): Promise<Response> {
   const lang = consentLang(request, p.get('rsg_lang'));
-  const user = await getSessionUser(request, env);
   if (!user) {
     if (posted) return fail(lang, 'signin');
     const next = safeNext(`/oauth/authorize${new URL(request.url).search}`);
@@ -122,13 +123,16 @@ async function handle(request: Request, env: Env, p: URLSearchParams, posted: bo
   }));
 }
 
-export const onRequestGet: PagesFunction<Env> = ({ request, env }) =>
-  handle(request, env, new URL(request.url).searchParams, false);
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) =>
+  handle(request, env, new URL(request.url).searchParams, false, await getSessionUser(request, env));
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  // The session first: an anonymous caller never makes this Function read or parse a body.
+  const user = await getSessionUser(request, env);
+  if (!user) return fail(consentLang(request, null), 'signin');
   let form: FormData;
   try { form = await request.formData(); } catch { return fail(consentLang(request, null), 'request'); }
   const p = new URLSearchParams();
   for (const [k, v] of form.entries()) if (typeof v === 'string') p.append(k, v);
-  return handle(request, env, p, true);
+  return handle(request, env, p, true, user);
 };
