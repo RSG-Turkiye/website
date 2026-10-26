@@ -169,6 +169,16 @@ test('PAT behaviour is unchanged', async () => {
   assert.equal((await authenticateAgent(req('POST', '/api/mcp', bearer(value)), env, now())).kind, 'agent');
 });
 
+test('before migration 8n (no kind column) a personal token still authenticates', async () => {
+  const { db, env } = await setup();
+  for (const c of ['kind', 'client_id', 'access_expires_at', 'refresh_hash', 'prev_refresh_hash', 'refreshed_at']) {
+    db.exec(`ALTER TABLE agent_tokens DROP COLUMN ${c}`);
+  }
+  const value = await mintToken(db, 'ed', ['cms.etkinlikler:draft']);
+  assert.equal((await authenticateAgent(req('GET', '/api/cms/drafts', bearer(value)), env, now())).kind, 'agent');
+  assert.equal((await authenticateAgent(req('POST', '/api/mcp', bearer(value)), env, now())).kind, 'agent');
+});
+
 const session = { Cookie: 'rsg_session=s-ed' };
 
 test('creating a 5th personal token ignores live connections', async () => {
@@ -237,7 +247,13 @@ test('isCanonicalResource', () => {
     'https://rsg-turkiye.iscbsc.org/api/mcp/', 'https://rsg-turkiye.iscbsc.org/api/mcp?x=1', 'https://rsg-turkiye.iscbsc.org/api/mcp#f',
     'https://rsg-turkiye.iscbsc.org/api/mcp?', 'http://rsg-turkiye.iscbsc.org/api/mcp', 'https://example.org/api/mcp',
     'https://rsg-turkiye.iscbsc.org/API/MCP', 'https://user@rsg-turkiye.iscbsc.org/api/mcp', '', 'not a url',
-  ]) assert.equal(isCanonicalResource(v), false, v);
+    // Strings a URL parser would repair or normalize into the canonical one.
+    'https://rsg-turkiye.iscbsc.org:443/api/mcp', 'https://rsg-turkiye.iscbsc.org/./api/mcp', 'https://rsg-turkiye.iscbsc.org/x/../api/mcp',
+    'https:rsg-turkiye.iscbsc.org/api/mcp', 'https:/rsg-turkiye.iscbsc.org/api/mcp', 'https:\\\\rsg-turkiye.iscbsc.org\\api\\mcp',
+    'https://rsg-turkiye.iscbsc.org\\api/mcp', ' https://rsg-turkiye.iscbsc.org/api/mcp', 'https://rsg-turkiye.iscbsc.org/api/mcp ',
+    'https://rsg-turkiye.iscbsc.org/api/m\tcp', 'https://rsg-turkiye.iscbsc.org/api/mcp\n', 'https://rsg-turkiye.iscbsc.org/api/%6Dcp',
+    'https://rsg-turkiye.iscbsc.org./api/mcp',
+  ]) assert.equal(isCanonicalResource(v), false, JSON.stringify(v));
 });
 
 test('refresh values carry the row id and nothing else parses', () => {

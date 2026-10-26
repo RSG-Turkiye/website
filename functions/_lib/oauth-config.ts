@@ -47,17 +47,16 @@ export async function sha256Hex(value: string): Promise<string> {
 }
 
 /**
- * The `resource` a client sent names our MCP endpoint. Scheme and host are
- * compared without case (the URL parser lower-cases them); the path is
- * exact, and a trailing slash, a query (even an empty `?`), a fragment or
- * userinfo is another resource.
+ * The `resource` a client sent names our MCP endpoint: the exact string,
+ * with only the scheme and host compared without case. Compared as text,
+ * not parsed, so nothing a URL parser would repair or normalize (a missing
+ * `//`, backslashes, whitespace, `:443`, `/./`) counts; nor does a trailing
+ * slash, a query (even an empty `?`), a fragment or userinfo.
  */
 export function isCanonicalResource(v: string): boolean {
-  try {
-    return new URL(v).href === MCP_RESOURCE;
-  } catch {
-    return false;
-  }
+  return v.length === MCP_RESOURCE.length
+    && v.slice(0, ISSUER.length).toLowerCase() === ISSUER
+    && v.slice(ISSUER.length) === MCP_RESOURCE.slice(ISSUER.length);
 }
 
 /**

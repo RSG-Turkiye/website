@@ -46,7 +46,8 @@ export async function mintConnection(
        kind, client_id, access_expires_at, refresh_hash)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'oauth', ?, ?, ?)`,
   ).run(
-    id, userId, await sha256Hex(access), access.slice(-4), opts.label ?? 'client.example.org', JSON.stringify(scopes), 1,
+    // No hint: the access value rotates every hour, so a connection has none to show.
+    id, userId, await sha256Hex(access), '', opts.label ?? 'client.example.org', JSON.stringify(scopes), 1,
     opts.expiresAt ?? 4_000_000_000, opts.revokedAt ?? null, opts.clientId ?? 'https://client.example.org/oauth/client.json',
     opts.accessExpiresAt ?? 4_000_000_000, await sha256Hex(refresh),
   );

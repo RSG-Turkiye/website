@@ -387,6 +387,12 @@
 --      wrangler d1 execute rsg-members --remote --command="ALTER TABLE agent_tokens ADD COLUMN kind TEXT NOT NULL DEFAULT 'pat'; ALTER TABLE agent_tokens ADD COLUMN client_id TEXT; ALTER TABLE agent_tokens ADD COLUMN access_expires_at INTEGER; ALTER TABLE agent_tokens ADD COLUMN refresh_hash TEXT; ALTER TABLE agent_tokens ADD COLUMN prev_refresh_hash TEXT; ALTER TABLE agent_tokens ADD COLUMN refreshed_at INTEGER"
 --      wrangler d1 execute rsg-members --remote --file=db/schema.sql
 --    Existing rows become kind 'pat', which they are.
+--    If the ALTER command fails part way (D1 applies its statements one by
+--    one, so the first columns may exist and the rest not), do not re-run
+--    it. List what is there:
+--      wrangler d1 execute rsg-members --remote --command="SELECT name FROM pragma_table_info('agent_tokens')"
+--    and run only the ALTER statements for the columns still missing, then
+--    the --file command.
 --
 
 CREATE TABLE IF NOT EXISTS users (

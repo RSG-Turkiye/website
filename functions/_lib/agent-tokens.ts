@@ -173,7 +173,8 @@ export async function authenticateAgent(request: Request, env: Env, now: number,
   }
   if (row.revoked_at !== null || row.expires_at <= now) return refused(invalidToken());
   const oauth = value.startsWith(OAUTH_PREFIX.access);
-  if (row.kind !== (oauth ? 'oauth' : 'pat')) return refused(invalidToken());
+  // No kind (code deployed before migration 8n) is a personal token, which is all there was.
+  if ((row.kind ?? 'pat') !== (oauth ? 'oauth' : 'pat')) return refused(invalidToken());
   if (oauth && (row.access_expires_at === null || row.access_expires_at <= now)) return refused(invalidToken());
   const scopes = storedScopes(row.scopes);
   if (!scopes) return refused(invalidToken());
