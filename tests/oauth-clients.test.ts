@@ -185,9 +185,12 @@ test('a CIMD body that stalls is cut off at the timeout', async () => {
     start(c) { c.enqueue(new TextEncoder().encode('{')); },
     cancel() { cancelled = true; },
   }), { headers: { 'Content-Type': 'application/json' } }));
+  // AbortSignal.timeout's timer does not hold the event loop open (Node 22
+  // then ends the test file mid-await); this one does, while the test waits.
+  const keepAlive = setTimeout(() => {}, 5000);
   try {
     assert.deepEqual(await resolveClient(DB, CIMD_ID, undefined, { timeoutMs: 50 }), { error: 'bad_metadata' });
-  } finally { http.restore(); }
+  } finally { http.restore(); clearTimeout(keepAlive); }
   const took = Date.now() - started;
   assert.ok(took >= 40 && took < 2000, `took ${took} ms`);
   assert.equal(cancelled, true, 'the stream is cancelled');
