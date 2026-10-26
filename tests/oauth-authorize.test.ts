@@ -118,7 +118,7 @@ test('a bad code_challenge_method redirects 303 with error, state and iss', asyn
   try {
     for (const p of [
       params({ code_challenge_method: 'plain' }), params({ code_challenge_method: null }), params({ code_challenge: 'short' }),
-      params({ code_challenge: null }), params({ response_type: 'token' }), params({ state: 'x'.repeat(513) }),
+      params({ code_challenge: null }), params({ response_type: null }), params({ state: 'x'.repeat(513) }),
     ]) {
       const res = await get(env, 'ed', p);
       assert.equal(res.status, 303);
@@ -129,6 +129,40 @@ test('a bad code_challenge_method redirects 303 with error, state and iss', asyn
       if ((p.get('state') ?? '').length <= 512) assert.equal(l.searchParams.get('state'), p.get('state'));
     }
     assert.equal(loc(await get(env, 'ed', params({ code_challenge_method: 'plain' }))).searchParams.get('state'), 'xyz');
+  } finally { http.restore(); }
+});
+
+test('a response_type other than code is unsupported_response_type, a missing one invalid_request', async () => {
+  const { env } = await setup();
+  const http = cimd();
+  try {
+    for (const rt of ['token', 'id_token', 'code token']) {
+      const l = loc(await get(env, 'ed', params({ response_type: rt })));
+      assert.equal(l.searchParams.get('error'), 'unsupported_response_type', rt);
+      assert.equal(l.searchParams.get('state'), 'xyz');
+    }
+  } finally { http.restore(); }
+});
+
+test('the consent POST must be a small urlencoded form: other types and oversize bodies get the request page, with no code', async () => {
+  const { db, env } = await setup();
+  const http = cimd();
+  try {
+    const send = (body: BodyInit, type: string) => onRequestPost({
+      request: new Request(`${BASE}/oauth/authorize`, { method: 'POST', body, headers: { 'Content-Type': type, ...cookie('ed') } }), env,
+    } as never);
+    const form = new FormData();
+    for (const [k, v] of allow()) form.append(k, v);
+    const multipart = await send(form, 'multipart/form-data; boundary=x');
+    assert.equal(multipart.status, 400);
+    const text = await send(allow().toString(), 'text/plain');
+    assert.equal(text.status, 400);
+    const big = allow(); big.set('state', 'x'.repeat(9000));
+    const oversize = await send(big.toString(), 'application/x-www-form-urlencoded');
+    assert.equal(oversize.status, 400);
+    assert.equal(oversize.headers.get('Location'), null);
+    assert.equal(rows(db, 'oauth_codes'), 0);
+    assert.equal((await send(allow().toString(), 'application/x-www-form-urlencoded; charset=UTF-8')).status, 303);
   } finally { http.restore(); }
 });
 
@@ -156,6 +190,9 @@ test('signed out, GET redirects to Google sign-in carrying the whole request', a
   assert.equal(next, `/oauth/authorize?${params()}`);
   assert.deepEqual(['sessions', 'oauth_codes', 'agent_tokens', 'oauth_clients'].map((t) => rows(db, t)), before);
 
+  // Percent-encoded text grows when the cookie encodes it again: past what a 4 KB cookie holds, the page says so instead of losing the way back.
+  const grown = await onRequestGet({ request: new Request(`${BASE}/oauth/authorize?x=${'%'.repeat(1900)}`), env } as never);
+  assert.equal(grown.status, 400);
   const long = await get(env, null, params({ state: 'x'.repeat(2100) }));
   assert.equal(long.status, 400);
 });

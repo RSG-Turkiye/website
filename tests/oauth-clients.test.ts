@@ -82,6 +82,11 @@ test('isLoopbackOrCustom flags loopback and private-use schemes, not https', () 
   assert.equal(isLoopbackOrCustom('http://[::1]:9/cb'), true);
   assert.equal(isLoopbackOrCustom('cursor://anysphere.cursor-mcp/oauth/callback'), true);
   assert.equal(isLoopbackOrCustom('https://claude.ai/api/mcp/auth_callback'), false);
+  // https to a loopback host is accepted as a redirect, so it carries the warning too.
+  for (const u of ['https://localhost/cb', 'https://127.0.0.1:8443/cb', 'https://[::1]/cb']) {
+    assert.equal(redirectUriProblem(u), null, u);
+    assert.equal(isLoopbackOrCustom(u), true, u);
+  }
 });
 
 // --- CIMD (Call 10) ---------------------------------------------------------

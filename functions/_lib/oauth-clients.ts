@@ -56,7 +56,8 @@ function parse(uri: string): URL | null {
   try { return new URL(uri); } catch { return null; }
 }
 
-const isLoopbackUrl = (u: URL) => u.protocol === 'http:' && LOOPBACK.has(u.hostname);
+const isLoopbackHost = (u: URL) => LOOPBACK.has(u.hostname);
+const isLoopbackUrl = (u: URL) => u.protocol === 'http:' && isLoopbackHost(u);
 
 /**
  * Why a redirect URI cannot be registered or used, or null (Call 9):
@@ -103,7 +104,8 @@ export function redirectMatches(registered: string[], asked: string): boolean {
 export function isLoopbackOrCustom(uri: string): boolean {
   const u = parse(uri);
   if (!u) return false;
-  return isLoopbackUrl(u) || (u.protocol !== 'https:' && u.protocol !== 'http:');
+  // The host, whatever the scheme: https://localhost is accepted as a redirect and is as local as http://localhost.
+  return isLoopbackHost(u) || (u.protocol !== 'https:' && u.protocol !== 'http:');
 }
 
 /** The consent screen's name for a redirect target: its host, or the scheme of a private-use one. */

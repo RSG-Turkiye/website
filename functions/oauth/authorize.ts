@@ -8,6 +8,7 @@
 
 import { checkCsrf, getSessionUser, type Env } from '../_lib/auth';
 import { areasHeld, parseScopes, formatScope, type AgentArea, type AgentLevel } from '../_lib/agent-tokens';
+import { readCapped } from '../_lib/agent-limits';
 import { activeGrants } from '../_lib/role-grants';
 import { safeNext } from '../_lib/next-path';
 import { isLoopbackOrCustom, redirectMatches, resolveClient } from '../_lib/oauth-clients';
@@ -18,6 +19,8 @@ import { consentLang, consentPage, errorPage, type ConsentArea, type ErrorKey, t
 const OAUTH_PARAMS = ['response_type', 'client_id', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'state', 'scope', 'resource'] as const;
 const CHALLENGE = /^[A-Za-z0-9._~-]{43,128}$/;
 const MAX_STATE = 512;
+const BODY_CAP = 8 * 1024;
+const FORM = 'application/x-www-form-urlencoded';
 const HEADERS = {
   'Cache-Control': 'no-store',
   'X-Frame-Options': 'DENY',
@@ -69,7 +72,9 @@ async function handle(request: Request, env: Env, p: URLSearchParams, posted: bo
   const state = p.get('state');
   const echo = state !== null && state.length <= MAX_STATE ? state : null;
   const challenge = p.get('code_challenge') ?? '';
-  if (p.get('response_type') !== 'code' || !CHALLENGE.test(challenge) || p.get('code_challenge_method') !== 'S256'
+  const responseType = p.get('response_type');
+  if (responseType !== null && responseType !== 'code') return back(redirectUri, { error: 'unsupported_response_type', state: echo });
+  if (responseType !== 'code' || !CHALLENGE.test(challenge) || p.get('code_challenge_method') !== 'S256'
     || (state !== null && state.length > MAX_STATE)) {
     return back(redirectUri, { error: 'invalid_request', state: echo });
   }
@@ -132,9 +137,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // The session first: an anonymous caller never makes this Function read or parse a body.
   const user = await getSessionUser(request, env);
   if (!user) return fail(consentLang(request, null), 'signin');
-  let form: FormData;
-  try { form = await request.formData(); } catch { return fail(consentLang(request, null), 'request'); }
-  const p = new URLSearchParams();
-  for (const [k, v] of form.entries()) if (typeof v === 'string') p.append(k, v);
-  return handle(request, env, p, true, user);
+  // The form the page sends, nothing else: urlencoded, and read with a byte cap (never buffered whole).
+  if (!(request.headers.get('Content-Type') ?? '').trim().toLowerCase().startsWith(FORM)) return fail(consentLang(request, null), 'request');
+  const text = await readCapped(request, BODY_CAP);
+  if (text === null) return fail(consentLang(request, null), 'request');
+  return handle(request, env, new URLSearchParams(text), true, user);
 };

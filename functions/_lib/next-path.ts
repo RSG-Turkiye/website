@@ -11,6 +11,8 @@ export const NEXT_COOKIE = 'rsg_next';
 const BASE = 'https://next.invalid';
 const ALLOWED = /^\/(?:(?:tr\/)?(?:admin|account)(?:\/|$)|oauth\/authorize$)/;
 const AUTHORIZE_LIMIT = 2048;
+/** What the cookie may hold once the value is percent-encoded again: a browser drops a cookie over 4,096 bytes, name and attributes included. */
+const COOKIE_LIMIT = 3800;
 
 export function safeNext(v: unknown): string | null {
   if (typeof v !== 'string' || v.length === 0 || v.length > AUTHORIZE_LIMIT) return null;
@@ -23,7 +25,7 @@ export function safeNext(v: unknown): string | null {
   if (!v.startsWith(u.pathname)) return null;
   const out = u.pathname + u.search + u.hash;
   if (u.pathname !== '/oauth/authorize' && v.length > 512) return null;
-  return out.length > AUTHORIZE_LIMIT ? null : out;
+  return out.length > AUTHORIZE_LIMIT || encodeURIComponent(out).length > COOKIE_LIMIT ? null : out;
 }
 
 export const nextCookie = (v: string) => `${NEXT_COOKIE}=${encodeURIComponent(v)}; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=600`;
