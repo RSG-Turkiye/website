@@ -133,7 +133,13 @@ test('D1 refusing writes mails nobody', async () => {
 
 test('mail failure does not resend next hour', async () => {
   mail.fail();
-  await checkUsage(env, NOON, BASE, numbers({ requests: 71_000, rowsRead: 0, rowsWritten: 0 }));
+  const original = console.error;
+  console.error = () => {}; // the failed send is logged; expected here
+  try {
+    await checkUsage(env, NOON, BASE, numbers({ requests: 71_000, rowsRead: 0, rowsWritten: 0 }));
+  } finally {
+    console.error = original;
+  }
   assert.equal(await checkUsage(env, NOON + 3600, BASE, numbers({ requests: 72_000, rowsRead: 0, rowsWritten: 0 })), 'measured');
   assert.equal(auditCount(db, 'usage.alert'), 1);
 });
