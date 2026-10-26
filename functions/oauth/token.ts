@@ -5,12 +5,14 @@
 // connection does. Values are generated here, returned once and stored as
 // SHA-256 only.
 //
-// Order: content type and size, the IP cut-off (no write), client
-// authentication, then the grant. Every refusal that is a limit (429) is
-// decided before the first write, so a refused exchange leaves the code
+// Order: content type and size, client authentication, then the grant (its
+// `resource` first). Every refusal that is a limit (429) or an invalid_target
+// is decided before the first write, so a refused exchange leaves the code
 // redeemable and a refused refresh leaves the connection as it was. A wrong
-// guess (code, verifier, refresh value, client secret) counts as a failed
-// authentication of the IP, like a wrong token (agent-limits.ts).
+// guess (code, verifier, refresh value, client secret) counts toward the
+// day's failures only (agent-limits.ts), never an IP: hosted connectors
+// share addresses, so an IP cut-off here would let an outsider lock out a
+// whole platform, and these values are random 256-bit, so it guards nothing.
 //
 // Does not import agent-tokens.ts (only the files listed in
 // tests/agent-tokens.test.ts may).
@@ -18,7 +20,7 @@
 import { jsonResponse, type Env } from '../_lib/auth';
 import { runGuardedWithAudit } from '../_lib/audit';
 import {
-  autoRevoke, chargeConnection, countFailedAuth, ipKey, ipRefusal, readCapped, readSnapshot, type Snapshot,
+  autoRevoke, chargeConnection, countFailedAuth, ipKey, readCapped, readSnapshot, type Snapshot,
 } from '../_lib/agent-limits';
 import { authenticateClient, resolveClient, type Client } from '../_lib/oauth-clients';
 import { consumeCode, pkceMatches } from '../_lib/oauth-codes';
@@ -50,9 +52,9 @@ interface Ctx {
   client: Client;
 }
 
-/** A guess that failed: counted against the IP (two rows, none past the day's cap), then the answer. */
+/** A guess that failed: counted for the day (one row, none past the day's cap), then the answer. */
 async function failed(c: Pick<Ctx, 'db' | 'ip' | 'snapshot' | 'now'>, res: Response): Promise<Response> {
-  await countFailedAuth(c.db, c.ip, c.snapshot, c.now);
+  await countFailedAuth(c.db, c.ip, c.snapshot, c.now, false);
   return res;
 }
 
@@ -72,8 +74,13 @@ function storedScopes(raw: string): string[] | null {
 const ok = (access: string, refresh: string, expiresIn: number, scopes: string[]): Response =>
   jsonResponse({ access_token: access, token_type: 'Bearer', expires_in: expiresIn, refresh_token: refresh, scope: scopes.join(' ') });
 
-/** `<client name> (<host>)`, cut to the panel's width. */
-const connectionLabel = (c: Client) => `${c.name} (${c.host})`.slice(0, MAX_LABEL);
+/** The target of `resource`: absent, or this server's MCP endpoint. Checked first, so a refusal spends nothing. */
+const wrongResource = (form: URLSearchParams): Response | null => {
+  const resource = form.get('resource');
+  return resource !== null && !isCanonicalResource(resource)
+    ? oauthError('invalid_target', 'The resource is not this server\'s MCP endpoint.')
+    : null;
+};
 
 // --- client authentication ---------------------------------------------------
 
@@ -120,6 +127,8 @@ async function codeGrant(c: Ctx): Promise<Response> {
   const redirectUri = form.get('redirect_uri');
   const verifier = form.get('code_verifier');
   if (!code || !redirectUri || !verifier) return oauthError('invalid_request', 'code, redirect_uri and code_verifier are required.');
+  const target = wrongResource(form);
+  if (target) return target;
 
   // Read, do not consume: a refusal below must leave the code redeemable.
   const pending = await db.prepare('SELECT user_id, scopes FROM oauth_codes WHERE code_hash = ? AND expires_at > ?')
@@ -136,10 +145,6 @@ async function codeGrant(c: Ctx): Promise<Response> {
   if (row.client_id !== client.id || row.redirect_uri !== redirectUri || !(await pkceMatches(verifier, row.code_challenge))) {
     return failed(c, invalidGrant());
   }
-  const resource = form.get('resource');
-  if (resource !== null && !isCanonicalResource(resource)) {
-    return failed(c, oauthError('invalid_target', 'The resource is not this server\'s MCP endpoint.'));
-  }
   const scopes = storedScopes(row.scopes);
   if (!scopes) return invalidGrant();
 
@@ -152,7 +157,7 @@ async function codeGrant(c: Ctx): Promise<Response> {
      SELECT ?, ?, ?, '', ?, ?, ?, ?, 'oauth', ?, ?, ?, ?
      WHERE (SELECT COUNT(*) FROM agent_tokens WHERE user_id = ? AND kind = 'oauth' AND revoked_at IS NULL AND expires_at > ?) < ?`,
   ).bind(
-    id, row.user_id, await sha256Hex(access), connectionLabel(client), JSON.stringify(scopes), now, expiresAt,
+    id, row.user_id, await sha256Hex(access), row.label.slice(0, MAX_LABEL), JSON.stringify(scopes), now, expiresAt,
     client.id, now + ACCESS_TTL, await sha256Hex(refresh), now,
     row.user_id, now, MAX_CONNECTIONS,
   );
@@ -182,6 +187,8 @@ async function refreshGrant(c: Ctx): Promise<Response> {
   const { db, form, now, client } = c;
   const value = form.get('refresh_token');
   if (!value) return oauthError('invalid_request', 'refresh_token is required.');
+  const target = wrongResource(form);
+  if (target) return target;
   const parsed = parseRefresh(value);
   if (!parsed) return failed(c, invalidGrant());
   const row = await db.prepare(
@@ -230,10 +237,8 @@ async function handle(request: Request, env: Env, now: number): Promise<Response
   if (new Set(keys).size !== keys.length) return oauthError('invalid_request', 'A parameter was sent more than once.');
 
   const ip = await ipKey(request);
-  // The IP's row and the day's failures only; the grant reads the token rows if it charges.
+  // The day's failures only (the IP's row is read with them and not used); the grant reads the token rows if it charges.
   const snapshot = await readSnapshot(env.DB, ip, now, false);
-  const cutOff = ipRefusal(snapshot.ip, now);
-  if (cutOff) return cutOff;
 
   const grant = form.get('grant_type');
   if (!grant) return oauthError('invalid_request', 'grant_type is required.');

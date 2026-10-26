@@ -1340,7 +1340,7 @@ the panel are never counted.
 | Submits per token | 20 a day |
 | Image uploads per token | 20 a day |
 | Failed bearer requests per IP (values that match no token, headers that are no token value) | 60 a minute, 3000 a day |
-| Failed authentications per IP | 10 in 10 minutes, then that IP's bearer requests get 429 for the rest of the 10 minutes |
+| Failed authentications per IP (personal tokens and other values; not `rsg_oat_` or `/oauth/token`) | 10 in 10 minutes, then that IP's bearer requests get 429 for the rest of the 10 minutes |
 | Failed authentications from all addresses together | 5,000 a day; past it a failure is refused with no D1 write at all |
 | Request body | 256 KB (5 MB for an image upload); larger is 413 `too_large` |
 
@@ -1377,6 +1377,11 @@ twice a limit can pass around a window's edge.
   a token value on a route outside the table is 403 and not counted. In
   practice the 10-in-10-minutes rule cuts an address off long before its
   minute or day limit.
+- Two things are not counted per IP: a miss at `/oauth/token` and an
+  unknown `rsg_oat_` bearer value. Hosted connectors (claude.ai, ChatGPT)
+  call from addresses their members share, so an IP cut-off would let an
+  outsider lock a whole platform out. Both count toward the day's 5,000
+  only, so D1 writes stay bounded; personal tokens keep the IP rule.
 - Over an IP limit even a route outside the table answers 429 rather than
   403.
 

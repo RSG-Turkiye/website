@@ -134,7 +134,8 @@ for both sites on every PR. Keep it green.
   uploads (1,600, then 400 for social work), and 300 requests per member.
   An allowed agent request writes 1 counter row and reads one counter row
   per token used that day plus two. Failed authentications write 2 rows
-  each, at most 5,000 a day for all addresses together; past that they
+  each (1 for an `rsg_oat_` value or a miss at `/oauth/token`, which no IP
+  counts), at most 5,000 a day for all addresses together; past that they
   write nothing. A refusal for the day, a budget or a quota, or from a
   cut-off IP, writes nothing. People in the panel are never counted. The
   numbers are `LIMITS` in `functions/_lib/agent-limits.ts`.

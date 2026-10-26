@@ -66,8 +66,8 @@ const T = {
   levelDraft: { en: 'Read and write drafts', tr: 'Okuma ve taslak yazma' },
   level: { en: 'Level for', tr: 'Düzey:' },
   fixed: {
-    en: 'It can read and write drafts in your name. It can never approve, publish, schedule or send.',
-    tr: 'Adına taslak okuyabilir ve yazabilir. Onaylayamaz, yayımlayamaz, zamanlayamaz ve gönderemez.',
+    en: 'Where you choose Read, it can only read. Where you choose Read and write drafts, it can also write drafts in your name. It can never approve, publish, schedule or send.',
+    tr: 'Okuma seçtiğin alanlarda yalnızca okuyabilir. Okuma ve taslak yazma seçtiğin alanlarda adına taslak da yazabilir. Onaylayamaz, yayımlayamaz, zamanlayamaz ve gönderemez.',
   },
   life: { en: 'How long the connection lasts', tr: 'Bağlantı ne kadar sürsün' },
   days: { en: 'days', tr: 'gün' },

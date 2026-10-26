@@ -74,15 +74,11 @@ test('chargeConnection: a spent general pool refuses plain work and serves socia
   assert.equal(all?.status, 429, 'both pools spent');
 });
 
-test('chargeConnection: an IP that is cut off is refused with no write', async () => {
+test('chargeConnection does not look at the IP: hosted connectors share addresses', async () => {
   const { db, DB } = setup();
   db.prepare('INSERT INTO agent_counters (bucket, fail_window, fail_n) VALUES (?, ?, ?)')
     .run(`${dayKey(NOW)}:i:${IP}`, Math.floor(NOW / LIMITS.IP_FAILED_AUTH_WINDOW), LIMITS.IP_FAILED_AUTH);
-  const before = counters(db);
-  const res = await chargeConnection(DB, { tokenId: 'conn', userId: 'ed', social: false }, IP, NOW);
-  assert.equal(res?.status, 429);
-  assert.deepEqual(await res?.json(), { error: 'rate_limited' });
-  assert.equal(counters(db), before);
+  assert.equal(await chargeConnection(DB, { tokenId: 'conn', userId: 'ed', social: false }, IP, NOW), null);
 });
 
 test('chargeConnection: past the minute limit it counts the minute only, and a flood revokes the connection', async () => {

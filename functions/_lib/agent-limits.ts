@@ -25,7 +25,12 @@
 //   header that is no token value. Nothing is written per value. An IP past
 //   IP_FAILED_AUTH is refused without a write (an IPv6 address counts by its
 //   /64), and past FAILURES_PER_DAY for all addresses together a failure is
-//   refused without any write.
+//   refused without any write. Two places do not count the IP: /oauth/token
+//   and an rsg_oat_ bearer value. Hosted connectors (claude.ai, ChatGPT) reach
+//   us from addresses their members share, so an outsider's junk would cut
+//   them all off; those values are 256-bit random, so the count protected
+//   nothing but D1 writes, which the day's cap still bounds (the day's row
+//   alone: one write).
 //
 // Counts read before the bump can race: two requests at once may both pass
 // the last free slot. The overshoot is a few requests, never a budget risk.
@@ -208,16 +213,14 @@ export function ipRefusal(row: IpCounts | null, now: number): Response | null {
 }
 
 /**
- * One failed authentication from this IP: its row and the day's failures
- * row, in one batch (two rows). Past FAILURES_PER_DAY nothing is written:
- * the request is refused as it is.
+ * One failed authentication: the day's failures row, and this IP's row
+ * unless `countIp` is false (two rows or one, in one batch). Past
+ * FAILURES_PER_DAY nothing is written: the request is refused as it is.
  */
-async function countFailure(db: D1Database, ip: string, snapshot: Snapshot, now: number): Promise<void> {
+async function countFailure(db: D1Database, ip: string, snapshot: Snapshot, now: number, countIp: boolean): Promise<void> {
   if (snapshot.failures >= LIMITS.FAILURES_PER_DAY) return;
-  await db.batch([
-    bumpIp(db, ip, now, true),
-    db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1').bind(failuresBucket(now)),
-  ]);
+  const day = db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1').bind(failuresBucket(now));
+  await db.batch(countIp ? [bumpIp(db, ip, now, true), day] : [day]);
 }
 
 /** One more failed request from this IP (and a failed authentication when `failed`). One upsert. */
@@ -406,7 +409,7 @@ export async function countRefusal(
   const token = await lookup();
   if (token === 'none' || token === 'dead') return null;
   if (token === 'unknown') {
-    await countFailure(db, ip, snapshot, now);
+    await countFailure(db, ip, snapshot, now, true);
     return null;
   }
   const { refusals } = await bump(db, bumpToken(db, { tokenId: token.id, userId: token.user_id }, now, { minute: false, refusals: 1 }));
@@ -415,12 +418,14 @@ export async function countRefusal(
 }
 
 /**
- * A value on a table route that matches no token (or is no token value): one
- * failed authentication of the IP and of the day, unless the day's failures
- * are already at FAILURES_PER_DAY (then nothing is written).
+ * A value that matches no token (or is no token value), or a wrong guess at
+ * /oauth/token: one failed authentication of the IP and of the day, unless
+ * the day's failures are already at FAILURES_PER_DAY (then nothing is
+ * written). `countIp` false (an rsg_oat_ value, /oauth/token) counts the
+ * day only, since those callers share addresses (see the top of this file).
  */
-export async function countFailedAuth(db: D1Database, ip: string, snapshot: Snapshot, now: number): Promise<void> {
-  await countFailure(db, ip, snapshot, now);
+export async function countFailedAuth(db: D1Database, ip: string, snapshot: Snapshot, now: number, countIp = true): Promise<void> {
+  await countFailure(db, ip, snapshot, now, countIp);
 }
 
 // --- the leak check --------------------------------------------------------
@@ -605,17 +610,16 @@ export interface ChargedConnection { tokenId: string; userId: string; social: bo
 
 /**
  * A code exchange or a refresh at /oauth/token, counted as one request of
- * that connection, as checkToken counts an API request: the IP cut-off, the
- * member's day, the agents' pools (the reserve only when `social`), then the
- * minute limit and the flood revoke. No body checks: the token endpoint
- * reads its own small form. Allowed: one upsert of the connection's row.
- * Refused for the day, the budget or the IP: no write. Answers 429
+ * that connection, as checkToken counts an API request: the member's day,
+ * the agents' pools (the reserve only when `social`), then the
+ * minute limit and the flood revoke. No IP cut-off (hosted connectors share
+ * addresses) and no body checks: the token endpoint reads its own small
+ * form. Allowed: one upsert of the connection's row.
+ * Refused for the day or the budget: no write. Answers 429
  * `{ error: 'rate_limited' }` with Retry-After, or the agent_budget answer.
  */
 export async function chargeConnection(db: D1Database, c: ChargedConnection, ip: string, now: number): Promise<Response | null> {
   const snapshot = await readSnapshot(db, ip, now);
-  const cutOff = ipRefusal(snapshot.ip, now);
-  if (cutOff) return oauthLimited(Number(cutOff.headers.get('Retry-After')));
   let general = 0, reserve = 0, member = 0;
   for (const t of snapshot.tokens) {
     general += t.general;

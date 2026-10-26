@@ -137,7 +137,9 @@ function storedScopes(raw: string): AgentScope[] | null {
  * (agent-limits.ts): a cut-off IP is answered 429 before anything else, with
  * no write. A header that is no token value, or a value that matches no
  * token, counts as a failed authentication of the IP and of the day (past
- * the day's FAILURES_PER_DAY, nothing is written). A valid token's request
+ * the day's FAILURES_PER_DAY, nothing is written). An rsg_oat_ value is the
+ * exception: it counts for the day only and is never cut off by its IP, since
+ * hosted connectors share addresses. A valid token's request
  * writes nothing for its IP: only its own token row. A revoked or expired
  * token's value is 401 without a count: it is a stale client, not a guess,
  * and must not lock out everyone else behind the same address.
@@ -155,12 +157,14 @@ export async function authenticateAgent(request: Request, env: Env, now: number,
 
   const ip = await ipKey(request);
   const snapshot = await readSnapshot(env.DB, ip, now);
-  const cutOff = ipRefusal(snapshot.ip, now);
+  // An OAuth access value comes from a hosted connector's shared address: no IP cut-off, no IP count (agent-limits.ts).
+  const countIp = !header.startsWith(`Bearer ${OAUTH_PREFIX.access}`);
+  const cutOff = countIp ? ipRefusal(snapshot.ip, now) : null;
   if (cutOff) return refused(cutOff);
 
   const match = VALUE.exec(header);
   if (!match) {
-    await countFailedAuth(env.DB, ip, snapshot, now);
+    await countFailedAuth(env.DB, ip, snapshot, now, countIp);
     return refused(invalidToken());
   }
   const value = match[1];
@@ -168,7 +172,7 @@ export async function authenticateAgent(request: Request, env: Env, now: number,
 
   const row = await env.DB.prepare('SELECT * FROM agent_tokens WHERE token_hash = ?').bind(hash).first<TokenRow>();
   if (!row || !safeEqual(row.token_hash, hash)) {
-    await countFailedAuth(env.DB, ip, snapshot, now);
+    await countFailedAuth(env.DB, ip, snapshot, now, countIp);
     return refused(invalidToken());
   }
   if (row.revoked_at !== null || row.expires_at <= now) return refused(invalidToken());

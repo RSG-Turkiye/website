@@ -91,7 +91,7 @@ async function handle(request: Request, env: Env, p: URLSearchParams, posted: bo
     const days = Number(p.get('days'));
     if (!CONNECTION_DAYS.includes(days)) return fail(lang, 'days');
     const code = await createCode(env.DB, {
-      userId: user.id, clientId: client.id, label: client.name, redirectUri, codeChallenge: challenge,
+      userId: user.id, clientId: client.id, label: `${client.name} (${client.host})`.slice(0, 60), redirectUri, codeChallenge: challenge,
       scopes: scopes.map(formatScope), days,
     }, now);
     if (!code) return fail(lang, 'codes');

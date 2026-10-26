@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
-import { mintConnection } from './lib/agent';
+import { mintConnection, mintToken } from './lib/agent';
 import { grantRole } from '../functions/_lib/role-grants';
 import { registerStatement } from '../functions/_lib/oauth-clients';
 import { LIMITS } from '../functions/_lib/agent-limits';
@@ -49,12 +49,12 @@ async function dcr(DB: D1Database, authMethod: 'none' | 'client_secret_basic' | 
 
 let seq = 0;
 /** An oauth_codes row as Task 4 leaves it; returns the code value. */
-async function makeCode(db: DatabaseSync, c: Client, o: { user?: string; scopes?: string[]; days?: number; uri?: string; challenge?: string; expiresAt?: number } = {}) {
+async function makeCode(db: DatabaseSync, c: Client, o: { user?: string; scopes?: string[]; days?: number; uri?: string; challenge?: string; expiresAt?: number; label?: string } = {}) {
   const code = `rsg_oac_${String(seq++).padStart(43, 'c')}`;
   db.prepare(
     `INSERT INTO oauth_codes (code_hash, user_id, client_id, label, redirect_uri, code_challenge, scopes, days, expires_at)
-     VALUES (?, ?, ?, 'x', ?, ?, ?, ?, ?)`,
-  ).run(await sha256Hex(code), o.user ?? 'ed', c.id, o.uri ?? REDIRECT, o.challenge ?? CHALLENGE, JSON.stringify(o.scopes ?? SCOPES), o.days ?? 30, o.expiresAt ?? NOW + 120);
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(await sha256Hex(code), o.user ?? 'ed', c.id, o.label ?? 'Test App (app.example.org)', o.uri ?? REDIRECT, o.challenge ?? CHALLENGE, JSON.stringify(o.scopes ?? SCOPES), o.days ?? 30, o.expiresAt ?? NOW + 120);
   return code;
 }
 
@@ -156,7 +156,7 @@ test('the code works once', async (t) => {
   assert.equal(count(db, 'agent_tokens'), 1);
 });
 
-test('wrong verifier, other client, other redirect_uri, expired code, non-canonical resource', async (t) => {
+test('wrong verifier, other client, other redirect_uri, expired code', async (t) => {
   const { db, DB, env } = await setup(t);
   const c = await dcr(DB);
   const other = await dcr(DB);
@@ -165,7 +165,6 @@ test('wrong verifier, other client, other redirect_uri, expired code, non-canoni
     ['other client', async () => exchange(env, other, await makeCode(db, c)), 'invalid_grant'],
     ['other redirect_uri', async () => exchange(env, c, await makeCode(db, c), { redirect_uri: `${REDIRECT}/` }), 'invalid_grant'],
     ['expired code', async () => exchange(env, c, await makeCode(db, c, { expiresAt: NOW - 1 })), 'invalid_grant'],
-    ['non-canonical resource', async () => exchange(env, c, await makeCode(db, c), { resource: `${MCP_RESOURCE}/` }), 'invalid_target'],
   ];
   for (const [name, run, error] of cases) {
     db.prepare('DELETE FROM agent_counters').run();
@@ -173,13 +172,34 @@ test('wrong verifier, other client, other redirect_uri, expired code, non-canoni
     assert.equal(res.status, 400, name);
     assert.equal(((await res.json()) as Body).error, error, name);
     assert.equal(count(db, 'agent_tokens'), 0, `${name}: nothing issued`);
-    // Each failed guess is counted against the IP and the day: two rows. (The pre-charge of a live code adds its own row.)
+    // Each failed guess is counted against the day only, never an IP. (The pre-charge of a live code adds its own row.)
     const buckets = rows(db, 'SELECT bucket FROM agent_counters').map((r) => String(r.bucket));
-    assert.equal(buckets.filter((b) => !b.includes(':t:')).length, 2, `${name}: failure counted`);
+    assert.deepEqual(buckets.filter((b) => !b.includes(':t:')), [`${String(Math.floor(NOW / DAY)).padStart(6, '0')}:g:failures`], `${name}: failure counted`);
   }
   // The canonical resource is accepted.
   const ok = await exchange(env, c, await makeCode(db, c), { resource: MCP_RESOURCE });
   assert.equal(ok.status, 200);
+});
+
+test('a non-canonical resource is invalid_target and spends nothing: no write, the code stays redeemable', async (t) => {
+  const { db, DB, env } = await setup(t);
+  const c = await dcr(DB);
+  const code = await makeCode(db, c);
+  const before = changes(db);
+  const res = await exchange(env, c, code, { resource: `${MCP_RESOURCE}/` });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as Body).error, 'invalid_target');
+  assert.equal(changes(db), before);
+  assert.equal(count(db, 'oauth_codes'), 1);
+  assert.equal((await exchange(env, c, code, { resource: MCP_RESOURCE })).status, 200, 'the same code redeems with the right resource');
+});
+
+test('the connection label is the one stored with the code at consent', async (t) => {
+  const { db, DB, env } = await setup(t);
+  const c = await dcr(DB);
+  const res = await exchange(env, c, await makeCode(db, c, { label: 'Consented (other.example.org)' }));
+  assert.equal(res.status, 200);
+  assert.equal(rows(db, `SELECT label FROM agent_tokens WHERE client_id = ?`, c.id)[0].label, 'Consented (other.example.org)');
 });
 
 test('a mismatching exchange still spends the code', async (t) => {
@@ -265,13 +285,27 @@ test('both a Basic header and body credentials are invalid_request', async (t) =
   assert.equal(((await res.json()) as Body).error, 'invalid_request');
 });
 
-test('failed client authentication from one IP is cut off after IP_FAILED_AUTH, with no write', async (t) => {
+test('misses at the token endpoint never cut an IP off: 12 junk codes are all invalid_grant, then a valid exchange succeeds', async (t) => {
   const { db, DB, env } = await setup(t);
   const c = await dcr(DB);
-  for (let i = 0; i < LIMITS.IP_FAILED_AUTH; i++) assert.equal((await exchange(env, c, 'x', { client_secret: 'nope' })).status, 401);
+  for (let i = 0; i < LIMITS.IP_FAILED_AUTH + 2; i++) {
+    const res = await exchange(env, c, `rsg_oac_${String(i).padStart(43, 'j')}`);
+    assert.equal(res.status, 400, `#${i + 1}`);
+    assert.equal(((await res.json()) as Body).error, 'invalid_grant');
+  }
+  for (let i = 0; i < LIMITS.IP_FAILED_AUTH + 2; i++) assert.equal((await exchange(env, c, 'x', { client_secret: 'nope' })).status, 401, `secret #${i + 1}`);
+  const buckets = rows(db, 'SELECT bucket FROM agent_counters').map((r) => String(r.bucket));
+  assert.deepEqual(buckets, [`${String(Math.floor(NOW / DAY)).padStart(6, '0')}:g:failures`], 'only the day\'s count, no IP row');
+  assert.equal((await exchange(env, c, await makeCode(db, c))).status, 200);
+});
+
+test('past the day\'s failure cap a miss writes no row', async (t) => {
+  const { db, DB, env } = await setup(t);
+  const c = await dcr(DB);
+  db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, ?)').run(`${String(Math.floor(NOW / DAY)).padStart(6, '0')}:g:failures`, LIMITS.FAILURES_PER_DAY);
   const before = changes(db);
-  const cut = await exchange(env, c, 'x', { client_secret: 'nope' });
-  assert.equal(cut.status, 429);
+  assert.equal((await exchange(env, c, 'rsg_oac_nothing')).status, 400);
+  assert.equal((await exchange(env, c, 'x', { client_secret: 'nope' })).status, 401);
   assert.equal(changes(db), before);
 });
 
@@ -321,22 +355,14 @@ test('a member at 300 requests today gets 429 rate_limited with Retry-After and 
   assert.equal(again.status, 200, 'the same code redeems once the day resets');
 });
 
-test('an IP cut off is refused with no write, before client authentication', async (t) => {
+test('an IP row at its limits does not refuse the token endpoint', async (t) => {
   const { db, DB, env } = await setup(t);
   const c = await dcr(DB);
-  const code = await makeCode(db, c);
-  const before = changes(db);
-  // 60 requests in the minute from one address.
   const { ipKey } = await import('../functions/_lib/agent-limits');
   const ip = await ipKey(new Request(BASE, { headers: { 'CF-Connecting-IP': '203.0.113.9' } }));
-  db.prepare('INSERT INTO agent_counters (bucket, minute, minute_n) VALUES (?, ?, ?)')
-    .run(`${String(Math.floor(NOW / DAY)).padStart(6, '0')}:i:${ip}`, Math.floor(NOW / 60), LIMITS.IP_PER_MINUTE);
-  const mid = changes(db);
-  const res = await exchange(env, c, code);
-  assert.equal(res.status, 429);
-  assert.equal(changes(db), mid);
-  assert.ok(mid > before);
-  assert.equal(count(db, 'oauth_codes'), 1);
+  db.prepare('INSERT INTO agent_counters (bucket, minute, minute_n, fail_window, fail_n) VALUES (?, ?, ?, ?, ?)')
+    .run(`${String(Math.floor(NOW / DAY)).padStart(6, '0')}:i:${ip}`, Math.floor(NOW / 60), LIMITS.IP_PER_MINUTE, Math.floor(NOW / LIMITS.IP_FAILED_AUTH_WINDOW), LIMITS.IP_FAILED_AUTH);
+  assert.equal((await exchange(env, c, await makeCode(db, c))).status, 200);
 });
 
 // --- the refresh grant -------------------------------------------------------
@@ -462,7 +488,7 @@ test('refresh with a value of another connection, another client or no known sha
   assert.equal(rows(db, 'SELECT revoked_at FROM agent_tokens WHERE id = ?', id)[0].revoked_at, null, 'a wrong guess does not revoke');
   db.prepare('DELETE FROM agent_counters').run();
   assert.equal((await refresh(env, c, `rsg_ort_${id}.${'A'.repeat(43)}`)).status, 400);
-  assert.equal(failuresRows(db), 2, 'a wrong guess is counted');
+  assert.equal(failuresRows(db), 1, 'a wrong guess is counted against the day only');
   // A personal token's row is never refreshable.
   const pat = await mintConnection(db, 'ed', SCOPES);
   db.prepare(`UPDATE agent_tokens SET kind = 'pat' WHERE id = ?`).run(pat.id);
@@ -474,6 +500,16 @@ test('a scope parameter on refresh is ignored', async (t) => {
   const res = await refresh(env, c, first, { scope: 'social:draft' });
   assert.equal(res.status, 200);
   assert.equal(((await res.json()) as Body).scope, SCOPES.join(' '));
+});
+
+test('refresh checks resource like the code grant, before anything is read', async (t) => {
+  const { db, env, c, refresh: first } = await connected(t);
+  const before = changes(db);
+  const bad = await refresh(env, c, first, { resource: `${MCP_RESOURCE}/` });
+  assert.equal(bad.status, 400);
+  assert.equal(((await bad.json()) as Body).error, 'invalid_target');
+  assert.equal(changes(db), before);
+  assert.equal((await refresh(env, c, first, { resource: MCP_RESOURCE })).status, 200, 'the value was not spent');
 });
 
 test('a refresh with a Basic-authenticated confidential client works', async (t) => {
@@ -506,5 +542,41 @@ test('a refused refresh and a refused exchange write nothing beyond the failure 
   const before = changes(db);
   const res = await exchange(env, c, 'rsg_oac_nothing');
   assert.equal(res.status, 400);
-  assert.equal(changes(db) - before, 2);
+  assert.equal(changes(db) - before, 1, 'the day\'s count only');
+});
+
+// --- shared platform addresses at /api/mcp -------------------------------------
+
+const mcpFrom = async (env: never, value: string, ip: string) => {
+  const request = new Request(`${BASE}/api/mcp`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${value}`, 'CF-Connecting-IP': ip },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+  return (await (mcp.onRequestPost as unknown as (c: unknown) => Promise<Response>)({ request, env, params: {}, waitUntil() {}, data: {} })).status;
+};
+const junkAccess = (i: number) => `rsg_oat_${String(i).padStart(43, 'j')}`;
+const failureBucket = `${String(Math.floor(NOW / DAY)).padStart(6, '0')}:g:failures`;
+
+test('unknown rsg_oat_ bearers from one IP never cut off a valid connection from that IP, and count against the day only', async (t) => {
+  const { db, env } = await setup(t);
+  const conn = await mintConnection(db, 'ed', SCOPES);
+  for (let i = 0; i < LIMITS.IP_FAILED_AUTH + 2; i++) assert.equal(await mcpFrom(env, junkAccess(i), '198.51.100.20'), 401, `#${i + 1}`);
+  assert.equal(await mcpFrom(env, conn.access, '198.51.100.20'), 200);
+  assert.deepEqual(rows(db, `SELECT bucket FROM agent_counters WHERE bucket NOT LIKE '%:t:%'`).map((r) => r.bucket), [failureBucket]);
+});
+
+test('past the day\'s failure cap an unknown rsg_oat_ bearer writes no row', async (t) => {
+  const { db, env } = await setup(t);
+  db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, ?)').run(failureBucket, LIMITS.FAILURES_PER_DAY);
+  const before = changes(db);
+  assert.equal(await mcpFrom(env, junkAccess(1), '198.51.100.21'), 401);
+  assert.equal(changes(db), before);
+});
+
+test('a personal token (rsg_pat_) is still cut off by its IP\'s failures', async (t) => {
+  const { db, env } = await setup(t);
+  const pat = await mintToken(db, 'ed', SCOPES);
+  const { newTokenValue } = await import('../functions/_lib/agent-tokens');
+  for (let i = 0; i < LIMITS.IP_FAILED_AUTH; i++) assert.equal(await mcpFrom(env, newTokenValue(), '198.51.100.22'), 401, `#${i + 1}`);
+  assert.equal(await mcpFrom(env, pat, '198.51.100.22'), 429);
 });

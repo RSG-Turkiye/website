@@ -172,7 +172,9 @@ test('signed in, GET shows only the areas the member holds, pre-ticked from the 
     // "approve" appears only in the fixed "can never" sentence.
     const stripped = body.replace(/It can never approve, publish, schedule or send\./g, '');
     assert.ok(!/approve/i.test(stripped));
-    assert.ok(body.includes('It can read and write drafts in your name.'));
+    assert.ok(body.includes('Where you choose Read, it can only read.'));
+    assert.ok(body.includes('Where you choose Read and write drafts, it can also write drafts in your name.'));
+    assert.ok(!body.includes('It can read and write drafts'), 'no blanket claim that holds for a read-only pick');
     assert.match(body, /<option value="30" selected>/);
     assert.match(body, /name="state" value="xyz"/);
     assert.match(body, /name="code_challenge" value="E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"/);
@@ -243,7 +245,7 @@ test('Allow answers 303 (never 307) with code, state and iss, and stores one cod
     assert.equal(row.client_id, CLIENT);
     assert.equal(row.redirect_uri, CB);
     assert.equal(row.code_challenge, CHALLENGE);
-    assert.equal(row.label, 'Claude');
+    assert.equal(row.label, 'Claude (claude.example)');
     // No state sent: none returned.
     const bare = await post(env, 'ed', allow({ state: null }));
     assert.equal(loc(bare).searchParams.has('state'), false);
