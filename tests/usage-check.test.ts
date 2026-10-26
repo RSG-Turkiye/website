@@ -183,5 +183,5 @@ test('the alert mail names the highest threshold and every pair', () => {
   assert.match(m.text, /D1 rows written/);
   assert.match(m.text, /every API call fails/);
   assert.match(m.text, /every D1 write fails/);
-  assert.doesNotMatch(m.text, /—/);
+  assert.doesNotMatch(m.text, /\u2014/);
 });

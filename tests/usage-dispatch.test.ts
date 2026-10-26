@@ -16,7 +16,7 @@ async function dispatchAt(iso: string, db: DatabaseSync) {
   const at = RealDate.parse(iso);
   class Fixed extends RealDate {
     constructor(...args: unknown[]) {
-      // @ts-expect-error -- forwarding a variadic Date constructor
+      // @ts-expect-error: forwarding a variadic Date constructor
       super(...(args.length === 0 ? [at] : args));
     }
     static now() { return at; }
