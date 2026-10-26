@@ -153,6 +153,7 @@ test('agent limit queries look rows up by index', () => {
   const queries: [string, RegExp][] = [
     ['DELETE FROM agent_counters WHERE bucket < ?', /SEARCH agent_counters USING PRIMARY KEY/],
     ['SELECT * FROM agent_counters WHERE bucket = ?1 OR (bucket >= ?2 AND bucket < ?3)', /agent_counters USING PRIMARY KEY/],
+    ['SELECT COALESCE(SUM(general + reserve), 0) FROM agent_counters WHERE bucket >= ?1 AND bucket < ?2', /agent_counters USING PRIMARY KEY/],
     ['SELECT * FROM agent_tokens WHERE token_hash = ?', /sqlite_autoindex_agent_tokens_\d/],
   ];
   for (const [q, index] of queries) {
@@ -160,5 +161,14 @@ test('agent limit queries look rows up by index', () => {
     assert.ok(plan.every((d) => !/^SCAN /.test(d)), `${q} scans: ${plan.join(' / ')}`);
     assert.ok(plan.some((d) => index.test(d)), `${q} does not use ${index}: ${plan.join(' / ')}`);
   }
+  db.close();
+});
+
+test('usage_state is a single row looked up by its key', () => {
+  const db = freshDatabase();
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM usage_state').get() as { n: number }).n, 1);
+  const plan = (db.prepare('EXPLAIN QUERY PLAN SELECT * FROM usage_state WHERE id = 1').all() as { detail: string }[]).map((r) => r.detail);
+  assert.ok(plan.every((d) => !/^SCAN /.test(d)), plan.join(' / '));
+  assert.throws(() => db.prepare('INSERT INTO usage_state (id) VALUES (2)').run());
   db.close();
 });

@@ -945,6 +945,26 @@ Cloudflare samples these events and visitors with ad blockers are not
 counted, so the numbers are somewhat low; the panel says so. For a local
 preview, `CF_GRAPHQL_URL` can point the reader at a stand-in endpoint.
 
+**Usage alert.** Once an hour the mail tick (`functions/api/mail/dispatch.ts`,
+the hourly block) asks the same GraphQL API, with the same `CF_ANALYTICS_TOKEN`,
+for today's (UTC) Workers and Pages Functions requests, D1 rows read and D1
+rows written, against the free plan's 100,000, 5,000,000 and 100,000 a day. It
+keeps the numbers in the one row of `usage_state` (migration 8m) and e-mails
+the admins once when a number passes 70% and once more at 90%, at most once
+per number and threshold a day; each alert is in the Log as `usage.alert`.
+Overview's System block shows today's numbers, the agents' requests and
+writes against their daily budget, and when the check last ran, or that it
+failed (admins see why) or is not set up. The panel reads only D1, never the
+API. Each of the three datasets is its own request, so a name Cloudflare does
+not know costs that one line (the card says which part failed), not the D1
+alerts. Admins also see which scripts the Worker number counts, next to the
+Pages Functions number: if the Pages project itself is in that list,
+Cloudflare counts Pages Functions twice and the `pages` query should go. The
+alert links to the fixed panel address. Rows written are the least
+deliverable alert: the mail is recorded in D1 first, and D1 refuses that
+write once the limit is reached, so a jump from under 70% to the limit within
+one hour sends nothing; the card (a failed check) is the signal then. Code: `functions/_lib/usage.ts`, `functions/_lib/usage-alert.ts`.
+
 ## Content (CMS)
 
 The admin panel can edit most of the site's content: events, workshops,

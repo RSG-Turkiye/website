@@ -374,6 +374,14 @@
 --    A local database made from an earlier commit of this branch: run the
 --    first and third commands with --local instead of --remote.
 --
+-- 8m. Free-tier usage alert (functions/_lib/usage.ts). One new table,
+--    usage_state (below, at the end of the file), with its single row. All
+--    IF NOT EXISTS / OR IGNORE, safe to repeat. Run it BEFORE deploying:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Without it the hourly check logs "no such table: usage_state" and the
+--    Overview card shows no usage; nothing else breaks. Check it with:
+--      wrangler d1 execute rsg-members --remote --command="SELECT * FROM usage_state"
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -1139,3 +1147,26 @@ CREATE TABLE IF NOT EXISTS agent_counters (
   fail_window INTEGER NOT NULL DEFAULT 0, -- IP rows: the 10-minute window that fail_n counts
   fail_n      INTEGER NOT NULL DEFAULT 0  -- IP rows: failed authentications in it
 ) WITHOUT ROWID;
+
+-- Free-tier usage, measured hourly by the mail tick (functions/_lib/usage.ts).
+-- One row. day/requests/rows_*: the last successful measurement (UTC day).
+-- parts: JSON, the two halves of requests (Worker requests by script, Pages
+-- Functions) for the card's admin line.
+-- error: the last attempt's failure, NULL when it worked. alert_day/alerted:
+-- which '<metric>:<threshold>' alerts went out on that UTC day (JSON list).
+-- One row and no other index, as mail_sync_state: a write is one row written,
+-- nothing needs pruning, and the history of alerts is in the audit log.
+CREATE TABLE IF NOT EXISTS usage_state (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  checked_at    INTEGER,
+  measured_at   INTEGER,
+  day           TEXT,
+  requests      INTEGER,
+  rows_read     INTEGER,
+  rows_written  INTEGER,
+  parts         TEXT,
+  error         TEXT,
+  alert_day     TEXT,
+  alerted       TEXT NOT NULL DEFAULT '[]'
+);
+INSERT OR IGNORE INTO usage_state (id) VALUES (1);

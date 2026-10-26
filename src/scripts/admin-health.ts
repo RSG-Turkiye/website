@@ -38,7 +38,79 @@ function action(i: Issue, canFix: boolean, d: HealthDeps): string {
     : `<span class="shrink-0 text-xs">${escapeHtml(d.t('admin.health.adminCanFix'))}</span>`;
 }
 
-type Health = { issues: Issue[]; canFix: boolean };
+/** As /api/admin/health sends it (functions/api/admin/health.ts, HealthUsage). */
+export type HealthUsage = {
+  configured: boolean;
+  checkedAt: number | null; measuredAt: number | null; day: string | null;
+  requests: number | null; rowsRead: number | null; rowsWritten: number | null;
+  failed: boolean;
+  error: string | null;
+  parts: { workers: { name: string; requests: number }[] | null; pages: number | null } | null;
+  agentRequests: number; agentWrites: number;
+  limits: { requests: number; rowsRead: number; rowsWritten: number; agentRequests: number; agentWrites: number };
+};
+
+/** A check older than this is said to be stale: one missed hourly tick is not. */
+const STALE_SECONDS = 3 * 3600;
+/** Lines at or past this percent are bold, the first alert threshold. */
+const WARN_PCT = 70;
+
+function usageLine(label: string, value: number, limit: number, d: HealthDeps): string {
+  const locale = d.lang === 'tr' ? 'tr-TR' : 'en-GB';
+  const pct = Math.floor((value / limit) * 100);
+  const text = `${label}: ${d.tf('admin.health.usage.value', { value: value.toLocaleString(locale), limit: limit.toLocaleString(locale), pct })}`;
+  return `<p${pct >= WARN_PCT ? ' class="font-semibold"' : ''}>${escapeHtml(text)}</p>`;
+}
+
+/**
+ * Today's free-tier usage, plain text lines (design pass later). The status
+ * line says the first of: not set up, stale, failed, not measured yet today,
+ * measured at. Failed comes before "not yet": a check that never worked (a
+ * wrong GraphQL field name, a refused token) must say it failed, not that it
+ * has not run. Cloudflare's numbers show only when they are today's (UTC).
+ */
+export function usageHtml(u: HealthUsage | null, d: HealthDeps, now: number): string {
+  if (!u) return '';
+  const today = new Date(now * 1000).toISOString().slice(0, 10);
+  // Each line on its own: a part that failed leaves the others showing.
+  const fresh = u.configured && u.day === today;
+  const shown = (['requests', 'rowsRead', 'rowsWritten'] as const).filter((k) => fresh && u[k] !== null);
+  const measured = shown.length > 0;
+  const lines: string[] = [];
+  for (const k of shown) lines.push(usageLine(d.t(`admin.health.usage.${k}`), u[k]!, u.limits[k], d));
+  lines.push(usageLine(d.t('admin.health.usage.agentRequests'), u.agentRequests, u.limits.agentRequests, d));
+  lines.push(usageLine(d.t('admin.health.usage.agentWrites'), u.agentWrites, u.limits.agentWrites, d));
+  const at = (ts: number | null) => (ts ? formatDateTime(ts, d.lang) : '');
+  let status: string;
+  if (!u.configured) status = d.t('admin.health.usage.notSetUp');
+  else if (u.checkedAt !== null && now - u.checkedAt > STALE_SECONDS) status = d.tf('admin.health.usage.stale', { time: at(u.checkedAt) });
+  else if (u.failed) {
+    status = u.error
+      ? d.tf('admin.health.usage.failed', { time: at(u.checkedAt), error: u.error })
+      : d.tf('admin.health.usage.failedNoDetail', { time: at(u.checkedAt) });
+  } else if (!measured) status = d.t('admin.health.usage.notYet');
+  else status = d.tf('admin.health.usage.asOf', { time: at(u.measuredAt) });
+  const locale = d.lang === 'tr' ? 'tr-TR' : 'en-GB';
+  // Admins only (the server sends parts to no one else): which scripts the
+  // Workers number counts, so a double count with Pages Functions is visible.
+  const scripts = u.parts?.workers?.map((w) => `${w.name} ${w.requests.toLocaleString(locale)}`).join(', ');
+  const parts = u.parts && fresh
+    ? `<p class="text-xs text-gray-500">${escapeHtml(d.tf('admin.health.usage.parts', { scripts: scripts || '-', pages: u.parts.pages === null ? '-' : u.parts.pages.toLocaleString(locale) }))}</p>`
+    : '';
+  return `<div class="mt-3 text-sm text-gray-700">
+    <h3 class="text-xs font-semibold text-gray-500 mb-1">${escapeHtml(d.t('admin.health.usage.title'))}</h3>
+    ${lines.join('')}
+    ${parts}
+    <p class="text-xs text-gray-500 mt-1">${escapeHtml(status)}</p>
+  </div>`;
+}
+
+/** A configured check that failed or has not run for hours: Overview must not also say "Everything is working". */
+export function usageProblem(u: HealthUsage | null, now: number): boolean {
+  return Boolean(u && u.configured && (u.failed || (u.checkedAt !== null && now - u.checkedAt > STALE_SECONDS)));
+}
+
+type Health = { issues: Issue[]; canFix: boolean; usage?: HealthUsage | null };
 
 // The last answer, kept so Overview can show it whichever of the two (this
 // check or Overview's own render) finishes first.
@@ -61,11 +133,14 @@ export function renderOverviewHealth(): void {
   const el = document.getElementById('overviewHealth');
   if (!el || !last) return;
   const { data, d } = last;
+  const now = Math.floor(Date.now() / 1000);
+  const usage = usageHtml(data.usage ?? null, d, now);
   if (data.issues.length === 0) {
-    el.innerHTML = `<p class="text-sm text-gray-500">${escapeHtml(d.t('admin.overview.healthy'))}</p>`;
+    const healthy = usageProblem(data.usage ?? null, now) ? '' : `<p class="text-sm text-gray-500">${escapeHtml(d.t('admin.overview.healthy'))}</p>`;
+    el.innerHTML = `${healthy}${usage}`;
     return;
   }
-  el.innerHTML = `<div class="rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]">${lines(data, d)}</div>`;
+  el.innerHTML = `<div class="rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]">${lines(data, d)}</div>${usage}`;
   wireFix(el);
 }
 

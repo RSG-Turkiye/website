@@ -12,6 +12,8 @@ import {
 import { expireGrants } from '../../_lib/role-grants';
 import { pruneDrafts, shepherd } from '../../_lib/cms-shepherd';
 import { startRun, finishRun, markPhase, pruneRuns, isPruneTick } from '../../_lib/dispatch-log';
+import { checkUsage } from '../../_lib/usage';
+import type { AnalyticsEnv } from '../../_lib/web-analytics';
 import {
   resolveAttachments,
   sendAndLog,
@@ -255,7 +257,7 @@ async function auditOutcome(
   }
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<Env & AnalyticsEnv> = async (context) => {
   const { request, env } = context;
   // Without this, anyone could drain the queue early or burn the Gmail quota
   // by hammering the endpoint.
@@ -290,6 +292,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     } catch (err) {
       console.error('pruneDrafts failed', err);
     }
+    // Today's free-tier usage, and the admins' mail at 70% and 90%
+    // (usage.ts). Hourly, at night too: the limits reset at 00:00 UTC, not
+    // with the sending window. Under waitUntil like the shepherd, so a slow
+    // Cloudflare API never delays this answer; a failure is logged and never
+    // blocks mail.
+    const usage = (async () => {
+      try {
+        await checkUsage(env, now);
+      } catch (err) {
+        console.error('usage check failed', err);
+      }
+    })();
+    if (typeof context.waitUntil === 'function') context.waitUntil(usage);
+    else await usage;
   }
 
   // The CMS pull-request shepherd (cms-shepherd.ts) runs once on every tick:
