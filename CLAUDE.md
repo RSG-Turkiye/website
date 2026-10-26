@@ -128,6 +128,8 @@ for both sites on every PR. Keep it green.
   --sort-by=writes --timePeriod=7d`.
 - **Workers (Pages Functions) allow 100,000 requests per day** for the
   whole site; over it, every API call fails until 00:00 UTC.
+- The mail tick measures all three hourly (`functions/_lib/usage.ts`) and
+  mails the admins at 70% and 90%; the Overview card shows today's numbers.
 - **Agents get a fixed share of both** (README, "Agent access", Limits):
   all agent tokens together at most 15,000 requests a day (12,000 for any
   route, then 3,000 kept for social work) and 2,000 writes, submits and

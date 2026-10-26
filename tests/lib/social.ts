@@ -63,6 +63,7 @@ export async function settle(waits: Promise<unknown>[]): Promise<void> {
 export function stubMail() {
   resetAccessToken();
   const sent: { to: string; subject: string }[] = [];
+  const mimes: string[] = [];
   let failing = false;
   const original = globalThis.fetch;
   globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -77,7 +78,8 @@ export function stubMail() {
     const words = [...header.matchAll(/=\?UTF-8\?B\?([^?]+)\?=/g)];
     const subject = words.length ? words.map((w) => Buffer.from(w[1], 'base64').toString('utf8')).join('') : header;
     sent.push({ to, subject });
+    mimes.push(mime);
     return new Response(JSON.stringify({ id: 'm', threadId: 't' }), { status: 200 });
   }) as typeof fetch;
-  return { sent, fail: () => { failing = true; }, restore: () => { globalThis.fetch = original; resetAccessToken(); } };
+  return { sent, mimes, fail: () => { failing = true; }, restore: () => { globalThis.fetch = original; resetAccessToken(); } };
 }

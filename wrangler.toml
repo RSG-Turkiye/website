@@ -31,6 +31,7 @@ BUFFER_KEY_EXPIRES = "2027-10-19"
 # GraphQL API with the secret CF_ANALYTICS_TOKEN ("Account Analytics: Read").
 # The account id is not a secret. WEB_ANALYTICS_SINCE is the day the beacon
 # went live (YYYY-MM-DD); periods before it show a dash instead of a zero.
+# The hourly usage alert reads today's requests and D1 rows with the same two.
 # See README, "Statistics".
 CF_ACCOUNT_ID = "3408a71c05e0d833ff9ccd9750d249af"
 WEB_ANALYTICS_SINCE = "2026-10-23"
