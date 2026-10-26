@@ -8,6 +8,14 @@
  * the long name wraps instead of widening the page, and at 1280x680 the
  * loopback warning is on screen without scrolling when there are two areas.
  *
+ * With OAUTH_PREVIEW=<origin of a local `wrangler pages dev dist`> and
+ * OAUTH_SESSION=<a session id in its LOCAL D1> and OAUTH_CLIENT=<a DCR
+ * client id registered there with redirect https://app.example.org/callback>
+ * it also walks the real flow: open /oauth/authorize signed in, click Allow,
+ * and expect the browser's POST to carry the page's own Origin (never
+ * "null", which checkCsrf refuses) and a 303 to the callback with a code;
+ * then the same for Deny (error=access_denied).
+ *
  * Not part of `npm test`: it needs Playwright.
  *
  *   npm i --no-save playwright && npx playwright install chromium
@@ -95,6 +103,36 @@ for (const lang of ['en', 'tr']) {
       }
       await page.close();
     }
+  }
+}
+
+const PREVIEW = process.env.OAUTH_PREVIEW;
+if (PREVIEW) {
+  const CB = 'https://app.example.org/callback';
+  const challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
+  const url = `${PREVIEW}/oauth/authorize?` + new URLSearchParams({
+    response_type: 'code', client_id: process.env.OAUTH_CLIENT, redirect_uri: CB, code_challenge: challenge,
+    code_challenge_method: 'S256', state: 'walk-1', scope: 'cms.etkinlikler:draft',
+  });
+  for (const action of ['Allow', 'Deny']) {
+    console.log(`real flow: ${action}`);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'en-US' });
+    await context.addCookies([{ name: 'rsg_session', value: process.env.OAUTH_SESSION, url: PREVIEW }]);
+    const page = await context.newPage();
+    // The client's callback is not a real server: answer it here and read what the browser asked for.
+    await page.route('https://app.example.org/**', (route) => route.abort());
+    let origin = null;
+    page.on('request', (r) => { if (r.method() === 'POST') origin = r.headers().origin ?? '(none)'; });
+    const res = await page.goto(url);
+    ok(res.headers()['referrer-policy'] === 'same-origin', `Referrer-Policy is same-origin (${res.headers()['referrer-policy']})`);
+    const callback = page.waitForRequest((r) => new URL(r.url()).origin === 'https://app.example.org');
+    await page.getByRole('button', { name: action }).click();
+    const back = new URL((await callback).url());
+    ok(origin === new URL(PREVIEW).origin, `the form POST carried Origin ${origin}`);
+    if (action === 'Allow') ok(/^rsg_oac_/.test(back.searchParams.get('code') ?? ''), 'redirected to the callback with a code');
+    else ok(back.searchParams.get('error') === 'access_denied', 'redirected to the callback with access_denied');
+    ok(back.searchParams.get('state') === 'walk-1', 'state is returned');
+    await context.close();
   }
 }
 
