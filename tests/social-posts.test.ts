@@ -69,7 +69,7 @@ test('readiness: every rule says what is wrong', () => {
   assert.deepEqual(codes(ready({ platforms: [] })), ['no_platform']);
   assert.deepEqual(codes(ready({ platforms: ['x'], caption: 'Merhaba' })), [], 'X is offered now');
   assert.deepEqual(codes(ready({ platforms: ['x'], caption: '' })), ['x_needs_text']);
-  assert.deepEqual(codes(ready({ media: [{ key: KEY_A, alt: '  ' }] })), ['missing_alt']);
+  assert.deepEqual(codes(ready({ media: [{ key: KEY_A, alt: '  ' }] })), [], 'alt text is optional');
   assert.deepEqual(codes(ready({ media: [] })), ['media_count']);
   assert.deepEqual(codes(ready({ type: 'carousel' })), ['media_count'], 'a carousel needs at least two');
   assert.deepEqual(codes(ready({ media: [{ key: KEY_B, alt: 'x' }] })), ['bad_ratio'], 'the server size wins, not the claim');

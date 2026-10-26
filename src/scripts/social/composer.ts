@@ -328,7 +328,7 @@ function renderMedia(): void {
   box.innerHTML = state.media.map((m, i) => `<div class="w-40 border border-border rounded-lg p-1.5 text-xs">
       <div class="h-32 rounded bg-gray-200 bg-center bg-cover" style="${bgImage(m.url)}"></div>
       <p class="text-gray-500 mt-1">${m.width && m.height ? `${m.width}x${m.height}` : ''}</p>
-      <textarea data-alt="${i}" ${dis} rows="3" maxlength="1000" class="w-full mt-1 px-1.5 py-1 rounded border ${m.alt.trim() ? 'border-border' : 'border-red bg-red-tint'}" placeholder="${esc(t('admin.social.composer.alt'))}">${esc(m.alt)}</textarea>
+      <textarea data-alt="${i}" ${dis} rows="3" maxlength="1000" class="w-full mt-1 px-1.5 py-1 rounded border border-border" placeholder="${esc(t('admin.social.composer.alt'))}">${esc(m.alt)}</textarea>
       ${editable && altMissesText(m) ? `<p class="mt-1 text-gray-600">${esc(t('admin.social.text.altHint'))} <button type="button" data-altadd="${i}" class="underline text-navy">${esc(t('admin.social.text.altAdd'))}</button></p>` : ''}
       ${editable ? `<div class="flex flex-wrap gap-1 mt-1">
         <button type="button" data-up="${i}" aria-label="${esc(t('admin.social.composer.moveUp'))}" class="px-1.5 border rounded">‹</button>

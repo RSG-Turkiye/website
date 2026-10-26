@@ -154,6 +154,8 @@ async function call(url: string, init: RequestInit): Promise<{ res: Response | n
   } catch { return { res: null, body: null }; }
 }
 
+/** Alt text is optional: an empty one is left out rather than sent as "". */
+const altOf = (alt: string | undefined) => (alt?.trim() ? { altText: alt } : {});
 const permalink = (urn: string) => `https://www.linkedin.com/feed/update/${urn}/`;
 const usesImage = (post: Record<string, unknown>, image: string) => {
   const content = post.content as { media?: { id?: string }; multiImage?: { images?: { id?: string }[] } } | undefined;
@@ -223,8 +225,8 @@ export async function linkedinPublishStep(input: PublishInput): Promise<PublishS
 
   if (!await checkpoint(encodeState({ ...st, attempt: now }))) return { kind: 'pending', containerId: input.state.containerId! };
   const content = st.images.length === 1
-    ? { media: { id: st.images[0], altText: post.media[0].alt } }
-    : { multiImage: { images: st.images.map((id, i) => ({ id, altText: post.media[i]?.alt ?? '' })) } };
+    ? { media: { id: st.images[0], ...altOf(post.media[0]?.alt) } }
+    : { multiImage: { images: st.images.map((id, i) => ({ id, ...altOf(post.media[i]?.alt) })) } };
   const created = await call(`${LI_API}/posts`, {
     method: 'POST', headers: headers(token, { 'Content-Type': 'application/json' }),
     body: JSON.stringify({
