@@ -8,7 +8,11 @@
  * them in the one row of usage_state for the admin Overview card, and mails
  * the admins once per metric and threshold per UTC day.
  */
-import { gql, type AnalyticsEnv } from './web-analytics';
+import type { Env } from './auth';
+import { runGuardedWithAudit } from './audit';
+import { adminEmails, notifyEach } from './social-notify';
+import { usageAlertMessage } from './usage-alert';
+import { configured, gql, type AnalyticsEnv } from './web-analytics';
 
 /** Per account, reset 00:00 UTC. */
 export const FREE_LIMITS = { requests: 100_000, rowsRead: 5_000_000, rowsWritten: 100_000 } as const;
@@ -102,4 +106,118 @@ export async function readUsage(env: AnalyticsEnv, day: string, fetcher: typeof 
     rowsRead: total(account, 'd1', 'rowsRead'),
     rowsWritten: total(account, 'd1', 'rowsWritten'),
   };
+}
+
+export type UsageState = {
+  checkedAt: number | null; measuredAt: number | null; day: string | null; usage: Usage | null;
+  error: string | null; alertDay: string | null; alerted: string[];
+};
+
+type StateRow = {
+  checked_at: number | null; measured_at: number | null; day: string | null;
+  requests: number | null; rows_read: number | null; rows_written: number | null;
+  error: string | null; alert_day: string | null; alerted: string;
+};
+
+/** The row as stored, or null when the table (before migration 8m) or the row is missing. One row read. */
+async function readRow(db: D1Database): Promise<StateRow | null> {
+  try {
+    return await db.prepare('SELECT * FROM usage_state WHERE id = 1').first<StateRow>();
+  } catch {
+    return null;
+  }
+}
+
+function parseAlerted(raw: string | null | undefined): string[] {
+  try {
+    const list = JSON.parse(raw ?? '[]');
+    return Array.isArray(list) ? list.filter((k): k is string => typeof k === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Null when the table or the row is missing. Never throws. */
+export async function readUsageState(db: D1Database): Promise<UsageState | null> {
+  const r = await readRow(db);
+  if (!r) return null;
+  const measured = r.requests !== null && r.rows_read !== null && r.rows_written !== null;
+  return {
+    checkedAt: r.checked_at, measuredAt: r.measured_at, day: r.day,
+    usage: measured ? { requests: r.requests!, rowsRead: r.rows_read!, rowsWritten: r.rows_written! } : null,
+    error: r.error, alertDay: r.alert_day, alerted: parseAlerted(r.alerted),
+  };
+}
+
+/**
+ * The hourly job, run from the mail tick (functions/api/mail/dispatch.ts).
+ *
+ * D1 cost. A normal hour: 1 row read (usage_state) + 1 row written (the
+ * measurement). A failed hour: 1 row written (the error), nothing read. An
+ * alert hour adds the admins' users rows read, the audit chain head read (1),
+ * the claim (1 row written) and the audit insert (the row, idx_audit_at,
+ * idx_audit_user and the prev_hash unique index: about 4 written). At most 6
+ * alert hours a day (3 metrics x 2 thresholds), so a day costs under 25 reads
+ * and 25 writes, plus at most 6 x (admins + 6).
+ *
+ * The alert is claimed before it is sent. A mail lost to a Gmail failure is
+ * not resent: a resend loop is the worse failure, and the panel banner says
+ * when Gmail is broken. If D1 refuses the measurement write (writes over the
+ * limit), this throws before any mail, so nothing goes out that is not
+ * recorded; the dispatch wrapper catches it.
+ */
+export async function checkUsage(
+  env: Env & AnalyticsEnv, now: number, origin: string, fetcher: typeof fetch = fetch,
+): Promise<'not_configured' | 'failed' | 'measured' | 'alerted'> {
+  if (!configured(env)) return 'not_configured';
+  const day = utcDay(now);
+
+  let usage: Usage;
+  try {
+    usage = await readUsage(env, day, fetcher);
+  } catch (err) {
+    const message = (err instanceof Error ? err.message : String(err)).slice(0, 200);
+    // Only checked_at and error: the last good numbers stay for the card.
+    await env.DB.prepare(
+      'INSERT INTO usage_state (id, checked_at, error) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET checked_at = excluded.checked_at, error = excluded.error',
+    ).bind(now, message).run();
+    return 'failed';
+  }
+
+  const state = await readRow(env.DB);
+  // An upsert, never a plain UPDATE: if the seed row were missing, an UPDATE
+  // would match nothing and fail silently every hour. alert_day and alerted
+  // are never touched here, or each hour would reset the day's claims.
+  await env.DB.prepare(
+    `INSERT INTO usage_state (id, checked_at, measured_at, day, requests, rows_read, rows_written, error) VALUES (1, ?1, ?1, ?2, ?3, ?4, ?5, NULL)
+     ON CONFLICT(id) DO UPDATE SET checked_at = excluded.checked_at, measured_at = excluded.measured_at, day = excluded.day,
+       requests = excluded.requests, rows_read = excluded.rows_read, rows_written = excluded.rows_written, error = NULL`,
+  ).bind(now, day, usage.requests, usage.rowsRead, usage.rowsWritten).run();
+
+  const oldDay = state?.alert_day ?? null;
+  const oldAlerted = state?.alerted ?? '[]';
+  const alerted = oldDay === day ? parseAlerted(oldAlerted) : [];
+  const list = crossings(usage, alerted);
+  if (list.length === 0) return 'measured';
+
+  const recipients = await adminEmails(env.DB);
+  // The guard matches only the state read above, compared as stored, so of
+  // two checks racing on the same state only one changes the row and writes
+  // the audit row (changes() = 1).
+  const claimed = await runGuardedWithAudit(
+    env.DB,
+    env.DB.prepare('UPDATE usage_state SET alert_day = ?, alerted = ? WHERE id = 1 AND alert_day IS ? AND alerted = ?')
+      .bind(day, JSON.stringify([...alerted, ...list.map((c) => `${c.metric}:${c.threshold}`)]), oldDay, oldAlerted),
+    { condition: 'changes() = 1', binds: [] },
+    [],
+    {
+      userId: null, action: 'usage.alert', targetType: 'usage', targetId: day,
+      details: { alerts: list.map(({ metric, threshold, value, limit }) => ({ metric, threshold, value, limit })), recipients: recipients.length },
+    },
+    now,
+  );
+  if (!claimed) return 'measured';
+
+  await notifyEach(env, recipients, usageAlertMessage(list, `${origin}/admin#genel`));
+  return 'alerted';
 }
