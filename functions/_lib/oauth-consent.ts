@@ -63,7 +63,7 @@ const T = {
   },
   areas: { en: 'What it may work on', tr: 'Hangi alanlarda çalışabilir' },
   areasHint: { en: 'Only areas your own roles allow are listed.', tr: 'Yalnızca kendi rollerinin izin verdiği alanlar listelenir.' },
-  review: { en: 'Can also read your team\'s drafts awaiting review.', tr: 'Ekibin onay bekleyen taslaklarını da okuyabilir.' },
+  review: { en: 'Can also read your team\'s unpublished drafts and posts.', tr: 'Ekibin yayınlanmamış taslak ve gönderilerini de okuyabilir.' },
   levelRead: { en: 'Read', tr: 'Okuma' },
   levelDraft: { en: 'Read and write drafts', tr: 'Okuma ve taslak yazma' },
   level: { en: 'Level for', tr: 'Düzey:' },

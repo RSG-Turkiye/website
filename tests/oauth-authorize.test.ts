@@ -243,18 +243,18 @@ test('the consent page adds the review line only under an area the member review
   try {
     const areaBlock = (body: string, area: string) => new RegExp(`<div class="area">\\s*<label><input type="checkbox" name="area" value="${area.replace('.', '\\.')}"[\\s\\S]*?</div>`).exec(body)![0];
     const en = await (await get(env, 'rv', params({ scope: 'cms.etkinlikler:read cms.yazilar:read social:read' }), { 'Accept-Language': 'en' })).text();
-    assert.match(areaBlock(en, 'cms.etkinlikler'), /Can also read your team(?:'|&#39;)s drafts awaiting review\./);
-    assert.doesNotMatch(areaBlock(en, 'cms.yazilar'), /awaiting review/);
-    assert.doesNotMatch(areaBlock(en, 'social'), /awaiting review/);
+    assert.match(areaBlock(en, 'cms.etkinlikler'), /Can also read your team(?:'|&#39;)s unpublished drafts and posts\./);
+    assert.doesNotMatch(areaBlock(en, 'cms.yazilar'), /unpublished drafts and posts/);
+    assert.doesNotMatch(areaBlock(en, 'social'), /unpublished drafts and posts/);
     const tr = await (await get(env, 'rv', params({ scope: 'cms.etkinlikler:read' }), { 'Accept-Language': 'tr' })).text();
-    assert.match(areaBlock(tr, 'cms.etkinlikler'), /Ekibin onay bekleyen taslaklarını da okuyabilir\./);
+    assert.match(areaBlock(tr, 'cms.etkinlikler'), /Ekibin yayınlanmamış taslak ve gönderilerini de okuyabilir\./);
     // The same member as a social publisher: the line moves to Social.
     await grantRole(DB, { userId: 'rv', role: 'social_publisher', expiresAt: now() + 86400 * 30, by: null }, now());
     const pub = await (await get(env, 'rv', params(), { 'Accept-Language': 'en' })).text();
-    assert.match(areaBlock(pub, 'social'), /awaiting review/);
+    assert.match(areaBlock(pub, 'social'), /unpublished drafts and posts/);
     // A plain editor sees no such line anywhere; the page keeps its fixed promise and no em dash.
     const ed = await (await get(env, 'ed', params(), { 'Accept-Language': 'en' })).text();
-    assert.doesNotMatch(ed, /awaiting review/);
+    assert.doesNotMatch(ed, /unpublished drafts and posts/);
     for (const body of [en, tr, pub]) assert.ok(!body.includes('—'));
     assert.ok(en.includes('It can never approve, publish, schedule or send.'));
   } finally { http.restore(); }

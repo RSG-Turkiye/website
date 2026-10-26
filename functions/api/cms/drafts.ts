@@ -56,7 +56,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   // Which entries a live draft holds, so the panel offers no second draft
   // that submit would refuse (entry_busy). Not whose draft it is. Someone
   // else's new entry is not listed: it is not published, so it has no row.
-  // A token sees only its member's own: a colleague's draft does not exist for it.
+  // In `live`, a token sees only its member's own: a colleague's draft is not listed there.
   const types = [...editable];
   const live = types.length === 0 || reviewOnly ? { results: [] as { type: string; entry_id: string; status: string }[] } : await env.DB.prepare(
     `SELECT type, entry_id, status FROM content_drafts

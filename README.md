@@ -1591,8 +1591,8 @@ Only the member sees the consent page; it is plain HTML in
 and `tests/browser/oauth-consent.mjs` checks it at the usual laptop sizes
 and at 390 px. `tests/oauth-flow.test.ts` walks each kind of app from the
 401 to a draft, a refresh and a disconnect. Under an area the member also
-reviews, the page adds one line saying the app can read the team's drafts
-awaiting review.
+reviews, the page adds one line saying the app can also read the team's
+unpublished drafts and posts.
 
 To disconnect, a member opens Agent tokens in the panel and uses
 "Disconnect" on the app (or removes the connector in the app first). The
