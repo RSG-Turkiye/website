@@ -66,5 +66,5 @@ test('the prune also removes agent counters of earlier days and agent tokens dea
   assert.deepEqual((db.prepare('SELECT bucket FROM agent_counters').all() as { bucket: string }[]).map((r) => r.bucket), [`${day(0)}:t:a`]);
   assert.deepEqual((db.prepare('SELECT id FROM agent_tokens ORDER BY id').all() as { id: string }[]).map((r) => r.id), ['expired-lately', 'live', 'revoked-lately']);
   const row = db.prepare(`SELECT details FROM audit_log WHERE action = 'audit.prune'`).get() as { details: string };
-  assert.deepEqual(JSON.parse(row.details), { deleted: 0, cutoff: JSON.parse(row.details).cutoff, agentCounters: 2, agentTokens: 2 });
+  assert.deepEqual(JSON.parse(row.details), { deleted: 0, cutoff: JSON.parse(row.details).cutoff, agentCounters: 2, agentTokens: 2, oauthCodes: 0, oauthClients: 0 });
 });

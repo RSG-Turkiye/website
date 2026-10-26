@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { hashToken, newTokenValue } from '../../functions/_lib/agent-tokens';
+import { newRefreshValue, newValue, PREFIX, sha256Hex } from '../../functions/_lib/oauth-config';
 
 /**
  * Inserts a personal agent token for `userId` and returns its value, the
@@ -25,3 +26,29 @@ export async function mintToken(
 
 /** The request header that carries a token. */
 export const bearer = (value: string): Record<string, string> => ({ Authorization: `Bearer ${value}` });
+
+/**
+ * Inserts an OAuth connection for `userId` (an agent_tokens row of kind
+ * 'oauth', as the token endpoint makes it) and returns its id and the only
+ * copies of its access and refresh values (the row holds their hashes).
+ */
+export async function mintConnection(
+  db: DatabaseSync,
+  userId: string,
+  scopes: string[],
+  opts: { id?: string; label?: string; clientId?: string; accessExpiresAt?: number; expiresAt?: number; revokedAt?: number | null } = {},
+): Promise<{ id: string; access: string; refresh: string }> {
+  const id = opts.id ?? crypto.randomUUID();
+  const access = newValue(PREFIX.access);
+  const refresh = newRefreshValue(id);
+  db.prepare(
+    `INSERT INTO agent_tokens (id, user_id, token_hash, hint, label, scopes, created_at, expires_at, revoked_at,
+       kind, client_id, access_expires_at, refresh_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'oauth', ?, ?, ?)`,
+  ).run(
+    id, userId, await sha256Hex(access), access.slice(-4), opts.label ?? 'client.example.org', JSON.stringify(scopes), 1,
+    opts.expiresAt ?? 4_000_000_000, opts.revokedAt ?? null, opts.clientId ?? 'https://client.example.org/oauth/client.json',
+    opts.accessExpiresAt ?? 4_000_000_000, await sha256Hex(refresh),
+  );
+  return { id, access, refresh };
+}

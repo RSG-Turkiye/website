@@ -12,6 +12,7 @@ import { CMS_GROUPS, ROLES, rightsFromRoles, type CmsGroup, type GroupRights } f
 import { safeEqual } from './secret';
 import { routeFor, type AgentLevel, type AgentRoute } from './agent-routes';
 import { checkQuota, checkToken, countFailedAuth, ipKey, ipRefusal, readSnapshot, type Charge, type QuotaColumn } from './agent-limits';
+import { newValue, PRM_URL, PREFIX as OAUTH_PREFIX, sha256Hex } from './oauth-config';
 
 export type { AgentLevel, AgentRoute };
 
@@ -39,20 +40,16 @@ export function parseScopes(raw: unknown): AgentScope[] | null {
 export const formatScope = (s: AgentScope): string => `${s.area}:${s.level}`;
 
 const PREFIX = 'rsg_pat_';
-const VALUE = /^Bearer (rsg_pat_[A-Za-z0-9_-]{43})$/;
+/** A personal token (rsg_pat_) or an OAuth connection's access token (rsg_oat_, oauth-config.ts). */
+const VALUE = /^Bearer (rsg_(?:pat|oat)_[A-Za-z0-9_-]{43})$/;
 
 /** `rsg_pat_` and 32 random bytes in base64url (43 characters). */
 export function newTokenValue(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const b64 = btoa(String.fromCharCode(...bytes));
-  return PREFIX + b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return newValue(PREFIX);
 }
 
 /** SHA-256 hex. 32 random bytes need no salt or pepper: there is nothing to guess. */
-export async function hashToken(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+export const hashToken = sha256Hex;
 
 export interface AgentPrincipal {
   tokenId: string;
@@ -91,12 +88,19 @@ export type AgentAuth =
   | { kind: 'agent'; user: User; agent: AgentPrincipal }
   | { kind: 'refused'; response: Response };
 
-/** One answer for every authentication failure, so none says which check failed. */
-export function unauthorized(): Response {
+/**
+ * One answer for every authentication failure, so none says which check
+ * failed. The challenge names the protected resource metadata (RFC 9728),
+ * which is how an MCP client finds where to sign in; `invalid_token` is
+ * added when a credential was presented (RFC 6750 §3.1), and left out when
+ * none was, so a client without one starts sign-in rather than reporting an error.
+ */
+export function unauthorized(opts: { invalidToken?: boolean } = {}): Response {
   const res = jsonResponse({ error: 'Unauthorized', code: 'unauthorized' }, 401);
-  res.headers.set('WWW-Authenticate', 'Bearer');
+  res.headers.set('WWW-Authenticate', `Bearer resource_metadata="${PRM_URL}"${opts.invalidToken ? ', error="invalid_token"' : ''}`);
   return res;
 }
+const invalidToken = () => unauthorized({ invalidToken: true });
 
 export const humanOnly = (): Response =>
   jsonResponse({ error: 'This is done by a person in the panel', code: 'human_only' }, 403);
@@ -114,6 +118,9 @@ interface TokenRow {
   expires_at: number;
   last_used_at: number | null;
   revoked_at: number | null;
+  kind: 'pat' | 'oauth';
+  /** oauth: when the current access token stops working. */
+  access_expires_at: number | null;
 }
 
 function storedScopes(raw: string): AgentScope[] | null {
@@ -134,6 +141,11 @@ function storedScopes(raw: string): AgentScope[] | null {
  * writes nothing for its IP: only its own token row. A revoked or expired
  * token's value is 401 without a count: it is a stale client, not a guess,
  * and must not lock out everyone else behind the same address.
+ *
+ * An OAuth connection's access token (rsg_oat_, kind 'oauth') takes the same
+ * path with two more checks: past its access_expires_at it is 401 without a
+ * count (the client refreshes), and it works on /api/mcp only (its audience,
+ * oauth-config.ts MCP_RESOURCE): on any other table route it is 401.
  */
 export async function authenticateAgent(request: Request, env: Env, now: number, opts: { charge?: ChargeRule } = {}): Promise<AgentAuth> {
   const internal = INTERNAL.get(request);
@@ -149,7 +161,7 @@ export async function authenticateAgent(request: Request, env: Env, now: number,
   const match = VALUE.exec(header);
   if (!match) {
     await countFailedAuth(env.DB, ip, snapshot, now);
-    return refused(unauthorized());
+    return refused(invalidToken());
   }
   const value = match[1];
   const hash = await hashToken(value);
@@ -157,17 +169,21 @@ export async function authenticateAgent(request: Request, env: Env, now: number,
   const row = await env.DB.prepare('SELECT * FROM agent_tokens WHERE token_hash = ?').bind(hash).first<TokenRow>();
   if (!row || !safeEqual(row.token_hash, hash)) {
     await countFailedAuth(env.DB, ip, snapshot, now);
-    return refused(unauthorized());
+    return refused(invalidToken());
   }
-  if (row.revoked_at !== null || row.expires_at <= now) return refused(unauthorized());
+  if (row.revoked_at !== null || row.expires_at <= now) return refused(invalidToken());
+  const oauth = value.startsWith(OAUTH_PREFIX.access);
+  if (row.kind !== (oauth ? 'oauth' : 'pat')) return refused(invalidToken());
+  if (oauth && (row.access_expires_at === null || row.access_expires_at <= now)) return refused(invalidToken());
   const scopes = storedScopes(row.scopes);
-  if (!scopes) return refused(unauthorized());
+  if (!scopes) return refused(invalidToken());
   const stored = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(row.user_id).first<User>();
-  if (!stored) return refused(unauthorized());
+  if (!stored) return refused(invalidToken());
   const user = withoutRightsColumns(stored);
 
   const route = routeFor(request.method, new URL(request.url).pathname);
   if (!route) return refused(humanOnly());
+  if (oauth && route.area !== 'mcp') return refused(invalidToken());
 
   const liveRoles = [...new Set((await activeGrants(env.DB, user.id, now)).map((g) => g.role))];
   const agent: AgentPrincipal = {

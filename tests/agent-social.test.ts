@@ -21,6 +21,7 @@ import * as cancel from '../functions/api/social/posts/[id]/cancel';
 import * as plans from '../functions/api/social/plans/index';
 import * as plan from '../functions/api/social/plans/[id]';
 import * as upload from '../functions/api/blog-submissions/upload-image';
+import { PRM_URL } from '../functions/_lib/oauth-config';
 
 const NOW = Math.floor(Date.now() / 1000);
 const draft = { type: 'image', caption: 'Merhaba', media: [{ key: KEYS.feed, alt: 'Afiş' }], platforms: ['instagram', 'linkedin'], scheduledAt: NOW + 3600 };
@@ -209,7 +210,7 @@ test('a bad bearer token beside a valid session is 401, on social and on upload'
   const bad = 'rsg_pat_' + 'A'.repeat(43);
   const res = await req(posts.onRequestPost, 'POST', '/api/social/posts', env, { token: bad, as: 'pub', body: draft });
   assert.equal(res.status, 401);
-  assert.equal(res.headers.get('WWW-Authenticate'), 'Bearer');
+  assert.equal(res.headers.get('WWW-Authenticate'), `Bearer resource_metadata="${PRM_URL}", error="invalid_token"`);
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM social_posts').get() as { n: number }).n, 0);
   const up = await uploadAs({ ...env as object, BLOG_IMAGES: fakeR2() }, { token: bad, cookie: 's-pub' });
   assert.equal(up.status, 401);

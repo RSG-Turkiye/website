@@ -374,6 +374,20 @@
 --    A local database made from an earlier commit of this branch: run the
 --    first and third commands with --local instead of --remote.
 --
+-- 8n. OAuth connections for web connectors (functions/_lib/oauth-config.ts).
+--    Six columns on agent_tokens (a connection is a row of kind 'oauth'),
+--    then two new tables, oauth_clients and oauth_codes. Run the two
+--    commands, in this order, BEFORE deploying: the /api middleware and the
+--    panel's token list select agent_tokens.kind, so without the columns
+--    they fail on "no such column: kind", and authenticateAgent refuses
+--    every personal token with 401 (a row without kind 'pat').
+--    1. ALTER TABLE ADD COLUMN is NOT idempotent, so it stays a note here and
+--       errors rather than no-ops on a rerun: do not re-run it.
+--    2. All IF NOT EXISTS, safe to repeat.
+--      wrangler d1 execute rsg-members --remote --command="ALTER TABLE agent_tokens ADD COLUMN kind TEXT NOT NULL DEFAULT 'pat'; ALTER TABLE agent_tokens ADD COLUMN client_id TEXT; ALTER TABLE agent_tokens ADD COLUMN access_expires_at INTEGER; ALTER TABLE agent_tokens ADD COLUMN refresh_hash TEXT; ALTER TABLE agent_tokens ADD COLUMN prev_refresh_hash TEXT; ALTER TABLE agent_tokens ADD COLUMN refreshed_at INTEGER"
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Existing rows become kind 'pat', which they are.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -1111,9 +1125,51 @@ CREATE TABLE IF NOT EXISTS agent_tokens (
   last_used_at  INTEGER,
   revoked_at    INTEGER,
   revoked_by    TEXT,
-  revoke_reason TEXT
+  revoke_reason TEXT,
+  -- OAuth connections (migration 8n). A personal token is kind 'pat' and
+  -- leaves the rest NULL. A connection is kind 'oauth': token_hash is its
+  -- current access token, rotated in place on refresh, so the row id (the
+  -- audit marker, the counter key) lives as long as the connection does.
+  kind              TEXT NOT NULL DEFAULT 'pat',  -- 'pat' | 'oauth'
+  client_id         TEXT,     -- oauth: a CIMD URL or an oauth_clients.id
+  access_expires_at INTEGER,  -- oauth: when the current access token stops working
+  refresh_hash      TEXT,     -- oauth: SHA-256 of the current refresh value, found by row id (no index)
+  prev_refresh_hash TEXT,     -- oauth: the one before, to tell a retry from a stolen value
+  refreshed_at      INTEGER   -- oauth: when the refresh value last rotated
 );
 CREATE INDEX IF NOT EXISTS idx_agent_tokens_user ON agent_tokens(user_id, revoked_at);
+
+-- OAuth clients that registered themselves (RFC 7591, /oauth/register).
+-- Clients with a metadata document URL (CIMD, as claude.ai and ChatGPT use)
+-- are fetched, never stored. secret_hash is the SHA-256 of the client
+-- secret, which is shown once. WITHOUT ROWID and no other index: a
+-- registration writes one row here. The nightly audit prune deletes a
+-- client that is a day old and has no connection and no code.
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  id            TEXT PRIMARY KEY,   -- 'rsg_oc_...'
+  secret_hash   TEXT NOT NULL,
+  auth_method   TEXT NOT NULL,      -- token_endpoint_auth_method: 'client_secret_basic', 'client_secret_post' or 'none'
+  name          TEXT NOT NULL,
+  redirect_uris TEXT NOT NULL,      -- JSON array
+  created_at    INTEGER NOT NULL
+) WITHOUT ROWID;
+
+-- Authorization codes between the consent screen and the token endpoint,
+-- found by the code's SHA-256. A code lives CODE_TTL (120 s) and is deleted
+-- when it is spent. WITHOUT ROWID and no other index: a code costs one row
+-- written. The member's expired codes go when they make the next one, and
+-- the nightly audit prune deletes every expired code.
+CREATE TABLE IF NOT EXISTS oauth_codes (
+  code_hash      TEXT PRIMARY KEY,
+  user_id        TEXT NOT NULL,
+  client_id      TEXT NOT NULL,     -- a CIMD URL or an oauth_clients.id
+  label          TEXT NOT NULL,     -- the connection's name in the panel
+  redirect_uri   TEXT NOT NULL,
+  code_challenge TEXT NOT NULL,     -- PKCE S256
+  scopes         TEXT NOT NULL,     -- JSON array of area:level, as the member ticked them
+  days           INTEGER NOT NULL,  -- the connection's life
+  expires_at     INTEGER NOT NULL
+) WITHOUT ROWID;
 
 -- Agent request counters (functions/_lib/agent-limits.ts): one row per UTC
 -- day and subject (a token, an IP, or the day's failures), holding every
