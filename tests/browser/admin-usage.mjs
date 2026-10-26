@@ -7,8 +7,11 @@
  *
  * Not part of `npm test`: it needs Playwright and a preview server.
  *
- *   npm run build && npx astro preview --port 4331 &
- *   BASE=http://localhost:4331 node tests/browser/admin-usage.mjs
+ *   npm run build && npx astro preview --port 4329 &
+ *   BASE=http://localhost:4329 node tests/browser/admin-usage.mjs
+ *
+ * BASE defaults to http://localhost:4329. Without Playwright's own browser,
+ * CHROME=<path to a Chromium or headless shell> points it at another one.
  *
  * Every API call is intercepted, so nothing is read or stored.
  */
