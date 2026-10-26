@@ -280,16 +280,25 @@ export function parseRegistration(body: unknown): Registration {
  * The insert of a new DCR client, to batch with the registration counters,
  * and the id and secret to return once. The secret is always issued (Call 8;
  * Perplexity refuses an answer without one) and only its hash is stored.
- * Async: hashing with Web Crypto is.
+ * Async: hashing with Web Crypto is. With `guard` (a SQL condition and its
+ * binds) the row is inserted only while the condition holds, so a cap is
+ * decided inside the batch, not by an earlier read; the batch's result says
+ * whether it was (meta.changes).
  */
 export async function registerStatement(
-  db: D1Database, input: { name: string; redirectUris: string[]; authMethod: Client['authMethod']; now: number },
+  db: D1Database,
+  input: { name: string; redirectUris: string[]; authMethod: Client['authMethod']; now: number; guard?: { sql: string; binds: unknown[] } },
 ): Promise<{ statement: D1PreparedStatement; id: string; secret: string }> {
   const id = newValue(PREFIX.client);
   const secret = newValue(PREFIX.secret);
-  const statement = db.prepare(
-    'INSERT INTO oauth_clients (id, secret_hash, auth_method, name, redirect_uris, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).bind(id, await sha256Hex(secret), input.authMethod, input.name, JSON.stringify(input.redirectUris), input.now);
+  const values = [id, await sha256Hex(secret), input.authMethod, input.name, JSON.stringify(input.redirectUris), input.now];
+  const statement = input.guard
+    ? db.prepare(
+      `INSERT INTO oauth_clients (id, secret_hash, auth_method, name, redirect_uris, created_at) SELECT ?, ?, ?, ?, ?, ? WHERE ${input.guard.sql}`,
+    ).bind(...values, ...input.guard.binds)
+    : db.prepare(
+      'INSERT INTO oauth_clients (id, secret_hash, auth_method, name, redirect_uris, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    ).bind(...values);
   return { statement, id, secret };
 }
 

@@ -662,8 +662,29 @@ export async function registrationRefusal(db: D1Database, ip: string, now: numbe
   return null;
 }
 
-/** The two counter upserts of an allowed registration, to batch with the client's insert (three rows in all). */
-export function registrationBumps(db: D1Database, ip: string, now: number): D1PreparedStatement[] {
-  const upsert = 'INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1';
+/**
+ * The condition that makes a registration's insert atomic with its cap: this
+ * IP is under REGISTRATIONS_PER_IP and the day under REGISTRATIONS_PER_DAY,
+ * judged inside the batch. registrationRefusal stays the cheap read that
+ * answers first; this closes the gap parallel requests could slip through.
+ */
+export function registrationGuard(ip: string, now: number): { sql: string; binds: unknown[] } {
+  const under = '(SELECT COALESCE(SUM(requests), 0) FROM agent_counters WHERE bucket = ?) < ?';
+  return {
+    sql: `${under} AND ${under}`,
+    binds: [registrationIpBucket(ip, now), REGISTRATIONS_PER_IP, registrationsBucket(now), REGISTRATIONS_PER_DAY],
+  };
+}
+
+/**
+ * The two counter upserts of an allowed registration, to batch with the client's insert (three rows in all).
+ * With `afterGuardedInsert` each counts only if the statement before it
+ * changed a row (the guarded insert, then the first upsert), so a refused
+ * registration bumps nothing.
+ */
+export function registrationBumps(db: D1Database, ip: string, now: number, afterGuardedInsert = false): D1PreparedStatement[] {
+  const upsert = afterGuardedInsert
+    ? 'INSERT INTO agent_counters (bucket, requests) SELECT ?, 1 WHERE changes() > 0 ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1'
+    : 'INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1';
   return [db.prepare(upsert).bind(registrationIpBucket(ip, now)), db.prepare(upsert).bind(registrationsBucket(now))];
 }
