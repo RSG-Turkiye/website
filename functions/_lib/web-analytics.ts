@@ -38,7 +38,8 @@ export interface SiteVisits {
 
 type Fetch = typeof fetch;
 
-async function gql<T>(env: AnalyticsEnv, query: string, variables: Record<string, unknown>, fetcher: Fetch): Promise<T> {
+/** One GraphQL request. Throws on an HTTP error, on `errors` in the answer, and on an answer without data. Also used by usage.ts. */
+export async function gql<T>(env: AnalyticsEnv, query: string, variables: Record<string, unknown>, fetcher: Fetch): Promise<T> {
   const res = await fetcher(env.CF_GRAPHQL_URL || ENDPOINT, {
     method: 'POST',
     headers: { Authorization: `Bearer ${env.CF_ANALYTICS_TOKEN}`, 'Content-Type': 'application/json' },

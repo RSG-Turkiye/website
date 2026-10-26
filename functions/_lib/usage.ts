@@ -8,6 +8,7 @@
  * them in the one row of usage_state for the admin Overview card, and mails
  * the admins once per metric and threshold per UTC day.
  */
+import { gql, type AnalyticsEnv } from './web-analytics';
 
 /** Per account, reset 00:00 UTC. */
 export const FREE_LIMITS = { requests: 100_000, rowsRead: 5_000_000, rowsWritten: 100_000 } as const;
@@ -42,4 +43,63 @@ export function crossings(usage: Usage, alerted: string[]): Crossing[] {
     }
   }
   return out;
+}
+
+/**
+ * Today's three numbers in one GraphQL request, three aliased datasets, each
+ * filtered by the UTC date only. No dimensions, so each dataset answers with
+ * one summed group; the code still adds up every group it gets.
+ *
+ * requests = Workers + Pages Functions: the 100,000 is per account and Pages
+ * Functions requests count toward it. If Cloudflare also lists Pages
+ * Functions under workersInvocationsAdaptive, this counts them twice, which
+ * alerts early rather than late (README, "Usage alert").
+ *
+ * D1 is summed for the whole account, with no database filter, because the
+ * free D1 limits are per account.
+ *
+ * The workersInvocationsAdaptive and d1AnalyticsAdaptiveGroups names are in
+ * Cloudflare's docs; pagesFunctionsInvocationsAdaptiveGroups and its fields
+ * come from a schema mirror. A wrong name makes Cloudflare answer with
+ * `errors`, which gql throws: the check fails and says so, and never mails.
+ */
+const USAGE_QUERY = `query ($account: string!, $day: Date!) {
+  viewer { accounts(filter: { accountTag: $account }) {
+    workers: workersInvocationsAdaptive(limit: 1000, filter: { date: $day }) { sum { requests } }
+    pages: pagesFunctionsInvocationsAdaptiveGroups(limit: 1000, filter: { date: $day }) { sum { requests } }
+    d1: d1AnalyticsAdaptiveGroups(limit: 1000, filter: { date: $day }) { sum { rowsRead rowsWritten } }
+  } }
+}`;
+
+type SumGroup = { sum?: Record<string, unknown> | null };
+type UsageAnswer = { viewer?: { accounts?: Record<string, SumGroup[] | null | undefined>[] } };
+
+/**
+ * The sum of one field over a dataset's groups. An empty list is a day with no
+ * traffic yet (the 00:00 UTC hour) and reads as 0. A dataset missing from the
+ * answer, or a group without the field, is an answer this code does not
+ * understand: it throws rather than report a zero that would hide real usage.
+ */
+function total(account: Record<string, SumGroup[] | null | undefined>, dataset: string, field: string): number {
+  const groups = account[dataset];
+  if (!Array.isArray(groups)) throw new Error(`no ${dataset} in the answer`);
+  let sum = 0;
+  for (const g of groups) {
+    const v = g?.sum?.[field];
+    if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`no ${dataset}.sum.${field} in the answer`);
+    sum += v;
+  }
+  return sum;
+}
+
+/** Throws on an HTTP error, GraphQL `errors`, no account in the answer, or a dataset or field missing from it. */
+export async function readUsage(env: AnalyticsEnv, day: string, fetcher: typeof fetch = fetch): Promise<Usage> {
+  const data = await gql<UsageAnswer>(env, USAGE_QUERY, { account: env.CF_ACCOUNT_ID, day }, fetcher);
+  const account = data.viewer?.accounts?.[0];
+  if (!account) throw new Error('no account in the answer');
+  return {
+    requests: total(account, 'workers', 'requests') + total(account, 'pages', 'requests'),
+    rowsRead: total(account, 'd1', 'rowsRead'),
+    rowsWritten: total(account, 'd1', 'rowsWritten'),
+  };
 }
