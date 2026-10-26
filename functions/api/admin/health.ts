@@ -3,7 +3,7 @@ import { getSessionUser, jsonResponse, canSeeAdminPanel } from '../../_lib/auth'
 import { listConnections, withLiveExpiry } from '../../_lib/connections';
 import { healthIssues } from '../../_lib/health';
 import { agentUsageToday, AGENT_BUDGET, AGENT_WRITE_BUDGET } from '../../_lib/agent-limits';
-import { FREE_LIMITS, readUsageState } from '../../_lib/usage';
+import { FREE_LIMITS, readUsageState, type Parts } from '../../_lib/usage';
 import { configured, type AnalyticsEnv } from '../../_lib/web-analytics';
 
 /** Today's free-tier usage for the Overview card, as the hourly check last measured it (usage.ts). */
@@ -15,6 +15,8 @@ export type HealthUsage = {
   failed: boolean;
   /** Why; admins only, null for everyone else. */
   error: string | null;
+  /** Admins only: what the requests number is made of, so a double count shows. */
+  parts: Parts | null;
   agentRequests: number; agentWrites: number;
   limits: { requests: number; rowsRead: number; rowsWritten: number; agentRequests: number; agentWrites: number };
 };
@@ -83,9 +85,10 @@ async function usageToday(env: Env & AnalyticsEnv, canFix: boolean): Promise<Hea
     return {
       configured: configured(env),
       checkedAt: state.checkedAt, measuredAt: state.measuredAt, day: state.day,
-      requests: state.usage?.requests ?? null, rowsRead: state.usage?.rowsRead ?? null, rowsWritten: state.usage?.rowsWritten ?? null,
+      requests: state.usage.requests, rowsRead: state.usage.rowsRead, rowsWritten: state.usage.rowsWritten,
       failed: state.error !== null,
       error: canFix ? state.error : null,
+      parts: canFix ? state.parts : null,
       agentRequests: agents.requests, agentWrites: agents.writes,
       limits: { ...FREE_LIMITS, agentRequests: AGENT_BUDGET, agentWrites: AGENT_WRITE_BUDGET },
     };

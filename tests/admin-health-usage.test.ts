@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parse } from 'node-html-parser';
 import { ui } from '../src/i18n/ui';
-import { usageHtml, type HealthUsage, type HealthDeps } from '../src/scripts/admin-health';
+import { usageHtml, usageProblem, type HealthUsage, type HealthDeps } from '../src/scripts/admin-health';
 
 const NOW = Date.parse('2026-10-26T12:00:00Z') / 1000;
 
@@ -15,7 +15,7 @@ const d = deps('en');
 function usage(over: Partial<HealthUsage> = {}): HealthUsage {
   return {
     configured: true, checkedAt: NOW - 600, measuredAt: NOW - 600, day: '2026-10-26',
-    requests: 42_000, rowsRead: 1_000_000, rowsWritten: 20_000, failed: false, error: null,
+    requests: 42_000, rowsRead: 1_000_000, rowsWritten: 20_000, failed: false, error: null, parts: null,
     agentRequests: 12, agentWrites: 4,
     limits: { requests: 100_000, rowsRead: 5_000_000, rowsWritten: 100_000, agentRequests: 15_000, agentWrites: 2_000 },
     ...over,
@@ -50,7 +50,7 @@ test('a line at or past 70% is bold, and only that one', () => {
 
 test('Turkish numbers and percent are written the Turkish way', () => {
   const s = text(usageHtml(usage(), deps('tr'), NOW));
-  assert.match(s, /Worker istekleri: 100\.000 içinde 42\.000 \(%42\)/);
+  assert.match(s, /Worker istekleri: 42\.000 \/ 100\.000 \(%42\)/);
 });
 
 test('not configured says so and still shows the agent lines', () => {
@@ -102,3 +102,31 @@ test('yesterday\'s numbers are not shown as today\'s', () => {
 });
 
 test('null usage renders nothing', () => assert.equal(usageHtml(null, d, NOW), ''));
+
+test('a metric that failed is left out while the others show', () => {
+  const s = text(usageHtml(usage({ requests: null, failed: true, error: 'pages: Cannot query field' }), d, NOW));
+  assert.doesNotMatch(s, /Worker requests/);
+  assert.match(s, /D1 rows read: 1,000,000/);
+  assert.match(s, /failed: pages: Cannot query field/);
+});
+
+test('admins see which scripts the Workers number counts', () => {
+  const s = text(usageHtml(usage({ parts: { workers: [{ name: 'rsg-mail-cron', requests: 1440 }, { name: 'website', requests: 30 }], pages: 2900 } }), d, NOW));
+  assert.match(s, /Worker requests by script: rsg-mail-cron 1,440, website 30\. Pages Functions: 2,900\./);
+});
+
+test('without parts (not an admin) no script line is shown', () => {
+  assert.doesNotMatch(text(usageHtml(usage(), d, NOW)), /by script/);
+});
+
+test('the script names are escaped', () => {
+  assert.ok(!usageHtml(usage({ parts: { workers: [{ name: '<b>x</b>', requests: 1 }], pages: 1 } }), d, NOW).includes('<b>x'));
+});
+
+test('a failed or stale configured check is a problem; a working one is not', () => {
+  assert.equal(usageProblem(usage(), NOW), false);
+  assert.equal(usageProblem(usage({ failed: true }), NOW), true);
+  assert.equal(usageProblem(usage({ checkedAt: NOW - 4 * 3600 }), NOW), true);
+  assert.equal(usageProblem(usage({ configured: false, failed: true }), NOW), false);
+  assert.equal(usageProblem(null, NOW), false);
+});

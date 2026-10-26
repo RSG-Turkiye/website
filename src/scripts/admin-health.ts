@@ -45,6 +45,7 @@ export type HealthUsage = {
   requests: number | null; rowsRead: number | null; rowsWritten: number | null;
   failed: boolean;
   error: string | null;
+  parts: { workers: { name: string; requests: number }[] | null; pages: number | null } | null;
   agentRequests: number; agentWrites: number;
   limits: { requests: number; rowsRead: number; rowsWritten: number; agentRequests: number; agentWrites: number };
 };
@@ -71,13 +72,12 @@ function usageLine(label: string, value: number, limit: number, d: HealthDeps): 
 export function usageHtml(u: HealthUsage | null, d: HealthDeps, now: number): string {
   if (!u) return '';
   const today = new Date(now * 1000).toISOString().slice(0, 10);
-  const measured = u.configured && u.day === today && u.requests !== null && u.rowsRead !== null && u.rowsWritten !== null;
+  // Each line on its own: a part that failed leaves the others showing.
+  const fresh = u.configured && u.day === today;
+  const shown = (['requests', 'rowsRead', 'rowsWritten'] as const).filter((k) => fresh && u[k] !== null);
+  const measured = shown.length > 0;
   const lines: string[] = [];
-  if (measured) {
-    lines.push(usageLine(d.t('admin.health.usage.requests'), u.requests!, u.limits.requests, d));
-    lines.push(usageLine(d.t('admin.health.usage.rowsRead'), u.rowsRead!, u.limits.rowsRead, d));
-    lines.push(usageLine(d.t('admin.health.usage.rowsWritten'), u.rowsWritten!, u.limits.rowsWritten, d));
-  }
+  for (const k of shown) lines.push(usageLine(d.t(`admin.health.usage.${k}`), u[k]!, u.limits[k], d));
   lines.push(usageLine(d.t('admin.health.usage.agentRequests'), u.agentRequests, u.limits.agentRequests, d));
   lines.push(usageLine(d.t('admin.health.usage.agentWrites'), u.agentWrites, u.limits.agentWrites, d));
   const at = (ts: number | null) => (ts ? formatDateTime(ts, d.lang) : '');
@@ -90,11 +90,24 @@ export function usageHtml(u: HealthUsage | null, d: HealthDeps, now: number): st
       : d.tf('admin.health.usage.failedNoDetail', { time: at(u.checkedAt) });
   } else if (!measured) status = d.t('admin.health.usage.notYet');
   else status = d.tf('admin.health.usage.asOf', { time: at(u.measuredAt) });
+  const locale = d.lang === 'tr' ? 'tr-TR' : 'en-GB';
+  // Admins only (the server sends parts to no one else): which scripts the
+  // Workers number counts, so a double count with Pages Functions is visible.
+  const scripts = u.parts?.workers?.map((w) => `${w.name} ${w.requests.toLocaleString(locale)}`).join(', ');
+  const parts = u.parts && fresh
+    ? `<p class="text-xs text-gray-500">${escapeHtml(d.tf('admin.health.usage.parts', { scripts: scripts || '-', pages: u.parts.pages === null ? '-' : u.parts.pages.toLocaleString(locale) }))}</p>`
+    : '';
   return `<div class="mt-3 text-sm text-gray-700">
     <h3 class="text-xs font-semibold text-gray-500 mb-1">${escapeHtml(d.t('admin.health.usage.title'))}</h3>
     ${lines.join('')}
+    ${parts}
     <p class="text-xs text-gray-500 mt-1">${escapeHtml(status)}</p>
   </div>`;
+}
+
+/** A configured check that failed or has not run for hours: Overview must not also say "Everything is working". */
+export function usageProblem(u: HealthUsage | null, now: number): boolean {
+  return Boolean(u && u.configured && (u.failed || (u.checkedAt !== null && now - u.checkedAt > STALE_SECONDS)));
 }
 
 type Health = { issues: Issue[]; canFix: boolean; usage?: HealthUsage | null };
@@ -120,9 +133,11 @@ export function renderOverviewHealth(): void {
   const el = document.getElementById('overviewHealth');
   if (!el || !last) return;
   const { data, d } = last;
-  const usage = usageHtml(data.usage ?? null, d, Math.floor(Date.now() / 1000));
+  const now = Math.floor(Date.now() / 1000);
+  const usage = usageHtml(data.usage ?? null, d, now);
   if (data.issues.length === 0) {
-    el.innerHTML = `<p class="text-sm text-gray-500">${escapeHtml(d.t('admin.overview.healthy'))}</p>${usage}`;
+    const healthy = usageProblem(data.usage ?? null, now) ? '' : `<p class="text-sm text-gray-500">${escapeHtml(d.t('admin.overview.healthy'))}</p>`;
+    el.innerHTML = `${healthy}${usage}`;
     return;
   }
   el.innerHTML = `<div class="rounded-2xl border border-red-200 bg-red-tint px-4 py-2 text-sm text-[#8a1c1c]">${lines(data, d)}</div>${usage}`;
