@@ -248,6 +248,23 @@ console.log('5) the help box, and a connected app in its own list with a two-cli
   await page.close();
 }
 
+console.log('5b) a connection label with HTML is shown as text, in both lists');
+{
+  const evil = '<img src=x onerror="window.__xss=1"><b>Evil</b> (e.example)';
+  const state = { ...fresh(), mine: [{ ...structuredClone(APP), id: 'x1', label: evil }], all: [{ ...structuredClone(APP), id: 'x1', label: evil, display_name: '<i>Name</i>' }] };
+  for (const user of [EDITOR, ADMIN]) {
+    const page = await open('/admin#anahtarlar', user, state);
+    for (const list of user.is_admin ? ['#tokensApps', '#tokensAll'] : ['#tokensApps']) {
+      await page.waitForSelector(`${list} [data-token="x1"]`, { timeout: 8000 }).catch(() => {});
+      const host = page.locator(`${list} [data-token="x1"]`);
+      ok((await host.locator('[data-row-title]').innerText().catch(() => '')).includes(evil), `${user.id} ${list}: the label is the visible text, tags and all`);
+      ok(await host.locator('img, b, i').count() === 0, `${user.id} ${list}: no element came out of the label or the name`);
+    }
+    ok(await page.evaluate(() => window.__xss === undefined), `${user.id}: no script ran`);
+    await page.close();
+  }
+}
+
 console.log('6) an admin sees both kinds, with an App chip on the connection');
 for (const [path, chipText] of [['/admin#anahtarlar', 'App'], ['/tr/admin#anahtarlar', 'Uygulama']]) {
   const state = fresh();

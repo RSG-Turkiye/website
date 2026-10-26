@@ -129,7 +129,8 @@ button,.btn{min-height:44px;padding:0 1.25rem;font:inherit;font-weight:600;borde
 .no{background:#fff;color:#1a2744}
 a{color:#3D5A9E}
 :focus-visible{outline:2px solid #3D5A9E;outline-offset:2px}
-.foot{text-align:center;margin:1rem 0 0;font-size:.875rem}
+.foot{text-align:center;margin:.5rem 0 0;font-size:.875rem}
+.lnk{display:inline-flex;align-items:center;min-height:44px}
 `;
 
 function shell(lang: Lang, title: string, body: string): string {
@@ -200,7 +201,7 @@ ${deny}
 </div>`;
   } else {
     const msg = v.state === 'full' ? T.full[l] : T.noAreas[l];
-    const link = v.state === 'full' ? `<p><a href="/admin#anahtarlar">${esc(T.panel[l])}</a></p>` : '';
+    const link = v.state === 'full' ? `<p><a class="lnk" href="/admin#anahtarlar">${esc(T.panel[l])}</a></p>` : '';
     main = `${who}
 <p class="fixed">${esc(msg)}</p>
 ${link}
@@ -216,5 +217,5 @@ ${hidden}
 ${main}
 </form>
 </div>
-<p class="foot"><a href="${esc(v.langHref)}" hreflang="${l === 'tr' ? 'en' : 'tr'}">${esc(T.otherLang[l])}</a></p>`);
+<p class="foot"><a class="lnk" href="${esc(v.langHref)}" hreflang="${l === 'tr' ? 'en' : 'tr'}">${esc(T.otherLang[l])}</a></p>`);
 }
