@@ -99,6 +99,85 @@ test('the cap holds inside the batch when the pre-check passed', async () => {
   assert.equal(snapshot(db), before);
 });
 
+test('the day half of the guard alone refuses: the IP is under its cap, the day is at 200', async () => {
+  const { db, DB } = setup();
+  const { registerStatement } = await import('../functions/_lib/oauth-clients');
+  const { registrationGuard } = await import('../functions/_lib/agent-limits');
+  const now = Math.floor(Date.now() / 1000);
+  const day = `${String(Math.floor(now / 86_400)).padStart(6, '0')}:g:registrations`;
+  const attempt = async (ip: string) => {
+    const { statement } = await registerStatement(DB, { name: 'x', redirectUris: ['https://a.example/cb'], authMethod: 'none', now, guard: registrationGuard(ip, now) });
+    return (await statement.run()).meta.changes;
+  };
+  db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, ?)').run(day, REGISTRATIONS_PER_DAY - 1);
+  assert.equal(await attempt('fresh-ip'), 1, 'one slot left');
+  db.prepare('UPDATE agent_counters SET requests = ? WHERE bucket = ?').run(REGISTRATIONS_PER_DAY, day);
+  const before = snapshot(db);
+  assert.equal(await attempt('another-ip'), 0, 'a full day refuses an IP that has registered nothing');
+  assert.equal(snapshot(db), before);
+});
+
+/** A DB whose first `stale` reads of the registration counters see none, as if a parallel request had not written yet. */
+function staleCounters(db: DatabaseSync, stale: number, failBatch = false) {
+  const real = d1(db);
+  let left = stale;
+  return {
+    ...real,
+    prepare(sql: string) {
+      const st = real.prepare(sql);
+      if (!sql.includes('FROM agent_counters WHERE bucket IN') || left <= 0) return st;
+      left--;
+      return { bind: () => ({ all: async () => ({ results: [] }) }) };
+    },
+    batch: failBatch ? async () => { throw new Error('D1 is down'); } : real.batch,
+  } as never as D1Database;
+}
+
+test('the guard refusing an insert the pre-check let through is a 429 with Retry-After and writes nothing', async () => {
+  const { db, DB } = setup();
+  for (let i = 0; i < REGISTRATIONS_PER_IP; i++) assert.equal((await json(DB, cursor)).status, 201);
+  const before = snapshot(db);
+  // Only the pre-check read is stale: the guard refuses in the batch, and the re-read tells the true story.
+  const raced = await json(staleCounters(db, 1), cursor);
+  assert.equal(raced.status, 429);
+  assert.deepEqual(await raced.json(), { error: 'rate_limited' });
+  assert.ok(Number(raced.headers.get('Retry-After')) > 0);
+  assert.equal(raced.headers.get('Cache-Control'), 'no-store');
+  assert.equal(raced.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.equal(snapshot(db), before, 'the refused registration wrote no client and bumped no counter');
+  // Both reads stale: the fallback answer, a minute.
+  const both = await json(staleCounters(db, 2), cursor);
+  assert.equal(both.status, 429);
+  assert.equal(both.headers.get('Retry-After'), '60');
+  assert.equal(snapshot(db), before);
+});
+
+test('the content type is application/json, with parameters allowed and no look-alikes', async () => {
+  const { db, DB } = setup();
+  const body = JSON.stringify(cursor);
+  for (const type of ['application/json', 'Application/JSON', 'application/json; charset=utf-8', ' application/json ;charset=UTF-8']) {
+    assert.equal((await post(DB, body, { 'Content-Type': type })).status, 201, type);
+  }
+  const before = snapshot(db);
+  for (const type of ['application/jsonx', 'application/json-patch+json', 'application/jsonp', 'text/plain', 'application/x-www-form-urlencoded', '']) {
+    const res = await post(DB, body, type ? { 'Content-Type': type } : {});
+    assert.equal(res.status, 400, `"${type}"`);
+    assert.equal(((await res.json()) as Record<string, string>).error, 'invalid_client_metadata');
+  }
+  assert.equal(snapshot(db), before);
+});
+
+test('a batch that throws answers a JSON 500 with CORS, not a bare one', async () => {
+  const { db, DB } = setup();
+  void DB;
+  const res = await json(staleCounters(db, 0, true), cursor);
+  assert.equal(res.status, 500);
+  assert.equal(res.headers.get('Content-Type'), 'application/json');
+  assert.equal(res.headers.get('Cache-Control'), 'no-store');
+  assert.equal(res.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.deepEqual(await res.json(), { error: 'server_error' });
+});
+
 test('a bad redirect URI is 400 invalid_redirect_uri and writes nothing', async () => {
   const { db, DB } = setup();
   const before = snapshot(db);

@@ -20,8 +20,11 @@ function reply(res: Response): Response {
 const invalid = (error: 'invalid_redirect_uri' | 'invalid_client_metadata', error_description: string) =>
   reply(jsonResponse({ error, error_description }, 400));
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!(request.headers.get('Content-Type') ?? '').toLowerCase().startsWith('application/json')) {
+/** The media type must be exactly application/json; parameters such as charset are allowed. */
+const isJson = (request: Request) => (request.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase() === 'application/json';
+
+async function register(request: Request, env: Env): Promise<Response> {
+  if (!isJson(request)) {
     return invalid('invalid_client_metadata', 'Send the metadata as application/json.');
   }
   const text = await readCapped(request, MAX_BODY);
@@ -60,6 +63,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     response_types: ['code'],
     token_endpoint_auth_method: parsed.authMethod,
   }, 201));
+}
+
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  try {
+    return await register(request, env);
+  } catch (err) {
+    // A D1 failure is still a JSON answer a client can read, with CORS.
+    console.error('oauth register failed', err);
+    return reply(jsonResponse({ error: 'server_error' }, 500));
+  }
 };
 
 export const onRequestOptions: PagesFunction = () => preflight(POST_ONLY);
