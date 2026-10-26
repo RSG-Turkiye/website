@@ -168,7 +168,7 @@ test('signed in, GET shows only the areas the member holds, pre-ticked from the 
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('X-Frame-Options'), 'DENY');
     assert.equal(res.headers.get('Cache-Control'), 'no-store');
-    assert.equal(res.headers.get('Referrer-Policy'), 'no-referrer');
+    assert.equal(res.headers.get('Referrer-Policy'), 'same-origin');
     assert.match(res.headers.get('Content-Security-Policy') ?? '', /frame-ancestors 'none'/);
     assert.ok(!/form-action/.test(res.headers.get('Content-Security-Policy') ?? ''));
     const body = await res.text();
@@ -323,6 +323,22 @@ test('a POST from another origin is refused (checkCsrf)', async () => {
     assert.equal(res.status, 400);
     assert.equal(rows(db, 'oauth_codes'), 0);
     assert.equal((await post(env, 'ed', allow(), { Origin: BASE })).status, 303);
+  } finally { http.restore(); }
+});
+
+test('a POST with Origin: null is still refused, and the page sends the policy that keeps the real Origin', async () => {
+  const { db, env } = await setup();
+  const http = cimd();
+  try {
+    // A page under Referrer-Policy: no-referrer makes the browser send Origin: null on its form POST,
+    // which checkCsrf refuses (sandboxed frames and data: pages send it too). The page must therefore
+    // send a policy that keeps the Origin: same-origin still strips the Referer from the cross-origin 303.
+    const res = await post(env, 'ed', allow(), { Origin: 'null' });
+    assert.equal(res.status, 400);
+    assert.equal(rows(db, 'oauth_codes'), 0);
+    const page = await get(env, 'ed');
+    assert.equal(page.headers.get('Referrer-Policy'), 'same-origin');
+    assert.equal((await post(env, 'ed', allow())).headers.get('Referrer-Policy'), 'same-origin');
   } finally { http.restore(); }
 });
 

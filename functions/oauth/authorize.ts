@@ -22,7 +22,9 @@ const HEADERS = {
   'Cache-Control': 'no-store',
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'no-referrer',
+  // Not no-referrer: a page under it makes the browser send `Origin: null` on the form POST, which checkCsrf refuses.
+  // same-origin keeps the real Origin and still sends no Referer on the cross-origin 303 to the client's callback.
+  'Referrer-Policy': 'same-origin',
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
 };
 

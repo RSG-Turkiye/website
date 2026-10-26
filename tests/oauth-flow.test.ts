@@ -123,7 +123,7 @@ async function consent(env: Env, who: string, clientId: string, redirect: string
   form.set('days', '30');
   for (const [area, level] of scopes) { form.append('area', area); form.set(`level_${area}`, level); }
   const res = await run(authorize.onRequestPost, new Request(`${BASE}/oauth/authorize`, {
-    method: 'POST', body: form, headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...cookie(who) },
+    method: 'POST', body: form, headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: BASE, ...cookie(who) },
   }), env);
   assert.equal(res.status, 303, 'Allow is a 303, never a 307');
   const back = new URL(res.headers.get('Location')!);
