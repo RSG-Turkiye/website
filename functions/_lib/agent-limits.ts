@@ -119,7 +119,7 @@ export interface LimitedPrincipal {
 /** What a request spends besides one request: the reserve may serve it (social work), and its quota. */
 export interface Charge { reserve: boolean; quota?: AgentRoute['quota'] }
 
-export type RevokeReason = 'refusals' | 'flood' | 'leaked';
+export type RevokeReason = 'refusals' | 'flood' | 'leaked' | 'refresh_reuse';
 
 const windowEnd = (windowSeconds: number, now: number) => (Math.floor(now / windowSeconds) + 1) * windowSeconds;
 
@@ -282,16 +282,17 @@ export async function ipKey(request: Request): Promise<string> {
 }
 
 /**
- * Every token value starts with "rsg_pat_"; an upload that holds it is
- * refused (leaked). As ASCII (UTF-8) and as UTF-16 in both byte orders,
- * which is how EXIF UserComment and the Windows XP* tags store text.
+ * A personal token starts with "rsg_pat_", an OAuth connection's access and
+ * refresh values with "rsg_oat_" and "rsg_ort_"; an upload that holds any of
+ * them is refused (leaked). As ASCII (UTF-8) and as UTF-16 in both byte
+ * orders, which is how EXIF UserComment and the Windows XP* tags store text.
  */
-const PREFIX_TEXT = 'rsg_pat_';
-const VALUE_NEEDLES = [
-  new TextEncoder().encode(PREFIX_TEXT),
-  new Uint8Array([...PREFIX_TEXT].flatMap((c) => [c.charCodeAt(0), 0])),
-  new Uint8Array([...PREFIX_TEXT].flatMap((c) => [0, c.charCodeAt(0)])),
-];
+const PREFIX_TEXTS = ['rsg_pat_', 'rsg_oat_', 'rsg_ort_'];
+const VALUE_NEEDLES = PREFIX_TEXTS.flatMap((p) => [
+  new TextEncoder().encode(p),
+  new Uint8Array([...p].flatMap((c) => [c.charCodeAt(0), 0])),
+  new Uint8Array([...p].flatMap((c) => [0, c.charCodeAt(0)])),
+]);
 /** Bytes carried over from one chunk to the next, so a needle split across them is found. */
 const CARRY = Math.max(...VALUE_NEEDLES.map((n) => n.length)) - 1;
 
@@ -357,7 +358,8 @@ export async function readCapped(request: Pick<Request, 'body'>, cap: number): P
 
 /**
  * An upload body, counted as it streams and searched for a token value
- * (any `rsg_pat_`, this token's or another's, as ASCII or UTF-16) without
+ * (any `rsg_pat_`, `rsg_oat_` or `rsg_ort_`, this token's or another's, as
+ * ASCII or UTF-16) without
  * decoding: 'ok',
  * 'too_large' or 'leaked'. Nothing is kept.
  */
@@ -480,7 +482,7 @@ export async function refuseLeak(db: D1Database, principal: Pick<LimitedPrincipa
  * In order:
  * 1. Body size, and the leak signal (before any counter, so a leaked value
  *    is revoked even in a request that is over a limit). An upload is
- *    searched for `rsg_pat_` as bytes; any other body as text.
+ *    searched for a token prefix as bytes; any other body as text.
  * 2. Daily limits, refused with no write: the member's day, the route's
  *    quota, the agents' request pools and, for a request with a quota, the
  *    agents' write pools (each general, then the reserve for social work).
@@ -587,4 +589,81 @@ export async function checkQuota(
   // Not paid by its message: refused, rather than spent outside the agents'
   // write budget, which only checkToken can see. No tool reaches this today.
   return agentBudgetSpent(now);
+}
+
+// --- OAuth: the token endpoint and registration (plan 6) ---------------------
+
+/** The token endpoint's refusal, in OAuth's error shape (Call 7). */
+function oauthLimited(retryAfter: number): Response {
+  const res = jsonResponse({ error: 'rate_limited' }, 429);
+  res.headers.set('Retry-After', String(retryAfter));
+  return res;
+}
+
+/** What a connection is, for chargeConnection: its row id (the counter key), its member, and whether its scopes include social work (the reserve). */
+export interface ChargedConnection { tokenId: string; userId: string; social: boolean }
+
+/**
+ * A code exchange or a refresh at /oauth/token, counted as one request of
+ * that connection, as checkToken counts an API request: the IP cut-off, the
+ * member's day, the agents' pools (the reserve only when `social`), then the
+ * minute limit and the flood revoke. No body checks: the token endpoint
+ * reads its own small form. Allowed: one upsert of the connection's row.
+ * Refused for the day, the budget or the IP: no write. Answers 429
+ * `{ error: 'rate_limited' }` with Retry-After, or the agent_budget answer.
+ */
+export async function chargeConnection(db: D1Database, c: ChargedConnection, ip: string, now: number): Promise<Response | null> {
+  const snapshot = await readSnapshot(db, ip, now);
+  const cutOff = ipRefusal(snapshot.ip, now);
+  if (cutOff) return oauthLimited(Number(cutOff.headers.get('Retry-After')));
+  let general = 0, reserve = 0, member = 0;
+  for (const t of snapshot.tokens) {
+    general += t.general;
+    reserve += t.reserve;
+    if (t.user_id === c.userId) member += t.general + t.reserve;
+  }
+  if (member >= LIMITS.MEMBER_PER_DAY) return oauthLimited(secondsLeft(DAY, now));
+  let pool: 'general' | 'reserve';
+  if (general < LIMITS.AGENT_GENERAL_PER_DAY) pool = 'general';
+  else if (reserve < LIMITS.AGENT_RESERVE_PER_DAY && c.social) pool = 'reserve';
+  else return agentBudgetSpent(now);
+
+  const mine = snapshot.tokens.find((t) => t.bucket === tokenBucket(c.tokenId, now));
+  const perMinute = (mine?.minute === Math.floor(now / MINUTE) ? mine.minute_n : 0) + 1;
+  if (perMinute > LIMITS.TOKEN_PER_MINUTE) {
+    const counted = await bump(db, bumpToken(db, c, now, { minute: true }));
+    if (Math.max(perMinute, counted.minute_n) >= LIMITS.FLOOD_PER_MINUTE) await autoRevoke(db, c.tokenId, 'flood', now);
+    return oauthLimited(secondsLeft(MINUTE, now));
+  }
+  await bump(db, bumpToken(db, c, now, { minute: true, [pool]: 1 }));
+  return null;
+}
+
+/** Registrations at /oauth/register, per IP (its /64) and for everyone, per UTC day. */
+export const REGISTRATIONS_PER_IP = 10;
+export const REGISTRATIONS_PER_DAY = 200;
+// Day-prefixed like every counter key, so the nightly prune deletes them; 'r'
+// and 'g' sort before 't', so readSnapshot's token range never sees them.
+const registrationIpBucket = (ip: string, now: number) => `${dayKey(now)}:r:${ip}`;
+const registrationsBucket = (now: number) => `${dayKey(now)}:g:registrations`;
+
+/**
+ * 429 when this IP has registered REGISTRATIONS_PER_IP clients today, or
+ * everyone REGISTRATIONS_PER_DAY; else null. One statement, two rows read by
+ * primary key, nothing written.
+ */
+export async function registrationRefusal(db: D1Database, ip: string, now: number): Promise<Response | null> {
+  const rows = (await db.prepare('SELECT bucket, requests FROM agent_counters WHERE bucket IN (?1, ?2)')
+    .bind(registrationIpBucket(ip, now), registrationsBucket(now)).all<{ bucket: string; requests: number }>()).results;
+  const count = (bucket: string) => rows.find((r) => r.bucket === bucket)?.requests ?? 0;
+  if (count(registrationIpBucket(ip, now)) >= REGISTRATIONS_PER_IP || count(registrationsBucket(now)) >= REGISTRATIONS_PER_DAY) {
+    return oauthLimited(secondsLeft(DAY, now));
+  }
+  return null;
+}
+
+/** The two counter upserts of an allowed registration, to batch with the client's insert (three rows in all). */
+export function registrationBumps(db: D1Database, ip: string, now: number): D1PreparedStatement[] {
+  const upsert = 'INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1';
+  return [db.prepare(upsert).bind(registrationIpBucket(ip, now)), db.prepare(upsert).bind(registrationsBucket(now))];
 }
