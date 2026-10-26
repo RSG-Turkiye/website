@@ -640,7 +640,7 @@ it; nobody else does.
 
 - **Calendar and board.** A plan slot is a dashed box. An empty slot due
   within two days turns red.
-- **Composer.** Alt text is required on every image. Images must be JPEG or
+- **Composer.** Alt text is optional (recommended: screen readers read it, and X shows it as ALT); an empty one is not sent to the platforms. Images must be JPEG or
   PNG and are stored as JPEG. Counters are shown per platform and count
   conservatively (UTF-16 units). The checklist uses the server's own
   readiness rule, so it matches the server exactly. Drafts autosave. Autosave

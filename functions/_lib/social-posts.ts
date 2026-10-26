@@ -180,7 +180,6 @@ export function readinessProblems(post: DraftInput, dims: Map<string, { width: n
   if (post.platforms.includes('x') && n > X_MAX_IMAGES) problems.push({ code: 'x_too_many_images', platform: 'x', limit: X_MAX_IMAGES, actual: n });
 
   post.media.forEach((m, index) => {
-    if (m.alt.trim() === '') problems.push({ code: 'missing_alt', index });
     if (!m.key.endsWith('.jpg')) problems.push({ code: 'not_jpeg', index });
     const d = dims.get(m.key);
     if (!d) problems.push({ code: 'unknown_media', index });

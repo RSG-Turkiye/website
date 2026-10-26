@@ -97,6 +97,17 @@ test('several images go out as a multiImage post, each with its alt text', async
   assert.deepEqual(body.content, { multiImage: { images: [{ id: 'urn:li:image:A', altText: 'Alt 1' }, { id: 'urn:li:image:B', altText: 'Alt 2' }] } });
 });
 
+test('an image without alt text is sent with no altText key', async () => {
+  const st = state(['urn:li:image:A', 'urn:li:image:B'], null);
+  const { calls } = await run((c) => {
+    if (c.method === 'GET') return Response.json({ results: { 'urn:li:image:A': { status: 'AVAILABLE' }, 'urn:li:image:B': { status: 'AVAILABLE' } } });
+    if (c.url.pathname === '/rest/posts') return new Response(null, { status: 201, headers: { 'x-restli-id': 'urn:li:share:8' } });
+    return undefined;
+  }, input({ ...multi, media: [multi.media[0], { ...multi.media[1], alt: '' }] }, st));
+  const body = calls.find((c) => c.url.pathname === '/rest/posts')!.body as { content: unknown };
+  assert.deepEqual(body.content, { multiImage: { images: [{ id: 'urn:li:image:A', altText: 'Alt 1' }, { id: 'urn:li:image:B' }] } });
+});
+
 test('a lost response after the create call: the next tick finds the post by its image and records it, without posting again', async () => {
   const st = state(['urn:li:image:A'], 1_800_000_000);
   const { result, calls } = await run((c) => {

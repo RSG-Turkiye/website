@@ -4,7 +4,7 @@ import { deps } from './context';
 import { PUBLISH_REASON_KEYS } from '../../../functions/_lib/social/reasons';
 
 export const PROBLEM_CODES = [
-  'no_platform', 'platform_unavailable', 'story_instagram_only', 'media_count', 'missing_alt', 'unknown_media', 'bad_ratio', 'not_jpeg',
+  'no_platform', 'platform_unavailable', 'story_instagram_only', 'media_count', 'unknown_media', 'bad_ratio', 'not_jpeg',
   'caption_too_long', 'too_many_hashtags', 'x_too_many_images', 'x_needs_text', 'no_schedule', 'schedule_in_past', 'schedule_too_far', 'invalid_schedule_time',
 ] as const;
 

@@ -76,9 +76,9 @@ test('a publisher editing a scheduled post keeps it scheduled and rebuilds targe
   const res = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'pub', params: { id: json.id }, body: { ...draft, platforms: ['instagram', 'linkedin'], revision: 0 } });
   assert.deepEqual(await res.json(), { ok: true, revision: 1, status: 'scheduled' });
   assert.deepEqual((db.prepare('SELECT platform FROM social_post_targets ORDER BY platform').all() as { platform: string }[]).map((r) => r.platform), ['instagram', 'linkedin']);
-  const broken = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'pub', params: { id: json.id }, body: { ...draft, media: [{ key: KEYS.feed, alt: '' }], revision: 1 } });
+  const broken = await call(post.onRequestPatch, 'PATCH', `/api/social/posts/${json.id}`, { env, as: 'pub', params: { id: json.id }, body: { ...draft, media: [], revision: 1 } });
   assert.equal(broken.status, 422);
-  assert.deepEqual((await broken.json() as { problems: { code: string }[] }).problems.map((p) => p.code), ['missing_alt']);
+  assert.deepEqual((await broken.json() as { problems: { code: string }[] }).problems.map((p) => p.code), ['media_count']);
 });
 
 test('only drafts and rejected posts can be deleted, and deleting frees the plan', async () => {

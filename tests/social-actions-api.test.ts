@@ -49,10 +49,10 @@ test('an editor submits: pending, publishers are mailed, nothing queued yet', as
 
 test('submitting an unready post is a 422 listing what to fix', async () => {
   const { env } = setupSocial();
-  const id = await newPost(env, 'ed', { ...draft, media: [{ key: KEYS.feed, alt: '' }] });
+  const id = await newPost(env, 'ed', { ...draft, media: [] });
   const res = await act(submit.onRequestPost, 'submit', env, 'ed', id, { revision: 0 });
   assert.equal(res.status, 422);
-  assert.deepEqual((await res.json() as { problems: { code: string }[] }).problems.map((p) => p.code), ['missing_alt']);
+  assert.deepEqual((await res.json() as { problems: { code: string }[] }).problems.map((p) => p.code), ['media_count']);
 });
 
 test('a publisher submits straight to scheduled with targets', async () => {
