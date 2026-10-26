@@ -194,6 +194,19 @@ export async function readSnapshot(db: D1Database, ip: string, now: number, toke
 }
 
 /**
+ * Today's agent requests and writes, for the admin Overview card
+ * (functions/api/admin/health.ts): the sums of today's token rows, one
+ * primary-key range. Rows read: one per token used today.
+ */
+export async function agentUsageToday(db: D1Database, now: number): Promise<{ requests: number; writes: number }> {
+  const day = dayKey(now);
+  const r = await db.prepare(
+    'SELECT COALESCE(SUM(general + reserve), 0) AS requests, COALESCE(SUM(writes + submits + uploads), 0) AS writes FROM agent_counters WHERE bucket >= ?1 AND bucket < ?2',
+  ).bind(`${day}:t:`, `${day}:t;`).first<{ requests: number; writes: number }>();
+  return { requests: r?.requests ?? 0, writes: r?.writes ?? 0 };
+}
+
+/**
  * The IP's refusal, if it is cut off: too many failed authentications in
  * the window, or its minute or day used up. Decided from the row as read,
  * so a cut-off IP costs no write.
