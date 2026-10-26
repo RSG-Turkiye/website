@@ -28,15 +28,16 @@ export interface TokenRow {
   last_used_at: number | null;
   revoked_at: number | null;
   revoke_reason: string | null;
+  kind: 'pat' | 'oauth';
   display_name?: string | null;
 }
 
-/** Field by field, so the hash and revoked_by never leave the server. */
+/** Field by field, so the hashes, client_id and revoked_by never leave the server. */
 export function tokenJson(r: TokenRow, now: number, withOwner = false) {
   let scopes: string[] = [];
   try { const parsed = JSON.parse(r.scopes) as unknown; if (Array.isArray(parsed)) scopes = parsed.filter((s): s is string => typeof s === 'string'); } catch { /* listed with no scopes */ }
   return {
-    id: r.id, label: r.label, hint: r.hint, scopes,
+    id: r.id, kind: r.kind, label: r.label, hint: r.hint, scopes,
     created_at: r.created_at, expires_at: r.expires_at, last_used_at: r.last_used_at,
     revoked_at: r.revoked_at, revoke_reason: r.revoke_reason,
     status: r.revoked_at !== null ? 'revoked' as const : r.expires_at <= now ? 'expired' as const : 'live' as const,
@@ -44,7 +45,7 @@ export function tokenJson(r: TokenRow, now: number, withOwner = false) {
   };
 }
 
-export const COLUMNS = 'id, user_id, hint, label, scopes, created_at, expires_at, last_used_at, revoked_at, revoke_reason';
+export const COLUMNS = 'id, user_id, hint, label, scopes, created_at, expires_at, last_used_at, revoked_at, revoke_reason, kind';
 
 /** The session user and their live roles; admin means a live admin grant, not the is_admin column. */
 export async function tokenCaller(request: Request, env: Env): Promise<{ user: User; roles: string[]; admin: boolean; now: number } | null> {
@@ -102,10 +103,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const scopeStrings = scopes.map(formatScope);
   // The count is checked inside the insert, so two creates at once cannot
   // both make the fifth; the new id is the proof that this write happened.
+  // Connected apps (kind 'oauth') have their own cap and are not counted.
   const insert = env.DB.prepare(
-    `INSERT INTO agent_tokens (id, user_id, token_hash, hint, label, scopes, created_at, expires_at)
-     SELECT ?, ?, ?, ?, ?, ?, ?, ?
-     WHERE (SELECT COUNT(*) FROM agent_tokens WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?) < ?`,
+    `INSERT INTO agent_tokens (id, user_id, token_hash, hint, label, scopes, created_at, expires_at, kind)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'pat'
+     WHERE (SELECT COUNT(*) FROM agent_tokens WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ? AND kind = 'pat') < ?`,
   ).bind(id, user.id, await hashToken(value), value.slice(-4), label, JSON.stringify(scopeStrings), now, expiresAt, user.id, now, MAX_LIVE);
   const created = await runGuardedWithAudit(env.DB, insert, { condition: 'EXISTS (SELECT 1 FROM agent_tokens WHERE id = ?)', binds: [id] }, [], {
     userId: user.id, action: 'agent_token.create', targetType: 'agent_token', targetId: id,

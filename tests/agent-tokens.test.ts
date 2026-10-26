@@ -16,6 +16,7 @@ import { CMS_GROUPS, ROLES } from '../functions/_lib/roles';
 import { canSocialPublish } from '../functions/_lib/auth';
 import { approvesType } from '../functions/_lib/cms-api';
 import { CMS_TYPES } from '../src/lib/cms/types';
+import { PRM_URL } from '../functions/_lib/oauth-config';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const SCHEMA = readFileSync(join(ROOT, 'db/schema.sql'), 'utf8');
@@ -195,6 +196,8 @@ test('only the listed files import agent-tokens', () => {
     'functions/api/_middleware.ts', 'functions/_lib/cms-api.ts', 'functions/_lib/social-api.ts',
     'functions/api/blog-submissions/upload-image.ts', 'functions/api/mcp.ts', 'functions/_lib/mcp-tools.ts',
     'functions/api/agent-tokens/index.ts', 'functions/api/agent-tokens/[id].ts', 'functions/api/admin/audit/prune.ts',
+    // Plan 6: the consent screen and the token endpoint (areasHeld, parseScopes, formatScope, hashToken).
+    'functions/oauth/authorize.ts', 'functions/oauth/token.ts',
   ]);
   const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => {
     const p = join(dir, n);
@@ -233,7 +236,7 @@ test('every authentication failure is the same 401', async () => {
     assert.equal(auth.kind, 'refused', JSON.stringify(headers));
     const res = (auth as Extract<AgentAuth, { kind: 'refused' }>).response;
     assert.equal(res.status, 401);
-    assert.equal(res.headers.get('WWW-Authenticate'), 'Bearer');
+    assert.equal(res.headers.get('WWW-Authenticate'), `Bearer resource_metadata="${PRM_URL}", error="invalid_token"`);
     bodies.add(await res.text());
   }
   assert.deepEqual([...bodies], [JSON.stringify({ error: 'Unauthorized', code: 'unauthorized' })]);

@@ -86,7 +86,7 @@ anyone.
 | `functions/_lib/roles.ts`         | The role catalog and the duration rules: who may grant which role, and for how long. Pure, no database.                                               |
 | `functions/_lib/role-grants.ts`   | `grantRole`, `revokeRole`, `activeGrants`, `expireGrants`: the only code that changes who holds a role.                                               |
 | `src/lib/cms/`, `functions/_lib/cms-*.ts`, `functions/api/cms/` | The panel CMS: types and serializing, draft rules, the PR shepherd (runs on the mail tick), and the `/api/cms/*` endpoints. Content types are grouped (Etkinlikler, Yazılar, Öğrenme, Topluluk, Sayfalar); a group's rights are the roles `content.<group>.edit` and `.approve` in `roles.ts`. |
-| `functions/_lib/agent-*.ts`, `functions/api/_middleware.ts`, `functions/api/mcp.ts`, `functions/_lib/mcp-tools.ts`, `functions/api/agent-tokens/` | Agent access (README, "Agent access"): `agent-tokens.ts` checks a personal token and works out its rights (scope intersected with live grants, never approve); `agent-routes.ts` is the complete list of routes a token may call; `agent-limits.ts` holds the rate limits, quotas, the agents' daily budget and auto-revoke; `agent-instructions.ts` is what an agent is told; `_middleware.ts` refuses every other `/api/*` route to a bearer request before a handler runs; `mcp.ts` and `mcp-tools.ts` are the MCP server, which calls the same REST handlers; `agent-tokens/` makes, lists and revokes tokens, for a signed-in person only. |
+| `functions/_lib/agent-*.ts`, `functions/api/_middleware.ts`, `functions/api/mcp.ts`, `functions/_lib/mcp-tools.ts`, `functions/api/agent-tokens/`, `functions/oauth/`, `functions/.well-known/`, `functions/_lib/oauth-*.ts` | Agent access (README, "Agent access"): `agent-tokens.ts` checks a personal token and works out its rights (scope intersected with live grants, never approve); `agent-routes.ts` is the complete list of routes a token may call; `agent-limits.ts` holds the rate limits, quotas, the agents' daily budget and auto-revoke; `agent-instructions.ts` is what an agent is told; `_middleware.ts` refuses every other `/api/*` route to a bearer request before a handler runs; `mcp.ts` and `mcp-tools.ts` are the MCP server, which calls the same REST handlers; `agent-tokens/` makes, lists and revokes tokens, for a signed-in person only; `oauth/`, `.well-known/` and `oauth-*.ts` are the OAuth server that lets Claude, ChatGPT and other apps connect with a sign-in (README, "Connecting Claude, ChatGPT and other apps"). |
 | `db/schema.sql`                   | The D1 schema plus the numbered migration notes at its top.                                                                                           |
 | `workers/mail-cron/`              | Worker whose cron (every minute) drives mail dispatch, inbox sync and social publishing.                                                              |
 | `workers/symposium-cron/`         | Nightly Worker: archives a finished symposium edition (via a PR), rebuilds the symposium site, purges expired certificates and prunes the audit log.  |
@@ -136,10 +136,14 @@ for both sites on every PR. Keep it green.
   uploads (1,600, then 400 for social work), and 300 requests per member.
   An allowed agent request writes 1 counter row and reads one counter row
   per token used that day plus two. Failed authentications write 2 rows
-  each, at most 5,000 a day for all addresses together; past that they
+  each (1 for an `rsg_oat_` value or a miss at `/oauth/token`, which no IP
+  counts), at most 5,000 a day for all addresses together; past that they
   write nothing. A refusal for the day, a budget or a quota, or from a
   cut-off IP, writes nothing. People in the panel are never counted. The
-  numbers are `LIMITS` in `functions/_lib/agent-limits.ts`.
+  numbers are `LIMITS` in `functions/_lib/agent-limits.ts`. An app
+  connection (OAuth) is an agent credential in `agent_tokens` (`kind =
+  'oauth'`) and spends the same budgets; a refresh writes about 4 rows and
+  counts as one request.
 - **Schema changes are applied by hand.** Add the table or column to
   `db/schema.sql` and add a numbered note at its top with the exact `wrangler
   d1 execute rsg-members --remote ...` command. `ALTER TABLE` is not

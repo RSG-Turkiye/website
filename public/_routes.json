@@ -1,5 +1,14 @@
 {
   "version": 1,
-  "include": ["/api/*", "/auth/*"],
+  "include": [
+    "/api/*",
+    "/auth/*",
+    "/oauth/authorize",
+    "/oauth/token",
+    "/oauth/register",
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource/api/mcp",
+    "/.well-known/oauth-authorization-server"
+  ],
   "exclude": []
 }

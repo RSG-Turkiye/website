@@ -15,7 +15,8 @@ import { hashToken, humanOnly } from '../_lib/agent-tokens';
 import { countRefusal, type RefusedToken } from '../_lib/agent-limits';
 import type { Env } from '../_lib/auth';
 
-const TOKEN = /^Bearer (rsg_pat_[A-Za-z0-9_-]{43})$/;
+// A personal token or an OAuth connection's access token (agent-tokens.ts).
+const TOKEN = /^Bearer (rsg_(?:pat|oat)_[A-Za-z0-9_-]{43})$/;
 
 function logFailure(e: unknown) {
   // The error's name only: never a header or a body.
@@ -32,10 +33,12 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, next }) => {
   const lookup = async (): Promise<RefusedToken> => {
     const value = TOKEN.exec(header)?.[1];
     if (!value) return 'none';
-    const row = await env.DB.prepare('SELECT id, user_id, revoked_at, expires_at FROM agent_tokens WHERE token_hash = ?')
-      .bind(await hashToken(value)).first<{ id: string; user_id: string; revoked_at: number | null; expires_at: number }>();
+    const row = await env.DB.prepare('SELECT id, user_id, revoked_at, expires_at, kind, access_expires_at FROM agent_tokens WHERE token_hash = ?')
+      .bind(await hashToken(value)).first<{ id: string; user_id: string; revoked_at: number | null; expires_at: number; kind: string; access_expires_at: number | null }>();
     if (!row) return 'unknown';
-    return row.revoked_at === null && row.expires_at > now ? { id: row.id, user_id: row.user_id } : 'dead';
+    // A connection's access token past its hour is stale, like a revoked token: not counted.
+    const accessLive = row.kind !== 'oauth' || (row.access_expires_at !== null && row.access_expires_at > now);
+    return row.revoked_at === null && row.expires_at > now && accessLive ? { id: row.id, user_id: row.user_id } : 'dead';
   };
   try {
     // Over an IP limit this answers 429 rather than 403: both refuse, and 429 tells a loop to back off.

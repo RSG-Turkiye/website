@@ -38,3 +38,16 @@ test('login stores a valid next and ignores a bad one', async () => {
   assert.match(bad.headers.get('Set-Cookie') ?? '', /^rsg_next=;.*Max-Age=0/);
   assert.match(bad.headers.get('Location') ?? '', /^https:\/\/accounts\.google\.com\//);
 });
+
+test('the OAuth authorize path is allowed with its query, up to 2,048 characters', () => {
+  const ok = '/oauth/authorize?response_type=code&client_id=https%3A%2F%2Fclaude.example%2Fc';
+  assert.equal(safeNext(ok), ok);
+  assert.equal(safeNext('/oauth/authorize'), '/oauth/authorize');
+  for (const bad of ['/oauth/authorize/../admin', '/oauth/authorizex', '//evil.example/oauth/authorize', '/oauth/token', '/oauth/authorize/x']) {
+    assert.equal(safeNext(bad), null, bad);
+  }
+  const pad = (n: number) => '/oauth/authorize?x=' + 'a'.repeat(n - '/oauth/authorize?x='.length);
+  assert.equal(safeNext(pad(2048)), pad(2048));
+  assert.equal(safeNext(pad(2049)), null);
+  assert.equal(safeNext('/admin#' + 'a'.repeat(600)), null, 'the admin limit stays 512');
+});

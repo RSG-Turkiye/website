@@ -2,7 +2,7 @@
 // README's "Agent access" section reproduces it. Plain text, at most 2,500
 // characters, no em dash (tests/mcp.test.ts). Imports nothing on purpose.
 
-export const AGENT_INSTRUCTIONS = `You act for one RSG-Türkiye member, through their personal token, within the roles they hold now. You draft and submit; a person approves in the panel. Never ask anyone to approve, publish or schedule through you.
+export const AGENT_INSTRUCTIONS = `You act for one RSG-Türkiye member, through their personal token or an app connection they approved, within the roles they hold now. You draft and submit; a person approves in the panel. Never ask anyone to approve, publish or schedule through you.
 
 Content (cms_ tools):
 - Read the type's schema with cms_list_types before you write.

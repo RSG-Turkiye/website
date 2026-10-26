@@ -2,8 +2,10 @@
  * The Agent tokens section (#anahtarlar), in a real browser: reached by its
  * own link by a one-section editor who has no menu; create a token,
  * see its value once, reload and it is gone; revoke with the two-click
- * confirm; an admin sees everyone's tokens without e-mail; nothing scrolls
- * sideways at 390 px.
+ * confirm; an admin sees everyone's tokens without e-mail; the help box for
+ * Claude and ChatGPT; a connected app sits in its own list and disconnects
+ * with the same two clicks; an admin sees the App chip; nothing scrolls
+ * sideways at 390 px and nothing scrolls inside at the six desktop sizes.
  *
  * Not part of `npm test`: it needs Playwright and a preview server.
  *
@@ -48,7 +50,7 @@ async function open(path, user, state, viewport = { width: 1280, height: 800 }) 
     if (url.pathname === '/api/agent-tokens' && req.method() === 'POST') {
       const body = req.postDataJSON();
       state.posts.push(body);
-      const token = { id: `t${state.posts.length}`, label: body.label, hint: VALUE.slice(-4), scopes: body.scopes, created_at: NOW,
+      const token = { id: `t${state.posts.length}`, kind: 'pat', label: body.label, hint: VALUE.slice(-4), scopes: body.scopes, created_at: NOW,
         expires_at: NOW + body.days * 86400, last_used_at: null, revoked_at: null, revoke_reason: null, status: 'live' };
       state.mine.unshift(token);
       return json({ token, value: VALUE }, 201);
@@ -198,6 +200,114 @@ console.log('4) 390 px: nothing scrolls sideways, with the value box and a long 
   const w = await page.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth }));
   ok(w.sw <= w.iw, `no horizontal scroll (scrollWidth ${w.sw}, innerWidth ${w.iw})`);
   await page.close();
+}
+
+const PAT = { id: 'p1', kind: 'pat', label: 'Laptop', hint: 'wxyz', scopes: ['cms.etkinlikler:draft'], created_at: NOW, expires_at: NOW + 86400,
+  last_used_at: NOW, revoked_at: null, revoke_reason: null, status: 'live' };
+const APP = { id: 'c1', kind: 'oauth', label: 'Claude (claude.ai)', hint: 'q9Zk', scopes: ['cms.etkinlikler:draft'], created_at: NOW - 3600, expires_at: NOW + 30 * 86400,
+  last_used_at: NOW, revoked_at: null, revoke_reason: null, status: 'live' };
+const AUTO = { id: 'c2', kind: 'oauth', label: 'ChatGPT', hint: 'r8Yj', scopes: ['cms.etkinlikler:read'], created_at: NOW - 86400, expires_at: NOW + 6 * 86400,
+  last_used_at: null, revoked_at: NOW - 60, revoke_reason: 'refresh_reuse', status: 'revoked' };
+const withApps = () => ({ ...fresh(), mine: [structuredClone(PAT), structuredClone(APP), structuredClone(AUTO)] });
+
+console.log('5) the help box, and a connected app in its own list with a two-click Disconnect');
+{
+  const state = withApps();
+  const page = await open('/admin#anahtarlar', EDITOR, state);
+  await page.waitForSelector('#tokensApps [data-token="c1"]', { timeout: 8000 }).catch(() => {});
+  const help = page.locator('#tokensConnect');
+  ok(await help.isVisible(), 'the help box is visible');
+  const helpText = (await help.count()) ? await help.innerText() : '';
+  ok(helpText.includes('Connect Claude') && helpText.includes('Connect ChatGPT'), 'the help box has both headings');
+  ok(helpText.includes('https://rsg-turkiye.iscbsc.org/api/mcp'), 'the help box gives the MCP address as text');
+  ok(await page.locator('#tokensConnect ol').count() === 2, 'two numbered lists');
+  ok(await page.locator('#tokensApps [data-token="c1"]').count() === 1, 'the connection is in Connected apps');
+  ok(await page.locator('#tokensMine [data-token="c1"]').count() === 0, 'the connection is not in My tokens');
+  ok(await page.locator('#tokensMine [data-token="p1"]').count() === 1 && await page.locator('#tokensApps [data-token="p1"]').count() === 0, 'the personal token stays in My tokens');
+  ok((await page.locator('h3', { hasText: 'Connected apps' }).count()) === 1, 'a Connected apps heading');
+  const appText = await page.locator('#tokensApps [data-token="c1"]').innerText().catch(() => '');
+  ok(appText.includes('Claude (claude.ai)') && /connected /.test(appText) && /ends /.test(appText) && /last used /.test(appText), `the row names the app, when it was connected, ends and was last used (${appText.replace(/\n/g, ' | ')})`);
+  ok(!appText.includes('ends in'), 'no hint of a value that rotates every hour');
+  ok(/revoked automatically/.test(await page.locator('#tokensApps [data-token="c2"]').innerText().catch(() => '')), 'a connection revoked for refresh reuse says revoked automatically');
+  const disc = page.locator('#tokensApps [data-revoke="c1"]');
+  ok((await disc.innerText().catch(() => '')).trim() === 'Disconnect', 'the button says Disconnect');
+  await disc.click().catch(() => {});
+  ok(state.deletes.length === 0, 'the first click sends nothing');
+  ok((await disc.innerText().catch(() => '')).trim() !== 'Disconnect', 'the first click asks again');
+  await disc.click().catch(() => {});
+  await page.waitForFunction(() => !document.querySelector('#tokensApps [data-revoke="c1"]'), null, { timeout: 8000 }).catch(() => {});
+  ok(JSON.stringify(state.deletes) === '["c1"]', `the second click sends DELETE /api/agent-tokens/c1 (${JSON.stringify(state.deletes)})`);
+  ok(/Revoked/.test(await page.locator('#tokensApps [data-token="c1"]').innerText().catch(() => '')), 'after the refreshed list the row says Revoked');
+  await page.close();
+}
+{
+  const state = { ...fresh(), mine: [structuredClone(PAT)] };
+  const page = await open('/admin#anahtarlar', EDITOR, state);
+  await page.waitForSelector('#tokensMine [data-token="p1"]', { timeout: 8000 }).catch(() => {});
+  ok((await page.locator('#tokensApps').innerText().catch(() => '')).includes('No app is connected yet.'), 'no connection: No app is connected yet.');
+  await page.close();
+}
+
+console.log('5b) a connection label with HTML is shown as text, in both lists');
+{
+  const evil = '<img src=x onerror="window.__xss=1"><b>Evil</b> (e.example)';
+  const state = { ...fresh(), mine: [{ ...structuredClone(APP), id: 'x1', label: evil }], all: [{ ...structuredClone(APP), id: 'x1', label: evil, display_name: '<i>Name</i>' }] };
+  for (const user of [EDITOR, ADMIN]) {
+    const page = await open('/admin#anahtarlar', user, state);
+    for (const list of user.is_admin ? ['#tokensApps', '#tokensAll'] : ['#tokensApps']) {
+      await page.waitForSelector(`${list} [data-token="x1"]`, { timeout: 8000 }).catch(() => {});
+      const host = page.locator(`${list} [data-token="x1"]`);
+      ok((await host.locator('[data-row-title]').innerText().catch(() => '')).includes(evil), `${user.id} ${list}: the label is the visible text, tags and all`);
+      ok(await host.locator('img, b, i').count() === 0, `${user.id} ${list}: no element came out of the label or the name`);
+    }
+    ok(await page.evaluate(() => window.__xss === undefined), `${user.id}: no script ran`);
+    await page.close();
+  }
+}
+
+console.log('6) an admin sees both kinds, with an App chip on the connection');
+for (const [path, chipText] of [['/admin#anahtarlar', 'App'], ['/tr/admin#anahtarlar', 'Uygulama']]) {
+  const state = fresh();
+  state.all = [{ ...structuredClone(PAT), user_id: 'u2', display_name: 'Bir Üye' }, { ...structuredClone(APP), user_id: 'u2', display_name: 'Bir Üye' }];
+  const page = await open(path, ADMIN, state);
+  await page.waitForSelector('#tokensAll [data-token="c1"]', { timeout: 8000 }).catch(() => {});
+  const chips = async (id) => page.locator(`#tokensAll [data-token="${id}"] span`).allInnerTexts().catch(() => []);
+  ok((await chips('c1')).some((c) => c.trim() === chipText), `${path}: the connection has the ${chipText} chip`);
+  ok(!(await chips('p1')).some((c) => c.trim() === chipText), `${path}: the personal token has none`);
+  await page.close();
+}
+
+console.log('7) Turkish page');
+{
+  const page = await open('/tr/admin#anahtarlar', EDITOR, withApps());
+  await page.waitForSelector('#tokensApps [data-token="c1"]', { timeout: 8000 }).catch(() => {});
+  const text = await page.locator('[data-section="anahtarlar"]').innerText();
+  ok(text.includes('Bağlı uygulamalar'), 'Bağlı uygulamalar');
+  ok(text.includes("Claude'a bağla"), "Claude'a bağla");
+  ok((await page.locator('#tokensApps [data-revoke="c1"]').innerText().catch(() => '')).trim() === 'Bağlantıyı kes', 'Bağlantıyı kes');
+  await page.close();
+}
+
+console.log('8) no sideways scroll at 390 px, no inner scrollbar at the six desktop sizes');
+const SIZES = [[1280, 680], [1366, 768], [1440, 800], [1536, 864], [1440, 900], [1920, 1080], [390, 844]];
+for (const path of ['/admin#anahtarlar', '/tr/admin#anahtarlar']) {
+  for (const [width, height] of SIZES) {
+    const page = await open(path, ADMIN, { ...withApps(), all: [{ ...structuredClone(APP), user_id: 'u2', display_name: 'Bir Üye' }] }, { width, height });
+    await page.waitForSelector('#tokensApps [data-token="c1"]', { timeout: 8000 }).catch(() => {});
+    const at = `${path} ${width}x${height}`;
+    const w = await page.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth }));
+    ok(w.sw <= w.iw, `${at}: no horizontal scroll (scrollWidth ${w.sw})`);
+    // Something that scrolls inside the section other than the panel's own content box is an inner scrollbar.
+    const inner = await page.evaluate(() => {
+      const section = document.querySelector('[data-section="anahtarlar"]');
+      return [section, ...section.querySelectorAll('*')].filter((el) => {
+        const s = getComputedStyle(el);
+        return (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 1) || (/(auto|scroll)/.test(s.overflowX) && el.scrollWidth > el.clientWidth + 1);
+      }).map((el) => el.id || el.tagName);
+    });
+    ok(inner.length === 0, `${at}: no inner scrollbar (${inner.join(', ')})`);
+    await page.close();
+  }
 }
 
 await browser.close();

@@ -84,7 +84,7 @@ test('an Etkinlikler editor creates a draft token for 30 days; the value comes b
   assert.equal(token.status, 'live');
   assert.ok(Math.abs((token.expires_at as number) - (before + 30 * DAY)) <= 2);
   assert.deepEqual(Object.keys(token).sort(),
-    ['created_at', 'expires_at', 'hint', 'id', 'label', 'last_used_at', 'revoke_reason', 'revoked_at', 'scopes', 'status']);
+    ['created_at', 'expires_at', 'hint', 'id', 'kind', 'label', 'last_used_at', 'revoke_reason', 'revoked_at', 'scopes', 'status']);
 
   const row = db.prepare('SELECT token_hash, scopes FROM agent_tokens WHERE id = ?').get(token.id) as { token_hash: string; scopes: string };
   assert.deepEqual(JSON.parse(row.scopes), ['cms.etkinlikler:draft'], 'stored as authenticateAgent reads it');

@@ -18,6 +18,7 @@ import { fakeR2 } from './lib/fake-r2';
 import { buildCmsIndex } from '../src/lib/cms/cms-index';
 import { grantRole, revokeRole } from '../functions/_lib/role-grants';
 import { routeFor, AGENT_ROUTES } from '../functions/_lib/agent-routes';
+import { PRM_URL } from '../functions/_lib/oauth-config';
 import { authenticateAgent, markInternal, newTokenValue, type AgentAuth } from '../functions/_lib/agent-tokens';
 import { LIMITS } from '../functions/_lib/agent-limits';
 import { notificationText } from '../functions/_lib/social-notify';
@@ -559,7 +560,7 @@ test('stored scopes the API would never write: an approve level, a duplicate are
     const res = await hit(w, socialPosts.onRequestPost, 'POST', '/api/social/posts', { token, body: postBody() });
     assert.equal(res.status, 401);
     assert.deepEqual(await res.json(), { error: 'Unauthorized', code: 'unauthorized' });
-    assert.equal(res.headers.get('WWW-Authenticate'), 'Bearer');
+    assert.equal(res.headers.get('WWW-Authenticate'), `Bearer resource_metadata="${PRM_URL}", error="invalid_token"`);
     if (token !== orphan) assert.equal(changes(w.db), before, 'a dead token writes nothing');
   }
   assert.equal(rows(w.db, 'social_posts'), 0);

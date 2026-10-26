@@ -25,7 +25,12 @@
 //   header that is no token value. Nothing is written per value. An IP past
 //   IP_FAILED_AUTH is refused without a write (an IPv6 address counts by its
 //   /64), and past FAILURES_PER_DAY for all addresses together a failure is
-//   refused without any write.
+//   refused without any write. Two places do not count the IP: /oauth/token
+//   and an rsg_oat_ bearer value. Hosted connectors (claude.ai, ChatGPT) reach
+//   us from addresses their members share, so an outsider's junk would cut
+//   them all off; those values are 256-bit random, so the count protected
+//   nothing but D1 writes, which the day's cap still bounds (the day's row
+//   alone: one write).
 //
 // Counts read before the bump can race: two requests at once may both pass
 // the last free slot. The overshoot is a few requests, never a budget risk.
@@ -119,7 +124,7 @@ export interface LimitedPrincipal {
 /** What a request spends besides one request: the reserve may serve it (social work), and its quota. */
 export interface Charge { reserve: boolean; quota?: AgentRoute['quota'] }
 
-export type RevokeReason = 'refusals' | 'flood' | 'leaked';
+export type RevokeReason = 'refusals' | 'flood' | 'leaked' | 'refresh_reuse';
 
 const windowEnd = (windowSeconds: number, now: number) => (Math.floor(now / windowSeconds) + 1) * windowSeconds;
 
@@ -221,16 +226,18 @@ export function ipRefusal(row: IpCounts | null, now: number): Response | null {
 }
 
 /**
- * One failed authentication from this IP: its row and the day's failures
- * row, in one batch (two rows). Past FAILURES_PER_DAY nothing is written:
- * the request is refused as it is.
+ * One failed authentication: the day's failures row, and this IP's row
+ * unless `countIp` is false (two rows or one, in one batch). Past
+ * FAILURES_PER_DAY (or the IP's window limit) nothing is written: the
+ * upserts are conditional, so the cap holds under a burst too.
  */
-async function countFailure(db: D1Database, ip: string, snapshot: Snapshot, now: number): Promise<void> {
+async function countFailure(db: D1Database, ip: string, snapshot: Snapshot, now: number, countIp: boolean): Promise<void> {
   if (snapshot.failures >= LIMITS.FAILURES_PER_DAY) return;
-  await db.batch([
-    bumpIp(db, ip, now, true),
-    db.prepare('INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1').bind(failuresBucket(now)),
-  ]);
+  // The snapshot is only the fast path: the writer judges the cap, so a burst that all read the same count cannot pass it.
+  const day = db.prepare(
+    'INSERT INTO agent_counters (bucket, requests) VALUES (?1, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1 WHERE agent_counters.requests < ?2',
+  ).bind(failuresBucket(now), LIMITS.FAILURES_PER_DAY);
+  await db.batch(countIp ? [bumpIp(db, ip, now, true), day] : [day]);
 }
 
 /** One more failed request from this IP (and a failed authentication when `failed`). One upsert. */
@@ -242,8 +249,9 @@ function bumpIp(db: D1Database, ip: string, now: number, failed: boolean): D1Pre
        minute_n = CASE WHEN minute = excluded.minute THEN minute_n + 1 ELSE 1 END,
        minute = excluded.minute,
        fail_n = CASE WHEN excluded.fail_n = 0 THEN fail_n WHEN fail_window = excluded.fail_window THEN fail_n + 1 ELSE 1 END,
-       fail_window = CASE WHEN excluded.fail_n = 0 THEN fail_window ELSE excluded.fail_window END`,
-  ).bind(ipBucket(ip, now), Math.floor(now / MINUTE), failed ? Math.floor(now / LIMITS.IP_FAILED_AUTH_WINDOW) : 0, failed ? 1 : 0);
+       fail_window = CASE WHEN excluded.fail_n = 0 THEN fail_window ELSE excluded.fail_window END
+     WHERE excluded.fail_n = 0 OR fail_window != excluded.fail_window OR fail_n < ?5`,
+  ).bind(ipBucket(ip, now), Math.floor(now / MINUTE), failed ? Math.floor(now / LIMITS.IP_FAILED_AUTH_WINDOW) : 0, failed ? 1 : 0, LIMITS.IP_FAILED_AUTH);
 }
 
 interface TokenDelta { minute: boolean; general?: number; reserve?: number; quota?: QuotaColumn; quotaReserve?: boolean; refusals?: number }
@@ -295,16 +303,17 @@ export async function ipKey(request: Request): Promise<string> {
 }
 
 /**
- * Every token value starts with "rsg_pat_"; an upload that holds it is
- * refused (leaked). As ASCII (UTF-8) and as UTF-16 in both byte orders,
- * which is how EXIF UserComment and the Windows XP* tags store text.
+ * A personal token starts with "rsg_pat_", an OAuth connection's access and
+ * refresh values with "rsg_oat_" and "rsg_ort_"; an upload that holds any of
+ * them is refused (leaked). As ASCII (UTF-8) and as UTF-16 in both byte
+ * orders, which is how EXIF UserComment and the Windows XP* tags store text.
  */
-const PREFIX_TEXT = 'rsg_pat_';
-const VALUE_NEEDLES = [
-  new TextEncoder().encode(PREFIX_TEXT),
-  new Uint8Array([...PREFIX_TEXT].flatMap((c) => [c.charCodeAt(0), 0])),
-  new Uint8Array([...PREFIX_TEXT].flatMap((c) => [0, c.charCodeAt(0)])),
-];
+const PREFIX_TEXTS = ['rsg_pat_', 'rsg_oat_', 'rsg_ort_'];
+const VALUE_NEEDLES = PREFIX_TEXTS.flatMap((p) => [
+  new TextEncoder().encode(p),
+  new Uint8Array([...p].flatMap((c) => [c.charCodeAt(0), 0])),
+  new Uint8Array([...p].flatMap((c) => [0, c.charCodeAt(0)])),
+]);
 /** Bytes carried over from one chunk to the next, so a needle split across them is found. */
 const CARRY = Math.max(...VALUE_NEEDLES.map((n) => n.length)) - 1;
 
@@ -370,7 +379,8 @@ export async function readCapped(request: Pick<Request, 'body'>, cap: number): P
 
 /**
  * An upload body, counted as it streams and searched for a token value
- * (any `rsg_pat_`, this token's or another's, as ASCII or UTF-16) without
+ * (any `rsg_pat_`, `rsg_oat_` or `rsg_ort_`, this token's or another's, as
+ * ASCII or UTF-16) without
  * decoding: 'ok',
  * 'too_large' or 'leaked'. Nothing is kept.
  */
@@ -417,7 +427,7 @@ export async function countRefusal(
   const token = await lookup();
   if (token === 'none' || token === 'dead') return null;
   if (token === 'unknown') {
-    await countFailure(db, ip, snapshot, now);
+    await countFailure(db, ip, snapshot, now, true);
     return null;
   }
   const { refusals } = await bump(db, bumpToken(db, { tokenId: token.id, userId: token.user_id }, now, { minute: false, refusals: 1 }));
@@ -426,12 +436,14 @@ export async function countRefusal(
 }
 
 /**
- * A value on a table route that matches no token (or is no token value): one
- * failed authentication of the IP and of the day, unless the day's failures
- * are already at FAILURES_PER_DAY (then nothing is written).
+ * A value that matches no token (or is no token value), or a wrong guess at
+ * /oauth/token: one failed authentication of the IP and of the day, unless
+ * the day's failures are already at FAILURES_PER_DAY (then nothing is
+ * written). `countIp` false (an rsg_oat_ value, /oauth/token) counts the
+ * day only, since those callers share addresses (see the top of this file).
  */
-export async function countFailedAuth(db: D1Database, ip: string, snapshot: Snapshot, now: number): Promise<void> {
-  await countFailure(db, ip, snapshot, now);
+export async function countFailedAuth(db: D1Database, ip: string, snapshot: Snapshot, now: number, countIp = true): Promise<void> {
+  await countFailure(db, ip, snapshot, now, countIp);
 }
 
 // --- the leak check --------------------------------------------------------
@@ -493,7 +505,7 @@ export async function refuseLeak(db: D1Database, principal: Pick<LimitedPrincipa
  * In order:
  * 1. Body size, and the leak signal (before any counter, so a leaked value
  *    is revoked even in a request that is over a limit). An upload is
- *    searched for `rsg_pat_` as bytes; any other body as text.
+ *    searched for a token prefix as bytes; any other body as text.
  * 2. Daily limits, refused with no write: the member's day, the route's
  *    quota, the agents' request pools and, for a request with a quota, the
  *    agents' write pools (each general, then the reserve for social work).
@@ -600,4 +612,101 @@ export async function checkQuota(
   // Not paid by its message: refused, rather than spent outside the agents'
   // write budget, which only checkToken can see. No tool reaches this today.
   return agentBudgetSpent(now);
+}
+
+// --- OAuth: the token endpoint and registration (plan 6) ---------------------
+
+/** The token endpoint's refusal, in OAuth's error shape (Call 7). */
+function oauthLimited(retryAfter: number): Response {
+  const res = jsonResponse({ error: 'rate_limited' }, 429);
+  res.headers.set('Retry-After', String(retryAfter));
+  return res;
+}
+
+/** What a connection is, for chargeConnection: its row id (the counter key), its member, and whether its scopes include social work (the reserve). */
+export interface ChargedConnection { tokenId: string; userId: string; social: boolean }
+
+/**
+ * A code exchange or a refresh at /oauth/token, counted as one request of
+ * that connection, as checkToken counts an API request: the member's day,
+ * the agents' pools (the reserve only when `social`), then the
+ * minute limit and the flood revoke. No IP cut-off (hosted connectors share
+ * addresses) and no body checks: the token endpoint reads its own small
+ * form. Allowed: one upsert of the connection's row.
+ * Refused for the day or the budget: no write. Answers 429
+ * `{ error: 'rate_limited' }` with Retry-After, or the agent_budget answer.
+ */
+export async function chargeConnection(db: D1Database, c: ChargedConnection, ip: string, now: number): Promise<Response | null> {
+  const snapshot = await readSnapshot(db, ip, now);
+  let general = 0, reserve = 0, member = 0;
+  for (const t of snapshot.tokens) {
+    general += t.general;
+    reserve += t.reserve;
+    if (t.user_id === c.userId) member += t.general + t.reserve;
+  }
+  if (member >= LIMITS.MEMBER_PER_DAY) return oauthLimited(secondsLeft(DAY, now));
+  let pool: 'general' | 'reserve';
+  if (general < LIMITS.AGENT_GENERAL_PER_DAY) pool = 'general';
+  else if (reserve < LIMITS.AGENT_RESERVE_PER_DAY && c.social) pool = 'reserve';
+  else return agentBudgetSpent(now);
+
+  const mine = snapshot.tokens.find((t) => t.bucket === tokenBucket(c.tokenId, now));
+  const perMinute = (mine?.minute === Math.floor(now / MINUTE) ? mine.minute_n : 0) + 1;
+  if (perMinute > LIMITS.TOKEN_PER_MINUTE) {
+    const counted = await bump(db, bumpToken(db, c, now, { minute: true }));
+    if (Math.max(perMinute, counted.minute_n) >= LIMITS.FLOOD_PER_MINUTE) await autoRevoke(db, c.tokenId, 'flood', now);
+    return oauthLimited(secondsLeft(MINUTE, now));
+  }
+  await bump(db, bumpToken(db, c, now, { minute: true, [pool]: 1 }));
+  return null;
+}
+
+/** Registrations at /oauth/register, per IP (its /64) and for everyone, per UTC day. */
+export const REGISTRATIONS_PER_IP = 10;
+export const REGISTRATIONS_PER_DAY = 200;
+// Day-prefixed like every counter key, so the nightly prune deletes them; 'r'
+// and 'g' sort before 't', so readSnapshot's token range never sees them.
+const registrationIpBucket = (ip: string, now: number) => `${dayKey(now)}:r:${ip}`;
+const registrationsBucket = (now: number) => `${dayKey(now)}:g:registrations`;
+
+/**
+ * 429 when this IP has registered REGISTRATIONS_PER_IP clients today, or
+ * everyone REGISTRATIONS_PER_DAY; else null. One statement, two rows read by
+ * primary key, nothing written.
+ */
+export async function registrationRefusal(db: D1Database, ip: string, now: number): Promise<Response | null> {
+  const rows = (await db.prepare('SELECT bucket, requests FROM agent_counters WHERE bucket IN (?1, ?2)')
+    .bind(registrationIpBucket(ip, now), registrationsBucket(now)).all<{ bucket: string; requests: number }>()).results;
+  const count = (bucket: string) => rows.find((r) => r.bucket === bucket)?.requests ?? 0;
+  if (count(registrationIpBucket(ip, now)) >= REGISTRATIONS_PER_IP || count(registrationsBucket(now)) >= REGISTRATIONS_PER_DAY) {
+    return oauthLimited(secondsLeft(DAY, now));
+  }
+  return null;
+}
+
+/**
+ * The condition that makes a registration's insert atomic with its cap: this
+ * IP is under REGISTRATIONS_PER_IP and the day under REGISTRATIONS_PER_DAY,
+ * judged inside the batch. registrationRefusal stays the cheap read that
+ * answers first; this closes the gap parallel requests could slip through.
+ */
+export function registrationGuard(ip: string, now: number): { sql: string; binds: unknown[] } {
+  const under = '(SELECT COALESCE(SUM(requests), 0) FROM agent_counters WHERE bucket = ?) < ?';
+  return {
+    sql: `${under} AND ${under}`,
+    binds: [registrationIpBucket(ip, now), REGISTRATIONS_PER_IP, registrationsBucket(now), REGISTRATIONS_PER_DAY],
+  };
+}
+
+/**
+ * The two counter upserts of an allowed registration, to batch with the client's insert (three rows in all).
+ * With `afterGuardedInsert` each counts only if the statement before it
+ * changed a row (the guarded insert, then the first upsert), so a refused
+ * registration bumps nothing.
+ */
+export function registrationBumps(db: D1Database, ip: string, now: number, afterGuardedInsert = false): D1PreparedStatement[] {
+  const upsert = afterGuardedInsert
+    ? 'INSERT INTO agent_counters (bucket, requests) SELECT ?, 1 WHERE changes() > 0 ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1'
+    : 'INSERT INTO agent_counters (bucket, requests) VALUES (?, 1) ON CONFLICT(bucket) DO UPDATE SET requests = requests + 1';
+  return [db.prepare(upsert).bind(registrationIpBucket(ip, now)), db.prepare(upsert).bind(registrationsBucket(now))];
 }
