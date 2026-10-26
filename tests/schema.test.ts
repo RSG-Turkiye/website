@@ -162,3 +162,12 @@ test('agent limit queries look rows up by index', () => {
   }
   db.close();
 });
+
+test('usage_state is a single row looked up by its key', () => {
+  const db = freshDatabase();
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM usage_state').get() as { n: number }).n, 1);
+  const plan = (db.prepare('EXPLAIN QUERY PLAN SELECT * FROM usage_state WHERE id = 1').all() as { detail: string }[]).map((r) => r.detail);
+  assert.ok(plan.every((d) => !/^SCAN /.test(d)), plan.join(' / '));
+  assert.throws(() => db.prepare('INSERT INTO usage_state (id) VALUES (2)').run());
+  db.close();
+});
