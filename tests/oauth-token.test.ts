@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { d1 } from './lib/d1-sqlite';
+import { stubHttp } from './lib/http';
 import { mintConnection, mintToken } from './lib/agent';
 import { grantRole } from '../functions/_lib/role-grants';
 import { registerStatement } from '../functions/_lib/oauth-clients';
@@ -609,4 +610,27 @@ test('a personal token (rsg_pat_) is still cut off by its IP\'s failures', async
   const { newTokenValue } = await import('../functions/_lib/agent-tokens');
   for (let i = 0; i < LIMITS.IP_FAILED_AUTH; i++) assert.equal(await mcpFrom(env, newTokenValue(), '198.51.100.22'), 401, `#${i + 1}`);
   assert.equal(await mcpFrom(env, pat, '198.51.100.22'), 429);
+});
+
+test('an https client_id is never fetched at the token endpoint: the grant row names the client', async (t) => {
+  const { db, DB, env } = await setup(t);
+  const http = stubHttp(['claude.example'], () => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+  try {
+    const id = 'https://claude.example/oauth/client.json';
+    const junk = { grant_type: 'authorization_code', code: 'rsg_oac_junk', redirect_uri: REDIRECT, code_verifier: VERIFIER, client_id: id };
+    const res = await call(env, junk);
+    assert.equal(res.status, 400);
+    assert.equal(((await res.json()) as Body).error, 'invalid_grant');
+    const refreshed = await call(env, { grant_type: 'refresh_token', refresh_token: 'rsg_ort_x.y', client_id: id });
+    assert.equal(((await refreshed.json()) as Body).error, 'invalid_grant');
+    // A public client presents no secret: one that does is not that client.
+    const secret = await call(env, { ...junk, client_secret: 'x' });
+    assert.equal(secret.status, 401);
+    assert.equal(http.calls.length, 0, 'no fetch');
+    // A code made for another client is refused by its row, still without a fetch.
+    const other = await dcr(DB);
+    const code = await makeCode(db, { id, secret: '' });
+    assert.equal(((await (await exchange(env, other, code)).json()) as Body).error, 'invalid_grant');
+    assert.equal(http.calls.length, 0);
+  } finally { http.restore(); }
 });

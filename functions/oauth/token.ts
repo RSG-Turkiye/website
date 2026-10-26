@@ -123,6 +123,24 @@ function invalidClient(basic: boolean): Response {
 }
 const basicChallenge = () => invalidClient(true);
 
+/**
+ * The client the request names, without a network call. An `https://` id (a
+ * CIMD client) is public: the document is not needed here, only the grant
+ * row says which client the code or refresh value was made for, and the
+ * grants compare it with this exact string. Only an `rsg_oc_` id reads
+ * oauth_clients. Null: not authenticated.
+ */
+async function tokenClient(db: D1Database, presented: { id: string; secret: string | null; via: 'basic' | 'post' | 'none' }): Promise<Client | null> {
+  if (presented.id.startsWith('https://')) {
+    if (presented.secret !== null) return null;
+    return { id: presented.id, name: '', host: '', redirectUris: [], kind: 'cimd', authMethod: 'none', secretHash: null };
+  }
+  if (!presented.id.startsWith(PREFIX.client)) return null;
+  const resolved = await resolveClient(db, presented.id);
+  if ('error' in resolved || !(await authenticateClient(resolved, presented))) return null;
+  return resolved;
+}
+
 // --- grants ------------------------------------------------------------------
 
 async function codeGrant(c: Ctx): Promise<Response> {
@@ -252,10 +270,8 @@ async function handle(request: Request, env: Env, now: number): Promise<Response
 
   const presented = presentedClient(request, form);
   if (presented instanceof Response) return presented.status === 401 ? failed({ db: env.DB, ip, snapshot, now }, presented) : presented;
-  const resolved = await resolveClient(env.DB, presented.id);
-  const basic = presented.via === 'basic';
-  if ('error' in resolved) return failed({ db: env.DB, ip, snapshot, now }, invalidClient(basic));
-  if (!(await authenticateClient(resolved, presented))) return failed({ db: env.DB, ip, snapshot, now }, invalidClient(basic));
+  const resolved = await tokenClient(env.DB, presented);
+  if (!resolved) return failed({ db: env.DB, ip, snapshot, now }, invalidClient(presented.via === 'basic'));
 
   const ctx: Ctx = { db: env.DB, request, now, ip, snapshot, form, client: resolved };
   return grant === 'authorization_code' ? codeGrant(ctx) : refreshGrant(ctx);
