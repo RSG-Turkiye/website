@@ -37,7 +37,7 @@ Geri çevirmek:
 
 ## Sık karşılaşılan sorunlar
 
-- Planlanan saatten 2 saatten fazla geçmişse gönderi kendiliğinden çıkmaz. Çıkmasını istiyorsan **Yine de yayınla** düğmesine bas.
+- Planlanan saatin üzerinden 2 saatten fazla geçmişse gönderi kendiliğinden çıkmaz. Çıkmasını istiyorsan **Yine de yayınla** düğmesine bas.
 - Başarısız olan gönderi 2 saat boyunca her dakika yeniden denenir. Gönderi hâlâ çıkmadıysa **Yeniden dene** düğmesine bas.
 - Gönderi yayına çıkmaya başladıysa artık düzenlenemez ya da iptal edilemez. Takılı kaldıysa **Yeniden dene** düğmesine bas.
 - Instagram hikâyesi için Business hesap gerekir. Bağlantı uyarısı çıkarsa bir admin'e söyle.

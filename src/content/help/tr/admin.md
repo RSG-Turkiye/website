@@ -19,7 +19,7 @@ Panelin tamamını görür ve yönetirsin. Rolleri sen verirsin.
 
 - Kendi admin yetkini kaldıramazsın. En az iki admin olsun.
 - Teknik sorunlar için depodaki `docs/handover/` klasörüne bak.
-- Asistanın onaylayamaz, yayınlayamaz, rol veremez.
+- Yapay zekâ asistanın onaylayamaz, yayınlayamaz, rol veremez.
 
 ## Sık yapılan işler
 
@@ -37,7 +37,7 @@ Rolü yenilemek:
 Kayıtları saklamak:
 
 1. **İşlem kaydı** sayfasını aç.
-2. **JSON indir** düğmesine bas ve dosyayı yılda bir kez derneğin Drive'ına koy. Panel yalnızca son bir yılı tutar.
+2. **JSON indir** düğmesine bas ve dosyayı yılda bir kez RSG'nin Drive'ına koy. Panel yalnızca son bir yılı tutar.
 
 ## Sık karşılaşılan sorunlar
 

@@ -24,7 +24,7 @@ Sosyal medya gönderilerini hazırlarsın. Gönderinin çıkıp çıkmayacağın
 
 Yeni gönderi hazırlamak:
 
-1. **Takvim** sekmesinde bir güne bas ya da **İçerik ekle** düğmesine bas.
+1. **Takvim** sekmesinde bir güne tıkla ya da **İçerik ekle** düğmesine bas.
 2. Metni yaz, görseli ekle (JPEG ya da PNG olmalı). Görselde ne olduğunu anlatan alt metin yazman iyi olur, ama zorunlu değil.
 3. Ekranın altındaki **Yayına çıkmadan önce** listesi eksikleri gösterir. Hepsi tamamsa **Onaya gönder** düğmesine bas.
 

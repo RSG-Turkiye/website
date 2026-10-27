@@ -17,7 +17,7 @@ Grubunun taslaklarına karar verirsin. Onayı her zaman panelde bir kişi verir.
 - **Onay** sekmesinde taslağı **Onayla ve yayına al** düğmesiyle onaylarsın ya da **Geri gönder** ile bir not yazıp geri yollarsın.
 - **Süren ve takılanlar** listesinde, yayına çıkmakta olan bir değişikliği durdurabilir ya da takılan bir taslağı silebilirsin.
 - Kendi taslağını da onaylayabilirsin.
-- Grubunun düzenleyici rolünü en fazla bir ay için verebilirsin: **Kullanıcılar ve yetkiler** altında **Yetkiler** sayfasını aç.
+- Grubunun düzenleyici rolünü en fazla bir ay için verebilirsin. Bunu **Kullanıcılar ve yetkiler** altındaki **Yetkiler** sayfasından yaparsın.
 
 ## Neler yapamazsın, kime sorarsın
 

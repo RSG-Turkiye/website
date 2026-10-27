@@ -37,7 +37,7 @@ Renewing a role:
 Keeping the records:
 
 1. Open the **Activity log** page.
-2. Press **Export JSON** and put the file in the organisation's Drive once a year. The panel keeps only the last year.
+2. Press **Export JSON** and put the file in RSG's Drive once a year. The panel keeps only the last year.
 
 ## Common problems
 
