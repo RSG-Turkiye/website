@@ -51,8 +51,8 @@ export function startShell(r: RoleFlags, h: Hooks): void {
   // editor, who has no menu; whoever has the menu entry does not need it.
   tokensLink = visible.has('anahtarlar') && !menu.has('anahtarlar');
   if (!tokensLink) document.querySelectorAll('[data-tokens-link]').forEach((a) => a.remove());
-  // Help is the same: a link for whoever has no menu entry for it.
-  helpLink = visible.has('yardim') && !menu.has('yardim');
+  // Help has no menu entry for anyone (the sidebar has no room): its link is for everyone.
+  helpLink = visible.has('yardim');
   if (!helpLink) document.querySelectorAll('[data-help-link]').forEach((a) => a.remove());
   const panel = document.querySelector<HTMLElement>('[data-drawer-panel]')!;
   panel.replaceChildren(document.getElementById('sectionNav')!.cloneNode(true));

@@ -1,22 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { guidesFor, heldRolesFromMe } from '../src/scripts/admin/sections/help';
+import { readdirSync, readFileSync } from 'node:fs';
+import { guidesFor, heldRolesFromMe, audienceKey } from '../src/scripts/admin/sections/help';
+import { helpSchema } from '../src/data/help';
+import { parseMarkdown } from '../src/lib/cms/serialize';
+import { cmsType } from '../src/lib/cms/types';
 import { ui } from '../src/i18n/ui';
 
-// The nine guides of src/content/help, in `order`, with the roles each is for.
-const GUIDES = [
-  { slug: 'connect-claude', roles: ['all'] },
-  { slug: 'social', roles: ['social'] },
-  { slug: 'social-publisher', roles: ['social_publisher'] },
-  { slug: 'content-editor', roles: ['content.etkinlikler.edit', 'content.yazilar.edit', 'content.ogrenme.edit', 'content.topluluk.edit', 'content.sayfalar.edit'] },
-  { slug: 'content-approver', roles: ['content.etkinlikler.approve', 'content.yazilar.approve', 'content.ogrenme.approve', 'content.topluluk.approve', 'content.sayfalar.approve'] },
-  { slug: 'announcer', roles: ['announcer'] },
-  { slug: 'sender', roles: ['sender'] },
-  { slug: 'symposium', roles: ['symposium'] },
-  { slug: 'admin', roles: ['admin'] },
-];
+// The real guides (src/content/help/en), in `order`, so the filter is tested against what ships.
+const DIR = new URL('../src/content/help/en/', import.meta.url).pathname;
+const anyMarkdown = cmsType('webinars')!;
+const GUIDES = readdirSync(DIR).filter((f) => f.endsWith('.md')).map((f) => {
+  const data = helpSchema.parse(parseMarkdown(anyMarkdown, readFileSync(DIR + f, 'utf8')).frontmatter);
+  return { slug: f.replace(/\.md$/, ''), roles: data.roles, order: data.order };
+}).sort((a, b) => a.order - b.order);
 
 test('admin sees every guide', () => {
+  assert.equal(GUIDES.length, 9);
   assert.deepEqual(guidesFor(GUIDES, ['admin'], true), GUIDES.map((g) => g.slug));
 });
 
@@ -50,6 +50,16 @@ test('an announcer, a sender and a symposium editor see their own guide', () => 
 test('the roles held come from the is_* columns and the live grants', () => {
   const held = heldRolesFromMe({ is_sender: 1, is_social_publisher: true, is_announcer: 0, grants: [{ role: 'content.yazilar.edit' }, { role: 'sender' }] });
   assert.deepEqual([...held].sort(), ['content.yazilar.edit', 'sender', 'social_publisher']);
+});
+
+test('every real guide has a "for whom" line in both languages', () => {
+  for (const g of GUIDES) {
+    const key = audienceKey(g.roles);
+    for (const lang of ['en', 'tr'] as const) {
+      const v = (ui[lang] as Record<string, string>)[key];
+      assert.ok(v && !v.includes('—'), `${lang} ${key} for ${g.slug}`);
+    }
+  }
 });
 
 test('the Help strings exist in both languages', () => {

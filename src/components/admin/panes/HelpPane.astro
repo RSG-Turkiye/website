@@ -7,6 +7,7 @@
  */
 import { getCollection, render } from 'astro:content';
 import { useTranslations } from '../../../i18n/ui';
+import { audienceKey } from '../../../scripts/admin/sections/help';
 
 interface Props { lang: 'en' | 'tr' }
 const { lang } = Astro.props;
@@ -17,18 +18,23 @@ const guides = await Promise.all(entries.map(async (e) => ({
   slug: e.id.slice(lang.length + 1),
   title: e.data.title,
   roles: e.data.roles.join(' '),
+  audience: audienceKey(e.data.roles),
   Content: (await render(e)).Content,
 })));
 ---
 <section data-section="yardim">
-  <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.help.heading')}</h2>
+  <h2 data-help-heading tabindex="-1" class="text-lg font-semibold text-navy mb-1 lg:sr-only focus:outline-none">{t('admin.help.heading')}</h2>
   <div data-help-list>
     <p class="text-sm text-gray-500 mb-4 lg:mb-3 max-w-prose">{t('admin.help.intro')}</p>
-    <ul class="flex flex-col gap-2 max-w-prose">
+    <ul class="max-w-prose overflow-hidden bg-white rounded-2xl border border-border divide-y divide-border">
       {guides.map((g) => (
         <li data-guide-link={g.slug} data-roles={g.roles}>
-          <a href={`#yardim/${g.slug}`} class={`flex items-center justify-between gap-2 px-4 min-h-11 rounded-2xl border border-border bg-white text-sm font-medium text-navy hover:bg-navy-light ${FOCUS}`}>
-            <span class="min-w-0 break-words">{g.title}</span><span aria-hidden="true" class="shrink-0 text-gray-500">›</span>
+          <a href={`#yardim/${g.slug}`} class="flex items-center justify-between gap-2 px-4 py-2 min-h-14 lg:min-h-11 text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-navy-mid">
+            <span class="min-w-0">
+              <span class="block text-base lg:text-sm font-medium break-words">{g.title}</span>
+              <span class="block text-xs text-gray-500">{t(g.audience as never)}</span>
+            </span>
+            <span aria-hidden="true" class="shrink-0 text-base text-gray-500 lg:hidden">›</span>
           </a>
         </li>
       ))}
@@ -39,7 +45,7 @@ const guides = await Promise.all(entries.map(async (e) => ({
   </p>
   {guides.map((g) => (
     <article data-guide={g.slug} data-roles={g.roles} class="help-guide hidden bg-white rounded-2xl border border-border p-4 lg:p-5 max-w-prose text-sm leading-relaxed text-gray-600 break-words">
-      <h3 class="help-title text-base font-semibold text-navy mb-2">{g.title}</h3>
+      <h2 data-guide-title tabindex="-1" class="help-title text-lg font-semibold text-navy mb-2 focus:outline-none">{g.title}</h2>
       <g.Content />
     </article>
   ))}
@@ -47,8 +53,8 @@ const guides = await Promise.all(entries.map(async (e) => ({
 
 <style>
   /* The guide's Markdown: headings below the pane title, and the list markers Tailwind's reset removes. */
-  .help-guide :global(h2) { font-size: 1rem; font-weight: 600; color: var(--color-navy); margin: 1.25rem 0 0.5rem; }
-  .help-guide :global(h3:not(.help-title)) { font-size: 0.875rem; font-weight: 600; color: var(--color-navy); margin: 1rem 0 0.25rem; }
+  .help-guide :global(h2:not(.help-title)) { font-size: 1rem; font-weight: 600; color: var(--color-navy); margin: 1.25rem 0 0.5rem; }
+  .help-guide :global(h3) { font-size: 0.875rem; font-weight: 600; color: var(--color-navy); margin: 1rem 0 0.25rem; }
   .help-guide :global(p) { margin: 0 0 0.75rem; }
   .help-guide :global(strong) { font-weight: 600; color: var(--color-navy); }
   .help-guide :global(ul) { list-style: disc; padding-left: 1.25rem; margin: 0 0 0.75rem; }

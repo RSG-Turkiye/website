@@ -17,7 +17,7 @@ const ids = (r: RoleFlags) => menuSections(r).map((s) => s.id);
 const reachable = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
-  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'anahtarlar', 'kayit', 'yardim']);
+  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'anahtarlar', 'kayit']);
 });
 
 test('one section: no Overview, and the panel lands in it', () => {
@@ -30,7 +30,7 @@ test('one section: no Overview, and the panel lands in it', () => {
 
 test('two sections: Overview appears and is where the panel lands', () => {
   const r = { ...none, announcer: true, symposium: true };
-  assert.deepEqual(ids(r), ['genel', 'duyurular', 'sempozyum', 'yardim']);
+  assert.deepEqual(ids(r), ['genel', 'duyurular', 'sempozyum']);
   assert.equal(landing(r), 'genel');
 });
 
@@ -127,7 +127,7 @@ test('content rights come from the live grants /api/me carries', () => {
 test('an approver who is not an admin gets the Roles sub-page only, to grant their group\'s edit role', () => {
   const r = rolesFromMe({ grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] });
   // Their own group's content section too, so Overview leads.
-  assert.deepEqual(ids(r), ['genel', 'icerik', 'kullanicilar', 'anahtarlar', 'yardim']);
+  assert.deepEqual(ids(r), ['genel', 'icerik', 'kullanicilar', 'anahtarlar']);
   assert.equal(landing(r), 'genel');
   const users = SECTIONS.find((s) => s.id === 'kullanicilar')!;
   assert.deepEqual(subsFor(users, r).map((s) => s.id), ['yetkiler']);
@@ -234,7 +234,7 @@ test('Agent tokens does not count as a second section: a one-section editor stil
   assert.equal(landing(editor), 'icerik');
   // Two real sections: Overview leads and the menu lists Agent tokens too.
   const two = { ...none, social: true, announcer: true };
-  assert.deepEqual(ids(two), ['genel', 'sosyal', 'duyurular', 'anahtarlar', 'yardim']);
+  assert.deepEqual(ids(two), ['genel', 'sosyal', 'duyurular', 'anahtarlar']);
   assert.equal(landing(two), 'genel');
 });
 
@@ -253,10 +253,10 @@ test('Help: a linked section in System for anyone with a work section; it never 
   assert.equal(landing(none), null);
 });
 
-test('Help: a social-only editor has no Overview, lands in Social media, and has Help by its link, not in the menu', () => {
+test('Help: a social-only editor has no Overview, lands in Social media, and has Help by its link, never in the menu', () => {
   const social = { ...none, social: true };
   assert.ok(!ids(social).includes('genel'));
   assert.ok(!ids(social).includes('yardim'));
   assert.equal(landing(social), 'sosyal');
-  assert.deepEqual(ids({ ...none, announcer: true, sender: true }), ['genel', 'eposta', 'duyurular', 'yardim']);
+  assert.deepEqual(ids({ ...none, announcer: true, sender: true }), ['genel', 'eposta', 'duyurular']);
 });

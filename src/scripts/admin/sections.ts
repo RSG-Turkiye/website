@@ -132,9 +132,13 @@ export function visibleSections(r: RoleFlags): Section[] {
   return work.filter((s) => !linked(s)).length >= 2 ? [SECTIONS[0], ...work] : work;
 }
 
-/** The sections the menu lists: all of them with two or more, else the one (its linked sections have their link). */
+/**
+ * The sections the menu lists: all of them with two or more, else the one (its linked sections have their link).
+ * Help is never listed: the sidebar has no room for another row, so it is
+ * reached by the link beside the section title, for everyone.
+ */
 export function menuSections(r: RoleFlags): Section[] {
-  const all = visibleSections(r);
+  const all = visibleSections(r).filter((s) => s.id !== 'yardim');
   return all.some((s) => s.id === 'genel') ? all : all.filter((s) => !linked(s));
 }
 

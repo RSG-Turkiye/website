@@ -27,6 +27,15 @@ export function guidesFor(guides: { slug: string; roles: string[] }[], held: rea
     .filter((slug) => !seen.has(slug) && !!seen.add(slug));
 }
 
+/** The `admin.help.for.*` key for a guide's "for whom" line, from its first role. */
+export function audienceKey(roles: readonly string[]): string {
+  const r = roles[0] ?? 'all';
+  if (r === 'all') return 'admin.help.for.all';
+  if (/^content\..+\.edit$/.test(r)) return 'admin.help.for.contentEdit';
+  if (/^content\..+\.approve$/.test(r)) return 'admin.help.for.contentApprove';
+  return `admin.help.for.${r}`;
+}
+
 /** The role keys /api/me says a person holds: the `is_*` columns and the live grants (the content roles have no column). */
 export function heldRolesFromMe(u: Record<string, unknown>): string[] {
   const held = new Set<string>();
@@ -36,6 +45,8 @@ export function heldRolesFromMe(u: Record<string, unknown>): string[] {
 }
 
 let visibleSlugs = new Set<string>();
+// What the pane showed last (undefined: nothing yet), so a move between the list and a guide, and only that, resets scroll and focus.
+let shown: string | null | undefined;
 
 /** Hides the guides this person has no use for. Call once, before the shell shows the section. */
 export function setupHelp(me: Record<string, unknown>): void {
@@ -52,6 +63,14 @@ export function showHelp(slug: string | null): void {
   const open = slug && visibleSlugs.has(slug) ? slug : null;
   const root = document.querySelector<HTMLElement>('[data-section="yardim"]')!;
   root.querySelector('[data-help-list]')!.classList.toggle('hidden', open !== null);
+  root.querySelector('[data-help-heading]')!.classList.toggle('hidden', open !== null);
   root.querySelectorAll<HTMLElement>('[data-guide]').forEach((a) => a.classList.toggle('hidden', a.dataset.guide !== open));
   root.querySelector('[data-help-back]')!.classList.toggle('hidden', open === null);
+  if (shown !== undefined && shown !== open) {
+    // The new view starts at its top, and a keyboard or screen reader user lands on its title.
+    document.getElementById('sectionBody')?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+    (open ? root.querySelector<HTMLElement>(`[data-guide="${open}"] [data-guide-title]`) : root.querySelector<HTMLElement>('[data-help-heading]'))?.focus({ preventScroll: true });
+  }
+  shown = open;
 }
