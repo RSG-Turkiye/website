@@ -217,6 +217,8 @@ The maintainer may know little terminal and work through an agent. So:
 - A command that touches production is handed to the person ready to paste,
   with `!` in front, an absolute path, and one sentence on what it does.
 - No `--json` on `wrangler d1 execute --remote` (it fails with error 7403).
+- `wrangler d1 execute --remote --file` gets an absolute path: a parent
+  folder holds a stale `db/schema.sql` that a relative path can pick up.
 - The person merges PRs and runs remote-database writes. The agent prepares
   them.
 - Never post to real accounts or send mail, even as a test.

@@ -26,9 +26,9 @@ Ayrıntılı liste için: [accounts.md](accounts.md).
 ## Ajanı bir kez kur
 
 1. Claude Code masaüstü uygulamasını indirip kur (ya da komut satırı
-   sürümünü kullan). Adres: claude.com/claude-code.
+   sürümünü kullan). Adres: claude.com/claude-code (Claude Code'un resmi sayfası; adres değişirse bu adı arat).
 2. Uygulamayı aç ve Anthropic hesabınla giriş yap.
-3. Bu depoyu bilgisayarına indir. Terminali açıp şu satırı yapıştır:
+3. Bu depoyu bilgisayarına indir. Terminali aç (Mac'te Terminal uygulaması, Windows'ta PowerShell) ve şu satırı yapıştır. Bunun için Git'in kurulu olması gerekir. Kurulu değilse ya da takılırsan, Claude Code'u herhangi bir klasörde aç ve ajandan depoyu senin için indirmesini iste:
 
    ```
    git clone https://github.com/RSG-Turkiye/website.git
@@ -58,8 +58,9 @@ bulur.
 Ajan bunları kendi başına yapmaz. Her birinin bir nedeni var.
 
 - **Gizli anahtarlar (secret).** Bir anahtar sohbete yazılırsa kaydı kalır.
-  Anahtar yalnızca `wrangler pages secret put` komutunun açtığı istem
-  satırına yazılır, başka hiçbir yere değil.
+  `wrangler pages secret put` komutu, bir anahtarı Cloudflare'a kaydeder.
+  Komutu sen, kendi terminalinde çalıştırırsın ve anahtarı yalnızca komutun
+  gösterdiği istem satırına yapıştırırsın, başka hiçbir yere değil.
 - **Cloudflare, GitHub, Google ve Buffer panellerindeki tıklamalar.** Bu
   hesaplara yalnızca sen giriş yapabilirsin. Ajan senin yerine oturum açmaz.
 - **PR'ları birleştirmek (merge).** Ana dal korunuyor. Kodu canlıya, bir insanın

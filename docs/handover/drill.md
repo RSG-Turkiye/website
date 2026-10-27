@@ -13,6 +13,8 @@ the faults are prepared in December, right before the drill, and never merged.
 
 - Every fault is set up off live: a branch, a pull request that is never
   merged, or a local copy. Never on the live site and never on real accounts.
+- Scenario 3 is read-only: it uses the live Overview card, with the lead
+  beside the person, and changes nothing.
 - The person fixes each fault using only these docs and their own agent.
 - Every place they get stuck becomes a docs fix the same day.
 - Commands that touch production are given to the person by the agent, as in
@@ -24,8 +26,7 @@ the faults are prepared in December, right before the drill, and never merged.
   that is never merged.
 - **The person is told:** "The check on this PR is red. Find out why and fix it."
 - **Solved when:** the person and agent name the failing step in GitHub
-  Actions, reproduce it locally on Node 22 (see [troubleshooting.md](troubleshooting.md),
-  "CI is red on a PR that passes locally"), fix it, and the checks go green.
+  Actions, reproduce it locally on Node 22 (see [troubleshooting.md](troubleshooting.md#ci-is-red-on-a-pr-that-passes-locally)), fix it, and the checks go green.
 
 ## Scenario 2: "I saved in the panel but the site did not change"
 
@@ -35,8 +36,7 @@ the faults are prepared in December, right before the drill, and never merged.
   unchanged. What do you check?"
 - **Solved when:** the person finds the merge commit, checks whether a
   deployment exists for it, and explains the empty-commit PR fix and who merges
-  it, and why a `cms/*` PR is never merged by hand ([troubleshooting.md](troubleshooting.md),
-  first entry).
+  it, and why a `cms/*` PR is never merged by hand ([troubleshooting.md](troubleshooting.md#a-panel-save-or-a-merged-pr-never-shows-on-the-site)).
 
 ## Scenario 3: "the usage alert says 70%"
 
@@ -46,7 +46,7 @@ the faults are prepared in December, right before the drill, and never merged.
 - **Solved when:** the person reads today's numbers on the Overview card,
   explains the free-plan limits and the 00:00 UTC reset, and has the agent
   prepare the read-only `d1 insights` command, which the person runs after
-  `npx wrangler login` ([troubleshooting.md](troubleshooting.md), "Quota").
+  `npx wrangler login` ([troubleshooting.md](troubleshooting.md#quota-d1-errors-or-the-usage-alert)).
 
 ## Handover-session checklist
 

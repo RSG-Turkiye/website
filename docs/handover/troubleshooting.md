@@ -39,10 +39,11 @@ the save (CLAUDE.md, "Scheduled jobs").
 **Fix**: For a missed build, open an empty-commit PR (`git commit
 --allow-empty`); once its two required checks pass, the person merges it
 (`main` is protected). Nobody merges a `cms/*` pull request by hand. For a
-stuck draft, see "A content draft failed" below. For the symposium site,
-the person re-runs the hook or the next nightly rebuild picks it up
-([Symposium site, nightly
-rebuild](../../README.md#symposium-site--nightly-rebuild)).
+stuck draft, see [A content draft failed](#a-content-draft-failed). For the symposium site,
+the save is stored either way and the nightly rebuild (01:17 UTC) picks it
+up. The save response says whether the rebuild started; if it did not, check
+that `SYMPOSIUM_DEPLOY_HOOK` is set on the `website` Pages project ([Symposium
+site, nightly rebuild](../../README.md#symposium-site--nightly-rebuild)).
 
 **Who acts**: the agent prepares the empty-commit branch and the PR; the person
 merges it and checks the Deployments list.
@@ -80,8 +81,8 @@ fail with D1 or quota errors until the next day.
 1. The free plan's daily limits were used up: 5 million D1 rows read, 100,000
    rows written, 100,000 Worker requests. All reset at 00:00 UTC.
 2. A query on the per-minute tick without an index covering its `WHERE`.
-3. A client or agent loop (agents have their own budget, see "A connector will
-   not connect").
+3. A client or agent loop (agents have their own budget, see [A Claude or ChatGPT connector will
+   not connect](#a-claude-or-chatgpt-connector-will-not-connect-or-a-token-is-refused)).
 
 **Look at**: the Overview card (System block) for today's numbers and when the
 check last ran; the Log for `usage.alert` rows; and the read-only
@@ -104,8 +105,8 @@ person's machine.
 
 **Likely causes**:
 1. CI runs Node 22; the local Node is a different version.
-2. A stale local content cache hides a deleted or renamed file (see "Deleted
-   content still renders locally").
+2. A stale local content cache hides a deleted or renamed file (see [Deleted content still renders
+   locally](#deleted-content-still-renders-locally)).
 
 **Look at**: the failing step in GitHub Actions, Build Check (`astro check`,
 build or tests, for the main site or the symposium site).
@@ -154,8 +155,10 @@ replies, [Reading replies
 **Fix**: As the README table says, by what the rows show. For a Gmail banner
 line, Connections, Gmail, Reconnect.
 
-**Who acts**: the agent reads the table; the person does the reconnect click
-and any Worker redeploy.
+**Who acts**: the agent may run the read-only `dispatch_runs` query only after
+the person is logged in to wrangler (`npx wrangler login`); otherwise it hands
+the query to the person, who pastes the result back. The person does the
+reconnect click and any Worker redeploy.
 
 ## A social post did not go out, or a Buffer or banner line is red
 
