@@ -20,7 +20,7 @@ On the **Announcements** page you add, edit and delete announcements. Each one h
 ## What you cannot do, and who to ask
 
 - To reach any other section, ask an admin for the matching role.
-- Your role lasts at most 12 months. An admin renews it before it ends.
+- Your role lasts up to 12 months or is permanent. If it has an end date, an admin renews it before then.
 - Your AI assistant cannot write announcements. Only you can.
 
 ## Common tasks

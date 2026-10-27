@@ -18,7 +18,7 @@ You approve and schedule the posts the editors prepare. The publisher role comes
 ## What you cannot do, and who to ask
 
 - An admin manages the Instagram, LinkedIn and X connections. If one breaks, tell an admin.
-- An admin grants the role. It lasts at most 12 months, then is renewed.
+- An admin grants the role. It lasts up to 12 months or is permanent. If it has an end date, an admin renews it before then.
 - You cannot delete a published post from the panel. Delete it on the platform's own page.
 
 ## Common tasks

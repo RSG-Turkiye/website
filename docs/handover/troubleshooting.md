@@ -12,8 +12,9 @@ command or click).
 One rule covers every entry: **the agent hands every command that touches
 production to the person**, ready to paste with `!`, with an absolute path and
 one sentence on what it does. See "Working with a non-terminal maintainer" in
-[CLAUDE.md](../../CLAUDE.md). Read-only commands that touch nothing live may
-be run by the agent. Never paste a secret into chat, and never post or send
+[CLAUDE.md](../../CLAUDE.md). Read-only commands, including remote reads such as
+`wrangler d1 insights` or a SELECT, may be run by the agent once the person has
+logged in to wrangler; anything that writes is handed to the person. Never paste a secret into chat, and never post or send
 anything to a real account while testing.
 
 ## A panel save or a merged PR never shows on the site
@@ -45,8 +46,8 @@ up. The save response says whether the rebuild started; if it did not, check
 that `SYMPOSIUM_DEPLOY_HOOK` is set on the `website` Pages project ([Symposium
 site, nightly rebuild](../../README.md#symposium-site--nightly-rebuild)).
 
-**Who acts**: the agent prepares the empty-commit branch and the PR; the person
-merges it and checks the Deployments list.
+**Who acts**: the agent prepares the empty-commit branch and the PR only after
+the person OKs the push; the person merges it and checks the Deployments list.
 
 ## A button does nothing, or a generic error appears
 
@@ -180,8 +181,9 @@ is lost](../../README.md#if-a-posts-answer-is-lost).
 **Fix**: Follow the README entry. For "uncertain", someone looks at the
 account before **Retry**, so nothing is posted twice.
 
-**Who acts**: the social media publisher presses Retry or Publish anyway and
-reconnects. The agent never posts or retries a real post.
+**Who acts**: the social media publisher presses Retry or Publish anyway; an
+admin reconnects the account in Connections (only admins can). The agent never
+posts or retries a real post.
 
 ## A Claude or ChatGPT connector will not connect, or a token is refused
 

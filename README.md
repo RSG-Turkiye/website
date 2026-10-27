@@ -528,11 +528,13 @@ Overview.
 - **Help** (`#yardim`, `#yardim/<guide>`): the role guides in
   `src/content/help/<lang>/*.md`, shown to everyone with a panel, filtered to
   the roles they hold (admins see all; the filter is for relevance, the text is
-  public). It is reached by its own link like Agent tokens, so it never adds an
-  Overview or changes where a one-section editor lands.
+  public). It is never in the menu: a **Help** link sits beside the section title
+  for everyone, like the Agent tokens link for a one-section editor, so it never
+  adds an Overview or changes where a one-section editor lands.
 
 The section ids in the address are Turkish (`eposta`, `sosyal`, `duyurular`,
-`icerik`, `sempozyum`, `kullanicilar`, `baglantilar`, `kayit`). The routing table
+`icerik`, `sempozyum`, `kullanicilar`, `baglantilar`, `anahtarlar`, `kayit`,
+`yardim`). The routing table
 is `src/scripts/admin/sections.ts`. `tests/browser/admin-overflow.mjs` opens
 every section at 390 and 1280 px and checks for horizontal scroll and 44 px
 touch targets.

@@ -20,7 +20,7 @@ Sitede görünen duyuruları yazarsın.
 ## Neler yapamazsın, kime sorarsın
 
 - Başka bir bölüme erişmek için bir admin'den ilgili rolü iste.
-- Rolün en fazla 12 ay sürer. Süresi bitmeden bir admin yeniler.
+- En fazla 12 ay ya da süresiz sürer; bitiş tarihi varsa bir admin bitmeden yeniler.
 - Yapay zekâ asistanın duyuru yazamaz. Bunu yalnızca sen yaparsın.
 
 ## Sık yapılan işler

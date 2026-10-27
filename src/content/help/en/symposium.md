@@ -20,7 +20,7 @@ The **Symposium** page has these tabs:
 ## What you cannot do, and who to ask
 
 - To show an announcement on the site, ask the announcer or an admin.
-- The role lasts at most 12 months. An admin renews it before it ends.
+- The role lasts up to 12 months or is permanent. If it has an end date, an admin renews it before then.
 - Your AI assistant cannot reach this section.
 - An admin solves technical problems with the site itself.
 

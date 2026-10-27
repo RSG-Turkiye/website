@@ -45,7 +45,7 @@ the faults are prepared in December, right before the drill, and never merged.
 - **The person is told:** "The admins got a 70% usage mail. Is it a problem?"
 - **Solved when:** the person reads today's numbers on the Overview card,
   explains the free-plan limits and the 00:00 UTC reset, and has the agent
-  prepare the read-only `d1 insights` command, which the person runs after
+  run the read-only `d1 insights` command once the person has logged in with
   `npx wrangler login` ([troubleshooting.md](troubleshooting.md#quota-d1-errors-or-the-usage-alert)).
 
 ## Handover-session checklist

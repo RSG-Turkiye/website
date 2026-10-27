@@ -74,7 +74,7 @@ Ajan bunları kendi başına yapmaz. Her birinin bir nedeni var.
   kimse elle birleştirmez. Onları site kendisi birleştirir.
 - **Uzak veritabanına yazan komutları onaylamak.** Canlı üye verisi bu
   veritabanındadır. Yanlış bir komut geri alınamayabilir. Komutu ajan
-  hazırlar, ne yaptığını bir cümleyle anlatır, çalıştırmayı sen onaylarsın.
+  hazırlar, ne yaptığını bir cümleyle anlatır, komutu sen çalıştırırsın (`!` ile).
 - **Posta göndermek.** Dernek adına giden her postayı bir insan gönderir.
 - **Sosyal medyada paylaşım yapmak.** Gerçek hesaplara ajan paylaşım yapmaz,
   deneme olarak bile. Gerçek bir denemeyi sen yaparsın, ajan hazırlar ve
@@ -101,7 +101,7 @@ Ajan bunları kendi başına yapmaz. Her birinin bir nedeni var.
   paneldeki Kullanıcılar ve roller bölümünden rolü yeniler.
 - Sorun sitenin kodunda ya da Cloudflare ayarlarında görünüyor ve ajan iki
   denemede çözemediyse: web sitesi sorumlusu.
-- Sosyal medya bağlantısı ya da Buffer ile ilgiliyse: sosyal medya yayıncısı.
+- Sosyal medya bağlantısı ya da Buffer ile ilgiliyse: bir admin (yeniden bağlamayı yalnızca adminler yapar). Gönderiyi tekrar denemek ya da yine de yayınlamak: sosyal medya yayıncısı.
 - DNS (alan adı) değişikliği gerekiyorsa: bunu yalnızca ISCB Öğrenci Konseyi
   yapabilir. Web sitesi sorumlusu onlara yazar.
 

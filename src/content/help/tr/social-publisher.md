@@ -18,7 +18,7 @@ Düzenleyicilerin hazırladığı gönderileri onaylar ve zamanlarsın. Yayınc�
 ## Neler yapamazsın, kime sorarsın
 
 - Instagram, LinkedIn ve X bağlantılarını bir admin yönetir. Biri koparsa admin'e söyle.
-- Rolü bir admin verir. Rol en fazla 12 ay sürer, sonra yenilenir.
+- Rolü bir admin verir. En fazla 12 ay ya da süresiz sürer; bitiş tarihi varsa bir admin bitmeden yeniler.
 - Yayınlanmış gönderiyi panelden silemezsin. Gönderiyi platformun kendi sayfasından silersin.
 
 ## Sık yapılan işler

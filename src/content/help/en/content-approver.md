@@ -21,7 +21,7 @@ You decide on your group's drafts. A person in the panel always gives the approv
 
 ## What you cannot do, and who to ask
 
-- Only an admin grants the approver role. It lasts at most 12 months.
+- Only an admin grants the approver role. It lasts up to 12 months or is permanent. If it has an end date, an admin renews it before then.
 - Only an admin approves the privacy notice.
 - For an editor role longer than a month, ask an admin.
 

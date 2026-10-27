@@ -20,7 +20,7 @@ Sempozyum sitesinin içeriğini ve sertifikaları yönetirsin.
 ## Neler yapamazsın, kime sorarsın
 
 - Sitede duyuru göstermek istersen duyuru yazarına ya da bir admin'e söyle.
-- Rolün en fazla 12 ay sürer. Süresi bitmeden bir admin yeniler.
+- En fazla 12 ay ya da süresiz sürer; bitiş tarihi varsa bir admin bitmeden yeniler.
 - Yapay zekâ asistanın bu bölüme erişemez.
 - Sitenin kendisiyle ilgili teknik sorunları bir admin çözer.
 

@@ -21,7 +21,7 @@ Grubunun taslaklarına karar verirsin. Onayı her zaman panelde bir kişi verir.
 
 ## Neler yapamazsın, kime sorarsın
 
-- Onaylayıcı rolünü yalnızca bir admin verir. Rol en fazla 12 ay sürer.
+- Onaylayıcı rolünü yalnızca bir admin verir. En fazla 12 ay ya da süresiz sürer; bitiş tarihi varsa bir admin bitmeden yeniler.
 - Gizlilik bildirimini yalnızca bir admin onaylar.
 - Bir aydan uzun düzenleyici yetkisi için bir admin'e söyle.
 
