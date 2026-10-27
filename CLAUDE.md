@@ -4,6 +4,9 @@ Guidance for AI coding agents (and the humans steering them) working on this
 repository. Read it before changing anything. It holds the decisions and traps
 that the code alone does not explain.
 
+When something is broken or a person reports an error, read
+`docs/handover/troubleshooting.md` first.
+
 ## What this is
 
 The website of RSG-Türkiye, the ISCB Regional Student Group for computational
@@ -206,6 +209,18 @@ for both sites on every PR. Keep it green.
   config. The default processor does not run them.
 - **wrangler error 10042, "enable R2"**, means the login has lost its R2
   scopes. Run `npx wrangler login` again; R2 is not disabled.
+
+## Working with a non-terminal maintainer
+
+The maintainer may know little terminal and work through an agent. So:
+
+- A command that touches production is handed to the person ready to paste,
+  with `!` in front, an absolute path, and one sentence on what it does.
+- No `--json` on `wrangler d1 execute --remote` (it fails with error 7403).
+- The person merges PRs and runs remote-database writes. The agent prepares
+  them.
+- Never post to real accounts or send mail, even as a test.
+- Visual changes are shown before pushing (see "Verifying a change").
 
 ## Working style
 

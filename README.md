@@ -1678,6 +1678,8 @@ Limits (every MCP message counts as one request; a minute and a day are fixed wi
 
 ## Yearly handover
 
+The full account and access list is in `docs/handover/accounts.md`.
+
 When the committee changes:
 
 - After changing the Gmail password, go to admin panel > Connections > Gmail >
