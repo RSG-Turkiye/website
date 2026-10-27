@@ -11,13 +11,19 @@ import { navigationAllowed } from './nav-guard';
 
 export { registerNavigationGuard } from './nav-guard';
 
-type Hooks = { onShow?: Partial<Record<SectionId, () => Promise<void>>>; onSub?: Partial<Record<SectionId, (sub: string, item: string | null) => void>> };
+type Hooks = {
+  onShow?: Partial<Record<SectionId, () => Promise<void>>>;
+  onSub?: Partial<Record<SectionId, (sub: string, item: string | null) => void>>;
+  /** Every time the section is shown, with or without a sub (Help's list or one guide). */
+  onEnter?: Partial<Record<SectionId, (sub: string | null) => void>>;
+};
 const PHONE = window.matchMedia('(max-width: 1023px)');
 let roles: RoleFlags;
 let hooks: Hooks;
 let oauthReturn = false;
-// Whether the Agent tokens link is offered (startShell); hidden while that section is open.
+// Whether the Agent tokens and Help links are offered (startShell); each hidden while its section is open.
 let tokensLink = false;
+let helpLink = false;
 const loaded = new Set<SectionId>();
 // The route shown before this one. On a phone, when a sub-page was opened
 // from its section's list, ‹ steps back in history instead of pushing the
@@ -45,6 +51,9 @@ export function startShell(r: RoleFlags, h: Hooks): void {
   // editor, who has no menu; whoever has the menu entry does not need it.
   tokensLink = visible.has('anahtarlar') && !menu.has('anahtarlar');
   if (!tokensLink) document.querySelectorAll('[data-tokens-link]').forEach((a) => a.remove());
+  // Help is the same: a link for whoever has no menu entry for it.
+  helpLink = visible.has('yardim') && !menu.has('yardim');
+  if (!helpLink) document.querySelectorAll('[data-help-link]').forEach((a) => a.remove());
   const panel = document.querySelector<HTMLElement>('[data-drawer-panel]')!;
   panel.replaceChildren(document.getElementById('sectionNav')!.cloneNode(true));
   panel.querySelector('nav')!.id = 'drawerNav';
@@ -101,6 +110,7 @@ function show(route: Route): void {
   renderSubNav(route, subs, title);
   document.getElementById('sectionTitle')!.textContent = title;
   document.querySelectorAll<HTMLElement>('[data-tokens-link]').forEach((a) => a.classList.toggle('hidden', !tokensLink || route.section === 'anahtarlar'));
+  document.querySelectorAll<HTMLElement>('[data-help-link]').forEach((a) => a.classList.toggle('hidden', !helpLink || route.section === 'yardim'));
   const sub = route.sub ? subs.find((s) => s.id === route.sub) : undefined;
   document.getElementById('phoneTitle')!.textContent = sub ? (t(sub.label as never) as string) : title;
   // An item carries its own ‹ inside its card (the inbox's thread), so the
@@ -116,6 +126,7 @@ function show(route: Route): void {
     if (load) void load().catch(() => {});
   }
   if (route.sub) hooks.onSub?.[route.section]?.(route.sub, route.item);
+  hooks.onEnter?.[route.section]?.(route.sub);
   void fetch('/api/audit/view', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pane: route.section }), keepalive: true,

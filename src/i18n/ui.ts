@@ -711,6 +711,10 @@ export const ui = {
     'admin.connections.error.no_channel': 'This account is not connected in Buffer. Connect it in Buffer first (for LinkedIn, the Page, not a profile), then try again.',
     'admin.connections.error.unknown_channel': 'That Buffer channel is no longer there. Try again.',
     'admin.connections.error.channel_unusable': 'This account is disconnected or locked in Buffer. Refresh it in Buffer (Settings, Channels), then try again.',
+    // Help (section yardim): the role guides from src/content/help.
+    'admin.help.heading': 'Help',
+    'admin.help.intro': 'Guides for the roles you hold, and for connecting an AI assistant. Pick one to read it.',
+    'admin.help.back': 'All guides',
     // Agent tokens (section anahtarlar): a member's own AI agent, through a personal token or MCP.
     'admin.tokens.heading': 'Agent tokens',
     'admin.tokens.intro.what': 'A token lets your own AI agent read the drafts and content you may see, and write and submit drafts in your name. It cannot approve, publish, schedule or send anything: a person does that, here in the panel.',
@@ -2425,6 +2429,10 @@ export const ui = {
     'admin.connections.error.no_channel': 'Bu hesap Buffer\'da bağlı değil. Önce Buffer\'da bağla (LinkedIn için profil değil, sayfa), sonra yeniden dene.',
     'admin.connections.error.unknown_channel': 'O Buffer kanalı artık yok. Yeniden dene.',
     'admin.connections.error.channel_unusable': 'Bu hesabın Buffer bağlantısı kopmuş ya da kilitli. Buffer\'da yenile (Settings, Channels), sonra yeniden dene.',
+    // Help (section yardim): the role guides from src/content/help.
+    'admin.help.heading': 'Yardım',
+    'admin.help.intro': 'Sahip olduğun roller ve bir yapay zekâ asistanını bağlamak için rehberler. Okumak için birini seç.',
+    'admin.help.back': 'Tüm rehberler',
     // Ajan anahtarları (bölüm anahtarlar): üyenin kendi yapay zeka ajanı, kişisel anahtar ya da MCP ile.
     'admin.tokens.heading': 'Ajan anahtarları',
     'admin.tokens.intro.what': 'Anahtar, kendi yapay zeka ajanının görebildiğin taslakları ve içerikleri okumasını, senin adına taslak yazıp onaya göndermesini sağlar. Onaylayamaz, yayımlayamaz, zamanlayamaz, hiçbir şey gönderemez: bunları bir kişi burada, panelde yapar.',

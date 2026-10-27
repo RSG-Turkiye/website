@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SECTIONS, GROUPS, visibleSections, menuSections, subsFor, landing, rolesFromMe, defaultSentScope, tabHeadings, tabRuns, type RoleFlags, type SubPage } from '../src/scripts/admin/sections';
+import { SECTIONS, GROUPS, LINKED_SECTIONS, visibleSections, menuSections, subsFor, landing, rolesFromMe, defaultSentScope, tabHeadings, tabRuns, type RoleFlags, type SubPage } from '../src/scripts/admin/sections';
 import { ui } from '../src/i18n/ui';
 import { CMS_GROUPS } from '../functions/_lib/roles';
 
@@ -17,7 +17,7 @@ const ids = (r: RoleFlags) => menuSections(r).map((s) => s.id);
 const reachable = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
-  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'anahtarlar', 'kayit']);
+  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'anahtarlar', 'kayit', 'yardim']);
 });
 
 test('one section: no Overview, and the panel lands in it', () => {
@@ -30,7 +30,7 @@ test('one section: no Overview, and the panel lands in it', () => {
 
 test('two sections: Overview appears and is where the panel lands', () => {
   const r = { ...none, announcer: true, symposium: true };
-  assert.deepEqual(ids(r), ['genel', 'duyurular', 'sempozyum']);
+  assert.deepEqual(ids(r), ['genel', 'duyurular', 'sempozyum', 'yardim']);
   assert.equal(landing(r), 'genel');
 });
 
@@ -127,7 +127,7 @@ test('content rights come from the live grants /api/me carries', () => {
 test('an approver who is not an admin gets the Roles sub-page only, to grant their group\'s edit role', () => {
   const r = rolesFromMe({ grants: [{ role: 'content.etkinlikler.approve', expires_at: null }] });
   // Their own group's content section too, so Overview leads.
-  assert.deepEqual(ids(r), ['genel', 'icerik', 'kullanicilar', 'anahtarlar']);
+  assert.deepEqual(ids(r), ['genel', 'icerik', 'kullanicilar', 'anahtarlar', 'yardim']);
   assert.equal(landing(r), 'genel');
   const users = SECTIONS.find((s) => s.id === 'kullanicilar')!;
   assert.deepEqual(subsFor(users, r).map((s) => s.id), ['yetkiler']);
@@ -226,14 +226,37 @@ test('Agent tokens: for social and content editors and admins, in System, with n
 
 test('Agent tokens does not count as a second section: a one-section editor still lands in it, with no menu', () => {
   const social = { ...none, social: true };
-  assert.deepEqual(reachable(social), ['sosyal', 'anahtarlar']);
+  assert.deepEqual(reachable(social), ['sosyal', 'anahtarlar', 'yardim']);
   assert.deepEqual(ids(social), ['sosyal']);
   assert.equal(landing(social), 'sosyal');
   const editor = { ...none, cms: cmsOnly({ etkinlikler: { edit: true, approve: false } }) };
-  assert.deepEqual(reachable(editor), ['icerik', 'anahtarlar']);
+  assert.deepEqual(reachable(editor), ['icerik', 'anahtarlar', 'yardim']);
   assert.equal(landing(editor), 'icerik');
   // Two real sections: Overview leads and the menu lists Agent tokens too.
   const two = { ...none, social: true, announcer: true };
-  assert.deepEqual(ids(two), ['genel', 'sosyal', 'duyurular', 'anahtarlar']);
+  assert.deepEqual(ids(two), ['genel', 'sosyal', 'duyurular', 'anahtarlar', 'yardim']);
   assert.equal(landing(two), 'genel');
+});
+
+test('Help: a linked section in System for anyone with a work section; it never makes the Overview or moves the landing', () => {
+  const help = SECTIONS.find((s) => s.id === 'yardim')!;
+  assert.equal(help.group, 'sistem');
+  assert.equal(help.label, 'admin.help.heading');
+  assert.deepEqual(help.subs, []);
+  assert.ok(LINKED_SECTIONS.includes('yardim'));
+  for (const r of [{ ...none, social: true }, { ...none, announcer: true }, { ...none, sender: true }, { ...none, symposium: true }, { ...none, admin: true },
+    { ...none, cms: cmsOnly({ etkinlikler: { edit: true, approve: false } }) }]) {
+    assert.ok(reachable(r).includes('yardim'), JSON.stringify(r));
+  }
+  // No work section, no panel: Help alone opens nothing.
+  assert.deepEqual(reachable(none), []);
+  assert.equal(landing(none), null);
+});
+
+test('Help: a social-only editor has no Overview, lands in Social media, and has Help by its link, not in the menu', () => {
+  const social = { ...none, social: true };
+  assert.ok(!ids(social).includes('genel'));
+  assert.ok(!ids(social).includes('yardim'));
+  assert.equal(landing(social), 'sosyal');
+  assert.deepEqual(ids({ ...none, announcer: true, sender: true }), ['genel', 'eposta', 'duyurular', 'yardim']);
 });

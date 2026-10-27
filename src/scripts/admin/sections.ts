@@ -16,7 +16,7 @@ export type RoleFlags = {
   cms: GroupRights; canGrant: RoleKey[];
 };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'anahtarlar' | 'kayit';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'anahtarlar' | 'kayit' | 'yardim';
 export type CountKey = 'email' | 'social' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it).
@@ -112,14 +112,17 @@ export const SECTIONS: Section[] = [
     visible: (r) => r.admin || r.social || CMS_GROUPS.some((g) => r.cms[g]?.edit),
   },
   { id: 'kayit', group: 'sistem', label: 'admin.nav.audit', subs: [], visible: adminOnly },
+  // The role guides. Anyone with a panel has it; the guides shown are filtered by role in sections/help.ts.
+  { id: 'yardim', group: 'sistem', label: 'admin.help.heading', subs: [], visible: () => true },
 ];
 
 /**
  * Sections reached by their own link in the shell (shell.ts), which do not
  * count toward "two sections": a one-section editor keeps landing in their
- * section, with no menu, as before Agent tokens existed.
+ * section, with no menu, as before Agent tokens existed. Help is one too, so
+ * it never makes the Overview by itself.
  */
-export const LINKED_SECTIONS: readonly SectionId[] = ['anahtarlar'];
+export const LINKED_SECTIONS: readonly SectionId[] = ['anahtarlar', 'yardim'];
 const linked = (s: Section) => LINKED_SECTIONS.includes(s.id);
 
 /** Every section these roles may open. */

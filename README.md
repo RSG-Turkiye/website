@@ -525,6 +525,11 @@ Overview.
 - **Community**: Users and roles (admins). Membership has an entry but stays
   hidden until it is built.
 - **System**: Connections and Activity log (admins).
+- **Help** (`#yardim`, `#yardim/<guide>`): the role guides in
+  `src/content/help/<lang>/*.md`, shown to everyone with a panel, filtered to
+  the roles they hold (admins see all; the filter is for relevance, the text is
+  public). It is reached by its own link like Agent tokens, so it never adds an
+  Overview or changes where a one-section editor lands.
 
 The section ids in the address are Turkish (`eposta`, `sosyal`, `duyurular`,
 `icerik`, `sempozyum`, `kullanicilar`, `baglantilar`, `kayit`). The routing table

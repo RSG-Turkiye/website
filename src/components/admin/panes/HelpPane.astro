@@ -1,0 +1,60 @@
+---
+/**
+ * The Help section: the role guides (src/content/help/<lang>/*.md), rendered
+ * here at build time in the page's language. src/scripts/admin/sections/help.ts
+ * hides the guides a person's roles have no use for and shows the list or
+ * one guide, by the address (`#yardim/<slug>`).
+ */
+import { getCollection, render } from 'astro:content';
+import { useTranslations } from '../../../i18n/ui';
+
+interface Props { lang: 'en' | 'tr' }
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const entries = (await getCollection('help', (e) => e.id.startsWith(`${lang}/`))).sort((a, b) => a.data.order - b.data.order);
+const guides = await Promise.all(entries.map(async (e) => ({
+  slug: e.id.slice(lang.length + 1),
+  title: e.data.title,
+  roles: e.data.roles.join(' '),
+  Content: (await render(e)).Content,
+})));
+---
+<section data-section="yardim">
+  <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.help.heading')}</h2>
+  <div data-help-list>
+    <p class="text-sm text-gray-500 mb-4 lg:mb-3 max-w-prose">{t('admin.help.intro')}</p>
+    <ul class="flex flex-col gap-2 max-w-prose">
+      {guides.map((g) => (
+        <li data-guide-link={g.slug} data-roles={g.roles}>
+          <a href={`#yardim/${g.slug}`} class={`flex items-center justify-between gap-2 px-4 min-h-11 rounded-2xl border border-border bg-white text-sm font-medium text-navy hover:bg-navy-light ${FOCUS}`}>
+            <span class="min-w-0 break-words">{g.title}</span><span aria-hidden="true" class="shrink-0 text-gray-500">›</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+  <p data-help-back class="hidden mb-2">
+    <a href="#yardim" class={`inline-flex items-center min-h-11 text-sm text-gray-500 underline underline-offset-2 hover:text-navy ${FOCUS}`}>‹ {t('admin.help.back')}</a>
+  </p>
+  {guides.map((g) => (
+    <article data-guide={g.slug} data-roles={g.roles} class="help-guide hidden bg-white rounded-2xl border border-border p-4 lg:p-5 max-w-prose text-sm leading-relaxed text-gray-600 break-words">
+      <h3 class="help-title text-base font-semibold text-navy mb-2">{g.title}</h3>
+      <g.Content />
+    </article>
+  ))}
+</section>
+
+<style>
+  /* The guide's Markdown: headings below the pane title, and the list markers Tailwind's reset removes. */
+  .help-guide :global(h2) { font-size: 1rem; font-weight: 600; color: var(--color-navy); margin: 1.25rem 0 0.5rem; }
+  .help-guide :global(h3:not(.help-title)) { font-size: 0.875rem; font-weight: 600; color: var(--color-navy); margin: 1rem 0 0.25rem; }
+  .help-guide :global(p) { margin: 0 0 0.75rem; }
+  .help-guide :global(strong) { font-weight: 600; color: var(--color-navy); }
+  .help-guide :global(ul) { list-style: disc; padding-left: 1.25rem; margin: 0 0 0.75rem; }
+  .help-guide :global(ol) { list-style: decimal; padding-left: 1.25rem; margin: 0 0 0.75rem; }
+  .help-guide :global(li) { margin-bottom: 0.25rem; padding-left: 0.25rem; }
+  .help-guide :global(li > ul), .help-guide :global(li > ol) { margin: 0.25rem 0 0; }
+  .help-guide :global(code) { font-family: ui-monospace, monospace; font-size: 0.9em; background: var(--color-navy-light); border-radius: 0.25rem; padding: 0.05rem 0.3rem; overflow-wrap: anywhere; }
+  .help-guide :global(a) { color: var(--color-navy-mid); text-decoration: underline; }
+</style>
