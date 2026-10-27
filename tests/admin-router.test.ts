@@ -81,3 +81,20 @@ test('the old Blog section (member submissions) opens İçerik\'s Blog tab', () 
   assert.equal(resolveRoute(parseHash('#blog'), { ...none, sender: true }, false, false).section, 'eposta');
   assert.equal(parseHash('#blogx')!.section, 'blogx');
 });
+
+test('Help: a guide slug in the address is kept; anything that is not a slug is dropped', () => {
+  const social = { ...none, social: true };
+  assert.deepEqual(resolveRoute(parseHash('#yardim/social'), social, false, false), { section: 'yardim', sub: 'social', item: null });
+  assert.deepEqual(resolveRoute(parseHash('#yardim/social'), social, true, false), { section: 'yardim', sub: 'social', item: null });
+  assert.deepEqual(resolveRoute(parseHash('#yardim'), social, false, false), { section: 'yardim', sub: null, item: null });
+  assert.equal(resolveRoute(parseHash('#yardim/../x'), social, false, false).sub, null);
+  assert.equal(resolveRoute(parseHash('#yardim/NOPE!'), social, false, false).sub, null);
+  assert.equal(resolveRoute(parseHash('#yardim/' + 'a'.repeat(65)), social, false, false).sub, null);
+  // A well-formed slug nobody wrote is kept here; the pane falls back to the list.
+  assert.deepEqual(resolveRoute(parseHash('#yardim/no-such-guide'), social, false, false), { section: 'yardim', sub: 'no-such-guide', item: null });
+  // A thread id after the slug is no item of Help.
+  assert.equal(resolveRoute(parseHash('#yardim/social/t2'), social, false, false).item, null);
+  // Another section never keeps a sub it does not have.
+  assert.equal(resolveRoute(parseHash('#sosyal/social'), social, false, false).sub, 'takvim');
+  assert.equal(toHash({ section: 'yardim', sub: 'social', item: null }), '#yardim/social');
+});

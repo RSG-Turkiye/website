@@ -38,6 +38,7 @@ import MailPane from './panes/MailPane.astro';
 import StatsPane from './panes/StatsPane.astro';
 import CmsPane from './panes/CmsPane.astro';
 import TokensPane from './panes/TokensPane.astro';
+import HelpPane from './panes/HelpPane.astro';
 import { useTranslations } from '../../i18n/ui';
 
 interface Props {
@@ -82,7 +83,8 @@ const t = useTranslations(lang);
           <button type="button" id="phoneBack" aria-label={t('admin.nav.back')}
             class="hidden w-11 h-11 shrink-0 items-center justify-center rounded-xl text-navy text-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">‹</button>
           <h1 id="phoneTitle" class="flex-1 min-w-0 truncate text-base font-semibold text-navy"></h1>
-          <a href="#anahtarlar" data-tokens-link class="hidden shrink-0 py-3 px-1 text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.tokens.heading')}</a>
+          <a href="#anahtarlar" data-tokens-link class="hidden shrink-0 whitespace-nowrap py-3 px-1 text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.tokens.heading')}</a>
+          <a href="#yardim" data-help-link class="hidden shrink-0 whitespace-nowrap py-3 px-1 text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.help.heading')}</a>
         </div>
 
         <!-- Toasts -->
@@ -104,7 +106,8 @@ const t = useTranslations(lang);
           <div class="flex-1 min-w-0 w-full lg:self-stretch lg:flex lg:flex-col lg:min-h-0">
             <div class="hidden lg:flex items-baseline gap-3 shrink-0 mb-2">
               <h1 id="sectionTitle" class="flex-1 min-w-0 text-xl font-bold text-navy"></h1>
-              <a href="#anahtarlar" data-tokens-link class="hidden shrink-0 text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.tokens.heading')}</a>
+              <a href="#anahtarlar" data-tokens-link class="hidden shrink-0 whitespace-nowrap text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.tokens.heading')}</a>
+              <a href="#yardim" data-help-link class="hidden shrink-0 whitespace-nowrap text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.help.heading')}</a>
             </div>
             <div id="subNav" class="shrink-0"></div>
 
@@ -210,6 +213,7 @@ const t = useTranslations(lang);
         </section>
 
         <TokensPane lang={lang} />
+        <HelpPane lang={lang} />
 
         <section data-section="kayit">
           <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.audit.heading')}</h2>

@@ -7,6 +7,7 @@ import { committeeSchema } from "./data/committees";
 import { pageTextSchema } from "./data/page-text";
 import { webinarSchema } from "./data/webinars";
 import { blogSchema } from "./data/blog";
+import { helpSchema } from "./data/help";
 import { lpDomainSchema, lpLevelSchema, lpRoadmapSchema } from "./data/learning-paths";
 
 // blog -- posts in en/ and tr/ (see the schema in src/data/blog.ts for the
@@ -97,4 +98,11 @@ const pages = defineCollection({
   schema: pageTextSchema,
 });
 
-export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees, pages };
+// help -- the role guides of the admin panel's Help section, one file per
+// guide in tr/ and en/ with the same name (see src/data/help.ts).
+const help = defineCollection({
+  loader: glob({ pattern: "**/*.md", base: "./src/content/help" }),
+  schema: helpSchema,
+});
+
+export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees, pages, help };

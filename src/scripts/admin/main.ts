@@ -24,6 +24,7 @@ import { setupSymposium, loadSymposium } from './sections/symposium';
 import { loadStats } from './sections/stats';
 import { setupCms, showCms } from './sections/cms';
 import { loadTokens } from './sections/tokens';
+import { setupHelp, showHelp } from './sections/help';
 
 // Init
 
@@ -136,7 +137,9 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
   // opens a deep link to a draft.
   if (Object.values(roles.cms).some((g) => g.edit)) setupCms({ rights: roles.cms, userId: String(data.user.id ?? '') });
   // Back from a Gmail reconnect: the shell opens Connections; say how it went.
-  startShell(roles, { onShow, onSub });
+  // Help hides the guides this person has no use for before it is first shown.
+  setupHelp(data.user);
+  startShell(roles, { onShow, onSub, onEnter: { yardim: showHelp } });
   if (connected || connectionError) {
     const known = ['bad_state', 'not_admin', 'cancelled', 'token_exchange', 'no_refresh_token', 'missing_scope', 'wrong_account', 'store_failed', 'not_configured', 'not_professional', 'not_page_admin', 'lookup_failed'];
     if (connected) showToast(tf('admin.connections.connected', { platform: t(`admin.connections.platform.${connected}` as never) }));

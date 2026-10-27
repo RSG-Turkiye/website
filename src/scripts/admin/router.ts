@@ -5,6 +5,9 @@
  */
 import { SECTIONS, visibleSections, subsFor, landing, type RoleFlags, type SectionId } from './sections';
 
+/** Help's sub is a guide slug (src/content/help), not a sub-page: any slug-shaped name; the pane falls back to its list for one that is not shown. */
+const GUIDE_SLUG = /^[a-z0-9-]{1,64}$/;
+
 export interface Route { section: SectionId; sub: string | null; item: string | null }
 type Raw = { section: string; sub: string | null; item: string | null };
 
@@ -45,6 +48,7 @@ export function resolveRoute(
   const want = oauthReturn && visible.some((s) => s.id === 'baglantilar') ? { section: 'baglantilar', sub: null, item: null } : raw;
   const section = visible.find((s) => s.id === want?.section) ?? SECTIONS.find((s) => s.id === landing(roles))!;
   const subs = subsFor(section, roles);
+  if (section.id === 'yardim') return { section: section.id, sub: want?.section === 'yardim' && want.sub && GUIDE_SLUG.test(want.sub) ? want.sub : null, item: null };
   if (subs.length === 0) return { section: section.id, sub: null, item: null };
   const sub = subs.find((s) => s.id === want?.sub && section.id === want?.section);
   if (sub) return { section: section.id, sub: sub.id, item: want?.item ?? null };
