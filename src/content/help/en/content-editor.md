@@ -9,11 +9,11 @@ roles:
 order: 4
 ---
 
-You prepare drafts of the site's content. A draft does not go live by itself: an approver approves it first.
+You prepare drafts of the site's content. A draft does not go live by itself. An approver approves it first.
 
 ## What you can do
 
-On the Content page you see only the tabs of the groups you edit:
+On the **Content** page you see only the tabs of the groups you edit:
 
 - Events: events, workshops, webinars.
 - Posts: blog.
@@ -21,7 +21,7 @@ On the Content page you see only the tabs of the groups you edit:
 - Community: committees, podcast.
 - Pages: page texts, the privacy notice.
 
-You start, save and submit drafts for approval. You see your own drafts in the My drafts tab.
+You start, save and submit drafts for approval. You see your own drafts in the **My drafts** tab.
 
 ## What you cannot do, and who to ask
 
@@ -33,19 +33,19 @@ You start, save and submit drafts for approval. You see your own drafts in the M
 
 Adding new content:
 
-1. Open the right tab and choose New.
-2. Fill in the fields and choose Save (not on the site).
-3. When it is ready, choose Send for approval.
+1. Open the right tab and press **New**.
+2. Fill in the fields and press **Save (not on the site)**.
+3. When it is ready, press **Send for approval**.
 
 Fixing a draft that was sent back:
 
-1. Open My drafts and choose the draft marked Sent back.
+1. Open the **My drafts** tab and choose the draft marked **Sent back**.
 2. Read the approver's note and make the change.
-3. Send for approval again.
+3. Press **Fix and resend**.
 
 ## Common problems
 
-- An approved item becomes Live after a few minutes. If it takes longer, tell an admin.
-- If it says Could not be published, read the reason, fix the draft and send it again.
-- If the entry on the site changed after your draft started, the panel shows the difference and you continue from the site's version.
-- You can start and save a new draft of an entry that is waiting for approval, but you cannot send it until the first one is live or has failed.
+- An approved item becomes **Live** after a few minutes. If it takes longer, tell an admin.
+- If it says **Could not be published**, read the reason, fix the draft and send it again.
+- If the content on the site changed after you started the draft, the panel shows the two versions side by side. You continue from the site's version.
+- While an item waits for approval you can start and save a new draft of it. But you cannot send the new one until the first is live on the site or has failed.

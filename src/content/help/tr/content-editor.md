@@ -9,11 +9,11 @@ roles:
 order: 4
 ---
 
-Sitenin içeriği için taslak hazırlarsın. Taslak siteye kendiliğinden çıkmaz, bir onaylayıcı onaylayınca çıkar.
+Sitenin içeriği için taslak hazırlarsın. Taslak kendiliğinden yayına girmez. Önce bir onaylayıcı onaylar.
 
 ## Bu rolle neler yaparsın
 
-İçerik sayfasında yalnızca düzenlediğin grupların sekmelerini görürsün:
+**İçerik** sayfasında yalnızca düzenlediğin grupların sekmelerini görürsün:
 
 - Etkinlikler: etkinlik, atölye, webinar.
 - Yazılar: blog.
@@ -21,31 +21,31 @@ Sitenin içeriği için taslak hazırlarsın. Taslak siteye kendiliğinden çık
 - Topluluk: komiteler, podcast.
 - Sayfalar: sayfa metinleri, gizlilik bildirimi.
 
-Taslak başlatır, kaydeder ve onaya gönderirsin. Kendi taslaklarını Taslaklarım sekmesinde görürsün.
+Taslak başlatır, kaydeder ve onaya gönderirsin. Kendi taslaklarını **Taslaklarım** sekmesinde görürsün.
 
 ## Neler yapamazsın, kime sorarsın
 
-- Onaylayamaz, yayına alamazsın. Grubunun onaylayıcısı yapar.
-- Rolün en fazla bir ay sürer, sonra yenilenir. Yenileme için grubunun onaylayıcısına ya da bir admin'e söyle.
+- Onaylayamaz ve yayına alamazsın. Bunu grubunun onaylayıcısı yapar.
+- Rolün en fazla bir ay sürer, sonra yenilenir. Yenilenmesi için grubunun onaylayıcısına ya da bir admin'e söyle.
 - Gizlilik bildirimini yalnızca bir admin onaylar.
 
 ## Sık yapılan işler
 
 Yeni içerik eklemek:
 
-1. İlgili sekmeyi aç ve Yeni'yi seç.
-2. Alanları doldur ve Kaydet (siteye gitmez)'i seç.
-3. Hazır olunca Onaya gönder'i seç.
+1. İlgili sekmeyi aç ve **Yeni** düğmesine bas.
+2. Alanları doldur ve **Kaydet (siteye gitmez)** düğmesine bas.
+3. Hazır olunca **Onaya gönder** düğmesine bas.
 
 Geri gönderilen taslağı düzeltmek:
 
-1. Taslaklarım'ı aç, Geri gönderildi yazan taslağı seç.
-2. Onaylayıcının notunu oku, değişikliği yap.
-3. Yeniden Onaya gönder.
+1. **Taslaklarım** sekmesini aç ve **Geri gönderildi** yazan taslağı seç.
+2. Onaylayıcının notunu oku ve değişikliği yap.
+3. **Düzelt ve yeniden gönder** düğmesine bas.
 
 ## Sık karşılaşılan sorunlar
 
-- Onaylanan içerik birkaç dakika sonra Yayında olur. Daha uzun sürerse bir admin'e söyle.
-- Yayınlanamadı yazıyorsa nedeni okur, taslağı düzeltir ve yeniden gönderirsin.
-- Taslak sitedeki içerikten sonra değiştiyse panel farkı gösterir, sitedeki sürümden devam edersin.
-- Onay bekleyen bir girdi için yeni taslak başlatıp kaydedebilirsin ama o canlıya çıkana ya da başarısız olana kadar gönderemezsin.
+- Onaylanan içerik birkaç dakika sonra **Yayında** olur. Daha uzun sürerse bir admin'e söyle.
+- **Yayınlanamadı** yazıyorsa nedenini oku, taslağı düzelt ve yeniden gönder.
+- Sitedeki içerik, taslağı başlattıktan sonra değiştiyse panel iki sürümü yan yana gösterir. Sitedeki sürümden devam edersin.
+- Bir içerik onay beklerken aynı içerik için yeni taslak açıp kaydedebilirsin. Ama ilki sitede yayına girene ya da başarısız olana kadar yenisini gönderemezsin.

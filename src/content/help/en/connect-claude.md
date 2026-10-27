@@ -9,13 +9,13 @@ If you connect Claude (or another AI assistant) to the panel, it can prepare dra
 
 ## Connecting
 
-1. Open claude.ai, then Customize, Connectors, and Add custom connector.
+1. Open claude.ai, then follow **Customize**, **Connectors**, **Add custom connector**.
 2. Paste `https://rsg-turkiye.iscbsc.org/api/mcp` and leave the OAuth settings empty.
-3. Choose Add, then Connect.
-4. Sign in with Google on this site, tick the areas and levels, choose how long, and choose Allow.
+3. Press **Add**, then **Connect**.
+4. Sign in with Google on this site, tick the areas and levels, choose how long, and press **Allow**.
 5. It then works in the Claude desktop and mobile apps too.
 
-Claude never reaches further than your roles. When one of your roles ends, Claude loses that area at once.
+Claude cannot reach further than your roles. When one of your roles ends, Claude loses that area at once.
 
 ## What you can ask
 
@@ -35,11 +35,11 @@ Example requests:
 - Send e-mail or messages.
 - Change someone else's draft, grant roles or create tokens.
 
-A person does all of these in the panel.
+Only a person does these, in the panel. Nothing Claude prepares goes live on the site until a person approves it.
 
 ## Disconnecting
 
 1. In claude.ai, remove the connector.
-2. In the panel, open Agent tokens and, under Connected apps, choose Disconnect.
+2. In the panel, open the **Agent tokens** page. Under **Connected apps**, press **Disconnect**.
 
-Tools that run in a terminal can use a personal token instead: create it in Agent tokens with New token. Its value is shown once. Never paste it into a chat, a document or a commit. If in doubt, choose Revoke.
+Tools that run in a terminal can use a personal token instead. You create it on the **Agent tokens** page, under **New token**. Its value is shown only once. Never paste it into a chat, a document or a message to someone else. If in doubt, press **Revoke**.

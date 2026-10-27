@@ -14,10 +14,10 @@ You decide on your group's drafts. A person in the panel always gives the approv
 ## What you can do
 
 - You can do everything an editor can.
-- In the Approval tab you approve a draft with Approve and publish, or return it with a note using Send back.
-- From the On their way or stuck list you stop an open change or delete a draft.
+- In the **Approval** tab you approve with the **Approve and publish** button, or write a note and return the draft with **Send back**.
+- In the **On their way or stuck** list you can stop a change that is on its way live, or delete a stuck draft.
 - You may approve your own draft too.
-- You may grant your group's editor role for up to one month: Users and roles, Roles.
+- You may grant your group's editor role for up to one month: open the **Roles** page under **Users and roles**.
 
 ## What you cannot do, and who to ask
 
@@ -29,23 +29,23 @@ You decide on your group's drafts. A person in the panel always gives the approv
 
 Approving a draft:
 
-1. Open the draft in the Approval tab and read it.
-2. Choose Approve and publish.
-3. After a few minutes the status becomes Live.
+1. Open the **Approval** tab, choose the draft and read it.
+2. Press **Approve and publish**.
+3. After a few minutes the status becomes **Live**.
 
 Sending back:
 
-1. Choose Send back.
+1. Press **Send back**.
 2. Write what needs to change. The author sees this note.
-3. Choose Send back again.
+3. Press **Send back** again.
 
 Adding an editor for a month:
 
-1. Open Users and roles, Roles.
-2. Under your group's editor role, find the person and choose Add.
+1. Open the **Roles** page under **Users and roles**.
+2. Under your group's editor role, find the person and press **Add**.
 
 ## Common problems
 
-- If an approval was left half done, approve again.
-- If the panel says the entry changed, the site changed after the draft started. It shows the difference and nothing is opened.
-- If an approved draft gets stuck, pick its way out under On their way or stuck. If that does not help, tell an admin.
+- If an approval was left half done (the panel says so), press **Approve and publish** again.
+- If the panel says the content on the site changed after the draft, nothing goes live. The panel shows the two versions side by side. The author continues from the site's version.
+- If an approved draft does not go live, look at the **On their way or stuck** list. Next to the draft it says what you can do. If that does not help, tell an admin.

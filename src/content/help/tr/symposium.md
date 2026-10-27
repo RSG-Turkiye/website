@@ -9,18 +9,18 @@ Sempozyum sitesinin içeriğini ve sertifikaları yönetirsin.
 
 ## Bu rolle neler yaparsın
 
-Sempozyum sayfasında şu sekmeler var:
+**Sempozyum** sayfasında şu sekmeler var:
 
-- Etkinlik ayarları.
-- Konuşmacılar.
-- Oturumlar.
-- Düzenleme kurulu.
-- Sertifikalar: sempozyumdan sonra sertifika PDF'lerini ve CSV dosyasını yüklersin.
+- **Etkinlik ayarları**
+- **Konuşmacılar**
+- **Oturumlar**
+- **Düzenleme kurulu**
+- **Sertifikalar**: sempozyumdan sonra sertifika PDF'lerini ve CSV dosyasını buradan yüklersin.
 
 ## Neler yapamazsın, kime sorarsın
 
 - Sitede duyuru göstermek istersen duyuru yazarına ya da bir admin'e söyle.
-- Rol en fazla 12 ay sürer, süresi bitmeden bir admin yeniler.
+- Rolün en fazla 12 ay sürer. Süresi bitmeden bir admin yeniler.
 - Yapay zekâ asistanın bu bölüme erişemez.
 - Sitenin kendisiyle ilgili teknik sorunları bir admin çözer.
 
@@ -28,18 +28,18 @@ Sempozyum sayfasında şu sekmeler var:
 
 Konuşmacı eklemek ya da değiştirmek:
 
-1. Konuşmacılar sekmesini aç.
+1. **Konuşmacılar** sekmesini aç.
 2. Kişiyi ekle ya da düzenle ve kaydet.
 3. Sitede görünmesi için birkaç dakika bekle.
 
 Sertifika yüklemek:
 
-1. Sertifikalar sekmesini aç.
-2. CSV dosyasını (e-posta, ad, tür, dosya sütunlarıyla) ve yalnızca PDF dosyalarını yükle.
-3. Katılımcılar sertifikalarına sempozyum sitesinden e-posta adresleriyle ulaşır.
+1. **Sertifikalar** sekmesini aç.
+2. CSV dosyasını yükle. Sütunlar `email`, `name`, `type`, `file` olmalı (başlıklar İngilizce kalmalı). Dosyalar yalnızca PDF olabilir.
+3. Katılımcılar sertifikalarına sempozyum sitesinden, e-posta adresleriyle ulaşır.
 
 ## Sık karşılaşılan sorunlar
 
-- Kaydettiğin değişiklik sitede yok: site yeniden oluşturulana kadar bekle. Hâlâ yoksa bir admin'e söyle.
+- Kaydettiğin değişiklik sitede yoksa site yeniden oluşturulana kadar bekle. Hâlâ yoksa bir admin'e söyle.
 - Sertifikalar yüklemeden 30 gün sonra, e-posta adresleriyle birlikte silinir. Kendin silmen gerekmez.
-- Sertifika bulunamıyorsa CSV'deki e-posta adresini kontrol et.
+- Bir katılımcı sertifikasını bulamıyorsa CSV'deki e-posta adresini kontrol et.

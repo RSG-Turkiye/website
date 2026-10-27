@@ -9,15 +9,15 @@ roles:
 order: 5
 ---
 
-Grubunun taslaklarına karar verirsin. Onay her zaman panelde bir kişi tarafından verilir.
+Grubunun taslaklarına karar verirsin. Onayı her zaman panelde bir kişi verir.
 
 ## Bu rolle neler yaparsın
 
 - Düzenleyicinin yapabildiği her şeyi yaparsın.
-- Onay sekmesinde taslağı Onayla ve yayına al ile onaylar ya da Geri gönder ile notla geri yollarsın.
-- Süren ve takılanlar listesinden açık bir değişikliği durdurur ya da taslağı silersin.
+- **Onay** sekmesinde taslağı **Onayla ve yayına al** düğmesiyle onaylarsın ya da **Geri gönder** ile bir not yazıp geri yollarsın.
+- **Süren ve takılanlar** listesinde, yayına çıkmakta olan bir değişikliği durdurabilir ya da takılan bir taslağı silebilirsin.
 - Kendi taslağını da onaylayabilirsin.
-- Grubunun düzenleyici rolünü en fazla bir ay için verebilirsin: Kullanıcılar ve yetkiler, Yetkiler.
+- Grubunun düzenleyici rolünü en fazla bir ay için verebilirsin: **Kullanıcılar ve yetkiler** altında **Yetkiler** sayfasını aç.
 
 ## Neler yapamazsın, kime sorarsın
 
@@ -29,23 +29,23 @@ Grubunun taslaklarına karar verirsin. Onay her zaman panelde bir kişi tarafın
 
 Taslağı onaylamak:
 
-1. Onay sekmesinde taslağı aç ve içeriği oku.
-2. Onayla ve yayına al'ı seç.
-3. Birkaç dakika sonra durum Yayında olur.
+1. **Onay** sekmesini aç, taslağı seç ve içeriği oku.
+2. **Onayla ve yayına al** düğmesine bas.
+3. Birkaç dakika sonra durum **Yayında** olur.
 
 Geri göndermek:
 
-1. Geri gönder'i seç.
+1. **Geri gönder** düğmesine bas.
 2. Neyin değişmesi gerektiğini yaz. Yazar bu notu görür.
-3. Geri gönder'i yeniden seç.
+3. **Geri gönder** düğmesine yeniden bas.
 
 Düzenleyiciyi bir aylığına eklemek:
 
-1. Kullanıcılar ve yetkiler, Yetkiler sayfasını aç.
-2. Grubun düzenleyici rolünde kişiyi bul ve Ekle'yi seç.
+1. **Kullanıcılar ve yetkiler** altında **Yetkiler** sayfasını aç.
+2. Grubunun düzenleyici rolünde kişiyi bul ve **Ekle** düğmesine bas.
 
 ## Sık karşılaşılan sorunlar
 
-- Onay yarım kaldıysa yeniden onayla.
-- Panel "değişti" diyorsa sitedeki içerik taslaktan sonra değişmiştir. Fark gösterilir, hiçbir şey açılmaz.
-- Yayına çıkan taslak takılırsa Süren ve takılanlar altından çıkış yolunu seç. Çözülmezse bir admin'e söyle.
+- Onay yarım kaldıysa (panel bunu söyler) **Onayla ve yayına al** düğmesine yeniden bas.
+- Panel, içeriğin taslaktan sonra sitede değiştiğini söylüyorsa hiçbir şey yayına çıkmaz. Panel iki sürümü yan yana gösterir. Yazar, sitedeki sürümden devam eder.
+- Onaylanan bir taslak yayına çıkmıyorsa **Süren ve takılanlar** listesine bak. Taslağın yanında yapabileceğin işlem yazar. Çözülmezse bir admin'e söyle.
