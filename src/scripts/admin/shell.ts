@@ -70,6 +70,8 @@ function pruneNav(nav: HTMLElement, visible: Set<SectionId>): void {
   nav.querySelectorAll<HTMLElement>('[data-nav]').forEach((a) => { if (!visible.has(a.dataset.nav as SectionId)) a.remove(); });
   nav.querySelectorAll<HTMLElement>('[data-nav-group]').forEach((g) => { if (!g.querySelector('[data-nav]')) g.remove(); });
   if (visible.size <= 1) document.querySelectorAll('#navToggle, aside:has(#sectionNav)').forEach((el) => el.classList.add('!hidden'));
+  // With a sidebar, Help is beside the panel name there; the title bar keeps it only without one.
+  else document.querySelectorAll('[data-help-title]').forEach((a) => a.remove());
 }
 
 function go(): void {

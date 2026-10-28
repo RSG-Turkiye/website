@@ -99,7 +99,11 @@ const t = useTranslations(lang);
 
         <div class="flex flex-col lg:flex-row gap-6 lg:gap-4 items-start lg:flex-1 lg:min-h-0">
           <aside class="hidden lg:block w-56 shrink-0 bg-white rounded-2xl border border-border p-2 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain">
-            <p class="px-3 pt-1.5 pb-1 text-sm font-bold text-navy">{t('admin.header.title')}</p>
+            <!-- Help sits beside the panel name, not as a menu row: one more row makes the menu scroll at 680 px. -->
+            <div class="flex items-baseline justify-between gap-2 px-3 pt-1.5 pb-1">
+              <p class="text-sm font-bold text-navy">{t('admin.header.title')}</p>
+              <a href="#yardim" data-help-link class="hidden shrink-0 whitespace-nowrap text-xs text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.help.heading')}</a>
+            </div>
             <AdminNav lang={lang} />
           </aside>
 
@@ -107,7 +111,7 @@ const t = useTranslations(lang);
             <div class="hidden lg:flex items-baseline gap-3 shrink-0 mb-2">
               <h1 id="sectionTitle" class="flex-1 min-w-0 text-xl font-bold text-navy"></h1>
               <a href="#anahtarlar" data-tokens-link class="hidden shrink-0 whitespace-nowrap text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.tokens.heading')}</a>
-              <a href="#yardim" data-help-link class="hidden shrink-0 whitespace-nowrap text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.help.heading')}</a>
+              <a href="#yardim" data-help-link data-help-title class="hidden shrink-0 whitespace-nowrap text-sm text-gray-500 underline underline-offset-2 hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid">{t('admin.help.heading')}</a>
             </div>
             <div id="subNav" class="shrink-0"></div>
 
