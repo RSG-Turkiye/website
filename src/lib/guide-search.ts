@@ -9,7 +9,7 @@
  * matches. Endings ("biyoloji" / "biyolojisi") are met by prefix matching
  * rather than a suffix list, which would mangle English topics.
  */
-import type { GuideIndex, IndexProfessor, IndexLab } from '../../functions/_lib/guide-index';
+import type { GuideIndex, IndexProfessor } from '../../functions/_lib/guide-index';
 import type { GuideCatalog, CatalogProgramme } from './guide-catalog';
 import type { RelatedTerm, University } from '../data/guide';
 
@@ -83,31 +83,82 @@ export function search(q: string, city: string | null, index: GuideIndex, catalo
   return results.sort((a, b) => b.score - a.score || byName(a.professor, b.professor));
 }
 
-export interface Card {
-  university: University | undefined;
-  lab?: IndexLab;
-  /** pageChangedSince: the programme's page changed and nobody has updated the entry for 10 days (functions/_lib/guide-index.ts). */
-  programmes: (CatalogProgramme & { showWindow: boolean; pageChangedSince?: string })[];
-  programmeUnknown: boolean;
-  /** No programme was chosen for this professor: these are all of the
-   * university's programmes, a guess the card must say is one. */
-  fallback: boolean;
+/** Unverified: never confirmed on an official page (checkedAt before 2000; see guide-text checkedLabel). */
+export const isUnverified = (p: IndexProfessor) => p.checkedAt < '2000-01-01';
+
+export interface GroupProfessor extends SearchResult {
+  /** The programmes this professor is known to supervise in, when known; empty means not known. */
+  programmeIds: string[];
+}
+export interface ResultGroup {
+  university: University;
+  programmes: (CatalogProgramme & { pageChangedSince?: string })[];
+  professors: GroupProfessor[];
+  best: number;
 }
 
-/** `today` is the Istanbul date, YYYY-MM-DD (src/lib/istanbul-time.ts). */
-export function joinCard(p: IndexProfessor, catalog: GuideCatalog, today: string, labs: IndexLab[] = [], pageChanged: Record<string, string> = {}): Card {
-  const own = catalog.programmes.filter((x) => x.universityId === p.universityId);
-  const listed = p.programmeIds.map((id) => catalog.programmes.find((x) => x.id === id)).filter((x): x is CatalogProgramme => Boolean(x));
-  const chosen = listed.length ? listed : own;
-  return {
-    university: catalog.universities.find((u) => u.id === p.universityId),
-    lab: p.labId ? labs.find((l) => l.id === p.labId) : undefined,
-    programmes: chosen.map((x) => ({
-      ...x,
-      showWindow: Boolean(x.windowOpens && x.windowCloses && x.windowCloses >= today),
-      ...(pageChanged[x.id] ? { pageChangedSince: pageChanged[x.id] } : {}),
-    })),
-    programmeUnknown: chosen.length === 0,
-    fallback: listed.length === 0,
-  };
+/**
+ * Search results as the page shows them: one group per university, the
+ * programme told once. Groups follow their best match; inside a group the
+ * order is verified first, then by name, never by score: an automatic topic
+ * match is not a ranking of people. Universities with no programme in the
+ * guide come last, in their own list.
+ */
+export function groupResults(results: SearchResult[], catalog: GuideCatalog, pageChanged: Record<string, string> = {}): { groups: ResultGroup[]; withoutProgramme: ResultGroup[] } {
+  const byUni = new Map<string, ResultGroup>();
+  for (const r of results) {
+    const university = catalog.universities.find((u) => u.id === r.professor.universityId);
+    if (!university) continue;
+    let g = byUni.get(university.id);
+    if (!g) {
+      const programmes = catalog.programmes
+        .filter((p) => p.universityId === university.id)
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((p) => (pageChanged[p.id] ? { ...p, pageChangedSince: pageChanged[p.id] } : p));
+      g = { university, programmes, professors: [], best: 0 };
+      byUni.set(university.id, g);
+    }
+    const own = new Set(g.programmes.map((p) => p.id));
+    g.professors.push({ ...r, programmeIds: r.professor.programmeIds.filter((id) => own.has(id)) });
+    g.best = Math.max(g.best, r.score);
+  }
+  const all = [...byUni.values()];
+  // When every professor's programme is known, show only those; one unknown and all the university's are shown.
+  for (const g of all) {
+    if (g.professors.every((p) => p.programmeIds.length)) {
+      const used = new Set(g.professors.flatMap((p) => p.programmeIds));
+      g.programmes = g.programmes.filter((p) => used.has(p.id));
+    }
+  }
+  for (const g of all) g.professors.sort((a, b) => Number(isUnverified(a.professor)) - Number(isUnverified(b.professor)) || byName(a.professor, b.professor));
+  all.sort((a, b) => b.best - a.best || a.university.name.tr.localeCompare(b.university.name.tr, 'tr'));
+  return { groups: all.filter((g) => g.programmes.length), withoutProgramme: all.filter((g) => !g.programmes.length) };
 }
+
+/** A topic as a chip: lower case, except words written with two or more capitals (HLA, RNA-seq). */
+function chipCase(t: string): string {
+  return t.trim().split(/\s+/).map((w) => ((w.match(/[A-ZÇĞİÖŞÜ]/g) ?? []).length >= 2 ? w : w.toLocaleLowerCase('tr'))).join(' ');
+}
+
+/** At most `max` topic chips: the matched ones first, one per spelling. */
+export function chipsFor(topics: string[], matched: string[], max = 5): { text: string; hit: boolean }[] {
+  const hit = new Set(matched.map(fold));
+  const seen = new Set<string>();
+  const out: { text: string; hit: boolean }[] = [];
+  for (const t of topics) {
+    const k = fold(t);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push({ text: chipCase(t), hit: hit.has(k) });
+  }
+  return [...out.filter((c) => c.hit), ...out.filter((c) => !c.hit)].slice(0, max);
+}
+
+/** The ?city= of a URL as one of the known city names ('' if none), however it was typed or encoded. */
+export function cityFromParams(search: string, cities: string[]): string {
+  const want = fold(new URLSearchParams(search).get('city') ?? '');
+  return want ? cities.find((c) => fold(c) === want) ?? '' : '';
+}
+
+/** "Çanakkale" → "canakkale": the universities page's section anchors. */
+export const citySlug = (city: string) => fold(city).replace(/[^a-z0-9]+/g, '-');

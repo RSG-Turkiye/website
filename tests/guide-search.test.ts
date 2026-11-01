@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fold, tokens, expandQuery, search, joinCard } from '../src/lib/guide-search';
+import { fold, tokens, expandQuery, search } from '../src/lib/guide-search';
 import type { GuideIndex, IndexProfessor } from '../functions/_lib/guide-index';
 import type { GuideCatalog } from '../src/lib/guide-catalog';
 
@@ -89,31 +89,6 @@ test('equal scores sort by name with localeCompare tr', () => {
   assert.deepEqual(search('docking', null, twin, catalog).map((x) => x.professor.name), ['Çağla', 'Zeynep']);
 });
 
-test('joinCard falls back to all university programmes', () => {
-  const c = joinCard(prof({ programmeIds: [] }), catalog, '2026-11-01');
-  assert.deepEqual(c.programmes.map((p) => p.id), ['ornek-bioinf', 'ornek-cmpe']);
-  assert.equal(c.programmeUnknown, false);
-});
-
-test('joinCard ignores a programme id missing from the catalog', () => {
-  const c = joinCard(prof({ programmeIds: ['gone', 'ornek-bioinf'] }), catalog, '2026-11-01');
-  assert.deepEqual(c.programmes.map((p) => p.id), ['ornek-bioinf']);
-  const d = joinCard(prof({ programmeIds: ['gone'] }), catalog, '2026-11-01');
-  assert.deepEqual(d.programmes.map((p) => p.id), ['ornek-bioinf', 'ornek-cmpe'], 'only dead ids: fall back');
-});
-
-test('joinCard sets programmeUnknown for a university with none', () => {
-  const c = joinCard(prof({ universityId: 'bos' }), catalog, '2026-11-01');
-  assert.deepEqual(c.programmes, []);
-  assert.equal(c.programmeUnknown, true);
-});
-
-test('a reported window is hidden the day after it closes', () => {
-  const p = prof({ universityId: 'baska', programmeIds: ['baska-mbg'] });
-  assert.equal(joinCard(p, catalog, '2027-01-20').programmes[0].showWindow, true);
-  assert.equal(joinCard(p, catalog, '2027-01-21').programmes[0].showWindow, false);
-});
-
 test('a generic topic like "Biyoinformatik" does not match a specific term group it is only part of', () => {
   const generic: GuideIndex = { ...index, professors: [prof({ id: 'p_g', name: 'Genel Hoca', topics: ['Biyoinformatik'] }), ...index.professors] };
   const ids = search('protein yapısı', null, generic, { ...catalog, terms: [{ id: 'protein-structure', terms: ['protein structure', 'protein yapısı', 'yapısal biyoinformatik'], related: [] }] }).map((x) => x.professor.id);
@@ -122,15 +97,4 @@ test('a generic topic like "Biyoinformatik" does not match a specific term group
 
 test('a one-word query does not pull in a group it is only part of', () => {
   assert.deepEqual(expandQuery('protein', catalog.terms).alsoSearched, []);
-});
-
-test('a fallback programme list is marked as a guess, an explicit one is not', () => {
-  assert.equal(joinCard(prof({ programmeIds: [] }), catalog, '2026-11-01').fallback, true);
-  assert.equal(joinCard(prof({ programmeIds: ['ornek-bioinf'] }), catalog, '2026-11-01').fallback, false);
-  assert.equal(joinCard(prof({ programmeIds: ['gone'] }), catalog, '2026-11-01').fallback, true, 'only dead ids is a fallback too');
-});
-
-test('joinCard carries the date a programme page changed unhandled, and only for that programme', () => {
-  const c = joinCard(prof({ programmeIds: [] }), catalog, '2026-11-01', [], { 'ornek-cmpe': '2026-10-20' });
-  assert.deepEqual(c.programmes.map((p) => [p.id, p.pageChangedSince ?? null]), [['ornek-bioinf', null], ['ornek-cmpe', '2026-10-20']]);
 });

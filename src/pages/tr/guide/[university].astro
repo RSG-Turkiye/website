@@ -9,7 +9,7 @@ export async function getStaticPaths() {
 const { university } = Astro.props;
 ---
 
-<BaseLayout pageTitle={`${university.name.tr} - Lisansüstü rehberi`}
+<BaseLayout hidePodcast pageTitle={`${university.name.tr} - Lisansüstü rehberi`}
   description={`${university.name.tr} (${university.city}) yüksek lisans programları ve biyoinformatik hocaları.`}>
   <GuideUniversity lang="tr" university={university} />
 </BaseLayout>

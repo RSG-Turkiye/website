@@ -1,13 +1,15 @@
 ---
 /**
- * /guide: search professors by topic or name, filter by city, and see the
- * MSc programme that leads to each (spec 2026-11-01-grad-lab-guide). The
- * results are drawn in the browser (src/scripts/guide-page.ts) from the
- * search index and /guide/catalog.json; nothing about professors is in the
- * built page (CLAUDE.md rule 4).
+ * /guide: search professors by topic or name, filter by city (the select or
+ * the map), and see the MSc programme to apply to, grouped by university
+ * (spec 2026-11-01-grad-lab-guide, "Page design and city map"). The results
+ * are drawn in the browser (src/scripts/guide-page.ts) from the search index
+ * and /guide/catalog.json; nothing about professors is in the built page
+ * (CLAUDE.md rule 4).
  */
 import { getCollection } from 'astro:content';
 import { GUIDE_TEXT, suggestUrl, type Lang } from '../../lib/guide-text';
+import GuideMap from './GuideMap.astro';
 
 interface Props { lang: Lang }
 const { lang } = Astro.props;
@@ -17,40 +19,68 @@ const cities = [...new Set((await getCollection('guideUniversities')).map((u) =>
 const FOCUS = 'focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
 ---
 
-<div class="bg-navy py-12">
-  <div class="max-w-4xl mx-auto px-4 sm:px-6">
-    <h1 class="text-3xl font-bold text-white">{T.title}</h1>
-    <p class="text-white/75 mt-3 max-w-prose leading-relaxed">{T.purpose}</p>
+<div class="bg-navy">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
+    <h1 class="text-[26px] sm:text-3xl font-bold tracking-tight text-white">{T.title}</h1>
+    <p class="text-white/80 mt-2 text-base sm:text-[17px] leading-snug max-w-[46ch]">{T.lede}</p>
   </div>
 </div>
 
-<section class="bg-white py-10">
-  <div class="max-w-4xl mx-auto px-4 sm:px-6" data-guide data-lang={lang} data-text={JSON.stringify(T)}>
-    <form class="grid gap-3 sm:grid-cols-[1fr_12rem]" role="search" data-guide-form>
-      <label class="block">
-        <span class="block text-sm font-medium text-navy mb-1">{T.searchLabel}</span>
-        <input data-q type="search" autocomplete="off" placeholder={T.searchPlaceholder}
-          class={`w-full px-4 py-3 rounded-xl border border-border text-base text-navy focus:border-navy-mid ${FOCUS}`} />
-      </label>
-      <label class="block">
-        <span class="block text-sm font-medium text-navy mb-1">{T.cityLabel}</span>
-        <select data-city class={`w-full px-3 py-3 rounded-xl border border-border bg-white text-base text-navy ${FOCUS}`}>
-          <option value="">{T.allCities}</option>
-          {cities.map((c) => <option value={c}>{c}</option>)}
-        </select>
-      </label>
-    </form>
-    <p data-also class="text-sm text-gray-500 mt-3 min-h-5"></p>
-    <p data-status role="status" class="text-sm font-medium text-navy mt-4"></p>
-    <ol data-results class="mt-2 border-t border-border"></ol>
-
-    <div class="mt-10 flex flex-col gap-2 text-sm text-gray-600">
-      <a href={`${prefix}/guide/universities/`} class="text-navy-mid hover:text-navy font-medium">{T.universities} →</a>
-      <p>{T.removeMe} <a href={suggestUrl('', lang, 'removal')} class="text-navy-mid hover:text-navy">{T.suggest}</a></p>
-      <a href={`${prefix}/privacy/`} class="text-navy-mid hover:text-navy">{T.privacy}</a>
+<div data-guide data-lang={lang} data-text={JSON.stringify(T)} data-cities={JSON.stringify(cities)}>
+  <section class="bg-white border-b border-border">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 lg:py-8 grid gap-6 lg:gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center">
+      <div>
+        <form class="grid gap-3 grid-cols-1 sm:grid-cols-[1fr_11rem] lg:grid-cols-1" role="search" data-guide-form>
+          <label class="block">
+            <span class="block text-sm font-medium text-navy mb-1">{T.searchLabel}</span>
+            <input data-q type="search" autocomplete="off" enterkeyhint="search" placeholder={T.searchPlaceholder}
+              class={`w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-base text-navy placeholder:text-gray-500 focus:border-navy-mid ${FOCUS}`} />
+          </label>
+          <label class="block">
+            <span class="block text-sm font-medium text-navy mb-1">{T.cityLabel}</span>
+            <select data-city class={`w-full px-3 py-3 rounded-lg border border-gray-300 bg-white text-base text-navy ${FOCUS}`}>
+              <option value="">{T.allCities}</option>
+              {cities.map((c) => <option value={c}>{c}</option>)}
+            </select>
+          </label>
+        </form>
+        <div data-also class="text-[13px] text-gray-500 mt-3 empty:hidden"></div>
+        <p class="text-[13px] text-gray-600 mt-3 leading-snug">{T.applyNote}</p>
+      </div>
+      <div data-map-wrap>
+        <GuideMap lang={lang} mode="filter" />
+      </div>
     </div>
-  </div>
-</section>
+  </section>
+
+  <section class="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-12">
+    <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+      <p data-status role="status" class="text-sm font-semibold text-navy"></p>
+      <p class="text-xs text-gray-500">{T.chipsNote}</p>
+    </div>
+    <div data-results class="mt-2"></div>
+    <div data-without class="hidden mt-12">
+      <h2 class="text-base font-semibold text-navy">{T.withoutProgrammeHeading}</h2>
+      <p class="text-sm text-gray-600 mt-1 max-w-prose">{T.withoutProgrammeNote} <a href={suggestUrl('', lang)} class="text-navy-mid hover:text-navy underline underline-offset-2">{T.suggestProgramme}</a></p>
+      <div data-without-results class="mt-2"></div>
+    </div>
+
+    <div class="mt-14 grid gap-8 md:grid-cols-2 border-t border-border pt-8">
+      <div>
+        <h2 class="text-base font-semibold text-navy">{T.beforeWriting}</h2>
+        <ol class="mt-3 flex flex-col gap-2 text-sm text-gray-700 list-decimal pl-5 marker:text-gray-500">
+          {T.beforeWritingSteps.map((s) => <li>{s}</li>)}
+        </ol>
+      </div>
+      <div class="flex flex-col gap-2 text-sm text-gray-600">
+        <p>{T.purpose}</p>
+        <a href={`${prefix}/guide/universities/`} class="text-navy-mid hover:text-navy font-medium underline underline-offset-2 w-fit">{T.universities}</a>
+        <p>{T.removeMe} <a href={suggestUrl('', lang, 'removal')} class="text-navy-mid hover:text-navy underline underline-offset-2">{T.suggest}</a></p>
+        <a href={`${prefix}/privacy/`} class="text-navy-mid hover:text-navy underline underline-offset-2 w-fit">{T.privacy}</a>
+      </div>
+    </div>
+  </section>
+</div>
 
 <script>
   import { startGuide } from '../../scripts/guide-page';

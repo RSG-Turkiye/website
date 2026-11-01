@@ -1,0 +1,75 @@
+---
+/**
+ * The guide's city map: Türkiye's outline and one equal marker per city with
+ * a university in the guide (src/lib/guide-map.ts). Every city is a plain
+ * link, so the map works without JavaScript:
+ *   mode "filter"  → ?city=<name> on the search page; with JavaScript,
+ *                     src/scripts/guide-page.ts sets the city filter instead.
+ *   mode "anchors" → #city-<slug> on the universities page.
+ * Nothing here comes from outside the site.
+ */
+import { getCollection } from 'astro:content';
+import { mapCities, MAP, type LabelSide } from '../../lib/guide-map';
+import { TURKIYE_OUTLINE } from '../../lib/guide-map-outline';
+import { GUIDE_TEXT, fill, type Lang } from '../../lib/guide-text';
+import { citySlug } from '../../lib/guide-search';
+
+interface Props { lang: Lang; mode: 'filter' | 'anchors' }
+const { lang, mode } = Astro.props;
+const T = GUIDE_TEXT[lang];
+const prefix = lang === 'tr' ? '/tr' : '';
+const cities = mapCities(
+  (await getCollection('guideUniversities')).map((e) => e.data),
+  (await getCollection('guideProgrammes')).map((e) => e.data),
+);
+const anyFaded = cities.some((c) => c.faded);
+
+const LABEL: Record<LabelSide, { dx: number; dy: number; anchor: string }> = {
+  e: { dx: 9, dy: 4.5, anchor: 'start' },
+  w: { dx: -9, dy: 4.5, anchor: 'end' },
+  n: { dx: 0, dy: -10, anchor: 'middle' },
+  s: { dx: 0, dy: 19, anchor: 'middle' },
+  nw: { dx: -6, dy: -9, anchor: 'end' },
+  sw: { dx: -6, dy: 16, anchor: 'end' },
+  se: { dx: -5, dy: 23, anchor: 'start' },
+};
+const href = (city: string) => (mode === 'anchors' ? `#city-${citySlug(city)}` : `${prefix}/guide/?city=${encodeURIComponent(city)}`);
+---
+
+<figure class="guide-map" data-guide-map={mode}>
+  <svg viewBox={`-8 -6 ${MAP.width + 16} ${MAP.height + 12}`} role="group" aria-label={T.mapLabel} class="block w-full h-auto">
+    <path d={TURKIYE_OUTLINE} class="guide-map-land" />
+    {cities.map((c) => {
+      const l = LABEL[c.side];
+      return (
+        <a href={href(c.name)} data-map-city={c.name} class:list={['guide-map-city', c.faded && 'is-empty']}
+          aria-label={`${c.name}, ${fill(T.universityCount, { n: c.universities })}`}>
+          <circle cx={c.x} cy={c.y} r="16" class="guide-map-hit" />
+          <circle cx={c.x} cy={c.y} r="5" class="guide-map-dot" />
+          <text x={c.x + l.dx} y={c.y + l.dy} text-anchor={l.anchor} aria-hidden="true">{c.name}</text>
+        </a>
+      );
+    })}
+  </svg>
+  <figcaption class="mt-2 text-[13px] text-gray-500">
+    {mode === 'anchors' ? T.mapCaptionAnchors : T.mapCaption}
+    {anyFaded && <span class="ml-1">{T.mapFadedNote}</span>}
+  </figcaption>
+</figure>
+
+<style>
+  .guide-map-land { fill: var(--color-navy-light); stroke: color-mix(in srgb, var(--color-navy-mid) 45%, transparent); stroke-width: 1; stroke-linejoin: round; }
+  .guide-map-hit { fill: transparent; }
+  .guide-map-dot { fill: var(--color-navy); stroke: #fff; stroke-width: 1.5; transition: r 120ms ease-out; }
+  .guide-map-city text { font-size: 21px; fill: var(--color-navy); font-weight: 500; paint-order: stroke; stroke: var(--color-navy-light); stroke-width: 4px; stroke-linejoin: round; }
+  @media (min-width: 640px) { .guide-map-city text { font-size: 14px; } }
+  .guide-map-city { cursor: pointer; outline: none; }
+  .guide-map-city:hover .guide-map-dot, .guide-map-city:focus-visible .guide-map-dot { r: 7; }
+  .guide-map-city:focus-visible text { text-decoration: underline; }
+  .guide-map-city.is-empty .guide-map-dot { fill: #fff; stroke: var(--color-navy-mid); }
+  .guide-map-city.is-empty text { fill: var(--color-navy-mid); font-weight: 400; }
+  .guide-map-city.is-selected .guide-map-dot { fill: var(--color-red); r: 7; }
+  .guide-map-city.is-selected text { font-weight: 700; }
+  .guide-map-city.is-nomatch { opacity: 0.3; }
+  @media (prefers-reduced-motion: reduce) { .guide-map-dot { transition: none; } }
+</style>

@@ -354,3 +354,49 @@ fixtures. Programmes are institutional, not personal.
   deleting older files, so a removed professor leaves the backups within 30
   days. The privacy paragraph says so. These backups never go to git or the
   private archive repo.
+
+## Page design and city map (owner, 2026-11-01)
+
+The owner asked for a map of where the universities are, and a page that is
+"simple and usable, and excellent". The design was argued out by a small
+review panel (an undergraduate, a new graduate, a listed professor and an
+outside designer). These are its decisions.
+
+- **Results are grouped by university.** The programme, its status and any
+  page-changed warning are told once per group, not on every professor.
+  Groups follow their best topic match; inside a group professors are
+  verified first, then by name. Never by score: an automatic topic match is
+  not a ranking of people.
+- **Universities with no programme in the guide come last**, under their own
+  heading, so the first thing a reader sees is never an empty apply block.
+- **Unverified professors stay visible**, last in their group, with a plain
+  "not confirmed on an official page" tag. Whether to list them at all is a
+  data decision for the owner.
+- **A status is claimed only from an exact window** entered in the CMS
+  ("Applications open, closing 15 December"; "Applications open on 3
+  January"). Otherwise the block says "No exact date yet; usually takes
+  applications in October, November" and when it was last checked. The
+  programme's real name is the link to its announcement. One renderer
+  (`src/lib/guide-apply.ts`) draws this on every page, in the browser, so the
+  status follows today's date rather than the build's.
+- **One line above the results** says that applications go to the programme,
+  not the professor, and that the order comes from automatic topic matching,
+  not an assessment. Chips say they are derived from publications
+  (OpenAlex), at most five, matched first, one per spelling.
+- **"Before you write to a professor"**: a short static note under the
+  results (apply to the programme first; read their recent work; say which
+  work and why).
+- **The city map** is inline SVG drawn at build time from a Natural Earth
+  outline (`scripts/guide-map-outline.ts`), with no tiles, library or fetch.
+  One marker per city, all the same size, no numbers on the map; a city
+  whose universities have no programme yet is drawn faded, not hidden.
+  Tapping a city sets the city filter (it is a link to `?city=`, so it works
+  without JavaScript); while a search is active, cities with no match fade.
+  On a phone the map shows only while nothing is searched. The universities
+  page uses the same map to jump to its city sections, with counts in the
+  headings there.
+- The podcast bar is hidden on guide pages: it covered the apply blocks on
+  phones.
+- Not now: reminders or calendar files, an "open this month" view, paper
+  lists, ALES or language requirements, housing and scholarships, professor
+  self-descriptions, counts or clustering on the map.

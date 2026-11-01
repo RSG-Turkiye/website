@@ -1,7 +1,8 @@
 /**
  * The graduate guide's pages in a real browser: search by topic in English
- * and Turkish, the programme box, an unknown window, the city filter, a
- * university page with and without programmes, and no sideways scroll, at
+ * and Turkish, results grouped by university with the programme told once,
+ * the city filter and the city map, a university page with and without
+ * programmes, and no sideways scroll, at
  * 1280x680, 1366x768, 1440x800, 1536x864, 1440x900, 1920x1080 and 390x844.
  *
  * Not part of `npm test`: it needs Playwright and a preview server.
@@ -52,9 +53,10 @@ for (const [w, h] of SIZES) {
   await p.goto(`${BASE}/guide/`);
   await p.fill('[data-q]', 'protein structure');
   await p.waitForTimeout(300);
-  const first = await p.locator('[data-results] li').first().innerText();
-  ok(/Örnek Hoca A/.test(first), 'typing "protein structure" shows the tagged professor first');
-  ok(first.includes(prog.name.en), 'the card names the programme to apply to');
+  const first = await p.locator('[data-results] > section').first().innerText();
+  ok(/Örnek Hoca A/.test(first), 'typing "protein structure" shows the tagged professor in the first group');
+  ok(first.includes(prog.name.en) && first.includes(withProg.name.en), 'the group names the university and the programme to apply to');
+  ok(await p.locator('[data-guide-map] svg').count() === 1, 'the city map is on the page');
   ok(await noSideways(p), 'no sideways scroll on the search page');
   if (w === 1280) {
     await p.fill('[data-q]', 'protein yapısı');
@@ -65,14 +67,30 @@ for (const [w, h] of SIZES) {
     await p.waitForTimeout(300);
     const b = await p.locator('[data-results]').innerText();
     ok(/Örnek Hoca B/.test(b), '"biyoloji" finds "Sistem Biyolojisi"');
-    ok(/which programme|No MSc programme found|programı bulunamadı/i.test(b) || b.includes(catalog.programmes.find((x) => x.universityId === otherCity.id)?.name.en ?? '§'), 'a professor with no programme id gets the fallback or the suggest line');
+    ok(b.includes(catalog.programmes.find((x) => x.universityId === otherCity.id)?.name.en ?? '§') || /Örnek Hoca B/.test(await p.locator('[data-without]').innerText()), 'a professor with no programme id gets the university\u2019s programmes, or sits under "no programme yet"');
+    if (withoutProg) {
+      await p.fill('[data-q]', 'metabolomics');
+      await p.waitForTimeout(300);
+      ok(await p.locator('[data-without]').isVisible() && /Örnek Hoca C/.test(await p.locator('[data-without]').innerText()), 'a university with no programme is listed apart, after the others');
+    }
+    await p.fill('[data-q]', '');
+    await p.locator(`[data-map-city="${otherCity.city}"]`).click();
+    await p.waitForTimeout(200);
+    ok(await p.$eval('[data-city]', (s) => s.value) === otherCity.city && new URL(p.url()).searchParams.get('city') === otherCity.city, 'tapping a city on the map sets the city filter and the address');
+    ok(await p.locator(`[data-map-city="${otherCity.city}"].is-selected`).count() === 1, 'the chosen city is marked on the map');
+    await p.locator(`[data-map-city="${otherCity.city}"]`).click();
+    await p.waitForTimeout(200);
+    ok(await p.$eval('[data-city]', (s) => s.value) === '', 'tapping it again clears the filter');
     await p.selectOption('[data-city]', withProg.city === otherCity.city ? '' : withProg.city);
     await p.waitForTimeout(200);
     ok(!/Örnek Hoca B/.test(await p.locator('[data-results]').innerText()), 'the city filter drops a professor in another city');
     await p.goto(`${BASE}/tr/guide/?q=protein%20yap%C4%B1s%C4%B1`);
     await p.waitForTimeout(400);
     const tr = await p.locator('[data-results]').innerText();
-    ok(/Başvuru:/.test(tr) && /Örnek Hoca A/.test(tr), 'Turkish page renders Turkish labels and keeps the query from the address');
+    ok(/Kesin tarih yok|Başvurular/.test(tr) && /Örnek Hoca A/.test(tr), 'Turkish page renders Turkish labels and keeps the query from the address');
+    await p.goto(`${BASE}/tr/guide/?city=${encodeURIComponent(otherCity.city)}`);
+    await p.waitForTimeout(400);
+    ok(await p.$eval('[data-city]', (s) => s.value) === otherCity.city, 'a ?city= link (the map without JavaScript) selects the city');
     await p.goto(`${BASE}/guide/${withProg.id}/`);
     await p.waitForTimeout(400);
     ok((await p.locator('h1').innerText()).includes(withProg.name.en), 'university page has its name');
@@ -84,6 +102,9 @@ for (const [w, h] of SIZES) {
     await p.goto(`${BASE}/guide/universities/`);
     ok(await p.locator(`a[href="/guide/${withProg.id}/"]`).count() === 1, 'the university list links each university');
     ok(await noSideways(p), 'no sideways scroll on the university list');
+  }
+  if (w === 390) {
+    ok(await p.locator('[data-map-wrap]').isHidden(), 'on a phone the map steps aside once something is searched');
   }
   await p.close();
 }
