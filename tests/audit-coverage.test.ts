@@ -8,7 +8,7 @@ import { join, relative } from 'node:path';
 // audit row fails here until it does, or is listed below with the reason.
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const PANEL = ['functions/api/admin', 'functions/api/mail', 'functions/api/social', 'functions/api/audit', 'functions/api/cms', 'functions/api/agent-tokens'];
+const PANEL = ['functions/api/admin', 'functions/api/mail', 'functions/api/social', 'functions/api/audit', 'functions/api/cms', 'functions/api/agent-tokens', 'functions/api/guide'];
 // grantRole and revokeRole (functions/_lib/role-grants.ts) write their
 // role.grant / role.revoke row in the same batch as the grant.
 const WRITES_AUDIT = /appendAudit|runWithAudit|runGuardedWithAudit|grantRole|revokeRole/;
@@ -23,6 +23,7 @@ const EXEMPT: Record<string, string> = {
   'functions/api/mail/sync.ts': 'the per-minute inbox sync; it only copies replies in',
   'functions/api/mail/refresh.ts': 'an inbox sync started by opening the page; opening it is logged as view.pane',
   'functions/api/admin/social/dm/refresh.ts': 'a DM sync started from the page; opening a thread is logged as read.dm_thread',
+  'functions/api/guide/labs.ts': 'guide-db.ts writes the guide.lab.* rows in the same batch as the change',
 };
 
 function files(dir: string): string[] {

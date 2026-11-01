@@ -1,0 +1,82 @@
+---
+/**
+ * The Guide section (Rehber): the graduate guide's professors and labs, which
+ * live in D1, not git (CLAUDE.md rule 4). Universities, programmes and search
+ * terms are content types under Content. The lists and the form are drawn by
+ * src/scripts/admin/sections/guide.ts from /api/guide/professors.
+ */
+import { useTranslations } from '../../../i18n/ui';
+
+interface Props { lang: 'en' | 'tr' }
+const t = useTranslations(Astro.props.lang);
+const FOCUS = 'focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const field = `block mt-1 w-full px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border bg-white text-sm text-navy focus:border-navy-mid ${FOCUS}`;
+const label = 'block text-sm font-medium text-navy';
+const hint = 'block text-xs text-gray-500 mt-0.5';
+const btn = 'inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+const primary = `${btn} bg-navy text-white hover:bg-navy-mid`;
+const secondary = `${btn} border border-navy text-navy hover:bg-navy-light`;
+---
+<section data-section="rehber">
+  <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.guide.heading')}</h2>
+  <p class="text-sm text-gray-500 mb-2 max-w-prose">{t('admin.guide.intro')}</p>
+  <div class="flex flex-wrap items-center gap-2 mb-4 lg:mb-3 text-sm">
+    <p id="guideState" class="text-gray-600" role="status"></p>
+    <button type="button" id="guideRepublish" class={`${secondary} hidden`}>{t('admin.guide.republish')}</button>
+  </div>
+
+  <div data-sub="hocalar">
+    <div class="flex flex-wrap items-end gap-2 mb-3">
+      <label class="min-w-0 grow max-w-sm">
+        <span class="sr-only">{t('admin.guide.search')}</span>
+        <input id="guideProfSearch" type="search" class={field} placeholder={t('admin.guide.search')} />
+      </label>
+      <label class="inline-flex items-center gap-2 min-h-11 lg:min-h-9 text-sm text-navy">
+        <input id="guideStaleOnly" type="checkbox" class="size-4" />{t('admin.guide.staleOnly')}
+      </label>
+      <button type="button" id="guideProfNew" class={`${primary} hidden`}>{t('admin.guide.newProfessor')}</button>
+    </div>
+    <form id="guideProfForm" class="hidden bg-white rounded-2xl border border-border p-4 lg:p-3 mb-4 lg:mb-3 grid gap-3 lg:grid-cols-2" novalidate>
+      <input type="hidden" name="id" />
+      <label class={label}>{t('admin.guide.f.title')}<input name="title" class={field} maxlength="60" /></label>
+      <label class={label}>{t('admin.guide.f.name')}<input name="name" class={field} maxlength="200" required /></label>
+      <label class={label}>{t('admin.guide.f.university')}<select name="universityId" class={field} required></select></label>
+      <label class={label}>{t('admin.guide.f.department')}<input name="department" class={field} maxlength="200" /></label>
+      <label class={label}>{t('admin.guide.f.lab')}<select name="labId" class={field}></select></label>
+      <label class={label}>{t('admin.guide.f.programmes')}<select name="programmeIds" class={`${field} min-h-24`} multiple></select><span class={hint}>{t('admin.guide.h.programmes')}</span></label>
+      <label class={label}>{t('admin.guide.f.profileUrl')}<input name="profileUrl" class={field} type="url" maxlength="500" /><span class={hint}>{t('admin.guide.h.profileUrl')}</span></label>
+      <label class={label}>{t('admin.guide.f.openalexId')}<input name="openalexId" class={field} maxlength="40" placeholder="A5012345678" /></label>
+      <label class={`${label} lg:col-span-2`}>{t('admin.guide.f.handTopics')}<textarea name="handTopics" class={`${field} min-h-20`} rows="3"></textarea><span class={hint}>{t('admin.guide.h.handTopics')}</span></label>
+      <fieldset class="lg:col-span-2">
+        <legend class={label}>{t('admin.guide.f.openalexTopics')}</legend>
+        <span class={hint}>{t('admin.guide.h.openalexTopics')}</span>
+        <div id="guideOpenalexTopics" class="flex flex-wrap gap-2 mt-2"></div>
+      </fieldset>
+      <label class={`${label} lg:col-span-2`}>{t('admin.guide.f.source')}<input name="source" class={field} type="url" maxlength="500" /><span class={hint}>{t('admin.guide.h.source')}</span></label>
+      <label class="inline-flex items-center gap-2 text-sm text-navy lg:col-span-2"><input name="checkedNow" type="checkbox" class="size-4" checked />{t('admin.guide.f.checkedNow')}</label>
+      <div class="flex flex-wrap gap-2 lg:col-span-2">
+        <button type="submit" class={primary}>{t('admin.guide.save')}</button>
+        <button type="button" data-guide-cancel class={secondary}>{t('admin.guide.cancel')}</button>
+      </div>
+    </form>
+    <div id="guideProfList" class="flex flex-col gap-2"></div>
+  </div>
+
+  <div data-sub="lablar">
+    <div class="flex flex-wrap items-end gap-2 mb-3">
+      <button type="button" id="guideLabNew" class={`${primary} hidden`}>{t('admin.guide.newLab')}</button>
+    </div>
+    <form id="guideLabForm" class="hidden bg-white rounded-2xl border border-border p-4 lg:p-3 mb-4 lg:mb-3 grid gap-3 lg:grid-cols-2" novalidate>
+      <input type="hidden" name="id" />
+      <label class={label}>{t('admin.guide.f.labName')}<input name="name" class={field} maxlength="200" required /></label>
+      <label class={label}>{t('admin.guide.f.university')}<select name="universityId" class={field} required></select></label>
+      <label class={`${label} lg:col-span-2`}>{t('admin.guide.f.labUrl')}<input name="url" class={field} type="url" maxlength="500" /></label>
+      <label class="inline-flex items-center gap-2 text-sm text-navy lg:col-span-2"><input name="checkedNow" type="checkbox" class="size-4" checked />{t('admin.guide.f.checkedNow')}</label>
+      <div class="flex flex-wrap gap-2 lg:col-span-2">
+        <button type="submit" class={primary}>{t('admin.guide.save')}</button>
+        <button type="button" data-guide-cancel class={secondary}>{t('admin.guide.cancel')}</button>
+      </div>
+    </form>
+    <div id="guideLabList" class="flex flex-col gap-2"></div>
+  </div>
+</section>

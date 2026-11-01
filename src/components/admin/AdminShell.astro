@@ -39,6 +39,7 @@ import StatsPane from './panes/StatsPane.astro';
 import CmsPane from './panes/CmsPane.astro';
 import TokensPane from './panes/TokensPane.astro';
 import HelpPane from './panes/HelpPane.astro';
+import GuidePane from './panes/GuidePane.astro';
 import { useTranslations } from '../../i18n/ui';
 
 interface Props {
@@ -218,6 +219,7 @@ const t = useTranslations(lang);
 
         <TokensPane lang={lang} />
         <HelpPane lang={lang} />
+        <GuidePane lang={lang} />
 
         <section data-section="kayit">
           <h2 class="text-lg font-semibold text-navy mb-1 lg:sr-only">{t('admin.audit.heading')}</h2>
