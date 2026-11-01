@@ -64,7 +64,7 @@
 **Interfaces:**
 - Produces in `src/data/guide.ts`:
   - `universitySchema`: `{ id: string (slug), name: {en,tr}, city: string, url: string(url) }`
-  - `programmeSchema`: `{ id, universityId, type: z.literal("msc"), name: {en,tr}, institute: {en,tr}, usualMonths: number[] (1–12), window?: { opens: "YYYY-MM-DD", closes: "YYYY-MM-DD" }, announcementUrl?: url, sourceUrl: url, checkedAt: "YYYY-MM-DD" }`
+  - `programmeSchema`: `{ id, universityId, type: z.literal("msc"), name: {en,tr}, institute: {en,tr}, usualMonths: number[] (1–12), window?: { opens: "YYYY-MM-DD", closes: "YYYY-MM-DD" } (only when reported), announcementUrl?: url, calendarUrl?: url, sourceUrl: url, checkedAt: "YYYY-MM-DD" }`
   - `relatedTermSchema`: `{ id, terms: string[] (min 2; TR and EN spellings of one concept), related: string[] (ids of other term groups) }`
   - Types `University`, `Programme`, `RelatedTerm`.
 
@@ -135,7 +135,7 @@
 **Interfaces:**
 - Consumes: Tasks 3, 4.
 - Endpoints (session + CSRF as other panel endpoints): `GET` list (edit or approve rights; `?stale=1` → `staleRecords`); `POST` upsert and `DELETE ?id=` require `content.rehber.approve` or admin; each successful write calls `publishGuideIndex`. `POST /api/guide/professors?republish=1` (approver) republishes without a change, audit `guide.republish`.
-- Panel: lists with search box; a form whose fields are Task 3's columns (topics as tag inputs; OpenAlex topics shown with a "hide" toggle that writes `hidden_topics`); a "Stale (1 year)" filter; a "courtesy e-mail" button that shows the fixed TR/EN template (spec: "listed like this; correct it here; ask and we remove you") with that professor's card text and the correction/removal links, plus a copy button. No sending from the site; no address field.
+- Panel: lists with search box; a form whose fields are Task 3's columns (topics as tag inputs; OpenAlex topics shown with a "hide" toggle that writes `hidden_topics`); a "Stale (1 year)" filter; a "Mute watch" toggle per watched URL (Task 9). No sending from the site; no address field.
 
 - [ ] **Step 1: Failing tests:** `editor without approve gets 403 on POST and DELETE`; `approver POST writes the row, an audit row and republishes`; `GET without edit rights is 403`; `body with an unknown key (e.g. email) is rejected 400`.
 - [ ] **Step 2:** Run → FAIL. **Step 3:** Implement. **Step 4:** `npm test` (incl. audit-coverage) → PASS.
@@ -153,9 +153,9 @@
   - `fold(s: string): string` — Turkish-aware lower-case (`İ→i`, `I→ı`, then strip diacritics for matching: ı→i, ş→s, ç→c, ğ→g, ö→o, ü→u).
   - `expandQuery(q: string, terms: RelatedTerm[]): { tokens: string[]; alsoSearched: string[] }` — the term groups whose any spelling matches `q`, plus their `related` groups.
   - `search(q: string, city: string | null, index: GuideIndex, catalog: GuideCatalog): SearchResult[]` — `SearchResult = { professor: IndexProfessor; matched: string[]; score: number }`, sorted by score desc, then name. Exact topic match > related-term match > name match; city filters by the professor's university city.
-  - `joinCard(p: IndexProfessor, catalog): { university: University; lab?: IndexLab; programmes: Programme[]; programmeUnknown: boolean }` — `programmeIds` if non-empty, else all programmes of the university; `programmeUnknown` when the result is empty.
+  - `joinCard(p: IndexProfessor, catalog, today: string): { university: University; lab?: IndexLab; programmes: (Programme & { showWindow: boolean })[]; programmeUnknown: boolean }` — `programmeIds` if non-empty, else all programmes of the university; `programmeUnknown` when the result is empty; `showWindow` false once `window.closes < today`.
 
-- [ ] **Step 1: Failing tests:** `fold("İSTANBUL") === fold("istanbul")`; `"protein yapısı" finds a professor tagged "protein structure" via a term group and lists it in alsoSearched`; `city filter keeps only that city`; `name search finds "Örnek Hoca A" by "ornek"`; `joinCard falls back to all university programmes`; `joinCard sets programmeUnknown for a university with none`.
+- [ ] **Step 1: Failing tests:** `fold("İSTANBUL") === fold("istanbul")`; `"protein yapısı" finds a professor tagged "protein structure" via a term group and lists it in alsoSearched`; `city filter keeps only that city`; `name search finds "Örnek Hoca A" by "ornek"`; `joinCard falls back to all university programmes`; `a reported window is hidden the day after it closes`; `joinCard sets programmeUnknown for a university with none`.
 - [ ] **Step 2:** Run → FAIL. **Step 3:** Implement. **Step 4:** Run → PASS.
 - [ ] **Step 5:** Commit.
 
@@ -168,7 +168,7 @@
 
 **Interfaces:**
 - Consumes: Tasks 2, 4, 6.
-- Search page: purpose line at top (spec "Legal basis" 1), search box, city select (cities from catalog), "also searched" line, professor cards per spec ("How a student uses it"), "Suggest a correction" link on each card pre-filling the Form with `?entry.<id>=<professor id>` (field id from Task 8's form), "Remove me" link in the footer of the guide.
+- Search page: purpose line at top (spec "Legal basis" 1), search box, city select (cities from catalog), "also searched" line, professor cards per spec ("How a student uses it"); the programme box reads "usually takes applications in <months>" + announcement link, plus the exact window only when `showWindow`, "Suggest a correction" link on each card pre-filling the Form with `?entry.<id>=<professor id>` (field id from Task 8's form), "Remove me" link in the footer of the guide.
 - University page: built statically from the catalog (programmes, windows, links, "no MSc found yet — suggest one" when none); professors/labs filled in the browser from the index.
 - Privacy paragraph: purpose, fields, sources (OpenAlex, university pages), removal on request, backups deleted within 30 days.
 
@@ -194,10 +194,11 @@
 - [ ] **Step 2:** Run → FAIL. **Step 3:** Implement. **Step 4:** Run → PASS.
 - [ ] **Step 5:** Commit. Hand the owner: the Form field list, the rule that an approver deletes a handled removal request's response row from the Sheet, "share the response Sheet with the service account (viewer)", and `! npx wrangler pages secret put GOOGLE_SA_KEY` (they paste the value).
 
-### Task 9: OpenAlex refresh, Drive backup, nightly wiring
+### Task 9: OpenAlex refresh, change watch, Drive backup, nightly wiring
 
 **Files:**
-- Create: `functions/_lib/openalex.ts`, `functions/_lib/drive-backup.ts`, `functions/api/admin/guide/refresh-topics.ts`, `functions/api/admin/guide/backup.ts`
+- Create: `functions/_lib/openalex.ts`, `functions/_lib/page-watch.ts`, `functions/_lib/drive-backup.ts`, `functions/api/admin/guide/refresh-topics.ts`, `functions/api/admin/guide/watch.ts`, `functions/api/admin/guide/backup.ts`
+- Modify: `db/schema.sql` (`guide_page_watch(url TEXT PK, programme_id, fingerprint, checked_at INTEGER, muted INTEGER DEFAULT 0)`, index on `checked_at`; same migration note as Task 8)
 - Modify: `workers/symposium-cron/src/index.ts`, `workers/symposium-cron/wrangler.toml` (URLs as vars), `src/lib/audit-labels.ts`
 - Test: `tests/guide-openalex.test.ts`, `tests/guide-backup.test.ts`
 
@@ -205,9 +206,11 @@
 - `fetchAuthorTopics(openalexId, fetchFn): Promise<string[]>` — `GET https://api.openalex.org/authors/<id>`, `topics[].display_name`, top 15 by count; `mailto=` param uses the organisation address from config, not a person's.
 - `refresh-topics` (secret-gated): the 20 professors with the oldest `topics_refreshed_at` (index from Task 3) per night — stays under the Worker subrequest limit; writes `openalex_topics`, then one `publishGuideIndex`. A failed fetch leaves that row unchanged.
 - `backupGuide(env, now)`: writes `guide-backup-YYYY-MM-DD.json` (professors + labs) into `GUIDE_BACKUP_FOLDER_ID` with the service account (`drive.file` scope), lists the folder's `guide-backup-*` files, deletes all but the newest 30. Audit `guide.backup` `{kept, deleted}`.
-- Cron order after the existing jobs: import → refresh-topics → backup.
+- `pageText(html: string): string` — drop `script`, `style`, `nav`, `header`, `footer`; strip tags; collapse whitespace; remove digit runs that look like times/counters (`\d{1,2}:\d{2}`). `fingerprint(text): Promise<string>` SHA-256 hex.
+- `watch` (secret-gated): every programme's `announcementUrl` and `calendarUrl` from `/guide/catalog.json` is upserted into `guide_page_watch`; each night the 10 unmuted URLs with the oldest `checked_at` are fetched (so each is checked about weekly); a changed fingerprint (not the first sighting) inserts an `intake_rows` row `kind='page_changed'`, `row_key='watch:'+url+':'+fingerprint` (idempotent); a fetch error changes nothing. Audit `guide.watch` `{checked, changed}`.
+- Cron order after the existing jobs: import → refresh-topics → watch → backup.
 
-- [ ] **Step 1: Failing tests:** `fetchAuthorTopics returns at most 15 names, highest count first`; `refresh picks oldest 20 and keeps a row unchanged when its fetch fails`; `backup keeps the newest 30 and deletes the rest`; `backup file contains no key outside the D1 columns`.
+- [ ] **Step 1: Failing tests:** `fetchAuthorTopics returns at most 15 names, highest count first`; `refresh picks oldest 20 and keeps a row unchanged when its fetch fails`; `backup keeps the newest 30 and deletes the rest`; `pageText ignores a changed clock and script`; `first sighting of a URL raises no queue item, a changed one raises exactly one`; `muted URLs are not fetched`; `backup file contains no key outside the D1 columns`.
 - [ ] **Step 2:** Run → FAIL. **Step 3:** Implement. **Step 4:** Run → PASS; `npm test` all green.
 - [ ] **Step 5:** Commit. Hand the owner: share the backup folder with the service account (editor); redeploy the cron worker command, ready to paste with `!`.
 
@@ -216,5 +219,5 @@
 - [ ] **Step 1:** Owner applies migration(s) 8o/8p (`!` command from `db/schema.sql`).
 - [ ] **Step 2:** Owner loads Task 0's CSVs into D1 (generated `INSERT` file kept in the scratchpad, `!` command with absolute path). Call `publishGuideIndex` through the panel's "Republish" action (part of Task 5's section).
 - [ ] **Step 3:** Verify on the live site: search "protein structure", a city filter, one university page, the privacy paragraph; `curl -sI https://rsg-turkiye.iscbsc.org/api/guide/index.json` → 200.
-- [ ] **Step 4:** Courtesy e-mails: the owner sends them by hand from the panel's template. Not sent by the agent.
+- [ ] **Step 4:** Courtesy e-mails: the agent prepares a mail-merge sheet in the owner's Drive (outside the repo): address from the private Drive sheet, name, the professor's card text, correction and removal links, and the TR template. The owner sends it once with a Gmail mail merge. The agent never sends.
 - [ ] **Step 5:** Delete the scratchpad seed files.

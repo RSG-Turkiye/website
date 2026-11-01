@@ -139,8 +139,25 @@ programme(s) of the professor's university that a professor in that
 department would supervise in.
 
 Programme fields (minimum): name (TR/EN), institute (enstitü), university,
-type (MSc now; PhD later), usual application months, the current window's
-dates if known, announcement URL, last checked date, source URL.
+type (MSc now; PhD later), usual application months, announcement URL,
+academic calendar URL (optional), last checked date, source URL, and an
+exact window only when someone reported it.
+
+**No maintained exact dates (owner, 2026-11-01).** The card shows "usually
+takes applications in <months>" plus the official announcement link; the
+student reads the exact dates there. An exact window reported through the
+form is shown until its closing date, then hidden automatically.
+
+### Change watch (owner, 2026-11-01)
+
+Parsing 40 universities' calendars is too fragile, so the site does not try
+to read dates. Instead a weekly watch fetches each programme's announcement
+page and calendar page, reduces it to its main text, and compares a
+fingerprint with last week's. When it changed, a queue item appears: "<the
+programme>'s page changed; a new window may be open." A person opens the
+link and enters what they see. A page that keeps raising false alarms can be
+muted from the panel. (Later, optionally: a model drafts the new dates from
+the changed page, still for a person to approve. Not in the first version.)
 
 Lab fields: name, university, URL, professors.
 
@@ -227,8 +244,8 @@ fixtures. Programmes are institutional, not personal.
   GitHub `schedule:`), written to D1, and the index is republished.
 - **Every September** the panel lists records not checked for a year.
   Records whose source no longer exists are removed.
-- Students reporting new application windows is the main way dates stay
-  current; the "last checked" date tells the reader how fresh a window is.
+- Exact dates are not maintained (see "No maintained exact dates"); the
+  weekly change watch tells a person when an announcement page changed.
 
 ## Constraints
 
@@ -309,9 +326,9 @@ fixtures. Programmes are institutional, not personal.
 
 - **Courtesy e-mail: yes.** Once, at launch, to each listed professor. The
   tone: "you are listed like this; if anything is wrong, correct it here; if
-  you want to be removed, we remove you." The site drafts it; a person
-  sends it (rule 5). Addresses are taken by hand from the Drive sheet and
-  never stored by the site.
+  you want to be removed, we remove you." Sent with a Gmail mail merge from
+  a Drive sheet (addresses come from the private Drive sheet, never from the
+  site); a person presses send once (rule 5). The site stores no address.
 - **Applying suggestions: the simple way. Human approval matters.** The
   queue shows the suggestion next to the record's editor; the approver makes
   the change and saves. A removal request is one click to apply. Nothing is
