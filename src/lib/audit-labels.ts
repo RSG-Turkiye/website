@@ -19,6 +19,10 @@ const FIXED: Record<string, Label> = {
   'audit.export': { en: 'Exported the log', tr: 'Kayıtları dışa aktardı' },
   'audit.verify': { en: 'Verified the log', tr: 'Kayıtların bütünlüğünü doğruladı' },
   'audit.prune': { en: 'Removed log entries older than a year', tr: 'Bir yıldan eski kayıtlar silindi' },
+  'guide.professor.save': { en: 'Saved a guide professor record', tr: 'Rehberde bir hoca kaydı kaydedildi' },
+  'guide.professor.delete': { en: 'Removed a guide professor record', tr: 'Rehberden bir hoca kaydı kaldırıldı' },
+  'guide.lab.save': { en: 'Saved a guide lab record', tr: 'Rehberde bir lab kaydı kaydedildi' },
+  'guide.lab.delete': { en: 'Removed a guide lab record', tr: 'Rehberden bir lab kaydı kaldırıldı' },
   'agent_token.auto_revoke': { en: 'Agent token revoked automatically', tr: 'Ajan anahtarı otomatik olarak iptal edildi' },
   'usage.alert': { en: 'Free-tier usage alert', tr: 'Ücretsiz kota uyarısı' },
 

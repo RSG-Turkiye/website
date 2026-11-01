@@ -403,6 +403,16 @@
 --    and run only the ALTER statements for the columns still missing, then
 --    the --file command.
 --
+-- 8o. Graduate guide (docs/superpowers/specs/2026-11-01-grad-lab-guide-design.md).
+--    New tables only, all IF NOT EXISTS, safe to repeat: guide_labs,
+--    guide_professors, guide_index_state (and, from the same feature,
+--    intake_rows and guide_page_watch). Professors and labs are personal
+--    data and live only here, never in git (CLAUDE.md rule 4). Run it
+--    BEFORE deploying:
+--      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--    Without it the panel's Rehber section and /api/guide/* fail on
+--    "no such table"; the rest of the site is unaffected.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -1233,3 +1243,44 @@ CREATE TABLE IF NOT EXISTS usage_state (
   alerted       TEXT NOT NULL DEFAULT '[]'
 );
 INSERT OR IGNORE INTO usage_state (id) VALUES (1);
+
+-- Graduate guide (8o). Ids are opaque (p_/l_ + 12 hex), never a name: audit
+-- rows keep them a year (CLAUDE.md rule 9). JSON columns hold string lists.
+-- checked_at: when someone last confirmed the record against its source; the
+-- panel lists records older than a year.
+CREATE TABLE IF NOT EXISTS guide_labs (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  university_id TEXT NOT NULL,
+  url           TEXT NOT NULL DEFAULT '',
+  checked_at    INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS guide_professors (
+  id                  TEXT PRIMARY KEY,
+  title               TEXT NOT NULL DEFAULT '',
+  name                TEXT NOT NULL,
+  university_id       TEXT NOT NULL,
+  department          TEXT NOT NULL DEFAULT '',
+  lab_id              TEXT,
+  profile_url         TEXT NOT NULL DEFAULT '',
+  openalex_id         TEXT,
+  hand_topics         TEXT NOT NULL DEFAULT '[]',
+  hidden_topics       TEXT NOT NULL DEFAULT '[]',
+  openalex_topics     TEXT NOT NULL DEFAULT '[]',
+  topics_refreshed_at INTEGER,
+  topics_failures     INTEGER NOT NULL DEFAULT 0,
+  programme_ids       TEXT NOT NULL DEFAULT '[]',
+  source              TEXT NOT NULL DEFAULT '',
+  checked_at          INTEGER NOT NULL
+);
+-- The nightly OpenAlex refresh takes the oldest few: an index, never a scan.
+CREATE INDEX IF NOT EXISTS guide_professors_topics_refreshed ON guide_professors (topics_refreshed_at);
+-- The last publication of the search index (R2 guide/index.json), one row.
+CREATE TABLE IF NOT EXISTS guide_index_state (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  published_at  INTEGER,
+  count         INTEGER,
+  unresolved    INTEGER,
+  error         TEXT
+);
+INSERT OR IGNORE INTO guide_index_state (id) VALUES (1);
