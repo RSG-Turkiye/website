@@ -13,6 +13,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const row = await env.DB.prepare('SELECT url FROM guide_page_watch WHERE url = ?').bind(url).first();
   if (!row) return fail(404, 'not_found', 'This page is not watched');
   await runWithAudit(env.DB, [env.DB.prepare('UPDATE guide_page_watch SET muted = ? WHERE url = ?').bind(body.muted ? 1 : 0, url)],
-    { userId: gate.user.id, action: 'guide.watch.mute', targetType: 'guide_page', targetId: null, details: { muted: body.muted } }, gate.now);
+    { userId: gate.user.id, action: 'guide.watch.mute', targetType: 'guide_page', targetId: url, details: { muted: body.muted } }, gate.now);
   return jsonResponse({ ok: true });
 };

@@ -34,10 +34,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     `INSERT INTO guide_page_watch (url, programme_ids) VALUES (?, ?)
      ON CONFLICT(url) DO UPDATE SET programme_ids = excluded.programme_ids`,
   ).bind(url, JSON.stringify(ids))));
-  if (byUrl.size) {
-    const placeholders = [...byUrl.keys()].map(() => '?').join(', ');
-    await env.DB.prepare(`DELETE FROM guide_page_watch WHERE url NOT IN (${placeholders})`).bind(...byUrl.keys()).run();
-  }
+  // One JSON parameter, not one per URL: D1 refuses more than 100 bound parameters.
+  await env.DB.prepare('DELETE FROM guide_page_watch WHERE url NOT IN (SELECT value FROM json_each(?))').bind(JSON.stringify([...byUrl.keys()])).run();
 
   const live = await env.DB.prepare('SELECT COUNT(*) AS n FROM guide_page_watch WHERE muted = 0').first<{ n: number }>();
   const take = Math.min(MAX_PER_NIGHT, Math.ceil(Number(live?.n ?? 0) / PASS_NIGHTS));
@@ -50,11 +48,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let unreadable = 0;
   for (const w of results ?? []) {
     let text = '';
+    let binary = false;
     try {
       const page = await fetch(w.url, { signal: AbortSignal.timeout(10_000), headers: { 'User-Agent': 'RSG-Turkiye guide page watch (+https://rsg-turkiye.iscbsc.org/guide/)' } });
-      if (page.ok) text = pageText(new Uint8Array(await page.arrayBuffer()), page.headers.get('Content-Type') ?? '');
+      if (page.ok) {
+        const type = page.headers.get('Content-Type') ?? '';
+        const bytes = new Uint8Array(await page.arrayBuffer());
+        // A PDF (some calendars are) is compared as bytes: a change is still
+        // noticed, but there are no readable lines to show.
+        if (/html|text\//i.test(type)) text = pageText(bytes, type);
+        else if (bytes.length >= MIN_TEXT) { binary = true; text = `binary:${await fingerprint(Array.from(bytes, (b) => String.fromCharCode(b)).join(''))}`; }
+      }
     } catch { /* unreadable below */ }
-    if (text.length < MIN_TEXT) {
+    if (!binary && text.length < MIN_TEXT) {
       unreadable++;
       writes.push(env.DB.prepare("UPDATE guide_page_watch SET checked_at = ?, failures = failures + 1, state = 'unreadable' WHERE url = ?").bind(now, w.url));
       continue;
@@ -66,11 +72,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       const ids = JSON.parse(w.programme_ids || '[]') as string[];
       writes.push(env.DB.prepare(
         "INSERT OR IGNORE INTO intake_rows (source, row_key, record_id, kind, payload, status, count, created_at) VALUES ('guide', ?, ?, 'page_changed', ?, 'new', 1, ?)",
-      ).bind(`watch:${w.url}:${fp}`, ids[0] ?? '', JSON.stringify({ text: changedLines(w.last_text ?? '', text).join('\n'), link: w.url }), now));
+      ).bind(`watch:${w.url}:${fp}`, ids[0] ?? '', JSON.stringify({ text: binary ? '' : changedLines(w.last_text ?? '', text).join('\n'), link: w.url }), now));
     }
     const keep = seen.includes(fp) ? seen : [fp, ...seen].slice(0, 3);
     writes.push(env.DB.prepare("UPDATE guide_page_watch SET fingerprints = ?, last_text = ?, checked_at = ?, failures = 0, state = 'ok' WHERE url = ?")
-      .bind(JSON.stringify(keep), text.slice(0, 20000), now, w.url));
+      .bind(JSON.stringify(keep), binary ? '' : text.slice(0, 20000), now, w.url));
   }
   await runWithAudit(env.DB, writes, { userId: null, action: 'guide.watch', details: { checked: results?.length ?? 0, changed, unreadable } }, now);
   return jsonResponse({ checked: results?.length ?? 0, changed, unreadable });

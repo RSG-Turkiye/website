@@ -37,6 +37,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
   await runWithAudit(env.DB, updates, { userId: null, action: 'guide.topics', details: { checked: results?.length ?? 0, failed } }, now);
-  const publish = (results?.length ?? 0) > 0 ? await publishGuideIndex(env as never, now) : null;
+  // Also when the last publish failed, so a removal that did not reach the
+  // index the first time reaches it tonight.
+  const lastFailed = await env.DB.prepare('SELECT error FROM guide_index_state WHERE id = 1').first<{ error: string | null }>();
+  const publish = (results?.length ?? 0) > 0 || lastFailed?.error ? await publishGuideIndex(env as never, now) : null;
   return jsonResponse({ checked: results?.length ?? 0, failed, publish });
 };

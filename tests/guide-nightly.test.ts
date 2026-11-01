@@ -195,3 +195,42 @@ test('the nightly endpoints refuse without the secret', async () => {
     assert.equal((await post(h, env, `/api/admin/guide${p}`, 'wrong')).status, 403, p);
   }
 });
+
+test('Final #3: watching over 100 URLs does not hit the bound-parameter limit', async () => {
+  const { env, raw } = setup();
+  const many = { ...catalog, programmes: Array.from({ length: 80 }, (_, i) => ({ id: `ornek-${i}`, universityId: 'ornek', announcementUrl: `https://ilan.example.edu.tr/a${i}`, calendarUrl: `https://ilan.example.edu.tr/t${i}` })) };
+  (env as { ASSETS: unknown }).ASSETS = { fetch: async () => Response.json(many) };
+  // D1 refuses a statement with more than 100 bound parameters; SQLite here does not, so enforce it.
+  const realPrepare = env.DB.prepare.bind(env.DB);
+  (env.DB as { prepare: unknown }).prepare = (sql: string) => {
+    const st = realPrepare(sql);
+    const realBind = st.bind.bind(st);
+    (st as { bind: unknown }).bind = (...args: unknown[]) => { if (args.length > 100) throw new Error(`D1: too many SQL variables (${args.length})`); return realBind(...args); };
+    return st;
+  };
+  const http = stubHttp(['ilan.example.edu.tr'], () => new Response(long('x'), { headers: { 'Content-Type': 'text/html' } }));
+  try {
+    const res = await post(watchPost, env, '/api/admin/guide/watch');
+    assert.equal(res.status, 200);
+  } finally { http.restore(); }
+  assert.equal((raw.prepare('SELECT COUNT(*) AS n FROM guide_page_watch').get() as { n: number }).n, 160);
+});
+
+test('Final: the nightly topics run republishes when the last publish failed', async () => {
+  const { env, raw, r2 } = setup();
+  raw.prepare("UPDATE guide_index_state SET error = 'boom' WHERE id = 1").run();
+  const res = await post(refreshPost, env, '/api/admin/guide/refresh-topics');
+  assert.equal(res.status, 200);
+  assert.ok(r2.store.has('guide/index.json'), 'republished although no professor needed topics');
+});
+
+test('Minor: a PDF announcement is fingerprinted but yields no text lines', async () => {
+  const { env, raw } = setup();
+  const pdf = new Uint8Array(3000).fill(65);
+  const http = stubHttp(['ilan.example.edu.tr'], () => new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }));
+  try { await post(watchPost, env, '/api/admin/guide/watch'); } finally { http.restore(); }
+  const w = raw.prepare("SELECT state, fingerprints, last_text FROM guide_page_watch WHERE url LIKE '%/a'").get() as { state: string; fingerprints: string; last_text: string };
+  assert.equal(w.state, 'ok');
+  assert.equal(JSON.parse(w.fingerprints).length, 1);
+  assert.equal(w.last_text, '');
+});

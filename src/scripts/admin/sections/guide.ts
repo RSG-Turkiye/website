@@ -7,6 +7,7 @@
 import { escapeHtml } from '../../escape-html';
 import { t, tf, showToast, formatDate, lang } from '../context';
 import { row, chip, BTN, armConfirm, emptyState } from '../ui-kit';
+import { suggestionBody } from './guide-render';
 
 interface Professor {
   id: string; title: string; name: string; universityId: string; department: string; labId: string | null;
@@ -247,13 +248,13 @@ export async function loadSuggestions(): Promise<void> {
       `<button type="button" data-done="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.done'))}</button>`,
       `<button type="button" data-discard="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.discard'))}</button>`,
     ].join('');
-    return row({
+    return `<div class="bg-white border border-border rounded-xl">` + row({
       title: `${t(`admin.guide.kind.${r.kind}` as never)}${r.recordId ? ` · ${who(r.recordId)}` : ''}`,
-      subtitle: [r.text, r.link].filter(Boolean).join(' · '),
+      subtitle: r.submittedAt ?? '',
       chips: [r.kind === 'removal' ? chip(t('admin.guide.suggestions.urgent'), 'red') : '', r.count > 1 ? chip(`×${r.count}`, 'neutral') : ''].join(''),
       trailing: actions,
       stack: true,
-    });
+    }).replace('border border-border rounded-xl', 'rounded-xl') + suggestionBody(r.text, r.link) + '</div>';
   }).join('');
   const act = async (id: string, action: string) => {
     if (await send('/api/guide/suggestions', 'POST', { id: Number(id), action })) { await loadSuggestions(); if (action === 'applyRemoval') await loadGuide(); }

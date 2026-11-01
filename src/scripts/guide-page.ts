@@ -8,20 +8,22 @@ import { escapeHtml } from './escape-html';
 import { search, joinCard, expandQuery, fold } from '../lib/guide-search';
 import { fill, suggestUrl, monthNames, dayLabel, type GuideText, type Lang } from '../lib/guide-text';
 import { epochToIstanbulInput } from '../lib/istanbul-time';
+import { readCachedIndex, writeCachedIndex } from '../lib/guide-index-cache';
 import type { GuideIndex, IndexProfessor } from '../../functions/_lib/guide-index';
 import type { GuideCatalog } from '../lib/guide-catalog';
 
 const KEY = 'rsg-guide-index';
 
 async function loadIndex(): Promise<GuideIndex> {
+  const now = Math.floor(Date.now() / 1000);
   try {
-    const cached = sessionStorage.getItem(KEY);
-    if (cached) return JSON.parse(cached) as GuideIndex;
+    const cached = readCachedIndex(sessionStorage.getItem(KEY), now);
+    if (cached) return cached;
   } catch { /* private mode: fetch below */ }
   const res = await fetch('/api/guide/index.json');
   if (!res.ok) throw new Error(String(res.status));
   const index = (await res.json()) as GuideIndex;
-  try { sessionStorage.setItem(KEY, JSON.stringify(index)); } catch { /* full or blocked: fine */ }
+  try { sessionStorage.setItem(KEY, writeCachedIndex(index, now)); } catch { /* full or blocked: fine */ }
   return index;
 }
 

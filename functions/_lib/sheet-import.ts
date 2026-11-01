@@ -7,8 +7,8 @@
  * Idempotent. A response is known by its timestamp and a hash of its
  * answers, never its row number: approvers delete handled rows from the
  * Sheet, which renumbers every row below. Keys already seen are kept in
- * intake_seen, so a response is never queued twice even after its queue row
- * is gone. Identical suggestions about one record collapse into one row with
+ * intake_seen for good (a hash, no text), so a response that stays in the
+ * Sheet is never queued twice, however old. Identical suggestions about one record collapse into one row with
  * a count. E-mail addresses typed into free text are masked on the way in.
  */
 
@@ -39,8 +39,6 @@ export const GUIDE_MAPPING: SheetMapping = {
 
 /** How long a handled queue row is kept; the privacy notice says 90 days. */
 export const INTAKE_RETENTION_DAYS = 90;
-/** Seen-response keys (hashes, no text) are kept a year, so an old response is never re-queued. */
-export const INTAKE_SEEN_DAYS = 365;
 
 const EMAIL = /[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]+/g;
 export const maskEmails = (s: string) => s.replace(EMAIL, '[e-posta]');
@@ -96,13 +94,10 @@ export async function importRows(db: D1Database, rows: string[][], m: SheetMappi
   return { added, removals };
 }
 
-/** Handled rows past their retention, and old seen-keys, go. Returns how many queue rows were deleted. */
+/** Handled rows past their retention go. Returns how many were deleted. */
 export async function pruneIntake(db: D1Database, now: number): Promise<number> {
   const cutoff = now - INTAKE_RETENTION_DAYS * 86400;
   const n = await db.prepare("SELECT COUNT(*) AS n FROM intake_rows WHERE status != 'new' AND handled_at < ?").bind(cutoff).first<{ n: number }>();
-  await db.batch([
-    db.prepare("DELETE FROM intake_rows WHERE status != 'new' AND handled_at < ?").bind(cutoff),
-    db.prepare('DELETE FROM intake_seen WHERE created_at < ?').bind(now - INTAKE_SEEN_DAYS * 86400),
-  ]);
+  await db.prepare("DELETE FROM intake_rows WHERE status != 'new' AND handled_at < ?").bind(cutoff).run();
   return Number(n?.n ?? 0);
 }

@@ -95,9 +95,13 @@ export function upsertLab(db: D1Database, l: LabRow, actorId: string | null, now
   return runWithAudit(db, [stmt], { userId: actorId, action: 'guide.lab.save', targetType: 'guide_lab', targetId: l.id }, now);
 }
 
-export function deleteProfessor(db: D1Database, id: string, actorId: string | null, now: number): Promise<void> {
-  return runWithAudit(db, [db.prepare('DELETE FROM guide_professors WHERE id = ?').bind(id)],
-    { userId: actorId, action: 'guide.professor.delete', targetType: 'guide_professor', targetId: id }, now);
+/** Deletes the record and, in the same batch, every queue row about it:
+ * suggestions often name the person, and a removal must leave no trace. */
+export function deleteProfessor(db: D1Database, id: string, actorId: string | null, now: number, action = 'guide.professor.delete'): Promise<void> {
+  return runWithAudit(db, [
+    db.prepare('DELETE FROM guide_professors WHERE id = ?').bind(id),
+    db.prepare('DELETE FROM intake_rows WHERE record_id = ?').bind(id),
+  ], { userId: actorId, action, targetType: 'guide_professor', targetId: id }, now);
 }
 
 export async function deleteLab(db: D1Database, id: string, actorId: string | null, now: number): Promise<{ ok: true } | { ok: false; code: 'lab_in_use' }> {

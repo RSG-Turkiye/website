@@ -409,7 +409,7 @@
 --    intake_state and guide_page_watch. Professors and labs are personal
 --    data and live only here, never in git (CLAUDE.md rule 4). Run it
 --    BEFORE deploying:
---      wrangler d1 execute rsg-members --remote --file=db/schema.sql
+--      wrangler d1 execute rsg-members --remote --file=/absolute/path/to/website/db/schema.sql
 --    Without it the panel's Rehber section and /api/guide/* fail on
 --    "no such table"; the rest of the site is unaffected.
 --
@@ -1304,8 +1304,8 @@ CREATE TABLE IF NOT EXISTS intake_rows (
 );
 CREATE INDEX IF NOT EXISTS intake_rows_status ON intake_rows (source, status);
 CREATE INDEX IF NOT EXISTS intake_rows_record ON intake_rows (record_id);
--- Every response key ever imported (a hash, no text), a year, so a response
--- whose queue row is gone is never queued again.
+-- Every response key ever imported (a hash, no text), kept for good, so a
+-- response still in the Sheet is never queued again however old.
 CREATE TABLE IF NOT EXISTS intake_seen (
   row_key     TEXT PRIMARY KEY,
   created_at  INTEGER NOT NULL

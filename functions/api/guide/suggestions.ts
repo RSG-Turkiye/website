@@ -46,14 +46,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   if (action === 'applyRemoval') {
     if (row.kind !== 'removal' || !isGuideId(row.record_id, 'p')) return fail(400, 'not_removal', 'This row is not a removal request for a professor');
-    await deleteProfessor(env.DB, row.record_id, gate.user.id, gate.now);
-    await runWithAudit(env.DB, [env.DB.prepare('DELETE FROM intake_rows WHERE record_id = ?').bind(row.record_id)],
-      { userId: gate.user.id, action: 'guide.suggestion.removal', targetType: 'guide_professor', targetId: row.record_id }, gate.now);
+    // One batch: the record, every queue row about it, and the audit row.
+    await deleteProfessor(env.DB, row.record_id, gate.user.id, gate.now, 'guide.suggestion.removal');
     return jsonResponse({ ok: true, publish: await republish(env, gate.now) });
   }
 
   const status = action === 'done' ? 'done' : 'discarded';
-  const set = action === 'discard' ? ", payload = '{}'" : '';
+  // A removal request's text usually names the person: it is not kept once handled.
+  const set = action === 'discard' || row.kind === 'removal' ? ", payload = '{}'" : '';
   await runWithAudit(env.DB, [env.DB.prepare(`UPDATE intake_rows SET status = ?, handled_at = ?${set} WHERE id = ?`).bind(status, gate.now, id)],
     { userId: gate.user.id, action: `guide.suggestion.${status}`, targetType: 'intake_row', targetId: String(id) }, gate.now);
   return jsonResponse({ ok: true });

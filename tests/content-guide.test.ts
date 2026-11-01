@@ -94,3 +94,10 @@ test('the guide content files validate, are named by id and cross-reference clea
 test("no guide content file contains '@' (no e-mail slipped in)", () => {
   for (const d of Object.values(dirs)) for (const f of read(d)) assert.ok(!f.raw.includes('@'), `${d}/${f.file}`);
 });
+
+test('Final #4: links are http(s) only, never javascript: or data:', () => {
+  assert.ok(!universitySchema.safeParse({ ...uni, url: 'javascript:alert(1)' }).success);
+  assert.ok(!programmeSchema.safeParse({ ...prog, announcementUrl: 'data:text/html,x' }).success);
+  assert.ok(!programmeSchema.safeParse({ ...prog, sourceUrl: 'ftp://example.edu.tr' }).success);
+  assert.ok(programmeSchema.safeParse({ ...prog, calendarUrl: 'http://example.edu.tr/takvim' }).success);
+});

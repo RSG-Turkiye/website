@@ -18,6 +18,8 @@ import { z } from "astro/zod";
 const filled = z.object({ en: z.string().min(1), tr: z.string().min(1) }).strict();
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "a lowercase slug");
 const day = z.iso.date();
+/** http(s) only: z.url() alone accepts javascript: and data:, which would run on this origin. */
+const webUrl = z.url({ protocol: /^https?$/ });
 
 /** Names the guide's own routes take under /guide/: a university by one of
  * these names would be shadowed by the static page. */
@@ -30,7 +32,7 @@ export const universitySchema = z
     name: filled,
     /** In Turkish, as the city filter shows it ("İstanbul"). */
     city: z.string().min(1),
-    url: z.url(),
+    url: webUrl,
   })
   .strict();
 
@@ -54,9 +56,9 @@ export const programmeSchema = z
      * The pages hide it once it has closed. */
     windowOpens: day.optional(),
     windowCloses: day.optional(),
-    announcementUrl: z.url().optional(),
-    calendarUrl: z.url().optional(),
-    sourceUrl: z.url(),
+    announcementUrl: webUrl.optional(),
+    calendarUrl: webUrl.optional(),
+    sourceUrl: webUrl,
     checkedAt: day,
     /** Why something is what it is, for the next maintainer. Never rendered. */
     note: z.string().optional(),

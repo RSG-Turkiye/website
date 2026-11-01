@@ -7,6 +7,7 @@ import { fakeR2 } from './lib/fake-r2';
 import { stubHttp } from './lib/http';
 import * as suggestions from '../functions/api/guide/suggestions';
 import * as watchMute from '../functions/api/guide/watch';
+import * as professorsApi from '../functions/api/guide/professors';
 import { onRequestPost as importPost } from '../functions/api/admin/guide/import';
 import { importRows, pruneIntake, GUIDE_MAPPING, INTAKE_RETENTION_DAYS } from '../functions/_lib/sheet-import';
 import { upsertProfessor, type ProfessorRow } from '../functions/_lib/guide-db';
@@ -163,4 +164,32 @@ test('an approver mutes a watched page; an editor cannot; the queue lists unread
   assert.equal((await mute('approver', false)).status, 200);
   const body = await (await call(suggestions.onRequestGet, env, 'editor', 'GET')).json() as { watch: { unreadable: { url: string }[] } };
   assert.deepEqual(body.watch.unreadable.map((w) => w.url), ['https://ilan.example.edu.tr/a']);
+});
+
+test('Final #1: deleting a professor in the editor also purges every queue row about them', async () => {
+  const { env, db, raw } = setup();
+  await upsertProfessor(db, prof('p_000000000003', 'Örnek Hoca C'), 'admin', NOW);
+  await importRows(db, [R('01.11.2026 10:00:00', 'Düzeltme', 'p_000000000003', 'Örnek Hoca C labı')], GUIDE_MAPPING, NOW);
+  const res = await (professorsApi.onRequestDelete as Handler)({
+    request: new Request(`${ORIGIN}/api/guide/professors?id=p_000000000003`, { method: 'DELETE', headers: { Cookie: 'rsg_session=s-approver', Origin: ORIGIN } }), env,
+  });
+  assert.equal(res.status, 200);
+  assert.equal((raw.prepare("SELECT COUNT(*) AS n FROM intake_rows WHERE record_id = 'p_000000000003'").get() as { n: number }).n, 0);
+});
+
+test('Final #1: marking a removal row done blanks its text', async () => {
+  const { env, db, raw } = setup();
+  await importRows(db, [R('01.11.2026 10:00:00', 'Listeden çıkmak istiyorum', '', 'Lütfen Örnek Hoca D\'yi çıkarın')], GUIDE_MAPPING, NOW);
+  const id = (raw.prepare('SELECT id FROM intake_rows').get() as { id: number }).id;
+  await call(suggestions.onRequestPost, env, 'approver', 'POST', { id, action: 'done' });
+  assert.equal((raw.prepare('SELECT payload FROM intake_rows WHERE id = ?').get(id) as { payload: string }).payload, '{}');
+});
+
+test('Final #2: a response seen over a year ago is never queued again', async () => {
+  const { db, raw } = setup();
+  const row = R('01.11.2026 10:00:00', 'Düzeltme', '', 'eski bir öneri');
+  await importRows(db, [row], GUIDE_MAPPING, NOW);
+  raw.prepare("UPDATE intake_rows SET status = 'done', handled_at = ?").run(NOW);
+  await pruneIntake(db, NOW + 400 * 86400);
+  assert.deepEqual(await importRows(db, [row], GUIDE_MAPPING, NOW + 400 * 86400), { added: 0, removals: 0 });
 });

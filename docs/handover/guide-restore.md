@@ -46,7 +46,10 @@ when you are done.
 
 5. Delete `/tmp/guide-backup.json` and `/tmp/guide-restore.sql`.
 
-**Careful:** the backup may hold a professor who asked to be removed after
-that night. After restoring, check **Suggestions** in the panel and the
-removal-request mails to the admins, and never bring back someone who was
-removed on request.
+**Careful:** a backup (and a Time Travel restore) may hold a professor who
+asked to be removed after that night. A removal deletes their queue rows, so
+the Suggestions tab will not show it. Before restoring, list the professor ids
+removed since the backup's date in the panel's **Activity log** (actions
+"Removed a professor on request" and "Removed a guide professor record"), and
+after restoring delete those ids again in **Guide → Professors**. Never bring
+back someone who was removed on request.
