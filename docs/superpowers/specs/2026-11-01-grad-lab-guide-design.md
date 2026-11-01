@@ -57,7 +57,8 @@ in Türkiye. Not PIs, not recruiters, not sponsors.
 
 ## Anti-goals (would be a failure even if it works)
 
-- Mailing professors automatically. A courtesy
+- Mailing professors automatically. (The one courtesy mail at launch is not
+  automatic: a person presses send on a mail merge; see Owner's answers.) A courtesy
   "you are listed" e-mail, if sent, is drafted by the site and sent by a
   person (CLAUDE.md rule 5).
 - Publishing contact data. No e-mail address, phone number or photo of a
@@ -265,6 +266,10 @@ fixtures. Programmes are institutional, not personal.
 - Every admin-panel action writes an audit row with a label in
   `src/lib/audit-labels.ts`.
 
+- Professor records are invisible to search engines by construction (they
+  load in the browser from the index, never from git). This is deliberate
+  (rule 4); do not "fix" it by committing the data.
+
 ## Calls made while writing this (check these)
 
 - **MSc only** in the first version; PhD later via a programme-type field.
@@ -335,7 +340,9 @@ fixtures. Programmes are institutional, not personal.
   applied from a form row automatically.
 - **Backups (owner raised it).** D1 Time Travel covers the last 7 days with
   no work. In addition, the nightly cron writes the professor and lab tables
-  to a file in a turkey.rsg Drive folder and keeps the **last 30 nights**,
+  to a file in a **private R2 bucket** (changed from a Drive folder after
+  review: a service account cannot own files in a personal Google Drive,
+  and turkey.rsg is not a Workspace account) and keeps the **last 30 nights**,
   deleting older files, so a removed professor leaves the backups within 30
   days. The privacy paragraph says so. These backups never go to git or the
   private archive repo.
