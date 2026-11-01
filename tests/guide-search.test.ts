@@ -113,3 +113,13 @@ test('a reported window is hidden the day after it closes', () => {
   assert.equal(joinCard(p, catalog, '2027-01-20').programmes[0].showWindow, true);
   assert.equal(joinCard(p, catalog, '2027-01-21').programmes[0].showWindow, false);
 });
+
+test('a generic topic like "Biyoinformatik" does not match a specific term group it is only part of', () => {
+  const generic: GuideIndex = { ...index, professors: [prof({ id: 'p_g', name: 'Genel Hoca', topics: ['Biyoinformatik'] }), ...index.professors] };
+  const ids = search('protein yapısı', null, generic, { ...catalog, terms: [{ id: 'protein-structure', terms: ['protein structure', 'protein yapısı', 'yapısal biyoinformatik'], related: [] }] }).map((x) => x.professor.id);
+  assert.ok(!ids.includes('p_g'), `got ${ids}`);
+});
+
+test('a one-word query does not pull in a group it is only part of', () => {
+  assert.deepEqual(expandQuery('protein', catalog.terms).alsoSearched, []);
+});

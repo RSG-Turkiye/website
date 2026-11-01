@@ -34,12 +34,14 @@ export function tokens(s: string): string[] {
 const tokenMatch = (a: string, b: string) => a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)));
 /** Every token of `need` meets some token of `have`. */
 const covers = (need: string[], have: string[]) => need.length > 0 && need.every((n) => have.some((h) => tokenMatch(n, h)));
-/** Two phrases name the same thing when either covers the other. */
-const phraseMatch = (a: string[], b: string[]) => covers(a, b) || covers(b, a);
+/** A text names a term spelling when it holds every word of the spelling.
+ * One direction only: "Biyoinformatik" alone must not name "yapısal
+ * biyoinformatik", and "protein" alone must not name "protein structure". */
+const names = (text: string[], spelling: string[]) => covers(spelling, text);
 
 /** The term groups the query names, and the groups they point at. */
 function groupsFor(q: string[], terms: RelatedTerm[]): { direct: RelatedTerm[]; related: RelatedTerm[] } {
-  const direct = terms.filter((g) => g.terms.some((t) => phraseMatch(q, tokens(t))));
+  const direct = terms.filter((g) => g.terms.some((t) => names(q, tokens(t))));
   const ids = new Set(direct.map((g) => g.id));
   const related = terms.filter((g) => !ids.has(g.id) && direct.some((d) => d.related.includes(g.id)));
   return { direct, related };
@@ -64,7 +66,7 @@ export function search(q: string, city: string | null, index: GuideIndex, catalo
   const qt = tokens(q);
   if (qt.length === 0) return [...pool].sort(byName).map((professor) => ({ professor, matched: [], score: 0 }));
   const { direct, related } = groupsFor(qt, catalog.terms);
-  const inGroups = (topic: string[], groups: RelatedTerm[]) => groups.some((g) => g.terms.some((t) => phraseMatch(topic, tokens(t))));
+  const inGroups = (topic: string[], groups: RelatedTerm[]) => groups.some((g) => g.terms.some((t) => names(topic, tokens(t))));
   const results: SearchResult[] = [];
   for (const professor of pool) {
     let score = covers(qt, tokens(professor.name)) ? 3 : 0;
