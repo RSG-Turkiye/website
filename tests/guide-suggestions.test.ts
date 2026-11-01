@@ -6,6 +6,7 @@ import { d1 } from './lib/d1-sqlite';
 import { fakeR2 } from './lib/fake-r2';
 import { stubHttp } from './lib/http';
 import * as suggestions from '../functions/api/guide/suggestions';
+import * as watchMute from '../functions/api/guide/watch';
 import { onRequestPost as importPost } from '../functions/api/admin/guide/import';
 import { importRows, pruneIntake, GUIDE_MAPPING, INTAKE_RETENTION_DAYS } from '../functions/_lib/sheet-import';
 import { upsertProfessor, type ProfessorRow } from '../functions/_lib/guide-db';
@@ -147,4 +148,19 @@ test('import endpoint reads the Sheet, queues rows, and reports no_access on a 4
     assert.deepEqual(await (await post()).json(), { sheet: 'no_access', added: 0 });
   } finally { http.restore(); }
   assert.equal((raw.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'guide.import'").get() as { n: number }).n, 2);
+});
+
+test('an approver mutes a watched page; an editor cannot; the queue lists unreadable pages', async () => {
+  const { env, raw } = setup();
+  raw.prepare("INSERT INTO guide_page_watch (url, failures, state) VALUES ('https://ilan.example.edu.tr/a', 4, 'unreadable')").run();
+  const mute = (as: string, muted: boolean) => (watchMute.onRequestPost as Handler)({
+    request: new Request(`${ORIGIN}/api/guide/watch`, { method: 'POST', headers: { Cookie: `rsg_session=s-${as}`, Origin: ORIGIN }, body: JSON.stringify({ url: 'https://ilan.example.edu.tr/a', muted }) }),
+    env,
+  });
+  assert.equal((await mute('editor', true)).status, 403);
+  assert.equal((await mute('approver', true)).status, 200);
+  assert.equal((raw.prepare('SELECT muted FROM guide_page_watch').get() as { muted: number }).muted, 1);
+  assert.equal((await mute('approver', false)).status, 200);
+  const body = await (await call(suggestions.onRequestGet, env, 'editor', 'GET')).json() as { watch: { unreadable: { url: string }[] } };
+  assert.deepEqual(body.watch.unreadable.map((w) => w.url), ['https://ilan.example.edu.tr/a']);
 });

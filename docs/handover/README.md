@@ -7,8 +7,9 @@ yardım eder. Bu sayfa, ajanı nasıl kuracağını ve onunla nasıl güvenle
 
 Ajanın okuduğu teknik rehberler İngilizcedir:
 [troubleshooting.md](troubleshooting.md) (sorun giderme),
-[accounts.md](accounts.md) (hesaplar ve erişim) ve
-[drill.md](drill.md) (devir öncesi tatbikat).
+[accounts.md](accounts.md) (hesaplar ve erişim),
+[drill.md](drill.md) (devir öncesi tatbikat) ve
+[guide-restore.md](guide-restore.md) (lisansüstü rehberini geri yükleme).
 
 ## Site neyle çalışıyor
 

@@ -1318,3 +1318,19 @@ CREATE TABLE IF NOT EXISTS intake_state (
   added       INTEGER
 );
 INSERT OR IGNORE INTO intake_state (id) VALUES (1);
+
+-- Announcement-page watch (8o, functions/api/admin/guide/watch.ts). One row
+-- per URL however many programmes share it. fingerprints: the last three
+-- text hashes (JSON); a page flipping between two versions raises nothing.
+-- last_text: the page's text last time, for the changed lines. Not personal.
+CREATE TABLE IF NOT EXISTS guide_page_watch (
+  url           TEXT PRIMARY KEY,
+  programme_ids TEXT NOT NULL DEFAULT '[]',
+  fingerprints  TEXT NOT NULL DEFAULT '[]',
+  last_text     TEXT,
+  checked_at    INTEGER,
+  failures      INTEGER NOT NULL DEFAULT 0,
+  muted         INTEGER NOT NULL DEFAULT 0,
+  state         TEXT NOT NULL DEFAULT 'ok'
+);
+CREATE INDEX IF NOT EXISTS guide_page_watch_checked ON guide_page_watch (muted, checked_at);

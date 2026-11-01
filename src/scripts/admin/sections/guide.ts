@@ -212,17 +212,30 @@ export async function loadGuide(): Promise<void> {
   renderLabs();
 }
 
-interface Suggestion { id: number; recordId: string; kind: 'correction' | 'addition' | 'programme' | 'removal'; count: number; createdAt: number; text?: string; link?: string; submittedAt?: string }
+interface Suggestion { id: number; recordId: string; kind: 'correction' | 'addition' | 'programme' | 'removal' | 'page_changed'; count: number; createdAt: number; text?: string; link?: string; submittedAt?: string }
 
 /** The queue of Form suggestions. A person makes the change in the editor, then marks the row done. */
 export async function loadSuggestions(): Promise<void> {
   const res = await fetch('/api/guide/suggestions');
   if (!res.ok) throw new Error(`suggestions ${res.status}`);
-  const body = await res.json() as { rows: Suggestion[]; state: { checked_at: number | null; result: string | null; added: number | null } | null; canWrite: boolean };
+  const body = await res.json() as { rows: Suggestion[]; state: { checked_at: number | null; result: string | null; added: number | null } | null; watch: { unreadable: { url: string; failures: number }[]; muted: string[] }; canWrite: boolean };
   const st = body.state;
   $('guideImportState').textContent = st?.checked_at
     ? tf('admin.guide.suggestions.lastImport', { when: formatDate(st.checked_at), result: t(`admin.guide.import.${st.result ?? 'error'}` as never) })
     : t('admin.guide.suggestions.neverImported');
+  const pages = $('guideWatchList');
+  const watchRows = [
+    ...body.watch.unreadable.map((w) => ({ url: w.url, muted: false, note: tf('admin.guide.watch.unreadable', { n: w.failures }) })),
+    ...body.watch.muted.map((url) => ({ url, muted: true, note: t('admin.guide.watch.muted') })),
+  ];
+  pages.innerHTML = watchRows.map((w) => row({
+    title: w.url, subtitle: w.note,
+    trailing: body.canWrite ? `<button type="button" data-watch="${escapeHtml(w.url)}" data-muted="${w.muted ? '0' : '1'}" class="${BTN.ghost}">${escapeHtml(t(w.muted ? 'admin.guide.watch.unmute' : 'admin.guide.watch.mute'))}</button>` : '',
+    stack: true,
+  })).join('');
+  $('guideWatchHeading').classList.toggle('hidden', watchRows.length === 0);
+  const mute = async (url: string, muted: boolean) => { if (await send('/api/guide/watch', 'POST', { url, muted })) await loadSuggestions(); };
+  pages.querySelectorAll<HTMLButtonElement>('[data-watch]').forEach((b) => b.addEventListener('click', () => mute(b.dataset.watch!, b.dataset.muted === '1')));
   const host = $('guideSuggestionList');
   if (!body.rows.length) { host.innerHTML = emptyState(t('admin.guide.suggestions.empty')); return; }
   const who = (id: string) => data?.professors.find((p) => p.id === id)?.name ?? data?.labs.find((l) => l.id === id)?.name ?? id;
@@ -230,6 +243,7 @@ export async function loadSuggestions(): Promise<void> {
     const actions = !body.canWrite ? '' : [
       r.kind === 'removal' && r.recordId.startsWith('p_') ? `<button type="button" data-remove="${r.id}" class="${BTN.danger}">${escapeHtml(t('admin.guide.suggestions.applyRemoval'))}</button>` : '',
       r.recordId.startsWith('p_') && r.kind !== 'removal' ? `<button type="button" data-open="${escapeHtml(r.recordId)}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.edit'))}</button>` : '',
+      r.kind === 'page_changed' && r.link ? `<button type="button" data-watch="${escapeHtml(r.link)}" data-muted="1" class="${BTN.ghost}">${escapeHtml(t('admin.guide.watch.mute'))}</button>` : '',
       `<button type="button" data-done="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.done'))}</button>`,
       `<button type="button" data-discard="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.discard'))}</button>`,
     ].join('');
@@ -244,6 +258,7 @@ export async function loadSuggestions(): Promise<void> {
   const act = async (id: string, action: string) => {
     if (await send('/api/guide/suggestions', 'POST', { id: Number(id), action })) { await loadSuggestions(); if (action === 'applyRemoval') await loadGuide(); }
   };
+  host.querySelectorAll<HTMLButtonElement>('[data-watch]').forEach((b) => b.addEventListener('click', () => mute(b.dataset.watch!, true)));
   host.querySelectorAll<HTMLButtonElement>('[data-done]').forEach((b) => b.addEventListener('click', () => act(b.dataset.done!, 'done')));
   host.querySelectorAll<HTMLButtonElement>('[data-discard]').forEach((b) => b.addEventListener('click', () => act(b.dataset.discard!, 'discard')));
   host.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((b) => armConfirm(b, t('admin.guide.confirmDelete'), () => act(b.dataset.remove!, 'applyRemoval')));

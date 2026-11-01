@@ -24,9 +24,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
      ORDER BY CASE kind WHEN 'removal' THEN 0 ELSE 1 END, created_at, id`,
   ).all<Row>();
   const state = await env.DB.prepare('SELECT checked_at, result, added FROM intake_state WHERE id = 1').first();
+  const unreadable = await env.DB.prepare('SELECT url, failures FROM guide_page_watch WHERE failures >= 3 AND muted = 0 ORDER BY url').all<{ url: string; failures: number }>();
+  const muted = await env.DB.prepare('SELECT url FROM guide_page_watch WHERE muted = 1 ORDER BY url').all<{ url: string }>();
   return jsonResponse({
     rows: (results ?? []).map((r) => ({ id: r.id, recordId: r.record_id, kind: r.kind, count: r.count, createdAt: r.created_at, ...JSON.parse(r.payload || '{}') })),
     state,
+    watch: { unreadable: unreadable.results ?? [], muted: (muted.results ?? []).map((m) => m.url) },
     canWrite: gate.canWrite,
   });
 };

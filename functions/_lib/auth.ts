@@ -44,6 +44,8 @@ export interface Env {
    * (functions/_lib/google-sa.ts, sheet-import.ts). Set by a maintainer. */
   GOOGLE_SA_KEY?: string;
   GUIDE_SHEET_ID?: string;
+  /** Private R2 bucket for the guide's nightly backups (functions/_lib/guide-backup.ts). */
+  GUIDE_BACKUPS?: R2Bucket;
 }
 
 export interface User {

@@ -14,6 +14,11 @@ export interface Env {
   SOCIAL_REMINDERS_URL: string;
   /** Main site's daily Instagram token refresh; same secret as archive. */
   SOCIAL_REFRESH_URL: string;
+  /** The graduate guide's nightly jobs on the main site; same secret as archive. */
+  GUIDE_IMPORT_URL: string;
+  GUIDE_TOPICS_URL: string;
+  GUIDE_WATCH_URL: string;
+  GUIDE_BACKUP_URL: string;
 }
 
 /**
@@ -67,6 +72,10 @@ export default {
           auditPrune: parseIfJson(body.auditPrune),
           socialReminders: parseIfJson(body.socialReminders),
           socialRefresh: parseIfJson(body.socialRefresh),
+          guideImport: parseIfJson(body.guideImport),
+          guideTopics: parseIfJson(body.guideTopics),
+          guideWatch: parseIfJson(body.guideWatch),
+          guideBackup: parseIfJson(body.guideBackup),
           rebuild: parseIfJson(body.rebuild),
           websiteRebuild: parseIfJson(body.websiteRebuild),
         },
@@ -81,7 +90,10 @@ export default {
   },
 };
 
-type Tick = { archive: string; purge: string; auditPrune: string; socialReminders: string; socialRefresh: string; rebuild: string; websiteRebuild: string };
+type Tick = {
+  archive: string; purge: string; auditPrune: string; socialReminders: string; socialRefresh: string;
+  guideImport: string; guideTopics: string; guideWatch: string; guideBackup: string; rebuild: string; websiteRebuild: string;
+};
 
 async function tick(env: Env): Promise<Tick> {
   // Archive first: a finished edition needs its pull request opened before
@@ -97,23 +109,32 @@ async function tick(env: Env): Promise<Tick> {
   const auditPrune = await callSecretPost('audit prune', env.AUDIT_PRUNE_URL, env);
   const socialReminders = await callSecretPost('social reminders', env.SOCIAL_REMINDERS_URL, env);
   const socialRefresh = await callSecretPost('social token refresh', env.SOCIAL_REFRESH_URL, env);
+  // The graduate guide: Form suggestions, OpenAlex topics, the announcement
+  // pages, then the backup, so the backup holds tonight's topics.
+  const guideImport = await callSecretPost('guide import', env.GUIDE_IMPORT_URL, env);
+  const guideTopics = await callSecretPost('guide topics', env.GUIDE_TOPICS_URL, env);
+  const guideWatch = await callSecretPost('guide watch', env.GUIDE_WATCH_URL, env);
+  const guideBackup = await callSecretPost('guide backup', env.GUIDE_BACKUP_URL, env);
   const rebuild = await callRebuild('rebuild', env.SYMPOSIUM_DEPLOY_HOOK);
   const websiteRebuild = await callRebuild('website rebuild', env.WEBSITE_DEPLOY_HOOK);
 
   // Both results are returned rather than raised here: one failing must not
   // stop the other being reported, and the two callers differ on what to do
   // about it -- see `scheduled` and `fetch`.
-  return { archive, purge, auditPrune, socialReminders, socialRefresh, rebuild, websiteRebuild };
+  return { archive, purge, auditPrune, socialReminders, socialRefresh, guideImport, guideTopics, guideWatch, guideBackup, rebuild, websiteRebuild };
 }
 
 function failed(t: Tick): boolean {
-  return [t.archive, t.purge, t.auditPrune, t.socialReminders, t.socialRefresh, t.rebuild, t.websiteRebuild].some((r) => r.startsWith('ERROR'));
+  return [t.archive, t.purge, t.auditPrune, t.socialReminders, t.socialRefresh, t.guideImport, t.guideTopics, t.guideWatch, t.guideBackup, t.rebuild, t.websiteRebuild]
+    .some((r) => r.startsWith('ERROR'));
 }
 
 function summarise(t: Tick): string {
   return (
     `tick failed -- archive: ${t.archive.slice(0, 120)} purge: ${t.purge.slice(0, 120)} audit prune: ${t.auditPrune.slice(0, 120)} ` +
     `social reminders: ${t.socialReminders.slice(0, 120)} social refresh: ${t.socialRefresh.slice(0, 120)} ` +
+    `guide import: ${t.guideImport.slice(0, 120)} guide topics: ${t.guideTopics.slice(0, 120)} ` +
+    `guide watch: ${t.guideWatch.slice(0, 120)} guide backup: ${t.guideBackup.slice(0, 120)} ` +
     `rebuild: ${t.rebuild.slice(0, 120)} website rebuild: ${t.websiteRebuild.slice(0, 120)}`
   );
 }

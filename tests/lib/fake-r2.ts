@@ -23,6 +23,15 @@ export function fakeR2() {
         writeHttpMetadata(h: Headers) { if (o.contentType) h.set('Content-Type', o.contentType); },
       };
     },
+    /** Keys in order, with a prefix: enough of R2's list() for the handlers. */
+    async list(opts?: { prefix?: string; limit?: number }) {
+      const keys = [...store.keys()].filter((k) => !opts?.prefix || k.startsWith(opts.prefix)).sort();
+      return { objects: keys.slice(0, opts?.limit ?? 1000).map((key) => ({ key, size: store.get(key)!.body.length })), truncated: false };
+    },
+    async head(key: string) {
+      const o = store.get(key);
+      return o ? { key, size: o.body.length, httpEtag: '"etag"' } : null;
+    },
     async delete(keys: string | string[]) {
       for (const k of Array.isArray(keys) ? keys : [keys]) store.delete(k);
     },
