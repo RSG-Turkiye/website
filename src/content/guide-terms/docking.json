@@ -1,0 +1,12 @@
+{
+  "id": "docking",
+  "terms": [
+    "molecular docking",
+    "moleküler kenetlenme",
+    "docking"
+  ],
+  "related": [
+    "protein-structure",
+    "drug-design"
+  ]
+}

@@ -10,7 +10,7 @@ import { readdirSync } from 'node:fs';
 
 const NAME = /^[a-z0-9-]+\.json$/;
 
-for (const d of ['workshops', 'events', 'resources', 'committees', 'pages']) {
+for (const d of ['workshops', 'events', 'resources', 'committees', 'pages', 'guide-universities', 'guide-programmes', 'guide-terms']) {
   test(`src/content/${d}: every file name is a lowercase slug ending in .json`, () => {
     const names = readdirSync(new URL(`../src/content/${d}/`, import.meta.url));
     assert.ok(names.length > 0, d);

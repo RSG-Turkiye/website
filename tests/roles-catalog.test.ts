@@ -101,7 +101,7 @@ test('writer is retired: nobody may grant it, not even an admin, and no approver
 });
 
 test('every content group has an edit role (a month, its approver may grant it) and an approve role (an admin\'s)', () => {
-  assert.deepEqual([...CMS_GROUPS], ['etkinlikler', 'yazilar', 'ogrenme', 'topluluk', 'sayfalar']);
+  assert.deepEqual([...CMS_GROUPS], ['etkinlikler', 'yazilar', 'ogrenme', 'topluluk', 'sayfalar', 'rehber']);
   const now = tr(2026, 10, 23);
   for (const g of CMS_GROUPS) {
     const edit = def(`content.${g}.edit`);
@@ -131,6 +131,7 @@ test('rightsFromRoles: each group answers only for its own roles; an admin has a
     ogrenme: { edit: false, approve: false },
     topluluk: { edit: false, approve: false },
     sayfalar: { edit: true, approve: true },
+    rehber: { edit: false, approve: false },
   });
   assert.ok(Object.values(rightsFromRoles([], true)).every((x) => x.edit && x.approve));
 });

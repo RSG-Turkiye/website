@@ -1,0 +1,15 @@
+{
+  "id": "systems-biology",
+  "terms": [
+    "systems biology",
+    "sistem biyolojisi",
+    "metabolic modeling",
+    "metabolik modelleme",
+    "network biology",
+    "ağ biyolojisi"
+  ],
+  "related": [
+    "metabolic-networks",
+    "omics-integration"
+  ]
+}

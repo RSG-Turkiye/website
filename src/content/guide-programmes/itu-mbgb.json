@@ -1,0 +1,17 @@
+{
+  "id": "itu-mbgb",
+  "universityId": "itu",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Molecular Biology-Genetics and Biotechnology",
+    "tr": "Moleküler Biyoloji-Genetik ve Biyoteknoloji Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Graduate School (LEE)",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.itu.edu.tr/adayogrenciler/lisansustu-basvuru",
+  "sourceUrl": "https://lee.itu.edu.tr/egitim/programlarimiz",
+  "checkedAt": "2026-11-01"
+}

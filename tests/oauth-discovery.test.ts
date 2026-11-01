@@ -37,8 +37,8 @@ test('PRM at both paths is the same JSON', async () => {
   assert.deepEqual(mcp.bearer_methods_supported, ['header']);
   assert.equal(mcp.resource_name, 'RSG-Türkiye');
   const scopes = mcp.scopes_supported as string[];
-  assert.equal(scopes.length, 12);
-  assert.equal(new Set(scopes).size, 12);
+  assert.equal(scopes.length, 14);
+  assert.equal(new Set(scopes).size, 14);
   for (const s of scopes) assert.ok(parseScopes([s]), `${s} is a scope parseScopes accepts`);
 });
 

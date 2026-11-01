@@ -1,0 +1,17 @@
+{
+  "id": "medipol-bmeb",
+  "universityId": "medipol",
+  "type": "msc",
+  "name": {
+    "en": "Non-thesis MSc in Biomedical Engineering and Bioinformatics",
+    "tr": "Biyomedikal Mühendisliği ve Biyoenformatik Tezsiz Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://www.medipol.edu.tr/akademik/enstituler/fen-bilimleri-enstitusu",
+  "sourceUrl": "https://www.medipol.edu.tr/akademik/enstituler/fen-bilimleri-enstitusu/yuksek-lisans-programlari/biyomedikal-muhendisligi-ve-biyoenformatik-tezsiz/program-bilgileri",
+  "checkedAt": "2026-11-01"
+}

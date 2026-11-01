@@ -1,0 +1,17 @@
+{
+  "id": "acibadem-mbg",
+  "universityId": "acibadem",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Molecular Biology and Genetics (English, thesis)",
+    "tr": "Moleküler Biyoloji ve Genetik Yüksek Lisans (İngilizce, tezli)"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://acibadem.edu.tr/en/akademik/lisansustu/fen-bilimleri-enstitusu/programlar/yuksek-lisans/molekuler-biyoloji-ve-genetik/basvuru-kosullari",
+  "sourceUrl": "https://acibadem.edu.tr/en/akademik/lisansustu/fen-bilimleri-enstitusu/programlar/yuksek-lisans/molekuler-biyoloji-ve-genetik/basvuru-kosullari",
+  "checkedAt": "2026-11-01"
+}

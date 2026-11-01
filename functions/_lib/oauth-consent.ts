@@ -48,6 +48,7 @@ const AREA_NAME: Record<string, Pair> = {
   'cms.ogrenme': { en: 'Learning', tr: 'Öğrenme' },
   'cms.topluluk': { en: 'Community', tr: 'Topluluk' },
   'cms.sayfalar': { en: 'Pages', tr: 'Sayfalar' },
+  'cms.rehber': { en: 'Guide', tr: 'Rehber' },
   social: { en: 'Social media', tr: 'Sosyal medya' },
 };
 

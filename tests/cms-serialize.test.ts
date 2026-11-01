@@ -26,7 +26,7 @@ const WEBINAR_FILES = [
 ];
 
 test('the registry lists its types, each in its group, and every dir exists', () => {
-  assert.deepEqual(CMS_TYPES.map((t) => `${t.group}/${t.key}`), ['etkinlikler/events', 'etkinlikler/workshops', 'etkinlikler/webinars', 'yazilar/blog', 'topluluk/committees', 'topluluk/podcast', 'ogrenme/resources', 'ogrenme/lp-domains', 'ogrenme/lp-levels', 'ogrenme/lp-roadmap', 'sayfalar/pages', 'sayfalar/privacy']);
+  assert.deepEqual(CMS_TYPES.map((t) => `${t.group}/${t.key}`), ['etkinlikler/events', 'etkinlikler/workshops', 'etkinlikler/webinars', 'yazilar/blog', 'topluluk/committees', 'topluluk/podcast', 'ogrenme/resources', 'ogrenme/lp-domains', 'ogrenme/lp-levels', 'ogrenme/lp-roadmap', 'sayfalar/pages', 'sayfalar/privacy', 'rehber/guide-universities', 'rehber/guide-programmes', 'rehber/guide-terms']);
   for (const t of CMS_TYPES) {
     assert.ok(existsSync(ROOT + t.dir), t.dir);
     assert.ok(t.label.en && t.label.tr);

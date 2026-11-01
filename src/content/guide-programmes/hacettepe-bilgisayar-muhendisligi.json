@@ -1,0 +1,21 @@
+{
+  "id": "hacettepe-bilgisayar-muhendisligi",
+  "universityId": "hacettepe",
+  "type": "msc",
+  "name": {
+    "en": "Computer Engineering (MSc)",
+    "tr": "Bilgisayar Mühendisliği (Yüksek Lisans)"
+  },
+  "institute": {
+    "en": "Graduate School of Science and Engineering",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "6",
+    "7"
+  ],
+  "announcementUrl": "https://fenbilimleri.hacettepe.edu.tr/tr/duyuru/duyurular/",
+  "calendarUrl": "https://fenbilimleri.hacettepe.edu.tr/tr/akademik_takvim-132",
+  "sourceUrl": "https://fenbilimleri.hacettepe.edu.tr/tr/menu/ana_bilim_dallari-25",
+  "checkedAt": "2026-11-01"
+}

@@ -18,9 +18,10 @@ import { resourceSchema } from "../../data/resources";
 import { lpDomainSchema, lpLevelSchema, lpRoadmapSchema } from "../../data/learning-paths";
 import { pageTextSchema } from "../../data/page-text";
 import { privacySchema } from "../../data/privacy-schema";
+import { universitySchema, programmeSchema, relatedTermSchema } from "../../data/guide";
 import { capId, checkId, slugify, stageId } from "./slug";
 
-export type CmsTypeKey = "events" | "workshops" | "webinars" | "blog" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap" | "pages" | "privacy";
+export type CmsTypeKey = "events" | "workshops" | "webinars" | "blog" | "committees" | "podcast" | "resources" | "lp-domains" | "lp-levels" | "lp-roadmap" | "pages" | "privacy" | "guide-universities" | "guide-programmes" | "guide-terms";
 
 /** What a type declares. The options after `label` have defaults (see defineType). */
 export interface CmsTypeSpec {
@@ -367,6 +368,52 @@ export const CMS_TYPES: readonly CmsType[] = [
     noCreate: true,
     noDelete: true,
     // The contact address is {contact} in the text (src/data/privacy.ts).
+    noAt: true,
+  }),
+  // The graduate guide (src/data/guide.ts). Ids are keys professors' D1
+  // records point at, so they are typed once and never change: a taken id is
+  // refused, never renamed. No e-mail address belongs in any of them.
+  defineType({
+    key: "guide-universities",
+    group: "rehber",
+    dir: "src/content/guide-universities",
+    format: "json",
+    schema: universitySchema,
+    idFrom: (data: { id: string }) => checkId(data.id),
+    idField: "id",
+    idInData: true,
+    indexTitle: (d: { name?: { tr?: string } }) => d.name?.tr,
+    label: { en: "Universities", tr: "Üniversiteler" },
+    whenTaken: "refuse",
+    noAt: true,
+  }),
+  defineType({
+    key: "guide-programmes",
+    group: "rehber",
+    dir: "src/content/guide-programmes",
+    format: "json",
+    schema: programmeSchema,
+    idFrom: (data: { id: string }) => checkId(data.id),
+    idField: "id",
+    idInData: true,
+    indexTitle: (d: { name?: { tr?: string } }) => d.name?.tr,
+    indexDate: (d: { checkedAt?: string }) => d.checkedAt,
+    label: { en: "Programmes", tr: "Programlar" },
+    whenTaken: "refuse",
+    noAt: true,
+  }),
+  defineType({
+    key: "guide-terms",
+    group: "rehber",
+    dir: "src/content/guide-terms",
+    format: "json",
+    schema: relatedTermSchema,
+    idFrom: (data: { id: string }) => checkId(data.id),
+    idField: "id",
+    idInData: true,
+    indexTitle: (d: { terms?: string[] }) => d.terms?.join(" · "),
+    label: { en: "Search terms", tr: "Arama terimleri" },
+    whenTaken: "refuse",
     noAt: true,
   }),
 ];

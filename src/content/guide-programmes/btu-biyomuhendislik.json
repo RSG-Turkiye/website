@@ -1,0 +1,18 @@
+{
+  "id": "btu-biyomuhendislik",
+  "universityId": "btu",
+  "type": "msc",
+  "name": {
+    "en": "Bioengineering (MSc, thesis)",
+    "tr": "Biyomühendislik (Tezli Yüksek Lisans)"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://enstitu.btu.edu.tr/tr/haber",
+  "calendarUrl": "https://btu.edu.tr/tr/sayfa/detay/4749/akademik-takvim",
+  "sourceUrl": "https://enstitu.btu.edu.tr/tr/sayfa/ylp-tezli",
+  "checkedAt": "2026-11-01"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "agu-biyomuhendislik",
+  "universityId": "agu",
+  "type": "msc",
+  "name": {
+    "en": "Bioengineering (MSc)",
+    "tr": "Biyomühendislik (Yüksek Lisans)"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [
+    "5",
+    "6",
+    "7",
+    "8"
+  ],
+  "announcementUrl": "https://gs.agu.edu.tr/oenemli-tarihler",
+  "calendarUrl": "https://oidb-tr.agu.edu.tr/akademik-takvim",
+  "sourceUrl": "http://gs.agu.edu.tr/program-bilgisi-beng",
+  "checkedAt": "2026-11-01"
+}

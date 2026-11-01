@@ -6,6 +6,7 @@ roles:
   - content.ogrenme.approve
   - content.topluluk.approve
   - content.sayfalar.approve
+  - content.rehber.approve
 order: 5
 ---
 
