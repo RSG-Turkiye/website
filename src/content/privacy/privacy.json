@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-25",
+  "updated": "2026-11-01",
   "en": {
     "title": "Privacy Policy",
     "description": "What personal data the RSG-Turkiye website collects, why, how long it is kept, who else receives it, and how to ask for it to be deleted.",
@@ -59,6 +59,14 @@
         "paragraphs": [
           "Under Türkiye's KVKK and the EU GDPR you can ask what we hold about you, ask us to correct it, or ask us to delete your account and everything linked to it. Write to {contact} from the address you signed in with. We answer within 30 days.",
           "You can edit your profile yourself at any time. To take it off the public members page, write to us."
+        ],
+        "items": []
+      },
+      {
+        "heading": "The graduate guide",
+        "paragraphs": [
+          "The graduate guide (/guide) exists so that students can find a supervisor and the MSc programme that leads to them. For each professor it shows only professional information that the professor and their university have already made public: title, name, university, department, lab, research topics, and links to their official profile and to the page we took this from. Research topics come from OpenAlex, a public index of scholarly papers, and from the professors themselves. We never publish an e-mail address, phone number or photo, and we never use this information for anything else, such as mailing lists or sponsorship.",
+          "These records are kept in our database, never in the website's code. A professor who asks to be removed is removed, without conditions: the page stops showing them within minutes, our database can be restored to an earlier moment for 7 days, and our nightly backups of the guide are deleted after 30 days. Corrections and removal requests sent through the guide's form are deleted 90 days after we handle them. Write to {contact}, or use the link on the guide."
         ],
         "items": []
       },
@@ -130,6 +138,14 @@
         "paragraphs": [
           "KVKK ve AB GDPR kapsamında hakkınızda ne tuttuğumuzu öğrenebilir, düzeltilmesini ya da hesabınızın ve ona bağlı her şeyin silinmesini isteyebilirsiniz. Giriş yaptığınız adresten {contact} adresine yazın. 30 gün içinde yanıt veririz.",
           "Profilinizi istediğiniz zaman kendiniz düzenleyebilirsiniz. Herkese açık üyeler sayfasından kaldırılması için bize yazın."
+        ],
+        "items": []
+      },
+      {
+        "heading": "Lisansüstü rehberi",
+        "paragraphs": [
+          "Lisansüstü rehberi (/tr/guide), öğrencilerin danışman ve o danışmana götüren yüksek lisans programını bulması için var. Her hoca için yalnızca hocanın ve üniversitesinin zaten herkese açık yayımladığı mesleki bilgileri gösterir: unvan, ad, üniversite, bölüm, lab, araştırma konuları ve resmi profil ile bilgiyi aldığımız sayfanın bağlantıları. Araştırma konuları, bilimsel yayınların herkese açık dizini OpenAlex’ten ve hocaların kendisinden gelir. E-posta adresi, telefon ya da fotoğraf asla yayımlamayız ve bu bilgileri e-posta listeleri ya da sponsorluk gibi başka hiçbir iş için kullanmayız.",
+          "Bu kayıtlar sitenin kodunda değil, veritabanımızda tutulur. Çıkarılmak isteyen hoca koşulsuz çıkarılır: sayfa birkaç dakika içinde göstermeyi bırakır, veritabanımız 7 gün boyunca daha önceki bir ana geri döndürülebilir ve rehberin gece alınan yedekleri 30 gün sonra silinir. Rehberin formundan gelen düzeltme ve çıkarılma istekleri, işlendikten 90 gün sonra silinir. {contact} adresine yazın ya da rehberdeki bağlantıyı kullanın."
         ],
         "items": []
       },

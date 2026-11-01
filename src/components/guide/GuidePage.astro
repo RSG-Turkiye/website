@@ -1,0 +1,59 @@
+---
+/**
+ * /guide: search professors by topic or name, filter by city, and see the
+ * MSc programme that leads to each (spec 2026-11-01-grad-lab-guide). The
+ * results are drawn in the browser (src/scripts/guide-page.ts) from the
+ * search index and /guide/catalog.json; nothing about professors is in the
+ * built page (CLAUDE.md rule 4).
+ */
+import { getCollection } from 'astro:content';
+import { GUIDE_TEXT, suggestUrl, type Lang } from '../../lib/guide-text';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const T = GUIDE_TEXT[lang];
+const prefix = lang === 'tr' ? '/tr' : '';
+const cities = [...new Set((await getCollection('guideUniversities')).map((u) => u.data.city))].sort((a, b) => a.localeCompare(b, 'tr'));
+const FOCUS = 'focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid';
+---
+
+<div class="bg-navy py-12">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6">
+    <h1 class="text-3xl font-bold text-white">{T.title}</h1>
+    <p class="text-white/75 mt-3 max-w-prose leading-relaxed">{T.purpose}</p>
+  </div>
+</div>
+
+<section class="bg-white py-10">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6" data-guide data-lang={lang} data-text={JSON.stringify(T)}>
+    <form class="grid gap-3 sm:grid-cols-[1fr_12rem]" role="search" data-guide-form>
+      <label class="block">
+        <span class="block text-sm font-medium text-navy mb-1">{T.searchLabel}</span>
+        <input data-q type="search" autocomplete="off" placeholder={T.searchPlaceholder}
+          class={`w-full px-4 py-3 rounded-xl border border-border text-base text-navy focus:border-navy-mid ${FOCUS}`} />
+      </label>
+      <label class="block">
+        <span class="block text-sm font-medium text-navy mb-1">{T.cityLabel}</span>
+        <select data-city class={`w-full px-3 py-3 rounded-xl border border-border bg-white text-base text-navy ${FOCUS}`}>
+          <option value="">{T.allCities}</option>
+          {cities.map((c) => <option value={c}>{c}</option>)}
+        </select>
+      </label>
+    </form>
+    <p data-also class="text-sm text-gray-500 mt-3 min-h-5"></p>
+    <p data-status role="status" class="text-sm font-medium text-navy mt-4"></p>
+    <ol data-results class="mt-2 border-t border-border"></ol>
+
+    <div class="mt-10 flex flex-col gap-2 text-sm text-gray-600">
+      <a href={`${prefix}/guide/universities/`} class="text-navy-mid hover:text-navy font-medium">{T.universities} →</a>
+      <p>{T.removeMe} <a href={suggestUrl('', lang, 'removal')} class="text-navy-mid hover:text-navy">{T.suggest}</a></p>
+      <a href={`${prefix}/privacy/`} class="text-navy-mid hover:text-navy">{T.privacy}</a>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { startGuide } from '../../scripts/guide-page';
+  const root = document.querySelector<HTMLElement>('[data-guide]');
+  if (root) void startGuide(root);
+</script>

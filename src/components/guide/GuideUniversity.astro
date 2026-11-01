@@ -1,0 +1,62 @@
+---
+/**
+ * /guide/<university>: the university's MSc programmes (built from git) and,
+ * drawn in the browser from the search index, its professors.
+ */
+import { getCollection } from 'astro:content';
+import { GUIDE_TEXT, fill, monthNames, suggestUrl, type Lang } from '../../lib/guide-text';
+import type { University } from '../../data/guide';
+
+interface Props { lang: Lang; university: University }
+const { lang, university } = Astro.props;
+const T = GUIDE_TEXT[lang];
+const prefix = lang === 'tr' ? '/tr' : '';
+const programmes = (await getCollection('guideProgrammes'))
+  .map((e) => e.data)
+  .filter((p) => p.universityId === university.id)
+  .sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang));
+---
+
+<div class="bg-navy py-12">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6">
+    <p class="text-white/70 text-sm"><a href={`${prefix}/guide/`} class="hover:text-white">{T.title}</a> · {university.city}</p>
+    <h1 class="text-3xl font-bold text-white mt-1">{university.name[lang]}</h1>
+    <a href={university.url} rel="noopener" class="inline-block mt-2 text-white/75 hover:text-white text-sm">{university.url.replace(/^https?:\/\//, '').replace(/\/$/, '')} ↗</a>
+  </div>
+</div>
+
+<section class="bg-white py-10">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6">
+    <h2 class="text-xl font-semibold text-navy">{T.programmesHeading}</h2>
+    {programmes.length === 0 ? (
+      <p class="text-sm text-gray-600 mt-3">{T.noProgramme} <a href={suggestUrl(university.id, lang)} class="text-navy-mid hover:text-navy">{T.suggestProgramme}</a></p>
+    ) : (
+      <ul class="mt-3 border-t border-border">
+        {programmes.map((p) => (
+          <li class="py-4 border-b border-border">
+            <p class="font-medium text-navy">{p.name[lang]} <span class="text-gray-500 font-normal">({p.institute[lang]})</span></p>
+            <p class="text-sm text-gray-700 mt-0.5">
+              {p.usualMonths.length ? fill(T.usually, { months: monthNames(p.usualMonths, lang) }) : T.monthsUnknown}
+              {p.announcementUrl && <> · <a href={p.announcementUrl} rel="noopener" class="text-navy-mid hover:text-navy">{T.announcement} ↗</a></>}
+            </p>
+            <p class="text-xs text-gray-500 mt-1"><a href={p.sourceUrl} rel="noopener" class="hover:text-navy">{T.source}</a> · <a href={suggestUrl(p.id, lang)} class="hover:text-navy">{T.suggest}</a></p>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    <div data-guide data-lang={lang} data-text={JSON.stringify(T)} data-university={university.id} class="mt-10">
+      <h2 class="text-xl font-semibold text-navy">{T.professorsHeading}</h2>
+      <p data-status role="status" class="text-sm text-gray-600 mt-2"></p>
+      <ol data-results class="mt-2 border-t border-border"></ol>
+    </div>
+
+    <p class="mt-10 text-sm"><a href={`${prefix}/guide/`} class="text-navy-mid hover:text-navy font-medium">← {T.backToSearch}</a></p>
+  </div>
+</section>
+
+<script>
+  import { startGuide } from '../../scripts/guide-page';
+  const root = document.querySelector<HTMLElement>('[data-guide]');
+  if (root) void startGuide(root);
+</script>

@@ -1,0 +1,15 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import GuideUniversity from '../../../components/guide/GuideUniversity.astro';
+
+export async function getStaticPaths() {
+  return (await getCollection('guideUniversities')).map((e) => ({ params: { university: e.data.id }, props: { university: e.data } }));
+}
+const { university } = Astro.props;
+---
+
+<BaseLayout pageTitle={`${university.name.tr} - Lisansüstü rehberi`}
+  description={`${university.name.tr} (${university.city}) yüksek lisans programları ve biyoinformatik hocaları.`}>
+  <GuideUniversity lang="tr" university={university} />
+</BaseLayout>

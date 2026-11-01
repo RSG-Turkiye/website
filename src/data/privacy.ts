@@ -10,8 +10,10 @@ import { privacySchema, type PrivacyNotice } from './privacy-schema';
 
 export type { PrivacyNotice, PrivacySection } from './privacy-schema';
 
-/** Written `{contact}` in the notice's text, so the file in git holds no address. */
-export const PRIVACY_CONTACT = 'turkey.rsg@gmail.com';
+/** Written `{contact}` in the notice's text, so the file in git holds no address.
+ * Lives in ./contact.ts so browser code can use it without this notice. */
+import { PRIVACY_CONTACT } from './contact';
+export { PRIVACY_CONTACT };
 
 /** A text of the notice with `{contact}` filled in. */
 export const withContact = (text: string): string => text.split('{contact}').join(PRIVACY_CONTACT);

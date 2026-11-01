@@ -1,0 +1,41 @@
+---
+/** /guide/universities: every university in the guide, by city, with how many MSc programmes it lists. */
+import { getCollection } from 'astro:content';
+import { GUIDE_TEXT, fill, type Lang } from '../../lib/guide-text';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const T = GUIDE_TEXT[lang];
+const prefix = lang === 'tr' ? '/tr' : '';
+const programmes = (await getCollection('guideProgrammes')).map((e) => e.data);
+const universities = (await getCollection('guideUniversities')).map((e) => e.data);
+const byCity = new Map<string, typeof universities>();
+for (const u of universities) byCity.set(u.city, [...(byCity.get(u.city) ?? []), u]);
+const cities = [...byCity.keys()].sort((a, b) => a.localeCompare(b, 'tr'));
+const count = (id: string) => programmes.filter((p) => p.universityId === id).length;
+---
+
+<div class="bg-navy py-12">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6">
+    <p class="text-white/70 text-sm"><a href={`${prefix}/guide/`} class="hover:text-white">{T.title}</a></p>
+    <h1 class="text-3xl font-bold text-white mt-1">{T.universitiesTitle}</h1>
+  </div>
+</div>
+
+<section class="bg-white py-10">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 grid gap-8 sm:grid-cols-2">
+    {cities.map((city) => (
+      <div>
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 pb-1 border-b border-border">{city}</h2>
+        <ul class="mt-2 flex flex-col gap-1.5">
+          {byCity.get(city)!.sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang)).map((u) => (
+            <li class="text-sm">
+              <a href={`${prefix}/guide/${u.id}/`} class="text-navy hover:text-navy-mid font-medium">{u.name[lang]}</a>
+              <span class="text-gray-500"> · {count(u.id) ? fill(T.programmeCount, { n: count(u.id) }) : T.noProgrammeYet}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </div>
+</section>
