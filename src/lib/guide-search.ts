@@ -86,7 +86,8 @@ export function search(q: string, city: string | null, index: GuideIndex, catalo
 export interface Card {
   university: University | undefined;
   lab?: IndexLab;
-  programmes: (CatalogProgramme & { showWindow: boolean })[];
+  /** pageChangedSince: the programme's page changed and nobody has updated the entry for 10 days (functions/_lib/guide-index.ts). */
+  programmes: (CatalogProgramme & { showWindow: boolean; pageChangedSince?: string })[];
   programmeUnknown: boolean;
   /** No programme was chosen for this professor: these are all of the
    * university's programmes, a guess the card must say is one. */
@@ -94,14 +95,18 @@ export interface Card {
 }
 
 /** `today` is the Istanbul date, YYYY-MM-DD (src/lib/istanbul-time.ts). */
-export function joinCard(p: IndexProfessor, catalog: GuideCatalog, today: string, labs: IndexLab[] = []): Card {
+export function joinCard(p: IndexProfessor, catalog: GuideCatalog, today: string, labs: IndexLab[] = [], pageChanged: Record<string, string> = {}): Card {
   const own = catalog.programmes.filter((x) => x.universityId === p.universityId);
   const listed = p.programmeIds.map((id) => catalog.programmes.find((x) => x.id === id)).filter((x): x is CatalogProgramme => Boolean(x));
   const chosen = listed.length ? listed : own;
   return {
     university: catalog.universities.find((u) => u.id === p.universityId),
     lab: p.labId ? labs.find((l) => l.id === p.labId) : undefined,
-    programmes: chosen.map((x) => ({ ...x, showWindow: Boolean(x.windowOpens && x.windowCloses && x.windowCloses >= today) })),
+    programmes: chosen.map((x) => ({
+      ...x,
+      showWindow: Boolean(x.windowOpens && x.windowCloses && x.windowCloses >= today),
+      ...(pageChanged[x.id] ? { pageChangedSince: pageChanged[x.id] } : {}),
+    })),
     programmeUnknown: chosen.length === 0,
     fallback: listed.length === 0,
   };

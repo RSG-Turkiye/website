@@ -2,6 +2,7 @@ import type { Env } from '../../../_lib/auth';
 import { jsonResponse } from '../../../_lib/auth';
 import { runWithAudit } from '../../../_lib/audit';
 import { safeEqual } from '../../../_lib/secret';
+import { republish } from '../../../_lib/guide-api';
 import { pageText, fingerprint, changedLines, MIN_TEXT, PASS_NIGHTS, MAX_PER_NIGHT } from '../../../_lib/page-watch';
 
 /**
@@ -14,6 +15,10 @@ import { pageText, fingerprint, changedLines, MIN_TEXT, PASS_NIGHTS, MAX_PER_NIG
  * person opens the link and enters what they see. The first sighting only
  * records a baseline. A page that is not 200 or is nearly empty is
  * "unreadable": counted, never a change.
+ *
+ * Every night ends with a republish of the search index, so a change left
+ * unhandled for STALE_PAGE_DAYS shows its public warning on that day without
+ * anyone pressing anything.
  */
 
 interface Catalog { programmes: { id: string; announcementUrl?: string; calendarUrl?: string }[] }
@@ -79,5 +84,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .bind(JSON.stringify(keep), binary ? '' : text.slice(0, 20000), now, w.url));
   }
   await runWithAudit(env.DB, writes, { userId: null, action: 'guide.watch', details: { checked: results?.length ?? 0, changed, unreadable } }, now);
-  return jsonResponse({ checked: results?.length ?? 0, changed, unreadable });
+  const publish = await republish(env, now);
+  return jsonResponse({ checked: results?.length ?? 0, changed, unreadable, publish });
 };

@@ -56,5 +56,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const set = action === 'discard' || row.kind === 'removal' ? ", payload = '{}'" : '';
   await runWithAudit(env.DB, [env.DB.prepare(`UPDATE intake_rows SET status = ?, handled_at = ?${set} WHERE id = ?`).bind(status, gate.now, id)],
     { userId: gate.user.id, action: `guide.suggestion.${status}`, targetType: 'intake_row', targetId: String(id) }, gate.now);
+  // A handled page change may lift a public "do not rely on this" warning.
+  if (row.kind === 'page_changed') return jsonResponse({ ok: true, publish: await republish(env, gate.now) });
   return jsonResponse({ ok: true });
 };

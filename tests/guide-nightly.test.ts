@@ -12,6 +12,7 @@ import { onRequestPost as refreshPost } from '../functions/api/admin/guide/refre
 import { onRequestPost as watchPost } from '../functions/api/admin/guide/watch';
 import { onRequestPost as backupPost } from '../functions/api/admin/guide/backup';
 import { upsertProfessor, upsertLab, listProfessors, type ProfessorRow } from '../functions/_lib/guide-db';
+import { publishGuideIndex, INDEX_KEY, type GuideIndex } from '../functions/_lib/guide-index';
 
 /** The guide's nightly jobs: OpenAlex topics, the announcement-page watch and the backups. Names are invented. */
 
@@ -233,4 +234,33 @@ test('Minor: a PDF announcement is fingerprinted but yields no text lines', asyn
   assert.equal(w.state, 'ok');
   assert.equal(JSON.parse(w.fingerprints).length, 1);
   assert.equal(w.last_text, '');
+});
+
+test('a page change left unhandled for 10 days warns on every programme using that page; a newer one does not yet', async () => {
+  const { env, raw, r2 } = setup();
+  const now = Math.floor(Date.now() / 1000);
+  const pages = { 'https://ilan.example.edu.tr/a': { body: long('A') }, 'https://ilan.example.edu.tr/takvim': { body: long('T') } };
+  let http = pageServer(pages);
+  try { await post(watchPost, env, '/api/admin/guide/watch'); } finally { http.restore(); }
+  const queue = raw.prepare("INSERT INTO intake_rows (source, row_key, record_id, kind, payload, status, count, created_at) VALUES ('guide', ?, 'ornek-a', 'page_changed', ?, 'new', 1, ?)");
+  queue.run('w1', JSON.stringify({ text: '', link: 'https://ilan.example.edu.tr/a' }), now - 11 * 86400);
+  queue.run('w2', JSON.stringify({ text: '', link: 'https://ilan.example.edu.tr/takvim' }), now - 3 * 86400);
+  http = pageServer(pages);
+  try { await post(watchPost, env, '/api/admin/guide/watch'); } finally { http.restore(); }
+  const index = JSON.parse(new TextDecoder().decode(r2.store.get(INDEX_KEY)!.body)) as GuideIndex;
+  const since = new Date((now - 11 * 86400) * 1000).toISOString().slice(0, 10);
+  assert.deepEqual(index.pageChanged, { 'ornek-a': since, 'ornek-b': since }, 'the shared page marks both programmes; the 3-day-old one marks nothing');
+});
+
+test('a muted page never warns, however old its open row', async () => {
+  const { env, raw, r2 } = setup();
+  const now = Math.floor(Date.now() / 1000);
+  const http = pageServer({ 'https://ilan.example.edu.tr/a': { body: long('A') }, 'https://ilan.example.edu.tr/takvim': { body: long('T') } });
+  try { await post(watchPost, env, '/api/admin/guide/watch'); } finally { http.restore(); }
+  raw.prepare("UPDATE guide_page_watch SET muted = 1 WHERE url LIKE '%/a'").run();
+  raw.prepare("INSERT INTO intake_rows (source, row_key, record_id, kind, payload, status, count, created_at) VALUES ('guide', 'w1', 'ornek-a', 'page_changed', ?, 'new', 1, ?)")
+    .run(JSON.stringify({ text: '', link: 'https://ilan.example.edu.tr/a' }), now - 30 * 86400);
+  await publishGuideIndex(env as never, now);
+  const index = JSON.parse(new TextDecoder().decode(r2.store.get(INDEX_KEY)!.body)) as GuideIndex;
+  assert.deepEqual(index.pageChanged, {});
 });

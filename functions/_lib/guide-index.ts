@@ -32,7 +32,16 @@ export interface IndexProfessor {
   source: string;
 }
 export interface IndexLab { id: string; name: string; universityId: string; url: string }
-export interface GuideIndex { generatedAt: string; professors: IndexProfessor[]; labs: IndexLab[] }
+/**
+ * Programme id → the day its announcement page was seen to change, for a
+ * change nobody has handled in STALE_PAGE_DAYS: the page tells the reader not
+ * to rely on that programme's entry (owner, 2026-11-01: if nobody maintains
+ * the guide, it should say so rather than be quietly wrong).
+ */
+export type PageChanged = Record<string, string>;
+export interface GuideIndex { generatedAt: string; professors: IndexProfessor[]; labs: IndexLab[]; pageChanged: PageChanged }
+
+export const STALE_PAGE_DAYS = 10;
 
 const day = (s: number) => new Date(s * 1000).toISOString().slice(0, 10);
 const key = (t: string) => t.trim().toLocaleLowerCase('tr');
@@ -50,7 +59,24 @@ function topicsOf(p: ProfessorRow): string[] {
   return out;
 }
 
-export function buildGuideIndex(profs: ProfessorRow[], labs: LabRow[], now: number): GuideIndex {
+/**
+ * Open "page changed" rows older than STALE_PAGE_DAYS, spread over every
+ * programme that uses the page. A muted page's alarms are noise by the
+ * approver's judgment, so it never warns.
+ */
+export async function listChangedPages(db: D1Database, now: number): Promise<PageChanged> {
+  const { results } = await db.prepare(
+    `SELECT j.value AS id, MIN(r.created_at) AS since
+     FROM intake_rows r
+     JOIN guide_page_watch w ON w.url = json_extract(r.payload, '$.link') AND w.muted = 0
+     JOIN json_each(w.programme_ids) j
+     WHERE r.source = 'guide' AND r.kind = 'page_changed' AND r.status = 'new' AND r.created_at <= ?
+     GROUP BY j.value ORDER BY j.value`,
+  ).bind(now - STALE_PAGE_DAYS * 86400).all<{ id: string; since: number }>();
+  return Object.fromEntries((results ?? []).map((r) => [r.id, day(r.since)]));
+}
+
+export function buildGuideIndex(profs: ProfessorRow[], labs: LabRow[], now: number, pageChanged: PageChanged = {}): GuideIndex {
   const professors: IndexProfessor[] = profs.map((p) => ({
     id: p.id, title: p.title, name: p.name, universityId: p.universityId, department: p.department, labId: p.labId,
     profileUrl: p.profileUrl, openalexId: p.openalexId, topics: topicsOf(p), programmeIds: p.programmeIds,
@@ -62,6 +88,7 @@ export function buildGuideIndex(profs: ProfessorRow[], labs: LabRow[], now: numb
     professors,
     // A lab is often named after a person: one with no professor left goes.
     labs: labs.filter((l) => used.has(l.id)).map((l) => ({ id: l.id, name: l.name, universityId: l.universityId, url: l.url })),
+    pageChanged,
   };
 }
 
@@ -102,7 +129,7 @@ export type PublishResult = { ok: true; count: number; unresolved: number | null
 export async function publishGuideIndex(env: PublishEnv, now: number): Promise<PublishResult> {
   let index: GuideIndex;
   try {
-    index = buildGuideIndex(await listProfessors(env.DB), await listLabs(env.DB), now);
+    index = buildGuideIndex(await listProfessors(env.DB), await listLabs(env.DB), now, await listChangedPages(env.DB, now));
   } catch (err) {
     const reason = String((err as Error)?.message ?? err).slice(0, 300);
     await recordState(env.DB, { error: reason });

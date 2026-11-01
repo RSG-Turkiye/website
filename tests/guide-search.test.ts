@@ -129,3 +129,8 @@ test('a fallback programme list is marked as a guess, an explicit one is not', (
   assert.equal(joinCard(prof({ programmeIds: ['ornek-bioinf'] }), catalog, '2026-11-01').fallback, false);
   assert.equal(joinCard(prof({ programmeIds: ['gone'] }), catalog, '2026-11-01').fallback, true, 'only dead ids is a fallback too');
 });
+
+test('joinCard carries the date a programme page changed unhandled, and only for that programme', () => {
+  const c = joinCard(prof({ programmeIds: [] }), catalog, '2026-11-01', [], { 'ornek-cmpe': '2026-10-20' });
+  assert.deepEqual(c.programmes.map((p) => [p.id, p.pageChangedSince ?? null]), [['ornek-bioinf', null], ['ornek-cmpe', '2026-10-20']]);
+});

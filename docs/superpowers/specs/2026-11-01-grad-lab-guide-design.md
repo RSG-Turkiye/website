@@ -160,6 +160,14 @@ link and enters what they see. A page that keeps raising false alarms can be
 muted from the panel. (Later, optionally: a model drafts the new dates from
 the changed page, still for a person to approve. Not in the first version.)
 
+If nobody handles a change for 10 days, the guide says so in public (owner,
+2026-11-01): every programme using that page shows "this page changed around
+<date> and this entry has not been updated; do not rely on it, check the
+announcement yourself" on the search cards and the university page. The
+nightly watch republishes the index, so the warning appears without anyone
+acting; marking the queue row done or discarded lifts it at once. A muted
+page never warns.
+
 Lab fields: name, university, URL, professors.
 
 Professor fields: title, name, university, department, lab, official profile

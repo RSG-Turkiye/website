@@ -25,3 +25,9 @@ test('a record never checked against an official page says so instead of showing
   assert.equal(checkedLabel('1970-01-01', 'en'), 'not yet confirmed on an official page');
   assert.match(checkedLabel('2026-11-01', 'tr'), /1 Kasım 2026 tarihinde kontrol edildi/);
 });
+
+test('the page-changed warning tells the reader not to rely on the entry, in both languages', async () => {
+  const { pageChangedLabel } = await import('../src/lib/guide-text');
+  assert.equal(pageChangedLabel('2026-10-20', 'tr'), 'Bu programın duyuru sayfası 20 Ekim 2026 civarında değişti ve buradaki bilgiler henüz güncellenmedi. Bu bilgilere güvenmeyin; duyuruyu kendiniz kontrol edin.');
+  assert.match(pageChangedLabel('2026-10-20', 'en'), /changed around 20 October 2026.*check the announcement yourself/);
+});

@@ -39,6 +39,7 @@ const programmes = (await getCollection('guideProgrammes'))
               {p.usualMonths.length ? fill(T.usually, { months: monthNames(p.usualMonths, lang) }) : T.monthsUnknown}
               {p.announcementUrl && <> · <a href={p.announcementUrl} rel="noopener" class="text-navy-mid hover:text-navy">{T.announcement} ↗</a></>}
             </p>
+            <p data-page-changed={p.id} role="note" hidden></p>
             <p class="text-xs text-gray-500 mt-1"><a href={p.sourceUrl} rel="noopener" class="hover:text-navy">{T.source}</a> · <a href={suggestUrl(p.id, lang)} class="hover:text-navy">{T.suggest}</a></p>
           </li>
         ))}

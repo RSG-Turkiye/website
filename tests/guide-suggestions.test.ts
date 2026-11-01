@@ -193,3 +193,17 @@ test('Final #2: a response seen over a year ago is never queued again', async ()
   await pruneIntake(db, NOW + 400 * 86400);
   assert.deepEqual(await importRows(db, [row], GUIDE_MAPPING, NOW + 400 * 86400), { added: 0, removals: 0 });
 });
+
+test('handling a page-change row republishes, so the public warning goes at once', async () => {
+  const { env, raw, r2 } = setup();
+  raw.prepare("INSERT INTO guide_page_watch (url, programme_ids) VALUES ('https://ilan.example.edu.tr/a', '[\"ornek-a\"]')").run();
+  raw.prepare("INSERT INTO intake_rows (source, row_key, record_id, kind, payload, status, count, created_at) VALUES ('guide', 'w1', 'ornek-a', 'page_changed', ?, 'new', 1, ?)")
+    .run(JSON.stringify({ text: '', link: 'https://ilan.example.edu.tr/a' }), NOW - 20 * 86400);
+  await publishGuideIndex(env as never, NOW);
+  const read = () => JSON.parse(new TextDecoder().decode(r2.store.get(INDEX_KEY)!.body)).pageChanged;
+  assert.deepEqual(Object.keys(read()), ['ornek-a']);
+  const id = (raw.prepare("SELECT id FROM intake_rows WHERE row_key = 'w1'").get() as { id: number }).id;
+  const res = await call(suggestions.onRequestPost, env, 'approver', 'POST', { id, action: 'done' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(read(), {});
+});

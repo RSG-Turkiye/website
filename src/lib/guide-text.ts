@@ -45,6 +45,7 @@ export const GUIDE_TEXT = {
     privacy: 'How we handle this information',
     programmeCount: '{n} programmes',
     noProgrammeYet: 'no programme found yet',
+    pageChanged: 'This programme\u2019s announcement page changed around {date} and this entry has not been updated since. Do not rely on it; check the announcement yourself.',
   },
   tr: {
     title: 'Lisansüstü rehberi',
@@ -81,6 +82,7 @@ export const GUIDE_TEXT = {
     privacy: 'Bu bilgileri nasıl kullanıyoruz',
     programmeCount: '{n} program',
     noProgrammeYet: 'henüz program bulunamadı',
+    pageChanged: 'Bu programın duyuru sayfası {date} civarında değişti ve buradaki bilgiler henüz güncellenmedi. Bu bilgilere güvenmeyin; duyuruyu kendiniz kontrol edin.',
   },
 } as const;
 
@@ -106,6 +108,11 @@ export function suggestUrl(recordId: string, lang: Lang, kind: 'correction' | 'r
  * never "checked" on the card until someone confirms them. */
 export function checkedLabel(day: string, lang: Lang): string {
   return day < '2000-01-01' ? GUIDE_TEXT[lang].unverified : fill(GUIDE_TEXT[lang].checked, { date: dayLabel(day, lang) });
+}
+
+/** The public warning on a programme whose page changed unhandled (see STALE_PAGE_DAYS). */
+export function pageChangedLabel(day: string, lang: Lang): string {
+  return fill(GUIDE_TEXT[lang].pageChanged, { date: dayLabel(day, lang) });
 }
 
 /** "June, December" in the page's language, from month numbers as text. */

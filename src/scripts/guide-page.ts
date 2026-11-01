@@ -6,7 +6,7 @@
  */
 import { escapeHtml } from './escape-html';
 import { search, joinCard, expandQuery, fold } from '../lib/guide-search';
-import { fill, suggestUrl, monthNames, dayLabel, checkedLabel, type GuideText, type Lang } from '../lib/guide-text';
+import { fill, suggestUrl, monthNames, dayLabel, checkedLabel, pageChangedLabel, type GuideText, type Lang } from '../lib/guide-text';
 import { epochToIstanbulInput } from '../lib/istanbul-time';
 import { readCachedIndex, writeCachedIndex } from '../lib/guide-index-cache';
 import type { GuideIndex, IndexProfessor } from '../../functions/_lib/guide-index';
@@ -27,8 +27,22 @@ async function loadIndex(): Promise<GuideIndex> {
   return index;
 }
 
+const WARN = 'block mt-1 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1';
+
+/** The university page lists its programmes at build time; the warning arrives with the index. */
+function markChangedProgrammes(pageChanged: Record<string, string>, lang: Lang): void {
+  for (const el of document.querySelectorAll<HTMLElement>('[data-page-changed]')) {
+    const since = pageChanged[el.dataset.pageChanged ?? ''];
+    if (!since) continue;
+    el.textContent = pageChangedLabel(since, lang);
+    el.className = WARN;
+    el.hidden = false;
+  }
+}
+
 function card(p: IndexProfessor, matched: string[], c: GuideCatalog, idx: GuideIndex, T: GuideText, lang: Lang, prefix: string, today: string, withApply: boolean): string {
-  const j = joinCard(p, c, today, idx.labs);
+  // An index cached before pageChanged existed has none: no warning, not an error.
+  const j = joinCard(p, c, today, idx.labs, idx.pageChanged ?? {});
   const hit = new Set(matched.map(fold));
   const name = `${p.title} ${p.name}`.trim();
   const uni = j.university;
@@ -44,7 +58,8 @@ function card(p: IndexProfessor, matched: string[], c: GuideCatalog, idx: GuideI
       const months = x.usualMonths.length ? fill(T.usually, { months: monthNames(x.usualMonths, lang) }) : T.monthsUnknown;
       const win = x.showWindow ? ` · ${fill(T.reported, { from: dayLabel(x.windowOpens!, lang), to: dayLabel(x.windowCloses!, lang) })}` : '';
       const link = x.announcementUrl ? ` · <a href="${escapeHtml(x.announcementUrl)}" rel="noopener" class="text-navy-mid hover:text-navy">${escapeHtml(T.announcement)} ↗</a>` : '';
-      return `<p class="text-sm text-gray-700"><span class="font-medium text-navy">${escapeHtml(T.applyTo)}: ${escapeHtml(x.name[lang])}</span> <span class="text-gray-500">(${escapeHtml(x.institute[lang])})</span><br>${escapeHtml(months)}${win}${link}</p>`;
+      const warn = x.pageChangedSince ? `<span class="${WARN}">${escapeHtml(pageChangedLabel(x.pageChangedSince, lang))}</span>` : '';
+      return `<p class="text-sm text-gray-700"><span class="font-medium text-navy">${escapeHtml(T.applyTo)}: ${escapeHtml(x.name[lang])}</span> <span class="text-gray-500">(${escapeHtml(x.institute[lang])})</span><br>${escapeHtml(months)}${win}${link}${warn}</p>`;
     }).join('') + (j.fallback ? `<p class="text-xs text-gray-500">${escapeHtml(T.whichProgramme)} <a href="${escapeHtml(suggestUrl(p.id, lang))}" class="text-navy-mid hover:text-navy">${escapeHtml(T.suggest)}</a></p>` : '');
   return `<li class="py-5 border-b border-border">
     <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -77,6 +92,7 @@ export async function startGuide(root: HTMLElement): Promise<void> {
   }
 
   if (university) {
+    markChangedProgrammes(index.pageChanged ?? {}, lang);
     const profs = index.professors.filter((p) => p.universityId === university).sort((a, b) => a.name.localeCompare(b.name, 'tr'));
     list.innerHTML = profs.map((p) => card(p, [], catalog, index, T, lang, prefix, today, false)).join('');
     status.textContent = fill(T.results, { n: profs.length });
