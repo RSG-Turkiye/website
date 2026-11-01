@@ -24,6 +24,10 @@ const FIXED: Record<string, Label> = {
   'guide.lab.save': { en: 'Saved a guide lab record', tr: 'Rehberde bir lab kaydı kaydedildi' },
   'guide.lab.delete': { en: 'Removed a guide lab record', tr: 'Rehberden bir lab kaydı kaldırıldı' },
   'guide.republish': { en: 'Republished the guide search index', tr: 'Rehber arama dosyası yeniden yayınlandı' },
+  'guide.import': { en: 'Imported guide suggestions from the Form', tr: 'Rehber önerileri formdan aktarıldı' },
+  'guide.suggestion.done': { en: 'Handled a guide suggestion', tr: 'Bir rehber önerisi işlendi' },
+  'guide.suggestion.discarded': { en: 'Discarded a guide suggestion', tr: 'Bir rehber önerisi reddedildi' },
+  'guide.suggestion.removal': { en: 'Removed a professor on request', tr: 'İsteği üzerine bir hoca rehberden çıkarıldı' },
   'agent_token.auto_revoke': { en: 'Agent token revoked automatically', tr: 'Ajan anahtarı otomatik olarak iptal edildi' },
   'usage.alert': { en: 'Free-tier usage alert', tr: 'Ücretsiz kota uyarısı' },
 

@@ -211,3 +211,44 @@ export async function loadGuide(): Promise<void> {
   renderProfessors();
   renderLabs();
 }
+
+interface Suggestion { id: number; recordId: string; kind: 'correction' | 'addition' | 'programme' | 'removal'; count: number; createdAt: number; text?: string; link?: string; submittedAt?: string }
+
+/** The queue of Form suggestions. A person makes the change in the editor, then marks the row done. */
+export async function loadSuggestions(): Promise<void> {
+  const res = await fetch('/api/guide/suggestions');
+  if (!res.ok) throw new Error(`suggestions ${res.status}`);
+  const body = await res.json() as { rows: Suggestion[]; state: { checked_at: number | null; result: string | null; added: number | null } | null; canWrite: boolean };
+  const st = body.state;
+  $('guideImportState').textContent = st?.checked_at
+    ? tf('admin.guide.suggestions.lastImport', { when: formatDate(st.checked_at), result: t(`admin.guide.import.${st.result ?? 'error'}` as never) })
+    : t('admin.guide.suggestions.neverImported');
+  const host = $('guideSuggestionList');
+  if (!body.rows.length) { host.innerHTML = emptyState(t('admin.guide.suggestions.empty')); return; }
+  const who = (id: string) => data?.professors.find((p) => p.id === id)?.name ?? data?.labs.find((l) => l.id === id)?.name ?? id;
+  host.innerHTML = body.rows.map((r) => {
+    const actions = !body.canWrite ? '' : [
+      r.kind === 'removal' && r.recordId.startsWith('p_') ? `<button type="button" data-remove="${r.id}" class="${BTN.danger}">${escapeHtml(t('admin.guide.suggestions.applyRemoval'))}</button>` : '',
+      r.recordId.startsWith('p_') && r.kind !== 'removal' ? `<button type="button" data-open="${escapeHtml(r.recordId)}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.edit'))}</button>` : '',
+      `<button type="button" data-done="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.done'))}</button>`,
+      `<button type="button" data-discard="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.discard'))}</button>`,
+    ].join('');
+    return row({
+      title: `${t(`admin.guide.kind.${r.kind}` as never)}${r.recordId ? ` · ${who(r.recordId)}` : ''}`,
+      subtitle: [r.text, r.link].filter(Boolean).join(' · '),
+      chips: [r.kind === 'removal' ? chip(t('admin.guide.suggestions.urgent'), 'red') : '', r.count > 1 ? chip(`×${r.count}`, 'neutral') : ''].join(''),
+      trailing: actions,
+      stack: true,
+    });
+  }).join('');
+  const act = async (id: string, action: string) => {
+    if (await send('/api/guide/suggestions', 'POST', { id: Number(id), action })) { await loadSuggestions(); if (action === 'applyRemoval') await loadGuide(); }
+  };
+  host.querySelectorAll<HTMLButtonElement>('[data-done]').forEach((b) => b.addEventListener('click', () => act(b.dataset.done!, 'done')));
+  host.querySelectorAll<HTMLButtonElement>('[data-discard]').forEach((b) => b.addEventListener('click', () => act(b.dataset.discard!, 'discard')));
+  host.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((b) => armConfirm(b, t('admin.guide.confirmDelete'), () => act(b.dataset.remove!, 'applyRemoval')));
+  host.querySelectorAll<HTMLButtonElement>('[data-open]').forEach((b) => b.addEventListener('click', () => {
+    location.hash = '#rehber/hocalar';
+    openProfessor(data?.professors.find((p) => p.id === b.dataset.open) ?? null);
+  }));
+}

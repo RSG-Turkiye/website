@@ -405,8 +405,8 @@
 --
 -- 8o. Graduate guide (docs/superpowers/specs/2026-11-01-grad-lab-guide-design.md).
 --    New tables only, all IF NOT EXISTS, safe to repeat: guide_labs,
---    guide_professors, guide_index_state (and, from the same feature,
---    intake_rows and guide_page_watch). Professors and labs are personal
+--    guide_professors, guide_index_state, intake_rows, intake_seen,
+--    intake_state and guide_page_watch. Professors and labs are personal
 --    data and live only here, never in git (CLAUDE.md rule 4). Run it
 --    BEFORE deploying:
 --      wrangler d1 execute rsg-members --remote --file=db/schema.sql
@@ -1284,3 +1284,37 @@ CREATE TABLE IF NOT EXISTS guide_index_state (
   error         TEXT
 );
 INSERT OR IGNORE INTO guide_index_state (id) VALUES (1);
+
+-- Intake queue (8o): Google Form responses imported from their Sheet
+-- (functions/_lib/sheet-import.ts). The Sheet stays the source of truth
+-- (CLAUDE.md rule 3). payload is JSON {text, link, submittedAt}; e-mail
+-- addresses in it are masked on import. Handled rows are deleted 90 days
+-- after handled_at; a removal deletes every row about that record at once.
+CREATE TABLE IF NOT EXISTS intake_rows (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  source      TEXT NOT NULL,
+  row_key     TEXT NOT NULL UNIQUE,
+  record_id   TEXT NOT NULL DEFAULT '',
+  kind        TEXT NOT NULL,
+  payload     TEXT NOT NULL DEFAULT '{}',
+  status      TEXT NOT NULL DEFAULT 'new',
+  count       INTEGER NOT NULL DEFAULT 1,
+  created_at  INTEGER NOT NULL,
+  handled_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS intake_rows_status ON intake_rows (source, status);
+CREATE INDEX IF NOT EXISTS intake_rows_record ON intake_rows (record_id);
+-- Every response key ever imported (a hash, no text), a year, so a response
+-- whose queue row is gone is never queued again.
+CREATE TABLE IF NOT EXISTS intake_seen (
+  row_key     TEXT PRIMARY KEY,
+  created_at  INTEGER NOT NULL
+);
+-- The last nightly import, one row, for the panel.
+CREATE TABLE IF NOT EXISTS intake_state (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  checked_at  INTEGER,
+  result      TEXT,
+  added       INTEGER
+);
+INSERT OR IGNORE INTO intake_state (id) VALUES (1);

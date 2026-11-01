@@ -40,6 +40,10 @@ export interface Env {
   /** The Pages static-asset binding. The CMS reads the build-time
    * /cms-index.json through it; absent in node tests. */
   ASSETS?: Fetcher;
+  /** The graduate guide's service-account key (JSON) and its Form's response Sheet
+   * (functions/_lib/google-sa.ts, sheet-import.ts). Set by a maintainer. */
+  GOOGLE_SA_KEY?: string;
+  GUIDE_SHEET_ID?: string;
 }
 
 export interface User {

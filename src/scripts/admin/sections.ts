@@ -102,6 +102,7 @@ export const SECTIONS: Section[] = [
     subs: [
       { id: 'hocalar', label: 'admin.guide.tab.professors' },
       { id: 'lablar', label: 'admin.guide.tab.labs' },
+      { id: 'oneriler', label: 'admin.guide.tab.suggestions' },
     ],
   },
   // Part 3 (membership) makes this visible.

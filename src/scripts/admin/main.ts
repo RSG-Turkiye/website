@@ -25,7 +25,7 @@ import { loadStats } from './sections/stats';
 import { setupCms, showCms } from './sections/cms';
 import { loadTokens } from './sections/tokens';
 import { setupHelp, showHelp } from './sections/help';
-import { loadGuide } from './sections/guide';
+import { loadGuide, loadSuggestions } from './sections/guide';
 
 // Init
 
@@ -134,6 +134,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
     icerik: (sub, item) => showCms(sub, item),
+    rehber: (sub) => { if (sub === 'oneriler') void loadSuggestions().catch(() => showToast(t('admin.guide.loadFailed'), true)); },
   };
   // Content editors, approvers and admins: the form exists before the shell
   // opens a deep link to a draft.
