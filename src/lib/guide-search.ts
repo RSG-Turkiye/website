@@ -88,6 +88,9 @@ export interface Card {
   lab?: IndexLab;
   programmes: (CatalogProgramme & { showWindow: boolean })[];
   programmeUnknown: boolean;
+  /** No programme was chosen for this professor: these are all of the
+   * university's programmes, a guess the card must say is one. */
+  fallback: boolean;
 }
 
 /** `today` is the Istanbul date, YYYY-MM-DD (src/lib/istanbul-time.ts). */
@@ -100,5 +103,6 @@ export function joinCard(p: IndexProfessor, catalog: GuideCatalog, today: string
     lab: p.labId ? labs.find((l) => l.id === p.labId) : undefined,
     programmes: chosen.map((x) => ({ ...x, showWindow: Boolean(x.windowOpens && x.windowCloses && x.windowCloses >= today) })),
     programmeUnknown: chosen.length === 0,
+    fallback: listed.length === 0,
   };
 }

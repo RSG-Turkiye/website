@@ -123,3 +123,9 @@ test('a generic topic like "Biyoinformatik" does not match a specific term group
 test('a one-word query does not pull in a group it is only part of', () => {
   assert.deepEqual(expandQuery('protein', catalog.terms).alsoSearched, []);
 });
+
+test('a fallback programme list is marked as a guess, an explicit one is not', () => {
+  assert.equal(joinCard(prof({ programmeIds: [] }), catalog, '2026-11-01').fallback, true);
+  assert.equal(joinCard(prof({ programmeIds: ['ornek-bioinf'] }), catalog, '2026-11-01').fallback, false);
+  assert.equal(joinCard(prof({ programmeIds: ['gone'] }), catalog, '2026-11-01').fallback, true, 'only dead ids is a fallback too');
+});

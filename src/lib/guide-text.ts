@@ -33,6 +33,8 @@ export const GUIDE_TEXT = {
     profile: 'Profile',
     lab: 'Lab',
     checked: 'checked {date}',
+    unverified: 'not yet confirmed on an official page',
+    whichProgramme: 'Which programme this professor supervises in is not known yet; these are the university\u2019s programmes in the guide.',
     source: 'source',
     universities: 'All universities',
     universitiesTitle: 'Universities in the guide',
@@ -67,6 +69,8 @@ export const GUIDE_TEXT = {
     profile: 'Profil',
     lab: 'Lab',
     checked: '{date} tarihinde kontrol edildi',
+    unverified: 'henüz resmi bir sayfadan doğrulanmadı',
+    whichProgramme: 'Bu hocanın hangi programda danışmanlık yaptığı henüz bilinmiyor; bunlar üniversitenin rehberdeki programları.',
     source: 'kaynak',
     universities: 'Tüm üniversiteler',
     universitiesTitle: 'Rehberdeki üniversiteler',
@@ -96,6 +100,12 @@ export function suggestUrl(recordId: string, lang: Lang, kind: 'correction' | 'r
     ? (lang === 'tr' ? 'Rehberden çıkarılma isteği' : 'Guide removal request')
     : (lang === 'tr' ? `Rehber düzeltmesi: ${recordId}` : `Guide correction: ${recordId}`);
   return `mailto:${PRIVACY_CONTACT}?subject=${encodeURIComponent(subject)}`;
+}
+
+/** Seed rows confirmed only through OpenAlex carry checkedAt 1970-01-01:
+ * never "checked" on the card until someone confirms them. */
+export function checkedLabel(day: string, lang: Lang): string {
+  return day < '2000-01-01' ? GUIDE_TEXT[lang].unverified : fill(GUIDE_TEXT[lang].checked, { date: dayLabel(day, lang) });
 }
 
 /** "June, December" in the page's language, from month numbers as text. */

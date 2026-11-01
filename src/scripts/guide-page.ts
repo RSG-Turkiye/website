@@ -6,7 +6,7 @@
  */
 import { escapeHtml } from './escape-html';
 import { search, joinCard, expandQuery, fold } from '../lib/guide-search';
-import { fill, suggestUrl, monthNames, dayLabel, type GuideText, type Lang } from '../lib/guide-text';
+import { fill, suggestUrl, monthNames, dayLabel, checkedLabel, type GuideText, type Lang } from '../lib/guide-text';
 import { epochToIstanbulInput } from '../lib/istanbul-time';
 import { readCachedIndex, writeCachedIndex } from '../lib/guide-index-cache';
 import type { GuideIndex, IndexProfessor } from '../../functions/_lib/guide-index';
@@ -45,7 +45,7 @@ function card(p: IndexProfessor, matched: string[], c: GuideCatalog, idx: GuideI
       const win = x.showWindow ? ` · ${fill(T.reported, { from: dayLabel(x.windowOpens!, lang), to: dayLabel(x.windowCloses!, lang) })}` : '';
       const link = x.announcementUrl ? ` · <a href="${escapeHtml(x.announcementUrl)}" rel="noopener" class="text-navy-mid hover:text-navy">${escapeHtml(T.announcement)} ↗</a>` : '';
       return `<p class="text-sm text-gray-700"><span class="font-medium text-navy">${escapeHtml(T.applyTo)}: ${escapeHtml(x.name[lang])}</span> <span class="text-gray-500">(${escapeHtml(x.institute[lang])})</span><br>${escapeHtml(months)}${win}${link}</p>`;
-    }).join('');
+    }).join('') + (j.fallback ? `<p class="text-xs text-gray-500">${escapeHtml(T.whichProgramme)} <a href="${escapeHtml(suggestUrl(p.id, lang))}" class="text-navy-mid hover:text-navy">${escapeHtml(T.suggest)}</a></p>` : '');
   return `<li class="py-5 border-b border-border">
     <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h3 class="text-base font-semibold text-navy">${p.profileUrl ? `<a href="${escapeHtml(p.profileUrl)}" rel="noopener" class="hover:underline">${escapeHtml(name)}</a>` : escapeHtml(name)}</h3>
@@ -54,7 +54,7 @@ function card(p: IndexProfessor, matched: string[], c: GuideCatalog, idx: GuideI
     <p class="text-sm mt-0.5">${where}</p>
     ${topics ? `<ul class="flex flex-wrap gap-1.5 mt-2">${topics}</ul>` : ''}
     ${apply ? `<div class="mt-3 pl-3 border-l-2 border-navy-mid flex flex-col gap-1">${apply}</div>` : ''}
-    <p class="mt-2 text-xs text-gray-500">${escapeHtml(fill(T.checked, { date: dayLabel(p.checkedAt, lang) }))}${p.source ? ` · <a href="${escapeHtml(p.source)}" rel="noopener" class="hover:text-navy">${escapeHtml(T.source)}</a>` : ''} · <a href="${escapeHtml(suggestUrl(p.id, lang))}" class="hover:text-navy">${escapeHtml(T.suggest)}</a></p>
+    <p class="mt-2 text-xs text-gray-500">${escapeHtml(checkedLabel(p.checkedAt, lang))}${p.source ? ` · <a href="${escapeHtml(p.source)}" rel="noopener" class="hover:text-navy">${escapeHtml(T.source)}</a>` : ''} · <a href="${escapeHtml(suggestUrl(p.id, lang))}" class="hover:text-navy">${escapeHtml(T.suggest)}</a></p>
   </li>`;
 }
 
