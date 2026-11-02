@@ -1,0 +1,17 @@
+{
+  "id": "itu-chme",
+  "universityId": "itu",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Chemical Engineering",
+    "tr": "Kimya Mühendisliği Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Graduate School (LEE)",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.itu.edu.tr/adayogrenciler/lisansustu-basvuru",
+  "sourceUrl": "https://lee.itu.edu.tr/egitim/programlarimiz",
+  "checkedAt": "2026-11-01"
+}

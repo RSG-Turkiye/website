@@ -1,0 +1,14 @@
+{
+  "id": "transcriptomics",
+  "terms": [
+    "transcriptomics",
+    "transkriptomik",
+    "RNA-seq",
+    "gene expression",
+    "gen ifadesi"
+  ],
+  "related": [
+    "single-cell",
+    "omics-integration"
+  ]
+}

@@ -35,6 +35,8 @@ export const ROLE_SWITCHES = [
   { flag: 'content.topluluk.approve', role: 'content.topluluk.approve', on: 'make_content.topluluk.approve', off: 'remove_content.topluluk.approve', label: 'admin.roles.toplulukApprove', hint: 'admin.roles.toplulukApproveHint' },
   { flag: 'content.sayfalar.edit', role: 'content.sayfalar.edit', on: 'make_content.sayfalar.edit', off: 'remove_content.sayfalar.edit', label: 'admin.roles.sayfalarEdit', hint: 'admin.roles.sayfalarEditHint' },
   { flag: 'content.sayfalar.approve', role: 'content.sayfalar.approve', on: 'make_content.sayfalar.approve', off: 'remove_content.sayfalar.approve', label: 'admin.roles.sayfalarApprove', hint: 'admin.roles.sayfalarApproveHint' },
+  { flag: 'content.rehber.edit', role: 'content.rehber.edit', on: 'make_content.rehber.edit', off: 'remove_content.rehber.edit', label: 'admin.roles.rehberEdit', hint: 'admin.roles.rehberEditHint' },
+  { flag: 'content.rehber.approve', role: 'content.rehber.approve', on: 'make_content.rehber.approve', off: 'remove_content.rehber.approve', label: 'admin.roles.rehberApprove', hint: 'admin.roles.rehberApproveHint' },
 ] as const;
 
 type RoleSwitch = (typeof ROLE_SWITCHES)[number];

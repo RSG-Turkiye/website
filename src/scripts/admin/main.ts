@@ -25,6 +25,7 @@ import { loadStats } from './sections/stats';
 import { setupCms, showCms } from './sections/cms';
 import { loadTokens } from './sections/tokens';
 import { setupHelp, showHelp } from './sections/help';
+import { loadGuide, loadSuggestions } from './sections/guide';
 
 // Init
 
@@ -104,6 +105,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     kayit: onFirstShow(() => loadAudit(), 'admin.audit.loadFailed'),
     sosyal: onFirstShow(loadSocial, 'admin.social.loadFailed'),
     anahtarlar: onFirstShow(loadTokens, 'admin.tokens.loadFailed'),
+    rehber: onFirstShow(loadGuide, 'admin.guide.loadFailed'),
   };
   // Senders and admins both list sent mail: the first time that sub-page
   // shows, and again after a send or a failed load.
@@ -132,6 +134,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
     },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
     icerik: (sub, item) => showCms(sub, item),
+    rehber: (sub) => { if (sub === 'oneriler') void loadSuggestions().catch(() => showToast(t('admin.guide.loadFailed'), true)); },
   };
   // Content editors, approvers and admins: the form exists before the shell
   // opens a deep link to a draft.

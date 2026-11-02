@@ -1,0 +1,22 @@
+{
+  "id": "iyte-mbg",
+  "universityId": "iyte",
+  "type": "msc",
+  "name": {
+    "en": "Molecular Biology and Genetics (MSc)",
+    "tr": "Moleküler Biyoloji ve Genetik (Yüksek Lisans)"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [
+    "4",
+    "5",
+    "6"
+  ],
+  "announcementUrl": "https://lee.iyte.edu.tr/duyuru/",
+  "calendarUrl": "https://lee.iyte.edu.tr/akademik-takvim/",
+  "sourceUrl": "https://mbg.iyte.edu.tr/yuksek-lisans-msc-programi/",
+  "checkedAt": "2026-11-01"
+}

@@ -1,4 +1,5 @@
 import { defineCollection } from "astro:content";
+import { universitySchema, programmeSchema, relatedTermSchema } from "./data/guide";
 import { glob } from "astro/loaders";
 import { workshopSchema } from "./data/workshops";
 import { eventSchema } from "./data/events";
@@ -105,4 +106,20 @@ const help = defineCollection({
   schema: helpSchema,
 });
 
-export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees, pages, help };
+// The graduate guide's institutional content (src/data/guide.ts):
+// universities, their MSc programmes and related-term groups, one JSON file
+// each, named by id. Professors and labs are never here (CLAUDE.md rule 4).
+const guideUniversities = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/guide-universities" }),
+  schema: universitySchema,
+});
+const guideProgrammes = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/guide-programmes" }),
+  schema: programmeSchema,
+});
+const guideTerms = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/guide-terms" }),
+  schema: relatedTermSchema,
+});
+
+export const collections = { blog, webinars, lpDomains, lpLevels, lpRoadmap, workshops, events, resources, committees, pages, help, guideUniversities, guideProgrammes, guideTerms };

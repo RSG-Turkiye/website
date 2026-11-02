@@ -1,0 +1,54 @@
+---
+/** /guide/universities: the map, then every university in the guide by city, with its MSc programmes. */
+import { getCollection } from 'astro:content';
+import { GUIDE_TEXT, fill, monthNames, type Lang } from '../../lib/guide-text';
+import { citySlug } from '../../lib/guide-search';
+import GuideMap from './GuideMap.astro';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const T = GUIDE_TEXT[lang];
+const prefix = lang === 'tr' ? '/tr' : '';
+const programmes = (await getCollection('guideProgrammes')).map((e) => e.data);
+const universities = (await getCollection('guideUniversities')).map((e) => e.data);
+const byCity = new Map<string, typeof universities>();
+for (const u of universities) byCity.set(u.city, [...(byCity.get(u.city) ?? []), u]);
+const cities = [...byCity.keys()].sort((a, b) => a.localeCompare(b, 'tr'));
+const own = (id: string) => programmes.filter((p) => p.universityId === id).sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang));
+---
+
+<div class="bg-navy">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
+    <p class="text-white/70 text-sm"><a href={`${prefix}/guide/`} class="hover:text-white underline-offset-2 hover:underline">{T.title}</a></p>
+    <h1 class="text-[26px] sm:text-3xl font-bold tracking-tight text-white mt-1">{T.universitiesTitle}</h1>
+  </div>
+</div>
+
+<section class="bg-white border-b border-border">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+    <GuideMap lang={lang} mode="anchors" />
+  </div>
+</section>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 grid gap-x-10 gap-y-10 md:grid-cols-2">
+  {cities.map((city) => (
+    <section id={`city-${citySlug(city)}`} class="scroll-mt-24">
+      <h2 class="flex items-baseline gap-2 pb-1.5 border-b border-gray-300">
+        <span class="text-lg font-semibold text-navy">{city}</span>
+        <span class="text-[13px] text-gray-500">{fill(T.universityCount, { n: byCity.get(city)!.length })}</span>
+      </h2>
+      <ul class="mt-3 flex flex-col gap-3">
+        {byCity.get(city)!.sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang)).map((u) => (
+          <li>
+            <a href={`${prefix}/guide/${u.id}/`} class:list={['font-medium hover:underline underline-offset-2', own(u.id).length ? 'text-navy' : 'text-gray-500']}>{u.name[lang]}</a>
+            {own(u.id).length ? (
+              <ul class="mt-0.5 text-[13px] text-gray-600">
+                {own(u.id).map((p) => <li>{p.name[lang]}{p.usualMonths.length ? <span class="text-gray-500">: {monthNames(p.usualMonths, lang)}</span> : null}</li>)}
+              </ul>
+            ) : <p class="text-[13px] text-gray-500 mt-0.5">{T.noProgrammeYet}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</div>

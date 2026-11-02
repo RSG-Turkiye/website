@@ -34,9 +34,11 @@ interface Props {
    * ordinary page scroll.
    */
   fitViewport?: boolean;
+  /** Leave out the podcast bar: the graduate guide, where it covered the apply blocks on phones. */
+  hidePodcast?: boolean;
 }
 
-const { pageTitle, ogType = 'website', fitViewport = false, description = 'RSG-Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkiye.', image = '', translationUrl, translationExists } = Astro.props;
+const { pageTitle, ogType = 'website', fitViewport = false, hidePodcast = false, description = 'RSG-Turkiye - ISCB Student Council Regional Student Group for computational biology and bioinformatics in Turkiye.', image = '', translationUrl, translationExists } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -156,6 +158,6 @@ const alternateHref = (path: string) => new URL(path, site).href;
       <slot />
     </main>
     {fitViewport ? <div class="lg:hidden"><Footer /></div> : <Footer />}
-    <PodcastStrip lang={lang} />
+    {!hidePodcast && <PodcastStrip lang={lang} />}
   </body>
 </html>

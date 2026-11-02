@@ -1,0 +1,16 @@
+{
+  "id": "gazi-bilgisayar-muhendisligi",
+  "universityId": "gazi",
+  "type": "msc",
+  "name": {
+    "en": "Computer Engineering (MSc)",
+    "tr": "Bilgisayar Mühendisliği Yüksek Lisans (Mühendislik Fakültesi)"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://mf-bm.gazi.edu.tr/view/page/285005",
+  "checkedAt": "2026-11-02"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "health-informatics",
+  "terms": [
+    "health informatics",
+    "sağlık bilişimi",
+    "medical informatics",
+    "tıp bilişimi",
+    "clinical data",
+    "klinik veri"
+  ],
+  "related": [
+    "biostatistics",
+    "machine-learning"
+  ]
+}

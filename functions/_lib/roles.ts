@@ -25,7 +25,7 @@ export interface RoleDef {
 }
 
 /** The content groups of the panel CMS. A group's rights are its content.<group>.* roles. */
-export const CMS_GROUPS = ['etkinlikler', 'yazilar', 'ogrenme', 'topluluk', 'sayfalar'] as const;
+export const CMS_GROUPS = ['etkinlikler', 'yazilar', 'ogrenme', 'topluluk', 'sayfalar', 'rehber'] as const;
 export type CmsGroup = (typeof CMS_GROUPS)[number];
 export type GroupRights = Record<CmsGroup, { edit: boolean; approve: boolean }>;
 

@@ -16,6 +16,12 @@ bucket_name = "rsg-blog-images"
 binding = "MAIL_ATTACHMENTS"
 bucket_name = "rsg-mail-attachments"
 
+# The graduate guide's nightly backups (functions/_lib/guide-backup.ts).
+# Private: no public URL. Create it once: npx wrangler r2 bucket create rsg-guide-backups
+[[r2_buckets]]
+binding = "GUIDE_BACKUPS"
+bucket_name = "rsg-guide-backups"
+
 [vars]
 GOOGLE_CLIENT_ID = "273051123979-t52aq69ueh1mji460qie6ip2j68c3agc.apps.googleusercontent.com"
 PUBLIC_BLOG_IMAGES_URL = "https://rsg-turkiye.iscbsc.org/api/images"

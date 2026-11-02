@@ -1,0 +1,21 @@
+{
+  "id": "odtu-bioinformatics",
+  "universityId": "odtu",
+  "type": "msc",
+  "name": {
+    "en": "Bioinformatics (MSc, thesis)",
+    "tr": "Biyoinformatik (Yüksek Lisans, tezli)"
+  },
+  "institute": {
+    "en": "Graduate School of Informatics",
+    "tr": "Enformatik Enstitüsü"
+  },
+  "usualMonths": [
+    "2",
+    "3"
+  ],
+  "announcementUrl": "https://ii.metu.edu.tr/important-dates-programs-opened-application",
+  "calendarUrl": "http://oidb.metu.edu.tr/en/academic-calendar",
+  "sourceUrl": "https://ii.metu.edu.tr/bioinformatics-ms",
+  "checkedAt": "2026-11-01"
+}

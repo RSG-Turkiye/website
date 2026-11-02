@@ -4,6 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { PRIVACY, PRIVACY_CONTACT, PRIVACY_UPDATED, withContact } from '../src/data/privacy';
 import { privacySchema } from '../src/data/privacy-schema';
 import { RETENTION_SECONDS } from '../functions/_lib/certificates';
+import { INTAKE_RETENTION_DAYS } from '../functions/_lib/sheet-import';
 import { AUDIT_RETENTION_SECONDS } from '../functions/_lib/audit';
 
 /**
@@ -53,6 +54,13 @@ test('the retention lines match the jobs that enforce them', () => {
   assert.match(auth, /const SESSION_COOKIE = 'rsg_session';/, 'the notice names the cookie');
   const purge = readFileSync(`${REPO}functions/api/admin/certificates/purge.ts`, 'utf8');
   assert.match(purge, /now - 86400/, 'certificate lookups: the notice says 1 day');
+});
+
+test('the guide paragraph matches the retention its jobs enforce', () => {
+  assert.equal(INTAKE_RETENTION_DAYS, 90, 'guide queue: the notice says 90 days');
+  const notice = raw();
+  assert.match(notice, /deleted 90 days after we handle them/);
+  assert.match(notice, /işlendikten 90 gün sonra silinir/);
 });
 
 test('the footer links to the notice', () => {

@@ -8,6 +8,10 @@ const ENV = {
   AUDIT_PRUNE_URL: 'https://main/audit-prune',
   SOCIAL_REMINDERS_URL: 'https://main/social-reminders',
   SOCIAL_REFRESH_URL: 'https://main/social-refresh',
+  GUIDE_IMPORT_URL: 'https://main/guide-import',
+  GUIDE_TOPICS_URL: 'https://main/guide-topics',
+  GUIDE_WATCH_URL: 'https://main/guide-watch',
+  GUIDE_BACKUP_URL: 'https://main/guide-backup',
   SYMPOSIUM_ARCHIVE_SECRET: 's',
   SYMPOSIUM_DEPLOY_HOOK: 'https://hooks/symposium',
   WEBSITE_DEPLOY_HOOK: 'https://hooks/website',
@@ -19,7 +23,7 @@ function stubFetch(fail: string | null = null) {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     calls.push(url);
-    if (url.includes('/purge') || url.includes('/archive') || url.includes('/audit-prune') || url.includes('/social-reminders') || url.includes('/social-refresh')) {
+    if (url.includes('/purge') || url.includes('/archive') || url.includes('/audit-prune') || url.includes('/social-reminders') || url.includes('/social-refresh') || url.includes('/guide-')) {
       assert.equal(new Headers(init?.headers).get('X-Archive-Secret'), 's');
     }
     if (url === fail) return new Response('down', { status: 500 });
@@ -33,7 +37,7 @@ test('the tick runs archive, purge, audit prune, then both rebuilds, in that ord
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 200);
-    assert.deepEqual(f.calls, [ENV.ARCHIVE_URL, ENV.PURGE_URL, ENV.AUDIT_PRUNE_URL, ENV.SOCIAL_REMINDERS_URL, ENV.SOCIAL_REFRESH_URL, ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls, [ENV.ARCHIVE_URL, ENV.PURGE_URL, ENV.AUDIT_PRUNE_URL, ENV.SOCIAL_REMINDERS_URL, ENV.SOCIAL_REFRESH_URL, ENV.GUIDE_IMPORT_URL, ENV.GUIDE_TOPICS_URL, ENV.GUIDE_WATCH_URL, ENV.GUIDE_BACKUP_URL, ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
   } finally { f.restore(); }
 });
 
@@ -42,7 +46,7 @@ test('a failing purge still lets both rebuilds run, and the tick reports failure
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 502);
-    assert.deepEqual(f.calls.slice(5), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls.slice(9), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
     const body = await res.json() as { purge: string };
     assert.match(String(body.purge), /^ERROR 500/);
   } finally { f.restore(); }
@@ -53,7 +57,7 @@ test('a failing audit prune is reported but stops nothing', async () => {
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 502);
-    assert.deepEqual(f.calls.slice(5), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls.slice(9), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
     assert.match(String((await res.json() as { auditPrune: string }).auditPrune), /^ERROR 500/);
   } finally { f.restore(); }
 });
@@ -63,7 +67,7 @@ test('a failing reminder run is reported but stops nothing', async () => {
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 502);
-    assert.deepEqual(f.calls.slice(5), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls.slice(9), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
     assert.match(String((await res.json() as { socialReminders: string }).socialReminders), /^ERROR 500/);
   } finally { f.restore(); }
 });
@@ -73,7 +77,17 @@ test('a failing token refresh is reported but stops nothing', async () => {
   try {
     const res = await worker.fetch(new Request('http://localhost/'), ENV as never);
     assert.equal(res.status, 502);
-    assert.deepEqual(f.calls.slice(5), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
+    assert.deepEqual(f.calls.slice(9), [ENV.SYMPOSIUM_DEPLOY_HOOK, ENV.WEBSITE_DEPLOY_HOOK]);
     assert.match(String((await res.json() as { socialRefresh: string }).socialRefresh), /^ERROR 500/);
+  } finally { f.restore(); }
+});
+
+test('a failing guide job is reported but stops nothing', async () => {
+  const f = stubFetch(ENV.GUIDE_WATCH_URL);
+  try {
+    const res = await worker.fetch(new Request('https://x/'), ENV as never);
+    assert.equal(res.status, 502);
+    assert.ok(f.calls.includes(ENV.GUIDE_BACKUP_URL), 'the backup still runs');
+    assert.ok(f.calls.includes(ENV.WEBSITE_DEPLOY_HOOK), 'the rebuilds still run');
   } finally { f.restore(); }
 });

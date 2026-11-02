@@ -1,0 +1,16 @@
+{
+  "id": "comu-bilgisayar",
+  "universityId": "comu",
+  "type": "msc",
+  "name": {
+    "en": "Computer Engineering (MSc, thesis)",
+    "tr": "Bilgisayar Mühendisliği (Tezli Yüksek Lisans)"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://cdn.comu.edu.tr/cms/lee/files/3017-bilgisayar-muhendisligi-abd-tezli-yl.pdf",
+  "checkedAt": "2026-11-01"
+}
