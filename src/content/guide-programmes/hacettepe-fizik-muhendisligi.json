@@ -1,0 +1,16 @@
+{
+  "id": "hacettepe-fizik-muhendisligi",
+  "universityId": "hacettepe",
+  "type": "msc",
+  "name": {
+    "en": "Physics Engineering (MSc, thesis)",
+    "tr": "Fizik Mühendisliği Tezli Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Graduate School of Science and Engineering",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://akts.hacettepe.edu.tr/program_detay.php?prg_oid=PRGRAM_0000000000000000000000703&birim_kod=2017&programduzey=3&submenuheader=2&prg_kod=20171",
+  "checkedAt": "2026-11-02"
+}
