@@ -224,6 +224,19 @@ export async function loadSuggestions(): Promise<void> {
   $('guideImportState').textContent = st?.checked_at
     ? tf('admin.guide.suggestions.lastImport', { when: formatDate(st.checked_at), result: t(`admin.guide.import.${st.result ?? 'error'}` as never) })
     : t('admin.guide.suggestions.neverImported');
+  const importNow = $<HTMLButtonElement>('guideImportNow');
+  importNow.classList.toggle('hidden', !body.canWrite);
+  importNow.onclick = async () => {
+    importNow.disabled = true;
+    try {
+      const res = await fetch('/api/guide/import', { method: 'POST' });
+      const out = await res.json().catch(() => ({})) as { sheet?: string; added?: number; error?: string };
+      if (!res.ok) showToast(out.error || t('admin.toast.error'), true);
+      else if (out.sheet !== 'ok') showToast(t(`admin.guide.import.${out.sheet ?? 'error'}` as never), true);
+      else showToast(tf('admin.guide.suggestions.imported', { n: out.added ?? 0 }));
+      await loadSuggestions();
+    } finally { importNow.disabled = false; }
+  };
   const pages = $('guideWatchList');
   const watchRows = [
     ...body.watch.unreadable.map((w) => ({ url: w.url, muted: false, note: tf('admin.guide.watch.unreadable', { n: w.failures }) })),

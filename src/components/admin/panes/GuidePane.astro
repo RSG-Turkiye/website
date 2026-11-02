@@ -82,7 +82,10 @@ const secondary = `${btn} border border-navy text-navy hover:bg-navy-light`;
 
   <div data-sub="oneriler">
     <p class="text-sm text-gray-500 mb-1 max-w-prose">{t('admin.guide.suggestions.intro')}</p>
-    <p id="guideImportState" class="text-sm text-gray-600 mb-3" role="status"></p>
+    <div class="flex flex-wrap items-center gap-2 mb-3 text-sm">
+      <p id="guideImportState" class="text-gray-600" role="status"></p>
+      <button type="button" id="guideImportNow" class={`${secondary} hidden`}>{t('admin.guide.suggestions.importNow')}</button>
+    </div>
     <div id="guideSuggestionList" class="flex flex-col gap-2"></div>
     <h3 id="guideWatchHeading" class="hidden text-sm font-semibold text-navy mt-6 mb-2">{t('admin.guide.watch.heading')}</h3>
     <div id="guideWatchList" class="flex flex-col gap-2"></div>
