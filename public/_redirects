@@ -33,3 +33,11 @@
 /blog/comprehensive-a-review-on-rna-sequencing-and-its-applications  /blog/a-short-review-of-rna-sequencing-and-its-applications/  301
 /blog/mapping-pipeline-of-the-next-generation-sequencing-data  /blog/the-mapping-pipeline-of-the-next-generation-sequencing-data/  301
 /blog/welcome-to-iscb-sc-rsg-turkeys-official-website  /blog/welcome-to-iscb-sc-rsg-turkey-s-official-website/  301
+
+# A placeholder "member spotlight" from the site's first scaffold, about a
+# person who does not exist, was published by mistake and removed
+# (2026-11-02). Its old links go to the blog list instead of a 404.
+/blog/member-spotlight-dr-ayse-kaya  /blog/  301
+/blog/member-spotlight-dr-ayse-kaya/  /blog/  301
+/tr/blog/member-spotlight-dr-ayse-kaya  /tr/blog/  301
+/tr/blog/member-spotlight-dr-ayse-kaya/  /tr/blog/  301
