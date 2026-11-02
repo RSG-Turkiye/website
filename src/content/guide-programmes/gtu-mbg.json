@@ -1,0 +1,22 @@
+{
+  "id": "gtu-mbg",
+  "universityId": "gtu",
+  "type": "msc",
+  "name": {
+    "en": "Molecular Biology and Genetics (MSc, thesis, 30% English)",
+    "tr": "Moleküler Biyoloji ve Genetik Tezli Yüksek Lisans (%30 İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [
+    "5",
+    "6",
+    "8"
+  ],
+  "announcementUrl": "https://www.gtu.edu.tr/kategori/4210/0/display.aspx",
+  "calendarUrl": "https://www.gtu.edu.tr/tr/icerik/1318/436/akademik-takvim.aspx",
+  "sourceUrl": "https://www.gtu.edu.tr/fileman/Files/UserFiles/fbe/MOLEK%C3%9CLER%20B%C4%B0YOLOJ%C4%B0%20ve%20GENET%C4%B0K%20ANAB%C4%B0L%C4%B0M%20DALI%20-%20Copy%2013.pdf",
+  "checkedAt": "2026-11-03"
+}
