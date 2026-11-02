@@ -24,6 +24,8 @@ const EXEMPT: Record<string, string> = {
   'functions/api/mail/refresh.ts': 'an inbox sync started by opening the page; opening it is logged as view.pane',
   'functions/api/admin/social/dm/refresh.ts': 'a DM sync started from the page; opening a thread is logged as read.dm_thread',
   'functions/api/guide/labs.ts': 'guide-db.ts writes the guide.lab.* rows in the same batch as the change',
+  'functions/api/admin/guide/import.ts': 'guide-import.ts writes the guide.import row',
+  'functions/api/guide/import.ts': 'guide-import.ts writes the guide.import row, with the approver as user',
 };
 
 function files(dir: string): string[] {
