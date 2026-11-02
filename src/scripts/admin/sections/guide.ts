@@ -7,7 +7,7 @@
 import { escapeHtml } from '../../escape-html';
 import { t, tf, showToast, formatDate, lang } from '../context';
 import { row, chip, BTN, armConfirm, emptyState } from '../ui-kit';
-import { suggestionBody } from './guide-render';
+import { suggestionBody, removalNoticeTemplate, removalNoticeForm } from './guide-render';
 
 interface Professor {
   id: string; title: string; name: string; universityId: string; department: string; labId: string | null;
@@ -261,7 +261,7 @@ export async function loadSuggestions(): Promise<void> {
       `<button type="button" data-done="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.done'))}</button>`,
       `<button type="button" data-discard="${r.id}" class="${BTN.ghost}">${escapeHtml(t('admin.guide.suggestions.discard'))}</button>`,
     ].join('');
-    return `<div class="bg-white border border-border rounded-xl">` + row({
+    return `<div class="bg-white border border-border rounded-xl" data-row="${r.id}">` + row({
       title: `${t(`admin.guide.kind.${r.kind}` as never)}${r.recordId ? ` · ${who(r.recordId)}` : ''}`,
       subtitle: r.submittedAt ?? '',
       chips: [r.kind === 'removal' ? chip(t('admin.guide.suggestions.urgent'), 'red') : '', r.count > 1 ? chip(`×${r.count}`, 'neutral') : ''].join(''),
@@ -275,9 +275,57 @@ export async function loadSuggestions(): Promise<void> {
   host.querySelectorAll<HTMLButtonElement>('[data-watch]').forEach((b) => b.addEventListener('click', () => mute(b.dataset.watch!, true)));
   host.querySelectorAll<HTMLButtonElement>('[data-done]').forEach((b) => b.addEventListener('click', () => act(b.dataset.done!, 'done')));
   host.querySelectorAll<HTMLButtonElement>('[data-discard]').forEach((b) => b.addEventListener('click', () => act(b.dataset.discard!, 'discard')));
-  host.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((b) => armConfirm(b, t('admin.guide.confirmDelete'), () => act(b.dataset.remove!, 'applyRemoval')));
+  host.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((b) => b.addEventListener('click', () => openRemovalNotice(host, b.dataset.remove!, body.rows)));
   host.querySelectorAll<HTMLButtonElement>('[data-open]').forEach((b) => b.addEventListener('click', () => {
     location.hash = '#rehber/hocalar';
     openProfessor(data?.professors.find((p) => p.id === b.dataset.open) ?? null);
   }));
+}
+
+/**
+ * A removal request opens a box under its row: the approver finds the
+ * professor's address on their university page, checks the prepared text,
+ * and one click removes the record and sends the notice
+ * (functions/_lib/guide-removal-notice.ts). Without an address they can still
+ * remove, after a confirm.
+ */
+function openRemovalNotice(host: HTMLElement, rowId: string, rows: Suggestion[]): void {
+  const wrap = host.querySelector<HTMLElement>(`[data-row="${rowId}"]`);
+  if (!wrap) return;
+  const open = wrap.querySelector<HTMLFormElement>('[data-notice-form]');
+  if (open) { open.querySelector<HTMLInputElement>('[name="to"]')?.focus(); return; }
+  const r = rows.find((x) => String(x.id) === rowId);
+  const p = data?.professors.find((x) => x.id === r?.recordId);
+  wrap.insertAdjacentHTML('beforeend', removalNoticeForm(Number(rowId), removalNoticeTemplate(p?.title ?? '', p?.name ?? ''), {
+    to: t('admin.guide.notice.to'), hint: t('admin.guide.notice.hint'), subject: t('admin.guide.notice.subject'), text: t('admin.guide.notice.text'),
+    send: t('admin.guide.notice.send'), skip: t('admin.guide.notice.skip'), cancel: t('admin.guide.notice.cancel'),
+  }));
+  const form = wrap.querySelector<HTMLFormElement>('[data-notice-form]')!;
+  const to = form.querySelector<HTMLInputElement>('[name="to"]')!;
+  to.focus();
+  const run = async (notice?: { to: string; subject: string; text: string }) => {
+    form.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    try {
+      const res = await fetch('/api/guide/suggestions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: Number(rowId), action: 'applyRemoval', notice }) });
+      const out = await res.json().catch(() => ({})) as { error?: string; code?: string; notice?: 'none' | 'sent' | 'failed'; publish?: { ok: boolean } };
+      if (!res.ok) {
+        showToast(out.code === 'bad_notice' ? t('admin.guide.notice.badAddress') : out.code === 'notice_limit' ? t('admin.guide.notice.limit') : out.error || t('admin.toast.error'), true);
+        return;
+      }
+      if (out.notice === 'failed') showToast(t('admin.guide.notice.failed'), true);
+      else if (out.publish && !out.publish.ok) showToast(t('admin.guide.publishFailed'), true);
+      else showToast(out.notice === 'sent' ? t('admin.guide.notice.sent') : t('admin.toast.updated'));
+      await loadSuggestions();
+      await loadGuide();
+    } finally { form.querySelectorAll('button').forEach((b) => { b.disabled = false; }); }
+  };
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const address = to.value.trim();
+    if (!to.checkValidity() || !address || /[,;\s]/.test(address)) { showToast(t('admin.guide.notice.badAddress'), true); to.focus(); return; }
+    const fd = new FormData(form);
+    void run({ to: address, subject: String(fd.get('subject') ?? ''), text: String(fd.get('text') ?? '') });
+  });
+  armConfirm(form.querySelector<HTMLButtonElement>('[data-notice-skip]')!, t('admin.guide.confirmDelete'), () => run());
+  form.querySelector('[data-notice-cancel]')!.addEventListener('click', () => form.remove());
 }
