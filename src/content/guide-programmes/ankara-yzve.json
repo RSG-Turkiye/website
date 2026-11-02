@@ -1,0 +1,17 @@
+{
+  "id": "ankara-yzve",
+  "universityId": "ankara",
+  "type": "msc",
+  "name": {
+    "en": "Artificial Intelligence and Data Engineering (MSc, thesis)",
+    "tr": "Yapay Zeka ve Veri Mühendisliği Tezli Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://ai.eng.ankara.edu.tr/2026/11/02/2026-2027-egitim-ogretim-yili-bahar-yariyili-yuksek-lisans-ve-doktora-basvuru-duyurusu/",
+  "sourceUrl": "https://ai.eng.ankara.edu.tr/lisansustu/",
+  "checkedAt": "2026-11-03"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "bilkent-cs",
+  "universityId": "bilkent",
+  "type": "msc",
+  "name": {
+    "en": "Computer Engineering MS",
+    "tr": "Bilgisayar Mühendisliği Yüksek Lisans (tezli, İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School of Engineering and Science",
+    "tr": "Mühendislik ve Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://w3.cs.bilkent.edu.tr/graduate-programs",
+  "checkedAt": "2026-11-03"
+}
