@@ -1,0 +1,19 @@
+{
+  "id": "neu-bilgisayar-muhendisligi",
+  "universityId": "neu",
+  "type": "msc",
+  "name": {
+    "en": "Computer Engineering MSc (thesis)",
+    "tr": "Bilgisayar Mühendisliği Tezli Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "7"
+  ],
+  "announcementUrl": "https://erbakan.edu.tr/storage/departments/files/215526/2025/Temmuz/Fen%20Bilimleri%20Enstit%C3%BCs%C3%BC%202025-26%20G%C3%BCz%20Yar%C4%B1y%C4%B1l%C4%B1%20Tezli%20YL%20ve%20DR%20%C4%B0lan%C4%B1.pdf",
+  "sourceUrl": "https://erbakan.edu.tr/tr/birim/fen-bilimleri-enstitusu/duyuru/fen-bilimleri-enstitusu-2025-2026-egitim-ogretim-yili-guz-yariyili-lisansustu-ogrenci-alim-ilani",
+  "checkedAt": "2026-11-02"
+}

@@ -1,0 +1,65 @@
+---
+/**
+ * /guide/<university>: the university's MSc programmes and, drawn in the
+ * browser from the search index, its professors. The programmes are rendered
+ * here for readers without JavaScript and redrawn by src/scripts/guide-page.ts
+ * for today's date and any page-changed warning (same renderer).
+ */
+import { getCollection } from 'astro:content';
+import { GUIDE_TEXT, suggestUrl, type Lang } from '../../lib/guide-text';
+import { applyBlockHtml } from '../../lib/guide-apply';
+import type { University } from '../../data/guide';
+
+interface Props { lang: Lang; university: University }
+const { lang, university } = Astro.props;
+const T = GUIDE_TEXT[lang];
+const prefix = lang === 'tr' ? '/tr' : '';
+const programmes = (await getCollection('guideProgrammes'))
+  .map((e) => e.data)
+  .filter((p) => p.universityId === university.id)
+  .sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang));
+const buildDay = new Date().toISOString().slice(0, 10);
+const LINK = 'text-navy-mid hover:text-navy underline decoration-navy-mid/30 underline-offset-2';
+---
+
+<div class="bg-navy">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
+    <p class="text-white/70 text-sm">
+      <a href={`${prefix}/guide/`} class="hover:text-white underline-offset-2 hover:underline">{T.title}</a>
+      <span aria-hidden="true" class="mx-1.5">/</span>
+      <a href={`${prefix}/guide/?city=${encodeURIComponent(university.city)}`} class="hover:text-white underline-offset-2 hover:underline">{university.city}</a>
+    </p>
+    <h1 class="text-[26px] sm:text-3xl font-bold tracking-tight text-white mt-1">{university.name[lang]}</h1>
+    <a href={university.url} rel="noopener" class="inline-block mt-1 text-white/75 hover:text-white text-sm">{university.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>
+  </div>
+</div>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 grid gap-x-10 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.9fr)]">
+  <section>
+    <h2 class="text-lg font-semibold text-navy">{T.programmesHeading}</h2>
+    {programmes.length === 0 ? (
+      <p class="text-sm text-gray-600 mt-3">{T.noProgramme} <a href={suggestUrl(university.id, lang)} class={LINK}>{T.suggestProgramme}</a></p>
+    ) : (
+      <div data-programmes class="mt-4 flex flex-col gap-5">
+        {programmes.map((p) => <Fragment set:html={applyBlockHtml(p, lang, buildDay)} />)}
+      </div>
+    )}
+    {programmes.length > 0 && <p class="text-xs text-gray-500 mt-4"><a href={suggestUrl(university.id, lang)} class="hover:text-navy underline underline-offset-2">{T.suggest}</a></p>}
+  </section>
+
+  <section data-guide data-lang={lang} data-text={JSON.stringify(T)} data-university={university.id}>
+    <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+      <h2 class="text-lg font-semibold text-navy">{T.professorsHeading}</h2>
+      <p data-status role="status" class="text-sm text-gray-600"></p>
+    </div>
+    <p class="text-xs text-gray-500 mt-1">{T.chipsNote}</p>
+    <ol data-results class="mt-4 divide-y divide-border"></ol>
+    <p class="mt-10 text-sm"><a href={`${prefix}/guide/`} class={`${LINK} font-medium`}>{T.backToSearch}</a></p>
+  </section>
+</div>
+
+<script>
+  import { startGuide } from '../../scripts/guide-page';
+  const root = document.querySelector<HTMLElement>('[data-guide]');
+  if (root) void startGuide(root);
+</script>

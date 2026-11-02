@@ -16,7 +16,7 @@ export type RoleFlags = {
   cms: GroupRights; canGrant: RoleKey[];
 };
 export type GroupId = 'iletisim' | 'icerik' | 'topluluk' | 'sistem';
-export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'anahtarlar' | 'kayit' | 'yardim';
+export type SectionId = 'genel' | 'istatistik' | 'eposta' | 'sosyal' | 'duyurular' | 'sempozyum' | 'icerik' | 'rehber' | 'uyelik' | 'kullanicilar' | 'baglantilar' | 'anahtarlar' | 'kayit' | 'yardim';
 export type CountKey = 'email' | 'social' | 'membership' | 'dm' | 'socialTotal' | 'cmsMine' | 'cmsQueue' | 'cmsTotal';
 
 /** `count`: the sub-page's tab carries that menu count too (a sender-only panel has no menu to show it).
@@ -93,6 +93,16 @@ export const SECTIONS: Section[] = [
       ...TYPE_MODELS.map((m) => ({ id: m.sub, label: m.label, editGroup: m.group, heading: `admin.cms.groupName.${m.group}` })),
       { id: 'taslaklar', label: 'admin.cms.nav.drafts', count: 'cmsMine' },
       { id: 'onay', label: 'admin.cms.nav.queue', approvesSome: true, count: 'cmsQueue' },
+    ],
+  },
+  // The graduate guide's professors and labs (D1, not git). Its
+  // universities, programmes and search terms are content types above.
+  {
+    id: 'rehber', group: 'icerik', label: 'admin.guide.heading', visible: (r) => r.cms.rehber?.edit === true,
+    subs: [
+      { id: 'hocalar', label: 'admin.guide.tab.professors' },
+      { id: 'lablar', label: 'admin.guide.tab.labs' },
+      { id: 'oneriler', label: 'admin.guide.tab.suggestions' },
     ],
   },
   // Part 3 (membership) makes this visible.

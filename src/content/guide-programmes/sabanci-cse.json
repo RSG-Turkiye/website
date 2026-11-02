@@ -1,0 +1,18 @@
+{
+  "id": "sabanci-cse",
+  "universityId": "sabanci",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Computer Science and Engineering",
+    "tr": "Bilgisayar Bilimi ve Mühendisliği Yüksek Lisans"
+  },
+  "institute": {
+    "en": "FENS Graduate School",
+    "tr": "FENS Lisansüstü Okulu"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://fens.sabanciuniv.edu/en/graduate-application",
+  "calendarUrl": "https://www.sabanciuniv.edu/en/academic-calendar",
+  "sourceUrl": "https://fens.sabanciuniv.edu/en/graduate-application",
+  "checkedAt": "2026-11-01"
+}

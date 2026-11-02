@@ -1,0 +1,17 @@
+{
+  "id": "marmara-bioeng",
+  "universityId": "marmara",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Bioengineering",
+    "tr": "Biyomühendislik Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Institute of Pure and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://fbe.marmara.edu.tr/lisansustu-basvuru/basvuru-takvimi",
+  "sourceUrl": "https://bioe-eng.marmara.edu.tr",
+  "checkedAt": "2026-11-01"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "bogazici-mbg",
+  "universityId": "bogazici",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Molecular Biology and Genetics",
+    "tr": "Moleküler Biyoloji ve Genetik Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Institute for Graduate Studies in Science and Engineering",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "1",
+    "5"
+  ],
+  "announcementUrl": "https://fbe.bogazici.edu.tr/tr/announcements",
+  "sourceUrl": "https://fbe.bogazici.edu.tr/tr/pages/akademik-programlar/2868",
+  "checkedAt": "2026-11-01"
+}

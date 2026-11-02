@@ -18,7 +18,7 @@ import { capId, checkId, ID_MAX, slugify } from '../../lib/cms/slug';
 import { resourceId, resourceIdsOf, resourcesOf, sideFrontmatter } from '../../lib/cms/lp-resources';
 import type { CmsGroup } from '../../../functions/_lib/roles';
 
-export type TypeKey = 'events' | 'workshops' | 'webinars' | 'blog' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' | 'pages' | 'privacy';
+export type TypeKey = 'events' | 'workshops' | 'webinars' | 'blog' | 'committees' | 'podcast' | 'resources' | 'lp-domains' | 'lp-levels' | 'lp-roadmap' | 'pages' | 'privacy' | 'guide-universities' | 'guide-programmes' | 'guide-terms';
 export type Kind = 'text' | 'textarea' | 'date' | 'select' | 'number' | 'checkbox' | 'bilingual' | 'strings' | 'links' | 'image' | 'markdown'
   | 'objects' | 'bilingualStrings';
 export type Group = 'main' | 'more';
@@ -471,9 +471,52 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     ],
     hidden: { updated: 'the day the change is approved, set by the server (A8)' },
   },
+  // The graduate guide (src/data/guide.ts). The id is typed once and locked:
+  // professors' records in D1 point at it.
+  'guide-universities': {
+    key: 'guide-universities', format: 'json', sub: 'rehber-universiteler', group: 'rehber', idField: 'id', label: 'admin.cms.type.guide-universities',
+    lockedOnUpdate: ['id'],
+    fields: [
+      { key: 'id', kind: 'text', label: 'admin.cms.f.guideId', help: 'admin.cms.h.guideId', group: 'main', required: true },
+      { key: 'name', kind: 'bilingual', label: 'admin.cms.f.guideName', group: 'main', required: true },
+      { key: 'city', kind: 'text', label: 'admin.cms.f.guideCity', help: 'admin.cms.h.guideCity', group: 'main', required: true },
+      { key: 'url', kind: 'text', label: 'admin.cms.f.url', group: 'main', required: true },
+    ],
+    hidden: {},
+  },
+  'guide-programmes': {
+    key: 'guide-programmes', format: 'json', sub: 'rehber-programlar', group: 'rehber', idField: 'id', label: 'admin.cms.type.guide-programmes',
+    lockedOnUpdate: ['id'],
+    fields: [
+      { key: 'id', kind: 'text', label: 'admin.cms.f.guideId', help: 'admin.cms.h.guideId', group: 'main', required: true },
+      { key: 'universityId', kind: 'select', options: [], optionsFrom: 'guide-universities', label: 'admin.cms.f.guideUniversity', group: 'main', required: true },
+      { key: 'type', kind: 'select', options: ['msc'], label: 'admin.cms.f.guideType', group: 'main', required: true },
+      { key: 'name', kind: 'bilingual', label: 'admin.cms.f.guideName', group: 'main', required: true },
+      { key: 'institute', kind: 'bilingual', label: 'admin.cms.f.guideInstitute', group: 'main', required: true },
+      { key: 'usualMonths', kind: 'strings', label: 'admin.cms.f.guideMonths', help: 'admin.cms.h.guideMonths', group: 'main', required: true, always: true },
+      { key: 'windowOpens', kind: 'date', label: 'admin.cms.f.guideWindowOpens', help: 'admin.cms.h.guideWindow', group: 'more' },
+      { key: 'windowCloses', kind: 'date', label: 'admin.cms.f.guideWindowCloses', group: 'more' },
+      { key: 'announcementUrl', kind: 'text', label: 'admin.cms.f.guideAnnouncement', group: 'main' },
+      { key: 'calendarUrl', kind: 'text', label: 'admin.cms.f.guideCalendar', group: 'more' },
+      { key: 'sourceUrl', kind: 'text', label: 'admin.cms.f.guideSource', help: 'admin.cms.h.guideSource', group: 'main', required: true },
+      { key: 'checkedAt', kind: 'date', label: 'admin.cms.f.guideChecked', help: 'admin.cms.h.guideChecked', group: 'main', required: true },
+      { key: 'note', kind: 'textarea', label: 'admin.cms.f.note', group: 'more', approverOnly: true },
+    ],
+    hidden: {},
+  },
+  'guide-terms': {
+    key: 'guide-terms', format: 'json', sub: 'rehber-terimler', group: 'rehber', idField: 'id', label: 'admin.cms.type.guide-terms',
+    lockedOnUpdate: ['id'],
+    fields: [
+      { key: 'id', kind: 'text', label: 'admin.cms.f.guideId', help: 'admin.cms.h.guideId', group: 'main', required: true },
+      { key: 'terms', kind: 'strings', label: 'admin.cms.f.guideTerms', help: 'admin.cms.h.guideTerms', group: 'main', required: true, always: true },
+      { key: 'related', kind: 'strings', label: 'admin.cms.f.guideRelated', help: 'admin.cms.h.guideRelated', group: 'main', always: true },
+    ],
+    hidden: {},
+  },
 };
 
-export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'blog', 'committees', 'podcast', 'resources', 'lp-domains', 'lp-levels', 'lp-roadmap', 'pages', 'privacy'];
+export const TYPE_KEYS: readonly TypeKey[] = ['events', 'workshops', 'webinars', 'blog', 'committees', 'podcast', 'resources', 'lp-domains', 'lp-levels', 'lp-roadmap', 'pages', 'privacy', 'guide-universities', 'guide-programmes', 'guide-terms'];
 
 /** Whether the form holds a value per language for each field (a pair type, or a JSON entry with langSides). */
 export const pairForm = (model: Pick<TypeModel, 'format' | 'langSides'>): boolean => model.format === 'markdown-pair' || model.langSides === true;

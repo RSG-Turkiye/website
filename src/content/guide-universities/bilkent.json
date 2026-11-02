@@ -1,0 +1,9 @@
+{
+  "id": "bilkent",
+  "name": {
+    "en": "Bilkent University",
+    "tr": "Bilkent Üniversitesi"
+  },
+  "city": "Ankara",
+  "url": "https://www.bilkent.edu.tr"
+}

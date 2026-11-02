@@ -1,0 +1,15 @@
+{
+  "id": "drug-design",
+  "terms": [
+    "drug design",
+    "ilaç tasarımı",
+    "drug discovery",
+    "ilaç keşfi",
+    "cheminformatics",
+    "kemoinformatik"
+  ],
+  "related": [
+    "docking",
+    "protein-structure"
+  ]
+}

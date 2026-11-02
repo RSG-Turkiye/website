@@ -1,0 +1,22 @@
+{
+  "id": "gtu-biyomuhendislik",
+  "universityId": "gtu",
+  "type": "msc",
+  "name": {
+    "en": "Bioengineering (MSc)",
+    "tr": "Biyomühendislik (Yüksek Lisans)"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [
+    "5",
+    "6",
+    "8"
+  ],
+  "announcementUrl": "https://www.gtu.edu.tr/icerik/1747/30989/display.aspx",
+  "calendarUrl": "https://www.gtu.edu.tr/tr/icerik/1318/436/akademik-takvim.aspx",
+  "sourceUrl": "https://www.gtu.edu.tr/fileman/Files/UserFiles/biyomuh/Duyurular/Biyomühendislik_YL[2364].pdf",
+  "checkedAt": "2026-11-01"
+}

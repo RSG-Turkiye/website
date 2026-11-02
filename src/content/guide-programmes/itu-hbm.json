@@ -1,0 +1,17 @@
+{
+  "id": "itu-hbm",
+  "universityId": "itu",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Computational Science and Engineering",
+    "tr": "Hesaplamalı Bilim ve Mühendislik Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Informatics Institute",
+    "tr": "Bilişim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.itu.edu.tr/adayogrenciler/lisansustu-basvuru",
+  "sourceUrl": "https://www.tyyc.itu.edu.tr/ProgramHakkinda.php?Program=HBM_HBY_YL&Dili=TR",
+  "checkedAt": "2026-11-01"
+}

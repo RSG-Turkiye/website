@@ -1,0 +1,16 @@
+{
+  "id": "protein-structure",
+  "terms": [
+    "protein structure",
+    "protein yapısı",
+    "structural bioinformatics",
+    "yapısal biyoinformatik",
+    "structural biology",
+    "yapısal biyoloji"
+  ],
+  "related": [
+    "docking",
+    "molecular-dynamics",
+    "drug-design"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "ege-biyoistatistik",
+  "universityId": "ege",
+  "type": "msc",
+  "name": {
+    "en": "Biostatistics and Medical Informatics (MSc)",
+    "tr": "Biyoistatistik ve Tıbbi Bilişim Tezli Yüksek Lisans"
+  },
+  "institute": {
+    "en": "Graduate School of Health Sciences",
+    "tr": "Sağlık Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "7",
+    "8",
+    "9"
+  ],
+  "announcementUrl": "http://sbe.ege.edu.tr/",
+  "sourceUrl": "https://med.ege.edu.tr/eng-2935/biyoistatistik_ve_tibbi_bilisim_anabilim_dali.html",
+  "checkedAt": "2026-11-01"
+}

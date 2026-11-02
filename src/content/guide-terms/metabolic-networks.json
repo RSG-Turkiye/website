@@ -1,0 +1,14 @@
+{
+  "id": "metabolic-networks",
+  "terms": [
+    "metabolic network",
+    "metabolik ağ",
+    "genome-scale metabolic model",
+    "genom ölçekli metabolik model",
+    "flux balance analysis",
+    "akı denge analizi"
+  ],
+  "related": [
+    "systems-biology"
+  ]
+}

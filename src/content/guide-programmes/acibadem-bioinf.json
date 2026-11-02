@@ -1,0 +1,17 @@
+{
+  "id": "acibadem-bioinf",
+  "universityId": "acibadem",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Biostatistics and Bioinformatics (English, thesis)",
+    "tr": "Biyoistatistik ve Biyoinformatik Yüksek Lisans (İngilizce, tezli)"
+  },
+  "institute": {
+    "en": "Graduate School of Health Sciences",
+    "tr": "Sağlık Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://www.acibadem.edu.tr",
+  "sourceUrl": "https://yksprogram.com.tr/yuksek-lisans/programlar/acibadem-mehmet-ali-aydinlar-universitesi/saglik-bilimleri-enstitusu/biyoistatistik-ve-biyoinformatik-tezli-yuksek-lisans-ingilizce-tezli-yl-en",
+  "checkedAt": "2026-11-01"
+}

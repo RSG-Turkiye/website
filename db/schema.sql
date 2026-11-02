@@ -403,6 +403,16 @@
 --    and run only the ALTER statements for the columns still missing, then
 --    the --file command.
 --
+-- 8o. Graduate guide (docs/superpowers/specs/2026-11-01-grad-lab-guide-design.md).
+--    New tables only, all IF NOT EXISTS, safe to repeat: guide_labs,
+--    guide_professors, guide_index_state, intake_rows, intake_seen,
+--    intake_state and guide_page_watch. Professors and labs are personal
+--    data and live only here, never in git (CLAUDE.md rule 4). Run it
+--    BEFORE deploying:
+--      wrangler d1 execute rsg-members --remote --file=/absolute/path/to/website/db/schema.sql
+--    Without it the panel's Rehber section and /api/guide/* fail on
+--    "no such table"; the rest of the site is unaffected.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -1233,3 +1243,94 @@ CREATE TABLE IF NOT EXISTS usage_state (
   alerted       TEXT NOT NULL DEFAULT '[]'
 );
 INSERT OR IGNORE INTO usage_state (id) VALUES (1);
+
+-- Graduate guide (8o). Ids are opaque (p_/l_ + 12 hex), never a name: audit
+-- rows keep them a year (CLAUDE.md rule 9). JSON columns hold string lists.
+-- checked_at: when someone last confirmed the record against its source; the
+-- panel lists records older than a year.
+CREATE TABLE IF NOT EXISTS guide_labs (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  university_id TEXT NOT NULL,
+  url           TEXT NOT NULL DEFAULT '',
+  checked_at    INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS guide_professors (
+  id                  TEXT PRIMARY KEY,
+  title               TEXT NOT NULL DEFAULT '',
+  name                TEXT NOT NULL,
+  university_id       TEXT NOT NULL,
+  department          TEXT NOT NULL DEFAULT '',
+  lab_id              TEXT,
+  profile_url         TEXT NOT NULL DEFAULT '',
+  openalex_id         TEXT,
+  hand_topics         TEXT NOT NULL DEFAULT '[]',
+  hidden_topics       TEXT NOT NULL DEFAULT '[]',
+  openalex_topics     TEXT NOT NULL DEFAULT '[]',
+  topics_refreshed_at INTEGER,
+  topics_failures     INTEGER NOT NULL DEFAULT 0,
+  programme_ids       TEXT NOT NULL DEFAULT '[]',
+  source              TEXT NOT NULL DEFAULT '',
+  checked_at          INTEGER NOT NULL
+);
+-- The nightly OpenAlex refresh takes the oldest few: an index, never a scan.
+CREATE INDEX IF NOT EXISTS guide_professors_topics_refreshed ON guide_professors (topics_refreshed_at);
+-- The last publication of the search index (R2 guide/index.json), one row.
+CREATE TABLE IF NOT EXISTS guide_index_state (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  published_at  INTEGER,
+  count         INTEGER,
+  unresolved    INTEGER,
+  error         TEXT
+);
+INSERT OR IGNORE INTO guide_index_state (id) VALUES (1);
+
+-- Intake queue (8o): Google Form responses imported from their Sheet
+-- (functions/_lib/sheet-import.ts). The Sheet stays the source of truth
+-- (CLAUDE.md rule 3). payload is JSON {text, link, submittedAt}; e-mail
+-- addresses in it are masked on import. Handled rows are deleted 90 days
+-- after handled_at; a removal deletes every row about that record at once.
+CREATE TABLE IF NOT EXISTS intake_rows (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  source      TEXT NOT NULL,
+  row_key     TEXT NOT NULL UNIQUE,
+  record_id   TEXT NOT NULL DEFAULT '',
+  kind        TEXT NOT NULL,
+  payload     TEXT NOT NULL DEFAULT '{}',
+  status      TEXT NOT NULL DEFAULT 'new',
+  count       INTEGER NOT NULL DEFAULT 1,
+  created_at  INTEGER NOT NULL,
+  handled_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS intake_rows_status ON intake_rows (source, status);
+CREATE INDEX IF NOT EXISTS intake_rows_record ON intake_rows (record_id);
+-- Every response key ever imported (a hash, no text), kept for good, so a
+-- response still in the Sheet is never queued again however old.
+CREATE TABLE IF NOT EXISTS intake_seen (
+  row_key     TEXT PRIMARY KEY,
+  created_at  INTEGER NOT NULL
+);
+-- The last nightly import, one row, for the panel.
+CREATE TABLE IF NOT EXISTS intake_state (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  checked_at  INTEGER,
+  result      TEXT,
+  added       INTEGER
+);
+INSERT OR IGNORE INTO intake_state (id) VALUES (1);
+
+-- Announcement-page watch (8o, functions/api/admin/guide/watch.ts). One row
+-- per URL however many programmes share it. fingerprints: the last three
+-- text hashes (JSON); a page flipping between two versions raises nothing.
+-- last_text: the page's text last time, for the changed lines. Not personal.
+CREATE TABLE IF NOT EXISTS guide_page_watch (
+  url           TEXT PRIMARY KEY,
+  programme_ids TEXT NOT NULL DEFAULT '[]',
+  fingerprints  TEXT NOT NULL DEFAULT '[]',
+  last_text     TEXT,
+  checked_at    INTEGER,
+  failures      INTEGER NOT NULL DEFAULT 0,
+  muted         INTEGER NOT NULL DEFAULT 0,
+  state         TEXT NOT NULL DEFAULT 'ok'
+);
+CREATE INDEX IF NOT EXISTS guide_page_watch_checked ON guide_page_watch (muted, checked_at);

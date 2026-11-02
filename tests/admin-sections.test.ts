@@ -17,7 +17,7 @@ const ids = (r: RoleFlags) => menuSections(r).map((s) => s.id);
 const reachable = (r: RoleFlags) => visibleSections(r).map((s) => s.id);
 
 test('an admin sees every section except membership, which part 3 fills', () => {
-  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'kullanicilar', 'baglantilar', 'anahtarlar', 'kayit']);
+  assert.deepEqual(ids({ ...none, admin: true, cms: rolesFromMe({ is_admin: true }).cms }), ['genel', 'istatistik', 'eposta', 'sosyal', 'duyurular', 'sempozyum', 'icerik', 'rehber', 'kullanicilar', 'baglantilar', 'anahtarlar', 'kayit']);
 });
 
 test('one section: no Overview, and the panel lands in it', () => {
@@ -155,7 +155,8 @@ test('İçerik: one section for every content group; the old Etkinlikler tabs ke
 test('İçerik: a person sees only the tabs of the groups they edit', () => {
   for (const g of CMS_GROUPS) {
     const r = { ...none, cms: cmsOnly({ [g]: { edit: true, approve: false } }) };
-    assert.deepEqual(ids(r), ['icerik'], g);
+    // A Guide editor also has the Guide section (professors and labs), so Overview too.
+    assert.deepEqual(ids(r), g === 'rehber' ? ['genel', 'icerik', 'rehber', 'anahtarlar'] : ['icerik'], g);
     const tabs = subsFor(icerik, r).filter((s) => s.editGroup);
     assert.ok(tabs.every((s) => s.editGroup === g), `${g}: ${tabs.map((s) => s.id)}`);
     assert.ok(subIds(r).includes('taslaklar'), g);

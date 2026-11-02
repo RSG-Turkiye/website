@@ -1,0 +1,18 @@
+{
+  "id": "sabanci-mat",
+  "universityId": "sabanci",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Materials Science and Nano Engineering",
+    "tr": "Malzeme Bilimi ve Nano Mühendislik Yüksek Lisans"
+  },
+  "institute": {
+    "en": "FENS Graduate School",
+    "tr": "FENS Lisansüstü Okulu"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://fens.sabanciuniv.edu/en/graduate-application",
+  "calendarUrl": "https://www.sabanciuniv.edu/en/academic-calendar",
+  "sourceUrl": "https://fens.sabanciuniv.edu/en/graduate-application",
+  "checkedAt": "2026-11-01"
+}

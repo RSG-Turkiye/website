@@ -6,6 +6,7 @@ roles:
   - content.ogrenme.edit
   - content.topluluk.edit
   - content.sayfalar.edit
+  - content.rehber.edit
 order: 4
 ---
 

@@ -1,0 +1,17 @@
+{
+  "id": "mugla-bioinf",
+  "universityId": "mugla",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Bioinformatics (English)",
+    "tr": "Biyoinformatik Yüksek Lisans (İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://muweb.mu.edu.tr/Newfiles/115/Content/2024-2025%20FBE%20Yabanc%C4%B1%20Uyruklu%20%C4%B0lan%20Metni.pdf",
+  "sourceUrl": "https://muweb.mu.edu.tr/Newfiles/115/Content/2024-2025%20FBE%20Yabanc%C4%B1%20Uyruklu%20%C4%B0lan%20Metni.pdf",
+  "checkedAt": "2026-11-01"
+}

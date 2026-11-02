@@ -1,0 +1,21 @@
+{
+  "id": "koc-cmse",
+  "universityId": "koc",
+  "type": "msc",
+  "name": {
+    "en": "MSc in Computational Sciences and Engineering (thesis)",
+    "tr": "Hesaplamalı Bilimler ve Mühendislik Yüksek Lisans (tezli)"
+  },
+  "institute": {
+    "en": "Graduate School of Sciences and Engineering",
+    "tr": "Fen Bilimleri ve Mühendislik Lisansüstü Okulu"
+  },
+  "usualMonths": [
+    "10",
+    "11",
+    "12"
+  ],
+  "announcementUrl": "https://apply.ku.edu.tr/courses/course/58-msc-computational-sciences-and-engineering--thesis",
+  "sourceUrl": "https://apply.ku.edu.tr/courses/course/58-msc-computational-sciences-and-engineering--thesis",
+  "checkedAt": "2026-11-01"
+}

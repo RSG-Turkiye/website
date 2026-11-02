@@ -1,0 +1,20 @@
+{
+  "id": "antalya-ece",
+  "universityId": "antalya",
+  "type": "msc",
+  "name": {
+    "en": "Electrical and Computer Engineering (MSc, thesis, English)",
+    "tr": "Elektrik ve Bilgisayar Mühendisliği (Tezli, İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [
+    "6"
+  ],
+  "announcementUrl": "https://www.antalya.edu.tr/tr/fakulte-ve-enstituler/lisansustu-egitim-enstitusu/duyurular/lisasansustu-egitim-enstitusu-programlarina-basvurular-basliyor",
+  "calendarUrl": "https://www.antalya.edu.tr/tr/akademik-takvim",
+  "sourceUrl": "https://www.antalya.edu.tr/tr/fakulte-ve-enstituler/lisansustu-egitim-enstitusu/elektrik-ve-bilgisayar-muhendisligi-tezli-ingilizce",
+  "checkedAt": "2026-11-01"
+}
