@@ -32,6 +32,7 @@ const FIXED: Record<string, Label> = {
   'guide.suggestion.done': { en: 'Handled a guide suggestion', tr: 'Bir rehber önerisi işlendi' },
   'guide.suggestion.discarded': { en: 'Discarded a guide suggestion', tr: 'Bir rehber önerisi reddedildi' },
   'guide.suggestion.removal': { en: 'Removed a professor on request', tr: 'İsteği üzerine bir hoca rehberden çıkarıldı' },
+  'guide.removal.notice': { en: 'Sent the removal notice to the professor', tr: 'Hocaya çıkarılma bildirimi gönderildi' },
   'agent_token.auto_revoke': { en: 'Agent token revoked automatically', tr: 'Ajan anahtarı otomatik olarak iptal edildi' },
   'usage.alert': { en: 'Free-tier usage alert', tr: 'Ücretsiz kota uyarısı' },
 

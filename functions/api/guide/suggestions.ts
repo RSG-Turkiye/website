@@ -3,6 +3,9 @@ import { jsonResponse } from '../../_lib/auth';
 import { runWithAudit } from '../../_lib/audit';
 import { deleteProfessor } from '../../_lib/guide-db';
 import { guideGate, fail, readBody, republish, isGuideId } from '../../_lib/guide-api';
+import { appendAudit } from '../../_lib/audit';
+import { sendSystemEmail } from '../../_lib/social-notify';
+import { parseRemovalNotice, noticesToday, REMOVAL_NOTICE_DAILY } from '../../_lib/guide-removal-notice';
 
 /**
  * The guide's suggestion queue (Google Form responses imported nightly by
@@ -46,9 +49,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   if (action === 'applyRemoval') {
     if (row.kind !== 'removal' || !isGuideId(row.record_id, 'p')) return fail(400, 'not_removal', 'This row is not a removal request for a professor');
+    // Optional: the notice the approver wrote, sent in the same click (functions/_lib/guide-removal-notice.ts).
+    const notice = body?.notice === undefined ? null : parseRemovalNotice(body.notice);
+    if (body?.notice !== undefined && !notice) return fail(400, 'bad_notice', 'Expected { to, subject, text } with one valid address');
+    if (notice && await noticesToday(env.DB, gate.now) >= REMOVAL_NOTICE_DAILY) return fail(429, 'notice_limit', 'Too many removal notices today');
     // One batch: the record, every queue row about it, and the audit row.
     await deleteProfessor(env.DB, row.record_id, gate.user.id, gate.now, 'guide.suggestion.removal');
-    return jsonResponse({ ok: true, publish: await republish(env, gate.now) });
+    let sent: 'none' | 'sent' | 'failed' = 'none';
+    if (notice) {
+      sent = await sendSystemEmail(env, notice) ? 'sent' : 'failed';
+      await appendAudit(env.DB, { userId: gate.user.id, action: 'guide.removal.notice', details: { sent: sent === 'sent' } }, gate.now);
+    }
+    return jsonResponse({ ok: true, notice: sent, publish: await republish(env, gate.now) });
   }
 
   const status = action === 'done' ? 'done' : 'discarded';

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestionBody } from '../src/scripts/admin/sections/guide-render';
+import { suggestionBody, removalNoticeTemplate, removalNoticeForm } from '../src/scripts/admin/sections/guide-render';
 import { readCachedIndex, INDEX_TTL_SECONDS } from '../src/lib/guide-index-cache';
 
 test('Final #5: a suggestion shows its whole text, line breaks kept, escaped, with a clickable http(s) link', () => {
@@ -18,4 +18,23 @@ test('Final #6: the browser copy of the index expires after five minutes', () =>
   assert.equal(readCachedIndex(stored, 1000 + 301), null);
   assert.equal(readCachedIndex('{"generatedAt":"old shape"}', 1000), null, 'an old-format copy is refetched');
   assert.equal(readCachedIndex(null, 1000), null);
+});
+
+test('the removal notice is bilingual, names the person, and links the guide on our own domain', () => {
+  const n = removalNoticeTemplate('Doç. Dr.', 'Deneme Hoca');
+  assert.match(n.subject, /kaldırıldı/);
+  assert.match(n.subject, /removed/);
+  assert.match(n.text, /Sayın Doç\. Dr\. Deneme Hoca/);
+  assert.match(n.text, /Dear Doç\. Dr\. Deneme Hoca/);
+  assert.match(n.text, /https:\/\/rsg-turkiye\.iscbsc\.org\/tr\/guide\//);
+  assert.doesNotMatch(n.text, /pages\.dev|workers\.dev/);
+  assert.match(n.text, /yanıtla/, 'tells them how to undo a false alarm');
+  assert.equal(removalNoticeTemplate('', 'Deneme Hoca').text.split('\n')[0], 'Sayın Deneme Hoca,', 'no stray space without a title');
+});
+
+test('the notice form escapes what it shows', () => {
+  const html = removalNoticeForm(7, { subject: '<b>s</b>', text: '<script>x</script>' }, { to: 'E-posta', hint: 'h', subject: 'Konu', text: 'Metin', send: 'Gönder', skip: 'Atla', cancel: 'Vazgeç' });
+  assert.ok(!html.includes('<script>x'));
+  assert.match(html, /data-notice-form="7"/);
+  assert.match(html, /type="email"/);
 });
