@@ -1,26 +1,10 @@
 ---
 import LanguageIcon from './LanguageIcon.astro';
 import { getLangFromUrl, useTranslations } from '../i18n/ui';
-import { getCollection } from 'astro:content';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const prefix = lang === 'tr' ? '/tr' : '';
-
-/**
- * The years in the webinars dropdown.
- *
- * These were five hand-written links, 2026 down to 2022, and 2026 had no
- * webinars in either language: the menu offered a year and the page it opened
- * was empty. The years that do exist in Turkish are not the same set as in
- * English either -- Turkish has nine 2024 talks and English has one -- so a
- * single hardcoded list could not have been right for both.
- *
- * The listing page filters on the #year fragment, so these are the years it
- * has something to show. Newest five, which is what the menu had room for.
- */
-const webinars = await getCollection('webinars', ({ id, data }) => id.startsWith(`${lang}/`) && !data.draft);
-const menuYears = [...new Set(webinars.map((w) => w.data.year))].sort((a, b) => b - a).slice(0, 5);
 
 // The symposium site has its own Turkish pages; a Turkish reader should land on them.
 const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/tr/' : 'https://symposium.rsg-turkiye.iscbsc.org/';
@@ -32,28 +16,13 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
     <!-- Logo / Brand -->
     <a href={prefix ? `${prefix}/` : '/'} class="flex items-center gap-2 text-white font-bold text-lg shrink-0 no-underline">
       <img src="/logo/rsgturkey_logo_144.png" alt="RSG-Turkiye Logo" width="36" height="36" class="rounded bg-white p-0.5" />
-      <span class="hidden sm:inline">{t('brand.name')}</span>
+      <span class="hidden sm:inline lg:hidden xl:inline">{t('brand.name')}</span>
     </a>
 
     <!-- Desktop nav -->
     <nav class="hidden lg:flex items-center gap-1">
       <a href={prefix ? `${prefix}/` : '/'} class="nav-link">{t('nav.home')}</a>
       <a href={`${prefix}/about/`} class="nav-link">{t('nav.about')}</a>
-      <a href={`${prefix}/blog/`} class="nav-link">{t('nav.blog')}</a>
-
-      <!-- Webinars dropdown -->
-      <div class="relative group">
-        <a href={`${prefix}/webinars/`} class="nav-link">{t('nav.webinars')}</a>
-        <div class="dropdown-menu">
-          {menuYears.map((year) => (
-            <a href={`${prefix}/webinars#${year}`} class="dropdown-item">{year}</a>
-          ))}
-        </div>
-      </div>
-
-      <a href={`${prefix}/resources/`} class="nav-link">{t('nav.resources')}</a>
-      <a href={`${prefix}/learning-paths/`} class="nav-link">{t('nav.learningPaths')}</a>
-      <a href={`${prefix}/guide/`} class="nav-link">{t('nav.guide')}</a>
       <!-- Events dropdown: the symposium, workshops and hackathons are all
            events, so they sit under one item instead of three. -->
       <div class="relative group">
@@ -65,6 +34,21 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
           <a href={`${prefix}/workshops/#nf-core`} class="dropdown-item">{t('nav.nfcore')}</a>
         </div>
       </div>
+      <!-- Learn dropdown: five reading and listening pages under one item, so
+           the top bar has room and the graduate guide stays in view. It has
+           no page of its own, so the item is a button; focus opens the menu
+           (focus-within), which also covers a tap on a tablet. -->
+      <div class="relative group">
+        <button type="button" class="nav-link" aria-haspopup="true">{t('nav.learn')}</button>
+        <div class="dropdown-menu">
+          <a href={`${prefix}/webinars/`} class="dropdown-item">{t('nav.webinars')}</a>
+          <a href={`${prefix}/learning-paths/`} class="dropdown-item">{t('nav.learningPaths')}</a>
+          <a href={`${prefix}/resources/`} class="dropdown-item">{t('nav.resources')}</a>
+          <a href={`${prefix}/blog/`} class="dropdown-item">{t('nav.blog')}</a>
+          <a href={`${prefix}/podcast/`} class="dropdown-item">{t('nav.podcast')}</a>
+        </div>
+      </div>
+      <a href={`${prefix}/guide/`} class="nav-link">{t('nav.guide')}</a>
       <a id="membersNavLink" href={`${prefix}/members/`} class="nav-link hidden">{t('nav.members')}</a>
     </nav>
 
@@ -102,15 +86,16 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
   <div id="mobileNav" class="hidden lg:hidden bg-navy border-t border-white/10 px-6 pb-4 flex-col">
     <a href={prefix ? `${prefix}/` : '/'} class="mobile-link">{t('nav.home')}</a>
     <a href={`${prefix}/about/`} class="mobile-link">{t('nav.about')}</a>
-    <a href={`${prefix}/blog/`} class="mobile-link">{t('nav.blog')}</a>
-    <a href={`${prefix}/podcast/`} class="mobile-link">{t('nav.podcast')}</a>
-    <a href={`${prefix}/webinars/`} class="mobile-link">{t('nav.webinars')}</a>
-    <a href={`${prefix}/resources/`} class="mobile-link">{t('nav.resources')}</a>
-    <a href={`${prefix}/learning-paths/`} class="mobile-link">{t('nav.learningPaths')}</a>
-    <a href={`${prefix}/guide/`} class="mobile-link">{t('nav.guide')}</a>
     <a href={`${prefix}/events/`} class="mobile-link">{t('nav.events')}</a>
     <a href={symposiumUrl} class="mobile-link mobile-sublink">{t('nav.symposium')} ↗</a>
     <a href={`${prefix}/workshops/`} class="mobile-link mobile-sublink">{t('nav.workshops')}</a>
+    <p class="mobile-heading">{t('nav.learn')}</p>
+    <a href={`${prefix}/webinars/`} class="mobile-link mobile-sublink">{t('nav.webinars')}</a>
+    <a href={`${prefix}/learning-paths/`} class="mobile-link mobile-sublink">{t('nav.learningPaths')}</a>
+    <a href={`${prefix}/resources/`} class="mobile-link mobile-sublink">{t('nav.resources')}</a>
+    <a href={`${prefix}/blog/`} class="mobile-link mobile-sublink">{t('nav.blog')}</a>
+    <a href={`${prefix}/podcast/`} class="mobile-link mobile-sublink">{t('nav.podcast')}</a>
+    <a href={`${prefix}/guide/`} class="mobile-link">{t('nav.guide')}</a>
     <a id="membersMobileLink" href={`${prefix}/members/`} class="mobile-link hidden">{t('nav.members')}</a>
     <a href={`${prefix}/join/`} class="mt-3 flex items-center justify-center px-4 py-2 rounded bg-red text-white text-sm font-medium no-underline">
       {t('nav.join')}
@@ -124,7 +109,11 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
 
   /* Nav links: white text, red underline on active/hover */
   .nav-link {
-    @apply px-3 py-1.5 text-sm font-medium text-white/90 rounded hover:text-white hover:bg-white/10 transition-colors no-underline;
+    @apply px-3 py-1.5 text-sm font-medium text-white/90 rounded hover:text-white hover:bg-white/10 transition-colors no-underline whitespace-nowrap;
+  }
+
+  button.nav-link {
+    @apply cursor-pointer bg-transparent border-0;
   }
 
   /* Dropdown panel */
@@ -157,6 +146,11 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
 
   .mobile-sublink {
     @apply pl-4 text-white/75;
+  }
+
+  /* A group label on phones: not a link, so it reads as a heading. */
+  .mobile-heading {
+    @apply pt-3 pb-1 text-xs font-semibold text-white/60 border-b border-white/10;
   }
 </style>
 
