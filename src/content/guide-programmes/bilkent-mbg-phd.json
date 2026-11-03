@@ -11,12 +11,7 @@
     "en": "Department of Molecular Biology and Genetics, Faculty of Science",
     "tr": "Moleküler Biyoloji ve Genetik Bölümü, Fen Fakültesi"
   },
-  "usualMonths": [
-    "5",
-    "6",
-    "10",
-    "11"
-  ],
+  "usualMonths": [],
   "announcementUrl": "https://w3.bilkent.edu.tr/bilkent/gradstudents/",
   "calendarUrl": "https://w3.bilkent.edu.tr/en/academic-calendar/",
   "sourceUrl": "https://mbg.bilkent.edu.tr/graduate/",

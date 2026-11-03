@@ -11,12 +11,7 @@
     "en": "Graduate Education Institute",
     "tr": "Lisansüstü Eğitim Enstitüsü"
   },
-  "usualMonths": [
-    "5",
-    "6",
-    "7",
-    "8"
-  ],
+  "usualMonths": [],
   "announcementUrl": "https://gs.agu.edu.tr/oenemli-tarihler",
   "calendarUrl": "https://oidb-tr.agu.edu.tr/akademik-takvim",
   "sourceUrl": "http://gs.agu.edu.tr/lisansuestue-programlar",

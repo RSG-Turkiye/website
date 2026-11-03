@@ -11,12 +11,7 @@
     "en": "Graduate School of Natural and Applied Sciences",
     "tr": "Fen Bilimleri Enstitüsü"
   },
-  "usualMonths": [
-    "2",
-    "3",
-    "11",
-    "12"
-  ],
+  "usualMonths": [],
   "announcementUrl": "https://fbe.metu.edu.tr/en/announcements",
   "calendarUrl": "http://oidb.metu.edu.tr/en/academic-calendar",
   "sourceUrl": "https://fbe.metu.edu.tr/en/programs",

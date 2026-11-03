@@ -61,12 +61,12 @@ export function orderProgrammes<P extends Pick<CatalogProgramme, 'id' | 'type' |
 /** A PhD that adds nothing to its MSc's block but its name: same institute, same months, no window of its own. */
 function sameAsMsc(phd: CatalogProgramme, msc: CatalogProgramme): boolean {
   return phd.institute.tr === msc.institute.tr && phd.institute.en === msc.institute.en
-    && phd.usualMonths.join() === msc.usualMonths.join() && !phd.windowOpens && !phd.windowCloses;
+    && (phd.usualMonths.length === 0 || phd.usualMonths.join() === msc.usualMonths.join()) && !phd.windowOpens && !phd.windowCloses;
 }
 
 /**
  * A group's apply blocks, in the order given: each MSc, and a PhD that only
- * differs by name as one line inside its MSc's block ("Doktora: ..."), so a
+ * differs by name (or whose months nobody has read off a PhD call) as one line inside its MSc's block ("Doktora: ..."), so a
  * university with three programmes does not grow to six blocks. Any other PhD
  * gets a block of its own.
  */
@@ -82,7 +82,7 @@ export function applyBlocksHtml(programmes: CatalogProgramme[], lang: Lang, toda
       if (phd) {
         inline.add(phd.id);
         line = `<span class="block text-sm text-gray-700 mt-2">${escapeHtml(T.phdLabel)}: <a href="${escapeHtml(phd.announcementUrl ?? phd.sourceUrl)}" rel="noopener" class="font-medium text-navy hover:text-navy-mid underline decoration-navy-mid/30 underline-offset-2">${escapeHtml(phd.name[lang])}</a></span>`
-          + `<span class="block text-xs text-gray-600 mt-0.5">${escapeHtml(T.phdNote)}</span>`;
+          + `<span class="block text-xs text-gray-600 mt-0.5">${escapeHtml(phd.usualMonths.length ? T.phdNote : `${T.phdNote} ${T.phdMonthsUnknown}`)}</span>`;
       }
     }
     out.push(applyBlockHtml(p, lang, today, pageChanged[p.id], line));

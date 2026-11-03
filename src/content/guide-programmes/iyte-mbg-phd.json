@@ -11,11 +11,7 @@
     "en": "Graduate School",
     "tr": "Lisansüstü Eğitim Enstitüsü"
   },
-  "usualMonths": [
-    "4",
-    "5",
-    "6"
-  ],
+  "usualMonths": [],
   "announcementUrl": "https://mbg.iyte.edu.tr/duyuru/2026-2027-guz-donemi-icin-yuksek-lisans-ve-doktora-programi-basvurulari-icin-mulakat-tarihleri/",
   "calendarUrl": "https://lee.iyte.edu.tr/akademik-takvim/",
   "sourceUrl": "https://mbg.iyte.edu.tr/doktora-phd-programi/",

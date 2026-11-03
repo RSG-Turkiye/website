@@ -122,6 +122,9 @@ test('a PhD with the same institute and months as its MSc is one line inside the
   assert.equal((html.match(/border-l-2/g) || []).length, 1, 'one block');
   assert.match(html, /Doktora: <a [^>]*>A Doktora<\/a>/);
   assert.match(html, /Doktora danışmanlığının ayrı şartları vardır/);
+  const unknown = applyBlocksHtml([msc, { ...same, usualMonths: [] }], 'tr', '2026-11-03', {});
+  assert.equal((unknown.match(/border-l-2/g) || []).length, 1, 'months unknown: still one line');
+  assert.match(unknown, /Başvuru ayları için ilana bakın/, 'and it does not borrow the MSc months');
   const other = { ...same, usualMonths: ['8' as const] };
   assert.equal((applyBlocksHtml([msc, other], 'tr', '2026-11-03', {}).match(/border-l-2/g) || []).length, 2, 'different months: its own block');
 });
