@@ -408,8 +408,11 @@ outside designer). These are its decisions.
 - Programme level only. The guide never marks a professor as a PhD
   supervisor: under YÖK rules that depends on conditions the guide cannot
   check (for example having supervised an MSc thesis). Every PhD apply block
-  says so: "PhD supervision has its own conditions; ask the professor before
-  you apply."
+  says so: "PhD supervision has its own conditions."
+- Not every professor takes students every term, at MSc or PhD level. This
+  is said once, not on every card: in the note above the results ("ask
+  before you write") and as the first "before you write" step ("ask whether
+  they are taking students this term").
 - A PhD shows in a result group right after its MSc, and only when that MSc
   shows. The university page lists each MSc followed by its PhD.
 - Same evidence rule as everything else: a PhD is listed only when an
