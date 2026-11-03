@@ -147,7 +147,7 @@ test('every year in the webinars menu has webinars in that language', { skip: !e
     const present = new Set(
       [...readFileSync(join(DIST, listing), 'utf8').matchAll(/data-year="(\d{4})"/g)].map((m) => m[1]),
     );
-    assert.ok(menu.size > 0, `${label}: the menu lists no years at all`);
+    // The header has no year links since webinars moved under Learn; this guards their return.
     const empty = [...menu].filter((y) => !present.has(y)).sort();
     assert.deepEqual(empty, [], `${label} menu offers ${empty.join(', ')}, and that page has none`);
   }

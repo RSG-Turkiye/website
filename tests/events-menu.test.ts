@@ -32,3 +32,22 @@ test('the signed-in-only members link stays hidden on phones until shown', () =>
   assert.match(header, /\.mobile-link\.hidden\s*\{\s*display:\s*none;/);
   assert.match(header, /id="membersMobileLink"[^>]*class="mobile-link hidden"/);
 });
+
+test('the Learn menu holds webinars, learning paths, resources, blog and podcast; they are not top-level links', { skip: !built && 'no build in dist/' }, () => {
+  for (const [page, prefix, learn, guide] of [
+    ['index.html', '', 'Learn', 'Graduate Guide'],
+    ['tr/index.html', '/tr', 'Öğren', 'Lisansüstü Rehberi'],
+  ] as const) {
+    const html = readFileSync(`${DIST}${page}`, 'utf8');
+    const nav = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
+    const button = nav.indexOf(`>${learn}<`);
+    assert.ok(button !== -1, `${page}: no ${learn} menu`);
+    const open = nav.indexOf('class="dropdown-menu', button);
+    const menu = nav.slice(open, nav.indexOf('</div>', open));
+    for (const path of ['webinars', 'learning-paths', 'resources', 'blog', 'podcast']) {
+      assert.ok(menu.includes(`href="${prefix}/${path}/"`), `${page}: ${learn} menu lacks ${path}`);
+      assert.ok(!new RegExp(`href="${prefix}/${path}/" class="nav-link"`).test(nav), `${page}: ${path} is still a top-level link`);
+    }
+    assert.match(nav, new RegExp(`href="${prefix}/guide/" class="nav-link"[^>]*>${guide}<`), `${page}: the guide is top-level as "${guide}"`);
+  }
+});
