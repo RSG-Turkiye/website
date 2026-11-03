@@ -1,0 +1,18 @@
+{
+  "id": "marmara-bioeng-phd",
+  "universityId": "marmara",
+  "type": "phd",
+  "mscId": "marmara-bioeng",
+  "name": {
+    "en": "Bioengineering PhD",
+    "tr": "Biyomühendislik Doktora (İngilizce)"
+  },
+  "institute": {
+    "en": "Institute of Pure and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://fbe.marmara.edu.tr/lisansustu-basvuru/basvuru-takvimi",
+  "sourceUrl": "https://meobs.marmara.edu.tr/Program/programlar-hakkinda-bilgi/doktora-900004",
+  "checkedAt": "2026-11-03"
+}

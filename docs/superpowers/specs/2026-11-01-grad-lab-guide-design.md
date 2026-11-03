@@ -43,8 +43,8 @@ in Türkiye. Not PIs, not recruiters, not sponsors.
 
 ## Non-goals (first version)
 
-- PhD programmes. They come later by adding a programme-type field to the
-  same model; the first version is MSc only.
+- PhD programmes in the first version (added 2026-11-03; see "PhD
+  programmes" at the end).
 - Universities outside Türkiye.
 - A visual graph or map of topics. The topic graph is the engine behind the
   search, not something drawn on the page. A map may come later.
@@ -280,7 +280,7 @@ fixtures. Programmes are institutional, not personal.
 
 ## Calls made while writing this (check these)
 
-- **MSc only** in the first version; PhD later via a programme-type field.
+- **MSc only** in the first version; PhD added 2026-11-03 via the programme `type` field (see "PhD programmes").
 - **No professor pages.**
 - **Professors and labs in D1 + a published R2 index, not in git** (forced
   by CLAUDE.md rule 4; in conversation I had said "compiled at build time").
@@ -400,3 +400,22 @@ outside designer). These are its decisions.
 - Not now: reminders or calendar files, an "open this month" view, paper
   lists, ALES or language requirements, housing and scholarships, professor
   self-descriptions, counts or clustering on the map.
+
+## PhD programmes (owner, 2026-11-03)
+
+- A programme's `type` is `msc` or `phd`. A PhD names the MSc it continues
+  (`mscId`, same university); a PhD is not added without one.
+- Programme level only. The guide never marks a professor as a PhD
+  supervisor: under YÖK rules that depends on conditions the guide cannot
+  check (for example having supervised an MSc thesis). Every PhD apply block
+  says so: "PhD supervision has its own conditions."
+- Not every professor takes students every term, at MSc or PhD level. This
+  is said once, not on every card: in the note above the results ("ask
+  before you write") and as the first "before you write" step ("ask whether
+  they are taking students this term").
+- A PhD shows in a result group right after its MSc, and only when that MSc
+  shows. The university page lists each MSc followed by its PhD.
+- Same evidence rule as everything else: a PhD is listed only when an
+  official page shows it admits students today.
+- The nav link is "Lisansüstü Rehberi" / "Graduate Guide" (was "YL Rehberi"
+  / "MSc Guide"); the URL stays `/guide`.

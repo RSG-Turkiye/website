@@ -1,0 +1,19 @@
+{
+  "id": "bilkent-mbg-phd",
+  "universityId": "bilkent",
+  "type": "phd",
+  "mscId": "bilkent-mbg",
+  "name": {
+    "en": "Molecular Biology and Genetics PhD",
+    "tr": "Moleküler Biyoloji ve Genetik Doktora"
+  },
+  "institute": {
+    "en": "Department of Molecular Biology and Genetics, Faculty of Science",
+    "tr": "Moleküler Biyoloji ve Genetik Bölümü, Fen Fakültesi"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://w3.bilkent.edu.tr/bilkent/gradstudents/",
+  "calendarUrl": "https://w3.bilkent.edu.tr/en/academic-calendar/",
+  "sourceUrl": "https://mbg.bilkent.edu.tr/graduate/",
+  "checkedAt": "2026-11-03"
+}

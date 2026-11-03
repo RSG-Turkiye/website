@@ -1,0 +1,19 @@
+{
+  "id": "iyte-mbg-phd",
+  "universityId": "iyte",
+  "type": "phd",
+  "mscId": "iyte-mbg",
+  "name": {
+    "en": "Molecular Biology and Genetics PhD",
+    "tr": "Moleküler Biyoloji ve Genetik Doktora"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://mbg.iyte.edu.tr/duyuru/2026-2027-guz-donemi-icin-yuksek-lisans-ve-doktora-programi-basvurulari-icin-mulakat-tarihleri/",
+  "calendarUrl": "https://lee.iyte.edu.tr/akademik-takvim/",
+  "sourceUrl": "https://mbg.iyte.edu.tr/doktora-phd-programi/",
+  "checkedAt": "2026-11-03"
+}

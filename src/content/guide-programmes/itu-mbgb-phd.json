@@ -1,0 +1,18 @@
+{
+  "id": "itu-mbgb-phd",
+  "universityId": "itu",
+  "type": "phd",
+  "mscId": "itu-mbgb",
+  "name": {
+    "en": "Molecular Biology-Genetics and Biotechnology PhD",
+    "tr": "Moleküler Biyoloji-Genetik ve Biyoteknoloji Doktora"
+  },
+  "institute": {
+    "en": "Graduate School (LEE)",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.itu.edu.tr/adayogrenciler/lisansustu-basvuru",
+  "sourceUrl": "https://lee.itu.edu.tr/egitim/programlarimiz",
+  "checkedAt": "2026-11-03"
+}

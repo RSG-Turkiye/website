@@ -1,0 +1,18 @@
+{
+  "id": "acibadem-mbg-phd",
+  "universityId": "acibadem",
+  "type": "phd",
+  "mscId": "acibadem-mbg",
+  "name": {
+    "en": "Molecular Biology and Genetics PhD",
+    "tr": "Moleküler Biyoloji ve Genetik Doktora"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://acibadem.edu.tr/en/akademik/lisansustu/fen-bilimleri-enstitusu/programlar/yuksek-lisans/molekuler-biyoloji-ve-genetik/basvuru-kosullari",
+  "sourceUrl": "https://acibadem.edu.tr/akademik/lisansustu/fen-bilimleri-enstitusu/programlar/doktora",
+  "checkedAt": "2026-11-03"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "agu-biyomuhendislik-phd",
+  "universityId": "agu",
+  "type": "phd",
+  "mscId": "agu-biyomuhendislik",
+  "name": {
+    "en": "BioEngineering PhD",
+    "tr": "Biyomühendislik Doktora"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://gs.agu.edu.tr/oenemli-tarihler",
+  "calendarUrl": "https://oidb-tr.agu.edu.tr/akademik-takvim",
+  "sourceUrl": "http://gs.agu.edu.tr/lisansuestue-programlar",
+  "checkedAt": "2026-11-03"
+}

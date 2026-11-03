@@ -1,0 +1,17 @@
+{
+  "id": "kadirhas-cse-phd",
+  "universityId": "kadirhas",
+  "type": "phd",
+  "mscId": "kadirhas-cse",
+  "name": {
+    "en": "Computational Sciences and Engineering PhD",
+    "tr": "Hesaplamalı Bilimler ve Mühendislik Doktora (Disiplinlerarası, Tezli, İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://www.khas.edu.tr/mbg/mbg-lisansustu-programlari/",
+  "checkedAt": "2026-11-03"
+}

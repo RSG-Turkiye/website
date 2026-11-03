@@ -1,0 +1,18 @@
+{
+  "id": "ankara-yzve-phd",
+  "universityId": "ankara",
+  "type": "phd",
+  "mscId": "ankara-yzve",
+  "name": {
+    "en": "Artificial Intelligence and Data Engineering PhD",
+    "tr": "Yapay Zekâ ve Veri Mühendisliği Doktora (Türkçe)"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://ai.eng.ankara.edu.tr/2026/11/02/2026-2027-egitim-ogretim-yili-bahar-yariyili-yuksek-lisans-ve-doktora-basvuru-duyurusu/",
+  "sourceUrl": "https://ai.eng.ankara.edu.tr/2026/11/02/2026-2027-egitim-ogretim-yili-bahar-yariyili-yuksek-lisans-ve-doktora-basvuru-duyurusu/",
+  "checkedAt": "2026-11-03"
+}

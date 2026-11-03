@@ -1,0 +1,18 @@
+{
+  "id": "medipol-bmeb-phd",
+  "universityId": "medipol",
+  "type": "phd",
+  "mscId": "medipol-bmeb",
+  "name": {
+    "en": "Biomedical Engineering and Bioinformatics PhD",
+    "tr": "Biyomedikal Mühendisliği ve Biyoenformatik Doktora (İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://www.medipol.edu.tr/akademik/enstituler/fen-bilimleri-enstitusu",
+  "sourceUrl": "https://www.medipol.edu.tr/akademik/enstituler/fen-bilimleri-enstitusu/doktora-programlari",
+  "checkedAt": "2026-11-03"
+}

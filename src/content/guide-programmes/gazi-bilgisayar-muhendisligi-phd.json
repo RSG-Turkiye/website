@@ -1,0 +1,17 @@
+{
+  "id": "gazi-bilgisayar-muhendisligi-phd",
+  "universityId": "gazi",
+  "type": "phd",
+  "mscId": "gazi-bilgisayar-muhendisligi",
+  "name": {
+    "en": "Computer Engineering PhD",
+    "tr": "Bilgisayar Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://mf-bm.gazi.edu.tr/view/page/285005",
+  "checkedAt": "2026-11-03"
+}

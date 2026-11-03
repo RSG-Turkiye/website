@@ -1,0 +1,19 @@
+{
+  "id": "sabanci-cse-phd",
+  "universityId": "sabanci",
+  "type": "phd",
+  "mscId": "sabanci-cse",
+  "name": {
+    "en": "Computer Science and Engineering PhD",
+    "tr": "Bilgisayar Bilimi ve Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "FENS Graduate School",
+    "tr": "FENS Lisansüstü Okulu"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://www.sabanciuniv.edu/en/graduate-school-engineering-and-natural-sciences-application-announcements",
+  "calendarUrl": "https://www.sabanciuniv.edu/en/academic-calendar",
+  "sourceUrl": "https://ects.sabanciuniv.edu/en/degree-programs/phd-programs",
+  "checkedAt": "2026-11-03"
+}

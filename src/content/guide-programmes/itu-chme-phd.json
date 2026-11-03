@@ -1,0 +1,18 @@
+{
+  "id": "itu-chme-phd",
+  "universityId": "itu",
+  "type": "phd",
+  "mscId": "itu-chme",
+  "name": {
+    "en": "Chemical Engineering PhD",
+    "tr": "Kimya Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "Graduate School (LEE)",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.itu.edu.tr/adayogrenciler/lisansustu-basvuru",
+  "sourceUrl": "https://lee.itu.edu.tr/egitim/programlarimiz",
+  "checkedAt": "2026-11-03"
+}

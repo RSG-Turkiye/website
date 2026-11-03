@@ -1,0 +1,20 @@
+{
+  "id": "mugla-bioinf-phd",
+  "universityId": "mugla",
+  "type": "phd",
+  "mscId": "mugla-bioinf",
+  "name": {
+    "en": "Bioinformatics PhD",
+    "tr": "Biyoinformatik Doktora (İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "8"
+  ],
+  "announcementUrl": "https://muweb.mu.edu.tr/Newfiles/115/Content/2024-2025%20FBE%20Yabanc%C4%B1%20Uyruklu%20%C4%B0lan%20Metni.pdf",
+  "sourceUrl": "https://ects.mu.edu.tr/tr/program/3631",
+  "checkedAt": "2026-11-03"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "gtu-biyomuhendislik-phd",
+  "universityId": "gtu",
+  "type": "phd",
+  "mscId": "gtu-biyomuhendislik",
+  "name": {
+    "en": "Bioengineering PhD",
+    "tr": "Biyomühendislik Doktora (İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [
+    "5",
+    "6",
+    "8"
+  ],
+  "announcementUrl": "https://www.gtu.edu.tr/fileman/Files/UserFiles/oidb/LISANS_USTU/BASVURULAR/2026-2027%20G%C3%9CZ/2026-2027%20G%C3%9CZ%20%C4%B0LAN%20METN%C4%B0.pdf",
+  "calendarUrl": "https://www.gtu.edu.tr/tr/icerik/1318/436/akademik-takvim.aspx",
+  "sourceUrl": "https://www.gtu.edu.tr/fileman/Files/UserFiles/oidb/LISANS_USTU/BASVURULAR/2026-2027%20G%C3%9CZ/2026-2027%20G%C3%9CZ%20%C4%B0LAN%20METN%C4%B0.pdf",
+  "checkedAt": "2026-11-03"
+}

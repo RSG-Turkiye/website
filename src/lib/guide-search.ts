@@ -124,11 +124,16 @@ export function groupResults(results: SearchResult[], catalog: GuideCatalog, pag
   }
   const all = [...byUni.values()];
   // When every professor's programme is known, show only those; one unknown and all the university's are shown.
+  // A PhD shows after the MSc it continues, and only when that MSc shows.
   for (const g of all) {
+    let msc = g.programmes.filter((p) => p.type !== 'phd');
     if (g.professors.every((p) => p.programmeIds.length)) {
       const used = new Set(g.professors.flatMap((p) => p.programmeIds));
-      g.programmes = g.programmes.filter((p) => used.has(p.id));
+      msc = msc.filter((p) => used.has(p.id));
     }
+    const shown = new Set(msc.map((p) => p.id));
+    const phd = g.programmes.filter((p) => p.type === 'phd' && p.mscId && shown.has(p.mscId));
+    g.programmes = msc.flatMap((m) => [m, ...phd.filter((d) => d.mscId === m.id)]);
   }
   for (const g of all) g.professors.sort((a, b) => Number(isUnverified(a.professor)) - Number(isUnverified(b.professor)) || byName(a.professor, b.professor));
   all.sort((a, b) => b.best - a.best || a.university.name.tr.localeCompare(b.university.name.tr, 'tr'));

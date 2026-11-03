@@ -42,8 +42,12 @@ export const programmeSchema = z
   .object({
     id: slug,
     universityId: slug,
-    /** MSc only in the first version; PhD comes later as a second value. */
-    type: z.literal("msc"),
+    /** "msc" or "phd". A PhD is listed only with the MSc it continues
+     * (`mscId`), at programme level: the guide never marks a professor as a
+     * PhD supervisor, because that depends on conditions it cannot check. */
+    type: z.enum(["msc", "phd"]),
+    /** A PhD's MSc at the same university; an MSc has none. */
+    mscId: slug.optional(),
     name: filled,
     institute: filled,
     /** The months applications usually open ("6" is June), from past
@@ -64,6 +68,7 @@ export const programmeSchema = z
     note: z.string().optional(),
   })
   .strict()
+  .refine((p) => (p.type === "phd") === (p.mscId !== undefined), "a PhD names its MSc (mscId); an MSc names none")
   .refine((p) => (p.windowOpens === undefined) === (p.windowCloses === undefined), "a window needs both ends")
   .refine((p) => p.windowOpens === undefined || p.windowCloses === undefined || p.windowOpens <= p.windowCloses, "the window opens after it closes");
 
@@ -85,13 +90,18 @@ export type RelatedTerm = z.infer<typeof relatedTermSchema>;
  * reference; empty means clean. */
 export function checkGuideContent(
   universities: Pick<University, "id">[],
-  programmes: Pick<Programme, "id" | "universityId">[],
+  programmes: (Pick<Programme, "id" | "universityId"> & { type?: Programme["type"]; mscId?: string })[],
   terms: Pick<RelatedTerm, "id" | "related">[],
 ): string[] {
   const errors: string[] = [];
   const uni = new Set(universities.map((u) => u.id));
   const termIds = new Set(terms.map((t) => t.id));
   for (const p of programmes) if (!uni.has(p.universityId)) errors.push(`programme ${p.id}: no university ${p.universityId}`);
+  for (const p of programmes) {
+    if (p.mscId === undefined) continue;
+    const msc = programmes.find((q) => q.id === p.mscId);
+    if (!msc || (msc.type ?? "msc") !== "msc" || msc.universityId !== p.universityId) errors.push(`programme ${p.id}: no MSc ${p.mscId} at ${p.universityId}`);
+  }
   for (const t of terms) for (const r of t.related) if (!termIds.has(r)) errors.push(`term ${t.id}: no term group ${r}`);
   return errors;
 }

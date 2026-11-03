@@ -1,0 +1,19 @@
+{
+  "id": "deu-ibg-mbg-phd",
+  "universityId": "deu",
+  "type": "phd",
+  "mscId": "deu-ibg-mbg",
+  "name": {
+    "en": "Molecular Biology and Genetics PhD",
+    "tr": "Moleküler Biyoloji ve Genetik Doktora"
+  },
+  "institute": {
+    "en": "İzmir International Biomedicine and Genome Institute",
+    "tr": "İzmir Uluslararası Biyotıp ve Genom Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://ibg.deu.edu.tr/basvuru/",
+  "calendarUrl": "https://ibg.deu.edu.tr/akademik-takvim/",
+  "sourceUrl": "https://ibg.deu.edu.tr/genom-bilimleri-ve-molekuler-biyoteknoloji-anabilim-dali/",
+  "checkedAt": "2026-11-03"
+}
