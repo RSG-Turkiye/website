@@ -1,0 +1,17 @@
+{
+  "id": "yildiz-mbg-phd",
+  "universityId": "yildiz",
+  "type": "phd",
+  "mscId": "yildiz-mbg",
+  "name": {
+    "en": "Molecular Biology and Genetics PhD",
+    "tr": "Moleküler Biyoloji ve Genetik Doktora"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://fbe.yildiz.edu.tr/lisansustu-programlar/doktora",
+  "checkedAt": "2026-11-03"
+}

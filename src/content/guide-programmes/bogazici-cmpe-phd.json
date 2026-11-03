@@ -1,0 +1,21 @@
+{
+  "id": "bogazici-cmpe-phd",
+  "universityId": "bogazici",
+  "type": "phd",
+  "mscId": "bogazici-cmpe",
+  "name": {
+    "en": "Computer Engineering PhD",
+    "tr": "Bilgisayar Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "Institute for Graduate Studies in Science and Engineering",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "1",
+    "5"
+  ],
+  "announcementUrl": "https://fbe.bogazici.edu.tr/tr/announcements",
+  "sourceUrl": "https://fbe.bogazici.edu.tr/tr/pages/akademik-programlar/2868",
+  "checkedAt": "2026-11-03"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "bilkent-cs-phd",
+  "universityId": "bilkent",
+  "type": "phd",
+  "mscId": "bilkent-cs",
+  "name": {
+    "en": "Computer Engineering PhD",
+    "tr": "Bilgisayar Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "Graduate School of Engineering and Science",
+    "tr": "Mühendislik ve Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://w3.bilkent.edu.tr/bilkent/gradstudents/",
+  "checkedAt": "2026-11-03"
+}

@@ -28,7 +28,7 @@ export function programmeStatus(p: CatalogProgramme, today: string): ProgrammeSt
 
 export const WARN_CLASS = 'block mt-2 text-[13px] leading-snug text-amber-900 bg-amber-50 border-l-2 border-amber-500 px-2.5 py-1.5';
 
-export function applyBlockHtml(p: CatalogProgramme, lang: Lang, today: string, pageChangedSince?: string): string {
+export function applyBlockHtml(p: CatalogProgramme, lang: Lang, today: string, pageChangedSince?: string, phdLine = ''): string {
   const T = GUIDE_TEXT[lang];
   const s = programmeStatus(p, today);
   const href = p.announcementUrl ?? p.sourceUrl;
@@ -46,6 +46,7 @@ export function applyBlockHtml(p: CatalogProgramme, lang: Lang, today: string, p
     + `<span class="block text-xs text-gray-500 mt-1">${escapeHtml(checked)}</span>`
     + (p.type === 'phd' ? `<span class="block text-xs text-gray-600 mt-1">${escapeHtml(T.phdNote)}</span>` : '')
     + warn
+    + phdLine
     + `</div>`;
 }
 
@@ -55,4 +56,36 @@ export function orderProgrammes<P extends Pick<CatalogProgramme, 'id' | 'type' |
   const phd = list.filter((p) => p.type === 'phd');
   const out = msc.flatMap((m) => [m, ...phd.filter((d) => d.mscId === m.id)]);
   return [...out, ...phd.filter((d) => !out.includes(d))];
+}
+
+/** A PhD that adds nothing to its MSc's block but its name: same institute, same months, no window of its own. */
+function sameAsMsc(phd: CatalogProgramme, msc: CatalogProgramme): boolean {
+  return phd.institute.tr === msc.institute.tr && phd.institute.en === msc.institute.en
+    && phd.usualMonths.join() === msc.usualMonths.join() && !phd.windowOpens && !phd.windowCloses;
+}
+
+/**
+ * A group's apply blocks, in the order given: each MSc, and a PhD that only
+ * differs by name as one line inside its MSc's block ("Doktora: ..."), so a
+ * university with three programmes does not grow to six blocks. Any other PhD
+ * gets a block of its own.
+ */
+export function applyBlocksHtml(programmes: CatalogProgramme[], lang: Lang, today: string, pageChanged: Record<string, string | undefined>): string {
+  const T = GUIDE_TEXT[lang];
+  const inline = new Set<string>();
+  const out: string[] = [];
+  for (const p of programmes) {
+    if (inline.has(p.id)) continue;
+    let line = '';
+    if (p.type !== 'phd') {
+      const phd = programmes.find((d) => d.type === 'phd' && d.mscId === p.id && sameAsMsc(d, p) && !pageChanged[d.id]);
+      if (phd) {
+        inline.add(phd.id);
+        line = `<span class="block text-sm text-gray-700 mt-2">${escapeHtml(T.phdLabel)}: <a href="${escapeHtml(phd.announcementUrl ?? phd.sourceUrl)}" rel="noopener" class="font-medium text-navy hover:text-navy-mid underline decoration-navy-mid/30 underline-offset-2">${escapeHtml(phd.name[lang])}</a></span>`
+          + `<span class="block text-xs text-gray-600 mt-0.5">${escapeHtml(T.phdNote)}</span>`;
+      }
+    }
+    out.push(applyBlockHtml(p, lang, today, pageChanged[p.id], line));
+  }
+  return out.join('');
 }

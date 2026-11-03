@@ -1,0 +1,17 @@
+{
+  "id": "gaziantep-bioinf-phd",
+  "universityId": "gaziantep",
+  "type": "phd",
+  "mscId": "gaziantep-bioinf",
+  "name": {
+    "en": "Bioinformatics and Computational Biology (Interdisciplinary) PhD",
+    "tr": "Biyoenformatik ve Bilişimsel Biyoloji (Disiplinlerarası) Doktora"
+  },
+  "institute": {
+    "en": "Institute of Health Sciences",
+    "tr": "Sağlık Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://sagbe.gaziantep.edu.tr/pages.php?url=biyoenformatik-ve-bilisimsel-biyoloji-disiplinlerarasi-102",
+  "checkedAt": "2026-11-03"
+}

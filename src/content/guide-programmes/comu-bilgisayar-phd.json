@@ -1,0 +1,17 @@
+{
+  "id": "comu-bilgisayar-phd",
+  "universityId": "comu",
+  "type": "phd",
+  "mscId": "comu-bilgisayar",
+  "name": {
+    "en": "Computer Engineering PhD",
+    "tr": "Bilgisayar Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "sourceUrl": "https://lee.comu.edu.tr/kurumsal/anabilim-anasanat-dallari-r3.html",
+  "checkedAt": "2026-11-03"
+}

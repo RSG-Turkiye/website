@@ -1,0 +1,23 @@
+{
+  "id": "ege-gida-phd",
+  "universityId": "ege",
+  "type": "phd",
+  "mscId": "ege-gida",
+  "name": {
+    "en": "Food Engineering PhD",
+    "tr": "Gıda Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "Graduate School of Natural and Applied Sciences",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "7",
+    "8",
+    "9"
+  ],
+  "announcementUrl": "https://fenbilimleri.ege.edu.tr/s-9169/.html",
+  "calendarUrl": "https://oidb.ege.edu.tr/files/oidb/icerik/26_27_Akademik_takvim.pdf",
+  "sourceUrl": "https://fenbilimleri.ege.edu.tr/tr-15511/doktora_programlari.html",
+  "checkedAt": "2026-11-03"
+}

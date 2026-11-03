@@ -8,7 +8,7 @@
  */
 import { escapeHtml } from './escape-html';
 import { search, expandQuery, groupResults, chipsFor, cityFromParams, isUnverified, type ResultGroup, type GroupProfessor } from '../lib/guide-search';
-import { applyBlockHtml, orderProgrammes } from '../lib/guide-apply';
+import { applyBlocksHtml, orderProgrammes } from '../lib/guide-apply';
 import { fill, suggestUrl, checkedLabel, type GuideText, type Lang } from '../lib/guide-text';
 import { epochToIstanbulInput } from '../lib/istanbul-time';
 import { readCachedIndex, writeCachedIndex } from '../lib/guide-index-cache';
@@ -62,7 +62,7 @@ function groupHtml(g: ResultGroup, x: Ctx): string {
   const { T, lang, prefix, today } = x;
   const known = g.professors.some((p) => p.programmeIds.length);
   const apply = g.programmes.length
-    ? g.programmes.map((p) => applyBlockHtml(p, lang, today, p.pageChangedSince)).join('')
+    ? applyBlocksHtml(g.programmes, lang, today, Object.fromEntries(g.programmes.map((p) => [p.id, p.pageChangedSince])))
       + (g.programmes.filter((p) => p.type !== 'phd').length > 1 && !known ? `<p class="text-xs text-gray-500">${escapeHtml(T.whichProgrammeShort)}</p>` : '')
     : '';
   return `<section class="grid gap-x-10 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.9fr)] py-7 border-t border-gray-300 first:border-t-0">
@@ -109,7 +109,7 @@ export async function startGuide(root: HTMLElement): Promise<void> {
     const box = document.querySelector<HTMLElement>('[data-programmes]');
     if (box) {
       const own = orderProgrammes(catalog.programmes.filter((p) => p.universityId === university), lang);
-      if (own.length) box.innerHTML = own.map((p) => applyBlockHtml(p, lang, today, pageChanged[p.id])).join('');
+      if (own.length) box.innerHTML = applyBlocksHtml(own, lang, today, pageChanged);
     }
     const mine = idx.professors.filter((p) => p.universityId === university).map((professor) => ({ professor, matched: [], score: 0 }));
     const g = groupResults(mine, catalog, pageChanged);

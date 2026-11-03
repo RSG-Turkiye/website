@@ -1,0 +1,24 @@
+{
+  "id": "agu-ece-phd",
+  "universityId": "agu",
+  "type": "phd",
+  "mscId": "agu-ece",
+  "name": {
+    "en": "Electrical and Computer Engineering PhD",
+    "tr": "Elektrik ve Bilgisayar Mühendisliği Doktora"
+  },
+  "institute": {
+    "en": "Graduate Education Institute",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [
+    "5",
+    "6",
+    "7",
+    "8"
+  ],
+  "announcementUrl": "https://gs.agu.edu.tr/oenemli-tarihler",
+  "calendarUrl": "https://oidb-tr.agu.edu.tr/akademik-takvim",
+  "sourceUrl": "http://gs.agu.edu.tr/lisansuestue-programlar",
+  "checkedAt": "2026-11-03"
+}

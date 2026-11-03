@@ -1,0 +1,18 @@
+{
+  "id": "acibadem-bioinf-phd",
+  "universityId": "acibadem",
+  "type": "phd",
+  "mscId": "acibadem-bioinf",
+  "name": {
+    "en": "Biostatistics and Bioinformatics PhD",
+    "tr": "Biyoistatistik ve Biyoinformatik Doktora (İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School of Health Sciences",
+    "tr": "Sağlık Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://www.acibadem.edu.tr",
+  "sourceUrl": "https://acibadem.edu.tr/akademik/lisansustu/saglik-bilimleri-enstitusu/programlar/doktora",
+  "checkedAt": "2026-11-03"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "ege-biyoistatistik-phd",
+  "universityId": "ege",
+  "type": "phd",
+  "mscId": "ege-biyoistatistik",
+  "name": {
+    "en": "Biostatistics PhD Programme (Biostatistics and Medical Informatics)",
+    "tr": "Biyoistatistik Doktora (Biyoistatistik ve Tıbbi Bilişim ABD)"
+  },
+  "institute": {
+    "en": "Graduate School of Health Sciences",
+    "tr": "Sağlık Bilimleri Enstitüsü"
+  },
+  "usualMonths": [
+    "7",
+    "8",
+    "9"
+  ],
+  "announcementUrl": "http://sbe.ege.edu.tr/",
+  "sourceUrl": "https://sbe.ege.edu.tr/tr-4886/lisansustu_programlarimiz.html",
+  "checkedAt": "2026-11-03"
+}

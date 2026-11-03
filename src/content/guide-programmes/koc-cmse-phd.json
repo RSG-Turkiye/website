@@ -1,0 +1,22 @@
+{
+  "id": "koc-cmse-phd",
+  "universityId": "koc",
+  "type": "phd",
+  "mscId": "koc-cmse",
+  "name": {
+    "en": "Computational Sciences and Engineering PhD",
+    "tr": "Hesaplamalı Bilimler ve Mühendislik Doktora"
+  },
+  "institute": {
+    "en": "Graduate School of Sciences and Engineering",
+    "tr": "Fen Bilimleri ve Mühendislik Lisansüstü Okulu"
+  },
+  "usualMonths": [
+    "10",
+    "11",
+    "12"
+  ],
+  "announcementUrl": "https://apply.ku.edu.tr/courses/course/58-msc-computational-sciences-and-engineering--thesis",
+  "sourceUrl": "https://apply.ku.edu.tr/courses/course/59-phd-computational-sciences-and-engineering",
+  "checkedAt": "2026-11-03"
+}

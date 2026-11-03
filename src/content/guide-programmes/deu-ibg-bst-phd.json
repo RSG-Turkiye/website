@@ -1,0 +1,22 @@
+{
+  "id": "deu-ibg-bst-phd",
+  "universityId": "deu",
+  "type": "phd",
+  "mscId": "deu-ibg-bst",
+  "name": {
+    "en": "Biomedicine and Health Technologies PhD",
+    "tr": "Biyotıp ve Sağlık Teknolojileri Doktora"
+  },
+  "institute": {
+    "en": "İzmir International Biomedicine and Genome Institute",
+    "tr": "İzmir Uluslararası Biyotıp ve Genom Enstitüsü"
+  },
+  "usualMonths": [
+    "6",
+    "7",
+    "8"
+  ],
+  "announcementUrl": "https://ibg.deu.edu.tr/basvuru/",
+  "sourceUrl": "https://ibg.deu.edu.tr/biyotip-ve-saglik-teknolojileri-a-b-d/",
+  "checkedAt": "2026-11-03"
+}
