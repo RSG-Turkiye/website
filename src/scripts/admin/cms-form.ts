@@ -490,7 +490,8 @@ export const MODELS: Record<TypeKey, TypeModel> = {
     fields: [
       { key: 'id', kind: 'text', label: 'admin.cms.f.guideId', help: 'admin.cms.h.guideId', group: 'main', required: true },
       { key: 'universityId', kind: 'select', options: [], optionsFrom: 'guide-universities', label: 'admin.cms.f.guideUniversity', group: 'main', required: true },
-      { key: 'type', kind: 'select', options: ['msc'], label: 'admin.cms.f.guideType', group: 'main', required: true },
+      { key: 'type', kind: 'select', options: ['msc', 'phd'], label: 'admin.cms.f.guideType', group: 'main', required: true },
+      { key: 'mscId', kind: 'text', label: 'admin.cms.f.guideMscId', help: 'admin.cms.h.guideMscId', group: 'main' },
       { key: 'name', kind: 'bilingual', label: 'admin.cms.f.guideName', group: 'main', required: true },
       { key: 'institute', kind: 'bilingual', label: 'admin.cms.f.guideInstitute', group: 'main', required: true },
       { key: 'usualMonths', kind: 'strings', label: 'admin.cms.f.guideMonths', help: 'admin.cms.h.guideMonths', group: 'main', required: true, always: true },

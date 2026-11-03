@@ -1,23 +1,22 @@
 ---
 /**
- * /guide/<university>: the university's MSc programmes and, drawn in the
+ * /guide/<university>: the university's MSc and PhD programmes and, drawn in the
  * browser from the search index, its professors. The programmes are rendered
  * here for readers without JavaScript and redrawn by src/scripts/guide-page.ts
  * for today's date and any page-changed warning (same renderer).
  */
 import { getCollection } from 'astro:content';
 import { GUIDE_TEXT, suggestUrl, type Lang } from '../../lib/guide-text';
-import { applyBlockHtml } from '../../lib/guide-apply';
+import { applyBlockHtml, orderProgrammes } from '../../lib/guide-apply';
 import type { University } from '../../data/guide';
 
 interface Props { lang: Lang; university: University }
 const { lang, university } = Astro.props;
 const T = GUIDE_TEXT[lang];
 const prefix = lang === 'tr' ? '/tr' : '';
-const programmes = (await getCollection('guideProgrammes'))
+const programmes = orderProgrammes((await getCollection('guideProgrammes'))
   .map((e) => e.data)
-  .filter((p) => p.universityId === university.id)
-  .sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang));
+  .filter((p) => p.universityId === university.id), lang);
 const buildDay = new Date().toISOString().slice(0, 10);
 const LINK = 'text-navy-mid hover:text-navy underline decoration-navy-mid/30 underline-offset-2';
 ---

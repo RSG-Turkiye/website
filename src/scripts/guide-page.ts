@@ -8,7 +8,7 @@
  */
 import { escapeHtml } from './escape-html';
 import { search, expandQuery, groupResults, chipsFor, cityFromParams, isUnverified, type ResultGroup, type GroupProfessor } from '../lib/guide-search';
-import { applyBlockHtml } from '../lib/guide-apply';
+import { applyBlockHtml, orderProgrammes } from '../lib/guide-apply';
 import { fill, suggestUrl, checkedLabel, type GuideText, type Lang } from '../lib/guide-text';
 import { epochToIstanbulInput } from '../lib/istanbul-time';
 import { readCachedIndex, writeCachedIndex } from '../lib/guide-index-cache';
@@ -40,7 +40,7 @@ function professorRow(gp: GroupProfessor, g: ResultGroup, x: Ctx): string {
   const lab = p.labId ? x.idx.labs.find((l) => l.id === p.labId) : undefined;
   const chips = chipsFor(p.topics, gp.matched)
     .map((c) => `<li class="px-2 py-0.5 rounded text-[13px] leading-5 ${c.hit ? 'bg-navy text-white' : 'bg-navy-light text-navy'}">${escapeHtml(c.text)}</li>`).join('');
-  const programme = g.programmes.length > 1 && gp.programmeIds.length
+  const programme = g.programmes.filter((q) => q.type !== 'phd').length > 1 && gp.programmeIds.length
     ? `<p class="text-[13px] text-gray-600 mt-1">${escapeHtml(fill(T.programmeLine, { name: gp.programmeIds.map((id) => g.programmes.find((q) => q.id === id)!.name[lang]).join(', ') }))}</p>`
     : '';
   return `<li class="py-4 first:pt-0 lg:first:pt-1">
@@ -63,7 +63,7 @@ function groupHtml(g: ResultGroup, x: Ctx): string {
   const known = g.professors.some((p) => p.programmeIds.length);
   const apply = g.programmes.length
     ? g.programmes.map((p) => applyBlockHtml(p, lang, today, p.pageChangedSince)).join('')
-      + (g.programmes.length > 1 && !known ? `<p class="text-xs text-gray-500">${escapeHtml(T.whichProgrammeShort)}</p>` : '')
+      + (g.programmes.filter((p) => p.type !== 'phd').length > 1 && !known ? `<p class="text-xs text-gray-500">${escapeHtml(T.whichProgrammeShort)}</p>` : '')
     : '';
   return `<section class="grid gap-x-10 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.9fr)] py-7 border-t border-gray-300 first:border-t-0">
     <div>
@@ -108,7 +108,7 @@ export async function startGuide(root: HTMLElement): Promise<void> {
     // The programmes were drawn at build time; redraw them for today's date and any page-changed warning.
     const box = document.querySelector<HTMLElement>('[data-programmes]');
     if (box) {
-      const own = catalog.programmes.filter((p) => p.universityId === university).sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang));
+      const own = orderProgrammes(catalog.programmes.filter((p) => p.universityId === university), lang);
       if (own.length) box.innerHTML = own.map((p) => applyBlockHtml(p, lang, today, pageChanged[p.id])).join('');
     }
     const mine = idx.professors.filter((p) => p.universityId === university).map((professor) => ({ professor, matched: [], score: 0 }));

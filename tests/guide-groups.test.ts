@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { groupResults, chipsFor, type SearchResult } from '../src/lib/guide-search';
-import { programmeStatus, applyBlockHtml } from '../src/lib/guide-apply';
+import { programmeStatus, applyBlockHtml, orderProgrammes } from '../src/lib/guide-apply';
 import type { IndexProfessor } from '../functions/_lib/guide-index';
 import type { GuideCatalog } from '../src/lib/guide-catalog';
 
@@ -90,4 +90,27 @@ test('a group shows only the known programmes when every professor\u2019s is kno
   assert.deepEqual(known.groups[0].programmes.map((p) => p.id), ['ornek-b']);
   const mixed = groupResults([r({ id: 'p1', universityId: 'ornek', programmeIds: ['ornek-b'] }, 1), r({ id: 'p2', universityId: 'ornek' }, 1)], catalog, {});
   assert.deepEqual(mixed.groups[0].programmes.map((p) => p.id), ['ornek-a', 'ornek-b']);
+});
+
+test('a PhD shows with the MSc it continues, after it, and only when that MSc shows', () => {
+  const cat: GuideCatalog = {
+    ...catalog,
+    programmes: [P('ornek-a', 'ornek'), P('ornek-b', 'ornek'), { ...P('ornek-a-phd', 'ornek'), type: 'phd' as const, mscId: 'ornek-a' }, { ...P('ornek-b-phd', 'ornek'), type: 'phd' as const, mscId: 'ornek-b' }],
+  };
+  const known = groupResults([r({ id: 'p1', universityId: 'ornek', programmeIds: ['ornek-a'] }, 1)], cat, {});
+  assert.deepEqual(known.groups[0].programmes.map((p) => p.id), ['ornek-a', 'ornek-a-phd']);
+  const unknown = groupResults([r({ id: 'p1', universityId: 'ornek' }, 1)], cat, {});
+  assert.deepEqual(unknown.groups[0].programmes.map((p) => p.id), ['ornek-a', 'ornek-b', 'ornek-a-phd', 'ornek-b-phd']);
+});
+
+test("a PhD's apply block says supervision has its own conditions", () => {
+  const html = applyBlockHtml({ ...P('ornek-a-phd', 'ornek'), type: 'phd', mscId: 'ornek-a' }, 'tr', '2026-11-03');
+  assert.match(html, /Doktora danışmanlığı/);
+  assert.doesNotMatch(applyBlockHtml(P('ornek-a', 'ornek'), 'tr', '2026-11-03'), /Doktora danışmanlığı/);
+  assert.match(applyBlockHtml({ ...P('x-phd', 'ornek'), type: 'phd', mscId: 'x' }, 'en', '2026-11-03'), /PhD supervision/);
+});
+
+test("a university's programmes list each MSc, then the PhD that continues it", () => {
+  const list = [{ ...P('x-b-phd', 'ornek'), type: 'phd' as const, mscId: 'x-b', name: { en: 'B PhD', tr: 'B Doktora' } }, { ...P('x-b', 'ornek'), name: { en: 'B', tr: 'B' } }, { ...P('x-a', 'ornek'), name: { en: 'A', tr: 'A' } }];
+  assert.deepEqual(orderProgrammes(list, 'tr').map((p) => p.id), ['x-a', 'x-b', 'x-b-phd']);
 });

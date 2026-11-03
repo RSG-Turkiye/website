@@ -53,8 +53,15 @@ test('usual months may be unknown (empty): the card then points to the announcem
   assert.ok(programmeSchema.safeParse({ ...prog, usualMonths: [] }).success);
 });
 
-test('only msc programmes for now', () => {
-  assert.ok(!programmeSchema.safeParse({ ...prog, type: 'phd' }).success);
+test('a PhD names the MSc it continues; an MSc names none', () => {
+  const phd = { ...prog, id: 'ornek-teknik-bioinformatics-phd', type: 'phd', mscId: 'ornek-teknik-bioinformatics' };
+  assert.ok(programmeSchema.safeParse(phd).success);
+  assert.ok(!programmeSchema.safeParse({ ...phd, mscId: undefined }).success, 'a PhD without its MSc');
+  assert.ok(!programmeSchema.safeParse({ ...prog, mscId: 'x' }).success, 'an MSc with an mscId');
+  assert.ok(!programmeSchema.safeParse({ ...prog, type: 'ma' }).success);
+  assert.deepEqual(checkGuideContent([uni], [prog, phd], []), []);
+  assert.equal(checkGuideContent([uni], [phd], []).length, 1, 'its MSc must exist');
+  assert.equal(checkGuideContent([uni, { ...uni, id: 'baska' }], [{ ...prog, universityId: 'baska' }, phd], []).length, 1, 'and be at the same university');
 });
 
 test('a term group needs at least two spellings', () => {

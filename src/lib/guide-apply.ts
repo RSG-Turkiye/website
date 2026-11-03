@@ -44,6 +44,15 @@ export function applyBlockHtml(p: CatalogProgramme, lang: Lang, today: string, p
     + `<span class="block text-[13px] text-gray-500 mt-0.5">${escapeHtml(p.institute[lang])}</span>`
     + `<span class="block text-sm text-gray-700 mt-1.5 leading-snug">${status}</span>`
     + `<span class="block text-xs text-gray-500 mt-1">${escapeHtml(checked)}</span>`
+    + (p.type === 'phd' ? `<span class="block text-xs text-gray-600 mt-1">${escapeHtml(T.phdNote)}</span>` : '')
     + warn
     + `</div>`;
+}
+
+/** Each MSc by name, each followed by the PhD that continues it (a PhD whose MSc is missing goes last). */
+export function orderProgrammes<P extends Pick<CatalogProgramme, 'id' | 'type' | 'mscId' | 'name'>>(list: P[], lang: Lang): P[] {
+  const msc = list.filter((p) => p.type !== 'phd').sort((a, b) => a.name[lang].localeCompare(b.name[lang], lang));
+  const phd = list.filter((p) => p.type === 'phd');
+  const out = msc.flatMap((m) => [m, ...phd.filter((d) => d.mscId === m.id)]);
+  return [...out, ...phd.filter((d) => !out.includes(d))];
 }
