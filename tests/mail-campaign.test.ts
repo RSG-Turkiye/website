@@ -126,10 +126,10 @@ test('the campaign quota is 200 a day and 60 an hour', () => {
 });
 
 test('a campaign message is held by the campaign hourly, daily and site windows', async () => {
-  // Order: campaign hour, campaign day, site day.
+  // Order: campaign day, campaign hour, site day.
   assert.deepEqual(await checkRateLimit(fakeDb([0, 0, 0]), 'u1', 1, NOW, { campaign: true }), { ok: true });
-  assert.deepEqual(await checkRateLimit(fakeDb([60, 0, 0]), 'u1', 1, NOW, { campaign: true }), { ok: false, code: 'rate_limit_campaign_hour' });
-  assert.deepEqual(await checkRateLimit(fakeDb([0, 200, 0]), 'u1', 1, NOW, { campaign: true }), { ok: false, code: 'rate_limit_campaign_day' });
+  assert.deepEqual(await checkRateLimit(fakeDb([200, 0, 0]), 'u1', 1, NOW, { campaign: true }), { ok: false, code: 'rate_limit_campaign_day' });
+  assert.deepEqual(await checkRateLimit(fakeDb([0, 60, 0]), 'u1', 1, NOW, { campaign: true }), { ok: false, code: 'rate_limit_campaign_hour' });
   assert.deepEqual(await checkRateLimit(fakeDb([0, 0, 300]), 'u1', 1, NOW, { campaign: true }), { ok: false, code: 'rate_limit_global' });
 });
 
@@ -148,4 +148,42 @@ test('a person\'s ordinary mail is not held by campaign messages they sent', asy
   assert.match(db.queries[0], /campaign_id IS NULL/);
   assert.match(db.queries[1], /campaign_id IS NULL/);
   assert.doesNotMatch(db.queries[2], /campaign_id/);
+});
+
+// --- review fixes -----------------------------------------------------------
+
+test('a row with more or fewer cells than the header is refused, not shifted', () => {
+  const r = buildCampaign({ table: 'e-posta,unvan,ad\nb@x.edu.tr,Doç., Dr.,Mehmet\nc@x.edu.tr,Prof.,Ayşe\n', subject: 'S', body: 'Sayın [unvan] [ad]' });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.deepEqual(r.recipients.map((x) => x.email), ['c@x.edu.tr']);
+  assert.deepEqual(r.refused, [{ line: 2, email: 'b@x.edu.tr', reason: 'column_count' }]);
+});
+
+test('a quoted cell from a Sheets copy keeps its separators, quotes and line breaks', () => {
+  const t = parseTable('email\tad\tnot\na@x.org\t"Ayşe ""Ece"" Yılmaz"\t"satır 1\nsatır 2"\nb@x.org\tB\tC\n');
+  assert.equal(t.rows.length, 2);
+  assert.deepEqual(t.rows[0], { email: 'a@x.org', ad: 'Ayşe "Ece" Yılmaz', not: 'satır 1\nsatır 2' });
+  assert.equal(parseTable('email,unvan\na@x.org,"Doç., Dr."').rows[0].unvan, 'Doç., Dr.');
+});
+
+test('any bracketed name is a placeholder: punctuation in a header works and an unknown one blocks', () => {
+  const ok = buildCampaign({ table: 'email\tAd.Soyad\tAd (TR)\na@x.org\tAyşe Yılmaz\tAyşe', subject: 'S', body: '[Ad.Soyad] / [Ad (TR)]' });
+  assert.equal(ok.ok, true);
+  if (ok.ok) assert.equal(ok.recipients[0].body, 'Ayşe Yılmaz / Ayşe');
+  const bad = buildCampaign({ table: 'email\tad\na@x.org\tA', subject: 'S', body: 'Sayın [ad/soyad]' });
+  assert.equal(bad.ok, false);
+  if (!bad.ok) assert.deepEqual(bad.unknown, ['ad/soyad']);
+});
+
+test('an English header in capitals matches its placeholder', () => {
+  const r = buildCampaign({ table: 'EMAIL\tTITLE\tİSİM\na@x.org\tProf.\tAyşe', subject: 'S', body: '[title] [isim]' });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.recipients[0].body, 'Prof. Ayşe');
+});
+
+test('a quoted address is refused rather than queued to fail at Gmail', () => {
+  const r = buildCampaign({ table: 'email\tad\n"a@x.edu.tr" \tA\nb@x.org\tB', subject: 'S', body: 'B' });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.deepEqual(r.recipients.map((x) => x.email), ['a@x.edu.tr', 'b@x.org']);
 });

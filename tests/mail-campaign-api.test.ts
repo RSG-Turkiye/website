@@ -31,8 +31,9 @@ const req = (method: string, who: string, body?: unknown, path = '/api/mail/camp
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
-const post = (env: unknown, who: string, body: unknown) =>
-  onRequestPost({ request: req('POST', who, body), env } as never);
+/** The panel names the campaign when the form is built; a retry reuses it. */
+const post = (env: unknown, who: string, body: Record<string, unknown>) =>
+  onRequestPost({ request: req('POST', who, { id: crypto.randomUUID(), ...body }), env } as never);
 
 test('a sender queues one personal letter per valid row, and is told which rows were refused', async () => {
   const { db, env } = setup();
@@ -78,9 +79,11 @@ test('a campaign that cannot go out queues nothing', async () => {
 
 test('a malformed body is a coded 400', async () => {
   const { env } = setup();
-  const res = await post(env, 'sender', { table: 5, subject: 'S', body: 'B' });
-  assert.equal(res.status, 400);
-  assert.equal(((await res.json()) as { code: string }).code, 'malformed_request');
+  for (const body of [{ table: 5, subject: 'S', body: 'B' }, { table: TABLE, subject: 'S', body: 'B', id: 'not-a-uuid' }]) {
+    const res = await post(env, 'sender', body);
+    assert.equal(res.status, 400);
+    assert.equal(((await res.json()) as { code: string }).code, 'malformed_request');
+  }
 });
 
 test('the list shows sent, failed and waiting counts per campaign', async () => {
@@ -140,4 +143,75 @@ test('campaign rows stay out of the ordinary scheduled list', async () => {
   const res = await scheduledGet({ request: req('GET', 'sender', undefined, '/api/mail/scheduled'), env } as never);
   const { scheduled } = await res.json() as { scheduled: unknown[] };
   assert.equal(scheduled.length, 0);
+});
+
+// --- review fixes -----------------------------------------------------------
+
+test('sending the same campaign twice queues it once', async () => {
+  const { db, env } = setup();
+  const id = crypto.randomUUID();
+  const first = await post(env, 'sender', { id, table: TABLE, subject: 'S', body: 'B' });
+  assert.equal(first.status, 201);
+  const again = await post(env, 'sender', { id, table: TABLE, subject: 'S', body: 'B' });
+  assert.equal(again.status, 409);
+  assert.equal(((await again.json()) as { code: string }).code, 'already_queued');
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM scheduled_emails').get() as { n: number }).n, 2);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM mail_campaigns').get() as { n: number }).n, 1);
+});
+
+test('a 500-person campaign is a handful of statements, not one per person', async () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SCHEMA);
+  db.prepare(`INSERT INTO users (id, google_id, email, is_sender, created_at, last_login) VALUES ('sender','g1','s@example.org',1,1,1)`).run();
+  db.prepare(`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES ('s-sender','sender',4000000000,1)`).run();
+  let statements = 0;
+  const env = { DB: d1(db, () => { statements++; }) };
+  const table = 'email\tad\n' + Array.from({ length: 500 }, (_, i) => `p${i}@example.org\tKişi ${i}`).join('\n');
+  const res = await post(env, 'sender', { table, subject: 'S', body: 'Sayın [ad],\n\n' + 'Metin. '.repeat(300) });
+  assert.equal(res.status, 201, await res.clone().text());
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM scheduled_emails').get() as { n: number }).n, 500);
+  const sample = db.prepare(`SELECT recipients, body FROM scheduled_emails WHERE recipients = '["p7@example.org"]'`).get() as { body: string };
+  assert.match(sample.body, /^Sayın Kişi 7,/);
+  // D1's free plan allows 50 queries per invocation; session and audit reads included.
+  assert.ok(statements < 30, `${statements} statements`);
+});
+
+test('cancelling also drops a row whose claim has expired', async () => {
+  const { db, env } = setup();
+  const created = await (await post(env, 'sender', { table: TABLE, subject: 'S', body: 'B' })).json() as { id: string };
+  // An invocation died mid-send an hour ago; the dispatcher would pick this up again.
+  db.prepare(`UPDATE scheduled_emails SET claimed_at = ? WHERE recipients = ?`).run(Math.floor(Date.now() / 1000) - 3600, JSON.stringify(['ayse@uni.edu.tr']));
+  const res = await onRequestDelete({ request: req('DELETE', 'sender', undefined, `/api/mail/campaigns/${created.id}`), env, params: { id: created.id } } as never);
+  assert.deepEqual(await res.json(), { ok: true, dropped: 2 });
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM scheduled_emails').get() as { n: number }).n, 0);
+});
+
+test('the list gives the newest hold reason', async () => {
+  const { db, env } = setup();
+  await post(env, 'sender', { table: TABLE, subject: 'S', body: 'B' });
+  db.prepare(`UPDATE scheduled_emails SET last_error = 'rate_limit_global', updated_at = 1 WHERE recipients = ?`).run(JSON.stringify(['ayse@uni.edu.tr']));
+  db.prepare(`UPDATE scheduled_emails SET last_error = 'rate_limit_campaign_day', updated_at = 2 WHERE recipients = ?`).run(JSON.stringify(['mehmet@uni.edu.tr']));
+  const { campaigns } = await (await onRequestGet({ request: req('GET', 'sender'), env } as never)).json() as { campaigns: { held: string }[] };
+  assert.equal(campaigns[0].held, 'rate_limit_campaign_day');
+});
+
+test('a campaign row cannot be edited or deleted as ordinary scheduled mail', async () => {
+  const { db, env } = setup();
+  await post(env, 'sender', { table: TABLE, subject: 'S', body: 'B' });
+  const row = db.prepare(`SELECT id FROM scheduled_emails LIMIT 1`).get() as { id: string };
+  const { onRequestPatch, onRequestDelete: scheduledDelete } = await import('../functions/api/mail/scheduled');
+  const patch = await onRequestPatch({ request: req('PATCH', 'sender', { id: row.id, to: 'x@example.org, y@example.org', subject: 'S', body: 'B', scheduled_at: Math.floor(Date.now() / 1000) + 86400 }, '/api/mail/scheduled'), env } as never);
+  assert.notEqual(patch.status, 200);
+  const del = await scheduledDelete({ request: req('DELETE', 'sender', { id: row.id }, '/api/mail/scheduled'), env } as never);
+  assert.notEqual(del.status, 200);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM scheduled_emails').get() as { n: number }).n, 2);
+});
+
+test('the dispatcher\'s queries use indexes that skip the rows they do not want', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SCHEMA);
+  const plan = (sql: string) => (db.prepare('EXPLAIN QUERY PLAN ' + sql).all() as { detail: string }[]).map((r) => r.detail).join(' | ');
+  assert.match(plan(`SELECT COUNT(*) AS n FROM sent_emails WHERE campaign_id IS NOT NULL AND status = 'sent' AND sent_at > 1`), /idx_sent_emails_campaign_sent/);
+  assert.match(plan(`SELECT id FROM scheduled_emails WHERE campaign_id IS NULL AND scheduled_at <= 1 AND (claimed_at IS NULL OR claimed_at <= 1) ORDER BY scheduled_at ASC LIMIT 60`), /idx_scheduled_emails_due_plain/);
+  assert.match(plan(`SELECT id FROM scheduled_emails WHERE campaign_id IS NOT NULL AND scheduled_at <= 1 AND (claimed_at IS NULL OR claimed_at <= 1) ORDER BY scheduled_at ASC LIMIT 4`), /idx_scheduled_emails_due_campaign/);
 });

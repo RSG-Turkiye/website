@@ -15,6 +15,9 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 let wired = false;
 let current: CampaignBuild | null = null;
+// Names this form's campaign. Sent with every attempt, so a retry after a
+// lost response is recognised as the same campaign instead of a second one.
+let campaignId = crypto.randomUUID();
 let armTimer: ReturnType<typeof setTimeout> | null = null;
 
 function sendLabel(n: number) { return tf('admin.mail.bulk.send', { n }); }
@@ -95,15 +98,18 @@ async function start() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        id: campaignId,
         table: $<HTMLTextAreaElement>('mailBulkTable').value,
         subject: $<HTMLInputElement>('mailBulkSubject').value,
         body: $<HTMLTextAreaElement>('mailBulkBody').value,
       }),
     });
-    if (!res.ok) throw new Error(String(res.status));
-    const out = await res.json() as { total: number };
-    toast(tf('admin.mail.bulk.queued', { n: out.total }));
+    // 409: an earlier attempt with this form already queued it.
+    if (!res.ok && res.status !== 409) throw new Error(String(res.status));
+    const out = res.status === 409 ? null : await res.json() as { total: number };
+    toast(out ? tf('admin.mail.bulk.queued', { n: out.total }) : t('admin.mail.bulk.alreadyQueued'));
     status.textContent = '';
+    campaignId = crypto.randomUUID();
     // The letters are in the queue now; clearing the form is what stops a
     // second click from queueing everyone twice.
     for (const id of ['mailBulkTable', 'mailBulkSubject', 'mailBulkBody']) $<HTMLInputElement>(id).value = '';
@@ -112,6 +118,8 @@ async function start() {
   } catch {
     toast(t('admin.mail.bulk.startFailed'), true);
     send.disabled = false;
+    // It may have been queued before the answer was lost: the list says so.
+    void loadCampaigns();
   }
 }
 
@@ -189,7 +197,9 @@ async function loadCampaigns() {
       c.failed ? chip(String(c.failed), 'red') : '',
       heldKey && c.waiting ? chip(t(heldKey as never), 'amber') : '',
     ].join('');
-    const trailing = c.waiting && !c.cancelled_at
+    // Still offered after a cancel while anything waits: a row an earlier
+    // cancel left mid-send can come back if its send died.
+    const trailing = c.waiting
       ? `<button type="button" data-cancel="${escapeHtml(c.id)}" data-waiting="${c.waiting}" class="inline-flex items-center justify-center px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium border border-navy text-navy hover:bg-navy-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid disabled:opacity-40">${escapeHtml(t('admin.mail.bulk.cancel'))}</button>`
       : '';
     return row({ title: c.subject, subtitle: `${who}${formatDate(c.created_at)}`, chips, trailing, stack: true });

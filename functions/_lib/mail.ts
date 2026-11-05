@@ -115,19 +115,22 @@ export async function checkRateLimit(
   const dayAgo = now - 86400;
 
   if (opts.campaign) {
-    const campaignHour = await db
-      .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE campaign_id IS NOT NULL AND status = 'sent' AND sent_at > ?")
-      .bind(hourAgo)
-      .first<{ n: number }>();
-    if ((campaignHour?.n ?? 0) + recipientCount > CAMPAIGN_LIMITS.perHour) {
-      return { ok: false, code: 'rate_limit_campaign_hour' };
-    }
+    // The day first: a held mail-out is usually held by the day, and then one
+    // count settles it. The WHERE keeps the exact terms of the partial index
+    // idx_sent_emails_campaign_sent, so it reads only campaign sends.
     const campaignDay = await db
       .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE campaign_id IS NOT NULL AND status = 'sent' AND sent_at > ?")
       .bind(dayAgo)
       .first<{ n: number }>();
     if ((campaignDay?.n ?? 0) + recipientCount > CAMPAIGN_LIMITS.perDay) {
       return { ok: false, code: 'rate_limit_campaign_day' };
+    }
+    const campaignHour = await db
+      .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE campaign_id IS NOT NULL AND status = 'sent' AND sent_at > ?")
+      .bind(hourAgo)
+      .first<{ n: number }>();
+    if ((campaignHour?.n ?? 0) + recipientCount > CAMPAIGN_LIMITS.perHour) {
+      return { ok: false, code: 'rate_limit_campaign_hour' };
     }
     return globalWindow(db, recipientCount, dayAgo);
   }

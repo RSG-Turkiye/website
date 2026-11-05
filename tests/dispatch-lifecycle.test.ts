@@ -41,9 +41,18 @@ function harness(options: {
         bind(...values: unknown[]) {
           const record = () => log.push({ sql: sql.replace(/\s+/g, ' ').trim(), values });
           return {
+            __sql: sql.replace(/\s+/g, ' ').trim(),
+            __values: values,
             async all<T>() {
               record();
-              if (/FROM scheduled_emails/.test(sql)) return { results: rows as T[] };
+              if (/FROM scheduled_emails/.test(sql)) {
+                // The dispatcher reads ordinary and campaign rows as two windows.
+                const campaign = /campaign_id IS NOT NULL/.test(sql);
+                const plain = /campaign_id IS NULL/.test(sql);
+                return {
+                  results: rows.filter((r) => (campaign ? !!r.campaign_id : plain ? !r.campaign_id : true)) as T[],
+                };
+              }
               if (/FROM mail_attachments/.test(sql)) {
                 return {
                   results: [
@@ -79,10 +88,16 @@ function harness(options: {
           };
         },
       };
-      return stmt;
+      // Unbound use, as the audit helper reads the chain head.
+      return Object.assign(stmt, {
+        first: <T>() => stmt.bind().first<T>(),
+        all: <T>() => stmt.bind().all<T>(),
+        run: () => stmt.bind().run(),
+      });
     },
-    async batch(statements: unknown[]) {
+    async batch(statements: { __sql?: string; __values?: unknown[] }[]) {
       log.push({ sql: 'BATCH', values: [statements.length] });
+      for (const st of statements) if (st.__sql) log.push({ sql: st.__sql, values: st.__values ?? [] });
       return [];
     },
   };
@@ -411,4 +426,29 @@ test('a campaign row whose sender lost both roles is dropped', async () => {
   await tick(h.env);
   assert.ok(!h.order().some((s) => /SET claimed_at/.test(s)));
   assert.ok(h.order().some((s) => /DELETE FROM scheduled_emails/.test(s)));
+});
+
+test('a campaign row\'s audit row names the campaign, not the person', async () => {
+  const h = harness({ rows: [campaignRow({ subject: 'Sayın Prof. Dr. Ayşe Yılmaz' })] });
+  await tick(h.env);
+  const audit = h.log.filter((l) => /INSERT INTO audit_log/.test(l.sql));
+  assert.ok(audit.length > 0, 'audit row written');
+  for (const a of audit) assert.doesNotMatch(JSON.stringify(a.values), /Ayşe/);
+  assert.ok(audit.some((a) => JSON.stringify(a.values).includes('camp-1')));
+});
+
+test('once the campaign quota holds one row, the tick holds the rest without counting again', async () => {
+  const h = harness({ rows: [campaignRow({ id: 'r1' }), campaignRow({ id: 'r2', sender_user_id: 'user-2' })], sentCount: 1000 });
+  await tick(h.env);
+  const counts = h.order().filter((s) => /COUNT\(\*\) AS n FROM sent_emails/.test(s));
+  assert.equal(counts.length, 1, counts.join('\n'));
+  assert.equal(h.order().filter((s) => /SET last_error/.test(s)).length, 1);
+});
+
+test('ordinary mail is read in its own window, so a mail-out cannot hide it', async () => {
+  const h = harness({ rows: [campaignRow({ id: 'c1' }), queueRow({ id: 'p1', attachment_ids: '[]', campaign_id: null, sender_user_id: 'user-9' })] });
+  await tick(h.env);
+  const windows = h.order().filter((s) => /FROM scheduled_emails WHERE campaign_id/.test(s));
+  assert.equal(windows.length, 2);
+  assert.ok(h.log.some((l) => /SET claimed_at/.test(l.sql) && l.values.includes('p1')), 'ordinary row sent');
 });

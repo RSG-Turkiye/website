@@ -1,11 +1,14 @@
 import type { Env } from '../../../_lib/auth';
 import { runWithAudit } from '../../../_lib/audit';
 import { getSessionUser, jsonResponse, checkCsrf } from '../../../_lib/auth';
+import { CLAIM_LEASE_SECONDS } from '../../../_lib/mail-queue';
 
 /**
  * Cancels what is left of a mail-out. Letters already sent stay sent, and a
- * row the dispatcher has claimed is mid-send and left to finish: deleting it
- * would not stop the message, only its log row.
+ * row the dispatcher has claimed within its lease is mid-send and left to
+ * finish: deleting it would not stop the message, only its log row. A claim
+ * past its lease belongs to an invocation that died, and the next tick would
+ * pick it up, so it is dropped with the rest.
  */
 export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params }) => {
   if (!checkCsrf(request, env)) return jsonResponse({ error: 'Forbidden', code: 'forbidden' }, 403);
@@ -22,13 +25,14 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   }
 
   const now = Math.floor(Date.now() / 1000);
+  const stale = now - CLAIM_LEASE_SECONDS;
   const pending = await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM scheduled_emails WHERE campaign_id = ? AND claimed_at IS NULL',
-  ).bind(id).first<{ n: number }>();
+    'SELECT COUNT(*) AS n FROM scheduled_emails WHERE campaign_id = ? AND (claimed_at IS NULL OR claimed_at <= ?)',
+  ).bind(id, stale).first<{ n: number }>();
   const dropped = pending?.n ?? 0;
 
   await runWithAudit(env.DB, [
-    env.DB.prepare('DELETE FROM scheduled_emails WHERE campaign_id = ? AND claimed_at IS NULL').bind(id),
+    env.DB.prepare('DELETE FROM scheduled_emails WHERE campaign_id = ? AND (claimed_at IS NULL OR claimed_at <= ?)').bind(id, stale),
     env.DB.prepare('UPDATE mail_campaigns SET cancelled_at = COALESCE(cancelled_at, ?) WHERE id = ?').bind(now, id),
   ], {
     userId: user.id, action: 'mail.campaign.cancel', targetType: 'mail_campaign', targetId: id,

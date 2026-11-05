@@ -672,9 +672,13 @@ CREATE INDEX IF NOT EXISTS idx_sent_emails_sender_sent_at ON sent_emails(sender_
 CREATE INDEX IF NOT EXISTS idx_sent_emails_sent_at ON sent_emails(sent_at);
 -- The queue's reconciler asks what a claimed row already delivered.
 CREATE INDEX IF NOT EXISTS idx_sent_emails_scheduled ON sent_emails(scheduled_id);
--- The campaign quota is counted on every tick for every campaign row, and a
--- campaign's progress is read from here. Migration 8p.
+-- A campaign's progress is read by campaign_id. Migration 8p.
 CREATE INDEX IF NOT EXISTS idx_sent_emails_campaign ON sent_emails(campaign_id, sent_at);
+-- The campaign quota (functions/_lib/mail.ts) is counted on the per-minute
+-- tick. Partial, so the count reads only campaign sends; the query's WHERE
+-- must keep these exact terms or the planner falls back to every send in
+-- the window. Migration 8p; tests/mail-campaign-api.test.ts checks the plan.
+CREATE INDEX IF NOT EXISTS idx_sent_emails_campaign_sent ON sent_emails(sent_at) WHERE campaign_id IS NOT NULL AND status = 'sent';
 CREATE INDEX IF NOT EXISTS idx_sender_grants_user_id ON sender_grants(user_id);
 
 -- Mail composed now and sent later. Deliberately NOT a new status on
@@ -714,7 +718,15 @@ CREATE TABLE IF NOT EXISTS scheduled_emails (
 );
 
 CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due ON scheduled_emails(scheduled_at);
-CREATE INDEX IF NOT EXISTS idx_scheduled_emails_campaign ON scheduled_emails(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_emails_sender ON scheduled_emails(sender_user_id);
+-- The dispatcher reads ordinary mail and campaign mail as two windows, so a
+-- mail-out's hundreds of due rows never hide the rest of the queue. Each
+-- reads only its own rows. Migration 8p.
+CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due_plain ON scheduled_emails(scheduled_at) WHERE campaign_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due_campaign ON scheduled_emails(scheduled_at) WHERE campaign_id IS NOT NULL;
+-- No plain index on campaign_id: with one, the planner took it for the
+-- ordinary window's `campaign_id IS NULL` and sorted every queued row. The
+-- panel's per-campaign reads and cancel scan the small queue instead.
 
 -- A bulk personal mail-out (src/lib/mail-campaign.ts). Holds the subject as
 -- written, with its [placeholders], and the count -- never the addresses:
@@ -729,7 +741,6 @@ CREATE TABLE IF NOT EXISTS mail_campaigns (
   cancelled_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_mail_campaigns_created ON mail_campaigns(created_at);
-CREATE INDEX IF NOT EXISTS idx_scheduled_emails_sender ON scheduled_emails(sender_user_id);
 
 -- What each dispatch tick did. Written by functions/api/mail/dispatch.ts and
 -- read by nothing -- it exists to be queried by hand when the queue misbehaves.
