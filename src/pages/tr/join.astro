@@ -7,6 +7,10 @@ const tx = await pageText('join', 'tr');
 
 const faqs = [
   {
+    q: tx('faq_iscb_q'),
+    a: tx('faq_iscb_a'),
+  },
+  {
     q: tx('faq_how_to_join_q'),
     a: tx('faq_how_to_join_a'),
   },
@@ -72,12 +76,23 @@ const benefits = [
               </li>
             ))}
           </ul>
+          <div class="mt-8 hidden lg:block">
+            <h3 class="text-base font-semibold text-navy mb-1">{tx('iscb_side_title')}</h3>
+            <p class="text-sm text-gray-600">
+              {tx('iscb_side_text')}
+              <a href="#faq" class="text-navy underline">{tx('iscb_side_link')}</a>
+            </p>
+          </div>
         </div>
 
         <!-- Form embed -->
         <div>
           <h2 id="membership" class="text-xl font-semibold text-navy mb-2 scroll-mt-20">{tx('membership_title')}</h2>
-          <p class="text-sm text-gray-600 mb-6">{tx('membership_text')}</p>
+          <p class="text-sm text-gray-600 mb-3">{tx('membership_text')}</p>
+          <p class="text-sm text-gray-700 mb-6 border-l-2 border-navy pl-3">
+            {tx('membership_iscb_note')}
+            <a href="https://www.iscb.org/membership-details" target="_blank" rel="noopener noreferrer" class="text-navy underline">{tx('membership_iscb_link')}</a>
+          </p>
           <iframe
             src="https://docs.google.com/forms/d/e/1FAIpQLSeo8lI8mijdndi2Z0hURHUbn2mvJPkbW9OrsgQ2bH9iGfyS_g/viewform?embedded=true"
             width="100%"
@@ -97,7 +112,7 @@ const benefits = [
   </section>
 
   <!-- FAQ -->
-  <section class="bg-[#F7F7F6] py-14 border-t border-border">
+  <section id="faq" class="bg-[#F7F7F6] py-14 border-t border-border scroll-mt-20">
     <div class="max-w-2xl mx-auto px-6">
       <h2 class="text-xl font-semibold text-navy text-center mb-8">{tx('faq_title')}</h2>
       <div class="flex flex-col gap-2">
