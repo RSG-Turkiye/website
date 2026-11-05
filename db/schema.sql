@@ -425,8 +425,14 @@
 --       (and the same for scheduled_emails) and run only what is missing.
 --    2. All IF NOT EXISTS, safe to repeat; it must come after 1, because the
 --       index it creates names the new column.
---      wrangler d1 execute rsg-members --remote --command="ALTER TABLE sent_emails ADD COLUMN campaign_id TEXT; ALTER TABLE scheduled_emails ADD COLUMN campaign_id TEXT"
+--    `--command` answers 7403 on this account (2026-11-05), so step 1 goes
+--    through a file too: write the two statements
+--      ALTER TABLE sent_emails ADD COLUMN campaign_id TEXT;
+--      ALTER TABLE scheduled_emails ADD COLUMN campaign_id TEXT;
+--    to a file outside the repo, then run
+--      wrangler d1 execute rsg-members --remote --file=/absolute/path/to/that.sql
 --      wrangler d1 execute rsg-members --remote --file=/absolute/path/to/website/db/schema.sql
+--    Applied to production 2026-11-05.
 --
 
 CREATE TABLE IF NOT EXISTS users (
