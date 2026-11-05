@@ -67,17 +67,45 @@
     "en": "Priority access to symposiums, workshops, and special events",
     "tr": "Sempozyumlara, atölyelere ve özel etkinliklere öncelikli erişim"
   },
+  "iscb_side_title": {
+    "en": "RSG-Türkiye or ISCB membership?",
+    "tr": "RSG-Türkiye üyeliği mi, ISCB üyeliği mi?"
+  },
+  "iscb_side_text": {
+    "en": "RSG-Türkiye membership is free, and you apply with the form on this page. ISCB membership is a separate, yearly, paid membership; you don't need it to join us.",
+    "tr": "RSG-Türkiye üyeliği ücretsizdir ve bu sayfadaki formla başvurulur. ISCB üyeliği ise ayrı, yıllık ve ücretli bir üyeliktir; bize katılmak için gerekmez."
+  },
+  "iscb_side_link": {
+    "en": "More in the FAQ",
+    "tr": "Ayrıntılar Sıkça Sorulan Sorular'da"
+  },
   "membership_title": {
     "en": "Membership Application",
     "tr": "Üyelik Başvurusu"
   },
   "membership_text": {
-    "en": "Membership is by application. Tell us briefly about your research and your institution.",
-    "tr": "Üyelik başvuruyla olur. Araştırmanızı ve kurumunuzu kısaca yazın."
+    "en": "To become a member, please fill in the application form below. A few words about your research and your institution are all we need.",
+    "tr": "Üye olmak için aşağıdaki başvuru formunu doldurabilirsiniz. Araştırmanızdan ve kurumunuzdan kısaca bahsetmeniz yeterli."
+  },
+  "membership_iscb_note": {
+    "en": "This form is for RSG-Türkiye membership. ISCB (International Society for Computational Biology) membership is different: it is a yearly, paid membership taken out on ISCB's own website. You don't need to be an ISCB member to join RSG-Türkiye.",
+    "tr": "Bu form, RSG-Türkiye üyeliği içindir. ISCB (International Society for Computational Biology) üyeliği ise ISCB'nin kendi sitesinden yapılan, yıllık ve ücretli bir üyeliktir. RSG-Türkiye'ye katılmak için ISCB üyesi olmanız gerekmez."
+  },
+  "membership_iscb_link": {
+    "en": "About ISCB membership",
+    "tr": "ISCB üyeliği hakkında"
   },
   "faq_title": {
     "en": "Frequently Asked Questions",
     "tr": "Sıkça Sorulan Sorular"
+  },
+  "faq_iscb_q": {
+    "en": "Is RSG-Türkiye membership the same as ISCB membership?",
+    "tr": "RSG-Türkiye üyeliği ile ISCB üyeliği aynı şey mi?"
+  },
+  "faq_iscb_a": {
+    "en": "No, they are two different memberships. RSG-Türkiye is the ISCB Student Council's Regional Student Group in Türkiye; our membership is free, and you can apply with the form on this page. ISCB membership is an individual, yearly, paid membership taken out on ISCB's website, and students can get a reduced rate depending on their country. ISCB members enjoy benefits such as discounts at ISCB conferences and the chance to apply for ISCB travel fellowships. One does not include the other, and you don't need to be an ISCB member to join RSG-Türkiye. More about ISCB membership: iscb.org/membership-details",
+    "tr": "Hayır, ikisi farklı üyelikler. RSG-Türkiye, ISCB Öğrenci Konseyi'nin Türkiye'deki bölge öğrenci grubudur; üyeliğimiz ücretsizdir ve bu sayfadaki formla başvurabilirsiniz. ISCB üyeliği ise ISCB'nin sitesinden yapılan, yıllık ve ücretli bireysel bir üyeliktir; öğrenciler ülkelerine göre indirimli ücretten yararlanabilir. ISCB üyeleri, ISCB konferanslarında indirim ve ISCB seyahat burslarına başvurma gibi olanaklardan faydalanır. Birine üye olmak diğerini kapsamaz; RSG-Türkiye'ye katılmak için ISCB üyesi olmanız gerekmez. ISCB üyeliğiyle ilgili ayrıntılar: iscb.org/membership-details"
   },
   "faq_how_to_join_q": {
     "en": "How can I join RSG-Turkiye?",
