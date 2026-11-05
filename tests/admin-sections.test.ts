@@ -51,14 +51,14 @@ test('a sender alone lands in E-posta with inbox, compose and sent', () => {
   assert.deepEqual(ids(r), ['eposta']);
   assert.equal(landing(r), 'eposta');
   const eposta = SECTIONS.find((s) => s.id === 'eposta')!;
-  assert.deepEqual(subsFor(eposta, r).map((s) => s.id), ['gelen', 'yaz', 'gonderilenler']);
+  assert.deepEqual(subsFor(eposta, r).map((s) => s.id), ['gelen', 'yaz', 'gonderilenler', 'toplu']);
 });
 
 test('E-posta sub-pages: admin-only ones need admin, compose needs sender', () => {
   const eposta = SECTIONS.find((s) => s.id === 'eposta')!;
   const subIds = (r: RoleFlags) => subsFor(eposta, r).map((s) => s.id);
-  assert.deepEqual(subIds({ ...none, admin: true }), ['gelen', 'gonderilenler', 'yetki', 'gondericiler', 'ekler']);
-  assert.deepEqual(subIds({ ...none, admin: true, sender: true }), ['gelen', 'yaz', 'gonderilenler', 'yetki', 'gondericiler', 'ekler']);
+  assert.deepEqual(subIds({ ...none, admin: true }), ['gelen', 'gonderilenler', 'toplu', 'yetki', 'gondericiler', 'ekler']);
+  assert.deepEqual(subIds({ ...none, admin: true, sender: true }), ['gelen', 'yaz', 'gonderilenler', 'toplu', 'yetki', 'gondericiler', 'ekler']);
 });
 
 test('the approval sub-page is for publishers', () => {

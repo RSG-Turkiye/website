@@ -21,7 +21,9 @@ per-recipient text and a quota that fits a mail-out.
 2. Pastes a table copied from a Google Sheet (tab-separated; comma or
    semicolon also accepted). The first row is the header. One column must be
    the address (`e-posta`, `eposta`, `email` or `mail`, any case). Every other
-   column becomes a placeholder: header `unvan` → `{unvan}`, `ad` → `{ad}`.
+   column becomes a placeholder in square brackets (owner's choice): header
+   `unvan` → `[unvan]`, `ad` → `[ad]`. A Markdown link `[text](url)` is not a
+   placeholder. Names match whatever the case.
 3. Writes the subject and the text, using the placeholders.
 4. Sees the check: how many rows, which rows are refused and why (bad or
    repeated address, an empty value for a placeholder the text uses), unknown
@@ -51,8 +53,8 @@ per-recipient text and a quota that fits a mail-out.
   a quota is full (no attempt spent), and logs each send to `sent_emails`.
   Each message gets a thread, so replies show in the panel inbox.
 - **Text:** placeholders are replaced as plain text; the body is rendered the
-  way compose renders it today. `{{` is not special; an unknown `{x}` blocks
-  sending rather than going out literally.
+  way compose renders it today. An unknown `[x]` blocks sending rather than
+  going out literally.
 - **Personal data:** the pasted list exists only in the queue rows and in
   `sent_emails` (as any panel mail does today); nothing goes into git. The
   campaign row keeps the subject template and counts, not addresses.

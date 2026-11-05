@@ -33,6 +33,19 @@ export const RATE_LIMITS = {
   globalPerDay: 300, // consumer Gmail caps around 500/day; leave headroom
 } as const;
 
+/**
+ * What bulk personal mail (src/lib/mail-campaign.ts) may send, across every
+ * campaign. It still counts toward the site's globalPerDay, so ordinary mail
+ * keeps the rest; and it replaces, rather than adds to, the sender's personal
+ * windows -- those stop one person's ad hoc mail eating the shared quota,
+ * which this cap already does for a mail-out. The hourly figure keeps Gmail
+ * from seeing a burst.
+ */
+export const CAMPAIGN_LIMITS = {
+  perHour: 60,
+  perDay: 200,
+} as const;
+
 export function parseRecipients(input: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -96,12 +109,31 @@ export async function checkRateLimit(
   userId: string,
   recipientCount: number,
   now: number,
+  opts: { campaign?: boolean } = {},
 ): Promise<RateLimitResult> {
   const hourAgo = now - 3600;
   const dayAgo = now - 86400;
 
+  if (opts.campaign) {
+    const campaignHour = await db
+      .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE campaign_id IS NOT NULL AND status = 'sent' AND sent_at > ?")
+      .bind(hourAgo)
+      .first<{ n: number }>();
+    if ((campaignHour?.n ?? 0) + recipientCount > CAMPAIGN_LIMITS.perHour) {
+      return { ok: false, code: 'rate_limit_campaign_hour' };
+    }
+    const campaignDay = await db
+      .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE campaign_id IS NOT NULL AND status = 'sent' AND sent_at > ?")
+      .bind(dayAgo)
+      .first<{ n: number }>();
+    if ((campaignDay?.n ?? 0) + recipientCount > CAMPAIGN_LIMITS.perDay) {
+      return { ok: false, code: 'rate_limit_campaign_day' };
+    }
+    return globalWindow(db, recipientCount, dayAgo);
+  }
+
   const perUserHour = await db
-    .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE sender_user_id = ? AND status = 'sent' AND sent_at > ?")
+    .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE sender_user_id = ? AND campaign_id IS NULL AND status = 'sent' AND sent_at > ?")
     .bind(userId, hourAgo)
     .first<{ n: number }>();
   if ((perUserHour?.n ?? 0) + recipientCount > RATE_LIMITS.perUserPerHour) {
@@ -109,13 +141,18 @@ export async function checkRateLimit(
   }
 
   const perUserDay = await db
-    .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE sender_user_id = ? AND status = 'sent' AND sent_at > ?")
+    .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE sender_user_id = ? AND campaign_id IS NULL AND status = 'sent' AND sent_at > ?")
     .bind(userId, dayAgo)
     .first<{ n: number }>();
   if ((perUserDay?.n ?? 0) + recipientCount > RATE_LIMITS.perUserPerDay) {
     return { ok: false, code: 'rate_limit_day' };
   }
 
+  return globalWindow(db, recipientCount, dayAgo);
+}
+
+/** The site's own day, which every message counts toward, campaign or not. */
+async function globalWindow(db: RateLimitDb, recipientCount: number, dayAgo: number): Promise<RateLimitResult> {
   const globalDay = await db
     .prepare("SELECT COUNT(*) AS n FROM sent_emails WHERE status = 'sent' AND sent_at > ?")
     .bind(dayAgo)
@@ -123,6 +160,5 @@ export async function checkRateLimit(
   if ((globalDay?.n ?? 0) + recipientCount > RATE_LIMITS.globalPerDay) {
     return { ok: false, code: 'rate_limit_global' };
   }
-
   return { ok: true };
 }

@@ -18,6 +18,7 @@ import { loadAnnouncements, setupAnnouncementForm, setCanManageAnnouncements } f
 import { loadSenders, setupBulkGrant, loadAdminAttachments, setupAttachmentUpload } from './sections/mail';
 import { showSent, setSentAdmin } from './sections/mail-sent';
 import { setupCompose, loadQueued } from './sections/mail-compose';
+import { showCampaigns } from './sections/mail-campaign';
 import { setupInbox, showInbox } from './sections/mail-inbox';
 import { setupDm, showDm } from './sections/social-dm';
 import { setupSymposium, loadSymposium } from './sections/symposium';
@@ -131,6 +132,7 @@ function onFirstShow(load: () => Promise<void>, failed?: string): () => Promise<
         return;
       }
       if (sub === 'gonderilenler' && (isFullAdmin || isSender)) showSent();
+      if (sub === 'toplu' && (isFullAdmin || isSender)) showCampaigns();
     },
     kullanicilar: (sub) => { if (sub === 'yetkiler') void loadRolesView(); },
     icerik: (sub, item) => showCms(sub, item),

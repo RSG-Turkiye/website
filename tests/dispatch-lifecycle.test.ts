@@ -29,6 +29,8 @@ function harness(options: {
   failDelete?: boolean;
   /** What every sent_emails count answers: high enough and the quota is full. */
   sentCount?: number;
+  /** What the sender's role lookup answers. */
+  sender?: { is_sender: number; is_admin: number };
 }) {
   const log: Recorded[] = [];
   const rows = options.rows ?? [];
@@ -59,7 +61,7 @@ function harness(options: {
             },
             async first<T>() {
               record();
-              if (/is_sender/.test(sql)) return { is_sender: 1 } as T;
+              if (/is_sender/.test(sql)) return (options.sender ?? { is_sender: 1, is_admin: 0 }) as T;
               if (/COUNT\(\*\)/.test(sql)) return { n: options.sentCount ?? 0 } as T;
               return null;
             },
@@ -362,4 +364,51 @@ test('with no recorded error, a given-up row is the one that kept killing the ti
   await tick(h.env);
   const logged = h.log.filter((l) => /INSERT INTO sent_emails/.test(l.sql)).flatMap((l) => l.values.map(String));
   assert.ok(logged.some((v) => /Killed the dispatcher/.test(v)), `logged: ${logged.join(' | ')}`);
+});
+
+// --- bulk personal mail (src/lib/mail-campaign.ts) ---------------------------
+
+const campaignRow = (over: Record<string, unknown> = {}) =>
+  queueRow({ attachment_ids: '[]', campaign_id: 'camp-1', ...over });
+
+test('a campaign row is held by the campaign quota, not the sender\'s own', async () => {
+  const h = harness({ rows: [campaignRow()] });
+  await tick(h.env);
+  const counts = h.order().filter((s) => /COUNT\(\*\) AS n FROM sent_emails/.test(s));
+  assert.ok(counts.some((s) => /campaign_id IS NOT NULL/.test(s)), 'campaign window counted');
+  assert.ok(!counts.some((s) => /sender_user_id = \?/.test(s)), 'personal window not counted');
+});
+
+test('a campaign row that sends is logged under its campaign', async () => {
+  const h = harness({ rows: [campaignRow()] });
+  await tick(h.env);
+  const insert = h.log.find((l) => /INSERT INTO sent_emails/.test(l.sql));
+  assert.ok(insert, 'sent_emails row written');
+  assert.equal(insert.values[insert.values.length - 1], 'camp-1');
+});
+
+test('an ordinary row is logged with no campaign', async () => {
+  const h = harness({ rows: [queueRow({ attachment_ids: '[]', campaign_id: null })] });
+  await tick(h.env);
+  const insert = h.log.find((l) => /INSERT INTO sent_emails/.test(l.sql));
+  assert.ok(insert);
+  assert.equal(insert.values[insert.values.length - 1], null);
+});
+
+test('an admin who is not a sender may send a campaign, but not ordinary queued mail', async () => {
+  const admin = { is_sender: 0, is_admin: 1 };
+  const camp = harness({ rows: [campaignRow()], sender: admin });
+  await tick(camp.env);
+  assert.ok(camp.order().some((s) => /SET claimed_at/.test(s)), 'campaign row claimed and sent');
+
+  const plain = harness({ rows: [queueRow({ attachment_ids: '[]', campaign_id: null })], sender: admin });
+  await tick(plain.env);
+  assert.ok(!plain.order().some((s) => /SET claimed_at/.test(s)), 'ordinary row not sent');
+});
+
+test('a campaign row whose sender lost both roles is dropped', async () => {
+  const h = harness({ rows: [campaignRow()], sender: { is_sender: 0, is_admin: 0 } });
+  await tick(h.env);
+  assert.ok(!h.order().some((s) => /SET claimed_at/.test(s)));
+  assert.ok(h.order().some((s) => /DELETE FROM scheduled_emails/.test(s)));
 });

@@ -58,6 +58,7 @@ export const SECTIONS: Section[] = [
       { id: 'gelen', label: 'admin.mail.nav.inbox', count: 'email' },
       { id: 'yaz', label: 'admin.mail.nav.compose', senderOnly: true },
       { id: 'gonderilenler', label: 'admin.mail.nav.sent' },
+      { id: 'toplu', label: 'admin.mail.nav.bulk' },
       { id: 'yetki', label: 'admin.mail.bulkGrant.heading', adminOnly: true },
       { id: 'gondericiler', label: 'admin.mail.senders.heading', adminOnly: true },
       { id: 'ekler', label: 'admin.mail.attachments.heading', adminOnly: true },

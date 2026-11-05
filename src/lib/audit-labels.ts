@@ -75,6 +75,8 @@ const FIXED: Record<string, Label> = {
   'mail.scheduled.cancel': { en: 'Cancelled a scheduled e-mail', tr: 'Zamanlanmış e-postayı iptal etti' },
   'mail.scheduled.sent': { en: 'Scheduled e-mail sent', tr: 'Zamanlanmış e-posta gönderildi' },
   'mail.scheduled.dropped': { en: 'Scheduled e-mail could not be sent', tr: 'Zamanlanmış e-posta gönderilemedi' },
+  'mail.campaign.create': { en: 'Started a bulk personal mail-out', tr: 'Toplu kişisel gönderim başlattı' },
+  'mail.campaign.cancel': { en: 'Cancelled the rest of a bulk mail-out', tr: 'Toplu gönderimin kalanını iptal etti' },
   'mail.attachment.upload': { en: 'Uploaded an attachment', tr: 'Ek yükledi' },
   'mail.attachment.activate': { en: 'Turned an attachment on', tr: 'Eki kullanıma açtı' },
   'mail.attachment.deactivate': { en: 'Turned an attachment off', tr: 'Eki kullanımdan kaldırdı' },

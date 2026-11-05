@@ -38,6 +38,8 @@ interface ScheduledRow {
   /** Set when an earlier invocation took this row to send it. Null on a row
    * nobody has started, and on every row written before the column existed. */
   claimed_at: number | null;
+  /** Set on a bulk personal mail row; null on everything else. */
+  campaign_id: string | null;
 }
 
 /**
@@ -211,9 +213,9 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
         env.DB.prepare(
           `INSERT INTO scheduled_emails
              (id, sender_user_id, recipients, subject, body, attachment_ids,
-              scheduled_at, attempts, created_at, updated_at)
+              scheduled_at, attempts, created_at, updated_at, campaign_id)
            SELECT ?, sender_user_id, ?, subject, body, attachment_ids,
-                  scheduled_at, 0, ?, ?
+                  scheduled_at, 0, ?, ?, campaign_id
            FROM scheduled_emails WHERE id = ? AND recipients = ?`
         ).bind(crypto.randomUUID(), JSON.stringify(list), now, now, row.id, original)
       );
@@ -368,7 +370,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
 
   const candidates = await env.DB.prepare(
     `SELECT id, sender_user_id, recipients, subject, body,
-            attachment_ids, first_tried_at, last_error, claimed_at
+            attachment_ids, first_tried_at, last_error, claimed_at, campaign_id
      FROM scheduled_emails
      WHERE scheduled_at <= ?
        AND (claimed_at IS NULL OR claimed_at <= ?)
@@ -460,6 +462,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       body: row.body,
       attachmentIds,
       scheduledId: row.id,
+      campaignId: row.campaign_id ?? undefined,
     };
 
     const drop = async (reason: string) => {
@@ -479,9 +482,11 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
     try {
       // Revoking someone's permission has to stop mail they queued before it was
       // revoked, or revocation means nothing. Terminal: it will not resolve.
-      const sender = await env.DB.prepare('SELECT is_sender FROM users WHERE id = ?')
-        .bind(row.sender_user_id).first<{ is_sender: number }>();
-      if (!sender || sender.is_sender !== 1) {
+      // A campaign may also be started by an admin who is not a sender
+      // (src/lib/mail-campaign.ts); the same rule holds when it goes out.
+      const sender = await env.DB.prepare('SELECT is_sender, is_admin FROM users WHERE id = ?')
+        .bind(row.sender_user_id).first<{ is_sender: number; is_admin: number }>();
+      if (!sender || !(sender.is_sender === 1 || (row.campaign_id && sender.is_admin === 1))) {
         await drop('Sender no longer authorised when the scheduled time arrived');
         continue;
       }
@@ -512,7 +517,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // ran out, and it was deleted unsent with the message above. Nothing
       // here needs the attachment, so it costs a count query and cannot kill
       // the tick -- which is the one property the stamp below must come before.
-      const limit = await checkRateLimit(env.DB, row.sender_user_id, recipients.length, now);
+      const limit = await checkRateLimit(env.DB, row.sender_user_id, recipients.length, now, { campaign: !!row.campaign_id });
       if (!limit.ok) {
         await env.DB.prepare(
           'UPDATE scheduled_emails SET last_error = ?, updated_at = ? WHERE id = ?'

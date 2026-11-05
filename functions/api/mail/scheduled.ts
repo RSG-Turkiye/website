@@ -25,6 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
               s.attachment_ids, s.scheduled_at, s.last_error, u.email AS sender_email
        FROM scheduled_emails s
        JOIN users u ON u.id = s.sender_user_id
+       WHERE s.campaign_id IS NULL
        ORDER BY s.scheduled_at ASC LIMIT 200`
     ).all();
     return jsonResponse({ scheduled: result.results });
@@ -34,7 +35,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     `SELECT id, recipients, subject, body,
             attachment_ids, scheduled_at, last_error
      FROM scheduled_emails
-     WHERE sender_user_id = ?
+     WHERE sender_user_id = ? AND campaign_id IS NULL
      ORDER BY scheduled_at ASC LIMIT 200`
   ).bind(user.id).all();
 
