@@ -21,6 +21,18 @@
  *
  * Pure, so both rules can be tested without a database or a mailbox.
  */
+/**
+ * How long a claimed row stays untouchable.
+ *
+ * Long enough that a healthy dispatch always finishes and deletes the row
+ * inside it, short enough that a genuine crash before the send retries
+ * promptly. The row is not lost either way -- past the lease it is
+ * reconsidered, and sent_emails.scheduled_id then says whether it already
+ * went out. Shared with cancelling a campaign, which must drop exactly the
+ * rows the dispatcher would still pick up.
+ */
+export const CLAIM_LEASE_SECONDS = 10 * 60;
+
 export interface QueueRow {
   id: string;
   sender_user_id: string;

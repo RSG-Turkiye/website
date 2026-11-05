@@ -25,6 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
               s.attachment_ids, s.scheduled_at, s.last_error, u.email AS sender_email
        FROM scheduled_emails s
        JOIN users u ON u.id = s.sender_user_id
+       WHERE s.campaign_id IS NULL
        ORDER BY s.scheduled_at ASC LIMIT 200`
     ).all();
     return jsonResponse({ scheduled: result.results });
@@ -34,7 +35,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     `SELECT id, recipients, subject, body,
             attachment_ids, scheduled_at, last_error
      FROM scheduled_emails
-     WHERE sender_user_id = ?
+     WHERE sender_user_id = ? AND campaign_id IS NULL
      ORDER BY scheduled_at ASC LIMIT 200`
   ).bind(user.id).all();
 
@@ -44,7 +45,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 /** Knowing an id is not authorisation: the row must belong to this member. */
 async function ownRow(env: Env, id: string, userId: string): Promise<boolean> {
   const row = await env.DB.prepare(
-    'SELECT id FROM scheduled_emails WHERE id = ? AND sender_user_id = ?'
+    // A campaign's letters are changed only as a campaign (campaigns/[id].ts).
+    'SELECT id FROM scheduled_emails WHERE id = ? AND sender_user_id = ? AND campaign_id IS NULL'
   ).bind(id, userId).first<{ id: string }>();
   return row !== null;
 }
@@ -156,7 +158,8 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
   // Cancelling deletes the row: the queue is transient, and a message
   // cancelled before sending was never sent, so it has no place in the log.
   const res = await env.DB.prepare(
-    'DELETE FROM scheduled_emails WHERE id = ? AND sender_user_id = ?'
+    // A campaign's letters are cancelled as a campaign (campaigns/[id].ts).
+    'DELETE FROM scheduled_emails WHERE id = ? AND sender_user_id = ? AND campaign_id IS NULL'
   ).bind(body.id, user.id).run();
 
   if (res.meta.changes === 0) return jsonResponse({ error: 'Not found', code: 'not_found' }, 404);

@@ -29,6 +29,8 @@ function harness(options: {
   failDelete?: boolean;
   /** What every sent_emails count answers: high enough and the quota is full. */
   sentCount?: number;
+  /** What the sender's role lookup answers. */
+  sender?: { is_sender: number; is_admin: number };
 }) {
   const log: Recorded[] = [];
   const rows = options.rows ?? [];
@@ -39,9 +41,18 @@ function harness(options: {
         bind(...values: unknown[]) {
           const record = () => log.push({ sql: sql.replace(/\s+/g, ' ').trim(), values });
           return {
+            __sql: sql.replace(/\s+/g, ' ').trim(),
+            __values: values,
             async all<T>() {
               record();
-              if (/FROM scheduled_emails/.test(sql)) return { results: rows as T[] };
+              if (/FROM scheduled_emails/.test(sql)) {
+                // The dispatcher reads ordinary and campaign rows as two windows.
+                const campaign = /campaign_id IS NOT NULL/.test(sql);
+                const plain = /campaign_id IS NULL/.test(sql);
+                return {
+                  results: rows.filter((r) => (campaign ? !!r.campaign_id : plain ? !r.campaign_id : true)) as T[],
+                };
+              }
               if (/FROM mail_attachments/.test(sql)) {
                 return {
                   results: [
@@ -59,7 +70,7 @@ function harness(options: {
             },
             async first<T>() {
               record();
-              if (/is_sender/.test(sql)) return { is_sender: 1 } as T;
+              if (/is_sender/.test(sql)) return (options.sender ?? { is_sender: 1, is_admin: 0 }) as T;
               if (/COUNT\(\*\)/.test(sql)) return { n: options.sentCount ?? 0 } as T;
               return null;
             },
@@ -77,10 +88,16 @@ function harness(options: {
           };
         },
       };
-      return stmt;
+      // Unbound use, as the audit helper reads the chain head.
+      return Object.assign(stmt, {
+        first: <T>() => stmt.bind().first<T>(),
+        all: <T>() => stmt.bind().all<T>(),
+        run: () => stmt.bind().run(),
+      });
     },
-    async batch(statements: unknown[]) {
+    async batch(statements: { __sql?: string; __values?: unknown[] }[]) {
       log.push({ sql: 'BATCH', values: [statements.length] });
+      for (const st of statements) if (st.__sql) log.push({ sql: st.__sql, values: st.__values ?? [] });
       return [];
     },
   };
@@ -362,4 +379,76 @@ test('with no recorded error, a given-up row is the one that kept killing the ti
   await tick(h.env);
   const logged = h.log.filter((l) => /INSERT INTO sent_emails/.test(l.sql)).flatMap((l) => l.values.map(String));
   assert.ok(logged.some((v) => /Killed the dispatcher/.test(v)), `logged: ${logged.join(' | ')}`);
+});
+
+// --- bulk personal mail (src/lib/mail-campaign.ts) ---------------------------
+
+const campaignRow = (over: Record<string, unknown> = {}) =>
+  queueRow({ attachment_ids: '[]', campaign_id: 'camp-1', ...over });
+
+test('a campaign row is held by the campaign quota, not the sender\'s own', async () => {
+  const h = harness({ rows: [campaignRow()] });
+  await tick(h.env);
+  const counts = h.order().filter((s) => /COUNT\(\*\) AS n FROM sent_emails/.test(s));
+  assert.ok(counts.some((s) => /campaign_id IS NOT NULL/.test(s)), 'campaign window counted');
+  assert.ok(!counts.some((s) => /sender_user_id = \?/.test(s)), 'personal window not counted');
+});
+
+test('a campaign row that sends is logged under its campaign', async () => {
+  const h = harness({ rows: [campaignRow()] });
+  await tick(h.env);
+  const insert = h.log.find((l) => /INSERT INTO sent_emails/.test(l.sql));
+  assert.ok(insert, 'sent_emails row written');
+  assert.equal(insert.values[insert.values.length - 1], 'camp-1');
+});
+
+test('an ordinary row is logged with no campaign', async () => {
+  const h = harness({ rows: [queueRow({ attachment_ids: '[]', campaign_id: null })] });
+  await tick(h.env);
+  const insert = h.log.find((l) => /INSERT INTO sent_emails/.test(l.sql));
+  assert.ok(insert);
+  assert.equal(insert.values[insert.values.length - 1], null);
+});
+
+test('an admin who is not a sender may send a campaign, but not ordinary queued mail', async () => {
+  const admin = { is_sender: 0, is_admin: 1 };
+  const camp = harness({ rows: [campaignRow()], sender: admin });
+  await tick(camp.env);
+  assert.ok(camp.order().some((s) => /SET claimed_at/.test(s)), 'campaign row claimed and sent');
+
+  const plain = harness({ rows: [queueRow({ attachment_ids: '[]', campaign_id: null })], sender: admin });
+  await tick(plain.env);
+  assert.ok(!plain.order().some((s) => /SET claimed_at/.test(s)), 'ordinary row not sent');
+});
+
+test('a campaign row whose sender lost both roles is dropped', async () => {
+  const h = harness({ rows: [campaignRow()], sender: { is_sender: 0, is_admin: 0 } });
+  await tick(h.env);
+  assert.ok(!h.order().some((s) => /SET claimed_at/.test(s)));
+  assert.ok(h.order().some((s) => /DELETE FROM scheduled_emails/.test(s)));
+});
+
+test('a campaign row\'s audit row names the campaign, not the person', async () => {
+  const h = harness({ rows: [campaignRow({ subject: 'Sayın Prof. Dr. Ayşe Yılmaz' })] });
+  await tick(h.env);
+  const audit = h.log.filter((l) => /INSERT INTO audit_log/.test(l.sql));
+  assert.ok(audit.length > 0, 'audit row written');
+  for (const a of audit) assert.doesNotMatch(JSON.stringify(a.values), /Ayşe/);
+  assert.ok(audit.some((a) => JSON.stringify(a.values).includes('camp-1')));
+});
+
+test('once the campaign quota holds one row, the tick holds the rest without counting again', async () => {
+  const h = harness({ rows: [campaignRow({ id: 'r1' }), campaignRow({ id: 'r2', sender_user_id: 'user-2' })], sentCount: 1000 });
+  await tick(h.env);
+  const counts = h.order().filter((s) => /COUNT\(\*\) AS n FROM sent_emails/.test(s));
+  assert.equal(counts.length, 1, counts.join('\n'));
+  assert.equal(h.order().filter((s) => /SET last_error/.test(s)).length, 1);
+});
+
+test('ordinary mail is read in its own window, so a mail-out cannot hide it', async () => {
+  const h = harness({ rows: [campaignRow({ id: 'c1' }), queueRow({ id: 'p1', attachment_ids: '[]', campaign_id: null, sender_user_id: 'user-9' })] });
+  await tick(h.env);
+  const windows = h.order().filter((s) => /FROM scheduled_emails WHERE campaign_id/.test(s));
+  assert.equal(windows.length, 2);
+  assert.ok(h.log.some((l) => /SET claimed_at/.test(l.sql) && l.values.includes('p1')), 'ordinary row sent');
 });

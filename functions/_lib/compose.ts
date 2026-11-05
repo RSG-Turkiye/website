@@ -29,6 +29,10 @@ export interface ComposeInput {
    * Written into every sent_emails row so a dispatch that crashed after
    * sending can tell, on the retry, that the mail already went out. */
   scheduledId?: string;
+  /** The bulk mail-out this message belongs to (src/lib/mail-campaign.ts).
+   * Written into sent_emails: it is what the campaign quota counts and what
+   * the campaign's progress is read from. */
+  campaignId?: string;
 
 }
 
@@ -152,8 +156,8 @@ async function insertLog(
     `INSERT INTO sent_emails
       (id, sender_user_id, recipient_email, subject, body_snapshot,
        attachment_ids, gmail_message_id, gmail_thread_id, status, error_message, sent_at,
-       scheduled_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       scheduled_id, campaign_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     generateId(),
     input.senderUserId,
@@ -167,6 +171,7 @@ async function insertLog(
     errorMessage,
     Math.floor(Date.now() / 1000),
     input.scheduledId ?? null,
+    input.campaignId ?? null,
   ).run();
 }
 

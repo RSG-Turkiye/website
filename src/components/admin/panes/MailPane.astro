@@ -127,6 +127,57 @@ const t = useTranslations(lang);
             </div>
           </div>
 
+          <div data-sub="toplu">
+            <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.mail.nav.bulk')}</h2>
+            <div id="mailBulkRoot" class="flex flex-col gap-6 lg:gap-4">
+              <p class="text-sm text-gray-500">{t('admin.mail.bulk.intro')}</p>
+              <div class="bg-white rounded-2xl border border-border p-4 lg:p-3">
+                <form id="mailBulkForm" class="flex flex-col gap-3 lg:gap-2" novalidate>
+                  <label class="flex flex-col gap-1 text-sm text-gray-600">
+                    {t('admin.mail.bulk.table')}
+                    <textarea id="mailBulkTable" rows="6" spellcheck="false" class="px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid font-mono text-xs whitespace-pre overflow-x-auto"></textarea>
+                  </label>
+                  <p class="text-xs text-gray-500 -mt-1">{t('admin.mail.bulk.tableHint')}</p>
+                  <p id="mailBulkColumns" class="hidden text-xs text-navy -mt-1"></p>
+                  <label class="flex flex-col gap-1 text-sm text-gray-600">
+                    {t('admin.mail.compose.subject')}
+                    <input id="mailBulkSubject" type="text" maxlength="200" class="px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid" />
+                  </label>
+                  <label class="flex flex-col gap-1 text-sm text-gray-600">
+                    {t('admin.mail.compose.body')}
+                    <textarea id="mailBulkBody" rows="12" maxlength="20000" placeholder={t('admin.mail.bulk.bodyPlaceholder')} class="px-3 py-2 lg:py-1.5 min-h-11 lg:min-h-9 rounded-xl border border-border text-sm text-navy placeholder-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid focus:border-navy-mid"></textarea>
+                  </label>
+                  <p class="text-xs text-gray-500 -mt-1" set:html={t('admin.mail.compose.formatHint')} />
+                  <p class="text-xs text-gray-500 -mt-1">{t('admin.mail.compose.signOff')}</p>
+
+                  <div id="mailBulkCheck" class="hidden border-t border-border pt-3 flex flex-col gap-3">
+                    <h3 class="text-sm font-semibold text-navy">{t('admin.mail.bulk.checkHeading')}</h3>
+                    <p id="mailBulkError" class="hidden text-sm text-red-700" role="alert"></p>
+                    <p id="mailBulkSummary" class="hidden text-sm text-navy"></p>
+                    <details id="mailBulkRefusedWrap" class="hidden text-sm">
+                      <summary id="mailBulkRefusedSummary" class="cursor-pointer text-amber-800"></summary>
+                      <ul id="mailBulkRefused" class="mt-2 flex flex-col gap-1 text-xs text-gray-600"></ul>
+                    </details>
+                    <div id="mailBulkPreviewWrap" class="hidden flex flex-col gap-2">
+                      <h4 class="text-xs font-semibold text-navy">{t('admin.mail.bulk.previewHeading')}</h4>
+                      <div id="mailBulkPreview" class="flex flex-col gap-2"></div>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-3 pt-1">
+                    <button type="button" id="mailBulkSend" disabled class="inline-flex items-center justify-center gap-1 px-4 lg:px-3 min-h-11 lg:min-h-9 rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-mid bg-navy text-white hover:bg-navy-mid">{t('admin.mail.compose.send')}</button>
+                    <span id="mailBulkStatus" class="text-xs text-gray-500" aria-live="polite"></span>
+                  </div>
+                </form>
+              </div>
+
+              <div>
+                <h3 class="text-sm font-semibold text-navy mb-3">{t('admin.mail.bulk.listHeading')}</h3>
+                <div id="mailBulkList" class="flex flex-col gap-2"></div>
+              </div>
+            </div>
+          </div>
+
           <div data-sub="gonderilenler">
             <h2 class="text-lg font-semibold text-navy mb-4 lg:sr-only">{t('admin.mail.nav.sent')}</h2>
             <div id="sentScope" class="hidden mb-3"><div class="flex gap-2" role="group" aria-label={t('admin.mail.nav.sent')}>

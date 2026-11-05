@@ -413,6 +413,27 @@
 --    Without it the panel's Rehber section and /api/guide/* fail on
 --    "no such table"; the rest of the site is unaffected.
 --
+-- 8p. Bulk personal mail (docs/superpowers/specs/2026-11-05-bulk-personal-mail-design.md).
+--    A campaign_id column on sent_emails and scheduled_emails, then the new
+--    table mail_campaigns and an index. Run the two commands, in this order,
+--    BEFORE deploying: every mail send writes sent_emails.campaign_id and
+--    every quota check reads it, so without 8p ALL panel mail fails, not
+--    just the new page.
+--    1. ALTER TABLE ADD COLUMN is NOT idempotent: do not re-run it. If it
+--       fails part way, list the columns with
+--         wrangler d1 execute rsg-members --remote --command="SELECT name FROM pragma_table_info('sent_emails')"
+--       (and the same for scheduled_emails) and run only what is missing.
+--    2. All IF NOT EXISTS, safe to repeat; it must come after 1, because the
+--       index it creates names the new column.
+--    `--command` answers 7403 on this account (2026-11-05), so step 1 goes
+--    through a file too: write the two statements
+--      ALTER TABLE sent_emails ADD COLUMN campaign_id TEXT;
+--      ALTER TABLE scheduled_emails ADD COLUMN campaign_id TEXT;
+--    to a file outside the repo, then run
+--      wrangler d1 execute rsg-members --remote --file=/absolute/path/to/that.sql
+--      wrangler d1 execute rsg-members --remote --file=/absolute/path/to/website/db/schema.sql
+--    Applied to production 2026-11-05.
+--
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -632,7 +653,10 @@ CREATE TABLE IF NOT EXISTS sent_emails (
   -- recipients already had their mail. Added by migration 7g; folded in here
   -- because a fresh database built from this file needs it too, and for three
   -- weeks this was the one migration column that had not been.
-  scheduled_id      TEXT
+  scheduled_id      TEXT,
+  -- The bulk mail-out this message belongs to; null for any other mail.
+  -- What the campaign quota counts (functions/_lib/mail.ts). Migration 8p.
+  campaign_id       TEXT
 );
 
 -- Admin-curated attachment library (sponsorship pack, invitation letter).
@@ -654,6 +678,13 @@ CREATE INDEX IF NOT EXISTS idx_sent_emails_sender_sent_at ON sent_emails(sender_
 CREATE INDEX IF NOT EXISTS idx_sent_emails_sent_at ON sent_emails(sent_at);
 -- The queue's reconciler asks what a claimed row already delivered.
 CREATE INDEX IF NOT EXISTS idx_sent_emails_scheduled ON sent_emails(scheduled_id);
+-- A campaign's progress is read by campaign_id. Migration 8p.
+CREATE INDEX IF NOT EXISTS idx_sent_emails_campaign ON sent_emails(campaign_id, sent_at);
+-- The campaign quota (functions/_lib/mail.ts) is counted on the per-minute
+-- tick. Partial, so the count reads only campaign sends; the query's WHERE
+-- must keep these exact terms or the planner falls back to every send in
+-- the window. Migration 8p; tests/mail-campaign-api.test.ts checks the plan.
+CREATE INDEX IF NOT EXISTS idx_sent_emails_campaign_sent ON sent_emails(sent_at) WHERE campaign_id IS NOT NULL AND status = 'sent';
 CREATE INDEX IF NOT EXISTS idx_sender_grants_user_id ON sender_grants(user_id);
 
 -- Mail composed now and sent later. Deliberately NOT a new status on
@@ -687,11 +718,35 @@ CREATE TABLE IF NOT EXISTS scheduled_emails (
   claimed_at      INTEGER,
   last_error      TEXT,
   created_at      INTEGER NOT NULL,
-  updated_at      INTEGER NOT NULL
+  updated_at      INTEGER NOT NULL,
+  -- Set on the rows of a bulk mail-out (mail_campaigns). Migration 8p.
+  campaign_id     TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due ON scheduled_emails(scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_scheduled_emails_sender ON scheduled_emails(sender_user_id);
+-- The dispatcher reads ordinary mail and campaign mail as two windows, so a
+-- mail-out's hundreds of due rows never hide the rest of the queue. Each
+-- reads only its own rows. Migration 8p.
+CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due_plain ON scheduled_emails(scheduled_at) WHERE campaign_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due_campaign ON scheduled_emails(scheduled_at) WHERE campaign_id IS NOT NULL;
+-- No plain index on campaign_id: with one, the planner took it for the
+-- ordinary window's `campaign_id IS NULL` and sorted every queued row. The
+-- panel's per-campaign reads and cancel scan the small queue instead.
+
+-- A bulk personal mail-out (src/lib/mail-campaign.ts). Holds the subject as
+-- written, with its [placeholders], and the count -- never the addresses:
+-- those live only in the queue rows and the send log, like any panel mail.
+-- Migration 8p.
+CREATE TABLE IF NOT EXISTS mail_campaigns (
+  id              TEXT PRIMARY KEY,
+  sender_user_id  TEXT NOT NULL REFERENCES users(id),
+  subject         TEXT NOT NULL,
+  total           INTEGER NOT NULL,
+  created_at      INTEGER NOT NULL,
+  cancelled_at    INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_mail_campaigns_created ON mail_campaigns(created_at);
 
 -- What each dispatch tick did. Written by functions/api/mail/dispatch.ts and
 -- read by nothing -- it exists to be queried by hand when the queue misbehaves.

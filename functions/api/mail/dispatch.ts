@@ -8,6 +8,7 @@ import {
   needsSplitting,
   splitRecipients,
   remainingRecipients,
+  CLAIM_LEASE_SECONDS,
 } from '../../_lib/mail-queue';
 import { expireGrants } from '../../_lib/role-grants';
 import { pruneDrafts, shepherd } from '../../_lib/cms-shepherd';
@@ -38,6 +39,8 @@ interface ScheduledRow {
   /** Set when an earlier invocation took this row to send it. Null on a row
    * nobody has started, and on every row written before the column existed. */
   claimed_at: number | null;
+  /** Set on a bulk personal mail row; null on everything else. */
+  campaign_id: string | null;
 }
 
 /**
@@ -97,19 +100,18 @@ const BYTE_BUDGET = 40 * 1024 * 1024;
  */
 const PER_SENDER = 2;
 
-/**
- * How long a claimed row stays untouchable.
- *
- * Long enough that a healthy dispatch always finishes and deletes the row
- * inside it, short enough that a genuine crash before the send retries
- * promptly. The row is not lost either way -- past the lease it is
- * reconsidered, and sent_emails.scheduled_id then says whether it already
- * went out.
- */
-const CLAIM_LEASE_SECONDS = 10 * 60;
 
 /** Wider than BATCH so there is something to be fair between. */
 const CANDIDATE_WINDOW = 60;
+
+/**
+ * Campaign rows read per tick, in their own window. A mail-out queues
+ * hundreds of rows due at once; in the shared window they filled all sixty
+ * places and hid every other member's mail until they had drained -- two
+ * days for a large list held by the daily quota. PER_SENDER would only ever
+ * take two of them a tick anyway.
+ */
+const CAMPAIGN_WINDOW = 4;
 
 /**
  * Settles up with rows whose lease expired, before anything else looks at them.
@@ -211,9 +213,9 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
         env.DB.prepare(
           `INSERT INTO scheduled_emails
              (id, sender_user_id, recipients, subject, body, attachment_ids,
-              scheduled_at, attempts, created_at, updated_at)
+              scheduled_at, attempts, created_at, updated_at, campaign_id)
            SELECT ?, sender_user_id, ?, subject, body, attachment_ids,
-                  scheduled_at, 0, ?, ?
+                  scheduled_at, 0, ?, ?, campaign_id
            FROM scheduled_emails WHERE id = ? AND recipients = ?`
         ).bind(crypto.randomUUID(), JSON.stringify(list), now, now, row.id, original)
       );
@@ -244,13 +246,15 @@ async function splitRows(env: Env, rows: ScheduledRow[], now: number): Promise<v
  * failed log line must not turn into a retry that sends the mail again.
  */
 async function auditOutcome(
-  env: Env, row: { id: string; sender_user_id: string; subject: string }, action: string,
+  env: Env, row: { id: string; sender_user_id: string; subject: string; campaign_id?: string | null }, action: string,
   details: Record<string, unknown>, now: number,
 ): Promise<void> {
   try {
     await appendAudit(env.DB, {
       userId: row.sender_user_id, action, targetType: 'scheduled_email', targetId: row.id,
-      details: { subject: row.subject, by: 'scheduler', ...details },
+      // A campaign letter's subject is filled in with the person's name, and
+      // the log is kept a year: it names the campaign instead.
+      details: { ...(row.campaign_id ? { campaign: row.campaign_id } : { subject: row.subject }), by: 'scheduler', ...details },
     }, now);
   } catch (err) {
     console.error('audit write failed', err);
@@ -366,15 +370,21 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   // which the version that cached 12.8 MB of encoded string could.
   const attachmentCache: AttachmentCache = new Map();
 
-  const candidates = await env.DB.prepare(
+  // Two windows, each on its own partial index (db/schema.sql, 8p): ordinary
+  // mail first, so it leads every round of planTick, then a few campaign rows.
+  const window = (campaign: boolean, limit: number) => env.DB.prepare(
     `SELECT id, sender_user_id, recipients, subject, body,
-            attachment_ids, first_tried_at, last_error, claimed_at
+            attachment_ids, first_tried_at, last_error, claimed_at, campaign_id
      FROM scheduled_emails
-     WHERE scheduled_at <= ?
+     WHERE campaign_id ${campaign ? 'IS NOT NULL' : 'IS NULL'}
+       AND scheduled_at <= ?
        AND (claimed_at IS NULL OR claimed_at <= ?)
      ORDER BY scheduled_at ASC
      LIMIT ?`
-  ).bind(now, now - CLAIM_LEASE_SECONDS, CANDIDATE_WINDOW).all<ScheduledRow>();
+  ).bind(now, now - CLAIM_LEASE_SECONDS, limit).all<ScheduledRow>();
+  const plain = await window(false, CANDIDATE_WINDOW);
+  const campaignRows = await window(true, CAMPAIGN_WINDOW);
+  const candidates = { results: [...(plain.results ?? []), ...(campaignRows.results ?? [])] };
 
   // Oldest first still, but no sender takes more than PER_SENDER of a tick.
   // Attachment sizes decide how much of a tick each row costs, so they are
@@ -417,6 +427,10 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
   let sent = 0;
   let failed = 0;
   let retried = 0;
+  // Set when a campaign row is held by a quota: every campaign row shares
+  // that quota, so the rest of this tick's campaign rows are held without
+  // counting again or touching their rows.
+  let campaignHeld = false;
 
   for (const row of due.results) {
     // Malformed recipients/attachment_ids is terminal: it can never become
@@ -460,6 +474,7 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       body: row.body,
       attachmentIds,
       scheduledId: row.id,
+      campaignId: row.campaign_id ?? undefined,
     };
 
     const drop = async (reason: string) => {
@@ -479,9 +494,11 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
     try {
       // Revoking someone's permission has to stop mail they queued before it was
       // revoked, or revocation means nothing. Terminal: it will not resolve.
-      const sender = await env.DB.prepare('SELECT is_sender FROM users WHERE id = ?')
-        .bind(row.sender_user_id).first<{ is_sender: number }>();
-      if (!sender || sender.is_sender !== 1) {
+      // A campaign may also be started by an admin who is not a sender
+      // (src/lib/mail-campaign.ts); the same rule holds when it goes out.
+      const sender = await env.DB.prepare('SELECT is_sender, is_admin FROM users WHERE id = ?')
+        .bind(row.sender_user_id).first<{ is_sender: number; is_admin: number }>();
+      if (!sender || !(sender.is_sender === 1 || (row.campaign_id && sender.is_admin === 1))) {
         await drop('Sender no longer authorised when the scheduled time arrived');
         continue;
       }
@@ -512,8 +529,13 @@ async function tick(env: Env, now: number, runId: string | null): Promise<Respon
       // ran out, and it was deleted unsent with the message above. Nothing
       // here needs the attachment, so it costs a count query and cannot kill
       // the tick -- which is the one property the stamp below must come before.
-      const limit = await checkRateLimit(env.DB, row.sender_user_id, recipients.length, now);
+      if (row.campaign_id && campaignHeld) {
+        retried++;
+        continue;
+      }
+      const limit = await checkRateLimit(env.DB, row.sender_user_id, recipients.length, now, { campaign: !!row.campaign_id });
       if (!limit.ok) {
+        if (row.campaign_id) campaignHeld = true;
         await env.DB.prepare(
           'UPDATE scheduled_emails SET last_error = ?, updated_at = ? WHERE id = ?'
         ).bind(limit.code, now, row.id).run();
