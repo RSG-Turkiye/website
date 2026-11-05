@@ -262,7 +262,6 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
         if (!data) {
           // The request failed. Show the site as it looks to a visitor who is
           // not signed in, which is the safe reading of "we do not know".
-          authArea.classList.remove('hidden');
           var fallbackJoin = document.getElementById('joinBtn');
           if (fallbackJoin) { fallbackJoin.classList.remove('hidden'); fallbackJoin.classList.add('lg:inline-flex'); }
           return;
@@ -278,7 +277,9 @@ const symposiumUrl = lang === 'tr' ? 'https://symposium.rsg-turkiye.iscbsc.org/t
           if (ml) ml.classList.remove('hidden');
           if (mml) mml.classList.remove('hidden');
         }
-        authArea.classList.remove('hidden');
+        // authArea keeps its `hidden lg:block`: below lg the account button
+        // lives in the opened menu (mobileAuthArea). Unhiding it here put it
+        // in the phone's top bar too and pushed the menu button off screen.
         if (!data.user) {
           authArea.innerHTML = '<a href="/auth/login" style="display:inline-flex;align-items:center;padding:6px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;">' + ui.signIn + '</a>';
           mobileAuthArea.innerHTML = '<a href="/auth/login" style="display:flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:500;text-decoration:none;">' + ui.signIn + '</a>';
