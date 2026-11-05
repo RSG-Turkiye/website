@@ -1,7 +1,8 @@
 /**
  * The header on a phone, signed in and signed out. Below lg the account
  * button lives in the opened menu; shown in the top bar it pushed the menu
- * button past the right edge of a signed-in phone (17 px at 390).
+ * button past the right edge of a signed-in phone (17 px at 390). The
+ * phone menu's Join button is for non-members only, as on a wide screen.
  *
  * Not part of `npm test`: it needs Playwright and a preview server.
  *
@@ -44,12 +45,14 @@ for (const [who, body] of PEOPLE) {
           btnShown: getComputedStyle(btn).display !== 'none',
           btnRight: b.right,
           authShown: getComputedStyle(auth).display !== 'none' && auth.innerHTML !== '',
+          joinInMenu: getComputedStyle(document.getElementById('joinMobileLink')).display !== 'none',
         };
       });
       const label = `${who} ${path} ${w}x${h}`;
       ok(r.overflow <= 0, `${label}: no horizontal scroll (${r.overflow}px)`);
       if (r.btnShown) ok(r.btnRight <= w, `${label}: menu button inside the screen (right ${Math.round(r.btnRight)})`);
       ok(r.authShown === (w >= 1024), `${label}: account area in the top bar only at lg`);
+      ok(r.joinInMenu === !body.user?.is_member, `${label}: phone menu offers Join only to a non-member`);
       await ctx.close();
     }
   }
