@@ -1,0 +1,17 @@
+{
+  "id": "hacettepe-biyoenformatik",
+  "universityId": "hacettepe",
+  "type": "msc",
+  "name": {
+    "en": "Bioinformatics (MSc, thesis, in English)",
+    "tr": "Biyoenformatik (Tezli Yüksek Lisans, İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School of Informatics",
+    "tr": "Bilişim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://bilisim.hacettepe.edu.tr/tr",
+  "sourceUrl": "https://bilisim.hacettepe.edu.tr/tr",
+  "checkedAt": "2026-11-18"
+}

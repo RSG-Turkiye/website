@@ -1,0 +1,18 @@
+{
+  "id": "hacettepe-bilgisayar-muhendisligi-phd",
+  "universityId": "hacettepe",
+  "type": "phd",
+  "mscId": "hacettepe-bilgisayar-muhendisligi",
+  "name": {
+    "en": "Computer Engineering (PhD)",
+    "tr": "Bilgisayar Mühendisliği (Doktora)"
+  },
+  "institute": {
+    "en": "Graduate School of Science and Engineering",
+    "tr": "Fen Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://fenbilimleri.hacettepe.edu.tr/tr/menu/basvuru_islemleri-44",
+  "sourceUrl": "https://fs.hacettepe.edu.tr/fenbilimleri/dosyalar/basvuru_kontenjan_kesinkayit/26-27guzbasvurukosullari25.pdf",
+  "checkedAt": "2026-11-18"
+}
