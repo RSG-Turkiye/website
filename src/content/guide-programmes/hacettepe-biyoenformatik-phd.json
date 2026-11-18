@@ -1,0 +1,18 @@
+{
+  "id": "hacettepe-biyoenformatik-phd",
+  "universityId": "hacettepe",
+  "type": "phd",
+  "mscId": "hacettepe-biyoenformatik",
+  "name": {
+    "en": "Bioinformatics (PhD, in English)",
+    "tr": "Biyoenformatik (Doktora, İngilizce)"
+  },
+  "institute": {
+    "en": "Graduate School of Informatics",
+    "tr": "Bilişim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://bilisim.hacettepe.edu.tr/tr",
+  "sourceUrl": "https://bilisim.hacettepe.edu.tr/tr",
+  "checkedAt": "2026-11-18"
+}
