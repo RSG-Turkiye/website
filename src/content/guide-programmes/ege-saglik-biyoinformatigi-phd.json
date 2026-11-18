@@ -1,0 +1,18 @@
+{
+  "id": "ege-saglik-biyoinformatigi-phd",
+  "universityId": "ege",
+  "type": "phd",
+  "mscId": "ege-saglik-biyoinformatigi",
+  "name": {
+    "en": "Health Bioinformatics (PhD)",
+    "tr": "Sağlık Biyoinformatiği Doktora"
+  },
+  "institute": {
+    "en": "Graduate School of Health Sciences",
+    "tr": "Sağlık Bilimleri Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "http://sbe.ege.edu.tr/",
+  "sourceUrl": "https://sbe.ege.edu.tr/tr-4886/lisansustu_programlarimiz.html",
+  "checkedAt": "2026-11-18"
+}
