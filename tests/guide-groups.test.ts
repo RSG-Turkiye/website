@@ -128,3 +128,8 @@ test('a PhD with the same institute and months as its MSc is one line inside the
   const other = { ...same, usualMonths: ['8' as const] };
   assert.equal((applyBlocksHtml([msc, other], 'tr', '2026-11-03', {}).match(/border-l-2/g) || []).length, 2, 'different months: its own block');
 });
+
+test('an English topic keeps a dotted i when lowercased; a Turkish one follows Turkish rules', () => {
+  const texts = chipsFor(['Plant-Microbe Interactions and Immunity', 'Işık Mikroskobu ve İmmünoloji'], []).map((c) => c.text);
+  assert.deepEqual(texts, ['Plant-Microbe interactions and immunity', 'ışık mikroskobu ve immünoloji']);
+});

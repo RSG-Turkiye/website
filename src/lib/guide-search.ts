@@ -142,7 +142,11 @@ export function groupResults(results: SearchResult[], catalog: GuideCatalog, pag
 
 /** A topic as a chip: lower case, except words written with two or more capitals (HLA, RNA-seq). */
 function chipCase(t: string): string {
-  return t.trim().split(/\s+/).map((w) => ((w.match(/[A-ZÇĞİÖŞÜ]/g) ?? []).length >= 2 ? w : w.toLocaleLowerCase('tr'))).join(' ');
+  // Turkish rules only for a Turkish topic: lowercasing the English
+  // "Interactions" by them gave "ınteractions". A topic with no Turkish
+  // letter is taken as English.
+  const lower = /[çğıöşüÇĞİÖŞÜ]/.test(t) ? (w: string) => w.toLocaleLowerCase('tr') : (w: string) => w.toLowerCase();
+  return t.trim().split(/\s+/).map((w) => ((w.match(/[A-ZÇĞİÖŞÜ]/g) ?? []).length >= 2 ? w : lower(w))).join(' ');
 }
 
 /** At most `max` topic chips: the matched ones first, one per spelling. */
