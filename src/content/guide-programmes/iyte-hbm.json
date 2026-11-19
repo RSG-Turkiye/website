@@ -1,0 +1,17 @@
+{
+  "id": "iyte-hbm",
+  "universityId": "iyte",
+  "type": "msc",
+  "name": {
+    "en": "Computational Science and Engineering (MSc, interdisciplinary)",
+    "tr": "Hesaplamalı Bilim ve Mühendislik (Yüksek Lisans, disiplinlerarası)"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.iyte.edu.tr/duyuru/",
+  "sourceUrl": "https://lee.iyte.edu.tr/lisansustu-programlar/",
+  "checkedAt": "2026-11-19"
+}
