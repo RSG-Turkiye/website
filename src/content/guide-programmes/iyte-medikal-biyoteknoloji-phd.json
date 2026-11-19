@@ -1,0 +1,18 @@
+{
+  "id": "iyte-medikal-biyoteknoloji-phd",
+  "universityId": "iyte",
+  "type": "phd",
+  "mscId": "iyte-biyoteknoloji",
+  "name": {
+    "en": "Medical Biotechnology (PhD, interdisciplinary)",
+    "tr": "Medikal Biyoteknoloji (Doktora, disiplinlerarası)"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.iyte.edu.tr/duyuru/",
+  "sourceUrl": "https://lee.iyte.edu.tr/lisansustu-programlar/",
+  "checkedAt": "2026-11-19"
+}

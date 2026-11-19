@@ -1,0 +1,17 @@
+{
+  "id": "iyte-biyoteknoloji",
+  "universityId": "iyte",
+  "type": "msc",
+  "name": {
+    "en": "Biotechnology (MSc, interdisciplinary)",
+    "tr": "Biyoteknoloji (Yüksek Lisans, disiplinlerarası)"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.iyte.edu.tr/duyuru/",
+  "sourceUrl": "https://lee.iyte.edu.tr/lisansustu-programlar/",
+  "checkedAt": "2026-11-19"
+}
