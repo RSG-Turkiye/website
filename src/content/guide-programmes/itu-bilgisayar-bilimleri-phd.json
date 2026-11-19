@@ -1,0 +1,18 @@
+{
+  "id": "itu-bilgisayar-bilimleri-phd",
+  "universityId": "itu",
+  "type": "phd",
+  "mscId": "itu-bilgisayar-bilimleri",
+  "name": {
+    "en": "Computer Science (PhD)",
+    "tr": "Bilgisayar Bilimleri (Doktora)"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.itu.edu.tr/adayogrenciler/lisansustu-basvuru",
+  "sourceUrl": "https://lee.itu.edu.tr/egitim/programlarimiz",
+  "checkedAt": "2026-11-19"
+}

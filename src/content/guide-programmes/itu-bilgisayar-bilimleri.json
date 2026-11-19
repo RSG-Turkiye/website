@@ -1,0 +1,17 @@
+{
+  "id": "itu-bilgisayar-bilimleri",
+  "universityId": "itu",
+  "type": "msc",
+  "name": {
+    "en": "Computer Science (MSc, thesis)",
+    "tr": "Bilgisayar Bilimleri (Yüksek Lisans, tezli)"
+  },
+  "institute": {
+    "en": "Graduate School",
+    "tr": "Lisansüstü Eğitim Enstitüsü"
+  },
+  "usualMonths": [],
+  "announcementUrl": "https://lee.itu.edu.tr/adayogrenciler/lisansustu-basvuru",
+  "sourceUrl": "https://lee.itu.edu.tr/egitim/programlarimiz",
+  "checkedAt": "2026-11-19"
+}
