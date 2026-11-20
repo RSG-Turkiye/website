@@ -24,7 +24,7 @@
           },
           "field": {
             "en": "Bioinformatics and Systems Biology",
-            "tr": "Bioinformatik ve Sistem Biyolojisi"
+            "tr": "Biyoinformatik ve Sistem Biyolojisi"
           },
           "institution": {
             "en": "Gebze Technical University",
@@ -81,12 +81,12 @@
       "education": [
         {
           "degree": {
-            "en": "Undergraduate",
-            "tr": "Lisans"
+            "en": "MSc",
+            "tr": "Yüksek Lisans"
           },
           "field": {
-            "en": "Bioengineering",
-            "tr": "Biyomühendislik"
+            "en": "Bioinformatics and Systems Biology",
+            "tr": "Biyoinformatik ve Sistem Biyolojisi"
           },
           "institution": {
             "en": "Gebze Technical University",
